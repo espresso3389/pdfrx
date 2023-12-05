@@ -1,0 +1,21 @@
+{
+  "env": {
+    "ndkVersion": "21.1.6352462"
+  },
+  "configurations": [
+    {
+      "name": "Win32",
+      "includePath": [
+        "${workspaceFolder}/android/.lib/include",
+        "${workspaceFolder}/iOS/Classes/*",
+        "${env:LOCALAPPDATA}/Android/Sdk/ndk/${ndkVersion}/sysroot/usr/include/*"
+      ],
+      "defines": [],
+      "cStandard": "c17",
+      "cppStandard": "c++17",
+      "intelliSenseMode": "linux-clang-arm64",
+      "configurationProvider": "go2sh.cmake-integration"
+    }
+  ],
+  "version": 4
+}

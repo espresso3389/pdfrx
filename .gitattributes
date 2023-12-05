@@ -1,0 +1,11 @@
+*       text=auto
+/build  text eol=lf
+*.dart  text eol=lf
+*.kt    text eol=lf
+*.swift text eol=lf
+*.cs    text eof=lf
+*.m     text eol=lf
+*.h     text eol=lf
+*.sh    text eol=lf
+*.bat   text eol=crlf
+*.plist text eof=lf

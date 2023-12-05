@@ -1,0 +1,13 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index b39d278..596ea7a 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -12,7 +12,7 @@ if (current_cpu == "arm" || current_cpu == "arm64") {
+ }
+ 
+ assert(
+-    use_blink,
++    true,
+     "This is not used if blink is not enabled, don't drag it in unintentionally")
+ 
+ source_set("libjpeg_headers") {

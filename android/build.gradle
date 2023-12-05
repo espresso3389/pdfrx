@@ -43,6 +43,7 @@ android {
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
         test.java.srcDirs += 'src/test/kotlin'
+        main.jniLibs.srcDirs += '.lib'
     }
 
     defaultConfig {
@@ -52,6 +53,13 @@ android {
     dependencies {
         testImplementation 'org.jetbrains.kotlin:kotlin-test'
         testImplementation 'org.mockito:mockito-core:5.0.0'
+    }
+
+    externalNativeBuild {
+        cmake {
+            version "3.22.1"
+            path "CMakeLists.txt"
+        }
     }
 
     testOptions {

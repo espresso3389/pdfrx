@@ -1,0 +1,27 @@
+#!/bin/zsh -e
+
+# for iOS/iPhoneSimulator
+if [[ ! -d ios/pdfium.xcframework ]]; then
+  ./build-config.sh ios arm64
+  ./build-config.sh iossim arm64
+  ./build-config.sh iossim x64
+
+  mkdir -p .tmp/out/lib/iossim-release
+  lipo -create .tmp/out/lib/iossim-arm64-release/libpdfium.a .tmp/out/lib/iossim-x64-release/libpdfium.a -output .tmp/out/lib/iossim-release/libpdfium.a
+
+  mkdir -p ios/
+  xcodebuild -create-xcframework -library .tmp/out/lib/ios-arm64-release/libpdfium.a -headers .tmp/out/include -library .tmp/out/lib/iossim-release/libpdfium.a -headers .tmp/out/include -output ios/pdfium.xcframework
+fi
+
+# for macOS
+if [[ ! -d macos/pdfium.xcframework ]]; then
+  ./build-config.sh macos arm64
+  ./build-config.sh macos x64
+
+  mkdir -p .tmp/out/lib/macos-release
+  lipo -create .tmp/out/lib/macos-arm64-release/libpdfium.a .tmp/out/lib/macos-x64-release/libpdfium.a -output .tmp/out/lib/macos-release/libpdfium.a
+
+  mkdir -p macos/
+  rm -rf macos/pdfium.xcframework
+  xcodebuild -create-xcframework -library .tmp/out/lib/macos-release/libpdfium.a -headers .tmp/out/include -output macos/pdfium.xcframework
+fi
