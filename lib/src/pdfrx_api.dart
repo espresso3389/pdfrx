@@ -86,7 +86,7 @@ abstract class PdfDocument {
   Future<PdfPage> getPage(int pageNumber);
 }
 
-/// Handles a PDF page in [PDFDocument].
+/// Handles a PDF page in [PdfDocument].
 abstract class PdfPage {
   /// PDF document.
   PdfDocument get document;
@@ -104,7 +104,7 @@ abstract class PdfPage {
   /// Returned image should be disposed after use.
   /// [x], [y], [width], [height] specify sub-area to render in pixels.
   /// [fullWidth], [fullHeight] specify virtual full size of the page to render in pixels. If they're not specified, [width] and [height] are used to specify the full size.
-  /// If [width], [height], [fullWidth], [fullHeight], and [dpi] are all 0, the page is rendered at 72 dpi.
+  /// If [width], [height], [fullWidth], and [fullHeight], are all 0, the page is rendered at 72 dpi.
   /// [backgroundColor] is used to fill the background of the page and if not specified, [Colors.white] is used.
   /// ![](./images/render-params.png)
   Future<PdfImage> render({

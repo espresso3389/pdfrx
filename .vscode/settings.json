@@ -48,7 +48,8 @@
     "Subrect",
     "unawaited",
     "unregister",
-    "vsync"
+    "vsync",
+    "xcframework"
   ],
   "editor.codeActionsOnSave": {
     "source.fixAll": "always",
