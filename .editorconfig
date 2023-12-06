@@ -4,7 +4,7 @@ root = true
 end_of_file = lf
 insert_final_newline = true
 
-[*.{dart,java,kt,swift,json}]
+[*.{dart,java,kt,swift,json,yml,yaml,md,gradle,properties,xml,sh}]
 charset = utf-8
 indent_style = space
 indent_size = 2

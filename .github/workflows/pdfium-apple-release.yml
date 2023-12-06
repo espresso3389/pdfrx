@@ -1,0 +1,24 @@
+name: Build and release pdfium binaries for iOS and macOS
+on:
+  push:
+    tags:
+      - pdfium-apple-*
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build pdfium
+        run: ./darwin/pdfium/build
+      - name: Release pdfium
+        uses: softprops/action-gh-release@v1
+        with:
+          token: ${{ secrets.TOKEN_FOR_RELEASE }}
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          body: iOS/macOS pdfium prebuilt binary distribution for pdfrx (${{ github.ref_name }}).
+          files: |
+            ./darwin/pdfium/pdfium-ios.tgz
+            ./darwin/pdfium/pdfium-macos.tgz
