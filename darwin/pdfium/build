@@ -1,5 +1,8 @@
 #!/bin/zsh -e
 
+SCRIPT_DIR=$(cd $(dirname $0) && pwd)
+cd $SCRIPT_DIR
+
 # for iOS/iPhoneSimulator
 if [[ ! -d ios/pdfium.xcframework ]]; then
   ./build-config.sh ios arm64
