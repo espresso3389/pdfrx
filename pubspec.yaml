@@ -21,7 +21,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^3.0.1
   ffigen: ^10.0.0
 
 flutter:
@@ -44,12 +44,17 @@ flutter:
         package: jp.espresso3389.pdfrx
         pluginClass: PdfrxPlugin
         sharedDarwinSource: true
+
+# dart run ffigen
 ffigen:
   output:
-    bindings: 'lib/src/pdfium_bindings.dart'
+    bindings: 'lib/src/pdfium/pdfium_bindings.dart'
   headers:
     entry-points:
-      - '../pdfrx/android/.lib/include/fpdfview.h'
+      - '../../pdfrx/windows/.lib/include/fpdfview.h'
+      - '../../pdfrx/windows/.lib/include/fpdf_annot.h'
+      - '../../pdfrx/windows/.lib/include/fpdf_text.h'
+      - '../../pdfrx/windows/.lib/include/fpdf_doc.h'
     include-directives:
-      - '../pdfrx/android/.lib/include/**'
+      - '../../pdfrx/windows/.lib/include/**'
   name: 'pdfium'

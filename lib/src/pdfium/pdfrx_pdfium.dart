@@ -56,10 +56,16 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   }
 
   @override
-  Future<PdfDocument> openData(Uint8List data, {String? password}) => _openData(
+  Future<PdfDocument> openData(
+    Uint8List data, {
+    String? password,
+    void Function()? onDispose,
+  }) =>
+      _openData(
         data,
         'memory-${data.hashCode}',
         password: password,
+        onDispose: onDispose,
       );
 
   @override
@@ -79,6 +85,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     String sourceName, {
     String? password,
     int? maxSizeToCacheOnMemory,
+    void Function()? onDispose,
   }) async {
     _init();
     return openCustom(
@@ -94,7 +101,9 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       },
       fileSize: data.length,
       sourceName: sourceName,
+      password: password,
       maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
+      onDispose: onDispose,
     );
   }
 
@@ -106,6 +115,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     required String sourceName,
     String? password,
     int? maxSizeToCacheOnMemory,
+    void Function()? onDispose,
   }) async {
     _init();
 
@@ -123,7 +133,10 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
             password?.toUtf8(arena) ?? nullptr,
           ),
           sourceName: sourceName,
-          disposeCallback: () => calloc.free(buffer),
+          disposeCallback: () {
+            calloc.free(buffer);
+            onDispose?.call();
+          },
         );
       });
     }
@@ -146,7 +159,10 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     return PdfDocumentPdfium.fromPdfDocument(
       pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
       sourceName: sourceName,
-      disposeCallback: () => fa.dispose(),
+      disposeCallback: () {
+        fa.dispose();
+        onDispose?.call();
+      },
     );
   }
 }
@@ -340,6 +356,21 @@ class PdfPagePdfium extends PdfPage {
       buffer: buffer,
     );
   }
+
+  @override
+  Future<PdfPageText?> loadText() async {
+    return await document.synchronized(() {
+      final textPage = pdfium.FPDFText_LoadPage(page);
+      final charCount = pdfium.FPDFText_CountChars(textPage);
+      return textPage.address == 0
+          ? null
+          : PdfPageTextPdfium(
+              page: this,
+              textPage: textPage,
+              charCount: charCount,
+            );
+    });
+  }
 }
 
 class PdfImagePdfium extends PdfImage {
@@ -364,4 +395,228 @@ class PdfImagePdfium extends PdfImage {
   void dispose() {
     calloc.free(_buffer);
   }
+}
+
+class PdfPageTextPdfium extends PdfPageText {
+  final PdfPagePdfium page;
+  final pdfium_bindings.FPDF_TEXTPAGE textPage;
+
+  PdfPageTextPdfium({
+    required this.page,
+    required this.textPage,
+    required this.charCount,
+  });
+
+  @override
+  Future<void> dispose() {
+    return page.document
+        .synchronized(() => pdfium.FPDFText_ClosePage(textPage));
+  }
+
+  @override
+  final int charCount;
+
+  @override
+  Future<String> getChars({PdfPageTextRange? range}) {
+    range ??= fullRange;
+    return page.document.synchronized(
+      () => using(
+        (arena) {
+          final buffer = arena.allocate<Uint16>(range!.count * 2);
+          pdfium.FPDFText_GetText(
+              textPage, range.start, range.count, buffer.cast<UnsignedShort>());
+          return String.fromCharCodes(buffer.asTypedList(range.count));
+        },
+      ),
+    );
+  }
+
+  /// Get the font size of the text in the specified range.
+  /// The font size of the particular character, measured in points (about 1/72 inch).
+  /// This is the typographic size of the font (so called "em size").
+  Future<List<double>> getFontSizes({PdfPageTextRange? range}) {
+    range ??= fullRange;
+    return page.document.synchronized(() => List.generate(
+        range!.count,
+        (index) =>
+            pdfium.FPDFText_GetFontSize(textPage, range!.start + index)));
+  }
+
+  @override
+  Future<List<PdfRect>> getCharBoxes({PdfPageTextRange? range}) {
+    range ??= fullRange;
+    return page.document.synchronized(
+      () => using(
+        (arena) {
+          final buffer = arena.allocate<Double>(4 * 8);
+          return List.generate(
+            range!.count,
+            (index) {
+              pdfium.FPDFText_GetCharBox(
+                textPage,
+                range!.start + index,
+                buffer,
+                buffer.offset(8),
+                buffer.offset(16),
+                buffer.offset(24),
+              );
+              return _rectFromPointer(buffer);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Future<int> getRectCount({PdfPageTextRange? range}) {
+    range ??= fullRange;
+    return page.document.synchronized(
+        () => pdfium.FPDFText_CountRects(textPage, range!.start, range.count));
+  }
+
+  @override
+  Future<List<PdfRect>> getRects({PdfPageTextRange? range}) {
+    range ??= fullRange;
+    return page.document.synchronized(
+      () => using(
+        (arena) {
+          final rectBuffer = arena.allocate<Double>(4 * 8);
+          return List.generate(
+            range!.count,
+            (index) {
+              pdfium.FPDFText_GetRect(
+                textPage,
+                range!.start + index,
+                rectBuffer,
+                rectBuffer.offset(8),
+                rectBuffer.offset(16),
+                rectBuffer.offset(24),
+              );
+              return _rectFromPointer(rectBuffer);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Future<String> getBoundedText(PdfRect rect) => page.document.synchronized(
+        () => using(
+          (arena) {
+            final count = pdfium.FPDFText_GetBoundedText(
+              textPage,
+              rect.left,
+              rect.bottom,
+              rect.right,
+              rect.top,
+              nullptr,
+              0,
+            );
+
+            final buffer = arena.allocate<UnsignedShort>(count * 2);
+            pdfium.FPDFText_GetBoundedText(
+              textPage,
+              rect.left,
+              rect.bottom,
+              rect.right,
+              rect.top,
+              buffer,
+              count,
+            );
+            return String.fromCharCodes(
+                buffer.cast<Uint16>().asTypedList(count));
+          },
+        ),
+      );
+
+  @override
+  Future<List<PdfLink>> getLinks() async {
+    return await page.document.synchronized(() {
+      final linkPage = pdfium.FPDFLink_LoadWebLinks(textPage);
+      try {
+        return using((arena) {
+          final rectBuffer = arena.allocate<Double>(4 * 8);
+          return List.generate(
+            pdfium.FPDFLink_CountWebLinks(linkPage),
+            (index) {
+              return PdfLink(
+                _getLinkUrl(arena, linkPage, index),
+                List.generate(
+                  pdfium.FPDFLink_CountRects(linkPage, index),
+                  (rectIndex) {
+                    pdfium.FPDFLink_GetRect(
+                      linkPage,
+                      index,
+                      rectIndex,
+                      rectBuffer,
+                      rectBuffer.offset(8),
+                      rectBuffer.offset(16),
+                      rectBuffer.offset(24),
+                    );
+                    return _rectFromPointer(rectBuffer);
+                  },
+                ),
+              );
+            },
+          );
+        });
+      } finally {
+        pdfium.FPDFLink_CloseWebLinks(linkPage);
+      }
+    });
+  }
+
+  String _getLinkUrl(
+      Allocator alloc, pdfium_bindings.FPDF_PAGELINK linkPage, int linkIndex) {
+    final urlLength = pdfium.FPDFLink_GetURL(linkPage, linkIndex, nullptr, 0);
+    final urlBuffer = alloc.allocate<UnsignedShort>(urlLength * 2);
+    pdfium.FPDFLink_GetURL(linkPage, linkIndex, urlBuffer, urlLength);
+    return String.fromCharCodes(
+        urlBuffer.cast<Uint16>().asTypedList(urlLength));
+  }
+
+  @override
+  Future<List<PdfPageTextRange>> findText(
+    String text, {
+    bool matchCase = false,
+    bool wholeWord = false,
+  }) =>
+      page.document.synchronized(
+        () {
+          return using(
+            (arena) {
+              final search = pdfium.FPDFText_FindStart(
+                textPage,
+                text.toNativeUtf16(allocator: arena).cast(),
+                (matchCase ? 1 : 0) | (wholeWord ? 2 : 0),
+                0,
+              );
+              try {
+                final matches = <PdfPageTextRange>[];
+                do {
+                  matches.add(
+                    PdfPageTextRange(
+                      pdfium.FPDFText_GetSchResultIndex(search),
+                      pdfium.FPDFText_GetSchCount(search),
+                    ),
+                  );
+                } while (pdfium.FPDFText_FindNext(search) != 0);
+                return matches;
+              } finally {
+                pdfium.FPDFText_FindClose(search);
+              }
+            },
+          );
+        },
+      );
+}
+
+PdfRect _rectFromPointer(Pointer<Double> buffer) =>
+    PdfRect(buffer[0], buffer[3], buffer[2], buffer[3]);
+
+extension _PointerExt<T extends NativeType> on Pointer<T> {
+  Pointer<T> offset(int offsetInBytes) =>
+      Pointer.fromAddress(address + offsetInBytes);
 }

@@ -23,13 +23,15 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   }
 
   @override
-  Future<PdfDocument> openCustom(
-      {required FutureOr<int> Function(Uint8List buffer, int position, int size)
-          read,
-      required int fileSize,
-      required String sourceName,
-      String? password,
-      int? maxSizeToCacheOnMemory}) async {
+  Future<PdfDocument> openCustom({
+    required FutureOr<int> Function(Uint8List buffer, int position, int size)
+        read,
+    required int fileSize,
+    required String sourceName,
+    String? password,
+    int? maxSizeToCacheOnMemory,
+    void Function()? onDispose,
+  }) async {
     final buffer = Uint8List(fileSize);
     await read(buffer, 0, fileSize);
     return await PdfDocumentWeb.fromDocument(
@@ -38,17 +40,23 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         password: password,
       ),
       sourceName: sourceName,
+      onDispose: onDispose,
     );
   }
 
   @override
-  Future<PdfDocument> openData(Uint8List data, {String? password}) async {
+  Future<PdfDocument> openData(
+    Uint8List data, {
+    String? password,
+    void Function()? onDispose,
+  }) async {
     return await PdfDocumentWeb.fromDocument(
       await pdfjsGetDocumentFromData(
         data.buffer,
         password: password,
       ),
       sourceName: 'memory',
+      onDispose: onDispose,
     );
   }
 
@@ -72,13 +80,16 @@ class PdfDocumentWeb extends PdfDocument {
     required super.isEncrypted,
     required super.allowsCopying,
     required super.allowsPrinting,
+    this.onDispose,
   });
 
   final PdfjsDocument _document;
+  final void Function()? onDispose;
 
   static Future<PdfDocumentWeb> fromDocument(
     PdfjsDocument document, {
     required String sourceName,
+    void Function()? onDispose,
   }) async {
     final perms =
         await js_util.promiseToFuture<List<int>?>(document.getPermissions());
@@ -90,12 +101,14 @@ class PdfDocumentWeb extends PdfDocument {
       isEncrypted: perms != null,
       allowsCopying: perms == null,
       allowsPrinting: perms == null,
+      onDispose: onDispose,
     );
   }
 
   @override
   Future<void> dispose() async {
     _document.destroy();
+    onDispose?.call();
   }
 
   @override
@@ -206,6 +219,12 @@ class PdfPageWeb extends PdfPage {
         .buffer
         .asUint8List();
     return src;
+  }
+
+  @override
+  Future<PdfPageText?> loadText() {
+    // TODO: implement loadText
+    throw UnimplementedError();
   }
 }
 
