@@ -12,6 +12,7 @@ abstract class PdfDocumentFactory {
   Future<PdfDocument> openData(
     Uint8List data, {
     String? password,
+    String? sourceName,
     void Function()? onDispose,
   });
   Future<PdfDocument> openFile(String filePath, {String? password});
@@ -24,6 +25,10 @@ abstract class PdfDocumentFactory {
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   });
+  Future<PdfDocument> openUri(
+    Uri uri, {
+    String? password,
+  });
 
   static PdfDocumentFactory instance = PdfDocumentFactoryImpl();
 }
@@ -33,9 +38,6 @@ abstract class PdfDocument {
   PdfDocument({
     required this.sourceName,
     required this.pageCount,
-    required this.isEncrypted,
-    required this.allowsCopying,
-    required this.allowsPrinting,
   });
 
   /// File path, `asset:[ASSET_PATH]` or `memory:` depending on the content opened.
@@ -44,14 +46,11 @@ abstract class PdfDocument {
   /// Number of pages in the PDF document.
   final int pageCount;
 
+  /// Permission flags.
+  PdfPermissions? get permissions;
+
   /// Determine whether the PDF file is encrypted or not.
-  final bool isEncrypted;
-
-  /// Determine whether the PDF file allows copying of the contents.
-  final bool allowsCopying;
-
-  /// Determine whether the PDF file allows printing of the pages.
-  final bool allowsPrinting;
+  bool get isEncrypted;
 
   Future<void> dispose();
 
@@ -68,11 +67,13 @@ abstract class PdfDocument {
   static Future<PdfDocument> openData(
     Uint8List data, {
     String? password,
+    String? sourceName,
     void Function()? onDispose,
   }) =>
       PdfDocumentFactory.instance.openData(
         data,
         password: password,
+        sourceName: sourceName,
         onDispose: onDispose,
       );
 
@@ -96,6 +97,20 @@ abstract class PdfDocument {
         password: password,
         maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
         onDispose: onDispose,
+      );
+
+  /// Opening the PDF from URI.
+  /// For Flutter Web, the file is cached by the browser. Otherwise, the file is cached using [PdfFileCache]
+  /// created by a function specified by [PdfFileCache.createDefault]. By default, the file is cached on memory.
+  /// You can override the cache behavior by replacing [PdfFileCache.createDefault].
+  /// For more information, see [pdfDocumentFromUri].
+  static Future<PdfDocument> openUri(
+    Uri uri, {
+    String? password,
+  }) =>
+      PdfDocumentFactory.instance.openUri(
+        uri,
+        password: password,
       );
 
   /// Get page object. The first page is 1.
@@ -138,6 +153,27 @@ abstract class PdfPage {
   Future<PdfPageText?> loadText();
 }
 
+class PdfPermissions {
+  const PdfPermissions(this.permissions, this.securityHandlerRevision);
+
+  /// User access permissions on on PDF 32000-1:2008, Table 22.
+  final int permissions;
+
+  /// Security handler revision.
+  final int securityHandlerRevision;
+
+  /// Determine whether the PDF file allows copying of the contents.
+  bool get allowsCopying => (permissions & 4) != 0;
+
+  bool get allowsDocumentAssembly => (permissions & 8) != 0;
+
+  /// Determine whether the PDF file allows printing of the pages.
+  bool get allowsPrinting => (permissions & 16) != 0;
+
+  /// Determine whether the PDF file allows modifying annotations, form fields, and their associated
+  bool get allowsModifyAnnotations => (permissions & 32) != 0;
+}
+
 /// Image rendered from PDF page.
 abstract class PdfImage {
   /// Number of pixels in horizontal direction.
@@ -164,46 +200,27 @@ abstract class PdfImage {
   }
 }
 
+/// Handles text extraction from PDF page.
 abstract class PdfPageText {
-  /// Dispose the text object.
-  Future<void> dispose();
+  /// Full text of the page.
+  String get fullText;
 
-  /// Get number of characters in the page.
-  int get charCount;
+  /// Get text fragments that organizes the full text structure.
+  List<PdfPageTextFragment> get fragments;
+}
 
-  /// Get full character index range of the text.
-  PdfPageTextRange get fullRange => PdfPageTextRange(0, charCount);
+abstract class PdfPageTextFragment {
+  /// Range of the text fragment in [PdfPageText.fullText].
+  PdfPageTextRange get range;
 
-  /// Get UTF-16 code units of the text in the specified range.
-  Future<String> getChars({PdfPageTextRange? range});
+  /// Bounds of the text fragment in PDF coordinate.
+  PdfRect get bounds;
 
-  /// Get bounding box of the text in the specified range.
-  /// All positions are measured in PDF "user space".
-  Future<List<PdfRect>> getCharBoxes({PdfPageTextRange? range});
+  /// Fragment's child character bounding boxes in PDF coordinate if available.
+  List<PdfRect>? get charRects;
 
-  /// Count number of rectangular areas occupied by a segment of texts.
-  /// This function, along with FPDFText_GetRect can be used by applications
-  /// to detect the position on the page for a text segment, so proper areas
-  /// can be highlighted or something. It will automatically merge small
-  /// character boxes into bigger one if those characters are on the same
-  /// line and use same font settings.
-  Future<int> getRectCount({PdfPageTextRange? range});
-
-  /// Extract unicode text within a rectangular boundary on the page.
-  Future<List<PdfRect>> getRects({PdfPageTextRange? range});
-
-  /// Extract unicode text within a rectangular boundary on the page.
-  Future<String> getBoundedText(PdfRect rect);
-
-  /// Get links in the page.
-  Future<List<PdfLink>> getLinks();
-
-  /// Find text in the page.
-  Future<List<PdfPageTextRange>> findText(
-    String text, {
-    bool matchCase = false,
-    bool wholeWord = false,
-  });
+  /// Text for the fragment.
+  String get fragment;
 }
 
 @immutable
@@ -215,41 +232,44 @@ class PdfPageTextRange {
   int get end => start + count;
 }
 
+///
 @immutable
 class PdfRect {
   const PdfRect(this.left, this.top, this.right, this.bottom);
+
   final double left;
   final double top;
   final double right;
   final double bottom;
 
-  bool get isEmpty => left == right || top == bottom;
+  bool get isEmpty => left >= right || top <= bottom;
   bool get isNotEmpty => !isEmpty;
 
   PdfRect merge(PdfRect other) {
     return PdfRect(
       left < other.left ? left : other.left,
-      top < other.top ? top : other.top,
+      top > other.top ? top : other.top,
       right > other.right ? right : other.right,
-      bottom > other.bottom ? bottom : other.bottom,
+      bottom < other.bottom ? bottom : other.bottom,
     );
   }
 
   static const empty = PdfRect(0, 0, 0, 0);
+
+  Rect toRect({
+    required double height,
+    double scale = 1.0,
+  }) =>
+      Rect.fromLTRB(
+        left * scale,
+        height - top * scale,
+        right * scale,
+        height - bottom * scale,
+      );
 }
 
 extension PdfRectsExt on Iterable<PdfRect> {
-  PdfRect boundingRect() {
-    final it = iterator;
-    if (!it.moveNext()) {
-      return PdfRect.empty;
-    }
-    var rect = it.current;
-    while (it.moveNext()) {
-      rect = rect.merge(it.current);
-    }
-    return rect;
-  }
+  PdfRect boundingRect() => reduce((a, b) => a.merge(b));
 }
 
 @immutable

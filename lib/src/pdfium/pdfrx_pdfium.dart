@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:synchronized/extension.dart';
 
 import '../pdfrx_api.dart';
+import '../pdfrx_downloader.dart';
 import 'pdfium_bindings.dart' as pdfium_bindings;
 import 'pdfium_interop.dart';
 import 'worker.dart';
@@ -59,11 +60,12 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   Future<PdfDocument> openData(
     Uint8List data, {
     String? password,
+    String? sourceName,
     void Function()? onDispose,
   }) =>
       _openData(
         data,
-        'memory-${data.hashCode}',
+        sourceName ?? 'memory-${data.hashCode}',
         password: password,
         onDispose: onDispose,
       );
@@ -165,10 +167,18 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       },
     );
   }
+
+  @override
+  Future<PdfDocument> openUri(
+    Uri uri, {
+    String? password,
+  }) {
+    return pdfDocumentFromUri(uri, password: password);
+  }
 }
 
 extension FpdfUtf8StringExt on String {
-  Pointer<Char> toUtf8(Allocator arena) =>
+  Pointer<Char> toUtf8(Arena arena) =>
       Pointer.fromAddress(toNativeUtf8(allocator: arena).address);
 }
 
@@ -177,14 +187,19 @@ class PdfDocumentPdfium extends PdfDocument {
   final List<PdfPagePdfium?> _pages;
   final void Function()? disposeCallback;
   final _worker = BackgroundWorker.create();
+  final int securityHandlerRevision;
+
+  @override
+  bool get isEncrypted => securityHandlerRevision != 0;
+  @override
+  final PdfPermissions? permissions;
 
   PdfDocumentPdfium._(
     this.doc, {
     required super.sourceName,
     required super.pageCount,
-    required super.isEncrypted,
-    required super.allowsCopying,
-    required super.allowsPrinting,
+    required this.securityHandlerRevision,
+    required this.permissions,
     required List<PdfPagePdfium?> pages,
     this.disposeCallback,
   }) : _pages = pages;
@@ -227,9 +242,10 @@ class PdfDocumentPdfium extends PdfDocument {
       doc,
       sourceName: sourceName,
       pageCount: result.pageCount,
-      isEncrypted: result.securityHandlerRevision != -1,
-      allowsCopying: result.permissions & 32 != 0,
-      allowsPrinting: result.permissions & 8 != 0,
+      securityHandlerRevision: result.securityHandlerRevision,
+      permissions: result.securityHandlerRevision != -1
+          ? PdfPermissions(result.permissions, result.securityHandlerRevision)
+          : null,
       pages: [],
       disposeCallback: disposeCallback,
     );
@@ -285,8 +301,6 @@ class PdfPagePdfium extends PdfPage {
     required this.page,
   });
 
-  /// FIXME: The implementation is not threaded but it internally divide
-  /// the area to be rendered into blocks and render them in order.
   @override
   Future<PdfImage> render({
     int x = 0,
@@ -302,7 +316,8 @@ class PdfPagePdfium extends PdfPage {
     width ??= fullWidth.toInt();
     height ??= fullHeight.toInt();
     backgroundColor ??= Colors.white;
-    final buffer = malloc.allocate<Uint8>(width * height * 4);
+    const rgbaSize = 4;
+    final buffer = malloc.allocate<Uint8>(width * height * rgbaSize);
 
     await document.synchronized(
       () async {
@@ -313,7 +328,7 @@ class PdfPagePdfium extends PdfPage {
               params.height,
               pdfium_bindings.FPDFBitmap_BGRA,
               Pointer.fromAddress(params.buffer),
-              params.width * 4,
+              params.width * rgbaSize,
             );
             pdfium.FPDFBitmap_FillRect(
               bmp,
@@ -358,19 +373,7 @@ class PdfPagePdfium extends PdfPage {
   }
 
   @override
-  Future<PdfPageText?> loadText() async {
-    return await document.synchronized(() {
-      final textPage = pdfium.FPDFText_LoadPage(page);
-      final charCount = pdfium.FPDFText_CountChars(textPage);
-      return textPage.address == 0
-          ? null
-          : PdfPageTextPdfium(
-              page: this,
-              textPage: textPage,
-              charCount: charCount,
-            );
-    });
-  }
+  Future<PdfPageText?> loadText() => PdfPageTextPdfium._loadText(this);
 }
 
 class PdfImagePdfium extends PdfImage {
@@ -397,224 +400,191 @@ class PdfImagePdfium extends PdfImage {
   }
 }
 
-class PdfPageTextPdfium extends PdfPageText {
-  final PdfPagePdfium page;
-  final pdfium_bindings.FPDF_TEXTPAGE textPage;
+@immutable
+class PdfPageTextFragmentPdfium implements PdfPageTextFragment {
+  const PdfPageTextFragmentPdfium(
+      this.text, this.range, this.bounds, this.charRects);
 
+  final PdfPageText text;
+
+  /// Range of the text fragment in [PdfPageText.fullText].
+  @override
+  final PdfPageTextRange range;
+
+  /// Bounds of the text fragment in PDF coordinate.
+  @override
+  final PdfRect bounds;
+
+  /// Fragment's child character bounding boxes in PDF coordinate if available.
+  @override
+  final List<PdfRect>? charRects;
+
+  /// Text for the fragment.
+  @override
+  String get fragment => text.fullText.substring(range.start, range.end);
+}
+
+class PdfPageTextPdfium extends PdfPageText {
   PdfPageTextPdfium({
-    required this.page,
-    required this.textPage,
-    required this.charCount,
+    required this.fullText,
+    required this.fragments,
   });
 
   @override
-  Future<void> dispose() {
-    return page.document
-        .synchronized(() => pdfium.FPDFText_ClosePage(textPage));
-  }
-
+  final String fullText;
   @override
-  final int charCount;
+  final List<PdfPageTextFragment> fragments;
 
-  @override
-  Future<String> getChars({PdfPageTextRange? range}) {
-    range ??= fullRange;
-    return page.document.synchronized(
-      () => using(
-        (arena) {
-          final buffer = arena.allocate<Uint16>(range!.count * 2);
-          pdfium.FPDFText_GetText(
-              textPage, range.start, range.count, buffer.cast<UnsignedShort>());
-          return String.fromCharCodes(buffer.asTypedList(range.count));
-        },
-      ),
+  static Future<PdfPageTextPdfium?> _loadText(PdfPagePdfium page) async {
+    final (:fullText, :charBoxes) = await _loadCharBoxes(page);
+
+    final textPage = PdfPageTextPdfium(
+      fullText: fullText,
+      fragments: [],
     );
+
+    void addFragment(int from, int end) {
+      if (from < end) {
+        final sublist = charBoxes.sublist(from, end);
+        textPage.fragments.add(
+          PdfPageTextFragmentPdfium(
+            textPage,
+            PdfPageTextRange(from, end - from),
+            sublist.boundingRect(),
+            sublist,
+          ),
+        );
+      }
+    }
+
+    int from = 0;
+    PdfRect? prev;
+    for (int i = 0; i < fullText.length; i++) {
+      final rect = charBoxes[i];
+      if (prev == null || prev.right < rect.left) {
+        prev = rect;
+        continue;
+      } else {
+        int sep = from;
+        while (sep < i && fullText.codeUnitAt(sep) <= 32) {
+          sep++;
+        }
+
+        addFragment(from, sep);
+        addFragment(sep, i);
+        from = i;
+        prev = null;
+      }
+    }
+    addFragment(from, fullText.length);
+
+    textPage.fragments.sort((a, b) {
+      final s1 = (b.bounds.top - a.bounds.top).sign.toInt();
+      if (s1 != 0) return s1;
+      return (a.bounds.left - b.bounds.left).sign.toInt();
+    });
+    return textPage;
   }
 
-  /// Get the font size of the text in the specified range.
-  /// The font size of the particular character, measured in points (about 1/72 inch).
-  /// This is the typographic size of the font (so called "em size").
-  Future<List<double>> getFontSizes({PdfPageTextRange? range}) {
-    range ??= fullRange;
-    return page.document.synchronized(() => List.generate(
-        range!.count,
-        (index) =>
-            pdfium.FPDFText_GetFontSize(textPage, range!.start + index)));
-  }
-
-  @override
-  Future<List<PdfRect>> getCharBoxes({PdfPageTextRange? range}) {
-    range ??= fullRange;
-    return page.document.synchronized(
-      () => using(
-        (arena) {
-          final buffer = arena.allocate<Double>(4 * 8);
-          return List.generate(
-            range!.count,
-            (index) {
-              pdfium.FPDFText_GetCharBox(
-                textPage,
-                range!.start + index,
-                buffer,
-                buffer.offset(8),
-                buffer.offset(16),
-                buffer.offset(24),
-              );
-              return _rectFromPointer(buffer);
+  static Future<({String fullText, List<PdfRect> charBoxes})> _loadCharBoxes(
+          PdfPagePdfium page) =>
+      page.document.synchronized(
+        () async => (await page.document._worker).compute(
+          (params) => using(
+            (arena) {
+              final textPage = pdfium.FPDFText_LoadPage(
+                  pdfium_bindings.FPDF_PAGE.fromAddress(params.page));
+              try {
+                final charCount = pdfium.FPDFText_CountChars(textPage);
+                final fullText = _getText(textPage, 0, charCount, arena);
+                final charBoxes = _getCharBoxes(textPage, 0, charCount, arena);
+                return (fullText: fullText, charBoxes: charBoxes);
+              } finally {
+                pdfium.FPDFText_ClosePage(textPage);
+              }
             },
-          );
-        },
-      ),
-    );
-  }
-
-  @override
-  Future<int> getRectCount({PdfPageTextRange? range}) {
-    range ??= fullRange;
-    return page.document.synchronized(
-        () => pdfium.FPDFText_CountRects(textPage, range!.start, range.count));
-  }
-
-  @override
-  Future<List<PdfRect>> getRects({PdfPageTextRange? range}) {
-    range ??= fullRange;
-    return page.document.synchronized(
-      () => using(
-        (arena) {
-          final rectBuffer = arena.allocate<Double>(4 * 8);
-          return List.generate(
-            range!.count,
-            (index) {
-              pdfium.FPDFText_GetRect(
-                textPage,
-                range!.start + index,
-                rectBuffer,
-                rectBuffer.offset(8),
-                rectBuffer.offset(16),
-                rectBuffer.offset(24),
-              );
-              return _rectFromPointer(rectBuffer);
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  @override
-  Future<String> getBoundedText(PdfRect rect) => page.document.synchronized(
-        () => using(
-          (arena) {
-            final count = pdfium.FPDFText_GetBoundedText(
-              textPage,
-              rect.left,
-              rect.bottom,
-              rect.right,
-              rect.top,
-              nullptr,
-              0,
-            );
-
-            final buffer = arena.allocate<UnsignedShort>(count * 2);
-            pdfium.FPDFText_GetBoundedText(
-              textPage,
-              rect.left,
-              rect.bottom,
-              rect.right,
-              rect.top,
-              buffer,
-              count,
-            );
-            return String.fromCharCodes(
-                buffer.cast<Uint16>().asTypedList(count));
-          },
+          ),
+          (page: page.page.address),
         ),
       );
 
-  @override
-  Future<List<PdfLink>> getLinks() async {
+  static String _getText(pdfium_bindings.FPDF_TEXTPAGE textPage, int from,
+      int length, Arena arena) {
+    final buffer = arena.allocate<Uint16>((length + 1) * sizeOf<Uint16>());
+    pdfium.FPDFText_GetText(
+        textPage, from, length, buffer.cast<UnsignedShort>());
+    return String.fromCharCodes(buffer.asTypedList(length));
+  }
+
+  static List<PdfRect> _getCharBoxes(pdfium_bindings.FPDF_TEXTPAGE textPage,
+      int from, int length, Arena arena) {
+    final doubleSize = sizeOf<Double>();
+    final buffer = arena.allocate<Double>(4 * doubleSize);
+    return List.generate(
+      length,
+      (index) {
+        pdfium.FPDFText_GetCharBox(
+          textPage,
+          from + index,
+          buffer,
+          buffer.offset(doubleSize),
+          buffer.offset(doubleSize * 2),
+          buffer.offset(doubleSize * 3),
+        );
+        return _rectFromPointer(buffer);
+      },
+    );
+  }
+
+  static Future<List<PdfLink>> _getLinks(
+      pdfium_bindings.FPDF_TEXTPAGE textPage, PdfPage page, Arena arena) async {
     return await page.document.synchronized(() {
       final linkPage = pdfium.FPDFLink_LoadWebLinks(textPage);
       try {
-        return using((arena) {
-          final rectBuffer = arena.allocate<Double>(4 * 8);
-          return List.generate(
-            pdfium.FPDFLink_CountWebLinks(linkPage),
-            (index) {
-              return PdfLink(
-                _getLinkUrl(arena, linkPage, index),
-                List.generate(
-                  pdfium.FPDFLink_CountRects(linkPage, index),
-                  (rectIndex) {
-                    pdfium.FPDFLink_GetRect(
-                      linkPage,
-                      index,
-                      rectIndex,
-                      rectBuffer,
-                      rectBuffer.offset(8),
-                      rectBuffer.offset(16),
-                      rectBuffer.offset(24),
-                    );
-                    return _rectFromPointer(rectBuffer);
-                  },
-                ),
-              );
-            },
-          );
-        });
+        final doubleSize = sizeOf<Double>();
+        final rectBuffer = arena.allocate<Double>(4 * doubleSize);
+        return List.generate(
+          pdfium.FPDFLink_CountWebLinks(linkPage),
+          (index) {
+            return PdfLink(
+              _getLinkUrl(linkPage, index, arena),
+              List.generate(
+                pdfium.FPDFLink_CountRects(linkPage, index),
+                (rectIndex) {
+                  pdfium.FPDFLink_GetRect(
+                    linkPage,
+                    index,
+                    rectIndex,
+                    rectBuffer,
+                    rectBuffer.offset(doubleSize),
+                    rectBuffer.offset(doubleSize * 2),
+                    rectBuffer.offset(doubleSize * 3),
+                  );
+                  return _rectFromPointer(rectBuffer);
+                },
+              ),
+            );
+          },
+        );
       } finally {
         pdfium.FPDFLink_CloseWebLinks(linkPage);
       }
     });
   }
 
-  String _getLinkUrl(
-      Allocator alloc, pdfium_bindings.FPDF_PAGELINK linkPage, int linkIndex) {
+  static String _getLinkUrl(
+      pdfium_bindings.FPDF_PAGELINK linkPage, int linkIndex, Arena arena) {
     final urlLength = pdfium.FPDFLink_GetURL(linkPage, linkIndex, nullptr, 0);
-    final urlBuffer = alloc.allocate<UnsignedShort>(urlLength * 2);
+    final urlBuffer =
+        arena.allocate<UnsignedShort>(urlLength * sizeOf<UnsignedShort>());
     pdfium.FPDFLink_GetURL(linkPage, linkIndex, urlBuffer, urlLength);
     return String.fromCharCodes(
         urlBuffer.cast<Uint16>().asTypedList(urlLength));
   }
-
-  @override
-  Future<List<PdfPageTextRange>> findText(
-    String text, {
-    bool matchCase = false,
-    bool wholeWord = false,
-  }) =>
-      page.document.synchronized(
-        () {
-          return using(
-            (arena) {
-              final search = pdfium.FPDFText_FindStart(
-                textPage,
-                text.toNativeUtf16(allocator: arena).cast(),
-                (matchCase ? 1 : 0) | (wholeWord ? 2 : 0),
-                0,
-              );
-              try {
-                final matches = <PdfPageTextRange>[];
-                do {
-                  matches.add(
-                    PdfPageTextRange(
-                      pdfium.FPDFText_GetSchResultIndex(search),
-                      pdfium.FPDFText_GetSchCount(search),
-                    ),
-                  );
-                } while (pdfium.FPDFText_FindNext(search) != 0);
-                return matches;
-              } finally {
-                pdfium.FPDFText_FindClose(search);
-              }
-            },
-          );
-        },
-      );
 }
 
 PdfRect _rectFromPointer(Pointer<Double> buffer) =>
-    PdfRect(buffer[0], buffer[3], buffer[2], buffer[3]);
+    PdfRect(buffer[0], buffer[3], buffer[1], buffer[2]);
 
 extension _PointerExt<T extends NativeType> on Pointer<T> {
   Pointer<T> offset(int offsetInBytes) =>

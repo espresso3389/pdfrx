@@ -24,6 +24,8 @@ class _MyAppState extends State<MyApp> {
         body: PdfViewer(
           controller: controller,
           document: PdfDocument.openAsset('assets/hello.pdf'),
+          // document: PdfDocument.openUri(Uri.parse(
+          //     'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf')),
         ),
         floatingActionButton: Column(
           mainAxisAlignment: MainAxisAlignment.end,

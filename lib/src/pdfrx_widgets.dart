@@ -14,8 +14,7 @@ class PdfViewer extends StatefulWidget {
   final FutureOr<PdfDocument> document;
   final bool docMustBeDisposed;
   final PdfViewerController? controller;
-  final PageLayout Function(List<PdfPage> pages, PdfDisplayParams params)?
-      layoutPages;
+
   final PdfDisplayParams displayParams;
   final int initialPageNumber;
   final PdfPageAnchor anchor;
@@ -25,7 +24,6 @@ class PdfViewer extends StatefulWidget {
     super.key,
     this.docMustBeDisposed = true,
     this.controller,
-    this.layoutPages,
     this.displayParams = const PdfDisplayParams(),
     this.initialPageNumber = 1,
     this.anchor = PdfPageAnchor.topCenter,
@@ -73,6 +71,8 @@ class _PdfViewerState extends State<PdfViewer>
     if (oldWidget.document != widget.document) {
       _pages = null;
       _layout = null;
+      _thumbs.clear();
+      _realSized.clear();
       oldWidget._releaseDocument();
       _controller!.removeListener(_onMatrixChanged);
       _controller!._attach(null);
@@ -80,9 +80,9 @@ class _PdfViewerState extends State<PdfViewer>
       _controller!._attach(this);
       _controller!.addListener(_onMatrixChanged);
     }
-    if (oldWidget.displayParams != widget.displayParams ||
-        oldWidget.layoutPages != widget.layoutPages) {
+    if (oldWidget.displayParams != widget.displayParams) {
       _layout = null;
+      _realSized.clear();
     }
   }
 
@@ -226,6 +226,12 @@ class _PdfViewerState extends State<PdfViewer>
           ),
         );
       }
+
+      final overlays = widget.displayParams.pageOverlaysBuilder
+          ?.call(context, page, rect, _controller!);
+      if (overlays != null) {
+        widgets.addAll(overlays);
+      }
     }
     return widgets;
   }
@@ -239,8 +245,8 @@ class _PdfViewerState extends State<PdfViewer>
       }
       _pages = pages;
     }
-    _layout =
-        (widget.layoutPages ?? _layoutPages)(_pages!, widget.displayParams);
+    _layout = (widget.displayParams.layoutPages ?? _layoutPages)(
+        _pages!, widget.displayParams);
   }
 
   static PageLayout _layoutPages(List<PdfPage> pages, PdfDisplayParams params) {
@@ -623,6 +629,17 @@ class PdfDisplayParams {
   final Widget? Function(BuildContext context, PdfPage page)?
       pagePlaceholderBuilder;
 
+  /// Add several widgets on the page [Stack].
+  /// You can use [Positioned] or such to layout overlays.
+  final List<Widget>? Function(
+    BuildContext context,
+    PdfPage page,
+    Rect pageRect,
+    PdfViewerController controller,
+  )? pageOverlaysBuilder;
+  final PageLayout Function(List<PdfPage> pages, PdfDisplayParams params)?
+      layoutPages;
+
   const PdfDisplayParams({
     this.margin = 16.0,
     this.backgroundColor = Colors.grey,
@@ -633,6 +650,8 @@ class PdfDisplayParams {
       ],
     ),
     this.pagePlaceholderBuilder,
+    this.pageOverlaysBuilder,
+    this.layoutPages,
   });
 
   @override
@@ -641,12 +660,25 @@ class PdfDisplayParams {
 
     return other.margin == margin &&
         other.backgroundColor == backgroundColor &&
-        other.pageDecoration == pageDecoration;
+        other.pageDecoration == pageDecoration &&
+        other.pagePlaceholderBuilder == pagePlaceholderBuilder &&
+        other.pageOverlaysBuilder == pageOverlaysBuilder &&
+        other.layoutPages == layoutPages;
   }
 
   @override
   int get hashCode =>
-      margin.hashCode ^ backgroundColor.hashCode ^ pageDecoration.hashCode;
+      margin.hashCode ^
+      backgroundColor.hashCode ^
+      pageDecoration.hashCode ^
+      pagePlaceholderBuilder.hashCode ^
+      pageOverlaysBuilder.hashCode ^
+      layoutPages.hashCode;
+
+  @override
+  String toString() {
+    return 'PdfDisplayParams(margin: $margin, backgroundColor: $backgroundColor, pageDecoration: $pageDecoration)';
+  }
 }
 
 enum PdfPageAnchor {

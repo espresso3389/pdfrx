@@ -63,6 +63,8 @@ class PdfjsPage {
   external PdfjsRender render(PdfjsRenderContext params);
   external int get pageNumber;
   external List<double> get view;
+
+  external Object getTextContent(PdfjsGetTextContentParameters params);
 }
 
 @JS()
@@ -145,8 +147,62 @@ class PdfjsRenderContext {
   external set background(dynamic background);
 }
 
-@anonymous
 @JS()
+@anonymous
 class PdfjsRender {
   external Future<void> get promise;
+}
+
+@JS()
+@anonymous
+class PdfjsGetTextContentParameters {
+  external bool includeMarkedContent;
+  external bool disableNormalization;
+}
+
+@JS()
+@anonymous
+class PdfjsTextContent {
+  /// Either [PdfjsTextItem] or [PdfjsTextMarkedContent]
+  external List<Object> get items;
+  external Map<String, PdfjsTextStyle> styles;
+}
+
+@JS()
+@anonymous
+class PdfjsTextItem {
+  external String get str;
+
+  /// Text direction: 'ttb', 'ltr' or 'rtl'.
+  external String get dir;
+
+  /// Matrix for transformation, in the form [a b c d e f], equivalent to:
+  /// | a  b  0 |
+  /// | c  d  0 |
+  /// | e  f  1 |
+  ///
+  /// Translation is performed with [1 0 0 1 tx ty].
+  /// Scaling is performed with [sx 0 0 sy 0 0].
+  /// See PDF Reference 1.7, 4.2.2 Common Transformations for more.
+  external List<double> get transform;
+  external num get width;
+  external num get height;
+  external String get fontName;
+  external bool get hasEOL;
+}
+
+@JS()
+@anonymous
+class PdfjsTextMarkedContent {
+  external String get type;
+  external String get id;
+}
+
+@JS()
+@anonymous
+class PdfjsTextStyle {
+  external num get ascent;
+  external num get descent;
+  external bool get vertical;
+  external String get fontFamily;
 }

@@ -1,3 +1,4 @@
+// ignore_for_file: public_member_api_docs, sort_constructors_first
 // ignore_for_file: avoid_web_libraries_in_flutter
 
 import 'dart:async';
@@ -48,6 +49,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   Future<PdfDocument> openData(
     Uint8List data, {
     String? password,
+    String? sourceName,
     void Function()? onDispose,
   }) async {
     return await PdfDocumentWeb.fromDocument(
@@ -55,7 +57,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         data.buffer,
         password: password,
       ),
-      sourceName: 'memory',
+      sourceName: sourceName ?? 'memory-${data.hashCode}',
       onDispose: onDispose,
     );
   }
@@ -70,6 +72,16 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       sourceName: filePath,
     );
   }
+
+  @override
+  Future<PdfDocument> openUri(
+    Uri uri, {
+    String? password,
+  }) =>
+      openFile(
+        uri.path,
+        password: password,
+      );
 }
 
 class PdfDocumentWeb extends PdfDocument {
@@ -77,11 +89,15 @@ class PdfDocumentWeb extends PdfDocument {
     this._document, {
     required super.sourceName,
     required super.pageCount,
-    required super.isEncrypted,
-    required super.allowsCopying,
-    required super.allowsPrinting,
+    required this.isEncrypted,
+    required this.permissions,
     this.onDispose,
   });
+
+  @override
+  final bool isEncrypted;
+  @override
+  final PdfPermissions? permissions;
 
   final PdfjsDocument _document;
   final void Function()? onDispose;
@@ -91,16 +107,18 @@ class PdfDocumentWeb extends PdfDocument {
     required String sourceName,
     void Function()? onDispose,
   }) async {
-    final perms =
-        await js_util.promiseToFuture<List<int>?>(document.getPermissions());
+    final permsObj =
+        await js_util.promiseToFuture<List?>(document.getPermissions());
+    final perms = permsObj?.cast<int>();
 
     return PdfDocumentWeb._(
       document,
       sourceName: sourceName,
       pageCount: document.numPages,
       isEncrypted: perms != null,
-      allowsCopying: perms == null,
-      allowsPrinting: perms == null,
+      permissions: perms != null
+          ? PdfPermissions(perms.fold<int>(0, (p, e) => p | e), 2)
+          : null,
       onDispose: onDispose,
     );
   }
@@ -222,10 +240,7 @@ class PdfPageWeb extends PdfPage {
   }
 
   @override
-  Future<PdfPageText?> loadText() {
-    // TODO: implement loadText
-    throw UnimplementedError();
-  }
+  Future<PdfPageText?> loadText() => PdfPageTextWeb._loadText(this);
 }
 
 class PdfImageWeb extends PdfImage {
@@ -242,4 +257,74 @@ class PdfImageWeb extends PdfImage {
   PixelFormat get format => PixelFormat.rgba8888;
   @override
   void dispose() {}
+}
+
+class PdfPageTextRect {
+  final PdfPageTextRange range;
+  final PdfRect rect;
+  PdfPageTextRect(this.range, this.rect);
+}
+
+class PdfPageTextFragmentWeb implements PdfPageTextFragment {
+  PdfPageTextFragmentWeb(this.range, this.bounds, this.fragment);
+
+  @override
+  final PdfPageTextRange range;
+  @override
+  final PdfRect bounds;
+
+  @override
+  List<PdfRect>? get charRects => null;
+
+  @override
+  final String fragment;
+}
+
+class PdfPageTextWeb extends PdfPageText {
+  PdfPageTextWeb({
+    required this.fullText,
+    required this.fragments,
+  });
+
+  @override
+  final String fullText;
+  @override
+  final List<PdfPageTextFragment> fragments;
+
+  static Future<PdfPageTextWeb> _loadText(PdfPageWeb page) async {
+    final content = await js_util.promiseToFuture<PdfjsTextContent>(
+      page.page.getTextContent(
+        PdfjsGetTextContentParameters()
+          ..includeMarkedContent = false
+          ..disableNormalization = false,
+      ),
+    );
+    final sb = StringBuffer();
+    final fragments = <PdfPageTextFragmentWeb>[];
+    for (final item in content.items.cast<PdfjsTextItem>()) {
+      final x = item.transform[4];
+      final y = item.transform[5];
+      fragments.add(
+        PdfPageTextFragmentWeb(
+          PdfPageTextRange(sb.length, item.str.length),
+          PdfRect(
+            x,
+            y + item.height.toDouble(),
+            x + item.width.toDouble(),
+            y,
+          ),
+          item.str,
+        ),
+      );
+      sb.write(item.str);
+    }
+
+    fragments.sort((a, b) {
+      final s1 = (b.bounds.top - a.bounds.top).sign.toInt();
+      if (s1 != 0) return s1;
+      return (a.bounds.left - b.bounds.left).sign.toInt();
+    });
+
+    return PdfPageTextWeb(fullText: sb.toString(), fragments: fragments);
+  }
 }
