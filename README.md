@@ -12,7 +12,8 @@ Please note that "Web" is not shown in [pub.dev](https://pub.dev/packages/pdfrx)
 - Desktop platforms support (Windows, macOS, Linux)
 - Password protected PDF files support
 - Multithreaded PDF rendering
-- [pdfium](https://pdfium.googlesource.com/pdfium/) based structure that is designed to support more PDF features in incoming versions :)
+- PdfDocument.openUri
+- [pdfium](https://pdfium.googlesource.com/pdfium/) based structure to support more... :)
 
 ## Getting Started
 
@@ -42,7 +43,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^0.1.1
+  pdfrx: ^0.2.0
 ```
 
 ### Web

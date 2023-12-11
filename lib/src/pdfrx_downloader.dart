@@ -24,7 +24,7 @@ abstract class PdfFileCache {
   Future<void> read(
       List<int> buffer, int bufferPosition, int position, int size);
 
-  /// Create a default cache for the [uri].
+  /// Function to create [PdfFileCache] for the specified URI.
   /// You can override this to use your own cache.
   static PdfFileCache Function(Uri uri) createDefault =
       (uri) => PdfFileCacheMemory();
@@ -33,6 +33,8 @@ abstract class PdfFileCache {
 /// PDF file cache backed by a file.
 class PdfFileCacheNative extends PdfFileCache {
   PdfFileCacheNative(this.file);
+
+  /// Cache file.
   final File file;
 
   @override

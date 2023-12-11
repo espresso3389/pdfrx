@@ -259,17 +259,11 @@ class PdfImageWeb extends PdfImage {
   void dispose() {}
 }
 
-class PdfPageTextRect {
-  final PdfPageTextRange range;
-  final PdfRect rect;
-  PdfPageTextRect(this.range, this.rect);
-}
-
 class PdfPageTextFragmentWeb implements PdfPageTextFragment {
-  PdfPageTextFragmentWeb(this.range, this.bounds, this.fragment);
+  PdfPageTextFragmentWeb(this.index, this.bounds, this.fragment);
 
   @override
-  final PdfPageTextRange range;
+  final int index;
   @override
   final PdfRect bounds;
 
@@ -306,7 +300,7 @@ class PdfPageTextWeb extends PdfPageText {
       final y = item.transform[5];
       fragments.add(
         PdfPageTextFragmentWeb(
-          PdfPageTextRange(sb.length, item.str.length),
+          sb.length,
           PdfRect(
             x,
             y + item.height.toDouble(),

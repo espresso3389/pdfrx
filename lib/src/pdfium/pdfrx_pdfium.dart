@@ -403,25 +403,24 @@ class PdfImagePdfium extends PdfImage {
 @immutable
 class PdfPageTextFragmentPdfium implements PdfPageTextFragment {
   const PdfPageTextFragmentPdfium(
-      this.text, this.range, this.bounds, this.charRects);
+      this.text, this.index, this.length, this.bounds, this.charRects);
 
   final PdfPageText text;
 
-  /// Range of the text fragment in [PdfPageText.fullText].
   @override
-  final PdfPageTextRange range;
+  final int index;
 
-  /// Bounds of the text fragment in PDF coordinate.
+  final int length;
+
   @override
   final PdfRect bounds;
 
-  /// Fragment's child character bounding boxes in PDF coordinate if available.
   @override
   final List<PdfRect>? charRects;
 
   /// Text for the fragment.
   @override
-  String get fragment => text.fullText.substring(range.start, range.end);
+  String get fragment => text.fullText.substring(index, index + length);
 }
 
 class PdfPageTextPdfium extends PdfPageText {
@@ -449,7 +448,8 @@ class PdfPageTextPdfium extends PdfPageText {
         textPage.fragments.add(
           PdfPageTextFragmentPdfium(
             textPage,
-            PdfPageTextRange(from, end - from),
+            from,
+            end - from,
             sublist.boundingRect(),
             sublist,
           ),

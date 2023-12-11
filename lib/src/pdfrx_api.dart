@@ -100,6 +100,7 @@ abstract class PdfDocument {
       );
 
   /// Opening the PDF from URI.
+  ///
   /// For Flutter Web, the file is cached by the browser. Otherwise, the file is cached using [PdfFileCache]
   /// created by a function specified by [PdfFileCache.createDefault]. By default, the file is cached on memory.
   /// You can override the cache behavior by replacing [PdfFileCache.createDefault].
@@ -210,8 +211,8 @@ abstract class PdfPageText {
 }
 
 abstract class PdfPageTextFragment {
-  /// Range of the text fragment in [PdfPageText.fullText].
-  PdfPageTextRange get range;
+  /// Fragment's index on [PdfPageText.fullText].
+  int get index;
 
   /// Bounds of the text fragment in PDF coordinate.
   PdfRect get bounds;
@@ -221,15 +222,6 @@ abstract class PdfPageTextFragment {
 
   /// Text for the fragment.
   String get fragment;
-}
-
-@immutable
-class PdfPageTextRange {
-  const PdfPageTextRange(this.start, this.count);
-  final int start;
-  final int count;
-
-  int get end => start + count;
 }
 
 ///
