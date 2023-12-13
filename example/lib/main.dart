@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -34,8 +35,9 @@ class _MyAppState extends State<MyApp> {
           children: [
             PdfViewer.uri(
               //'assets/PDF32000_2008.pdf',
-              Uri.parse(
-                  'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
+              Uri.parse(kIsWeb
+                  ? 'assets/hello.pdf'
+                  : 'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
               controller: controller,
 
               displayParams: PdfDisplayParams(
@@ -48,14 +50,8 @@ class _MyAppState extends State<MyApp> {
                         if (snapshot.data == null) {
                           return Container();
                         }
-                        return Positioned(
-                          left: pageRect.left,
-                          top: pageRect.top,
-                          width: pageRect.width,
-                          height: pageRect.height,
-                          child: _generateRichText(
-                              snapshot.data?.fragments ?? [], page, pageRect),
-                        );
+                        return _generateRichText(
+                            snapshot.data?.fragments ?? [], page, pageRect);
                       },
                     ),
                   ];
@@ -141,6 +137,21 @@ Widget _generateRichText(
     List<PdfPageTextFragment> list, PdfPage page, Rect pageRect) {
   final scale = pageRect.height / page.height;
   final texts = <Widget>[];
+
+  Rect? finalBounds;
+  for (int i = 0; i < list.length; i++) {
+    final text = list[i];
+    if (text.bounds.isEmpty) continue;
+    final rect = text.bounds.toRect(height: page.height, scale: scale);
+    if (rect.isEmpty) continue;
+    if (finalBounds == null) {
+      finalBounds = rect;
+    } else {
+      finalBounds = finalBounds.expandToInclude(rect);
+    }
+  }
+  if (finalBounds == null) return Container();
+
   for (int i = 0; i < list.length; i++) {
     final text = list[i];
     if (text.bounds.isEmpty) continue;
@@ -148,8 +159,8 @@ Widget _generateRichText(
     if (rect.isEmpty) continue;
     texts.add(
       Positioned(
-        left: rect.left,
-        top: rect.top,
+        left: rect.left - finalBounds.left,
+        top: rect.top - finalBounds.top,
         width: rect.width,
         height: rect.height,
         child: FittedBox(
@@ -168,9 +179,15 @@ Widget _generateRichText(
       ),
     );
   }
-  return SelectionArea(
-    child: Stack(
-      children: texts,
+  return Positioned(
+    left: pageRect.left + finalBounds.left,
+    top: pageRect.top + finalBounds.top,
+    width: finalBounds.width,
+    height: finalBounds.height,
+    child: SelectionArea(
+      child: Stack(
+        children: texts,
+      ),
     ),
   );
 }
