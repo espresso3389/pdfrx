@@ -5,6 +5,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:synchronized/extension.dart';
@@ -268,6 +269,10 @@ class PdfDocumentPdfium extends PdfDocument {
 
   @override
   Future<PdfPage> getPage(int pageNumber) async => _pages[pageNumber - 1]!;
+
+  @override
+  bool isSameDocument(Object? other) =>
+      other is PdfDocumentPdfium && doc.address == other.doc.address;
 
   @override
   Future<void> dispose() async {
@@ -547,7 +552,7 @@ class PdfPageTextPdfium extends PdfPageText {
           pdfium.FPDFLink_CountWebLinks(linkPage),
           (index) {
             return PdfLink(
-              _getLinkUrl(linkPage, index, arena),
+              Uri.parse(_getLinkUrl(linkPage, index, arena)),
               List.generate(
                 pdfium.FPDFLink_CountRects(linkPage, index),
                 (rectIndex) {

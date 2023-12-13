@@ -1,21 +1,29 @@
+// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'pdfium/pdfrx_pdfium.dart' if (dart.library.js) 'web/pdfrx_web.dart';
 
 /// For platform abstraction purpose; use [PdfDocument] instead.
 abstract class PdfDocumentFactory {
+  /// See [PdfDocument.openAsset].
   Future<PdfDocument> openAsset(String name, {String? password});
+
+  /// See [PdfDocument.openData].
   Future<PdfDocument> openData(
     Uint8List data, {
     String? password,
     String? sourceName,
     void Function()? onDispose,
   });
+
+  /// See [PdfDocument.openFile].
   Future<PdfDocument> openFile(String filePath, {String? password});
+
+  /// See [PdfDocument.openCustom].
   Future<PdfDocument> openCustom({
     required FutureOr<int> Function(Uint8List buffer, int position, int size)
         read,
@@ -25,11 +33,17 @@ abstract class PdfDocumentFactory {
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   });
+
+  /// See [PdfDocument.openUri].
   Future<PdfDocument> openUri(
     Uri uri, {
     String? password,
   });
 
+  /// Singleton [PdfDocumentFactory] instance.
+  ///
+  /// It is used to switch pdfium/web implementation based on the running platform and of course, you can
+  /// override it to use your own implementation.
   static PdfDocumentFactory instance = PdfDocumentFactoryImpl();
 }
 
@@ -101,10 +115,8 @@ abstract class PdfDocument {
 
   /// Opening the PDF from URI.
   ///
-  /// For Flutter Web, the file is cached by the browser. Otherwise, the file is cached using [PdfFileCache]
-  /// created by a function specified by [PdfFileCache.createDefault]. By default, the file is cached on memory.
-  /// You can override the cache behavior by replacing [PdfFileCache.createDefault].
-  /// For more information, see [pdfDocumentFromUri].
+  /// For Flutter Web, the implementation uses browser's function and restricted by CORS.
+  /// For other platforms, it uses [pdfDocumentFromUri] that uses HTTP's range request to download the file .
   static Future<PdfDocument> openUri(
     Uri uri, {
     String? password,
@@ -116,6 +128,8 @@ abstract class PdfDocument {
 
   /// Get page object. The first page is 1.
   Future<PdfPage> getPage(int pageNumber);
+
+  bool isSameDocument(Object? other);
 }
 
 /// Handles a PDF page in [PdfDocument].
@@ -154,6 +168,7 @@ abstract class PdfPage {
   Future<PdfPageText?> loadText();
 }
 
+/// PDF permissions defined on PDF 32000-1:2008, Table 22.
 class PdfPermissions {
   const PdfPermissions(this.permissions, this.securityHandlerRevision);
 
@@ -166,6 +181,7 @@ class PdfPermissions {
   /// Determine whether the PDF file allows copying of the contents.
   bool get allowsCopying => (permissions & 4) != 0;
 
+  /// Determine whether the PDF file allows document assembly.
   bool get allowsDocumentAssembly => (permissions & 8) != 0;
 
   /// Determine whether the PDF file allows printing of the pages.
@@ -210,33 +226,48 @@ abstract class PdfPageText {
   List<PdfPageTextFragment> get fragments;
 }
 
+/// Text fragment in PDF page.
 abstract class PdfPageTextFragment {
-  /// Fragment's index on [PdfPageText.fullText].
+  /// Fragment's index on [PdfPageText.fullText]; [fragment] is the substring of [PdfPageText.fullText] at [index].
   int get index;
 
-  /// Bounds of the text fragment in PDF coordinate.
+  /// Bounds of the text fragment in PDF page coordinates.
   PdfRect get bounds;
 
-  /// Fragment's child character bounding boxes in PDF coordinate if available.
+  /// Fragment's child character bounding boxes in PDF page coordinates if available.
   List<PdfRect>? get charRects;
 
   /// Text for the fragment.
   String get fragment;
 }
 
+/// Rectangle in PDF page coordinates.
 ///
+/// Please note that PDF page coordinates is different from Flutter's coordinate.
+/// PDF page coordinates's origin is at the bottom-left corner and Y-axis is pointing upward; [bottom] is generally smaller than [top].
 @immutable
 class PdfRect {
   const PdfRect(this.left, this.top, this.right, this.bottom);
 
+  /// Left coordinate.
   final double left;
+
+  /// Top coordinate (bigger than [bottom]).
   final double top;
+
+  /// Right coordinate.
   final double right;
+
+  /// Bottom coordinate (smaller than [top]).
   final double bottom;
 
+  /// Determine whether the rectangle is empty.
   bool get isEmpty => left >= right || top <= bottom;
+
+  /// Determine whether the rectangle is *NOT* empty.
   bool get isNotEmpty => !isEmpty;
 
+  /// Merge two rectangles.
   PdfRect merge(PdfRect other) {
     return PdfRect(
       left < other.left ? left : other.left,
@@ -246,8 +277,11 @@ class PdfRect {
     );
   }
 
+  /// Empty rectangle.
   static const empty = PdfRect(0, 0, 0, 0);
 
+  /// Convert to [Rect] in Flutter coordinate. [height] specifies the height of the page (original size).
+  /// [scale] is used to scale the rectangle.
   Rect toRect({
     required double height,
     double scale = 1.0,
@@ -260,13 +294,20 @@ class PdfRect {
       );
 }
 
+/// Extension methods for List of [PdfRect].
 extension PdfRectsExt on Iterable<PdfRect> {
+  /// Merge all rectangles to calculate bounding rectangle.
   PdfRect boundingRect() => reduce((a, b) => a.merge(b));
 }
 
+/// Link in PDF page.
 @immutable
 class PdfLink {
   const PdfLink(this.url, this.rects);
-  final String url;
+
+  /// Link URL
+  final Uri url;
+
+  /// Link location.
   final List<PdfRect> rects;
 }

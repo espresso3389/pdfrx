@@ -6,10 +6,34 @@ import 'package:http/http.dart' as http;
 
 import '../pdfrx.dart';
 
-/// PDF file cache for downloading  (Non-web).
+/// PDF file cache for downloading (Non-web).
+///
+/// See [PdfFileCacheNative] and [PdfFileCacheMemory] for actual implementation.
 abstract class PdfFileCache {
-  PdfFileCache({this.bufferingSize = 1024 * 256});
-  final int bufferingSize;
+  PdfFileCache({this.cacheBlockSize = 1024 * 256});
+
+  /// Size of cache block in bytes.
+  final int cacheBlockSize;
+
+  /// Determine whether the block is cached or not. The function is set by [pdfDocumentFromUri].
+  late final bool Function(int blockId) isBlockCached;
+
+  /// File size of the PDF file. The value is set by [pdfDocumentFromUri].
+  late final int fileSize;
+
+  /// Number of cache blocks. The value is set by [pdfDocumentFromUri].
+  late final int cacheBlockCount;
+
+  /// Number of bytes cached.
+  int get cachedBytes {
+    var countCached = 0;
+    for (int i = 0; i < cacheBlockCount; i++) {
+      if (isBlockCached(i)) {
+        countCached++;
+      }
+    }
+    return min(countCached * cacheBlockSize, fileSize);
+  }
 
   /// If the cache is file-based, returns the file path.
   String? get filePath;
@@ -31,6 +55,8 @@ abstract class PdfFileCache {
 }
 
 /// PDF file cache backed by a file.
+///
+/// Because the code internally uses `dart:io`'s [File], it is not available on the web.
 class PdfFileCacheNative extends PdfFileCache {
   PdfFileCacheNative(this.file);
 
@@ -94,6 +120,8 @@ class PdfFileCacheMemory extends PdfFileCache {
 }
 
 /// Open PDF file from [uri].
+///
+/// On web, unlike [PdfDocument.openUri], this function uses HTTP's range request to download the file and uses [PdfFileCache].
 Future<PdfDocument> pdfDocumentFromUri(
   Uri uri, {
   String? password,
@@ -104,8 +132,8 @@ Future<PdfDocument> pdfDocumentFromUri(
   Future<({int fileSize, bool fullDownload})> cacheBlock(int blockId,
       {int blockCountToCache = 1}) async {
     int? fileSize;
-    final blockOffset = blockId * cache!.bufferingSize;
-    final end = blockOffset + cache.bufferingSize * blockCountToCache;
+    final blockOffset = blockId * cache!.cacheBlockSize;
+    final end = blockOffset + cache.cacheBlockSize * blockCountToCache;
     final response = await http
         .get(uri, headers: {'Range': 'bytes=$blockOffset-${end - 1}'});
     final contentRange = response.headers['content-range'];
@@ -137,10 +165,18 @@ Future<PdfDocument> pdfDocumentFromUri(
       );
     }
   }
-  final blockCount =
-      (result.fileSize + cache.bufferingSize - 1) ~/ cache.bufferingSize;
-  final avails = List.generate(blockCount,
-      result.fullDownload ? (index) => true : (index) => index == 0);
+  cache.fileSize = result.fileSize;
+  cache.cacheBlockCount =
+      (result.fileSize + cache.cacheBlockSize - 1) ~/ cache.cacheBlockSize;
+
+  late List<bool> avails;
+  if (result.fullDownload) {
+    cache.isBlockCached = (blockId) => true;
+  } else {
+    avails = List.generate(cache.cacheBlockCount, (index) => index == 0,
+        growable: false);
+    cache.isBlockCached = (blockId) => avails[blockId];
+  }
 
   return PdfDocument.openCustom(
     read: (buffer, position, size) async {
@@ -148,14 +184,16 @@ Future<PdfDocument> pdfDocumentFromUri(
       final end = position + size;
       int bufferPosition = 0;
       for (int p = position; p < end;) {
-        final blockId = p ~/ cache!.bufferingSize;
-        final isAvailable = avails[blockId];
+        final blockId = p ~/ cache!.cacheBlockSize;
+        final isAvailable = cache.isBlockCached(blockId);
         if (!isAvailable) {
           await cacheBlock(blockId);
-          avails[blockId] = true;
+          if (!result.fullDownload) {
+            avails[blockId] = true;
+          }
         }
         final readEnd =
-            min(position + size, (blockId + 1) * cache.bufferingSize);
+            min(position + size, (blockId + 1) * cache.cacheBlockSize);
         final sizeToRead = readEnd - position;
         await cache.read(buffer, bufferPosition, position, sizeToRead);
         p += sizeToRead;

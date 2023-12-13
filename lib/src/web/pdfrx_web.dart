@@ -141,6 +141,10 @@ class PdfDocumentWeb extends PdfDocument {
         width: vp1.width,
         height: vp1.height);
   }
+
+  @override
+  bool isSameDocument(Object? other) =>
+      other is PdfDocumentWeb && _document == other._document;
 }
 
 class PdfPageWeb extends PdfPage {

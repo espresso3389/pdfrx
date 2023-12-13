@@ -1,19 +1,13 @@
 # pdfrx
 
-[pdfrx](https://pub.dartlang.org/packages/pdfrx) is yet another PDF viewer implementation that built on the top of [pdfium](https://pdfium.googlesource.com/pdfium/).
+[pdfrx](https://pub.dartlang.org/packages/pdfrx) is a PDF viewer implementation that built on the top of [pdfium](https://pdfium.googlesource.com/pdfium/).
 The plugin currently supports Android, iOS, Windows, macOS, Linux, and Web.
 
-Please note that "Web" is not shown in [pub.dev](https://pub.dev/packages/pdfrx)'s platform list, but **IT ACTUALLY DOES SUPPORT** Web.
+Please note that "Web" is not shown in [pub.dev](https://pub.dev/packages/pdfrx)'s platform list, but **IT DOES SUPPORT** Web.
+
+- A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web
 
 ![](https://private-user-images.githubusercontent.com/1311400/288040209-c4c44fde-2fb7-4e45-9261-5e33c0d1a0a9.gif?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTEiLCJleHAiOjE3MDE3ODAxNzIsIm5iZiI6MTcwMTc3OTg3MiwicGF0aCI6Ii8xMzExNDAwLzI4ODA0MDIwOS1jNGM0NGZkZS0yZmI3LTRlNDUtOTI2MS01ZTMzYzBkMWEwYTkuZ2lmP1gtQW16LUFsZ29yaXRobT1BV1M0LUhNQUMtU0hBMjU2JlgtQW16LUNyZWRlbnRpYWw9QUtJQUlXTkpZQVg0Q1NWRUg1M0ElMkYyMDIzMTIwNSUyRnVzLWVhc3QtMSUyRnMzJTJGYXdzNF9yZXF1ZXN0JlgtQW16LURhdGU9MjAyMzEyMDVUMTIzNzUyWiZYLUFtei1FeHBpcmVzPTMwMCZYLUFtei1TaWduYXR1cmU9ZTdlNmY1ODY5NWUwNjAzNzU3MWViZmU3ZDNkMGM4MTgxNWU4NmU3ZmU1NmRlNGZmYWZhNzZkNjQxNTQ5ZjdiZiZYLUFtei1TaWduZWRIZWFkZXJzPWhvc3QmYWN0b3JfaWQ9MCZrZXlfaWQ9MCZyZXBvX2lkPTAifQ.hU9zW_HQycBEC9N4heOQG7x9qc6IhSzJBIu3_4mZ7nA)
-
-## What differences from [pdf_render](https://pub.dev/packages/pdf_render)?
-
-- Desktop platforms support (Windows, macOS, Linux)
-- Password protected PDF files support
-- Multithreaded PDF rendering
-- PdfDocument.openUri
-- [pdfium](https://pdfium.googlesource.com/pdfium/) based structure to support more... :)
 
 ## Getting Started
 
@@ -37,7 +31,7 @@ class _MyAppState extends State<MyApp> {
 }
 ```
 
-## Install
+## Installation
 
 Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
