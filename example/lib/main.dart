@@ -44,6 +44,7 @@ class _MyAppState extends State<MyApp> {
                 maxScale: 8,
                 pageOverlaysBuilder: (context, page, pageRect, controller) {
                   return [
+                    // FIXME: Bad sample; don't directly load text in FutureBuilder on production code
                     FutureBuilder(
                       future: page.loadText(),
                       builder: (context, snapshot) {
@@ -133,6 +134,7 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
+// NOTE: The code will be moved into the package in the future; currently just demonstration and testing purpose only
 Widget _generateRichText(
     List<PdfPageTextFragment> list, PdfPage page, Rect pageRect) {
   final scale = pageRect.height / page.height;

@@ -1,3 +1,10 @@
+## 0.2.1
+
+- Stabilizing API surface
+  - Introducing PdfViewer.asset/file/uri/custom
+  - PdfViewer has documentLoader to accept function to load PdfDocument
+- Fixes minor issues on PdfViewer
+
 ## 0.2.0
 
 - Introducing PdfDocument.openUri/PdfFileCache\* classes
