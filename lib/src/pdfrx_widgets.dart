@@ -534,11 +534,15 @@ class _PdfViewerState extends State<PdfViewer>
       PdfPage page, Rect intersection, double scale) async {
     final rect = _layout!.pageLayouts[page.pageNumber]!;
     final inPageRect = intersection.translate(-rect.left, -rect.top);
-    final img = await page.render(
+    final width = (inPageRect.width * scale).toInt();
+    final height = (inPageRect.height * scale).toInt();
+    if (width == 0 || height == 0) return;
+
+    final PdfImage img = await page.render(
       x: (inPageRect.left * scale).toInt(),
       y: (inPageRect.top * scale).toInt(),
-      width: (inPageRect.width * scale).toInt(),
-      height: (inPageRect.height * scale).toInt(),
+      width: width,
+      height: height,
       fullWidth: rect.width * scale,
       fullHeight: rect.height * scale,
       backgroundColor: Colors.white,
