@@ -33,8 +33,8 @@ Pod::Spec.new do |s|
 
   s.prepare_command = <<-CMD
     cd pdfium
-    curl -Lo ios.tgz https://github.com/espresso3389/pdfrx/releases/download/first-release/pdfium-ios.tgz && tar xzf ios.tgz && rm ios.tgz
-    curl -Lo macos.tgz https://github.com/espresso3389/pdfrx/releases/download/first-release/pdfium-macos.tgz && tar xzf macos.tgz && rm macos.tgz
+    curl -Lo ios.tgz https://github.com/espresso3389/pdfrx/releases/download/pdfium-apple-v4/pdfium-ios.tgz && tar xzf ios.tgz && rm ios.tgz
+    curl -Lo macos.tgz https://github.com/espresso3389/pdfrx/releases/download/pdfium-apple-v4/pdfium-macos.tgz && tar xzf macos.tgz && rm macos.tgz
   CMD
 
   s.swift_version = '5.0'
