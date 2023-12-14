@@ -4,10 +4,9 @@ version: 0.2.1
 homepage: https://github.com/espresso3389/pdfrx
 
 environment:
+  # Flutter 3.16/Dart 3.2
   sdk: '>=3.2.0 <4.0.0'
-  # Flutter versions prior to 3.7 did not support the
-  # sharedDarwinSource option.
-  flutter: '>=3.7.0'
+  flutter: '>=3.16.0'
 
 dependencies:
   ffi: ^2.1.0
