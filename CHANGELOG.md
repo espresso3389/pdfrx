@@ -1,3 +1,7 @@
+## 0.2.2
+
+- Explicitly specify Flutter 3.16/Dart 3.2 as NativeCallable.listener does not accept non-static function (#5)
+
 ## 0.2.1
 
 - Stabilizing API surface
