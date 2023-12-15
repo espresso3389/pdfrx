@@ -15,6 +15,7 @@
     "FILEACCESS",
     "FPDF",
     "fpdfview",
+    "horz",
     "impls",
     "jclass",
     "jlong",
@@ -49,6 +50,7 @@
     "Subrect",
     "TEXTPAGE",
     "unawaited",
+    "uncollapsed",
     "unregister",
     "vsync",
     "xcframework"

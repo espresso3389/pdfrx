@@ -292,7 +292,8 @@ class _PdfViewerState extends State<PdfViewer>
           transformationController: _controller,
           constrained: false,
           maxScale: widget.displayParams.maxScale,
-          minScale: _alternativeFitScale ?? 0.1,
+          minScale:
+              _alternativeFitScale != null ? _alternativeFitScale! / 2 : 0.1,
           panAxis: widget.displayParams.panAxis,
           boundaryMargin: _boundaryMargin,
           panEnabled: widget.displayParams.panEnabled,
@@ -932,6 +933,7 @@ class PdfDisplayParams {
     this.pageOverlaysBuilder,
     this.layoutPages,
     this.maxScale = 2.5,
+    this.minScale = 0.1,
     this.panAxis = PanAxis.free,
     this.boundaryMargin,
     this.panEnabled = true,
@@ -945,6 +947,9 @@ class PdfDisplayParams {
   ///
   /// Defaults to 2.5.
   final double maxScale;
+
+  /// The minimum allowed scale.
+  final double minScale;
 
   /// When set to [PanAxis.aligned], panning is only allowed in the horizontal
   /// axis or the vertical axis, diagonal panning is not allowed.

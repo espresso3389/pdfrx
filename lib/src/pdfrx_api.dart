@@ -151,8 +151,19 @@ abstract class PdfPage {
   /// [x], [y], [width], [height] specify sub-area to render in pixels.
   /// [fullWidth], [fullHeight] specify virtual full size of the page to render in pixels. If they're not specified, [width] and [height] are used to specify the full size.
   /// If [width], [height], [fullWidth], and [fullHeight], are all 0, the page is rendered at 72 dpi.
-  /// [backgroundColor] is used to fill the background of the page and if not specified, [Colors.white] is used.
-  /// ![](./images/render-params.png)
+  /// [backgroundColor] is used to fill the background of the page. If no color is specified, [Colors.white] is used.
+  ///
+  /// The following code extract the area of (20,30)-(120,130) from the page image rendered at 1000x1500 pixels:
+  /// ```dart
+  /// final image = await page.render(
+  ///   x: 20,
+  ///   y: 30,
+  ///   width: 100,
+  ///   height: 100,
+  ///   fullWidth: 1000,
+  ///   fullHeight: 1500,
+  /// );
+  /// ```
   Future<PdfImage> render({
     int x = 0,
     int y = 0,
@@ -239,6 +250,19 @@ abstract class PdfPageTextFragment {
 
   /// Text for the fragment.
   String get fragment;
+
+  @override
+  bool operator ==(covariant PdfPageTextFragment other) {
+    if (identical(this, other)) return true;
+
+    return other.index == index &&
+        other.bounds == bounds &&
+        listEquals(other.charRects, charRects) &&
+        other.fragment == fragment;
+  }
+
+  @override
+  int get hashCode => index.hashCode ^ bounds.hashCode ^ fragment.hashCode;
 }
 
 /// Rectangle in PDF page coordinates.
@@ -292,6 +316,21 @@ class PdfRect {
         right * scale,
         height - bottom * scale,
       );
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is PdfRect &&
+        other.left == left &&
+        other.top == top &&
+        other.right == right &&
+        other.bottom == bottom;
+  }
+
+  @override
+  int get hashCode =>
+      left.hashCode ^ top.hashCode ^ right.hashCode ^ bottom.hashCode;
 }
 
 /// Extension methods for List of [PdfRect].

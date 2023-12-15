@@ -174,15 +174,17 @@ class PdfPageWeb extends PdfPage {
       double? fullWidth,
       double? fullHeight,
       Color? backgroundColor}) async {
-    width ??= this.width.toInt();
-    height ??= this.height.toInt();
+    fullWidth ??= this.width;
+    fullHeight ??= this.height;
+    width ??= fullWidth.toInt();
+    height ??= fullHeight.toInt();
     final data = await _renderRaw(
       x,
       y,
       width,
       height,
-      fullWidth ?? this.width,
-      fullHeight ?? this.height,
+      fullWidth,
+      fullHeight,
       backgroundColor,
       false,
     );
