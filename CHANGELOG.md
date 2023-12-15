@@ -1,3 +1,7 @@
+## 0.2.3
+
+- Fixed: #6 PdfPageWeb.render behavior is different from PdfPagePdfium.render.
+
 ## 0.2.2
 
 - Explicitly specify Flutter 3.16/Dart 3.2 as NativeCallable.listener does not accept non-static function (#5)
