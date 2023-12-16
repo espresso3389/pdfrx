@@ -1,3 +1,7 @@
+## 0.2.4
+
+- Now uses plugin_ffi. (Not containing any Flutter plugin stab)
+
 ## 0.2.3
 
 - Fixed: #6 PdfPageWeb.render behavior is different from PdfPagePdfium.render.
