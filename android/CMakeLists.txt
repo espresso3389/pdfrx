@@ -1,7 +1,19 @@
 cmake_minimum_required(VERSION 3.18.1)
 
+# Project-level configuration.
+set(PROJECT_NAME "pdfrx")
+project(${PROJECT_NAME} LANGUAGES CXX)
+
+# Invoke the build for native code shared with the other target platforms.
+# This can be changed to accommodate different builds.
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../src" "${CMAKE_CURRENT_BINARY_DIR}/shared")
+
+# Explicitly opt in to modern CMake behaviors to avoid warnings with recent
+# versions of CMake.
+cmake_policy(VERSION 3.14...3.25)
+
 set(PDFIUM_BINARY_RELEASE chromium%2F6150)
-set(PDFIUM_DIR ${CMAKE_CURRENT_BINARY_DIR}/pdfium)
+set(PDFIUM_DIR ${CMAKE_BINARY_DIR}/pdfium)
 set(PDFIUM_RELEASE_DIR ${PDFIUM_DIR}/${PDFIUM_BINARY_RELEASE})
 
 file(MAKE_DIRECTORY ${PDFIUM_RELEASE_DIR})
@@ -19,7 +31,7 @@ set(PDFIUM_ABI2SUF_x86_64 "android-x64")
 set(PDFIUM_ARCHIVE_NAME pdfium-${PDFIUM_ABI2SUF_${ANDROID_ABI}})
 set(PDFIUM_SRC_LIB_FILENAME ${PDFIUM_RELEASE_DIR}/${PDFIUM_LIB_DIR}/${PDFIUM_LIB_FILENAME})
 
-set(PDFIUM_LIBS_DIR  ${CMAKE_CURRENT_SOURCE_DIR}/.lib)
+set(PDFIUM_LIBS_DIR  ${CMAKE_SOURCE_DIR}/.lib)
 set(PDFIUM_LIBS_ARCH_DIR ${PDFIUM_LIBS_DIR}/${ANDROID_ABI})
 set(PDFIUM_DEST_LIB_FILENAME ${PDFIUM_LIBS_ARCH_DIR}/${PDFIUM_LIB_FILENAME})
 
@@ -47,7 +59,13 @@ endif()
 
 find_library(libc++ libc++_static.a)
 
-file(GLOB_RECURSE PDFINTEROP_SOURCES "../darwin/Classes/*.cpp")
-add_library(pdfinterop SHARED ${PDFINTEROP_SOURCES})
-target_include_directories(pdfinterop PRIVATE ${PDFIUM_RELEASE_DIR}/include)
-target_link_libraries(pdfinterop PRIVATE ${PDFIUM_DEST_LIB_FILENAME} ${libc++})
+set(pdfrx_bundled_libraries
+  # Defined in ../src/CMakeLists.txt.
+  # This can be changed to accommodate different builds.
+  $<TARGET_FILE:pdfrx>
+  ${PDFIUM_DEST_LIB_FILENAME}
+  PARENT_SCOPE
+)
+
+target_include_directories(pdfrx PRIVATE ${PDFIUM_RELEASE_DIR}/include)
+target_link_libraries(pdfrx PRIVATE ${PDFIUM_DEST_LIB_FILENAME} ${libc++})

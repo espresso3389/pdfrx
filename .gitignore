@@ -27,16 +27,3 @@ migrate_working_dir/
 **/doc/api/
 .dart_tool/
 build/
-android/.lib/
-windows/.lib/
-linux/.lib/
-
-example/ios/Flutter/Generated.xcconfig
-example/ios/Flutter/flutter_export_environment.sh
-example/macos/Flutter/Generated.xcconfig
-example/macos/Flutter/flutter_export_environment.sh
-
-.tmp/
-darwin/pdfium/ios/
-darwin/pdfium/macos/
-*.tgz
