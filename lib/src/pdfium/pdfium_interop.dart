@@ -8,11 +8,11 @@ import 'dart:typed_data';
 import 'pdfium_bindings.dart';
 
 String _getModuleFileName() {
-  if (Platform.isAndroid) return 'libpdfinterop.so';
+  if (Platform.isAndroid) return 'libpdfrx.so';
   if (Platform.isIOS || Platform.isMacOS) return 'pdfrx.framework/pdfrx';
-  if (Platform.isWindows) return 'pdfrx_plugin.dll';
+  if (Platform.isWindows) return 'pdfrx.dll';
   if (Platform.isLinux) {
-    return '${File(Platform.resolvedExecutable).parent.path}/lib/libpdfrx_plugin.so';
+    return '${File(Platform.resolvedExecutable).parent.path}/lib/libpdfrx.so';
   }
   throw UnsupportedError('Unsupported platform');
 }
