@@ -33,30 +33,16 @@ class _MyAppState extends State<MyApp> {
         appBar: AppBar(title: const Text('Pdfrx example')),
         body: Stack(
           children: [
+            // PdfViewer.asset(
+            //   'assets/PDF32000_2008.pdf',
             PdfViewer.uri(
-              //'assets/PDF32000_2008.pdf',
               Uri.parse(kIsWeb
                   ? 'assets/hello.pdf'
                   : 'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
               controller: controller,
-
-              displayParams: PdfDisplayParams(
+              displayParams: const PdfViewerParams(
                 maxScale: 8,
-                pageOverlaysBuilder: (context, page, pageRect, controller) {
-                  return [
-                    // FIXME: Bad sample; don't directly load text in FutureBuilder on production code
-                    FutureBuilder(
-                      future: page.loadText(),
-                      builder: (context, snapshot) {
-                        if (snapshot.data == null) {
-                          return Container();
-                        }
-                        return _generateRichText(
-                            snapshot.data?.fragments ?? [], page, pageRect);
-                      },
-                    ),
-                  ];
-                },
+                devicePixelRatioOverride: 2,
               ),
             ),
             AnimatedPositioned(
@@ -132,64 +118,4 @@ class _MyAppState extends State<MyApp> {
       ),
     );
   }
-}
-
-// NOTE: The code will be moved into the package in the future; currently just demonstration and testing purpose only
-Widget _generateRichText(
-    List<PdfPageTextFragment> list, PdfPage page, Rect pageRect) {
-  final scale = pageRect.height / page.height;
-  final texts = <Widget>[];
-
-  Rect? finalBounds;
-  for (int i = 0; i < list.length; i++) {
-    final text = list[i];
-    if (text.bounds.isEmpty) continue;
-    final rect = text.bounds.toRect(height: page.height, scale: scale);
-    if (rect.isEmpty) continue;
-    if (finalBounds == null) {
-      finalBounds = rect;
-    } else {
-      finalBounds = finalBounds.expandToInclude(rect);
-    }
-  }
-  if (finalBounds == null) return Container();
-
-  for (int i = 0; i < list.length; i++) {
-    final text = list[i];
-    if (text.bounds.isEmpty) continue;
-    final rect = text.bounds.toRect(height: page.height, scale: scale);
-    if (rect.isEmpty) continue;
-    texts.add(
-      Positioned(
-        left: rect.left - finalBounds.left,
-        top: rect.top - finalBounds.top,
-        width: rect.width,
-        height: rect.height,
-        child: FittedBox(
-          fit: BoxFit.fill,
-          child: Text(
-            text.fragment,
-            style: TextStyle(
-              fontSize: 5,
-              color: Colors.transparent,
-              background: Paint()
-                ..color = Colors.red.withAlpha(50)
-                ..style = PaintingStyle.fill,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-  return Positioned(
-    left: pageRect.left + finalBounds.left,
-    top: pageRect.top + finalBounds.top,
-    width: finalBounds.width,
-    height: finalBounds.height,
-    child: SelectionArea(
-      child: Stack(
-        children: texts,
-      ),
-    ),
-  );
 }

@@ -266,7 +266,7 @@ class PdfImageWeb extends PdfImage {
 }
 
 class PdfPageTextFragmentWeb implements PdfPageTextFragment {
-  PdfPageTextFragmentWeb(this.index, this.bounds, this.fragment);
+  PdfPageTextFragmentWeb(this.index, this.bounds, this.text);
 
   @override
   final int index;
@@ -277,7 +277,7 @@ class PdfPageTextFragmentWeb implements PdfPageTextFragment {
   List<PdfRect>? get charRects => null;
 
   @override
-  final String fragment;
+  final String text;
 }
 
 class PdfPageTextWeb extends PdfPageText {

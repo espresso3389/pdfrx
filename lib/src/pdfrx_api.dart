@@ -149,8 +149,10 @@ abstract class PdfPage {
   /// Render a sub-area or full image of specified PDF file.
   /// Returned image should be disposed after use.
   /// [x], [y], [width], [height] specify sub-area to render in pixels.
-  /// [fullWidth], [fullHeight] specify virtual full size of the page to render in pixels. If they're not specified, [width] and [height] are used to specify the full size.
-  /// If [width], [height], [fullWidth], and [fullHeight], are all 0, the page is rendered at 72 dpi.
+  /// [fullWidth], [fullHeight] specify virtual full size of the page to render in pixels.
+  /// - If [x], [y] are not specified, (0,0) is used.
+  /// - If [width], [height] is not specified, [fullWidth], [fullHeight] is used.
+  /// - If [fullWidth], [fullHeight] are not specified, [PdfPage.width] and [PdfPage.height] are used (it means rendered at 72-dpi).
   /// [backgroundColor] is used to fill the background of the page. If no color is specified, [Colors.white] is used.
   ///
   /// The following code extract the area of (20,30)-(120,130) from the page image rendered at 1000x1500 pixels:
@@ -239,7 +241,7 @@ abstract class PdfPageText {
 
 /// Text fragment in PDF page.
 abstract class PdfPageTextFragment {
-  /// Fragment's index on [PdfPageText.fullText]; [fragment] is the substring of [PdfPageText.fullText] at [index].
+  /// Fragment's index on [PdfPageText.fullText]; [text] is the substring of [PdfPageText.fullText] at [index].
   int get index;
 
   /// Bounds of the text fragment in PDF page coordinates.
@@ -249,7 +251,7 @@ abstract class PdfPageTextFragment {
   List<PdfRect>? get charRects;
 
   /// Text for the fragment.
-  String get fragment;
+  String get text;
 
   @override
   bool operator ==(covariant PdfPageTextFragment other) {
@@ -258,11 +260,11 @@ abstract class PdfPageTextFragment {
     return other.index == index &&
         other.bounds == bounds &&
         listEquals(other.charRects, charRects) &&
-        other.fragment == fragment;
+        other.text == text;
   }
 
   @override
-  int get hashCode => index.hashCode ^ bounds.hashCode ^ fragment.hashCode;
+  int get hashCode => index.hashCode ^ bounds.hashCode ^ text.hashCode;
 }
 
 /// Rectangle in PDF page coordinates.
@@ -312,9 +314,9 @@ class PdfRect {
   }) =>
       Rect.fromLTRB(
         left * scale,
-        height - top * scale,
+        (height - top) * scale,
         right * scale,
-        height - bottom * scale,
+        (height - bottom) * scale,
       );
 
   @override
@@ -331,6 +333,11 @@ class PdfRect {
   @override
   int get hashCode =>
       left.hashCode ^ top.hashCode ^ right.hashCode ^ bottom.hashCode;
+
+  @override
+  String toString() {
+    return 'PdfRect(left: $left, top: $top, right: $right, bottom: $bottom)';
+  }
 }
 
 /// Extension methods for List of [PdfRect].

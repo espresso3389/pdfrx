@@ -153,15 +153,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.2.4"
-  plugin_platform_interface:
-    dependency: transitive
-    description:
-      name: plugin_platform_interface
-      sha256: f4f88d4a900933e7267e2b353594774fc0d07fb072b47eedcd5b54e1ea3269f8
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.1.7"
+    version: "0.3.0"
   rxdart:
     dependency: "direct main"
     description:

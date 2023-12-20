@@ -27,3 +27,6 @@ migrate_working_dir/
 **/doc/api/
 .dart_tool/
 build/
+
+# never ever commit the local test example file...
+example/assets/PDF32000_2008.pdf

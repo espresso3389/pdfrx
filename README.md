@@ -1,6 +1,6 @@
 # pdfrx
 
-[pdfrx](https://pub.dartlang.org/packages/pdfrx) is a PDF viewer implementation that built on the top of [pdfium](https://pdfium.googlesource.com/pdfium/).
+[pdfrx](https://pub.dartlang.org/packages/pdfrx) is a PDF viewer implementation built on the top of [pdfium](https://pdfium.googlesource.com/pdfium/).
 The plugin currently supports Android, iOS, Windows, macOS, Linux, and Web.
 
 Please note that "Web" is not shown in [pub.dev](https://pub.dev/packages/pdfrx)'s platform list, but **IT DOES SUPPORT** Web.
@@ -22,9 +22,7 @@ class _MyAppState extends State<MyApp> {
         appBar: AppBar(
           title: const Text('Pdfrx example'),
         ),
-        body: PdfViewer(
-          document: PdfDocument.openAsset('assets/hello.pdf'),
-        ),
+        body: PdfViewer.asset('assets/hello.pdf'),
       ),
     );
   }
@@ -37,7 +35,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^0.2.4
+  pdfrx: ^0.3.0
 ```
 
 ### Web

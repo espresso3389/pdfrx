@@ -408,9 +408,9 @@ class PdfImagePdfium extends PdfImage {
 @immutable
 class PdfPageTextFragmentPdfium implements PdfPageTextFragment {
   const PdfPageTextFragmentPdfium(
-      this.text, this.index, this.length, this.bounds, this.charRects);
+      this.pageText, this.index, this.length, this.bounds, this.charRects);
 
-  final PdfPageText text;
+  final PdfPageText pageText;
 
   @override
   final int index;
@@ -425,7 +425,7 @@ class PdfPageTextFragmentPdfium implements PdfPageTextFragment {
 
   /// Text for the fragment.
   @override
-  String get fragment => text.fullText.substring(index, index + length);
+  String get text => pageText.fullText.substring(index, index + length);
 }
 
 class PdfPageTextPdfium extends PdfPageText {

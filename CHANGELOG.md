@@ -1,3 +1,7 @@
+## 0.3.0
+
+- Many renaming of the APIs that potentially breaks existing apps
+
 ## 0.2.4
 
 - Now uses plugin_ffi. (Not containing any Flutter plugin stab)
