@@ -552,7 +552,9 @@ class PdfPageTextPdfium extends PdfPageText {
         final prev = charRects.last;
         if (prev.left > rect.left) {
           if (_makeLineFlat(charRects, lineStart, sb.length, sb)) {
-            fragments.add(sb.length - wordStart);
+            if (sb.length > wordStart) {
+              fragments.add(sb.length - wordStart);
+            }
             lineStart = wordStart = sb.length;
           }
         }
@@ -564,7 +566,9 @@ class PdfPageTextPdfium extends PdfPageText {
     }
 
     if (_makeLineFlat(charRects, lineStart, sb.length, sb)) {
-      fragments.add(sb.length - wordStart);
+      if (sb.length > wordStart) {
+        fragments.add(sb.length - wordStart);
+      }
     }
     return sb.toString();
   }

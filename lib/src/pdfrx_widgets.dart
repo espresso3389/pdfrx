@@ -1,5 +1,6 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
 
@@ -11,6 +12,9 @@ import 'package:synchronized/extension.dart';
 import 'package:vector_math/vector_math_64.dart' as vec;
 
 import 'pdfrx_api.dart';
+
+final _isDesktop =
+    kIsWeb || Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
 /// Maintain a reference to a [PdfDocument].
 class PdfDocumentRef extends Listenable {
@@ -606,6 +610,7 @@ class _PdfViewerState extends State<PdfViewer>
           _renderingBufferTimers.remove(page.pageNumber);
         }
         _realSized.remove(i + 1);
+        _pageTextLoader.remove(i + 1);
         continue;
       }
 
@@ -708,6 +713,7 @@ class _PdfViewerState extends State<PdfViewer>
         if (rectExternal != null) {
           widgets.add(
             _PdfPageText(
+              key: Key('_PdfPageText#$i'),
               page: page,
               pageRect: rectExternal,
               viewerState: this,
@@ -1389,6 +1395,7 @@ class _PdfPageText extends StatefulWidget {
     required this.page,
     required this.pageRect,
     required this.viewerState,
+    super.key,
   });
 
   final PdfPage page;
@@ -1402,12 +1409,14 @@ class _PdfPageText extends StatefulWidget {
 class _PdfPageTextState extends State<_PdfPageText> {
   @override
   Widget build(BuildContext context) {
-    final pageText =
-        widget.viewerState._getPageText(widget.page, (page, pageText) {
-      if (mounted) {
-        setState(() {});
-      }
-    });
+    final pageText = widget.viewerState._getPageText(
+      widget.page,
+      (page, pageText) {
+        if (mounted) {
+          setState(() {});
+        }
+      },
+    );
     if (pageText == null) {
       return Container();
     }
@@ -1442,7 +1451,8 @@ class _PdfPageTextState extends State<_PdfPageText> {
         child: Builder(builder: (context) {
           final registrar = SelectionContainer.maybeOf(context);
           return Container(
-            color: Colors.blue.withAlpha(30),
+            // FIXME: On Desktop environment, text selection is still not fully working and the color indicates it's alpha quality now...
+            color: _isDesktop ? Colors.blue.withAlpha(30) : null,
             child: Stack(
               children: _generateTextSelectionWidgets(
                   finalBounds!, fragments, page, pageRect, registrar),
@@ -1479,7 +1489,7 @@ class _PdfPageTextState extends State<_PdfPageText> {
             cursor: SystemMouseCursors.text,
             child: _PdfTextWidget(
               registrar,
-              fragment.text,
+              fragment,
               fragment.charRects
                   ?.map((e) => e
                       .toRect(height: page.height, scale: scale)
@@ -1497,10 +1507,11 @@ class _PdfPageTextState extends State<_PdfPageText> {
 
 /// The code is based on the code on [Making a widget selectable](https://api.flutter.dev/flutter/widgets/SelectableRegion-class.html#widgets).SelectableRegion.2]
 class _PdfTextWidget extends LeafRenderObjectWidget {
-  const _PdfTextWidget(this.registrar, this.text, this.charRects, this.size);
+  const _PdfTextWidget(
+      this.registrar, this.fragment, this.charRects, this.size);
 
   final SelectionRegistrar? registrar;
-  final String text;
+  final PdfPageTextFragment fragment;
   final List<Rect>? charRects;
   final Size size;
 
@@ -1578,6 +1589,7 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
   Offset? _end;
   String? _selectedText;
   Rect? _selectedRect;
+  Size? _sizeOnSelection;
 
   void _updateGeometry() {
     if (_start == null || _end == null) {
@@ -1601,7 +1613,7 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
           final charRect = widget.charRects![i] * scale;
           if (charRect.intersect(selectionRect).isEmpty) continue;
           selectionRects.add(charRect);
-          sb.write(widget.text[i]);
+          sb.write(widget.fragment.text[i]);
 
           if (_selectedRect == null) {
             _selectedRect = charRect;
@@ -1612,7 +1624,7 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
         _selectedText = sb.toString();
       } else {
         selectionRects.add(selectionRect);
-        _selectedText = widget.text;
+        _selectedText = widget.fragment.text;
         _selectedRect = _getSelectionHighlightRect();
       }
 
@@ -1635,6 +1647,7 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
         isReversed = _start!.dx > _end!.dx;
       }
 
+      _sizeOnSelection = size;
       _geometry.value = SelectionGeometry(
         status: _selectedText!.isNotEmpty
             ? SelectionStatus.uncollapsed
@@ -1777,24 +1790,24 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     }
   }
 
-  static int colorIndex = 0;
-  final colors = [
-    Colors.red,
-    Colors.deepOrangeAccent,
-    Colors.purpleAccent,
-  ];
+  // static int colorIndex = 0;
+  // final colors = [
+  //   Colors.red,
+  //   Colors.deepOrangeAccent,
+  //   Colors.purpleAccent,
+  // ];
 
   @override
   void paint(PaintingContext context, Offset offset) {
     super.paint(context, offset);
 
-    context.canvas.drawRect(
-      _getSelectionHighlightRect().shift(offset),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..color = colors[colorIndex],
-    );
-    colorIndex = (colorIndex + 1) % colors.length;
+    // context.canvas.drawRect(
+    //   _getSelectionHighlightRect().shift(offset),
+    //   Paint()
+    //     ..style = PaintingStyle.stroke
+    //     ..color = colors[colorIndex],
+    // );
+    // colorIndex = (colorIndex + 1) % colors.length;
 
     if (!_geometry.value.hasSelection) {
       return;
@@ -1804,8 +1817,10 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
       return;
     }
 
+    final scale = size.width / _sizeOnSelection!.width;
+
     context.canvas.drawRect(
-      _selectedRect!.shift(offset),
+      (_selectedRect! * scale).shift(offset),
       Paint()
         ..style = PaintingStyle.fill
         ..color = _selectionColor,
@@ -1815,8 +1830,8 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
       context.pushLayer(
         LeaderLayer(
           link: _startHandle!,
-          offset: offset + value.startSelectionPoint!.localPosition,
-        ),
+          offset: offset + (value.startSelectionPoint!.localPosition * scale),
+        )..applyTransform(null, Matrix4.diagonal3Values(scale, scale, 1.0)),
         (context, offset) {},
         Offset.zero,
       );
@@ -1825,11 +1840,36 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
       context.pushLayer(
         LeaderLayer(
           link: _endHandle!,
-          offset: offset + value.endSelectionPoint!.localPosition,
-        ),
+          offset: offset + (value.endSelectionPoint!.localPosition * scale),
+        )..applyTransform(null, Matrix4.diagonal3Values(scale, scale, 1.0)),
         (context, offset) {},
         Offset.zero,
       );
+    }
+
+    if (size != _sizeOnSelection) {
+      Future.microtask(
+        () {
+          final sp = _geometry.value.startSelectionPoint!;
+          final ep = _geometry.value.endSelectionPoint!;
+          _sizeOnSelection = size;
+          _selectedRect = _selectedRect! * scale;
+          _geometry.value = _geometry.value.copyWith(
+            startSelectionPoint: SelectionPoint(
+                handleType: sp.handleType,
+                lineHeight: sp.lineHeight * scale,
+                localPosition: sp.localPosition * scale),
+            endSelectionPoint: SelectionPoint(
+                handleType: ep.handleType,
+                lineHeight: ep.lineHeight * scale,
+                localPosition: ep.localPosition * scale),
+            selectionRects:
+                _geometry.value.selectionRects.map((r) => r * scale).toList(),
+          );
+          markNeedsPaint();
+        },
+      );
+      return;
     }
   }
 }
