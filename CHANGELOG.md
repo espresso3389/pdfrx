@@ -1,3 +1,10 @@
+## 0.3.1
+
+- Minor API changes
+- Internal integrity updates that controls the viewer behaviors
+- FIX: example code does not have android.permission.INTERNET on AndroidManifest.xml
+- PdfViewerParams.devicePixelRatioOverride is deprecated and introduces PdfViewerParams.getPageRenderingScale.
+
 ## 0.3.0
 
 - Many renaming of the APIs that potentially breaks existing apps
