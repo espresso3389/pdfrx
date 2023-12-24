@@ -34,7 +34,7 @@ class _MyAppState extends State<MyApp> {
         body: Stack(
           children: [
             // PdfViewer.asset(
-            //   'assets/PDF32000_2008.pdf',
+            //   'assets/hello.pdf',
             PdfViewer.uri(
               Uri.parse(kIsWeb
                   ? 'assets/hello.pdf'
@@ -42,7 +42,6 @@ class _MyAppState extends State<MyApp> {
               controller: controller,
               displayParams: const PdfViewerParams(
                 maxScale: 8,
-                devicePixelRatioOverride: 2,
               ),
             ),
             AnimatedPositioned(

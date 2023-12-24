@@ -143,7 +143,7 @@ class PdfDocumentWeb extends PdfDocument {
   }
 
   @override
-  bool isSameDocument(Object? other) =>
+  bool isIdenticalDocumentHandle(Object? other) =>
       other is PdfDocumentWeb && _document == other._document;
 }
 
@@ -304,6 +304,7 @@ class PdfPageTextWeb extends PdfPageText {
     for (final item in content.items.cast<PdfjsTextItem>()) {
       final x = item.transform[4];
       final y = item.transform[5];
+      final str = item.hasEOL ? '${item.str}\n' : item.str;
       fragments.add(
         PdfPageTextFragmentWeb(
           sb.length,
@@ -313,17 +314,11 @@ class PdfPageTextWeb extends PdfPageText {
             x + item.width.toDouble(),
             y,
           ),
-          item.str,
+          str,
         ),
       );
-      sb.write(item.str);
+      sb.write(str);
     }
-
-    fragments.sort((a, b) {
-      final s1 = (b.bounds.top - a.bounds.top).sign.toInt();
-      if (s1 != 0) return s1;
-      return (a.bounds.left - b.bounds.left).sign.toInt();
-    });
 
     return PdfPageTextWeb(fullText: sb.toString(), fragments: fragments);
   }

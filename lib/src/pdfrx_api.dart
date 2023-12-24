@@ -116,6 +116,7 @@ abstract class PdfDocument {
   /// Opening the PDF from URI.
   ///
   /// For Flutter Web, the implementation uses browser's function and restricted by CORS.
+  // ignore: comment_references
   /// For other platforms, it uses [pdfDocumentFromUri] that uses HTTP's range request to download the file .
   static Future<PdfDocument> openUri(
     Uri uri, {
@@ -129,7 +130,10 @@ abstract class PdfDocument {
   /// Get page object. The first page is 1.
   Future<PdfPage> getPage(int pageNumber);
 
-  bool isSameDocument(Object? other);
+  /// Determine whether document handles are identical or not.
+  ///
+  /// It does not mean the document contents (or the document files) are identical.
+  bool isIdenticalDocumentHandle(Object? other);
 }
 
 /// Handles a PDF page in [PdfDocument].
@@ -292,6 +296,12 @@ class PdfRect {
 
   /// Determine whether the rectangle is *NOT* empty.
   bool get isNotEmpty => !isEmpty;
+
+  /// Width of the rectangle.
+  double get width => right - left;
+
+  /// Height of the rectangle.
+  double get height => top - bottom;
 
   /// Merge two rectangles.
   PdfRect merge(PdfRect other) {

@@ -584,9 +584,18 @@ class _PdfViewerState extends State<PdfViewer>
     final visibleRect = _controller!.visibleRect;
     final targetRect =
         visibleRect.inflateHV(horizontal: 0, vertical: visibleRect.height);
-    final scale = (widget.params.devicePixelRatioOverride ??
-            MediaQuery.of(context).devicePixelRatio) *
-        _controller!.currentZoom;
+    final double globalScale;
+    // ignore: deprecated_member_use_from_same_package
+    if (widget.params.devicePixelRatioOverride != null) {
+      globalScale =
+          // ignore: deprecated_member_use_from_same_package
+          widget.params.devicePixelRatioOverride! * _controller!.currentZoom;
+    } else {
+      globalScale = max(
+        MediaQuery.of(context).devicePixelRatio * _controller!.currentZoom,
+        300.0 / 72.0,
+      );
+    }
     for (int i = 0; i < _pages!.length; i++) {
       final rect = _layout!.pageLayouts[i + 1]!;
       final intersection = rect.intersect(targetRect);
@@ -603,6 +612,9 @@ class _PdfViewerState extends State<PdfViewer>
       final page = _pages![i];
       var realSize = page != null ? _realSized[page.pageNumber] : null;
       if (page != null) {
+        final scale = widget.params.getPageRenderingScale
+                ?.call(context, page, _controller!, globalScale) ??
+            globalScale;
         if (realSize == null || realSize.scale != scale) {
           _ensureThumbCached(page);
           _renderingBufferTimers[page.pageNumber]?.cancel();
@@ -1145,20 +1157,17 @@ class PdfViewerParams {
   /// Decoration of the page.
   final Decoration pageDecoration;
 
-  /// Function to customize the placeholder of the page that is shown while the page is being loaded (or not loaded).
-  final Widget? Function(BuildContext context, PdfPage? page, Rect rect)?
-      pagePlaceholderBuilder;
+  /// Function to customize the placeholder of the page that is shown while
+  /// the page is being loaded (or not loaded).
+  final PdfViewerParamPagePlaceholderBuilder? pagePlaceholderBuilder;
 
   /// Add several widgets on the page [Stack].
   ///
   /// You can use [Positioned] or such to layout overlays.
-  /// Changes to this function does not take effect until the viewer is re-layout-ed. You can relayout the viewer by calling [PdfViewerController.relayout].
-  final List<Widget>? Function(
-    BuildContext context,
-    PdfPage page,
-    Rect pageRect,
-    PdfViewerController controller,
-  )? pageOverlaysBuilder;
+  /// Changes to this function does not take effect until the viewer is
+  /// re-layout-ed. You can relayout the viewer by calling
+  /// [PdfViewerController.relayout].
+  final PdfViewerParamOverlaysBuilder? pageOverlaysBuilder;
 
   /// Function to customize the layout of the pages.
   ///
@@ -1190,6 +1199,7 @@ class PdfViewerParams {
     this.onInteractionStart,
     this.onInteractionUpdate,
     this.devicePixelRatioOverride,
+    this.getPageRenderingScale,
   });
 
   /// The maximum allowed scale.
@@ -1200,122 +1210,67 @@ class PdfViewerParams {
   /// The minimum allowed scale.
   final double minScale;
 
-  /// When set to [PanAxis.aligned], panning is only allowed in the horizontal
-  /// axis or the vertical axis, diagonal panning is not allowed.
-  ///
-  /// When set to [PanAxis.vertical] or [PanAxis.horizontal] panning is only
-  /// allowed in the specified axis. For example, if set to [PanAxis.vertical],
-  /// panning will only be allowed in the vertical axis. And if set to [PanAxis.horizontal],
-  /// panning will only be allowed in the horizontal axis.
-  ///
-  /// When set to [PanAxis.free] panning is allowed in all directions.
-  ///
-  /// Defaults to [PanAxis.free].
+  /// See [InteractiveViewer.panAxis] for details.
   final PanAxis panAxis;
 
-  /// A margin for the visible boundaries of the child.
-  ///
-  /// Any transformation that results in the viewport being able to view outside
-  /// of the boundaries will be stopped at the boundary. The boundaries do not
-  /// rotate with the rest of the scene, so they are always aligned with the
-  /// viewport.
-  ///
-  /// To produce no boundaries at all, pass infinite [EdgeInsets], such as
-  /// `EdgeInsets.all(double.infinity)`.
-  ///
-  /// No edge can be NaN.
-  ///
-  /// Defaults to [EdgeInsets.zero], which results in boundaries that are the
-  /// exact same size and position as the [child].
+  /// See [InteractiveViewer.boundaryMargin] for details.
   final EdgeInsets? boundaryMargin;
 
   /// Experimental: Enable text selection on pages.
   /// Please note the feature is still in development and may not work properly and disabled by default so far.
   final bool enableTextSelection;
 
-  /// If false, the user will be prevented from panning.
-  ///
-  /// Defaults to true.
-  ///
-  /// See also:
-  ///
-  ///   * [scaleEnabled], which is similar but for scale.
+  /// See [InteractiveViewer.panEnabled] for details.
   final bool panEnabled;
 
-  /// If false, the user will be prevented from scaling.
-  ///
-  /// Defaults to true.
-  ///
-  /// See also:
-  ///
-  ///   * [panEnabled], which is similar but for panning.
+  /// See [InteractiveViewer.scaleEnabled] for details.
   final bool scaleEnabled;
 
-  /// Called when the user ends a pan or scale gesture on the widget.
-  ///
-  /// At the time this is called, the [TransformationController] will have
-  /// already been updated to reflect the change caused by the interaction,
-  /// though a pan may cause an inertia animation after this is called as well.
-  ///
-  /// {@template flutter.widgets.InteractiveViewer.onInteractionEnd}
-  /// Will be called even if the interaction is disabled with [panEnabled] or
-  /// [scaleEnabled] for both touch gestures and mouse interactions.
-  ///
-  /// A [GestureDetector] wrapping the InteractiveViewer will not respond to
-  /// [GestureDetector.onScaleStart], [GestureDetector.onScaleUpdate], and
-  /// [GestureDetector.onScaleEnd]. Use [onInteractionStart],
-  /// [onInteractionUpdate], and [onInteractionEnd] to respond to those
-  /// gestures.
-  /// {@endtemplate}
-  ///
-  /// See also:
-  ///
-  ///  * [onInteractionStart], which handles the start of the same interaction.
-  ///  * [onInteractionUpdate], which handles an update to the same interaction.
+  /// See [InteractiveViewer.onInteractionEnd] for details.
   final GestureScaleEndCallback? onInteractionEnd;
 
-  /// Called when the user begins a pan or scale gesture on the widget.
-  ///
-  /// At the time this is called, the [TransformationController] will not have
-  /// changed due to this interaction.
-  ///
-  /// {@macro flutter.widgets.InteractiveViewer.onInteractionEnd}
-  ///
-  /// The coordinates provided in the details' `focalPoint` and
-  /// `localFocalPoint` are normal Flutter event coordinates, not
-  /// InteractiveViewer scene coordinates. See
-  /// [TransformationController.toScene] for how to convert these coordinates to
-  /// scene coordinates relative to the child.
-  ///
-  /// See also:
-  ///
-  ///  * [onInteractionUpdate], which handles an update to the same interaction.
-  ///  * [onInteractionEnd], which handles the end of the same interaction.
+  /// See [InteractiveViewer.onInteractionStart] for details.
   final GestureScaleStartCallback? onInteractionStart;
 
-  /// Called when the user updates a pan or scale gesture on the widget.
-  ///
-  /// At the time this is called, the [TransformationController] will have
-  /// already been updated to reflect the change caused by the interaction, if
-  /// the interaction caused the matrix to change.
-  ///
-  /// {@macro flutter.widgets.InteractiveViewer.onInteractionEnd}
-  ///
-  /// The coordinates provided in the details' `focalPoint` and
-  /// `localFocalPoint` are normal Flutter event coordinates, not
-  /// InteractiveViewer scene coordinates. See
-  /// [TransformationController.toScene] for how to convert these coordinates to
-  /// scene coordinates relative to the child.
-  ///
-  /// See also:
-  ///
-  ///  * [onInteractionStart], which handles the start of the same interaction.
-  ///  * [onInteractionEnd], which handles the end of the same interaction.
+  /// See [InteractiveViewer.onInteractionUpdate] for details.
   final GestureScaleUpdateCallback? onInteractionUpdate;
 
-  /// Normally, PDF is rendered on the pixel density of the device ([MediaQuery.of(context).devicePixelRatio](https://api.flutter.dev/flutter/widgets/MediaQueryData/devicePixelRatio.html)) but the parameter overrides it.
-  /// This is useful when you want to render PDF in a different resolution than the device.
+  /// Once introduced to control the rendering scale of the page but
+  /// [getPageRenderingScale] is better replacement for the purpose.
+  @Deprecated('Use getPageRenderingScale instead')
   final double? devicePixelRatioOverride;
+
+  /// Function to customize the rendering scale of the page.
+  ///
+  /// In some cases, if [maxScale] is too large, certain pages may not be
+  /// rendered correctly due to memory limitation, or anyway they may take too
+  /// long to render. In such cases, you can use this function to customize the
+  /// rendering scales for such pages.
+  ///
+  /// The following fragment is an example of rendering pages always on 300 dpi:
+  /// ```dart
+  /// PdfViewerParams(
+  ///    getPageRenderingScale: (context, page, controller, estimatedScale) {
+  ///     return 300 / 72;
+  ///   },
+  /// ),
+  /// ```
+  ///
+  /// The following fragment is more realistic example to restrict the rendering
+  /// resolution to maximum to 6000 pixels:
+  /// ```dart
+  /// PdfViewerParams(
+  ///    getPageRenderingScale: (context, page, controller, estimatedScale) {
+  ///     final width = page.width * estimatedScale;
+  ///     final height = page.height * estimatedScale;
+  ///     if (width > 6000 || height > 6000) {
+  ///       return min(6000 / page.width, 6000 / page.height);
+  ///     }
+  ///     return estimatedScale;
+  ///   },
+  /// ),
+  /// ```
+  final PdfViewerParamGetPageRenderingScale? getPageRenderingScale;
 
   /// Check equality of parameters other than functions.
   bool isParamsDifferenceFrom(PdfViewerParams? other) {
@@ -1323,12 +1278,16 @@ class PdfViewerParams {
         other.margin == margin &&
         other.backgroundColor == backgroundColor &&
         other.pageDecoration == pageDecoration &&
+        other.pageOverlaysBuilder == pageOverlaysBuilder &&
         other.maxScale == maxScale &&
         other.minScale == minScale &&
         other.panAxis == panAxis &&
         other.boundaryMargin == boundaryMargin &&
+        other.enableTextSelection == enableTextSelection &&
         other.panEnabled == panEnabled &&
-        other.scaleEnabled == scaleEnabled;
+        other.scaleEnabled == scaleEnabled &&
+        // ignore: deprecated_member_use_from_same_package
+        other.devicePixelRatioOverride == devicePixelRatioOverride;
   }
 
   @override
@@ -1343,11 +1302,15 @@ class PdfViewerParams {
         other.minScale == minScale &&
         other.panAxis == panAxis &&
         other.boundaryMargin == boundaryMargin &&
+        other.enableTextSelection == enableTextSelection &&
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
         other.onInteractionEnd == onInteractionEnd &&
         other.onInteractionStart == onInteractionStart &&
-        other.onInteractionUpdate == onInteractionUpdate;
+        other.onInteractionUpdate == onInteractionUpdate &&
+        // ignore: deprecated_member_use_from_same_package
+        other.devicePixelRatioOverride == devicePixelRatioOverride &&
+        other.getPageRenderingScale == getPageRenderingScale;
   }
 
   @override
@@ -1360,18 +1323,54 @@ class PdfViewerParams {
         minScale.hashCode ^
         panAxis.hashCode ^
         boundaryMargin.hashCode ^
+        enableTextSelection.hashCode ^
         panEnabled.hashCode ^
         scaleEnabled.hashCode ^
         onInteractionEnd.hashCode ^
         onInteractionStart.hashCode ^
-        onInteractionUpdate.hashCode;
+        onInteractionUpdate.hashCode ^
+        // ignore: deprecated_member_use_from_same_package
+        devicePixelRatioOverride.hashCode ^
+        getPageRenderingScale.hashCode;
   }
 
   @override
   String toString() {
-    return 'PdfDisplayParams(margin: $margin, backgroundColor: $backgroundColor, pageDecoration: $pageDecoration, pageOverlaysBuilder: $pageOverlaysBuilder, maxScale: $maxScale, minScale: $minScale, panAxis: $panAxis, boundaryMargin: $boundaryMargin, panEnabled: $panEnabled, scaleEnabled: $scaleEnabled, onInteractionEnd: $onInteractionEnd, onInteractionStart: $onInteractionStart, onInteractionUpdate: $onInteractionUpdate)';
+    // ignore: deprecated_member_use_from_same_package
+    return 'PdfViewerParams(margin: $margin, backgroundColor: $backgroundColor, pageDecoration: $pageDecoration, pageOverlaysBuilder: $pageOverlaysBuilder, maxScale: $maxScale, minScale: $minScale, panAxis: $panAxis, boundaryMargin: $boundaryMargin, enableTextSelection:$enableTextSelection, panEnabled: $panEnabled, scaleEnabled: $scaleEnabled, onInteractionEnd: $onInteractionEnd, onInteractionStart: $onInteractionStart, onInteractionUpdate: $onInteractionUpdate, devicePixelRatioOverride: $devicePixelRatioOverride, getPageRenderingScale: $getPageRenderingScale)';
   }
 }
+
+/// Function to customize the placeholder of the page that is shown while
+/// the page is being loaded (or not loaded).
+typedef PdfViewerParamPagePlaceholderBuilder = Widget? Function(
+    BuildContext context, PdfPage? page, Rect rect);
+
+/// Functions to add several widgets on the page [Stack].
+///
+/// You can use [Positioned] or such to layout overlays.
+/// Changes to this function does not take effect until the viewer is
+/// re-layout-ed. You can relayout the viewer by calling
+/// [PdfViewerController.relayout].
+typedef PdfViewerParamOverlaysBuilder = List<Widget>? Function(
+  BuildContext context,
+  PdfPage page,
+  Rect pageRect,
+  PdfViewerController controller,
+);
+
+/// Function to customize the rendering scale of the page.
+///
+/// - [context] is normally used to call [MediaQuery.of] to get the device pixel ratio
+/// - [page] can be used to determine the page dimensions
+/// - [controller] can be used to get the current zoom by [PdfViewerController.currentZoom]
+/// - [estimatedScale] is the precalculated scale for the page
+typedef PdfViewerParamGetPageRenderingScale = double? Function(
+  BuildContext context,
+  PdfPage page,
+  PdfViewerController controller,
+  double estimatedScale,
+);
 
 enum PdfPageAnchor {
   topLeft,
@@ -1386,11 +1385,11 @@ enum PdfPageAnchor {
 }
 
 class _PdfPageText extends StatefulWidget {
-  const _PdfPageText(
-      {required this.page,
-      required this.pageRect,
-      required this.viewerState,
-      super.key});
+  const _PdfPageText({
+    required this.page,
+    required this.pageRect,
+    required this.viewerState,
+  });
 
   final PdfPage page;
   final Rect pageRect;
@@ -1471,6 +1470,7 @@ class _PdfPageTextState extends State<_PdfPageText> {
       if (rect.isEmpty || fragment.text.isEmpty) continue;
       texts.add(
         Positioned(
+          key: ValueKey(fragment.index),
           left: rect.left - finalBounds.left,
           top: rect.top - finalBounds.top,
           width: rect.width,
@@ -1497,8 +1497,7 @@ class _PdfPageTextState extends State<_PdfPageText> {
 
 /// The code is based on the code on [Making a widget selectable](https://api.flutter.dev/flutter/widgets/SelectableRegion-class.html#widgets).SelectableRegion.2]
 class _PdfTextWidget extends LeafRenderObjectWidget {
-  const _PdfTextWidget(this.registrar, this.text, this.charRects, this.size,
-      {super.key});
+  const _PdfTextWidget(this.registrar, this.text, this.charRects, this.size);
 
   final SelectionRegistrar? registrar;
   final String text;
@@ -1573,13 +1572,12 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
   @override
   SelectionGeometry get value => _geometry.value;
 
-  static const double _padding = 0;
-  Rect _getSelectionHighlightRect() => Rect.fromLTWH(0 - _padding, 0 - _padding,
-      size.width + _padding * 2, size.height + _padding * 2);
+  Rect _getSelectionHighlightRect() => Offset.zero & size;
 
   Offset? _start;
   Offset? _end;
   String? _selectedText;
+  Rect? _selectedRect;
 
   void _updateGeometry() {
     if (_start == null || _end == null) {
@@ -1587,19 +1585,45 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
       return;
     }
     final renderObjectRect = Rect.fromLTWH(0, 0, size.width, size.height);
-    final selectionRect = Rect.fromPoints(_start!, _end!);
+    var selectionRect = Rect.fromPoints(_start!, _end!);
     if (renderObjectRect.intersect(selectionRect).isEmpty) {
       _geometry.value = _noSelection;
     } else {
-      final selectionRect = _getSelectionHighlightRect();
+      selectionRect =
+          !selectionRect.isEmpty ? selectionRect : _getSelectionHighlightRect();
+
+      final selectionRects = <Rect>[];
+      final sb = StringBuffer();
+      _selectedRect = null;
+      if (widget.charRects != null) {
+        final scale = size.width / widget.size.width;
+        for (int i = 0; i < widget.charRects!.length; i++) {
+          final charRect = widget.charRects![i] * scale;
+          if (charRect.intersect(selectionRect).isEmpty) continue;
+          selectionRects.add(charRect);
+          sb.write(widget.text[i]);
+
+          if (_selectedRect == null) {
+            _selectedRect = charRect;
+          } else {
+            _selectedRect = _selectedRect!.expandToInclude(charRect);
+          }
+        }
+        _selectedText = sb.toString();
+      } else {
+        selectionRects.add(selectionRect);
+        _selectedText = widget.text;
+        _selectedRect = _getSelectionHighlightRect();
+      }
+
       final firstSelectionPoint = SelectionPoint(
-        localPosition: selectionRect.bottomLeft,
-        lineHeight: selectionRect.size.height,
+        localPosition: _selectedRect!.bottomLeft,
+        lineHeight: _selectedRect!.height,
         handleType: TextSelectionHandleType.left,
       );
       final secondSelectionPoint = SelectionPoint(
-        localPosition: selectionRect.bottomRight,
-        lineHeight: selectionRect.size.height,
+        localPosition: _selectedRect!.bottomRight,
+        lineHeight: _selectedRect!.height,
         handleType: TextSelectionHandleType.right,
       );
       final bool isReversed;
@@ -1611,23 +1635,10 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
         isReversed = _start!.dx > _end!.dx;
       }
 
-      final selectionRects = <Rect>[];
-      final sb = StringBuffer();
-      if (widget.charRects != null) {
-        for (int i = 0; i < widget.charRects!.length; i++) {
-          final charRect = widget.charRects![i];
-          if (charRect.intersect(selectionRect).isEmpty) continue;
-          selectionRects.add(charRect);
-          sb.write(widget.text[i]);
-        }
-        _selectedText = sb.toString();
-      } else {
-        selectionRects.add(selectionRect);
-        _selectedText = widget.text;
-      }
-
       _geometry.value = SelectionGeometry(
-        status: SelectionStatus.uncollapsed,
+        status: _selectedText!.isNotEmpty
+            ? SelectionStatus.uncollapsed
+            : SelectionStatus.collapsed,
         hasContent: true,
         startSelectionPoint:
             isReversed ? secondSelectionPoint : firstSelectionPoint,
@@ -1645,7 +1656,6 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
       case SelectionEventType.startEdgeUpdate:
       case SelectionEventType.endEdgeUpdate:
         final renderObjectRect = Rect.fromLTWH(0, 0, size.width, size.height);
-        // Normalize offset in case it is out side of the rect.
         final point =
             globalToLocal((event as SelectionEdgeUpdateEvent).globalPosition);
         final adjustedPoint =
@@ -1656,6 +1666,7 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
           _end = adjustedPoint;
         }
         result = SelectionUtils.getResultBasedOnRect(renderObjectRect, point);
+        break;
       case SelectionEventType.clear:
         _start = _end = null;
       case SelectionEventType.selectAll:
@@ -1766,6 +1777,13 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     }
   }
 
+  static int colorIndex = 0;
+  final colors = [
+    Colors.red,
+    Colors.deepOrangeAccent,
+    Colors.purpleAccent,
+  ];
+
   @override
   void paint(PaintingContext context, Offset offset) {
     super.paint(context, offset);
@@ -1774,14 +1792,20 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
       _getSelectionHighlightRect().shift(offset),
       Paint()
         ..style = PaintingStyle.stroke
-        ..color = Colors.red,
+        ..color = colors[colorIndex],
     );
+    colorIndex = (colorIndex + 1) % colors.length;
 
     if (!_geometry.value.hasSelection) {
       return;
     }
+
+    if (_start == null || _end == null) {
+      return;
+    }
+
     context.canvas.drawRect(
-      _getSelectionHighlightRect().shift(offset),
+      _selectedRect!.shift(offset),
       Paint()
         ..style = PaintingStyle.fill
         ..color = _selectionColor,
