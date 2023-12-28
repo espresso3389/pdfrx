@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -26,6 +28,9 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
+  final _isDesktop =
+      kIsWeb || Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -40,8 +45,11 @@ class _MyAppState extends State<MyApp> {
                   ? 'assets/hello.pdf'
                   : 'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
               controller: controller,
-              displayParams: const PdfViewerParams(
+              displayParams: PdfViewerParams(
                 maxScale: 8,
+                // FIXME: if it's desktop, text selection feature is not correctly working now.
+                // Even on mobile platforms, it is still very experimental. Please take extreme care when using it.
+                enableTextSelection: !_isDesktop,
               ),
             ),
             AnimatedPositioned(

@@ -11,6 +11,7 @@ import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
 import 'package:vector_math/vector_math_64.dart' as vec;
 
+import 'interactive_viewer.dart' as iv;
 import 'pdfrx_api.dart';
 
 final _isDesktop =
@@ -429,7 +430,7 @@ class _PdfViewerState extends State<PdfViewer>
         color: widget.params.backgroundColor,
         child: Stack(
           children: [
-            InteractiveViewer(
+            iv.InteractiveViewer(
               transformationController: _controller,
               constrained: false,
               maxScale: widget.params.maxScale,
@@ -443,6 +444,9 @@ class _PdfViewerState extends State<PdfViewer>
               onInteractionEnd: widget.params.onInteractionEnd,
               onInteractionStart: widget.params.onInteractionStart,
               onInteractionUpdate: widget.params.onInteractionUpdate,
+              onWheelDelta: widget.params.scrollByMouseWheel != null
+                  ? _onWheelDelta
+                  : null,
               child: StreamBuilder(
                 stream: _stream.throttleTime(
                   const Duration(milliseconds: 500),
@@ -812,6 +816,15 @@ class _PdfViewerState extends State<PdfViewer>
       }
     });
     return null;
+  }
+
+  void _onWheelDelta(Offset delta) {
+    final m = _controller!.value.clone();
+    m.translate(
+      -delta.dx * widget.params.scrollByMouseWheel!,
+      -delta.dy * widget.params.scrollByMouseWheel!,
+    );
+    _controller!.value = m;
   }
 }
 
@@ -1278,6 +1291,12 @@ class PdfViewerParams {
   /// ```
   final PdfViewerParamGetPageRenderingScale? getPageRenderingScale;
 
+  /// Set the scroll amount ratio by mouse wheel. The default is 0.1.
+  ///
+  /// Negative value to scroll opposite direction.
+  /// null to disable scroll-by-mouse-wheel.
+  final double? scrollByMouseWheel = 0.1;
+
   /// Check equality of parameters other than functions.
   bool isParamsDifferenceFrom(PdfViewerParams? other) {
     return other != null &&
@@ -1293,7 +1312,8 @@ class PdfViewerParams {
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
         // ignore: deprecated_member_use_from_same_package
-        other.devicePixelRatioOverride == devicePixelRatioOverride;
+        other.devicePixelRatioOverride == devicePixelRatioOverride &&
+        other.scrollByMouseWheel == scrollByMouseWheel;
   }
 
   @override
@@ -1316,7 +1336,8 @@ class PdfViewerParams {
         other.onInteractionUpdate == onInteractionUpdate &&
         // ignore: deprecated_member_use_from_same_package
         other.devicePixelRatioOverride == devicePixelRatioOverride &&
-        other.getPageRenderingScale == getPageRenderingScale;
+        other.getPageRenderingScale == getPageRenderingScale &&
+        other.scrollByMouseWheel == scrollByMouseWheel;
   }
 
   @override
@@ -1337,13 +1358,14 @@ class PdfViewerParams {
         onInteractionUpdate.hashCode ^
         // ignore: deprecated_member_use_from_same_package
         devicePixelRatioOverride.hashCode ^
-        getPageRenderingScale.hashCode;
+        getPageRenderingScale.hashCode ^
+        scrollByMouseWheel.hashCode;
   }
 
   @override
   String toString() {
     // ignore: deprecated_member_use_from_same_package
-    return 'PdfViewerParams(margin: $margin, backgroundColor: $backgroundColor, pageDecoration: $pageDecoration, pageOverlaysBuilder: $pageOverlaysBuilder, maxScale: $maxScale, minScale: $minScale, panAxis: $panAxis, boundaryMargin: $boundaryMargin, enableTextSelection:$enableTextSelection, panEnabled: $panEnabled, scaleEnabled: $scaleEnabled, onInteractionEnd: $onInteractionEnd, onInteractionStart: $onInteractionStart, onInteractionUpdate: $onInteractionUpdate, devicePixelRatioOverride: $devicePixelRatioOverride, getPageRenderingScale: $getPageRenderingScale)';
+    return 'PdfViewerParams(margin: $margin, backgroundColor: $backgroundColor, pageDecoration: $pageDecoration, pageOverlaysBuilder: $pageOverlaysBuilder, maxScale: $maxScale, minScale: $minScale, panAxis: $panAxis, boundaryMargin: $boundaryMargin, enableTextSelection:$enableTextSelection, panEnabled: $panEnabled, scaleEnabled: $scaleEnabled, onInteractionEnd: $onInteractionEnd, onInteractionStart: $onInteractionStart, onInteractionUpdate: $onInteractionUpdate, devicePixelRatioOverride: $devicePixelRatioOverride, getPageRenderingScale: $getPageRenderingScale, scrollByMouseWheel: $scrollByMouseWheel)';
   }
 }
 
