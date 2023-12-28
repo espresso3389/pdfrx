@@ -1,9 +1,13 @@
+## 0.3.2
+
+- Support mouse-wheel-to-scroll on Desktop platforms
+
 ## 0.3.1
 
 - Minor API changes
 - Internal integrity updates that controls the viewer behaviors
 - FIX: example code does not have android.permission.INTERNET on AndroidManifest.xml
-- PdfViewerParams.devicePixelRatioOverride is deprecated and introduces PdfViewerParams.getPageRenderingScale.
+- PdfViewerParams.devicePixelRatioOverride is deprecated and introduces PdfViewerParams.getPageRenderingScale
 
 ## 0.3.0
 
@@ -15,7 +19,7 @@
 
 ## 0.2.3
 
-- Fixed: #6 PdfPageWeb.render behavior is different from PdfPagePdfium.render.
+- Fixed: #6 PdfPageWeb.render behavior is different from PdfPagePdfium.render
 
 ## 0.2.2
 
