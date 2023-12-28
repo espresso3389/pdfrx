@@ -42,7 +42,7 @@ class _MyAppState extends State<MyApp> {
             //   'assets/hello.pdf',
             PdfViewer.uri(
               Uri.parse(kIsWeb
-                  ? 'assets/hello.pdf'
+                  ? 'assets/assets/hello.pdf'
                   : 'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
               controller: controller,
               displayParams: PdfViewerParams(
