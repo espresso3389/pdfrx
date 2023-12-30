@@ -1,3 +1,7 @@
+## 0.3.3
+
+- FIXED: Downloading of small PDF file causes internal loading error
+
 ## 0.3.2
 
 - Support mouse-wheel-to-scroll on Desktop platforms

@@ -74,7 +74,7 @@ class PdfFileCacheNative extends PdfFileCache {
       List<int> buffer, int bufferPosition, int position, int size) async {
     final f = await file.open(mode: FileMode.read);
     await f.setPosition(position);
-    await f.readInto(buffer, bufferPosition, size);
+    await f.readInto(buffer, bufferPosition, bufferPosition + size);
     await f.close();
   }
 
@@ -192,12 +192,12 @@ Future<PdfDocument> pdfDocumentFromUri(
             avails[blockId] = true;
           }
         }
-        final readEnd =
-            min(position + size, (blockId + 1) * cache.cacheBlockSize);
-        final sizeToRead = readEnd - position;
-        await cache.read(buffer, bufferPosition, position, sizeToRead);
+        final readEnd = min(p + size, (blockId + 1) * cache.cacheBlockSize);
+        final sizeToRead = readEnd - p;
+        await cache.read(buffer, bufferPosition, p, sizeToRead);
         p += sizeToRead;
         bufferPosition += sizeToRead;
+        size -= sizeToRead;
       }
       return totalSize;
     },

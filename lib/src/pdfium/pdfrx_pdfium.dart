@@ -126,9 +126,9 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
 
     // If the file size is smaller than the specified size, load the file on memory
     if (fileSize < maxSizeToCacheOnMemory) {
-      return using((arena) {
+      return await using((arena) async {
         final buffer = calloc.allocate<Uint8>(fileSize);
-        read(buffer.asTypedList(fileSize), 0, fileSize);
+        await read(buffer.asTypedList(fileSize), 0, fileSize);
         return PdfDocumentPdfium.fromPdfDocument(
           pdfium.FPDF_LoadMemDocument(
             buffer.cast<Void>(),
@@ -207,6 +207,9 @@ class PdfDocumentPdfium extends PdfDocument {
 
   static Future<PdfDocument> fromPdfDocument(pdfium_bindings.FPDF_DOCUMENT doc,
       {required String sourceName, void Function()? disposeCallback}) async {
+    if (doc.address == 0) {
+      throw Exception('Failed to load PDF document');
+    }
     final result = await (await _globalWorker).compute(
       (docAddress) {
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(docAddress);
