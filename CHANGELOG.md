@@ -1,3 +1,11 @@
+## 0.3.4
+
+- Rewriting page rendering code
+  - Due to the internal structure change, page drawing customization parameters are once removed:
+    - pageDecoration
+    - pageOverlaysBuilder
+- Example code does not enables enableTextSelection; it's still too experimental...
+
 ## 0.3.3
 
 - FIXED: Downloading of small PDF file causes internal loading error

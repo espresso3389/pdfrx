@@ -449,13 +449,14 @@ class _PdfViewerState extends State<PdfViewer>
                   : null,
               child: StreamBuilder(
                 stream: _stream.throttleTime(
-                  const Duration(milliseconds: 500),
+                  const Duration(milliseconds: 200),
                   leading: false,
                   trailing: true,
                 ),
-                builder: (context, snapshot) {
-                  return Stack(children: _buildPageWidgets(context));
-                },
+                builder: (context, snapshot) => CustomPaint(
+                  foregroundPainter: _CustomPainter.fromFunction(_customPaint),
+                  size: _layout!.documentSize,
+                ),
               ),
             ),
             if (widget.params.enableTextSelection)
@@ -580,116 +581,6 @@ class _PdfViewerState extends State<PdfViewer>
   static bool _areZoomsAlmostIdentical(double z1, double z2) =>
       (z1 - z2).abs() < 0.01;
 
-  List<Widget> _buildPageWidgets(BuildContext context) {
-    final widgets = <Widget>[];
-    widgets.insert(
-      0,
-      SizedBox(
-        width: _layout!.documentSize.width,
-        height: _layout!.documentSize.height,
-      ),
-    );
-    final visibleRect = _controller!.visibleRect;
-    final targetRect =
-        visibleRect.inflateHV(horizontal: 0, vertical: visibleRect.height);
-    final double globalScale;
-    // ignore: deprecated_member_use_from_same_package
-    if (widget.params.devicePixelRatioOverride != null) {
-      globalScale =
-          // ignore: deprecated_member_use_from_same_package
-          widget.params.devicePixelRatioOverride! * _controller!.currentZoom;
-    } else {
-      globalScale = max(
-        MediaQuery.of(context).devicePixelRatio * _controller!.currentZoom,
-        300.0 / 72.0,
-      );
-    }
-    for (int i = 0; i < _pages!.length; i++) {
-      final rect = _layout!.pageLayouts[i + 1]!;
-      final intersection = rect.intersect(targetRect);
-      if (intersection.isEmpty) {
-        final page = _pages![i];
-        if (page != null) {
-          _renderingBufferTimers[page.pageNumber]?.cancel();
-          _renderingBufferTimers.remove(page.pageNumber);
-        }
-        _realSized.remove(i + 1);
-        _pageTextLoader.remove(i + 1);
-        continue;
-      }
-
-      final page = _pages![i];
-      var realSize = page != null ? _realSized[page.pageNumber] : null;
-      if (page != null) {
-        final scale = widget.params.getPageRenderingScale
-                ?.call(context, page, _controller!, globalScale) ??
-            globalScale;
-        if (realSize == null || realSize.scale != scale) {
-          _ensureThumbCached(page);
-          _renderingBufferTimers[page.pageNumber]?.cancel();
-          _renderingBufferTimers[page.pageNumber] = Timer(
-            const Duration(milliseconds: 300),
-            () {
-              _ensureRealSizeCached(page, scale);
-            },
-          );
-        }
-      } else {
-        Future.microtask(() async {
-          if (_pages![i] == null) {
-            _pages![i] = await _document!.getPage(i + 1);
-            _relayoutPages();
-            if (mounted) {
-              setState(() {});
-            }
-          }
-        });
-      }
-
-      final thumb = page != null ? _thumbs[page.pageNumber] : null;
-      widgets.add(
-        Positioned.fromRect(
-          rect: rect,
-          child: Container(
-            decoration: widget.params.pageDecoration,
-            child: thumb == null
-                ? widget.params.pagePlaceholderBuilder
-                        ?.call(context, page, rect) ??
-                    Center(
-                      child: Text(
-                        '${i + 1}',
-                      ),
-                    )
-                : RawImage(image: thumb),
-          ),
-        ),
-      );
-
-      if (realSize != null) {
-        widgets.add(
-          Positioned.fromRect(
-            rect: rect,
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-              ),
-              child: RawImage(image: realSize.image),
-            ),
-          ),
-        );
-      }
-
-      if (page != null) {
-        final overlays = widget.params.pageOverlaysBuilder
-            ?.call(context, page, rect, _controller!);
-        if (overlays != null) {
-          widgets.addAll(overlays);
-        }
-      }
-    }
-    return widgets;
-  }
-
   List<Widget> _buildPageOverlayWidgets(BuildContext context) {
     final renderBox = context.findRenderObject();
     if (renderBox is! RenderBox) return [];
@@ -729,6 +620,131 @@ class _PdfViewerState extends State<PdfViewer>
     return widgets;
   }
 
+  /// [_CustomPainter] calls the function to paint PDF pages.
+  void _customPaint(ui.Canvas canvas, ui.Size size) {
+    final visibleRect = _controller!.visibleRect;
+    final targetRect = visibleRect.inflateHV(
+        horizontal: visibleRect.width, vertical: visibleRect.height);
+    final double globalScale;
+    // ignore: deprecated_member_use_from_same_package
+    if (widget.params.devicePixelRatioOverride != null) {
+      globalScale =
+          // ignore: deprecated_member_use_from_same_package
+          widget.params.devicePixelRatioOverride! * _controller!.currentZoom;
+    } else {
+      globalScale = max(
+        MediaQuery.of(context).devicePixelRatio * _controller!.currentZoom,
+        300.0 / 72.0,
+      );
+    }
+
+    final unusedPageList = <int>[];
+    final needRelayout = <int>[];
+
+    for (int i = 0; i < _pages!.length; i++) {
+      final rect = _layout!.pageLayouts[i + 1]!;
+      final intersection = rect.intersect(targetRect);
+      if (intersection.isEmpty) {
+        final page = _pages![i];
+        if (page != null) {
+          _renderingBufferTimers[page.pageNumber]?.cancel();
+          _renderingBufferTimers.remove(page.pageNumber);
+        }
+        unusedPageList.add(i + 1);
+        continue;
+      }
+
+      final page = _pages![i];
+      var realSize = page != null ? _realSized[page.pageNumber] : null;
+      if (page != null) {
+        final scale = widget.params.getPageRenderingScale
+                ?.call(context, page, _controller!, globalScale) ??
+            globalScale;
+        if (realSize == null || realSize.scale != scale) {
+          _ensureThumbCached(page);
+          _renderingBufferTimers[page.pageNumber]?.cancel();
+          _renderingBufferTimers[page.pageNumber] = Timer(
+            const Duration(milliseconds: 100),
+            () {
+              _ensureRealSizeCached(page, scale);
+            },
+          );
+        }
+      } else {
+        if (_pages![i] == null) {
+          needRelayout.add(i + 1);
+        }
+      }
+
+      if (realSize != null) {
+        canvas.drawImageRect(
+          realSize.image,
+          Rect.fromLTWH(
+            0,
+            0,
+            realSize.image.width.toDouble(),
+            realSize.image.height.toDouble(),
+          ),
+          rect,
+          Paint()..filterQuality = FilterQuality.high,
+        );
+      } else {
+        final thumb = page != null ? _thumbs[page.pageNumber] : null;
+        if (thumb != null) {
+          canvas.drawImageRect(
+            thumb,
+            Rect.fromLTWH(
+                0, 0, thumb.width.toDouble(), thumb.height.toDouble()),
+            rect,
+            Paint()..filterQuality = FilterQuality.high,
+          );
+        } else {
+          canvas.drawRect(
+              rect,
+              Paint()
+                ..color = Colors.white
+                ..style = PaintingStyle.fill);
+        }
+      }
+      canvas.drawRect(
+          rect,
+          Paint()
+            ..color = Colors.black
+            ..strokeWidth = 0.2
+            ..style = PaintingStyle.stroke);
+
+      if (needRelayout.isNotEmpty) {
+        Future.microtask(
+          () async {
+            for (final pageNumber in needRelayout) {
+              _pages![pageNumber - 1] = await _document!.getPage(pageNumber);
+            }
+            _relayoutPages();
+            _invalidate();
+          },
+        );
+      }
+
+      if (unusedPageList.isNotEmpty) {
+        final currentPageNumber = _pageNumber;
+        if (currentPageNumber != null && currentPageNumber > 0) {
+          final currentPage = _pages![currentPageNumber - 1];
+          if (currentPage != null) {
+            _removeSomeImagesIfImageCountExceeds(
+              unusedPageList,
+              widget.params.maxRealSizeImageCount,
+              currentPage,
+              (pageNumber) {
+                _realSized.remove(pageNumber);
+                _pageTextLoader.remove(pageNumber);
+              },
+            );
+          }
+        }
+      }
+    }
+  }
+
   void _relayoutPages() {
     _layout = (widget.params.layoutPages ?? _layoutPages)(
         _pages!, _templatePage!, widget.params);
@@ -755,6 +771,13 @@ class _PdfViewerState extends State<PdfViewer>
     );
   }
 
+  void _invalidate() {
+    // if (mounted) {
+    //   setState(() {});
+    // }
+    _stream.add(_controller!.value);
+  }
+
   Future<void> _ensureRealSizeCached(PdfPage page, double scale) async {
     final width = page.width * scale;
     final height = page.height * scale;
@@ -768,14 +791,17 @@ class _PdfViewerState extends State<PdfViewer>
     _realSized[page.pageNumber] =
         (image: await img.createImage(), scale: scale);
     img.dispose();
-    if (mounted) {
-      setState(() {});
-    }
+    _invalidate();
   }
 
   Future<void> _ensureThumbCached(PdfPage page) async {
     if (_thumbs.keys.contains(page.pageNumber)) return;
-    _removeSomeThumbsIfImageCountExceeds(_thumbs, 10, page);
+    _removeSomeImagesIfImageCountExceeds(
+      _thumbs.keys.toList(),
+      widget.params.maxThumbCacheCount,
+      page,
+      (pageNumber) => _thumbs.remove(pageNumber),
+    );
     final img = await page.render(
       fullWidth: page.width,
       fullHeight: page.height,
@@ -783,22 +809,23 @@ class _PdfViewerState extends State<PdfViewer>
     );
     _thumbs[page.pageNumber] = await img.createImage();
     img.dispose();
-    if (mounted) {
-      setState(() {});
-    }
+    _invalidate();
   }
 
-  void _removeSomeThumbsIfImageCountExceeds(
-      Map<int, ui.Image> images, int acceptableCount, PdfPage currentPage) {
-    if (images.length <= acceptableCount) return;
-    final keys = images.keys.toList();
+  void _removeSomeImagesIfImageCountExceeds(
+      List<int> pageNumbers,
+      int acceptableCount,
+      PdfPage currentPage,
+      void Function(int pageNumber) removePage) {
+    if (pageNumbers.length <= acceptableCount) return;
     double dist(int pageNumber) => (_layout!.pageLayouts[pageNumber]!.center -
             _layout!.pageLayouts[currentPage.pageNumber]!.center)
         .distanceSquared;
 
-    keys.sort((a, b) => dist(b).compareTo(dist(a)));
-    for (final key in keys.sublist(0, keys.length - acceptableCount)) {
-      images.remove(key);
+    pageNumbers.sort((a, b) => dist(b).compareTo(dist(a)));
+    for (final key
+        in pageNumbers.sublist(0, pageNumbers.length - acceptableCount)) {
+      removePage(key);
     }
   }
 
@@ -1173,21 +1200,6 @@ class PdfViewerParams {
   /// Background color of the viewer.
   final Color backgroundColor;
 
-  /// Decoration of the page.
-  final Decoration pageDecoration;
-
-  /// Function to customize the placeholder of the page that is shown while
-  /// the page is being loaded (or not loaded).
-  final PdfViewerParamPagePlaceholderBuilder? pagePlaceholderBuilder;
-
-  /// Add several widgets on the page [Stack].
-  ///
-  /// You can use [Positioned] or such to layout overlays.
-  /// Changes to this function does not take effect until the viewer is
-  /// re-layout-ed. You can relayout the viewer by calling
-  /// [PdfViewerController.relayout].
-  final PdfViewerParamOverlaysBuilder? pageOverlaysBuilder;
-
   /// Function to customize the layout of the pages.
   ///
   /// Changes to this function does not take effect until the viewer is re-layout-ed. You can relayout the viewer by calling [PdfViewerController.relayout].
@@ -1198,14 +1210,6 @@ class PdfViewerParams {
   const PdfViewerParams({
     this.margin = 8.0,
     this.backgroundColor = Colors.grey,
-    this.pageDecoration = const BoxDecoration(
-      color: Color.fromARGB(255, 250, 250, 250),
-      boxShadow: [
-        BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(2, 2))
-      ],
-    ),
-    this.pagePlaceholderBuilder,
-    this.pageOverlaysBuilder,
     this.layoutPages,
     this.maxScale = 2.5,
     this.minScale = 0.1,
@@ -1219,6 +1223,9 @@ class PdfViewerParams {
     this.onInteractionUpdate,
     this.devicePixelRatioOverride,
     this.getPageRenderingScale,
+    this.scrollByMouseWheel = 0.1,
+    this.maxThumbCacheCount = 30,
+    this.maxRealSizeImageCount = 5,
   });
 
   /// The maximum allowed scale.
@@ -1295,15 +1302,19 @@ class PdfViewerParams {
   ///
   /// Negative value to scroll opposite direction.
   /// null to disable scroll-by-mouse-wheel.
-  final double? scrollByMouseWheel = 0.1;
+  final double? scrollByMouseWheel;
+
+  /// The maximum number of thumbnails to be cached. The default is 30.
+  final int maxThumbCacheCount;
+
+  /// The maximum number of real size images to be cached. The default is 5.
+  final int maxRealSizeImageCount;
 
   /// Check equality of parameters other than functions.
   bool isParamsDifferenceFrom(PdfViewerParams? other) {
     return other != null &&
         other.margin == margin &&
         other.backgroundColor == backgroundColor &&
-        other.pageDecoration == pageDecoration &&
-        other.pageOverlaysBuilder == pageOverlaysBuilder &&
         other.maxScale == maxScale &&
         other.minScale == minScale &&
         other.panAxis == panAxis &&
@@ -1313,7 +1324,9 @@ class PdfViewerParams {
         other.scaleEnabled == scaleEnabled &&
         // ignore: deprecated_member_use_from_same_package
         other.devicePixelRatioOverride == devicePixelRatioOverride &&
-        other.scrollByMouseWheel == scrollByMouseWheel;
+        other.scrollByMouseWheel == scrollByMouseWheel &&
+        other.maxThumbCacheCount == maxThumbCacheCount &&
+        other.maxRealSizeImageCount == maxRealSizeImageCount;
   }
 
   @override
@@ -1322,8 +1335,6 @@ class PdfViewerParams {
 
     return other.margin == margin &&
         other.backgroundColor == backgroundColor &&
-        other.pageDecoration == pageDecoration &&
-        other.pageOverlaysBuilder == pageOverlaysBuilder &&
         other.maxScale == maxScale &&
         other.minScale == minScale &&
         other.panAxis == panAxis &&
@@ -1337,15 +1348,15 @@ class PdfViewerParams {
         // ignore: deprecated_member_use_from_same_package
         other.devicePixelRatioOverride == devicePixelRatioOverride &&
         other.getPageRenderingScale == getPageRenderingScale &&
-        other.scrollByMouseWheel == scrollByMouseWheel;
+        other.scrollByMouseWheel == scrollByMouseWheel &&
+        other.maxThumbCacheCount == maxThumbCacheCount &&
+        other.maxRealSizeImageCount == maxRealSizeImageCount;
   }
 
   @override
   int get hashCode {
     return margin.hashCode ^
         backgroundColor.hashCode ^
-        pageDecoration.hashCode ^
-        pageOverlaysBuilder.hashCode ^
         maxScale.hashCode ^
         minScale.hashCode ^
         panAxis.hashCode ^
@@ -1359,33 +1370,17 @@ class PdfViewerParams {
         // ignore: deprecated_member_use_from_same_package
         devicePixelRatioOverride.hashCode ^
         getPageRenderingScale.hashCode ^
-        scrollByMouseWheel.hashCode;
+        scrollByMouseWheel.hashCode ^
+        maxThumbCacheCount.hashCode ^
+        maxRealSizeImageCount.hashCode;
   }
 
   @override
   String toString() {
     // ignore: deprecated_member_use_from_same_package
-    return 'PdfViewerParams(margin: $margin, backgroundColor: $backgroundColor, pageDecoration: $pageDecoration, pageOverlaysBuilder: $pageOverlaysBuilder, maxScale: $maxScale, minScale: $minScale, panAxis: $panAxis, boundaryMargin: $boundaryMargin, enableTextSelection:$enableTextSelection, panEnabled: $panEnabled, scaleEnabled: $scaleEnabled, onInteractionEnd: $onInteractionEnd, onInteractionStart: $onInteractionStart, onInteractionUpdate: $onInteractionUpdate, devicePixelRatioOverride: $devicePixelRatioOverride, getPageRenderingScale: $getPageRenderingScale, scrollByMouseWheel: $scrollByMouseWheel)';
+    return 'PdfViewerParams(margin: $margin, backgroundColor: $backgroundColor, maxScale: $maxScale, minScale: $minScale, panAxis: $panAxis, boundaryMargin: $boundaryMargin, enableTextSelection:$enableTextSelection, panEnabled: $panEnabled, scaleEnabled: $scaleEnabled, onInteractionEnd: $onInteractionEnd, onInteractionStart: $onInteractionStart, onInteractionUpdate: $onInteractionUpdate, devicePixelRatioOverride: $devicePixelRatioOverride, getPageRenderingScale: $getPageRenderingScale, scrollByMouseWheel: $scrollByMouseWheel, maxThumbCacheCount: $maxThumbCacheCount, maxRealSizeImageCount: $maxRealSizeImageCount)';
   }
 }
-
-/// Function to customize the placeholder of the page that is shown while
-/// the page is being loaded (or not loaded).
-typedef PdfViewerParamPagePlaceholderBuilder = Widget? Function(
-    BuildContext context, PdfPage? page, Rect rect);
-
-/// Functions to add several widgets on the page [Stack].
-///
-/// You can use [Positioned] or such to layout overlays.
-/// Changes to this function does not take effect until the viewer is
-/// re-layout-ed. You can relayout the viewer by calling
-/// [PdfViewerController.relayout].
-typedef PdfViewerParamOverlaysBuilder = List<Widget>? Function(
-  BuildContext context,
-  PdfPage page,
-  Rect pageRect,
-  PdfViewerController controller,
-);
 
 /// Function to customize the rendering scale of the page.
 ///
@@ -1442,10 +1437,11 @@ class _PdfPageTextState extends State<_PdfPageText> {
     if (pageText == null) {
       return Container();
     }
-    return _generateRichText(pageText.fragments, widget.page, widget.pageRect);
+    return _generateSelectionArea(
+        pageText.fragments, widget.page, widget.pageRect);
   }
 
-  Widget _generateRichText(
+  Widget _generateSelectionArea(
     List<PdfPageTextFragment> fragments,
     PdfPage page,
     Rect pageRect,
@@ -1894,4 +1890,16 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
       return;
     }
   }
+}
+
+/// Create a [CustomPainter] from a paint function.
+class _CustomPainter extends CustomPainter {
+  /// Create a [CustomPainter] from a paint function.
+  const _CustomPainter.fromFunction(this.paintFunction);
+  final void Function(ui.Canvas canvas, ui.Size size) paintFunction;
+  @override
+  void paint(ui.Canvas canvas, ui.Size size) => paintFunction(canvas, size);
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

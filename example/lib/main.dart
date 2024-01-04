@@ -45,11 +45,10 @@ class _MyAppState extends State<MyApp> {
                   ? 'assets/assets/hello.pdf'
                   : 'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
               controller: controller,
-              displayParams: PdfViewerParams(
+              displayParams: const PdfViewerParams(
                 maxScale: 8,
-                // FIXME: if it's desktop, text selection feature is not correctly working now.
-                // Even on mobile platforms, it is still very experimental. Please take extreme care when using it.
-                enableTextSelection: !_isDesktop,
+                // FIXME: The performance of text selection is still very terrible... Not to enable it by default.
+                //enableTextSelection: !_isDesktop,
               ),
             ),
             AnimatedPositioned(

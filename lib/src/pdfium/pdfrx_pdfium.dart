@@ -493,7 +493,7 @@ class PdfPageTextPdfium extends PdfPageText {
             ),
           );
 
-  static const charLF = 10, charCR = 13, charSpace = 32;
+  static const _charLF = 10, _charCR = 13, _charSpace = 32;
 
   static String _loadTextPartialIsolated(
     pdfium_bindings.FPDF_TEXTPAGE textPage,
@@ -511,13 +511,13 @@ class PdfPageTextPdfium extends PdfPageText {
     int? lastChar;
     for (int i = 0; i < length; i++) {
       final char = fullText.codeUnitAt(from + i);
-      if (char == charCR) {
-        if (i + 1 < length && fullText.codeUnitAt(from + i + 1) == charLF) {
+      if (char == _charCR) {
+        if (i + 1 < length && fullText.codeUnitAt(from + i + 1) == _charLF) {
           lastChar = char;
           continue;
         }
       }
-      if (char == charCR || char == charLF) {
+      if (char == _charCR || char == _charLF) {
         if (_makeLineFlat(charRects, lineStart, sb.length, sb)) {
           sb.write('\r\n');
           charRects.appendDummy();
@@ -538,8 +538,8 @@ class PdfPageTextPdfium extends PdfPageText {
         buffer.offset(doubleSize * 3),
       );
       final rect = _rectFromPointer(buffer);
-      if (char == charSpace) {
-        if (lastChar == charSpace) continue;
+      if (char == _charSpace) {
+        if (lastChar == _charSpace) continue;
         if (sb.length > wordStart) {
           fragments.add(sb.length - wordStart);
         }
@@ -602,7 +602,7 @@ class PdfPageTextPdfium extends PdfPageText {
     for (int i = start; i < end; i++) {
       final rect = rects[i];
       final char = str.codeUnitAt(i);
-      if (char == charSpace) {
+      if (char == _charSpace) {
         final next = i + 1 < end ? rects[i + 1].left : null;
         rects[i] = PdfRect(
             prev ?? rect.left, bounds.top, next ?? rect.right, bounds.bottom);
