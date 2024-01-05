@@ -1199,9 +1199,34 @@ class PdfViewerParams {
   /// Function to customize the layout of the pages.
   ///
   /// Changes to this function does not take effect until the viewer is re-layout-ed. You can relayout the viewer by calling [PdfViewerController.relayout].
-  final PageLayout Function(
-          List<PdfPage?> pages, PdfPage templatePage, PdfViewerParams params)?
-      layoutPages;
+  ///
+  /// The following fragment is an example to layout pages horizontally with margin:
+  ///
+  /// ```dart
+  /// PdfViewerParams(
+  ///   layoutPages: (pages, templatePage, params) {
+  ///     final height = pages.where((p) => p != null).fold(
+  ///       templatePage.height,
+  ///       (prev, page) => max(prev, page!.height)) + params.margin * 2;
+  ///     final pageLayouts = <Rect>[];
+  ///     double x = params.margin;
+  ///     for (var page in pages) {
+  ///       page ??= templatePage; // in case the page is not loaded yet
+  ///       pageLayouts.add(
+  ///         Rect.fromLTWH(
+  ///           x,
+  ///           (height - page.height) / 2, // center vertically
+  ///           page.width,
+  ///           page.height,
+  ///         ),
+  ///       );
+  ///       x += page.width + params.margin;
+  ///     }
+  ///     return PageLayout(pageLayouts: pageLayouts, documentSize: Size(x, height));
+  ///   },
+  /// ),
+  /// ```
+  final PdfPageLayoutFunction? layoutPages;
 
   const PdfViewerParams({
     this.margin = 8.0,
@@ -1389,6 +1414,18 @@ typedef PdfViewerParamGetPageRenderingScale = double? Function(
   PdfPage page,
   PdfViewerController controller,
   double estimatedScale,
+);
+
+/// Function to customize the layout of the pages.
+///
+/// - [pages] is the list of pages. The list may contain null if the page is not loaded yet.
+/// - [templatePage] is the template page, which is used if some page is not loaded yet.
+///   This is just a copy of the first loaded page of the document.
+/// - [params] is the viewer parameters.
+typedef PdfPageLayoutFunction = PageLayout Function(
+  List<PdfPage?> pages,
+  PdfPage templatePage,
+  PdfViewerParams params,
 );
 
 enum PdfPageAnchor {
