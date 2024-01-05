@@ -185,7 +185,6 @@ extension FpdfUtf8StringExt on String {
 
 class PdfDocumentPdfium extends PdfDocument {
   final pdfium_bindings.FPDF_DOCUMENT doc;
-  final List<PdfPagePdfium?> _pages;
   final void Function()? disposeCallback;
   final _worker = BackgroundWorker.create();
   final int securityHandlerRevision;
@@ -198,12 +197,10 @@ class PdfDocumentPdfium extends PdfDocument {
   PdfDocumentPdfium._(
     this.doc, {
     required super.sourceName,
-    required super.pageCount,
     required this.securityHandlerRevision,
     required this.permissions,
-    required List<PdfPagePdfium?> pages,
     this.disposeCallback,
-  }) : _pages = pages;
+  });
 
   static Future<PdfDocument> fromPdfDocument(pdfium_bindings.FPDF_DOCUMENT doc,
       {required String sourceName, void Function()? disposeCallback}) async {
@@ -245,21 +242,20 @@ class PdfDocumentPdfium extends PdfDocument {
     final pdfDoc = PdfDocumentPdfium._(
       doc,
       sourceName: sourceName,
-      pageCount: result.pageCount,
       securityHandlerRevision: result.securityHandlerRevision,
       permissions: result.securityHandlerRevision != -1
           ? PdfPermissions(result.permissions, result.securityHandlerRevision)
           : null,
-      pages: [],
       disposeCallback: disposeCallback,
     );
 
+    final pages = <PdfPagePdfium>[];
     for (int i = 0; i < result.pageCount; i++) {
       final page =
           pdfium_bindings.FPDF_PAGE.fromAddress(result.pages[i * 3] as int);
       final w = result.pages[i * 3 + 1] as double;
       final h = result.pages[i * 3 + 2] as double;
-      pdfDoc._pages.add(PdfPagePdfium._(
+      pages.add(PdfPagePdfium._(
         document: pdfDoc,
         pageNumber: i + 1,
         width: w,
@@ -267,11 +263,12 @@ class PdfDocumentPdfium extends PdfDocument {
         page: page,
       ));
     }
+    pdfDoc.pages = List.unmodifiable(pages);
     return pdfDoc;
   }
 
   @override
-  Future<PdfPage> getPage(int pageNumber) async => _pages[pageNumber - 1]!;
+  late final List<PdfPagePdfium> pages;
 
   @override
   bool isIdenticalDocumentHandle(Object? other) =>
@@ -281,8 +278,8 @@ class PdfDocumentPdfium extends PdfDocument {
   Future<void> dispose() async {
     (await _worker).dispose();
     await synchronized(() {
-      for (final page in _pages) {
-        if (page != null) pdfium.FPDF_ClosePage(page.page);
+      for (final page in pages) {
+        pdfium.FPDF_ClosePage(page.page);
       }
       pdfium.FPDF_CloseDocument(doc);
     });
@@ -338,6 +335,10 @@ class PdfPagePdfium extends PdfPage {
               Pointer.fromAddress(params.buffer),
               params.width * rgbaSize,
             );
+            if (bmp.address == 0) {
+              throw Exception(
+                  'FPDFBitmap_CreateEx(${params.width}, ${params.height}) failed.');
+            }
             pdfium.FPDFBitmap_FillRect(
               bmp,
               0,

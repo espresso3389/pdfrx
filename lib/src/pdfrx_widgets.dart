@@ -277,8 +277,6 @@ class _PdfViewerState extends State<PdfViewer>
   late final AnimationController animController;
   PdfViewerController? _controller;
   PdfDocument? _document;
-  List<PdfPage?>? _pages;
-  PdfPage? _templatePage;
   PdfPageLayout? _layout;
   Size? _viewSize;
   EdgeInsets _boundaryMargin = EdgeInsets.zero;
@@ -286,7 +284,7 @@ class _PdfViewerState extends State<PdfViewer>
   double? _alternativeFitScale;
   int? _pageNumber;
   bool _initialized = false;
-  final _renderingBufferTimers = <int, Timer>{};
+  final _taskTimers = <int, Timer>{};
   final List<double> _zoomStops = [1.0];
 
   final _thumbs = <int, ui.Image>{};
@@ -337,13 +335,11 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _onDocumentChanged() async {
-    _pages = null;
     _layout = null;
     _thumbs.clear();
     _realSized.clear();
     _pageTextLoader.clear();
     _pageNumber = null;
-    _templatePage = null;
     _initialized = false;
     _controller?.removeListener(_onMatrixChanged);
     _controller?._attach(null);
@@ -357,13 +353,8 @@ class _PdfViewerState extends State<PdfViewer>
       return;
     }
 
-    final count = document.pageCount;
-    final pages = List<PdfPage?>.generate(count, (index) => null);
-    pages[widget.initialPageNumber - 1] =
-        await document.getPage(widget.initialPageNumber);
     _document = document;
-    _pages = pages;
-    _templatePage = pages[widget.initialPageNumber - 1];
+
     _relayoutPages();
 
     _controller ??= widget.controller ?? PdfViewerController();
@@ -377,10 +368,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   void dispose() {
-    for (final timer in _renderingBufferTimers.values) {
-      timer.cancel();
-    }
-    _renderingBufferTimers.clear();
+    _cancelAllTasks();
     animController.dispose();
     widget.documentRef.removeListener(_onDocumentChanged);
     _thumbs.clear();
@@ -397,10 +385,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   Widget build(BuildContext context) {
-    if (_pages == null || _templatePage == null) {
-      return Container();
-    }
-
+    if (_document == null) return Container();
     return LayoutBuilder(builder: (context, constraints) {
       if (_calcViewSizeAndCoverScale(
           Size(constraints.maxWidth, constraints.maxHeight))) {
@@ -422,60 +407,63 @@ class _PdfViewerState extends State<PdfViewer>
             () => _controller!.goToPage(pageNumber: widget.initialPageNumber));
       }
 
-      _determineCurrentPage();
-      _calcAlternativeFitScale();
-      _calcZoomStopTable();
-
       return Container(
         color: widget.params.backgroundColor,
-        child: Stack(
-          children: [
-            iv.InteractiveViewer(
-              transformationController: _controller,
-              constrained: false,
-              maxScale: widget.params.maxScale,
-              minScale: _alternativeFitScale != null
-                  ? _alternativeFitScale! / 2
-                  : 0.1,
-              panAxis: widget.params.panAxis,
-              boundaryMargin: _boundaryMargin,
-              panEnabled: widget.params.panEnabled,
-              scaleEnabled: widget.params.scaleEnabled,
-              onInteractionEnd: widget.params.onInteractionEnd,
-              onInteractionStart: widget.params.onInteractionStart,
-              onInteractionUpdate: widget.params.onInteractionUpdate,
-              onWheelDelta: widget.params.scrollByMouseWheel != null
-                  ? _onWheelDelta
-                  : null,
-              child: StreamBuilder(
-                stream: _stream.throttleTime(
-                  const Duration(milliseconds: 200),
-                  leading: false,
-                  trailing: true,
-                ),
-                builder: (context, snapshot) => CustomPaint(
-                  foregroundPainter: _CustomPainter.fromFunction(_customPaint),
-                  size: _layout!.documentSize,
-                ),
-              ),
-            ),
-            if (widget.params.enableTextSelection)
-              StreamBuilder(
-                stream: _stream.throttleTime(
-                  const Duration(milliseconds: 200),
-                  leading: false,
-                  trailing: true,
-                ),
-                builder: (context, snapshot) {
-                  return ClipRect(
-                    child: Stack(
-                      children: _buildPageOverlayWidgets(context),
+        child: StreamBuilder(
+            stream: _stream,
+            builder: (context, snapshot) {
+              _determineCurrentPage();
+              _calcAlternativeFitScale();
+              _calcZoomStopTable();
+              return Stack(
+                children: [
+                  iv.InteractiveViewer(
+                    transformationController: _controller,
+                    constrained: false,
+                    maxScale: widget.params.maxScale,
+                    minScale: _alternativeFitScale != null
+                        ? _alternativeFitScale! / 2
+                        : 0.1,
+                    panAxis: widget.params.panAxis,
+                    boundaryMargin: _boundaryMargin,
+                    panEnabled: widget.params.panEnabled,
+                    scaleEnabled: widget.params.scaleEnabled,
+                    onInteractionEnd: widget.params.onInteractionEnd,
+                    onInteractionStart: widget.params.onInteractionStart,
+                    onInteractionUpdate: widget.params.onInteractionUpdate,
+                    onWheelDelta: widget.params.scrollByMouseWheel != null
+                        ? _onWheelDelta
+                        : null,
+                    // PDF pages
+                    child: CustomPaint(
+                      foregroundPainter:
+                          _CustomPainter.fromFunction(_customPaint),
+                      size: _layout!.documentSize,
                     ),
-                  );
-                },
-              ),
-          ],
-        ),
+                  ),
+                  // Text selection overlay
+                  if (widget.params.enableTextSelection)
+                    StreamBuilder(
+                      stream: _stream.throttleTime(
+                        const Duration(milliseconds: 200),
+                        leading: false,
+                        trailing: true,
+                      ),
+                      builder: (context, snapshot) {
+                        return ClipRect(
+                          child: Stack(
+                            children: _buildPageOverlayWidgets(context),
+                          ),
+                        );
+                      },
+                    ),
+
+                  if (widget.params.viewerOverlayBuilder != null)
+                    ...widget.params.viewerOverlayBuilder!(
+                        context, _controller!.viewSize)
+                ],
+              );
+            }),
       );
     });
   }
@@ -495,7 +483,7 @@ class _PdfViewerState extends State<PdfViewer>
     final visibleRect = _controller!.visibleRect;
     int? pageNumberMaxInt;
     double maxIntersection = 0;
-    for (int i = 0; i < _pages!.length; i++) {
+    for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
       final intersection = rect.intersect(visibleRect);
       if (intersection.isEmpty) continue;
@@ -597,24 +585,22 @@ class _PdfViewerState extends State<PdfViewer>
     final visibleRect = _controller!.visibleRect;
     final targetRect =
         visibleRect.inflateHV(horizontal: 0, vertical: visibleRect.height);
-    for (int i = 0; i < _pages!.length; i++) {
+    for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
       final intersection = rect.intersect(targetRect);
       if (intersection.isEmpty) continue;
 
-      final page = _pages![i];
-      if (page != null) {
-        final rectExternal = documentToRenderBox(rect);
-        if (rectExternal != null) {
-          widgets.add(
-            _PdfPageText(
-              key: Key('_PdfPageText#$i'),
-              page: page,
-              pageRect: rectExternal,
-              viewerState: this,
-            ),
-          );
-        }
+      final page = _document!.pages[i];
+      final rectExternal = documentToRenderBox(rect);
+      if (rectExternal != null) {
+        widgets.add(
+          _PdfPageText(
+            key: Key('_PdfPageText#$i'),
+            page: page,
+            pageRect: rectExternal,
+            viewerState: this,
+          ),
+        );
       }
     }
     return widgets;
@@ -641,38 +627,35 @@ class _PdfViewerState extends State<PdfViewer>
     final unusedPageList = <int>[];
     final needRelayout = <int>[];
 
-    for (int i = 0; i < _pages!.length; i++) {
+    for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
       final intersection = rect.intersect(targetRect);
       if (intersection.isEmpty) {
-        final page = _pages![i];
-        if (page != null) {
-          _renderingBufferTimers[page.pageNumber]?.cancel();
-          _renderingBufferTimers.remove(page.pageNumber);
-        }
+        final page = _document!.pages[i];
+        _cancelTask(page.pageNumber + 10000);
+        _cancelTask(page.pageNumber);
         unusedPageList.add(i + 1);
         continue;
       }
 
-      final page = _pages![i];
-      var realSize = page != null ? _realSized[page.pageNumber] : null;
-      if (page != null) {
-        final scale = widget.params.getPageRenderingScale
-                ?.call(context, page, _controller!, globalScale) ??
-            globalScale;
-        if (realSize == null || realSize.scale != scale) {
+      final page = _document!.pages[i];
+      var realSize = _realSized[page.pageNumber];
+      final scale = widget.params.getPageRenderingScale
+              ?.call(context, page, _controller!, globalScale) ??
+          globalScale;
+      if (realSize == null || realSize.scale != scale) {
+        if (widget.params.enableRealSizeRendering) {
           _ensureThumbCached(page);
-          _renderingBufferTimers[page.pageNumber]?.cancel();
-          _renderingBufferTimers[page.pageNumber] = Timer(
-            const Duration(milliseconds: 100),
-            () {
-              _ensureRealSizeCached(page, scale);
-            },
-          );
+        } else {
+          _scheduleTask(
+              page.pageNumber + 10000, const Duration(milliseconds: 100), () {
+            _ensureThumbCached(page);
+          });
         }
-      } else {
-        if (_pages![i] == null) {
-          needRelayout.add(i + 1);
+        if (widget.params.enableRealSizeRendering && scale > 1.0) {
+          _scheduleTask(page.pageNumber, const Duration(milliseconds: 100), () {
+            _ensureRealSizeCached(page, scale);
+          });
         }
       }
 
@@ -689,7 +672,7 @@ class _PdfViewerState extends State<PdfViewer>
           Paint()..filterQuality = FilterQuality.high,
         );
       } else {
-        final thumb = page != null ? _thumbs[page.pageNumber] : null;
+        final thumb = _thumbs[page.pageNumber];
         if (thumb != null) {
           canvas.drawImageRect(
             thumb,
@@ -715,10 +698,7 @@ class _PdfViewerState extends State<PdfViewer>
 
       if (needRelayout.isNotEmpty) {
         Future.microtask(
-          () async {
-            for (final pageNumber in needRelayout) {
-              _pages![pageNumber - 1] = await _document!.getPage(pageNumber);
-            }
+          () {
             _relayoutPages();
             _invalidate();
           },
@@ -728,37 +708,52 @@ class _PdfViewerState extends State<PdfViewer>
       if (unusedPageList.isNotEmpty) {
         final currentPageNumber = _pageNumber;
         if (currentPageNumber != null && currentPageNumber > 0) {
-          final currentPage = _pages![currentPageNumber - 1];
-          if (currentPage != null) {
-            _removeSomeImagesIfImageCountExceeds(
-              unusedPageList,
-              widget.params.maxRealSizeImageCount,
-              currentPage,
-              (pageNumber) {
-                _realSized.remove(pageNumber);
-                _pageTextLoader.remove(pageNumber);
-              },
-            );
-          }
+          final currentPage = _document!.pages[currentPageNumber - 1];
+          _removeSomeImagesIfImageCountExceeds(
+            unusedPageList,
+            widget.params.maxRealSizeImageCount,
+            currentPage,
+            (pageNumber) {
+              _realSized.remove(pageNumber);
+              _pageTextLoader.remove(pageNumber);
+            },
+          );
         }
       }
     }
   }
 
+  void _scheduleTask(int index, Duration wait, void Function() task) {
+    _taskTimers[index]?.cancel();
+    _taskTimers[index] = Timer(wait, task);
+  }
+
+  void _cancelTask(int index) {
+    _taskTimers[index]?.cancel();
+    _taskTimers.remove(index);
+  }
+
+  void _cancelAllTasks() {
+    for (final timer in _taskTimers.values) {
+      timer.cancel();
+    }
+    _taskTimers.clear();
+  }
+
   void _relayoutPages() {
     _layout = (widget.params.layoutPages ?? _layoutPages)(
-        _pages!, _templatePage!, widget.params);
+        _document!.pages, widget.params);
   }
 
   static PdfPageLayout _layoutPages(
-      List<PdfPage?> pages, PdfPage templatePage, PdfViewerParams params) {
-    final width = pages.fold(0.0, (w, p) => max(w, (p ?? templatePage).width)) +
-        params.margin * 2;
+      List<PdfPage> pages, PdfViewerParams params) {
+    final width =
+        pages.fold(0.0, (w, p) => max(w, p.width)) + params.margin * 2;
 
     final pageLayout = <Rect>[];
     var y = params.margin;
     for (int i = 0; i < pages.length; i++) {
-      final page = pages[i] ?? templatePage;
+      final page = pages[i];
       final rect =
           Rect.fromLTWH((width - page.width) / 2, y, page.width, page.height);
       pageLayout.add(rect);
@@ -873,11 +868,10 @@ class PdfViewerController extends TransformationController {
   AnimationController get _animController => _state!.animController;
   Rect get visibleRect => value.calcVisibleRect(viewSize);
 
+  List<PdfPage> get pages => _state!._document!.pages;
+
   /// The current page number if available.
   int? get pageNumber => _state?._pageNumber;
-
-  /// The total number of pages if available.
-  int? get pageCount => _state?._pages?.length;
 
   void _attach(_PdfViewerState? state) {
     _state = state;
@@ -937,46 +931,47 @@ class PdfViewerController extends TransformationController {
   /// Go to the specified area. [anchor] specifies how the page is positioned if the page is larger than the view.
   Future<void> goToArea({required Rect rect, PdfPageAnchor? anchor}) async {
     anchor ??= _state!.widget.anchor;
-    final vRatio = viewSize.aspectRatio;
-    final dRatio = documentSize.aspectRatio;
-    if (vRatio > dRatio) {
-      final yAnchor = anchor.index ~/ 3;
-      switch (yAnchor) {
-        case 0:
-          rect = Rect.fromLTRB(
-              rect.left, rect.top, rect.right, rect.top + rect.width / vRatio);
-          break;
-        case 1:
-          rect = Rect.fromCenter(
-              center: rect.center,
-              width: viewSize.width,
-              height: viewSize.height);
-          break;
-        case 2:
-          rect = Rect.fromLTRB(rect.left, rect.bottom - rect.width / vRatio,
-              rect.right, rect.bottom);
-          break;
-      }
-    } else {
-      final xAnchor = anchor.index % 3;
-      switch (xAnchor) {
-        case 0:
-          rect = Rect.fromLTRB(rect.left, rect.top,
-              rect.left + rect.height * vRatio, rect.bottom);
-          break;
-        case 1:
-          rect = Rect.fromCenter(
-              center: rect.center,
-              width: viewSize.width,
-              height: viewSize.height);
-          break;
-        case 2:
-          rect = Rect.fromLTRB(rect.right - rect.height * vRatio, rect.top,
-              rect.right, rect.bottom);
-          break;
+    if (anchor != PdfPageAnchor.all) {
+      final vRatio = viewSize.aspectRatio;
+      final dRatio = documentSize.aspectRatio;
+      if (vRatio > dRatio) {
+        final yAnchor = anchor.index ~/ 3;
+        switch (yAnchor) {
+          case 0:
+            rect = Rect.fromLTRB(rect.left, rect.top, rect.right,
+                rect.top + rect.width / vRatio);
+            break;
+          case 1:
+            rect = Rect.fromCenter(
+                center: rect.center,
+                width: viewSize.width,
+                height: viewSize.height);
+            break;
+          case 2:
+            rect = Rect.fromLTRB(rect.left, rect.bottom - rect.width / vRatio,
+                rect.right, rect.bottom);
+            break;
+        }
+      } else {
+        final xAnchor = anchor.index % 3;
+        switch (xAnchor) {
+          case 0:
+            rect = Rect.fromLTRB(rect.left, rect.top,
+                rect.left + rect.height * vRatio, rect.bottom);
+            break;
+          case 1:
+            rect = Rect.fromCenter(
+                center: rect.center,
+                width: viewSize.width,
+                height: viewSize.height);
+            break;
+          case 2:
+            rect = Rect.fromLTRB(rect.right - rect.height * vRatio, rect.top,
+                rect.right, rect.bottom);
+            break;
+        }
       }
     }
-
     await goTo(calcMatrixForRect(rect));
   }
 
@@ -1247,6 +1242,8 @@ class PdfViewerParams {
     this.scrollByMouseWheel = 0.1,
     this.maxThumbCacheCount = 30,
     this.maxRealSizeImageCount = 5,
+    this.enableRealSizeRendering = true,
+    this.viewerOverlayBuilder,
   });
 
   /// The maximum allowed scale.
@@ -1331,6 +1328,30 @@ class PdfViewerParams {
   /// The maximum number of real size images to be cached. The default is 5.
   final int maxRealSizeImageCount;
 
+  /// Enable real size rendering. The default is true.
+  ///
+  /// If you want to render PDF pages in relatively small sizes only,
+  /// disabling this option may improve the performance.
+  final bool enableRealSizeRendering;
+
+  /// Add overlays to the viewer.
+  ///
+  /// The most typical use case is to add scroll thumbs to the viewer.
+  /// The following fragment illustrates how to add vertical and horizontal scroll thumbs:
+  /// ```dart
+  /// viewerOverlayBuilder: (context, size) => [
+  ///   PdfViewerScrollThumb(
+  ///       controller: controller,
+  ///       orientation: ScrollbarOrientation.right),
+  ///   PdfViewerScrollThumb(
+  ///       controller: controller,
+  ///       orientation: ScrollbarOrientation.bottom),
+  /// ],
+  /// ```
+  ///
+  /// For more information, see [PdfViewerScrollThumb].
+  final PdfViewerOverlaysBuilder? viewerOverlayBuilder;
+
   /// Check equality of parameters other than functions.
   bool isParamsDifferenceFrom(PdfViewerParams? other) {
     return other != null &&
@@ -1347,7 +1368,8 @@ class PdfViewerParams {
         other.devicePixelRatioOverride == devicePixelRatioOverride &&
         other.scrollByMouseWheel == scrollByMouseWheel &&
         other.maxThumbCacheCount == maxThumbCacheCount &&
-        other.maxRealSizeImageCount == maxRealSizeImageCount;
+        other.maxRealSizeImageCount == maxRealSizeImageCount &&
+        other.enableRealSizeRendering == enableRealSizeRendering;
   }
 
   @override
@@ -1371,7 +1393,8 @@ class PdfViewerParams {
         other.getPageRenderingScale == getPageRenderingScale &&
         other.scrollByMouseWheel == scrollByMouseWheel &&
         other.maxThumbCacheCount == maxThumbCacheCount &&
-        other.maxRealSizeImageCount == maxRealSizeImageCount;
+        other.maxRealSizeImageCount == maxRealSizeImageCount &&
+        other.enableRealSizeRendering == enableRealSizeRendering;
   }
 
   @override
@@ -1393,13 +1416,8 @@ class PdfViewerParams {
         getPageRenderingScale.hashCode ^
         scrollByMouseWheel.hashCode ^
         maxThumbCacheCount.hashCode ^
-        maxRealSizeImageCount.hashCode;
-  }
-
-  @override
-  String toString() {
-    // ignore: deprecated_member_use_from_same_package
-    return 'PdfViewerParams(margin: $margin, backgroundColor: $backgroundColor, maxScale: $maxScale, minScale: $minScale, panAxis: $panAxis, boundaryMargin: $boundaryMargin, enableTextSelection:$enableTextSelection, panEnabled: $panEnabled, scaleEnabled: $scaleEnabled, onInteractionEnd: $onInteractionEnd, onInteractionStart: $onInteractionStart, onInteractionUpdate: $onInteractionUpdate, devicePixelRatioOverride: $devicePixelRatioOverride, getPageRenderingScale: $getPageRenderingScale, scrollByMouseWheel: $scrollByMouseWheel, maxThumbCacheCount: $maxThumbCacheCount, maxRealSizeImageCount: $maxRealSizeImageCount)';
+        maxRealSizeImageCount.hashCode ^
+        enableRealSizeRendering.hashCode;
   }
 }
 
@@ -1418,15 +1436,16 @@ typedef PdfViewerParamGetPageRenderingScale = double? Function(
 
 /// Function to customize the layout of the pages.
 ///
-/// - [pages] is the list of pages. The list may contain null if the page is not loaded yet.
-/// - [templatePage] is the template page, which is used if some page is not loaded yet.
+/// - [pages] is the list of pages.
 ///   This is just a copy of the first loaded page of the document.
 /// - [params] is the viewer parameters.
 typedef PdfPageLayoutFunction = PdfPageLayout Function(
-  List<PdfPage?> pages,
-  PdfPage templatePage,
+  List<PdfPage> pages,
   PdfViewerParams params,
 );
+
+typedef PdfViewerOverlaysBuilder = List<Widget> Function(
+    BuildContext context, Size size);
 
 enum PdfPageAnchor {
   topLeft,
@@ -1438,6 +1457,7 @@ enum PdfPageAnchor {
   bottomLeft,
   bottomCenter,
   bottomRight,
+  all,
 }
 
 class _PdfPageText extends StatefulWidget {
@@ -1935,4 +1955,151 @@ class _CustomPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+/// Scroll thumb for [PdfViewer].
+///
+/// Use with [PdfViewerParams.viewerOverlayBuilder] to add scroll thumbs to the viewer.
+class PdfViewerScrollThumb extends StatefulWidget {
+  const PdfViewerScrollThumb({
+    required this.controller,
+    this.orientation = ScrollbarOrientation.right,
+    this.thumbSize,
+    this.margin = 2,
+    this.thumbBuilder,
+    super.key,
+  });
+
+  /// [PdfViewerController] attached to the [PdfViewer].
+  final PdfViewerController controller;
+
+  /// Position/Orientation of the scroll thumb.
+  final ScrollbarOrientation orientation;
+
+  /// Size of the scroll thumb.
+  final Size? thumbSize;
+
+  /// Margin from the viewer's edge.
+  final double margin;
+
+  /// Function to customize the thumb widget.
+  final Widget? Function(BuildContext context, Size thumbSize, int pageNumber,
+      PdfViewerController controller)? thumbBuilder;
+
+  /// Determine whether the orientation is vertical or not.
+  bool get isVertical =>
+      orientation == ScrollbarOrientation.left ||
+      orientation == ScrollbarOrientation.right;
+
+  @override
+  State<PdfViewerScrollThumb> createState() => _PdfViewerScrollThumbState();
+}
+
+class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
+  double _panStartOffset = 0;
+  @override
+  Widget build(BuildContext context) {
+    return widget.isVertical
+        ? _buildVertical(context)
+        : _buildHorizontal(context);
+  }
+
+  Widget _buildVertical(BuildContext context) {
+    final thumbSize = widget.thumbSize ?? const Size(25, 40);
+    final view = widget.controller.visibleRect;
+    final all = widget.controller.documentSize;
+    if (all.height <= view.height) return Container();
+    final y = -widget.controller.value.y / (all.height - view.height);
+    final vh = view.height * widget.controller.currentZoom - thumbSize.height;
+    final top = y * vh;
+    return Positioned(
+      left: widget.orientation == ScrollbarOrientation.left
+          ? widget.margin
+          : null,
+      right: widget.orientation == ScrollbarOrientation.right
+          ? widget.margin
+          : null,
+      top: top,
+      width: thumbSize.width,
+      height: thumbSize.height,
+      child: GestureDetector(
+        child: widget.thumbBuilder?.call(context, thumbSize,
+                widget.controller.pageNumber!, widget.controller) ??
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    spreadRadius: 1,
+                    blurRadius: 1,
+                    offset: const Offset(1, 1),
+                  ),
+                ],
+              ),
+              child:
+                  Center(child: Text(widget.controller.pageNumber.toString())),
+            ),
+        onPanStart: (details) {
+          _panStartOffset = top - details.localPosition.dy;
+        },
+        onPanUpdate: (details) {
+          final y = (_panStartOffset + details.localPosition.dy) / vh;
+          final m = widget.controller.value.clone();
+          m.y = -y * (all.height - view.height);
+          widget.controller.value = m;
+        },
+      ),
+    );
+  }
+
+  Widget _buildHorizontal(BuildContext context) {
+    final thumbSize = widget.thumbSize ?? const Size(40, 25);
+    final view = widget.controller.visibleRect;
+    final all = widget.controller.documentSize;
+    if (all.width <= view.width) return Container();
+    final x = -widget.controller.value.x / (all.width - view.width);
+    final vw = view.width * widget.controller.currentZoom - thumbSize.width;
+    final left = x * vw;
+    return Positioned(
+      top:
+          widget.orientation == ScrollbarOrientation.top ? widget.margin : null,
+      bottom: widget.orientation == ScrollbarOrientation.bottom
+          ? widget.margin
+          : null,
+      left: left,
+      width: thumbSize.width,
+      height: thumbSize.height,
+      child: GestureDetector(
+        child: widget.thumbBuilder?.call(context, thumbSize,
+                widget.controller.pageNumber!, widget.controller) ??
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    spreadRadius: 1,
+                    blurRadius: 1,
+                    offset: const Offset(1, 1),
+                  ),
+                ],
+              ),
+              child:
+                  Center(child: Text(widget.controller.pageNumber.toString())),
+            ),
+        onPanStart: (details) {
+          _panStartOffset = left - details.localPosition.dx;
+        },
+        onPanUpdate: (details) {
+          final x = (_panStartOffset + details.localPosition.dx) / vw;
+          final m = widget.controller.value.clone();
+          m.x = -x * (all.width - view.width);
+          widget.controller.value = m;
+        },
+      ),
+    );
+  }
 }

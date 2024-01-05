@@ -88,7 +88,6 @@ class PdfDocumentWeb extends PdfDocument {
   PdfDocumentWeb._(
     this._document, {
     required super.sourceName,
-    required super.pageCount,
     required this.isEncrypted,
     required this.permissions,
     this.onDispose,
@@ -111,16 +110,22 @@ class PdfDocumentWeb extends PdfDocument {
         await js_util.promiseToFuture<List?>(document.getPermissions());
     final perms = permsObj?.cast<int>();
 
-    return PdfDocumentWeb._(
+    final doc = PdfDocumentWeb._(
       document,
       sourceName: sourceName,
-      pageCount: document.numPages,
       isEncrypted: perms != null,
       permissions: perms != null
           ? PdfPermissions(perms.fold<int>(0, (p, e) => p | e), 2)
           : null,
       onDispose: onDispose,
     );
+    final pageCount = document.numPages;
+    final pages = <PdfPage>[];
+    for (int i = 0; i < pageCount; i++) {
+      pages.add(await doc._getPage(document, i + 1));
+    }
+    doc.pages = List.unmodifiable(pages);
+    return doc;
   }
 
   @override
@@ -129,8 +134,7 @@ class PdfDocumentWeb extends PdfDocument {
     onDispose?.call();
   }
 
-  @override
-  Future<PdfPage> getPage(int pageNumber) async {
+  Future<PdfPage> _getPage(PdfjsDocument document, int pageNumber) async {
     final page =
         await js_util.promiseToFuture<PdfjsPage>(_document.getPage(pageNumber));
     final vp1 = page.getViewport(PdfjsViewportParams(scale: 1));
@@ -141,6 +145,9 @@ class PdfDocumentWeb extends PdfDocument {
         width: vp1.width,
         height: vp1.height);
   }
+
+  @override
+  late final List<PdfPage> pages;
 
   @override
   bool isIdenticalDocumentHandle(Object? other) =>

@@ -40,13 +40,13 @@ class _MyAppState extends State<MyApp> {
                   ? 'assets/assets/hello.pdf'
                   : 'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
               controller: controller,
-              displayParams: const PdfViewerParams(
+              displayParams: PdfViewerParams(
                 maxScale: 8,
                 // code to display pages horizontally
-                // layoutPages: (pages, templatePage, params) {
-                //   final height = pages.where((p) => p != null).fold(
+                // layoutPages: (pages, params) {
+                //   final height = pages.fold(
                 //           templatePage.height,
-                //           (prev, page) => max(prev, page!.height)) +
+                //           (prev, page) => max(prev, page.height)) +
                 //       params.margin * 2;
                 //   final pageLayouts = <Rect>[];
                 //   double x = params.margin;
@@ -67,6 +67,35 @@ class _MyAppState extends State<MyApp> {
                 //     documentSize: Size(x, height),
                 //   );
                 // },
+                // Thumbs for vertical/horizontal scroll
+                viewerOverlayBuilder: (context, size) => [
+                  PdfViewerScrollThumb(
+                    controller: controller,
+                    orientation: ScrollbarOrientation.right,
+                    thumbSize: const Size(40, 25),
+                    thumbBuilder:
+                        (context, thumbSize, pageNumber, controller) =>
+                            Container(
+                      color: Colors.black,
+                      child: Center(
+                        child: Text(
+                          pageNumber.toString(),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                  PdfViewerScrollThumb(
+                    controller: controller,
+                    orientation: ScrollbarOrientation.bottom,
+                    thumbSize: const Size(80, 30),
+                    thumbBuilder:
+                        (context, thumbSize, pageNumber, controller) =>
+                            Container(
+                      color: Colors.red,
+                    ),
+                  ),
+                ],
               ),
             ),
             AnimatedPositioned(
@@ -131,7 +160,7 @@ class _MyAppState extends State<MyApp> {
             FloatingActionButton(
               child: const Icon(Icons.last_page),
               onPressed: () =>
-                  controller.goToPage(pageNumber: controller.pageCount!),
+                  controller.goToPage(pageNumber: controller.pages.length),
             ),
             FloatingActionButton(
                 child: const Icon(Icons.search),

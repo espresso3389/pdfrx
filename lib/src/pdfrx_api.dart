@@ -49,16 +49,10 @@ abstract class PdfDocumentFactory {
 
 /// Handles PDF document loaded on memory.
 abstract class PdfDocument {
-  PdfDocument({
-    required this.sourceName,
-    required this.pageCount,
-  });
+  PdfDocument({required this.sourceName});
 
   /// File path, `asset:[ASSET_PATH]` or `memory:` depending on the content opened.
   final String sourceName;
-
-  /// Number of pages in the PDF document.
-  final int pageCount;
 
   /// Permission flags.
   PdfPermissions? get permissions;
@@ -127,8 +121,9 @@ abstract class PdfDocument {
         password: password,
       );
 
-  /// Get page object. The first page is 1.
-  Future<PdfPage> getPage(int pageNumber);
+  /// Pages.
+  ///
+  List<PdfPage> get pages;
 
   /// Determine whether document handles are identical or not.
   ///
