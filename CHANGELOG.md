@@ -1,3 +1,8 @@
+## 0.3.5
+
+- PageLayout class change to ease page layout customization
+  - Add example use case in API document
+
 ## 0.3.4
 
 - Rewriting page rendering code
