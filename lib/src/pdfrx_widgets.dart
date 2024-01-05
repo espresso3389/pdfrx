@@ -496,7 +496,7 @@ class _PdfViewerState extends State<PdfViewer>
     int? pageNumberMaxInt;
     double maxIntersection = 0;
     for (int i = 0; i < _pages!.length; i++) {
-      final rect = _layout!.pageLayouts[i + 1]!;
+      final rect = _layout!.pageLayouts[i];
       final intersection = rect.intersect(visibleRect);
       if (intersection.isEmpty) continue;
       final intersectionArea = intersection.width * intersection.height;
@@ -516,7 +516,7 @@ class _PdfViewerState extends State<PdfViewer>
   bool _calcAlternativeFitScale() {
     if (_pageNumber != null) {
       final params = widget.params;
-      final rect = _layout!.pageLayouts[_pageNumber]!;
+      final rect = _layout!.pageLayouts[_pageNumber! - 1];
       final scale = min((_viewSize!.width - params.margin) / rect.width,
           (_viewSize!.height - params.margin) / rect.height);
       final w = rect.width * scale;
@@ -598,7 +598,7 @@ class _PdfViewerState extends State<PdfViewer>
     final targetRect =
         visibleRect.inflateHV(horizontal: 0, vertical: visibleRect.height);
     for (int i = 0; i < _pages!.length; i++) {
-      final rect = _layout!.pageLayouts[i + 1]!;
+      final rect = _layout!.pageLayouts[i];
       final intersection = rect.intersect(targetRect);
       if (intersection.isEmpty) continue;
 
@@ -642,7 +642,7 @@ class _PdfViewerState extends State<PdfViewer>
     final needRelayout = <int>[];
 
     for (int i = 0; i < _pages!.length; i++) {
-      final rect = _layout!.pageLayouts[i + 1]!;
+      final rect = _layout!.pageLayouts[i];
       final intersection = rect.intersect(targetRect);
       if (intersection.isEmpty) {
         final page = _pages![i];
@@ -755,13 +755,13 @@ class _PdfViewerState extends State<PdfViewer>
     final width = pages.fold(0.0, (w, p) => max(w, (p ?? templatePage).width)) +
         params.margin * 2;
 
-    final pageLayout = <int, Rect>{};
+    final pageLayout = <Rect>[];
     var y = params.margin;
     for (int i = 0; i < pages.length; i++) {
       final page = pages[i] ?? templatePage;
       final rect =
           Rect.fromLTWH((width - page.width) / 2, y, page.width, page.height);
-      pageLayout[i + 1] = rect;
+      pageLayout.add(rect);
       y += page.height + params.margin;
     }
 
@@ -771,12 +771,7 @@ class _PdfViewerState extends State<PdfViewer>
     );
   }
 
-  void _invalidate() {
-    // if (mounted) {
-    //   setState(() {});
-    // }
-    _stream.add(_controller!.value);
-  }
+  void _invalidate() => _stream.add(_controller!.value);
 
   Future<void> _ensureRealSizeCached(PdfPage page, double scale) async {
     final width = page.width * scale;
@@ -818,9 +813,10 @@ class _PdfViewerState extends State<PdfViewer>
       PdfPage currentPage,
       void Function(int pageNumber) removePage) {
     if (pageNumbers.length <= acceptableCount) return;
-    double dist(int pageNumber) => (_layout!.pageLayouts[pageNumber]!.center -
-            _layout!.pageLayouts[currentPage.pageNumber]!.center)
-        .distanceSquared;
+    double dist(int pageNumber) =>
+        (_layout!.pageLayouts[pageNumber - 1].center -
+                _layout!.pageLayouts[currentPage.pageNumber - 1].center)
+            .distanceSquared;
 
     pageNumbers.sort((a, b) => dist(b).compareTo(dist(a)));
     for (final key
@@ -856,7 +852,7 @@ class _PdfViewerState extends State<PdfViewer>
 }
 
 class PageLayout {
-  final Map<int, Rect> pageLayouts;
+  final List<Rect> pageLayouts;
   final Size documentSize;
   PageLayout({required this.pageLayouts, required this.documentSize});
 }
@@ -933,7 +929,7 @@ class PdfViewerController extends TransformationController {
   Future<void> goToPage(
       {required int pageNumber, PdfPageAnchor? anchor}) async {
     await goToArea(
-        rect: _state!._layout!.pageLayouts[pageNumber]!
+        rect: _state!._layout!.pageLayouts[pageNumber - 1]
             .inflate(_state!.widget.params.margin),
         anchor: anchor);
   }
