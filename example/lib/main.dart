@@ -42,6 +42,7 @@ class _MyAppState extends State<MyApp> {
               controller: controller,
               displayParams: const PdfViewerParams(
                 maxScale: 8,
+                // code to display pages horizontally
                 // layoutPages: (pages, templatePage, params) {
                 //   final height = pages.where((p) => p != null).fold(
                 //           templatePage.height,
