@@ -279,7 +279,7 @@ class _PdfViewerState extends State<PdfViewer>
   PdfDocument? _document;
   List<PdfPage?>? _pages;
   PdfPage? _templatePage;
-  PageLayout? _layout;
+  PdfPageLayout? _layout;
   Size? _viewSize;
   EdgeInsets _boundaryMargin = EdgeInsets.zero;
   double? _coverScale;
@@ -750,7 +750,7 @@ class _PdfViewerState extends State<PdfViewer>
         _pages!, _templatePage!, widget.params);
   }
 
-  static PageLayout _layoutPages(
+  static PdfPageLayout _layoutPages(
       List<PdfPage?> pages, PdfPage templatePage, PdfViewerParams params) {
     final width = pages.fold(0.0, (w, p) => max(w, (p ?? templatePage).width)) +
         params.margin * 2;
@@ -765,7 +765,7 @@ class _PdfViewerState extends State<PdfViewer>
       y += page.height + params.margin;
     }
 
-    return PageLayout(
+    return PdfPageLayout(
       pageLayouts: pageLayout,
       documentSize: Size(width, y),
     );
@@ -851,10 +851,10 @@ class _PdfViewerState extends State<PdfViewer>
   }
 }
 
-class PageLayout {
+class PdfPageLayout {
   final List<Rect> pageLayouts;
   final Size documentSize;
-  PageLayout({required this.pageLayouts, required this.documentSize});
+  PdfPageLayout({required this.pageLayouts, required this.documentSize});
 }
 
 class PdfViewerController extends TransformationController {
@@ -1422,7 +1422,7 @@ typedef PdfViewerParamGetPageRenderingScale = double? Function(
 /// - [templatePage] is the template page, which is used if some page is not loaded yet.
 ///   This is just a copy of the first loaded page of the document.
 /// - [params] is the viewer parameters.
-typedef PdfPageLayoutFunction = PageLayout Function(
+typedef PdfPageLayoutFunction = PdfPageLayout Function(
   List<PdfPage?> pages,
   PdfPage templatePage,
   PdfViewerParams params,

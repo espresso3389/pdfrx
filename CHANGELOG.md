@@ -1,3 +1,7 @@
+## 0.3.6
+
+- PageLayout -> PdfPageLayout
+
 ## 0.3.5
 
 - PageLayout class change to ease page layout customization

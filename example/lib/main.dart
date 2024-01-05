@@ -62,7 +62,7 @@ class _MyAppState extends State<MyApp> {
                 //     );
                 //     x += page.width + params.margin;
                 //   }
-                //   return PageLayout(
+                //   return PdfPageLayout(
                 //     pageLayouts: pageLayouts,
                 //     documentSize: Size(x, height),
                 //   );

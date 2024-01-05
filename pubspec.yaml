@@ -1,6 +1,6 @@
 name: pdfrx
 description: "Yet another PDF renderer for Flutter using PDFium."
-version: 0.3.5
+version: 0.3.6
 homepage: https://github.com/espresso3389/pdfrx
 
 environment:
