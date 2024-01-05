@@ -611,18 +611,10 @@ class _PdfViewerState extends State<PdfViewer>
     final visibleRect = _controller!.visibleRect;
     final targetRect = visibleRect.inflateHV(
         horizontal: visibleRect.width, vertical: visibleRect.height);
-    final double globalScale;
-    // ignore: deprecated_member_use_from_same_package
-    if (widget.params.devicePixelRatioOverride != null) {
-      globalScale =
-          // ignore: deprecated_member_use_from_same_package
-          widget.params.devicePixelRatioOverride! * _controller!.currentZoom;
-    } else {
-      globalScale = max(
-        MediaQuery.of(context).devicePixelRatio * _controller!.currentZoom,
-        300.0 / 72.0,
-      );
-    }
+    final double globalScale = max(
+      MediaQuery.of(context).devicePixelRatio * _controller!.currentZoom,
+      300.0 / 72.0,
+    );
 
     final unusedPageList = <int>[];
     final needRelayout = <int>[];
@@ -1237,7 +1229,6 @@ class PdfViewerParams {
     this.onInteractionEnd,
     this.onInteractionStart,
     this.onInteractionUpdate,
-    this.devicePixelRatioOverride,
     this.getPageRenderingScale,
     this.scrollByMouseWheel = 0.1,
     this.maxThumbCacheCount = 30,
@@ -1278,11 +1269,6 @@ class PdfViewerParams {
 
   /// See [InteractiveViewer.onInteractionUpdate] for details.
   final GestureScaleUpdateCallback? onInteractionUpdate;
-
-  /// Once introduced to control the rendering scale of the page but
-  /// [getPageRenderingScale] is better replacement for the purpose.
-  @Deprecated('Use getPageRenderingScale instead')
-  final double? devicePixelRatioOverride;
 
   /// Function to customize the rendering scale of the page.
   ///
@@ -1364,8 +1350,6 @@ class PdfViewerParams {
         other.enableTextSelection == enableTextSelection &&
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
-        // ignore: deprecated_member_use_from_same_package
-        other.devicePixelRatioOverride == devicePixelRatioOverride &&
         other.scrollByMouseWheel == scrollByMouseWheel &&
         other.maxThumbCacheCount == maxThumbCacheCount &&
         other.maxRealSizeImageCount == maxRealSizeImageCount &&
@@ -1388,8 +1372,6 @@ class PdfViewerParams {
         other.onInteractionEnd == onInteractionEnd &&
         other.onInteractionStart == onInteractionStart &&
         other.onInteractionUpdate == onInteractionUpdate &&
-        // ignore: deprecated_member_use_from_same_package
-        other.devicePixelRatioOverride == devicePixelRatioOverride &&
         other.getPageRenderingScale == getPageRenderingScale &&
         other.scrollByMouseWheel == scrollByMouseWheel &&
         other.maxThumbCacheCount == maxThumbCacheCount &&
@@ -1411,8 +1393,6 @@ class PdfViewerParams {
         onInteractionEnd.hashCode ^
         onInteractionStart.hashCode ^
         onInteractionUpdate.hashCode ^
-        // ignore: deprecated_member_use_from_same_package
-        devicePixelRatioOverride.hashCode ^
         getPageRenderingScale.hashCode ^
         scrollByMouseWheel.hashCode ^
         maxThumbCacheCount.hashCode ^

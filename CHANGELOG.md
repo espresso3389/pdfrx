@@ -1,3 +1,12 @@
+## 0.4.0
+
+- Many breaking changes but they improve the code integrity:
+  - PdfDocument.pages supersedes PdfDocument.getPage
+  - PdfDocument.pageCount is removed
+  - PdfViewerParams.devicePixelRatioOverride is removed; use getPageRenderingScale instead
+- Add PdfPageAnchor.all
+- PdfViewerParams.viewerOverlayBuilder/PdfViewerScrollThumb to support scroll thumbs
+
 ## 0.3.6
 
 - PageLayout -> PdfPageLayout
