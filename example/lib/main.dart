@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -28,9 +26,6 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
-  final _isDesktop =
-      kIsWeb || Platform.isWindows || Platform.isLinux || Platform.isMacOS;
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -47,8 +42,30 @@ class _MyAppState extends State<MyApp> {
               controller: controller,
               displayParams: const PdfViewerParams(
                 maxScale: 8,
-                // FIXME: The performance of text selection is still very terrible... Not to enable it by default.
-                //enableTextSelection: !_isDesktop,
+                // layoutPages: (pages, templatePage, params) {
+                //   final height = pages.where((p) => p != null).fold(
+                //           templatePage.height,
+                //           (prev, page) => max(prev, page!.height)) +
+                //       params.margin * 2;
+                //   final pageLayouts = <Rect>[];
+                //   double x = params.margin;
+                //   for (var page in pages) {
+                //     page ??= templatePage; // in case the page is not loaded yet
+                //     pageLayouts.add(
+                //       Rect.fromLTWH(
+                //         x,
+                //         (height - page.height) / 2, // center vertically
+                //         page.width,
+                //         page.height,
+                //       ),
+                //     );
+                //     x += page.width + params.margin;
+                //   }
+                //   return PageLayout(
+                //     pageLayouts: pageLayouts,
+                //     documentSize: Size(x, height),
+                //   );
+                // },
               ),
             ),
             AnimatedPositioned(
