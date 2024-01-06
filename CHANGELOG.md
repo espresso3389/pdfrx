@@ -1,3 +1,7 @@
+## 0.4.3
+
+- FIXED: cache mechanism is apparently broken (#12)
+
 ## 0.4.2
 
 - PdfViewerParams.pageOverlayBuilder to customize PDF page (#17)
