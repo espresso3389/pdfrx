@@ -315,6 +315,7 @@ class PdfPagePdfium extends PdfPage {
     double? fullWidth,
     double? fullHeight,
     Color? backgroundColor,
+    bool enableAnnotations = true,
   }) async {
     fullWidth ??= this.width;
     fullHeight ??= this.height;
@@ -355,7 +356,7 @@ class PdfPagePdfium extends PdfPage {
               params.fullWidth,
               params.fullHeight,
               0,
-              0,
+              params.enableAnnotation ? pdfium_bindings.FPDF_ANNOT : 0,
             );
             pdfium.FPDFBitmap_Destroy(bmp);
           },
@@ -368,7 +369,8 @@ class PdfPagePdfium extends PdfPage {
             height: height!,
             fullWidth: fullWidth!.toInt(),
             fullHeight: fullHeight!.toInt(),
-            backgroundColor: backgroundColor!.value
+            backgroundColor: backgroundColor!.value,
+            enableAnnotation: enableAnnotations,
           ),
         );
       },

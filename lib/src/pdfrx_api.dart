@@ -173,6 +173,7 @@ abstract class PdfPage {
     double? fullWidth,
     double? fullHeight,
     Color? backgroundColor,
+    bool enableAnnotations = true,
   });
 
   /// Create Text object to extract text from the page.

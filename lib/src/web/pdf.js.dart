@@ -122,6 +122,7 @@ class PdfjsRenderContext {
       {required CanvasRenderingContext2D canvasContext,
       required PdfjsViewport viewport,
       String intent = 'display',
+      int annotationMode = 1,
       bool renderInteractiveForms = false,
       List<double>? transform,
       dynamic imageLayer,
@@ -131,10 +132,15 @@ class PdfjsRenderContext {
   external set canvasContext(CanvasRenderingContext2D ctx);
   external PdfjsViewport get viewport;
   external set viewport(PdfjsViewport viewport);
-  external String get intent;
 
   /// `display` or `print`
+  external String get intent;
+
   external set intent(String intent);
+
+  /// DISABLE=0, ENABLE=1, ENABLE_FORMS=2, ENABLE_STORAGE=3
+  external int get annotationMode;
+  external set annotationMode(int annotationMode);
   external bool get renderInteractiveForms;
   external set renderInteractiveForms(bool renderInteractiveForms);
   external List<int>? get transform;

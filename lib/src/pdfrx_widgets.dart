@@ -314,6 +314,12 @@ class _PdfViewerState extends State<PdfViewer>
 
     if (oldWidget?.documentRef.sourceName == widget.documentRef.sourceName) {
       if (widget.params.isParamsDifferenceFrom(oldWidget?.params)) {
+        if (widget.params.enableRenderAnnotations !=
+            oldWidget?.params.enableRenderAnnotations) {
+          _realSized.clear();
+          _thumbs.clear();
+        }
+
         if (mounted) {
           setState(() {});
         }
@@ -769,6 +775,7 @@ class _PdfViewerState extends State<PdfViewer>
       fullWidth: width,
       fullHeight: height,
       backgroundColor: Colors.white,
+      enableAnnotations: widget.params.enableRenderAnnotations,
     );
     _realSized[page.pageNumber] =
         (image: await img.createImage(), scale: scale);
@@ -788,6 +795,7 @@ class _PdfViewerState extends State<PdfViewer>
       fullWidth: page.width,
       fullHeight: page.height,
       backgroundColor: Colors.white,
+      enableAnnotations: widget.params.enableRenderAnnotations,
     );
     _thumbs[page.pageNumber] = await img.createImage();
     img.dispose();
@@ -1223,6 +1231,7 @@ class PdfViewerParams {
     this.minScale = 0.1,
     this.panAxis = PanAxis.free,
     this.boundaryMargin,
+    this.enableRenderAnnotations = true,
     this.enableTextSelection = false,
     this.panEnabled = true,
     this.scaleEnabled = true,
@@ -1250,6 +1259,9 @@ class PdfViewerParams {
 
   /// See [InteractiveViewer.boundaryMargin] for details.
   final EdgeInsets? boundaryMargin;
+
+  /// Render annotations on pages. The default is true.
+  final bool enableRenderAnnotations;
 
   /// Experimental: Enable text selection on pages.
   /// Please note the feature is still in development and may not work properly and disabled by default so far.
@@ -1338,8 +1350,11 @@ class PdfViewerParams {
   /// For more information, see [PdfViewerScrollThumb].
   final PdfViewerOverlaysBuilder? viewerOverlayBuilder;
 
+  bool isParamsDifferenceFrom(PdfViewerParams? other) =>
+      !isParamsIdenticalTo(other);
+
   /// Check equality of parameters other than functions.
-  bool isParamsDifferenceFrom(PdfViewerParams? other) {
+  bool isParamsIdenticalTo(PdfViewerParams? other) {
     return other != null &&
         other.margin == margin &&
         other.backgroundColor == backgroundColor &&
@@ -1347,6 +1362,7 @@ class PdfViewerParams {
         other.minScale == minScale &&
         other.panAxis == panAxis &&
         other.boundaryMargin == boundaryMargin &&
+        other.enableRenderAnnotations == enableRenderAnnotations &&
         other.enableTextSelection == enableTextSelection &&
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
@@ -1366,6 +1382,7 @@ class PdfViewerParams {
         other.minScale == minScale &&
         other.panAxis == panAxis &&
         other.boundaryMargin == boundaryMargin &&
+        other.enableRenderAnnotations == enableRenderAnnotations &&
         other.enableTextSelection == enableTextSelection &&
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
@@ -1387,6 +1404,7 @@ class PdfViewerParams {
         minScale.hashCode ^
         panAxis.hashCode ^
         boundaryMargin.hashCode ^
+        enableRenderAnnotations.hashCode ^
         enableTextSelection.hashCode ^
         panEnabled.hashCode ^
         scaleEnabled.hashCode ^

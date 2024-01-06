@@ -173,14 +173,16 @@ class PdfPageWeb extends PdfPage {
   final double height;
 
   @override
-  Future<PdfImage> render(
-      {int x = 0,
-      int y = 0,
-      int? width,
-      int? height,
-      double? fullWidth,
-      double? fullHeight,
-      Color? backgroundColor}) async {
+  Future<PdfImage> render({
+    int x = 0,
+    int y = 0,
+    int? width,
+    int? height,
+    double? fullWidth,
+    double? fullHeight,
+    Color? backgroundColor,
+    bool enableAnnotations = true,
+  }) async {
     fullWidth ??= this.width;
     fullHeight ??= this.height;
     width ??= fullWidth.toInt();
@@ -194,6 +196,7 @@ class PdfPageWeb extends PdfPage {
       fullHeight,
       backgroundColor,
       false,
+      enableAnnotations,
     );
     return PdfImageWeb(
       width: width,
@@ -211,6 +214,7 @@ class PdfPageWeb extends PdfPage {
     double fullHeight,
     Color? backgroundColor,
     bool dontFlip,
+    bool enableAnnotation,
   ) async {
     final vp1 = page.getViewport(PdfjsViewportParams(scale: 1));
     final pageWidth = vp1.width;
@@ -240,6 +244,7 @@ class PdfPageWeb extends PdfPage {
           PdfjsRenderContext(
             canvasContext: canvas.context2D,
             viewport: vp,
+            annotationMode: enableAnnotation ? 1 : 0,
           ),
         )
         .promise);
