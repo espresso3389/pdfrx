@@ -1,3 +1,8 @@
+## 0.4.2
+
+- PdfViewerParams.pageOverlayBuilder to customize PDF page (#17)
+- Updating README.md
+
 ## 0.4.1
 
 - Add PdfViewerParams.enableRenderAnnotations to enable annotations on rendering (#18,#19)

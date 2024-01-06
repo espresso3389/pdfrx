@@ -35,7 +35,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^0.4.1
+  pdfrx: ^0.4.2
 ```
 
 ### Web
@@ -89,4 +89,90 @@ Anyway, the example code for the plugin illustrates how to download and preview 
   <key>com.apple.security.network.client</key>
   <true/>
 </dict>
+```
+
+## Customizations
+
+You can customize the behaviour and visual by configuring [PdfViewerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams-class.html).
+
+### Horizontal Scroll View
+
+By default, the pages are layed out vertically.
+You can customize the layout logic by [PdfViewerParams.layoutPages](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/layoutPages.html):
+
+```dart
+layoutPages: (pages, params) {
+  final height =
+      pages.fold(0.0, (prev, page) => max(prev, page.height)) +
+          params.margin * 2;
+  final pageLayouts = <Rect>[];
+  double x = params.margin;
+  for (var page in pages) {
+    pageLayouts.add(
+      Rect.fromLTWH(
+        x,
+        (height - page.height) / 2, // center vertically
+        page.width,
+        page.height,
+      ),
+    );
+    x += page.width + params.margin;
+  }
+  return PdfPageLayout(
+    pageLayouts: pageLayouts,
+    documentSize: Size(x, height),
+  );
+},
+```
+
+### Showing Scroll Thumbs
+
+By default, the viewer does never show any scroll bars nor scroll thumbs.
+You can add scroll thumbs by using [PdfViewerParams.viewerOverlayBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html):
+
+```dart
+viewerOverlayBuilder: (context, size) => [
+  // Add vertical scroll thumb on viewer's right side
+  PdfViewerScrollThumb(
+    controller: controller,
+    orientation: ScrollbarOrientation.right,
+    thumbSize: const Size(40, 25),
+    thumbBuilder:
+        (context, thumbSize, pageNumber, controller) =>
+            Container(
+      color: Colors.black,
+      // Show page number on the thumb
+      child: Center(
+        child: Text(
+          pageNumber.toString(),
+          style: const TextStyle(color: Colors.white),
+        ),
+      ),
+    ),
+  ),
+  // Add horizontal scroll thumb on viewer's bottom
+  PdfViewerScrollThumb(
+    controller: controller,
+    orientation: ScrollbarOrientation.bottom,
+    thumbSize: const Size(80, 30),
+    thumbBuilder:
+        (context, thumbSize, pageNumber, controller) =>
+            Container(
+      color: Colors.red,
+    ),
+  ),
+],
+```
+
+### Adding Page Number on Page Bottom
+
+If you want to add page number on each page, you can do that by [PdfViewerParams.pageOverlayBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pageOverlayBuilder.html):
+
+```dart
+pageOverlayBuilder: (context, pageRect, page) {
+  return Align(
+    alignment: Alignment.bottomCenter,
+    child: Text(page.pageNumber.toString(),
+    style: const TextStyle(color: Colors.red)));
+},
 ```

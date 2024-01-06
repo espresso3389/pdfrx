@@ -306,9 +306,16 @@ typedef PdfPageLayoutFunction = PdfPageLayout Function(
   PdfViewerParams params,
 );
 
+/// Function to build viewer overlays.
+///
+/// [size] is the size of the viewer widget.
 typedef PdfViewerOverlaysBuilder = List<Widget> Function(
     BuildContext context, Size size);
 
+/// Function to build page overlays.
+///
+/// [pageRect] is the rectangle of the page in the viewer.
+/// [page] is the page.
 typedef PdfPageOverlayBuilder = Widget? Function(
     BuildContext context, Rect pageRect, PdfPage page);
 
