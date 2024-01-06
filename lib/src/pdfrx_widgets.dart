@@ -1334,6 +1334,9 @@ class PdfViewerParams {
 
   /// Add overlays to the viewer.
   ///
+  /// This function is to generate widgets on PDF viewer's overlay [Stack].
+  /// The widgets can be layed out using layout widgets such as [Positioned] and [Align].
+  ///
   /// The most typical use case is to add scroll thumbs to the viewer.
   /// The following fragment illustrates how to add vertical and horizontal scroll thumbs:
   /// ```dart

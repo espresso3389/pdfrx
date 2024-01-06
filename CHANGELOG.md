@@ -1,3 +1,7 @@
+## 0.4.1
+
+- Add PdfViewerParams.enableRenderAnnotations to enable annotations on rendering (#18,#19)
+
 ## 0.4.0
 
 - Many breaking changes but they improve the code integrity:
