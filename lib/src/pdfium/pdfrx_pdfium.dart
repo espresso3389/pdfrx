@@ -10,8 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:synchronized/extension.dart';
 
-import '../pdfrx_api.dart';
-import '../pdfrx_downloader.dart';
+import '../pdf_api.dart';
+import '../pdf_file_cache.dart';
 import 'pdfium_bindings.dart' as pdfium_bindings;
 import 'pdfium_interop.dart';
 import 'worker.dart';
