@@ -1,3 +1,9 @@
+## 0.4.4
+
+- PdfPage.render can render Annotations and FORMS
+- PdfFileCache: More realistic file cache mechanism
+- Introduces PasswordProvider to repeatedly test passwords (only API layer)
+
 ## 0.4.3
 
 - FIXED: cache mechanism is apparently broken (#12)
