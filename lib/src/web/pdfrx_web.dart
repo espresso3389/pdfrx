@@ -13,14 +13,24 @@ import 'pdf.js.dart';
 
 class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   @override
-  Future<PdfDocument> openAsset(String name, {String? password}) async {
+  Future<PdfDocument> openAsset(
+    String name, {
+    String? password,
+    PdfPasswordProvider? passwordProvider,
+  }) async {
     final bytes = await rootBundle.load(name);
-    return await PdfDocumentWeb.fromDocument(
-      await pdfjsGetDocumentFromData(
-        bytes.buffer,
-      ),
-      sourceName: 'asset:$name',
-    );
+    passwordProvider ??= createOneTimePasswordProvider(password);
+    for (;;) {
+      final password = passwordProvider();
+      try {
+        return await PdfDocumentWeb.fromDocument(
+          await pdfjsGetDocumentFromData(bytes.buffer, password: password),
+          sourceName: 'asset:$name',
+        );
+      } catch (e) {
+        if (password == null || !_isPasswordError(e)) rethrow;
+      }
+    }
   }
 
   @override
@@ -30,58 +40,99 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     required int fileSize,
     required String sourceName,
     String? password,
+    PdfPasswordProvider? passwordProvider,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
+    passwordProvider ??= createOneTimePasswordProvider(password);
     final buffer = Uint8List(fileSize);
     await read(buffer, 0, fileSize);
-    return await PdfDocumentWeb.fromDocument(
-      await pdfjsGetDocumentFromData(
-        buffer.buffer,
-        password: password,
-      ),
-      sourceName: sourceName,
-      onDispose: onDispose,
-    );
+    for (;;) {
+      final password = passwordProvider();
+      try {
+        return await PdfDocumentWeb.fromDocument(
+          await pdfjsGetDocumentFromData(
+            buffer.buffer,
+            password: password,
+          ),
+          sourceName: sourceName,
+          onDispose: onDispose,
+        );
+      } catch (e) {
+        if (password == null || !_isPasswordError(e)) {
+          rethrow;
+        }
+      }
+    }
   }
 
   @override
   Future<PdfDocument> openData(
     Uint8List data, {
     String? password,
+    PdfPasswordProvider? passwordProvider,
     String? sourceName,
     void Function()? onDispose,
   }) async {
-    return await PdfDocumentWeb.fromDocument(
-      await pdfjsGetDocumentFromData(
-        data.buffer,
-        password: password,
-      ),
-      sourceName: sourceName ?? 'memory-${data.hashCode}',
-      onDispose: onDispose,
-    );
+    passwordProvider ??= createOneTimePasswordProvider(password);
+    for (;;) {
+      final password = passwordProvider();
+      try {
+        return await PdfDocumentWeb.fromDocument(
+          await pdfjsGetDocumentFromData(
+            data.buffer,
+            password: password,
+          ),
+          sourceName: sourceName ?? 'memory-${data.hashCode}',
+          onDispose: onDispose,
+        );
+      } catch (e) {
+        if (password == null || !_isPasswordError(e)) {
+          rethrow;
+        }
+      }
+    }
   }
 
   @override
-  Future<PdfDocument> openFile(String filePath, {String? password}) async {
-    return await PdfDocumentWeb.fromDocument(
-      await pdfjsGetDocument(
-        filePath,
-        password: password,
-      ),
-      sourceName: filePath,
-    );
+  Future<PdfDocument> openFile(
+    String filePath, {
+    String? password,
+    PdfPasswordProvider? passwordProvider,
+  }) async {
+    passwordProvider ??= createOneTimePasswordProvider(password);
+    for (;;) {
+      final password = passwordProvider();
+      try {
+        return await PdfDocumentWeb.fromDocument(
+          await pdfjsGetDocument(
+            filePath,
+            password: password,
+          ),
+          sourceName: filePath,
+        );
+      } catch (e) {
+        if (password == null || !_isPasswordError(e)) {
+          rethrow;
+        }
+      }
+    }
   }
 
   @override
   Future<PdfDocument> openUri(
     Uri uri, {
     String? password,
+    PdfPasswordProvider? passwordProvider,
   }) =>
       openFile(
         uri.path,
         password: password,
+        passwordProvider: passwordProvider,
       );
+
+  static bool _isPasswordError(dynamic e) =>
+      e.toString().startsWith('PasswordException:');
 }
 
 class PdfDocumentWeb extends PdfDocument {
@@ -181,7 +232,8 @@ class PdfPageWeb extends PdfPage {
     double? fullWidth,
     double? fullHeight,
     Color? backgroundColor,
-    bool enableAnnotations = true,
+    PdfAnnotationRenderingMode annotationRenderingMode =
+        PdfAnnotationRenderingMode.annotationAndForms,
   }) async {
     fullWidth ??= this.width;
     fullHeight ??= this.height;
@@ -196,7 +248,7 @@ class PdfPageWeb extends PdfPage {
       fullHeight,
       backgroundColor,
       false,
-      enableAnnotations,
+      annotationRenderingMode,
     );
     return PdfImageWeb(
       width: width,
@@ -214,12 +266,12 @@ class PdfPageWeb extends PdfPage {
     double fullHeight,
     Color? backgroundColor,
     bool dontFlip,
-    bool enableAnnotation,
+    PdfAnnotationRenderingMode annotationRenderingMode,
   ) async {
     final vp1 = page.getViewport(PdfjsViewportParams(scale: 1));
     final pageWidth = vp1.width;
     if (width <= 0 || height <= 0) {
-      throw Exception(
+      throw PdfException(
           'Invalid PDF page rendering rectangle ($width x $height)');
     }
 
@@ -244,7 +296,7 @@ class PdfPageWeb extends PdfPage {
           PdfjsRenderContext(
             canvasContext: canvas.context2D,
             viewport: vp,
-            annotationMode: enableAnnotation ? 1 : 0,
+            annotationMode: annotationRenderingMode.index,
           ),
         )
         .promise);
@@ -258,7 +310,7 @@ class PdfPageWeb extends PdfPage {
   }
 
   @override
-  Future<PdfPageText?> loadText() => PdfPageTextWeb._loadText(this);
+  Future<PdfPageText> loadText() => PdfPageTextWeb._loadText(this);
 }
 
 class PdfImageWeb extends PdfImage {
@@ -283,11 +335,11 @@ class PdfPageTextFragmentWeb implements PdfPageTextFragment {
   @override
   final int index;
   @override
+  int get length => text.length;
+  @override
   final PdfRect bounds;
-
   @override
   List<PdfRect>? get charRects => null;
-
   @override
   final String text;
 }

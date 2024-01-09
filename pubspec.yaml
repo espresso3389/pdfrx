@@ -8,11 +8,15 @@ environment:
   flutter: '>=3.16.0'
 
 dependencies:
+  collection: ^1.18.0
+  crypto: ^3.0.3
   ffi: ^2.1.0
   flutter:
     sdk: flutter
   http: ^1.1.2
   js: ^0.6.7
+  path: ^1.8.3
+  path_provider: ^2.1.2
   rxdart: ^0.27.7
   synchronized: ^3.1.0
   vector_math: ^2.1.4
@@ -38,3 +42,18 @@ flutter:
         sharedDarwinSource: true
       windows:
         ffiPlugin: true
+
+# dart run ffigen
+ffigen:
+  output:
+    bindings: 'lib/src/pdfium/pdfium_bindings.dart'
+  headers:
+    entry-points:
+      - 'example/build/windows/x64/.lib/include/fpdfview.h'
+      - 'example/build/windows/x64/.lib/include/fpdf_annot.h'
+      - 'example/build/windows/x64/.lib/include/fpdf_text.h'
+      - 'example/build/windows/x64/.lib/include/fpdf_doc.h'
+      - 'example/build/windows/x64/.lib/include/fpdf_formfill.h'
+    include-directives:
+      - 'example/build/windows/x64/.lib/include/**'
+  name: 'pdfium'

@@ -212,3 +212,16 @@ class PdfjsTextStyle {
   external bool get vertical;
   external String get fontFamily;
 }
+
+@JS('BaseException')
+class PdfjsBaseException {
+  external String get message;
+  external String get name;
+}
+
+@JS('PasswordException')
+class PdfjsPasswordException {
+  external String get message;
+  external String get name;
+  external String get code;
+}

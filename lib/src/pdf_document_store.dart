@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:synchronized/extension.dart';
 
@@ -5,21 +7,25 @@ import 'pdf_api.dart';
 
 /// Maintain a reference to a [PdfDocument].
 class PdfDocumentRef extends Listenable {
-  PdfDocumentRef._(
-      this.store, this.sourceName, PdfDocument? document, Object? error)
+  PdfDocumentRef._(this.store, this.sourceName, PdfDocument? document,
+      Object? error, int revision)
       : _document = document,
-        _error = error;
+        _error = error,
+        _revision = revision;
   final PdfDocumentStore store;
   final String sourceName;
   final _listeners = <VoidCallback>{};
   PdfDocument? _document;
   Object? _error;
+  int _revision;
 
   /// The [PdfDocument] instance if available.
   PdfDocument? get document => _document;
 
   /// The error object if some error was occurred on the previous attempt to load the document.
   Object? get error => _error;
+
+  int get revision => _revision;
 
   @override
   void addListener(VoidCallback listener) {
@@ -46,6 +52,36 @@ class PdfDocumentRef extends Listenable {
     _document?.dispose();
     _document = null;
   }
+
+  Future<bool> setDocument(
+    FutureOr<PdfDocument> Function() documentLoader, {
+    bool resetOnError = false,
+  }) =>
+      store.synchronized(
+        () async {
+          try {
+            final oldDocument = _document;
+            final newDocument = await documentLoader();
+            if (newDocument == oldDocument) {
+              return false;
+            }
+            _document = newDocument;
+            oldDocument?.dispose();
+            _error = null;
+            _revision++;
+            notifyListeners();
+            return true;
+          } catch (e) {
+            if (resetOnError) {
+              _document = null;
+              _error = e;
+              _revision++;
+              notifyListeners();
+            }
+            return false;
+          }
+        },
+      );
 }
 
 /// A store to maintain [PdfDocumentRef] instances.
@@ -71,7 +107,7 @@ class PdfDocumentStore {
     bool retryIfError = false,
   }) {
     final docRef = _docRefs.putIfAbsent(
-        sourceName, () => PdfDocumentRef._(this, sourceName, null, null));
+        sourceName, () => PdfDocumentRef._(this, sourceName, null, null, 0));
     if (docRef.document != null) {
       return docRef;
     }
@@ -80,27 +116,18 @@ class PdfDocumentStore {
       return docRef;
     }
 
-    synchronized(() async {
-      if (docRef.document != null) {
-        return docRef;
-      }
-      try {
-        docRef._document = await documentLoader();
-        docRef._error = null;
-      } catch (e) {
-        docRef._document = null;
-        docRef._error = e;
-      }
-      docRef.notifyListeners();
-    });
+    if (docRef.document != null) {
+      return docRef;
+    }
 
+    docRef.setDocument(documentLoader, resetOnError: true);
     return docRef;
   }
 
   /// Dispose the store.
   void dispose() {
-    for (final document in _docRefs.values) {
-      document.dispose();
+    for (final ref in _docRefs.values) {
+      ref.dispose();
     }
     _docRefs.clear();
   }

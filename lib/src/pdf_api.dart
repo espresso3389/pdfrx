@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -10,18 +11,27 @@ import 'pdfium/pdfrx_pdfium.dart' if (dart.library.js) 'web/pdfrx_web.dart';
 /// For platform abstraction purpose; use [PdfDocument] instead.
 abstract class PdfDocumentFactory {
   /// See [PdfDocument.openAsset].
-  Future<PdfDocument> openAsset(String name, {String? password});
+  Future<PdfDocument> openAsset(
+    String name, {
+    String? password,
+    PdfPasswordProvider? passwordProvider,
+  });
 
   /// See [PdfDocument.openData].
   Future<PdfDocument> openData(
     Uint8List data, {
     String? password,
+    PdfPasswordProvider? passwordProvider,
     String? sourceName,
     void Function()? onDispose,
   });
 
   /// See [PdfDocument.openFile].
-  Future<PdfDocument> openFile(String filePath, {String? password});
+  Future<PdfDocument> openFile(
+    String filePath, {
+    String? password,
+    PdfPasswordProvider? passwordProvider,
+  });
 
   /// See [PdfDocument.openCustom].
   Future<PdfDocument> openCustom({
@@ -30,6 +40,7 @@ abstract class PdfDocumentFactory {
     required int fileSize,
     required String sourceName,
     String? password,
+    PdfPasswordProvider? passwordProvider,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   });
@@ -38,6 +49,7 @@ abstract class PdfDocumentFactory {
   Future<PdfDocument> openUri(
     Uri uri, {
     String? password,
+    PdfPasswordProvider? passwordProvider,
   });
 
   /// Singleton [PdfDocumentFactory] instance.
@@ -45,6 +57,26 @@ abstract class PdfDocumentFactory {
   /// It is used to switch pdfium/web implementation based on the running platform and of course, you can
   /// override it to use your own implementation.
   static PdfDocumentFactory instance = PdfDocumentFactoryImpl();
+}
+
+/// Function to provide password for encrypted PDF.
+///
+/// The function is called when PDF requires password.
+/// It is repeatedly called until the function returns `null` or the password is correct.
+///
+/// [createOneTimePasswordProvider] is a helper function to create [PdfPasswordProvider] that returns the password only once.
+typedef PdfPasswordProvider = String? Function();
+
+/// Create [PdfPasswordProvider] that returns the password only once.
+///
+/// The returned [PdfPasswordProvider] returns the password only once and returns `null` afterwards.
+/// If [password] is `null`, the returned [PdfPasswordProvider] returns `null` always.
+PdfPasswordProvider createOneTimePasswordProvider(String? password) {
+  return () {
+    final ret = password;
+    password = null;
+    return ret;
+  };
 }
 
 /// Handles PDF document loaded on memory.
@@ -64,23 +96,41 @@ abstract class PdfDocument {
 
   /// Opening the specified file.
   /// For Web, [filePath] can be relative path from `index.html` or any arbitrary URL but it may be restricted by CORS.
-  static Future<PdfDocument> openFile(String filePath, {String? password}) =>
-      PdfDocumentFactory.instance.openFile(filePath, password: password);
+  static Future<PdfDocument> openFile(
+    String filePath, {
+    String? password,
+    PdfPasswordProvider? passwordProvider,
+  }) =>
+      PdfDocumentFactory.instance.openFile(
+        filePath,
+        password: password,
+        passwordProvider: passwordProvider,
+      );
 
   /// Opening the specified asset.
-  static Future<PdfDocument> openAsset(String name, {String? password}) =>
-      PdfDocumentFactory.instance.openAsset(name, password: password);
+  static Future<PdfDocument> openAsset(
+    String name, {
+    String? password,
+    PdfPasswordProvider? passwordProvider,
+  }) =>
+      PdfDocumentFactory.instance.openAsset(
+        name,
+        password: password,
+        passwordProvider: passwordProvider,
+      );
 
   /// Opening the PDF on memory.
   static Future<PdfDocument> openData(
     Uint8List data, {
     String? password,
+    PdfPasswordProvider? passwordProvider,
     String? sourceName,
     void Function()? onDispose,
   }) =>
       PdfDocumentFactory.instance.openData(
         data,
         password: password,
+        passwordProvider: passwordProvider,
         sourceName: sourceName,
         onDispose: onDispose,
       );
@@ -95,6 +145,7 @@ abstract class PdfDocument {
     required int fileSize,
     required String sourceName,
     String? password,
+    PdfPasswordProvider? passwordProvider,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) =>
@@ -103,6 +154,7 @@ abstract class PdfDocument {
         fileSize: fileSize,
         sourceName: sourceName,
         password: password,
+        passwordProvider: passwordProvider,
         maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
         onDispose: onDispose,
       );
@@ -115,10 +167,12 @@ abstract class PdfDocument {
   static Future<PdfDocument> openUri(
     Uri uri, {
     String? password,
+    PdfPasswordProvider? passwordProvider,
   }) =>
       PdfDocumentFactory.instance.openUri(
         uri,
         password: password,
+        passwordProvider: passwordProvider,
       );
 
   /// Pages.
@@ -153,6 +207,7 @@ abstract class PdfPage {
   /// - If [width], [height] is not specified, [fullWidth], [fullHeight] is used.
   /// - If [fullWidth], [fullHeight] are not specified, [PdfPage.width] and [PdfPage.height] are used (it means rendered at 72-dpi).
   /// [backgroundColor] is used to fill the background of the page. If no color is specified, [Colors.white] is used.
+  /// - [annotationRenderingMode] controls to render annotations or not. The default is [PdfAnnotationRenderingMode.annotationAndForms
   ///
   /// The following code extract the area of (20,30)-(120,130) from the page image rendered at 1000x1500 pixels:
   /// ```dart
@@ -173,12 +228,23 @@ abstract class PdfPage {
     double? fullWidth,
     double? fullHeight,
     Color? backgroundColor,
-    bool enableAnnotations = true,
+    PdfAnnotationRenderingMode annotationRenderingMode =
+        PdfAnnotationRenderingMode.annotationAndForms,
   });
 
   /// Create Text object to extract text from the page.
   /// The returned object should be disposed after use.
-  Future<PdfPageText?> loadText();
+  Future<PdfPageText> loadText();
+}
+
+/// Annotation rendering mode.
+/// - [none]: Do not render annotations.
+/// - [annotation]: Render annotations.
+/// - [annotationAndForms]: Render annotations and forms.
+enum PdfAnnotationRenderingMode {
+  none,
+  annotation,
+  annotationAndForms,
 }
 
 /// PDF permissions defined on PDF 32000-1:2008, Table 22.
@@ -236,13 +302,23 @@ abstract class PdfPageText {
   String get fullText;
 
   /// Get text fragments that organizes the full text structure.
+  ///
+  /// The [fullText] is the composed result of all fragments' text.
+  /// Any character in [fullText] must be included in one of the fragments.
   List<PdfPageTextFragment> get fragments;
+
+  /// Find text fragment index for the specified text index.
+  int getFragmentIndexForTextIndex(int textIndex) => fragments.lowerBound(
+      _PdfPageTextFragmentForSearch(textIndex), (a, b) => a.index - b.index);
 }
 
 /// Text fragment in PDF page.
 abstract class PdfPageTextFragment {
   /// Fragment's index on [PdfPageText.fullText]; [text] is the substring of [PdfPageText.fullText] at [index].
   int get index;
+
+  /// Length of the text fragment.
+  int get length;
 
   /// Bounds of the text fragment in PDF page coordinates.
   PdfRect get bounds;
@@ -265,6 +341,21 @@ abstract class PdfPageTextFragment {
 
   @override
   int get hashCode => index.hashCode ^ bounds.hashCode ^ text.hashCode;
+}
+
+/// Used only for searching fragments with [lowerBound].
+class _PdfPageTextFragmentForSearch extends PdfPageTextFragment {
+  _PdfPageTextFragmentForSearch(this.index);
+  @override
+  final int index;
+  @override
+  int get length => throw UnimplementedError();
+  @override
+  PdfRect get bounds => throw UnimplementedError();
+  @override
+  String get text => throw UnimplementedError();
+  @override
+  List<PdfRect>? get charRects => null;
 }
 
 /// Rectangle in PDF page coordinates.
@@ -362,4 +453,11 @@ class PdfLink {
 
   /// Link location.
   final List<PdfRect> rects;
+}
+
+class PdfException implements Exception {
+  const PdfException(this.message);
+  final String message;
+  @override
+  String toString() => 'PdfException: $message';
 }

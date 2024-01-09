@@ -18,7 +18,8 @@ class PdfViewerParams {
     this.minScale = 0.1,
     this.panAxis = PanAxis.free,
     this.boundaryMargin,
-    this.enableRenderAnnotations = true,
+    this.annotationRenderingMode =
+        PdfAnnotationRenderingMode.annotationAndForms,
     this.enableTextSelection = false,
     this.panEnabled = true,
     this.scaleEnabled = true,
@@ -87,11 +88,8 @@ class PdfViewerParams {
   /// See [InteractiveViewer.boundaryMargin] for details.
   final EdgeInsets? boundaryMargin;
 
-  /// Render annotations on pages. The default is true.
-  ///
-  /// If you render relatively small thumbnails or previews, disabling (setting false) this option may improve
-  /// the memory consumption and rendering performance.
-  final bool enableRenderAnnotations;
+  /// Annotation rendering mode.
+  final PdfAnnotationRenderingMode annotationRenderingMode;
 
   /// Experimental: Enable text selection on pages.
   ///
@@ -220,7 +218,7 @@ class PdfViewerParams {
         other.minScale != minScale ||
         other.panAxis != panAxis ||
         other.boundaryMargin != boundaryMargin ||
-        other.enableRenderAnnotations != enableRenderAnnotations ||
+        other.annotationRenderingMode != annotationRenderingMode ||
         other.enableTextSelection != enableTextSelection ||
         other.panEnabled != panEnabled ||
         other.scaleEnabled != scaleEnabled ||
@@ -240,7 +238,7 @@ class PdfViewerParams {
         other.minScale == minScale &&
         other.panAxis == panAxis &&
         other.boundaryMargin == boundaryMargin &&
-        other.enableRenderAnnotations == enableRenderAnnotations &&
+        other.annotationRenderingMode == annotationRenderingMode &&
         other.enableTextSelection == enableTextSelection &&
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
@@ -265,7 +263,7 @@ class PdfViewerParams {
         minScale.hashCode ^
         panAxis.hashCode ^
         boundaryMargin.hashCode ^
-        enableRenderAnnotations.hashCode ^
+        annotationRenderingMode.hashCode ^
         enableTextSelection.hashCode ^
         panEnabled.hashCode ^
         scaleEnabled.hashCode ^

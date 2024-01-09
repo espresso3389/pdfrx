@@ -183,7 +183,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   final _thumbs = <int, ui.Image>{};
   final _realSized = <int, ({ui.Image image, double scale})>{};
-  final _pageTextLoader = <int, PdfPageText>{};
+  final _pageTexts = <int, PdfPageText>{};
 
   final _stream = BehaviorSubject<Matrix4>();
 
@@ -208,8 +208,8 @@ class _PdfViewerState extends State<PdfViewer>
 
     if (oldWidget?.documentRef.sourceName == widget.documentRef.sourceName) {
       if (widget.params.doChangesRequireReload(oldWidget?.params)) {
-        if (widget.params.enableRenderAnnotations !=
-            oldWidget?.params.enableRenderAnnotations) {
+        if (widget.params.annotationRenderingMode !=
+            oldWidget?.params.annotationRenderingMode) {
           _realSized.clear();
           _thumbs.clear();
         }
@@ -239,7 +239,7 @@ class _PdfViewerState extends State<PdfViewer>
     _layout = null;
     _thumbs.clear();
     _realSized.clear();
-    _pageTextLoader.clear();
+    _pageTexts.clear();
     _pageNumber = null;
     _initialized = false;
     _controller?.removeListener(_onMatrixChanged);
@@ -274,7 +274,7 @@ class _PdfViewerState extends State<PdfViewer>
     widget.documentRef.removeListener(_onDocumentChanged);
     _thumbs.clear();
     _realSized.clear();
-    _pageTextLoader.clear();
+    _pageTexts.clear();
     _controller!.removeListener(_onMatrixChanged);
     _controller!._attach(null);
     super.dispose();
@@ -600,7 +600,7 @@ class _PdfViewerState extends State<PdfViewer>
             currentPage,
             (pageNumber) {
               _realSized.remove(pageNumber);
-              _pageTextLoader.remove(pageNumber);
+              _pageTexts.remove(pageNumber);
             },
           );
         }
@@ -664,7 +664,7 @@ class _PdfViewerState extends State<PdfViewer>
         fullWidth: width,
         fullHeight: height,
         backgroundColor: Colors.white,
-        enableAnnotations: widget.params.enableRenderAnnotations,
+        annotationRenderingMode: widget.params.annotationRenderingMode,
       );
       _realSized[page.pageNumber] =
           (image: await img.createImage(), scale: scale);
@@ -688,7 +688,7 @@ class _PdfViewerState extends State<PdfViewer>
         fullWidth: page.width,
         fullHeight: page.height,
         backgroundColor: Colors.white,
-        enableAnnotations: widget.params.enableRenderAnnotations,
+        annotationRenderingMode: widget.params.annotationRenderingMode,
       );
       _thumbs[page.pageNumber] = await img.createImage();
       img.dispose();
@@ -715,21 +715,16 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
-  PdfPageText? _getPageText(
-      PdfPage page, void Function(PdfPage, PdfPageText) notify) {
-    final pageText = _pageTextLoader[page.pageNumber];
-    if (pageText != null) {
-      return pageText;
-    }
-    Future.microtask(() async {
-      final pageText = await page.loadText();
-      if (pageText != null) {
-        _pageTextLoader[page.pageNumber] = pageText;
-        notify(page, pageText);
-      }
-    });
-    return null;
-  }
+  Future<PdfPageText> _loadPageText(PdfPage page) => synchronized(
+        () async {
+          var pageText = _pageTexts[page.pageNumber];
+          if (pageText == null) {
+            pageText = await page.loadText();
+            _pageTexts[page.pageNumber] = pageText;
+          }
+          return pageText;
+        },
+      );
 
   void _onWheelDelta(Offset delta) {
     final m = _controller!.value.clone();
@@ -1084,4 +1079,74 @@ class _CustomPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class PdfPageTextSearcher {
+  PdfPageTextSearcher._(this._state);
+  final _PdfViewerState _state;
+
+  Stream<PdfTextSearchResult> search(RegExp pattern) async* {
+    final pages = _state._document!.pages;
+    for (int i = 0; i < pages.length; i++) {
+      final page = pages[i];
+      final pageText = await _state._loadPageText(page);
+      final matches = pattern.allMatches(pageText.fullText);
+      for (final match in matches) {
+        yield PdfTextSearchResult.fromTextRange(
+            pageText, match.start, match.end);
+      }
+    }
+  }
+}
+
+class PdfTextSearchResult {
+  PdfTextSearchResult(this.fragments, this.start, this.end, this.bounds);
+
+  final List<PdfPageTextFragment> fragments;
+  final int start;
+  final int end;
+  final PdfRect bounds;
+
+  static PdfTextSearchResult fromTextRange(PdfPageText pageText, int a, int b) {
+    // basically a should be less than or equal to b, but we anyway swap them if not
+    if (a > b) {
+      final temp = a;
+      a = b;
+      b = temp;
+    }
+    final s = pageText.getFragmentIndexForTextIndex(a);
+    final e = pageText.getFragmentIndexForTextIndex(b);
+    final sf = pageText.fragments[s];
+    if (s == e) {
+      if (sf.charRects == null) {
+        return PdfTextSearchResult(
+          pageText.fragments.sublist(s, e),
+          a - sf.index,
+          b - sf.index,
+          sf.bounds,
+        );
+      } else {
+        return PdfTextSearchResult(
+          pageText.fragments.sublist(s, e),
+          a - sf.index,
+          b - sf.index,
+          sf.charRects!.skip(a - sf.index).take(b - a).boundingRect(),
+        );
+      }
+    }
+
+    var bounds = sf.charRects != null
+        ? sf.charRects!.skip(a - sf.index).boundingRect()
+        : sf.bounds;
+    for (int i = s + 1; i < e; i++) {
+      bounds = bounds.merge(pageText.fragments[i].bounds);
+    }
+    final ef = pageText.fragments[e];
+    bounds = bounds.merge(ef.charRects != null
+        ? ef.charRects!.take(b - ef.index).boundingRect()
+        : ef.bounds);
+
+    return PdfTextSearchResult(
+        pageText.fragments.sublist(s, e), s - sf.index, e - ef.index, bounds);
+  }
 }

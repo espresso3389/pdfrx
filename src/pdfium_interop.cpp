@@ -68,6 +68,7 @@ extern "C" EXPORT void INTEROP_API pdfrx_file_access_set_value(pdfrx_file_access
 #if defined(__APPLE__)
 #include <fpdf_annot.h>
 #include <fpdf_text.h>
+#include <fpdf_formfill.h>
 
 extern "C" EXPORT void const *const *INTEROP_API pdfrx_binding()
 {
@@ -222,7 +223,12 @@ extern "C" EXPORT void const *const *INTEROP_API pdfrx_binding()
       reinterpret_cast<void *>(FPDFLink_CountRects),
       reinterpret_cast<void *>(FPDFLink_GetRect),
       reinterpret_cast<void *>(FPDFLink_GetTextRange),
-      reinterpret_cast<void *>(FPDFLink_CloseWebLinks)};
+      reinterpret_cast<void *>(FPDFLink_CloseWebLinks),
+      reinterpret_cast<void *>(FPDFDOC_InitFormFillEnvironment),
+      reinterpret_cast<void *>(FPDFDOC_ExitFormFillEnvironment),
+      reinterpret_cast<void *>(FPDF_FFLDraw),
+      reinterpret_cast<void *>(FPDF_GetFormType),
+  };
   return bindings;
 }
 #endif

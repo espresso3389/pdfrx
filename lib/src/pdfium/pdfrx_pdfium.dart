@@ -48,12 +48,17 @@ void _init() {
 
 class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   @override
-  Future<PdfDocument> openAsset(String name, {String? password}) async {
+  Future<PdfDocument> openAsset(
+    String name, {
+    String? password,
+    PdfPasswordProvider? passwordProvider,
+  }) async {
     final data = await rootBundle.load(name);
     return await _openData(
       data.buffer.asUint8List(),
       'asset:$name',
       password: password,
+      passwordProvider: passwordProvider,
     );
   }
 
@@ -61,6 +66,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   Future<PdfDocument> openData(
     Uint8List data, {
     String? password,
+    PdfPasswordProvider? passwordProvider,
     String? sourceName,
     void Function()? onDispose,
   }) =>
@@ -68,25 +74,37 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         data,
         sourceName ?? 'memory-${data.hashCode}',
         password: password,
+        passwordProvider: passwordProvider,
         onDispose: onDispose,
       );
 
   @override
-  Future<PdfDocument> openFile(String filePath, {String? password}) async {
+  Future<PdfDocument> openFile(
+    String filePath, {
+    String? password,
+    PdfPasswordProvider? passwordProvider,
+  }) async {
     _init();
-    return using((arena) {
-      return PdfDocumentPdfium.fromPdfDocument(
-        pdfium.FPDF_LoadDocument(
-            filePath.toUtf8(arena), password?.toUtf8(arena) ?? nullptr),
-        sourceName: filePath,
-      );
-    });
+    passwordProvider ??= createOneTimePasswordProvider(password);
+
+    for (;;) {
+      final password = passwordProvider();
+      final doc = using((arena) => pdfium.FPDF_LoadDocument(
+          filePath.toUtf8(arena), password?.toUtf8(arena) ?? nullptr));
+      if (password == null || doc.address != 0 || !_isPasswordError()) {
+        return PdfDocumentPdfium.fromPdfDocument(
+          doc,
+          sourceName: filePath,
+        );
+      }
+    }
   }
 
   Future<PdfDocument> _openData(
     Uint8List data,
     String sourceName, {
     String? password,
+    PdfPasswordProvider? passwordProvider,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
@@ -117,64 +135,96 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     required int fileSize,
     required String sourceName,
     String? password,
+    PdfPasswordProvider? passwordProvider,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
     _init();
 
     maxSizeToCacheOnMemory ??= 1024 * 1024; // the default is 1MB
+    passwordProvider ??= createOneTimePasswordProvider(password);
 
     // If the file size is smaller than the specified size, load the file on memory
-    if (fileSize < maxSizeToCacheOnMemory) {
+    if (fileSize <= maxSizeToCacheOnMemory) {
       return await using((arena) async {
         final buffer = calloc.allocate<Uint8>(fileSize);
         await read(buffer.asTypedList(fileSize), 0, fileSize);
-        return PdfDocumentPdfium.fromPdfDocument(
-          pdfium.FPDF_LoadMemDocument(
+        for (;;) {
+          final password = passwordProvider!();
+          final doc = pdfium.FPDF_LoadMemDocument(
             buffer.cast<Void>(),
             fileSize,
             password?.toUtf8(arena) ?? nullptr,
-          ),
-          sourceName: sourceName,
-          disposeCallback: () {
-            calloc.free(buffer);
-            onDispose?.call();
-          },
-        );
+          );
+          if (password == null || doc.address != 0 || !_isPasswordError()) {
+            return PdfDocumentPdfium.fromPdfDocument(
+              doc,
+              sourceName: sourceName,
+              disposeCallback: () {
+                onDispose?.call();
+                calloc.free(buffer);
+              },
+            );
+          }
+        }
       });
     }
 
     // Otherwise, load the file on demand
     final fa = FileAccess(fileSize, read);
-    final doc = await using((arena) async => (await _globalWorker).compute(
+    for (;;) {
+      final password = passwordProvider();
+      final result = await using(
+        (arena) async => (await _globalWorker).compute(
           (params) {
-            return pdfium.FPDF_LoadCustomDocument(
+            final doc = pdfium.FPDF_LoadCustomDocument(
               Pointer<pdfium_bindings.FPDF_FILEACCESS>.fromAddress(
                   params.fileAccess),
               Pointer<Char>.fromAddress(params.password),
             ).address;
+            return (doc: doc, error: pdfium.FPDF_GetLastError());
           },
           (
             fileAccess: fa.fileAccess.address,
             password: password?.toUtf8(arena).address ?? 0,
           ),
-        ));
-    return PdfDocumentPdfium.fromPdfDocument(
-      pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
-      sourceName: sourceName,
-      disposeCallback: () {
-        fa.dispose();
-        onDispose?.call();
-      },
-    );
+        ),
+      );
+      if (password == null ||
+          result.doc != 0 ||
+          !_isPasswordError(error: result.error)) {
+        return PdfDocumentPdfium.fromPdfDocument(
+          pdfium_bindings.FPDF_DOCUMENT.fromAddress(result.doc),
+          sourceName: sourceName,
+          disposeCallback: () {
+            onDispose?.call();
+            fa.dispose();
+          },
+        );
+      }
+    }
   }
 
   @override
   Future<PdfDocument> openUri(
     Uri uri, {
     String? password,
-  }) {
-    return pdfDocumentFromUri(uri, password: password);
+    PdfPasswordProvider? passwordProvider,
+  }) =>
+      pdfDocumentFromUri(
+        uri,
+        password: password,
+        passwordProvider: passwordProvider,
+      );
+
+  static bool _isPasswordError({int? error}) {
+    if (Platform.isWindows) {
+      // FIXME: Windows does not return error code correctly
+      // And we have to mimic every error is password error
+      return true;
+    }
+    error ??= pdfium.FPDF_GetLastError();
+    return error == pdfium_bindings.FPDF_ERR_PASSWORD;
   }
 }
 
@@ -188,6 +238,8 @@ class PdfDocumentPdfium extends PdfDocument {
   final void Function()? disposeCallback;
   final _worker = BackgroundWorker.create();
   final int securityHandlerRevision;
+  final pdfium_bindings.FPDF_FORMHANDLE formHandle;
+  final Pointer<pdfium_bindings.FPDF_FORMFILLINFO> formInfo;
 
   @override
   bool get isEncrypted => securityHandlerRevision != 0;
@@ -199,13 +251,15 @@ class PdfDocumentPdfium extends PdfDocument {
     required super.sourceName,
     required this.securityHandlerRevision,
     required this.permissions,
+    required this.formHandle,
+    required this.formInfo,
     this.disposeCallback,
   });
 
   static Future<PdfDocument> fromPdfDocument(pdfium_bindings.FPDF_DOCUMENT doc,
       {required String sourceName, void Function()? disposeCallback}) async {
     if (doc.address == 0) {
-      throw Exception('Failed to load PDF document');
+      throw const PdfException('Failed to load PDF document.');
     }
     final result = await (await _globalWorker).compute(
       (docAddress) {
@@ -216,6 +270,14 @@ class PdfDocumentPdfium extends PdfDocument {
             final permissions = pdfium.FPDF_GetDocPermissions(doc);
             final securityHandlerRevision =
                 pdfium.FPDF_GetSecurityHandlerRevision(doc);
+
+            final formInfo = calloc<pdfium_bindings.FPDF_FORMFILLINFO>(
+                sizeOf<pdfium_bindings.FPDF_FORMFILLINFO>());
+            formInfo.ref.version = 1;
+            final formHandle = pdfium.FPDFDOC_InitFormFillEnvironment(
+              doc,
+              formInfo,
+            );
 
             final pages = [];
             for (int i = 0; i < pageCount; i++) {
@@ -232,6 +294,8 @@ class PdfDocumentPdfium extends PdfDocument {
               permissions: permissions,
               securityHandlerRevision: securityHandlerRevision,
               pages: pages,
+              formHandle: formHandle.address,
+              formInfo: formInfo.address,
             );
           },
         );
@@ -246,6 +310,10 @@ class PdfDocumentPdfium extends PdfDocument {
       permissions: result.securityHandlerRevision != -1
           ? PdfPermissions(result.permissions, result.securityHandlerRevision)
           : null,
+      formHandle:
+          pdfium_bindings.FPDF_FORMHANDLE.fromAddress(result.formHandle),
+      formInfo: Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(
+          result.formInfo),
       disposeCallback: disposeCallback,
     );
 
@@ -281,6 +349,10 @@ class PdfDocumentPdfium extends PdfDocument {
       for (final page in pages) {
         pdfium.FPDF_ClosePage(page.page);
       }
+
+      pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
+      calloc.free(formInfo);
+
       pdfium.FPDF_CloseDocument(doc);
     });
     disposeCallback?.call();
@@ -315,7 +387,8 @@ class PdfPagePdfium extends PdfPage {
     double? fullWidth,
     double? fullHeight,
     Color? backgroundColor,
-    bool enableAnnotations = true,
+    PdfAnnotationRenderingMode annotationRenderingMode =
+        PdfAnnotationRenderingMode.annotationAndForms,
   }) async {
     fullWidth ??= this.width;
     fullHeight ??= this.height;
@@ -337,9 +410,11 @@ class PdfPagePdfium extends PdfPage {
               params.width * rgbaSize,
             );
             if (bmp.address == 0) {
-              throw Exception(
+              throw PdfException(
                   'FPDFBitmap_CreateEx(${params.width}, ${params.height}) failed.');
             }
+
+            final page = pdfium_bindings.FPDF_PAGE.fromAddress(params.page);
             pdfium.FPDFBitmap_FillRect(
               bmp,
               0,
@@ -350,14 +425,33 @@ class PdfPagePdfium extends PdfPage {
             );
             pdfium.FPDF_RenderPageBitmap(
               bmp,
-              pdfium_bindings.FPDF_PAGE.fromAddress(params.page),
+              page,
               -params.x,
               -params.y,
               params.fullWidth,
               params.fullHeight,
               0,
-              params.enableAnnotation ? pdfium_bindings.FPDF_ANNOT : 0,
+              params.annotationRenderingMode != PdfAnnotationRenderingMode.none
+                  ? pdfium_bindings.FPDF_ANNOT
+                  : 0,
             );
+
+            if (params.formHandle != 0 &&
+                params.annotationRenderingMode ==
+                    PdfAnnotationRenderingMode.annotationAndForms) {
+              pdfium.FPDF_FFLDraw(
+                pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle),
+                bmp,
+                page,
+                -params.x,
+                -params.y,
+                params.fullWidth,
+                params.fullHeight,
+                0,
+                0,
+              );
+            }
+
             pdfium.FPDFBitmap_Destroy(bmp);
           },
           (
@@ -370,7 +464,9 @@ class PdfPagePdfium extends PdfPage {
             fullWidth: fullWidth!.toInt(),
             fullHeight: fullHeight!.toInt(),
             backgroundColor: backgroundColor!.value,
-            enableAnnotation: enableAnnotations,
+            annotationRenderingMode: annotationRenderingMode,
+            formHandle: document.formHandle.address,
+            formInfo: document.formInfo.address,
           ),
         );
       },
@@ -384,7 +480,7 @@ class PdfPagePdfium extends PdfPage {
   }
 
   @override
-  Future<PdfPageText?> loadText() => PdfPageTextPdfium._loadText(this);
+  Future<PdfPageText> loadText() => PdfPageTextPdfium._loadText(this);
 }
 
 class PdfImagePdfium extends PdfImage {
@@ -420,16 +516,12 @@ class PdfPageTextFragmentPdfium implements PdfPageTextFragment {
 
   @override
   final int index;
-
+  @override
   final int length;
-
   @override
   final PdfRect bounds;
-
   @override
   final List<PdfRect>? charRects;
-
-  /// Text for the fragment.
   @override
   String get text => pageText.fullText.substring(index, index + length);
 }
