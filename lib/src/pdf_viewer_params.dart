@@ -20,14 +20,17 @@ class PdfViewerParams {
     this.boundaryMargin,
     this.annotationRenderingMode =
         PdfAnnotationRenderingMode.annotationAndForms,
+    this.pageAnchor = PdfPageAnchor.topCenter,
     this.enableTextSelection = false,
     this.panEnabled = true,
     this.scaleEnabled = true,
     this.onInteractionEnd,
     this.onInteractionStart,
     this.onInteractionUpdate,
+    this.onPageChanged,
     this.getPageRenderingScale,
     this.scrollByMouseWheel = 0.1,
+    this.enableKeyboardNavigation = true,
     this.maxThumbCacheCount = 30,
     this.maxRealSizeImageCount = 5,
     this.enableRealSizeRendering = true,
@@ -91,6 +94,9 @@ class PdfViewerParams {
   /// Annotation rendering mode.
   final PdfAnnotationRenderingMode annotationRenderingMode;
 
+  /// Anchor to position the page.
+  final PdfPageAnchor pageAnchor;
+
   /// Experimental: Enable text selection on pages.
   ///
   /// Please note the feature is still in development and may not work properly and disabled by default so far.
@@ -110,6 +116,9 @@ class PdfViewerParams {
 
   /// See [InteractiveViewer.onInteractionUpdate] for details.
   final GestureScaleUpdateCallback? onInteractionUpdate;
+
+  /// Function called when the current page is changed.
+  final PdfPageChangedCallback? onPageChanged;
 
   /// Function to customize the rendering scale of the page.
   ///
@@ -148,6 +157,9 @@ class PdfViewerParams {
   /// Negative value to scroll opposite direction.
   /// null to disable scroll-by-mouse-wheel.
   final double? scrollByMouseWheel;
+
+  /// Enable keyboard navigation. The default is true.
+  final bool enableKeyboardNavigation;
 
   /// The maximum number of thumbnails to be cached. The default is 30.
   final int maxThumbCacheCount;
@@ -219,10 +231,12 @@ class PdfViewerParams {
         other.panAxis != panAxis ||
         other.boundaryMargin != boundaryMargin ||
         other.annotationRenderingMode != annotationRenderingMode ||
+        other.pageAnchor != pageAnchor ||
         other.enableTextSelection != enableTextSelection ||
         other.panEnabled != panEnabled ||
         other.scaleEnabled != scaleEnabled ||
         other.scrollByMouseWheel != scrollByMouseWheel ||
+        other.enableKeyboardNavigation != enableKeyboardNavigation ||
         other.maxThumbCacheCount != maxThumbCacheCount ||
         other.maxRealSizeImageCount != maxRealSizeImageCount ||
         other.enableRealSizeRendering != enableRealSizeRendering;
@@ -239,6 +253,7 @@ class PdfViewerParams {
         other.panAxis == panAxis &&
         other.boundaryMargin == boundaryMargin &&
         other.annotationRenderingMode == annotationRenderingMode &&
+        other.pageAnchor == pageAnchor &&
         other.enableTextSelection == enableTextSelection &&
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
@@ -247,6 +262,7 @@ class PdfViewerParams {
         other.onInteractionUpdate == onInteractionUpdate &&
         other.getPageRenderingScale == getPageRenderingScale &&
         other.scrollByMouseWheel == scrollByMouseWheel &&
+        other.enableKeyboardNavigation == enableKeyboardNavigation &&
         other.maxThumbCacheCount == maxThumbCacheCount &&
         other.maxRealSizeImageCount == maxRealSizeImageCount &&
         other.enableRealSizeRendering == enableRealSizeRendering &&
@@ -264,6 +280,7 @@ class PdfViewerParams {
         panAxis.hashCode ^
         boundaryMargin.hashCode ^
         annotationRenderingMode.hashCode ^
+        pageAnchor.hashCode ^
         enableTextSelection.hashCode ^
         panEnabled.hashCode ^
         scaleEnabled.hashCode ^
@@ -272,6 +289,7 @@ class PdfViewerParams {
         onInteractionUpdate.hashCode ^
         getPageRenderingScale.hashCode ^
         scrollByMouseWheel.hashCode ^
+        enableKeyboardNavigation.hashCode ^
         maxThumbCacheCount.hashCode ^
         maxRealSizeImageCount.hashCode ^
         enableRealSizeRendering.hashCode ^
@@ -280,6 +298,9 @@ class PdfViewerParams {
         forceReload.hashCode;
   }
 }
+
+/// Function called when the current page is changed.
+typedef PdfPageChangedCallback = void Function(int? pageNumber);
 
 /// Function to customize the rendering scale of the page.
 ///

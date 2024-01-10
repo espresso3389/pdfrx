@@ -1,3 +1,12 @@
+## 0.4.5
+
+- PdfViewerParams updates
+  - PdfViewerParams.onPageChanged replaces onPageChanged parameter on PdfViewer factories
+  - PdfViewerParams.pageAnchor replaces anchor parameter on PdfViewer factories
+- pdfDocumentFromUri/PdfFileCache improves mechanism to cache downloaded PDF file
+  - ETag check to invalidate the existing cache
+  - Better downloaded region handling
+
 ## 0.4.4
 
 - PdfPage.render can render Annotations and FORMS

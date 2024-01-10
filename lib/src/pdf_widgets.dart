@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
 import 'package:vector_math/vector_math_64.dart' as vec;
@@ -26,8 +27,6 @@ class PdfViewer extends StatefulWidget {
     this.controller,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
-    this.anchor = PdfPageAnchor.topCenter,
-    this.onPageChanged,
   });
 
   PdfViewer.asset(
@@ -37,7 +36,6 @@ class PdfViewer extends StatefulWidget {
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
-    PdfPageAnchor anchor = PdfPageAnchor.topCenter,
     PdfDocumentStore? store,
   }) : this(
           key: key,
@@ -49,7 +47,6 @@ class PdfViewer extends StatefulWidget {
           controller: controller,
           params: displayParams,
           initialPageNumber: initialPageNumber,
-          anchor: anchor,
         );
 
   PdfViewer.file(
@@ -59,7 +56,6 @@ class PdfViewer extends StatefulWidget {
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
-    PdfPageAnchor anchor = PdfPageAnchor.topCenter,
     PdfDocumentStore? store,
   }) : this(
           key: key,
@@ -71,7 +67,6 @@ class PdfViewer extends StatefulWidget {
           controller: controller,
           params: displayParams,
           initialPageNumber: initialPageNumber,
-          anchor: anchor,
         );
 
   PdfViewer.uri(
@@ -81,7 +76,6 @@ class PdfViewer extends StatefulWidget {
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
-    PdfPageAnchor anchor = PdfPageAnchor.topCenter,
     PdfDocumentStore? store,
   }) : this(
           key: key,
@@ -92,7 +86,6 @@ class PdfViewer extends StatefulWidget {
           controller: controller,
           params: displayParams,
           initialPageNumber: initialPageNumber,
-          anchor: anchor,
         );
 
   PdfViewer.data(
@@ -103,7 +96,6 @@ class PdfViewer extends StatefulWidget {
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
-    PdfPageAnchor anchor = PdfPageAnchor.topCenter,
     PdfDocumentStore? store,
   }) : this(
           key: key,
@@ -115,7 +107,6 @@ class PdfViewer extends StatefulWidget {
           controller: controller,
           params: displayParams,
           initialPageNumber: initialPageNumber,
-          anchor: anchor,
         );
 
   PdfViewer.custom({
@@ -128,7 +119,6 @@ class PdfViewer extends StatefulWidget {
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
-    PdfPageAnchor anchor = PdfPageAnchor.topCenter,
     PdfDocumentStore? store,
   }) : this(
           key: key,
@@ -143,7 +133,6 @@ class PdfViewer extends StatefulWidget {
           controller: controller,
           params: displayParams,
           initialPageNumber: initialPageNumber,
-          anchor: anchor,
         );
   final PdfDocumentRef documentRef;
 
@@ -155,12 +144,6 @@ class PdfViewer extends StatefulWidget {
 
   /// Page number to show initially.
   final int initialPageNumber;
-
-  /// Anchor to position the page initially.
-  final PdfPageAnchor anchor;
-
-  /// Called when the current page is changed.
-  final void Function(int? pageNumber)? onPageChanged;
 
   @override
   State<PdfViewer> createState() => _PdfViewerState();
@@ -310,47 +293,94 @@ class _PdfViewerState extends State<PdfViewer>
 
       return Container(
         color: widget.params.backgroundColor,
-        child: StreamBuilder(
-            stream: _stream,
-            builder: (context, snapshot) {
-              _determineCurrentPage();
-              _calcAlternativeFitScale();
-              _calcZoomStopTable();
-              return Stack(
-                children: [
-                  iv.InteractiveViewer(
-                    transformationController: _controller,
-                    constrained: false,
-                    maxScale: widget.params.maxScale,
-                    minScale: _alternativeFitScale != null
-                        ? _alternativeFitScale! / 2
-                        : 0.1,
-                    panAxis: widget.params.panAxis,
-                    boundaryMargin: _boundaryMargin,
-                    panEnabled: widget.params.panEnabled,
-                    scaleEnabled: widget.params.scaleEnabled,
-                    onInteractionEnd: widget.params.onInteractionEnd,
-                    onInteractionStart: widget.params.onInteractionStart,
-                    onInteractionUpdate: widget.params.onInteractionUpdate,
-                    onWheelDelta: widget.params.scrollByMouseWheel != null
-                        ? _onWheelDelta
-                        : null,
-                    // PDF pages
-                    child: CustomPaint(
-                      foregroundPainter:
-                          _CustomPainter.fromFunction(_customPaint),
-                      size: _layout!.documentSize,
+        child: Focus(
+          onKey: _onKey,
+          child: StreamBuilder(
+              stream: _stream,
+              builder: (context, snapshot) {
+                _determineCurrentPage();
+                _calcAlternativeFitScale();
+                _calcZoomStopTable();
+                return Stack(
+                  children: [
+                    iv.InteractiveViewer(
+                      transformationController: _controller,
+                      constrained: false,
+                      maxScale: widget.params.maxScale,
+                      minScale: _alternativeFitScale != null
+                          ? _alternativeFitScale! / 2
+                          : 0.1,
+                      panAxis: widget.params.panAxis,
+                      boundaryMargin: _boundaryMargin,
+                      panEnabled: widget.params.panEnabled,
+                      scaleEnabled: widget.params.scaleEnabled,
+                      onInteractionEnd: widget.params.onInteractionEnd,
+                      onInteractionStart: widget.params.onInteractionStart,
+                      onInteractionUpdate: widget.params.onInteractionUpdate,
+                      onWheelDelta: widget.params.scrollByMouseWheel != null
+                          ? _onWheelDelta
+                          : null,
+                      // PDF pages
+                      child: CustomPaint(
+                        foregroundPainter:
+                            _CustomPainter.fromFunction(_customPaint),
+                        size: _layout!.documentSize,
+                      ),
                     ),
-                  ),
-                  ..._buildPageOverlayWidgets(),
-                  if (widget.params.viewerOverlayBuilder != null)
-                    ...widget.params.viewerOverlayBuilder!(
-                        context, _controller!.viewSize)
-                ],
-              );
-            }),
+                    ..._buildPageOverlayWidgets(),
+                    if (widget.params.viewerOverlayBuilder != null)
+                      ...widget.params.viewerOverlayBuilder!(
+                          context, _controller!.viewSize)
+                  ],
+                );
+              }),
+        ),
       );
     });
+  }
+
+  int? _gotoTargetPageNumber;
+
+  KeyEventResult _onKey(FocusNode node, RawKeyEvent event) {
+    final isDown = event is RawKeyDownEvent;
+    switch (event.logicalKey) {
+      case LogicalKeyboardKey.pageUp:
+        if (isDown) {
+          _goToPage((_gotoTargetPageNumber ?? _pageNumber!) - 1);
+        }
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.pageDown:
+        if (isDown) {
+          _goToPage((_gotoTargetPageNumber ?? _pageNumber!) + 1);
+        }
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.home:
+        if (isDown) {
+          _goToPage(1);
+        }
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.end:
+        if (isDown) {
+          _goToPage(_document!.pages.length);
+        }
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.equal:
+        if (isDown && event.isControlPressed) {
+          _controller!.zoomUp();
+        }
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.minus:
+        if (isDown && event.isControlPressed) {
+          _controller!.zoomDown();
+        }
+        return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  Future<void> _goToPage(int pageNumber) async {
+    _gotoTargetPageNumber = pageNumber.clamp(1, _document!.pages.length);
+    await _controller!.goToPage(pageNumber: _gotoTargetPageNumber!);
   }
 
   bool _calcViewSizeAndCoverScale(Size viewSize) {
@@ -380,8 +410,8 @@ class _PdfViewerState extends State<PdfViewer>
     }
     if (_pageNumber != pageNumberMaxInt) {
       _pageNumber = pageNumberMaxInt;
-      if (widget.onPageChanged != null) {
-        Future.microtask(() => widget.onPageChanged?.call(_pageNumber));
+      if (widget.params.onPageChanged != null) {
+        Future.microtask(() => widget.params.onPageChanged?.call(_pageNumber));
       }
     }
   }
@@ -820,7 +850,7 @@ class PdfViewerController extends TransformationController {
 
   /// Go to the specified area. [anchor] specifies how the page is positioned if the page is larger than the view.
   Future<void> goToArea({required Rect rect, PdfPageAnchor? anchor}) async {
-    anchor ??= _state!.widget.anchor;
+    anchor ??= _state!.widget.params.pageAnchor;
     if (anchor != PdfPageAnchor.all) {
       final vRatio = viewSize.aspectRatio;
       final dRatio = documentSize.aspectRatio;
