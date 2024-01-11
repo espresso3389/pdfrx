@@ -1,3 +1,15 @@
+## 0.4.6
+
+- Introduces PdfPage.render cancellation mechanism
+  - PdfPageRenderCancellationToken to cancel the rendering process
+  - BREAKING CHANGE: PdfPage.render may return null if the rendering process is canceled
+- PdfPageRender.render limits render resolution up to 300-dpi unless you use getPageRenderingScale
+  - Even with the restriction, image size may get large and you'd better implement getPageRenderingScale to restrict such large image rendering
+- PdfViewerParams default changes:
+  - scrollByMouseWheel default is 0.2
+  - maxRealSizeImageCount default is 3
+- PdfViewerParams.scrollByArrowKey to enable keyboard navigation
+
 ## 0.4.5
 
 - PdfViewerParams updates
