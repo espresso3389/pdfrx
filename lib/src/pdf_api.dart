@@ -207,7 +207,8 @@ abstract class PdfPage {
   /// - If [width], [height] is not specified, [fullWidth], [fullHeight] is used.
   /// - If [fullWidth], [fullHeight] are not specified, [PdfPage.width] and [PdfPage.height] are used (it means rendered at 72-dpi).
   /// [backgroundColor] is used to fill the background of the page. If no color is specified, [Colors.white] is used.
-  /// - [annotationRenderingMode] controls to render annotations or not. The default is [PdfAnnotationRenderingMode.annotationAndForms
+  /// - [annotationRenderingMode] controls to render annotations or not. The default is [PdfAnnotationRenderingMode.annotationAndForms].
+  /// - [cancellationToken] can be used to cancel the rendering process. It must be created by [createCancellationToken].
   ///
   /// The following code extract the area of (20,30)-(120,130) from the page image rendered at 1000x1500 pixels:
   /// ```dart
@@ -220,7 +221,7 @@ abstract class PdfPage {
   ///   fullHeight: 1500,
   /// );
   /// ```
-  Future<PdfImage> render({
+  Future<PdfImage?> render({
     int x = 0,
     int y = 0,
     int? width,
@@ -230,7 +231,11 @@ abstract class PdfPage {
     Color? backgroundColor,
     PdfAnnotationRenderingMode annotationRenderingMode =
         PdfAnnotationRenderingMode.annotationAndForms,
+    PdfPageRenderCancellationToken? cancellationToken,
   });
+
+  /// Create [PdfPageRenderCancellationToken] to cancel the rendering process.
+  PdfPageRenderCancellationToken createCancellationToken();
 
   /// Create Text object to extract text from the page.
   /// The returned object should be disposed after use.
@@ -245,6 +250,12 @@ enum PdfAnnotationRenderingMode {
   none,
   annotation,
   annotationAndForms,
+}
+
+/// Token to try to cancel the rendering process.
+abstract class PdfPageRenderCancellationToken {
+  /// Cancel the rendering process.
+  void cancel();
 }
 
 /// PDF permissions defined on PDF 32000-1:2008, Table 22.

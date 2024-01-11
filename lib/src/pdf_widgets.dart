@@ -16,9 +16,6 @@ import 'pdf_api.dart';
 import 'pdf_document_store.dart';
 import 'pdf_viewer_params.dart';
 
-final _isDesktop =
-    kIsWeb || Platform.isWindows || Platform.isLinux || Platform.isMacOS;
-
 /// A widget to display PDF document.
 class PdfViewer extends StatefulWidget {
   const PdfViewer({
@@ -161,10 +158,8 @@ class _PdfViewerState extends State<PdfViewer>
   double? _alternativeFitScale;
   int? _pageNumber;
   bool _initialized = false;
-  final _taskTimers = <int, Timer>{};
   final List<double> _zoomStops = [1.0];
 
-  final _thumbs = <int, ui.Image>{};
   final _realSized = <int, ({ui.Image image, double scale})>{};
   final _pageTexts = <int, PdfPageText>{};
 
@@ -194,7 +189,6 @@ class _PdfViewerState extends State<PdfViewer>
         if (widget.params.annotationRenderingMode !=
             oldWidget?.params.annotationRenderingMode) {
           _realSized.clear();
-          _thumbs.clear();
         }
         _relayoutPages();
 
@@ -220,7 +214,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onDocumentChanged() async {
     _layout = null;
-    _thumbs.clear();
+
     _realSized.clear();
     _pageTexts.clear();
     _pageNumber = null;
@@ -252,10 +246,9 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   void dispose() {
-    _cancelAllTasks();
+    _cancelAllPendingRenderings();
     animController.dispose();
     widget.documentRef.removeListener(_onDocumentChanged);
-    _thumbs.clear();
     _realSized.clear();
     _pageTexts.clear();
     _controller!.removeListener(_onMatrixChanged);
@@ -365,13 +358,37 @@ class _PdfViewerState extends State<PdfViewer>
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.equal:
-        if (isDown && event.isControlPressed) {
+        if (isDown && event.isCommandKeyPressed) {
           _controller!.zoomUp();
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.minus:
-        if (isDown && event.isControlPressed) {
+        if (isDown && event.isCommandKeyPressed) {
           _controller!.zoomDown();
+        }
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.arrowDown:
+        if (isDown) {
+          _goToManipulated(
+              (m) => m.translate(0.0, -widget.params.scrollByArrowKey));
+        }
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.arrowUp:
+        if (isDown) {
+          _goToManipulated(
+              (m) => m.translate(0.0, widget.params.scrollByArrowKey));
+        }
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.arrowLeft:
+        if (isDown) {
+          _goToManipulated(
+              (m) => m.translate(widget.params.scrollByArrowKey, 0.0));
+        }
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.arrowRight:
+        if (isDown) {
+          _goToManipulated(
+              (m) => m.translate(-widget.params.scrollByArrowKey, 0.0));
         }
         return KeyEventResult.handled;
     }
@@ -381,6 +398,12 @@ class _PdfViewerState extends State<PdfViewer>
   Future<void> _goToPage(int pageNumber) async {
     _gotoTargetPageNumber = pageNumber.clamp(1, _document!.pages.length);
     await _controller!.goToPage(pageNumber: _gotoTargetPageNumber!);
+  }
+
+  Future<void> _goToManipulated(void Function(Matrix4 m) manipulate) async {
+    final m = _controller!.value.clone();
+    manipulate(m);
+    _controller!.value = m;
   }
 
   bool _calcViewSizeAndCoverScale(Size viewSize) {
@@ -528,12 +551,37 @@ class _PdfViewerState extends State<PdfViewer>
     return widgets;
   }
 
+  final _cancellationTokens = <int, List<PdfPageRenderCancellationToken>>{};
+
+  void _addCancellationToken(
+      int pageNumber, PdfPageRenderCancellationToken token) {
+    var tokens = _cancellationTokens.putIfAbsent(pageNumber, () => []);
+    tokens.add(token);
+  }
+
+  void _cancelPendingRenderings(int pageNumber) {
+    final tokens = _cancellationTokens[pageNumber];
+    if (tokens != null) {
+      for (final token in tokens) {
+        token.cancel();
+      }
+      tokens.clear();
+    }
+  }
+
+  void _cancelAllPendingRenderings() {
+    for (final pageNumber in _cancellationTokens.keys) {
+      _cancelPendingRenderings(pageNumber);
+    }
+    _cancellationTokens.clear();
+  }
+
   /// [_CustomPainter] calls the function to paint PDF pages.
   void _customPaint(ui.Canvas canvas, ui.Size size) {
     final visibleRect = _controller!.visibleRect;
     final targetRect = visibleRect.inflateHV(
         horizontal: visibleRect.width, vertical: visibleRect.height);
-    final double globalScale = max(
+    final double globalScale = min(
       MediaQuery.of(context).devicePixelRatio * _controller!.currentZoom,
       300.0 / 72.0,
     );
@@ -546,8 +594,7 @@ class _PdfViewerState extends State<PdfViewer>
       final intersection = rect.intersect(targetRect);
       if (intersection.isEmpty) {
         final page = _document!.pages[i];
-        _cancelTask(page.pageNumber + 10000);
-        _cancelTask(page.pageNumber);
+        _cancelPendingRenderings(page.pageNumber);
         unusedPageList.add(i + 1);
         continue;
       }
@@ -558,18 +605,8 @@ class _PdfViewerState extends State<PdfViewer>
               ?.call(context, page, _controller!, globalScale) ??
           globalScale;
       if (realSize == null || realSize.scale != scale) {
-        if (widget.params.enableRealSizeRendering) {
-          _ensureThumbCached(page);
-        } else {
-          _scheduleTask(
-              page.pageNumber + 10000, const Duration(milliseconds: 100), () {
-            _ensureThumbCached(page);
-          });
-        }
         if (widget.params.enableRealSizeRendering && scale > 1.0) {
-          _scheduleTask(page.pageNumber, const Duration(milliseconds: 100), () {
-            _ensureRealSizeCached(page, scale);
-          });
+          _ensureRealSizeCached(page, scale);
         }
       }
 
@@ -586,22 +623,11 @@ class _PdfViewerState extends State<PdfViewer>
           Paint()..filterQuality = FilterQuality.high,
         );
       } else {
-        final thumb = _thumbs[page.pageNumber];
-        if (thumb != null) {
-          canvas.drawImageRect(
-            thumb,
-            Rect.fromLTWH(
-                0, 0, thumb.width.toDouble(), thumb.height.toDouble()),
+        canvas.drawRect(
             rect,
-            Paint()..filterQuality = FilterQuality.high,
-          );
-        } else {
-          canvas.drawRect(
-              rect,
-              Paint()
-                ..color = Colors.white
-                ..style = PaintingStyle.fill);
-        }
+            Paint()
+              ..color = Colors.white
+              ..style = PaintingStyle.fill);
       }
       canvas.drawRect(
           rect,
@@ -638,23 +664,6 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
-  void _scheduleTask(int index, Duration wait, void Function() task) {
-    _taskTimers[index]?.cancel();
-    _taskTimers[index] = Timer(wait, task);
-  }
-
-  void _cancelTask(int index) {
-    _taskTimers[index]?.cancel();
-    _taskTimers.remove(index);
-  }
-
-  void _cancelAllTasks() {
-    for (final timer in _taskTimers.values) {
-      timer.cancel();
-    }
-    _taskTimers.clear();
-  }
-
   void _relayoutPages() {
     _layout = (widget.params.layoutPages ?? _layoutPages)(
         _document!.pages, widget.params);
@@ -687,7 +696,10 @@ class _PdfViewerState extends State<PdfViewer>
     final width = page.width * scale;
     final height = page.height * scale;
     if (width < 1 || height < 1) return;
+
     if (_realSized[page.pageNumber]?.scale == scale) return;
+    final cancellationToken = page.createCancellationToken();
+    _addCancellationToken(page.pageNumber, cancellationToken);
     await synchronized(() async {
       if (_realSized[page.pageNumber]?.scale == scale) return;
       final img = await page.render(
@@ -695,32 +707,11 @@ class _PdfViewerState extends State<PdfViewer>
         fullHeight: height,
         backgroundColor: Colors.white,
         annotationRenderingMode: widget.params.annotationRenderingMode,
+        cancellationToken: cancellationToken,
       );
+      if (img == null) return;
       _realSized[page.pageNumber] =
           (image: await img.createImage(), scale: scale);
-      img.dispose();
-      _invalidate();
-    });
-  }
-
-  Future<void> _ensureThumbCached(PdfPage page) async {
-    if (_thumbs.containsKey(page.pageNumber)) return;
-    await synchronized(() async {
-      if (_thumbs.containsKey(page.pageNumber)) return;
-      _removeSomeImagesIfImageCountExceeds(
-        'thumb',
-        _thumbs.keys.toList(),
-        widget.params.maxThumbCacheCount,
-        page,
-        (pageNumber) => _thumbs.remove(pageNumber),
-      );
-      final img = await page.render(
-        fullWidth: page.width,
-        fullHeight: page.height,
-        backgroundColor: Colors.white,
-        annotationRenderingMode: widget.params.annotationRenderingMode,
-      );
-      _thumbs[page.pageNumber] = await img.createImage();
       img.dispose();
       _invalidate();
     });
@@ -789,6 +780,8 @@ class PdfViewerController extends TransformationController {
   Rect get visibleRect => value.calcVisibleRect(viewSize);
 
   List<PdfPage> get pages => _state!._document!.pages;
+
+  bool get isLoaded => _state?._document?.pages != null;
 
   /// The current page number if available.
   int? get pageNumber => _state?._pageNumber;
@@ -1179,4 +1172,10 @@ class PdfTextSearchResult {
     return PdfTextSearchResult(
         pageText.fragments.sublist(s, e), s - sf.index, e - ef.index, bounds);
   }
+}
+
+extension RawKeyEventExt on RawKeyEvent {
+  /// Key pressing state of ⌘ or Control depending on the platform.
+  bool get isCommandKeyPressed =>
+      Platform.isMacOS || Platform.isIOS ? isMetaPressed : isControlPressed;
 }

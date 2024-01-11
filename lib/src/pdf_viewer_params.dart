@@ -29,10 +29,11 @@ class PdfViewerParams {
     this.onInteractionUpdate,
     this.onPageChanged,
     this.getPageRenderingScale,
-    this.scrollByMouseWheel = 0.1,
+    this.scrollByMouseWheel = 0.2,
     this.enableKeyboardNavigation = true,
+    this.scrollByArrowKey = 25.0,
     this.maxThumbCacheCount = 30,
-    this.maxRealSizeImageCount = 5,
+    this.maxRealSizeImageCount = 3,
     this.enableRealSizeRendering = true,
     this.viewerOverlayBuilder,
     this.pageOverlayBuilder,
@@ -152,7 +153,7 @@ class PdfViewerParams {
   /// ```
   final PdfViewerParamGetPageRenderingScale? getPageRenderingScale;
 
-  /// Set the scroll amount ratio by mouse wheel. The default is 0.1.
+  /// Set the scroll amount ratio by mouse wheel. The default is 0.2.
   ///
   /// Negative value to scroll opposite direction.
   /// null to disable scroll-by-mouse-wheel.
@@ -161,10 +162,13 @@ class PdfViewerParams {
   /// Enable keyboard navigation. The default is true.
   final bool enableKeyboardNavigation;
 
+  /// Amount of pixels to scroll by arrow keys. The default is 25.0.
+  final double scrollByArrowKey;
+
   /// The maximum number of thumbnails to be cached. The default is 30.
   final int maxThumbCacheCount;
 
-  /// The maximum number of real size images to be cached. The default is 5.
+  /// The maximum number of real size images to be cached. The default is 3.
   final int maxRealSizeImageCount;
 
   /// Enable real size rendering. The default is true.
@@ -237,6 +241,7 @@ class PdfViewerParams {
         other.scaleEnabled != scaleEnabled ||
         other.scrollByMouseWheel != scrollByMouseWheel ||
         other.enableKeyboardNavigation != enableKeyboardNavigation ||
+        other.scrollByArrowKey != scrollByArrowKey ||
         other.maxThumbCacheCount != maxThumbCacheCount ||
         other.maxRealSizeImageCount != maxRealSizeImageCount ||
         other.enableRealSizeRendering != enableRealSizeRendering;
@@ -263,6 +268,7 @@ class PdfViewerParams {
         other.getPageRenderingScale == getPageRenderingScale &&
         other.scrollByMouseWheel == scrollByMouseWheel &&
         other.enableKeyboardNavigation == enableKeyboardNavigation &&
+        other.scrollByArrowKey == scrollByArrowKey &&
         other.maxThumbCacheCount == maxThumbCacheCount &&
         other.maxRealSizeImageCount == maxRealSizeImageCount &&
         other.enableRealSizeRendering == enableRealSizeRendering &&
@@ -290,6 +296,7 @@ class PdfViewerParams {
         getPageRenderingScale.hashCode ^
         scrollByMouseWheel.hashCode ^
         enableKeyboardNavigation.hashCode ^
+        scrollByArrowKey.hashCode ^
         maxThumbCacheCount.hashCode ^
         maxRealSizeImageCount.hashCode ^
         enableRealSizeRendering.hashCode ^
@@ -340,16 +347,14 @@ typedef PdfPageOverlayBuilder = Widget? Function(
 
 /// When [PdfViewerController.goToPage] is called, the page is aligned to the specified anchor.
 ///
-/// - [PdfPageAnchor.topLeft] aligns the top-left corner of the page to the top-left corner of the viewer area
-/// - [PdfPageAnchor.topCenter] aligns the top-center of the page to the top-center of the viewer area
-/// - [PdfPageAnchor.topRight] aligns the top-right corner of the page to the top-right corner of the viewer area
-/// - [PdfPageAnchor.centerLeft] aligns the center-left of the page to the center-left of the viewer area
-/// - [PdfPageAnchor.center] aligns the center of the page to the center of the viewer area
-/// - [PdfPageAnchor.centerRight] aligns the center-right of the page to the center-right of the viewer area
-/// - [PdfPageAnchor.bottomLeft] aligns the bottom-left corner of the page to the bottom-left corner of the viewer area
-/// - [PdfPageAnchor.bottomCenter] aligns the bottom-center of the page to the bottom-center of the viewer area
-/// - [PdfPageAnchor.bottomRight] aligns the bottom-right corner of the page to the bottom-right corner of the viewer area
-/// - [PdfPageAnchor.all] to fit the page to the viewer area
+/// If the viewer area is smaller than the page, only some part of the page is shown in the viewer.
+/// And the anchor determines which part of the page should be shown in the viewer when [PdfViewerController.goToPage]
+/// is called.
+///
+/// If you prefer to show the top of the page, [PdfPageAnchor.topCenter] will do that.
+///
+/// If you prefer to show whole the page even if the page will be zoomed down to fit into the viewer,
+/// [PdfPageAnchor.all] will do that.
 enum PdfPageAnchor {
   topLeft,
   topCenter,

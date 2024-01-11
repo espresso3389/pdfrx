@@ -161,8 +161,11 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
               doc,
               sourceName: sourceName,
               disposeCallback: () {
-                onDispose?.call();
-                calloc.free(buffer);
+                try {
+                  onDispose?.call();
+                } finally {
+                  calloc.free(buffer);
+                }
               },
             );
           }
@@ -379,7 +382,7 @@ class PdfPagePdfium extends PdfPage {
   });
 
   @override
-  Future<PdfImage> render({
+  Future<PdfImage?> render({
     int x = 0,
     int y = 0,
     int? width,
@@ -389,98 +392,166 @@ class PdfPagePdfium extends PdfPage {
     Color? backgroundColor,
     PdfAnnotationRenderingMode annotationRenderingMode =
         PdfAnnotationRenderingMode.annotationAndForms,
+    PdfPageRenderCancellationToken? cancellationToken,
   }) async {
+    if (cancellationToken != null &&
+        cancellationToken is! PdfPageRenderCancellationTokenPdfium) {
+      throw ArgumentError(
+        'cancellationToken must be created by PdfPage.createCancellationToken().',
+        'cancellationToken',
+      );
+    }
+    final ct = cancellationToken as PdfPageRenderCancellationTokenPdfium;
+
     fullWidth ??= this.width;
     fullHeight ??= this.height;
     width ??= fullWidth.toInt();
     height ??= fullHeight.toInt();
     backgroundColor ??= Colors.white;
     const rgbaSize = 4;
-    final buffer = malloc.allocate<Uint8>(width * height * rgbaSize);
+    Pointer<Uint8> buffer = nullptr;
+    try {
+      buffer = malloc.allocate<Uint8>(width * height * rgbaSize);
+      final isSucceeded = await using(
+        (arena) async {
+          final cancelFlag = arena.allocate<Bool>(sizeOf<Bool>());
+          ct.attach(cancelFlag);
+          final isSucceeded = await document.synchronized(
+            () async {
+              if (cancelFlag.value) return false;
+              return await (await document._worker).compute(
+                (params) {
+                  final cancelFlag =
+                      Pointer<Bool>.fromAddress(params.cancelFlag);
+                  if (cancelFlag.value) return false;
+                  final bmp = pdfium.FPDFBitmap_CreateEx(
+                    params.width,
+                    params.height,
+                    pdfium_bindings.FPDFBitmap_BGRA,
+                    Pointer.fromAddress(params.buffer),
+                    params.width * rgbaSize,
+                  );
+                  if (bmp.address == 0) {
+                    throw PdfException(
+                        'FPDFBitmap_CreateEx(${params.width}, ${params.height}) failed.');
+                  }
 
-    await document.synchronized(
-      () async {
-        await (await document._worker).compute(
-          (params) {
-            final bmp = pdfium.FPDFBitmap_CreateEx(
-              params.width,
-              params.height,
-              pdfium_bindings.FPDFBitmap_BGRA,
-              Pointer.fromAddress(params.buffer),
-              params.width * rgbaSize,
-            );
-            if (bmp.address == 0) {
-              throw PdfException(
-                  'FPDFBitmap_CreateEx(${params.width}, ${params.height}) failed.');
-            }
+                  final page =
+                      pdfium_bindings.FPDF_PAGE.fromAddress(params.page);
+                  pdfium.FPDFBitmap_FillRect(
+                    bmp,
+                    0,
+                    0,
+                    params.width,
+                    params.height,
+                    params.backgroundColor,
+                  );
+                  pdfium.FPDF_RenderPageBitmap(
+                    bmp,
+                    page,
+                    -params.x,
+                    -params.y,
+                    params.fullWidth,
+                    params.fullHeight,
+                    0,
+                    params.annotationRenderingMode !=
+                            PdfAnnotationRenderingMode.none
+                        ? pdfium_bindings.FPDF_ANNOT
+                        : 0,
+                  );
 
-            final page = pdfium_bindings.FPDF_PAGE.fromAddress(params.page);
-            pdfium.FPDFBitmap_FillRect(
-              bmp,
-              0,
-              0,
-              params.width,
-              params.height,
-              params.backgroundColor,
-            );
-            pdfium.FPDF_RenderPageBitmap(
-              bmp,
-              page,
-              -params.x,
-              -params.y,
-              params.fullWidth,
-              params.fullHeight,
-              0,
-              params.annotationRenderingMode != PdfAnnotationRenderingMode.none
-                  ? pdfium_bindings.FPDF_ANNOT
-                  : 0,
-            );
+                  if (params.formHandle != 0 &&
+                      params.annotationRenderingMode ==
+                          PdfAnnotationRenderingMode.annotationAndForms) {
+                    pdfium.FPDF_FFLDraw(
+                      pdfium_bindings.FPDF_FORMHANDLE
+                          .fromAddress(params.formHandle),
+                      bmp,
+                      page,
+                      -params.x,
+                      -params.y,
+                      params.fullWidth,
+                      params.fullHeight,
+                      0,
+                      0,
+                    );
+                  }
 
-            if (params.formHandle != 0 &&
-                params.annotationRenderingMode ==
-                    PdfAnnotationRenderingMode.annotationAndForms) {
-              pdfium.FPDF_FFLDraw(
-                pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle),
-                bmp,
-                page,
-                -params.x,
-                -params.y,
-                params.fullWidth,
-                params.fullHeight,
-                0,
-                0,
+                  pdfium.FPDFBitmap_Destroy(bmp);
+                  return true;
+                },
+                (
+                  page: page.address,
+                  buffer: buffer.address,
+                  x: x,
+                  y: y,
+                  width: width!,
+                  height: height!,
+                  fullWidth: fullWidth!.toInt(),
+                  fullHeight: fullHeight!.toInt(),
+                  backgroundColor: backgroundColor!.value,
+                  annotationRenderingMode: annotationRenderingMode,
+                  formHandle: document.formHandle.address,
+                  formInfo: document.formInfo.address,
+                  cancelFlag: cancelFlag.address,
+                ),
               );
-            }
+            },
+          );
+          return isSucceeded;
+        },
+      );
 
-            pdfium.FPDFBitmap_Destroy(bmp);
-          },
-          (
-            page: page.address,
-            buffer: buffer.address,
-            x: x,
-            y: y,
-            width: width!,
-            height: height!,
-            fullWidth: fullWidth!.toInt(),
-            fullHeight: fullHeight!.toInt(),
-            backgroundColor: backgroundColor!.value,
-            annotationRenderingMode: annotationRenderingMode,
-            formHandle: document.formHandle.address,
-            formInfo: document.formInfo.address,
-          ),
-        );
-      },
-    );
+      if (!isSucceeded) {
+        return null;
+      }
 
-    return PdfImagePdfium._(
-      width: width,
-      height: height,
-      buffer: buffer,
-    );
+      final resultBuffer = buffer;
+      buffer = nullptr;
+      return PdfImagePdfium._(
+        width: width,
+        height: height,
+        buffer: resultBuffer,
+      );
+    } catch (e) {
+      return null;
+    } finally {
+      malloc.free(buffer);
+      ct.detach();
+    }
   }
 
   @override
+  PdfPageRenderCancellationTokenPdfium createCancellationToken() =>
+      PdfPageRenderCancellationTokenPdfium(this);
+
+  @override
   Future<PdfPageText> loadText() => PdfPageTextPdfium._loadText(this);
+}
+
+class PdfPageRenderCancellationTokenPdfium
+    extends PdfPageRenderCancellationToken {
+  PdfPageRenderCancellationTokenPdfium(this.page);
+  final PdfPage page;
+  Pointer<Bool>? _cancelFlag;
+  bool _canceled = false;
+
+  void attach(Pointer<Bool> pointer) {
+    _cancelFlag = pointer;
+    if (_canceled) {
+      _cancelFlag!.value = true;
+    }
+  }
+
+  void detach() {
+    _cancelFlag = null;
+  }
+
+  @override
+  Future<void> cancel() async {
+    _canceled = true;
+    _cancelFlag?.value = true;
+  }
 }
 
 class PdfImagePdfium extends PdfImage {

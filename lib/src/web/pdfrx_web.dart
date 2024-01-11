@@ -7,6 +7,7 @@ import 'dart:js_util' as js_util;
 import 'dart:ui';
 
 import 'package:flutter/services.dart';
+import 'package:synchronized/extension.dart';
 
 import '../../pdfrx.dart';
 import 'pdf.js.dart';
@@ -224,7 +225,7 @@ class PdfPageWeb extends PdfPage {
   final double height;
 
   @override
-  Future<PdfImage> render({
+  Future<PdfImage?> render({
     int x = 0,
     int y = 0,
     int? width,
@@ -234,28 +235,46 @@ class PdfPageWeb extends PdfPage {
     Color? backgroundColor,
     PdfAnnotationRenderingMode annotationRenderingMode =
         PdfAnnotationRenderingMode.annotationAndForms,
+    PdfPageRenderCancellationToken? cancellationToken,
   }) async {
+    if (cancellationToken != null &&
+        cancellationToken is! PdfPageRenderCancellationTokenWeb) {
+      throw ArgumentError(
+        'cancellationToken must be created by PdfPage.createCancellationToken().',
+        'cancellationToken',
+      );
+    }
     fullWidth ??= this.width;
     fullHeight ??= this.height;
     width ??= fullWidth.toInt();
     height ??= fullHeight.toInt();
-    final data = await _renderRaw(
-      x,
-      y,
-      width,
-      height,
-      fullWidth,
-      fullHeight,
-      backgroundColor,
-      false,
-      annotationRenderingMode,
-    );
-    return PdfImageWeb(
-      width: width,
-      height: height,
-      pixels: data,
-    );
+    return await synchronized(() async {
+      if (cancellationToken is PdfPageRenderCancellationTokenWeb &&
+          cancellationToken.isCanceled == true) {
+        return null;
+      }
+      final data = await _renderRaw(
+        x,
+        y,
+        width!,
+        height!,
+        fullWidth!,
+        fullHeight!,
+        backgroundColor,
+        false,
+        annotationRenderingMode,
+      );
+      return PdfImageWeb(
+        width: width,
+        height: height,
+        pixels: data,
+      );
+    });
   }
+
+  @override
+  PdfPageRenderCancellationTokenWeb createCancellationToken() =>
+      PdfPageRenderCancellationTokenWeb();
 
   Future<Uint8List> _renderRaw(
     int x,
@@ -311,6 +330,14 @@ class PdfPageWeb extends PdfPage {
 
   @override
   Future<PdfPageText> loadText() => PdfPageTextWeb._loadText(this);
+}
+
+class PdfPageRenderCancellationTokenWeb extends PdfPageRenderCancellationToken {
+  bool _canceled = false;
+  @override
+  void cancel() => _canceled = true;
+
+  bool get isCanceled => _canceled;
 }
 
 class PdfImageWeb extends PdfImage {
