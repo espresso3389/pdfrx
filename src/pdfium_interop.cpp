@@ -66,6 +66,7 @@ extern "C" EXPORT void INTEROP_API pdfrx_file_access_set_value(pdfrx_file_access
 }
 
 #if defined(__APPLE__)
+#include <fpdf_doc.h>
 #include <fpdf_annot.h>
 #include <fpdf_text.h>
 #include <fpdf_formfill.h>
