@@ -37,6 +37,8 @@ class PdfViewerParams {
     this.enableRealSizeRendering = true,
     this.viewerOverlayBuilder,
     this.pageOverlayBuilder,
+    this.loadingBannerBuilder,
+    this.linkWidgetBuilder,
     this.forceReload = false,
   });
 
@@ -214,6 +216,28 @@ class PdfViewerParams {
   /// ```
   final PdfPageOverlayBuilder? pageOverlayBuilder;
 
+  /// Build loading banner.
+  ///
+  /// Please note that the progress is only reported for [PdfViewer.uri] on non-Web platforms.
+  ///
+  /// The following fragment illustrates how to build loading banner that shows the download progress:
+  ///
+  /// ```dart
+  /// loadingBannerBuilder: (context, bytesDownloaded, totalBytes) {
+  ///   return Center(
+  ///     child: CircularProgressIndicator(
+  ///       // totalBytes is null if the total bytes is unknown
+  ///       value: totalBytes != null ? bytesDownloaded / totalBytes : null,
+  ///       backgroundColor: Colors.grey,
+  ///     ),
+  ///   );
+  /// },
+  /// ```
+  final PdfViewerLoadingBannerBuilder? loadingBannerBuilder;
+
+  /// Build link widget.
+  final PdfLinkWidgetBuilder? linkWidgetBuilder;
+
   /// Force reload the viewer.
   ///
   /// Normally whether to reload the viewer is determined by the changes of the parameters but
@@ -274,6 +298,8 @@ class PdfViewerParams {
         other.enableRealSizeRendering == enableRealSizeRendering &&
         other.viewerOverlayBuilder == viewerOverlayBuilder &&
         other.pageOverlayBuilder == pageOverlayBuilder &&
+        other.loadingBannerBuilder == loadingBannerBuilder &&
+        other.linkWidgetBuilder == linkWidgetBuilder &&
         other.forceReload == forceReload;
   }
 
@@ -302,6 +328,8 @@ class PdfViewerParams {
         enableRealSizeRendering.hashCode ^
         viewerOverlayBuilder.hashCode ^
         pageOverlayBuilder.hashCode ^
+        loadingBannerBuilder.hashCode ^
+        linkWidgetBuilder.hashCode ^
         forceReload.hashCode;
   }
 }
@@ -344,6 +372,16 @@ typedef PdfViewerOverlaysBuilder = List<Widget> Function(
 /// [page] is the page.
 typedef PdfPageOverlayBuilder = Widget? Function(
     BuildContext context, Rect pageRect, PdfPage page);
+
+/// Function to build loading banner.
+///
+/// [bytesDownloaded] is the number of bytes downloaded so far.
+/// [totalBytes] is the total number of bytes to be downloaded if available.
+typedef PdfViewerLoadingBannerBuilder = Widget Function(
+    BuildContext context, int bytesDownloaded, int? totalBytes);
+
+typedef PdfLinkWidgetBuilder = Widget? Function(
+    BuildContext context, PdfLink link, Size size);
 
 /// When [PdfViewerController.goToPage] is called, the page is aligned to the specified anchor.
 ///

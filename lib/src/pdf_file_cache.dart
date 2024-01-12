@@ -254,7 +254,7 @@ class PdfFileCacheNative extends PdfFileCache {
     final dir1 = fnHash.substring(0, 2);
     final dir2 = fnHash.substring(2, 4);
     final body = fnHash.substring(4);
-    final dir = Directory(path.join(cacheDir.path, dir1, dir2));
+    final dir = Directory(path.join(cacheDir.path, 'pdfrx.cache', dir1, dir2));
     await dir.create(recursive: true);
     return File(path.join(dir.path, '$body.pdf'));
   }
@@ -278,12 +278,15 @@ Future<PdfDocument> pdfDocumentFromUri(
   String? password,
   PdfPasswordProvider? passwordProvider,
   int? blockSize,
+  PdfFileCache? cache,
+  PdfDownloadProgressCallback? progressCallback,
 }) async {
-  final cache = await PdfFileCache.fromUri(uri);
+  progressCallback?.call(0);
+  cache ??= await PdfFileCache.fromUri(uri);
 
   if (!cache.isInitialized) {
     cache.setBlockSize(blockSize ?? PdfFileCache.defaultBlockSize);
-    final result = await _downloadBlock(uri, cache, 0);
+    final result = await _downloadBlock(uri, cache, progressCallback, 0);
     if (result.isFullDownload) {
       return PdfDocument.openFile(
         cache.filePath,
@@ -297,7 +300,7 @@ Future<PdfDocument> pdfDocumentFromUri(
     final eTag = response.headers['etag'];
     if (eTag != cache.eTag) {
       await cache.resetAll();
-      final result = await _downloadBlock(uri, cache, 0);
+      final result = await _downloadBlock(uri, cache, progressCallback, 0);
       if (result.isFullDownload) {
         return PdfDocument.openFile(
           cache.filePath,
@@ -314,10 +317,10 @@ Future<PdfDocument> pdfDocumentFromUri(
       final end = position + size;
       int bufferPosition = 0;
       for (int p = position; p < end;) {
-        final blockId = p ~/ cache.blockSize;
+        final blockId = p ~/ cache!.blockSize;
         final isAvailable = cache.isCached(blockId);
         if (!isAvailable) {
-          await _downloadBlock(uri, cache, blockId);
+          await _downloadBlock(uri, cache, progressCallback, blockId);
         }
         final readEnd = min(p + size, (blockId + 1) * cache.blockSize);
         final sizeToRead = readEnd - p;
@@ -332,7 +335,7 @@ Future<PdfDocument> pdfDocumentFromUri(
     passwordProvider: passwordProvider,
     fileSize: cache.fileSize,
     sourceName: uri.toString(),
-    onDispose: () => cache.close(),
+    onDispose: () => cache!.close(),
   );
 }
 
@@ -343,8 +346,13 @@ class _DownloadResult {
 }
 
 // Download blocks of the file and cache the data to file.
-Future<_DownloadResult> _downloadBlock(Uri uri, PdfFileCache cache, int blockId,
-    {int blockCount = 1}) async {
+Future<_DownloadResult> _downloadBlock(
+  Uri uri,
+  PdfFileCache cache,
+  PdfDownloadProgressCallback? progressCallback,
+  int blockId, {
+  int blockCount = 1,
+}) async {
   int? fileSize;
   final blockOffset = blockId * cache.blockSize;
   final end = blockOffset + cache.blockSize * blockCount;
@@ -370,5 +378,6 @@ Future<_DownloadResult> _downloadBlock(Uri uri, PdfFileCache cache, int blockId,
   } else {
     await cache.setCached(blockId, lastBlock: blockId + blockCount - 1);
   }
+  progressCallback?.call(cache.cachedBytes, fileSize);
   return _DownloadResult(fileSize!, isFullDownload);
 }

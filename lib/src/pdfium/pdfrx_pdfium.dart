@@ -213,11 +213,13 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     Uri uri, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    PdfDownloadProgressCallback? progressCallback,
   }) =>
       pdfDocumentFromUri(
         uri,
         password: password,
         passwordProvider: passwordProvider,
+        progressCallback: progressCallback,
       );
 
   static bool _isPasswordError({int? error}) {
@@ -527,6 +529,99 @@ class PdfPagePdfium extends PdfPage {
 
   @override
   Future<PdfPageText> loadText() => PdfPageTextPdfium._loadText(this);
+
+  @override
+  Future<List<PdfLink>> loadLinks() => document.synchronized(
+        () async => (await document._worker).compute(
+          (params) {
+            pdfium_bindings.FPDF_TEXTPAGE textPage = nullptr;
+            pdfium_bindings.FPDF_PAGELINK linkPage = nullptr;
+            try {
+              textPage = pdfium.FPDFText_LoadPage(
+                  pdfium_bindings.FPDF_PAGE.fromAddress(params.page));
+              if (textPage == nullptr) return [];
+              linkPage = pdfium.FPDFLink_LoadWebLinks(textPage);
+              if (linkPage == nullptr) return [];
+
+              final doubleSize = sizeOf<Double>();
+              return using((arena) {
+                final rectBuffer = arena.allocate<Double>(4 * doubleSize);
+                return List.generate(
+                  pdfium.FPDFLink_CountWebLinks(linkPage),
+                  (index) {
+                    return PdfLink(
+                      Uri.parse(_getLinkUrl(linkPage, index, arena)),
+                      List.generate(
+                        pdfium.FPDFLink_CountRects(linkPage, index),
+                        (rectIndex) {
+                          pdfium.FPDFLink_GetRect(
+                            linkPage,
+                            index,
+                            rectIndex,
+                            rectBuffer,
+                            rectBuffer.offset(doubleSize),
+                            rectBuffer.offset(doubleSize * 2),
+                            rectBuffer.offset(doubleSize * 3),
+                          );
+                          return _rectFromLTRBBuffer(rectBuffer);
+                        },
+                      ),
+                    );
+                  },
+                );
+              });
+            } finally {
+              pdfium.FPDFLink_CloseWebLinks(linkPage);
+              pdfium.FPDFText_ClosePage(textPage);
+            }
+          },
+          (page: page.address),
+        ),
+      );
+
+  static String _getLinkUrl(
+      pdfium_bindings.FPDF_PAGELINK linkPage, int linkIndex, Arena arena) {
+    final urlLength = pdfium.FPDFLink_GetURL(linkPage, linkIndex, nullptr, 0);
+    final urlBuffer =
+        arena.allocate<UnsignedShort>(urlLength * sizeOf<UnsignedShort>());
+    pdfium.FPDFLink_GetURL(linkPage, linkIndex, urlBuffer, urlLength);
+    return String.fromCharCodes(
+        urlBuffer.cast<Uint16>().asTypedList(urlLength));
+  }
+
+  Future<void> _loadAnnots() => document.synchronized(
+        () async => (await document._worker).compute(
+          (params) async {
+            try {
+              await using(
+                (arena) async {
+                  final page =
+                      pdfium_bindings.FPDF_PAGE.fromAddress(params.page);
+                  final count = pdfium.FPDFPage_GetAnnotCount(page);
+                  final rectf = arena.allocate<pdfium_bindings.FS_RECTF>(
+                      sizeOf<pdfium_bindings.FS_RECTF>());
+                  for (int i = 0; i < count; i++) {
+                    final annot = pdfium.FPDFPage_GetAnnot(page, i);
+                    pdfium.FPDFAnnot_GetRect(annot, rectf);
+                    final rect = PdfRect(
+                      rectf.ref.left,
+                      rectf.ref.top,
+                      rectf.ref.right,
+                      rectf.ref.bottom,
+                    );
+                    final link = pdfium.FPDFAnnot_GetLink(annot);
+                    final dest = pdfium.FPDFLink_GetDest(document.doc, link);
+                    final action = pdfium.FPDFLink_GetAction(link);
+
+                    pdfium.FPDFPage_CloseAnnot(annot);
+                  }
+                },
+              );
+            } finally {}
+          },
+          (page: page.address),
+        ),
+      );
 }
 
 class PdfPageRenderCancellationTokenPdfium
@@ -698,12 +793,12 @@ class PdfPageTextPdfium extends PdfPageText {
       pdfium.FPDFText_GetCharBox(
         textPage,
         from + i,
-        buffer,
-        buffer.offset(doubleSize),
-        buffer.offset(doubleSize * 2),
-        buffer.offset(doubleSize * 3),
+        buffer, // L
+        buffer.offset(doubleSize * 2), // R
+        buffer.offset(doubleSize * 3), // B
+        buffer.offset(doubleSize), // T
       );
-      final rect = _rectFromPointer(buffer);
+      final rect = _rectFromLTRBBuffer(buffer);
       if (char == _charSpace) {
         if (lastChar == _charSpace) continue;
         if (sb.length > wordStart) {
@@ -789,56 +884,10 @@ class PdfPageTextPdfium extends PdfPageText {
         textPage, from, length, buffer.cast<UnsignedShort>());
     return String.fromCharCodes(buffer.asTypedList(length));
   }
-
-  static Future<List<PdfLink>> _getLinks(
-      pdfium_bindings.FPDF_TEXTPAGE textPage, PdfPage page, Arena arena) async {
-    return await page.document.synchronized(() {
-      final linkPage = pdfium.FPDFLink_LoadWebLinks(textPage);
-      try {
-        final doubleSize = sizeOf<Double>();
-        final rectBuffer = arena.allocate<Double>(4 * doubleSize);
-        return List.generate(
-          pdfium.FPDFLink_CountWebLinks(linkPage),
-          (index) {
-            return PdfLink(
-              Uri.parse(_getLinkUrl(linkPage, index, arena)),
-              List.generate(
-                pdfium.FPDFLink_CountRects(linkPage, index),
-                (rectIndex) {
-                  pdfium.FPDFLink_GetRect(
-                    linkPage,
-                    index,
-                    rectIndex,
-                    rectBuffer,
-                    rectBuffer.offset(doubleSize),
-                    rectBuffer.offset(doubleSize * 2),
-                    rectBuffer.offset(doubleSize * 3),
-                  );
-                  return _rectFromPointer(rectBuffer);
-                },
-              ),
-            );
-          },
-        );
-      } finally {
-        pdfium.FPDFLink_CloseWebLinks(linkPage);
-      }
-    });
-  }
-
-  static String _getLinkUrl(
-      pdfium_bindings.FPDF_PAGELINK linkPage, int linkIndex, Arena arena) {
-    final urlLength = pdfium.FPDFLink_GetURL(linkPage, linkIndex, nullptr, 0);
-    final urlBuffer =
-        arena.allocate<UnsignedShort>(urlLength * sizeOf<UnsignedShort>());
-    pdfium.FPDFLink_GetURL(linkPage, linkIndex, urlBuffer, urlLength);
-    return String.fromCharCodes(
-        urlBuffer.cast<Uint16>().asTypedList(urlLength));
-  }
 }
 
-PdfRect _rectFromPointer(Pointer<Double> buffer) =>
-    PdfRect(buffer[0], buffer[3], buffer[1], buffer[2]);
+PdfRect _rectFromLTRBBuffer(Pointer<Double> buffer) =>
+    PdfRect(buffer[0], buffer[1], buffer[2], buffer[3]);
 
 extension _PointerExt<T extends NativeType> on Pointer<T> {
   Pointer<T> offset(int offsetInBytes) =>

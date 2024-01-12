@@ -18,6 +18,8 @@ class PdfDocumentRef extends Listenable {
   PdfDocument? _document;
   Object? _error;
   int _revision;
+  int _bytesDownloaded = 0;
+  int? _totalBytes;
 
   /// The [PdfDocument] instance if available.
   PdfDocument? get document => _document;
@@ -26,6 +28,9 @@ class PdfDocumentRef extends Listenable {
   Object? get error => _error;
 
   int get revision => _revision;
+
+  int get bytesDownloaded => _bytesDownloaded;
+  int? get totalBytes => _totalBytes;
 
   @override
   void addListener(VoidCallback listener) {
@@ -53,15 +58,21 @@ class PdfDocumentRef extends Listenable {
     _document = null;
   }
 
+  void _progress(int progress, [int? total]) {
+    _bytesDownloaded = progress;
+    _totalBytes = total;
+    notifyListeners();
+  }
+
   Future<bool> setDocument(
-    FutureOr<PdfDocument> Function() documentLoader, {
+    PdfDocumentLoaderFunction documentLoader, {
     bool resetOnError = false,
   }) =>
       store.synchronized(
         () async {
           try {
             final oldDocument = _document;
-            final newDocument = await documentLoader();
+            final newDocument = await documentLoader(_progress);
             if (newDocument == oldDocument) {
               return false;
             }
@@ -84,6 +95,12 @@ class PdfDocumentRef extends Listenable {
       );
 }
 
+/// Function to load a [PdfDocument].
+///
+/// The load process may call [progressCallback] to report the download/load progress if loader can do that.
+typedef PdfDocumentLoaderFunction = Future<PdfDocument> Function(
+    PdfDownloadProgressCallback progressCallback);
+
 /// A store to maintain [PdfDocumentRef] instances.
 ///
 /// [PdfViewer] instances using the same [PdfDocumentStore] share the same [PdfDocumentRef] instances.
@@ -103,7 +120,9 @@ class PdfDocumentStore {
   /// does nothing and returns existing [PdfDocumentRef] instance that indicates the error.
   PdfDocumentRef load(
     String sourceName, {
-    required Future<PdfDocument> Function() documentLoader,
+    required Future<PdfDocument> Function(
+            PdfDownloadProgressCallback progressCallback)
+        documentLoader,
     bool retryIfError = false,
   }) {
     final docRef = _docRefs.putIfAbsent(

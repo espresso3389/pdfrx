@@ -125,6 +125,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     Uri uri, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    PdfDownloadProgressCallback? progressCallback,
   }) =>
       openFile(
         uri.path,
@@ -330,6 +331,12 @@ class PdfPageWeb extends PdfPage {
 
   @override
   Future<PdfPageText> loadText() => PdfPageTextWeb._loadText(this);
+
+  @override
+  Future<List<PdfLink>> loadLinks() {
+    // TODO: implement loadLinks
+    throw UnimplementedError();
+  }
 }
 
 class PdfPageRenderCancellationTokenWeb extends PdfPageRenderCancellationToken {

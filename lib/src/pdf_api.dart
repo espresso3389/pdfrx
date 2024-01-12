@@ -50,6 +50,7 @@ abstract class PdfDocumentFactory {
     Uri uri, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    PdfDownloadProgressCallback? progressCallback,
   });
 
   /// Singleton [PdfDocumentFactory] instance.
@@ -58,6 +59,15 @@ abstract class PdfDocumentFactory {
   /// override it to use your own implementation.
   static PdfDocumentFactory instance = PdfDocumentFactoryImpl();
 }
+
+/// Callback function to notify download progress.
+///
+/// [downloadedBytes] is the number of bytes downloaded so far.
+/// [totalBytes] is the total number of bytes to download. It may be `null` if the total size is unknown.
+typedef PdfDownloadProgressCallback = void Function(
+  int downloadedBytes, [
+  int? totalBytes,
+]);
 
 /// Function to provide password for encrypted PDF.
 ///
@@ -163,16 +173,20 @@ abstract class PdfDocument {
   ///
   /// For Flutter Web, the implementation uses browser's function and restricted by CORS.
   // ignore: comment_references
-  /// For other platforms, it uses [pdfDocumentFromUri] that uses HTTP's range request to download the file .
+  /// For other platforms, it uses [pdfDocumentFromUri] that uses HTTP's range request to download the file.
+  ///
+  /// [progressCallback] is called when the download progress is updated (Not supported on Web).
   static Future<PdfDocument> openUri(
     Uri uri, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    PdfDownloadProgressCallback? progressCallback,
   }) =>
       PdfDocumentFactory.instance.openUri(
         uri,
         password: password,
         passwordProvider: passwordProvider,
+        progressCallback: progressCallback,
       );
 
   /// Pages.
@@ -240,6 +254,8 @@ abstract class PdfPage {
   /// Create Text object to extract text from the page.
   /// The returned object should be disposed after use.
   Future<PdfPageText> loadText();
+
+  Future<List<PdfLink>> loadLinks();
 }
 
 /// Annotation rendering mode.

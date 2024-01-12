@@ -38,7 +38,7 @@ class PdfViewer extends StatefulWidget {
           key: key,
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
             '##PdfViewer:asset:$name',
-            documentLoader: () =>
+            documentLoader: (_) =>
                 PdfDocument.openAsset(name, password: password),
           ),
           controller: controller,
@@ -58,7 +58,7 @@ class PdfViewer extends StatefulWidget {
           key: key,
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
             '##PdfViewer:file:$path',
-            documentLoader: () =>
+            documentLoader: (_) =>
                 PdfDocument.openFile(path, password: password),
           ),
           controller: controller,
@@ -78,7 +78,11 @@ class PdfViewer extends StatefulWidget {
           key: key,
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
             '##PdfViewer:uri:$uri',
-            documentLoader: () => PdfDocument.openUri(uri, password: password),
+            documentLoader: (progressCallback) => PdfDocument.openUri(
+              uri,
+              password: password,
+              progressCallback: progressCallback,
+            ),
           ),
           controller: controller,
           params: displayParams,
@@ -98,7 +102,7 @@ class PdfViewer extends StatefulWidget {
           key: key,
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
             '##PdfViewer:data:${sourceName ?? bytes.hashCode}',
-            documentLoader: () => PdfDocument.openData(bytes,
+            documentLoader: (_) => PdfDocument.openData(bytes,
                 password: password, sourceName: sourceName),
           ),
           controller: controller,
@@ -121,7 +125,7 @@ class PdfViewer extends StatefulWidget {
           key: key,
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
             '##PdfViewer:custom:$sourceName',
-            documentLoader: () => PdfDocument.openCustom(
+            documentLoader: (_) => PdfDocument.openCustom(
                 read: read,
                 fileSize: fileSize,
                 sourceName: sourceName,
@@ -162,6 +166,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   final _realSized = <int, ({ui.Image image, double scale})>{};
   final _pageTexts = <int, PdfPageText>{};
+  final _pageLinks = <int, List<PdfLink>>{};
 
   final _stream = BehaviorSubject<Matrix4>();
 
@@ -217,6 +222,7 @@ class _PdfViewerState extends State<PdfViewer>
 
     _realSized.clear();
     _pageTexts.clear();
+    _pageLinks.clear();
     _pageNumber = null;
     _initialized = false;
     _controller?.removeListener(_onMatrixChanged);
@@ -251,6 +257,7 @@ class _PdfViewerState extends State<PdfViewer>
     widget.documentRef.removeListener(_onDocumentChanged);
     _realSized.clear();
     _pageTexts.clear();
+    _pageLinks.clear();
     _controller!.removeListener(_onMatrixChanged);
     _controller!._attach(null);
     super.dispose();
@@ -262,7 +269,13 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   Widget build(BuildContext context) {
-    if (_document == null) return Container();
+    if (_document == null) {
+      return widget.params.loadingBannerBuilder?.call(
+              context,
+              widget.documentRef.bytesDownloaded,
+              widget.documentRef.totalBytes) ??
+          Container();
+    }
     return LayoutBuilder(builder: (context, constraints) {
       if (_calcViewSizeAndCoverScale(
           Size(constraints.maxWidth, constraints.maxHeight))) {
@@ -508,17 +521,8 @@ class _PdfViewerState extends State<PdfViewer>
       (z1 - z2).abs() < 0.01;
 
   List<Widget> _buildPageOverlayWidgets() {
-    if (widget.params.pageOverlayBuilder == null) return [];
     final renderBox = context.findRenderObject();
     if (renderBox is! RenderBox) return [];
-    Rect? documentToRenderBox(Rect rect) {
-      final tl = _controller?.documentToGlobal(rect.topLeft);
-      if (tl == null) return null;
-      final br = _controller?.documentToGlobal(rect.bottomRight);
-      if (br == null) return null;
-      return Rect.fromPoints(
-          renderBox.globalToLocal(tl), renderBox.globalToLocal(br));
-    }
 
     final widgets = <Widget>[];
     final visibleRect = _controller!.visibleRect;
@@ -530,25 +534,78 @@ class _PdfViewerState extends State<PdfViewer>
       if (intersection.isEmpty) continue;
 
       final page = _document!.pages[i];
-      final rectExternal = documentToRenderBox(rect);
+      final rectExternal = documentToRenderBox(rect, renderBox);
       if (rectExternal != null) {
-        final overlay = widget.params.pageOverlayBuilder!(
+        final overlayWidgets = <Widget>[];
+        _createLinkOverlays(overlayWidgets, rectExternal, page);
+        final overlay = widget.params.pageOverlayBuilder?.call(
           context,
           rectExternal,
           page,
         );
-        if (overlay != null) {
-          widgets.add(Positioned(
-            left: rectExternal.left,
-            top: rectExternal.top,
-            width: rectExternal.width,
-            height: rectExternal.height,
-            child: overlay,
-          ));
-        }
+
+        widgets.add(Positioned(
+          left: rectExternal.left,
+          top: rectExternal.top,
+          width: rectExternal.width,
+          height: rectExternal.height,
+          child: Stack(
+            children: [
+              ...overlayWidgets,
+              if (overlay != null) overlay,
+            ],
+          ),
+        ));
       }
     }
     return widgets;
+  }
+
+  void _createLinkOverlays(
+    List<Widget> widgets,
+    Rect rect,
+    PdfPage page,
+  ) {
+    if (widget.params.linkWidgetBuilder == null) return;
+    final pageLinks = _pageLinks[page.pageNumber];
+    if (pageLinks == null) {
+      Future.microtask(
+        () async {
+          await _loadPageLinks(page);
+          _invalidate();
+        },
+      );
+      return;
+    }
+
+    final scale = rect.height / page.height;
+    for (final link in pageLinks) {
+      for (final rect in link.rects) {
+        final rectLink = rect.toRect(height: page.height, scale: scale);
+        final linkWidget =
+            widget.params.linkWidgetBuilder!(context, link, rectLink.size);
+        if (linkWidget != null) {
+          widgets.add(
+            Positioned(
+              left: rectLink.left,
+              top: rectLink.top,
+              width: rectLink.width,
+              height: rectLink.height,
+              child: linkWidget,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Rect? documentToRenderBox(Rect rect, RenderBox renderBox) {
+    final tl = _controller?.documentToGlobal(rect.topLeft);
+    if (tl == null) return null;
+    final br = _controller?.documentToGlobal(rect.bottomRight);
+    if (br == null) return null;
+    return Rect.fromPoints(
+        renderBox.globalToLocal(tl), renderBox.globalToLocal(br));
   }
 
   final _cancellationTokens = <int, List<PdfPageRenderCancellationToken>>{};
@@ -657,6 +714,7 @@ class _PdfViewerState extends State<PdfViewer>
             (pageNumber) {
               _realSized.remove(pageNumber);
               _pageTexts.remove(pageNumber);
+              _pageLinks.remove(pageNumber);
             },
           );
         }
@@ -744,6 +802,17 @@ class _PdfViewerState extends State<PdfViewer>
             _pageTexts[page.pageNumber] = pageText;
           }
           return pageText;
+        },
+      );
+
+  Future<List<PdfLink>> _loadPageLinks(PdfPage page) => synchronized(
+        () async {
+          var pageLinks = _pageLinks[page.pageNumber];
+          if (pageLinks == null) {
+            pageLinks = await page.loadLinks();
+            _pageLinks[page.pageNumber] = pageLinks;
+          }
+          return pageLinks;
         },
       );
 

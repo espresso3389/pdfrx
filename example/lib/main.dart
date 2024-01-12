@@ -67,8 +67,11 @@ class _MyAppState extends State<MyApp> {
                 //     documentSize: Size(x, height),
                 //   );
                 // },
-                // Thumbs for vertical/horizontal scroll
+                //
+                // Scroll-thumbs example
+                //
                 viewerOverlayBuilder: (context, size) => [
+                  // Show vertical scroll thumb on the right; it has page number on it
                   PdfViewerScrollThumb(
                     controller: controller,
                     orientation: ScrollbarOrientation.right,
@@ -85,6 +88,7 @@ class _MyAppState extends State<MyApp> {
                       ),
                     ),
                   ),
+                  // Just a simple horizontal scroll thumb on the bottom
                   PdfViewerScrollThumb(
                     controller: controller,
                     orientation: ScrollbarOrientation.bottom,
@@ -96,6 +100,31 @@ class _MyAppState extends State<MyApp> {
                     ),
                   ),
                 ],
+                //
+                // Loading progress indicator example
+                //
+                loadingBannerBuilder: (context, bytesDownloaded, totalBytes) =>
+                    Center(
+                  child: CircularProgressIndicator(
+                    value: totalBytes != null
+                        ? bytesDownloaded / totalBytes
+                        : null,
+                    backgroundColor: Colors.grey,
+                  ),
+                ),
+                //
+                // Link handling example
+                //
+                // FIXME: a link with several areas (link that contains line-break) does not correctly
+                // show the hover status
+                // FIXME: gestures other than tap should be passed-through to the underlying widget
+                linkWidgetBuilder: (context, link, size) => Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => print('link tapped: ${link.url}'),
+                    hoverColor: Colors.blue.withOpacity(0.2),
+                  ),
+                ),
               ),
             ),
             AnimatedPositioned(

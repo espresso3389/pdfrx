@@ -2,6 +2,7 @@
   "cSpell.words": [
     "alloc",
     "ANNOT",
+    "Annots",
     "Antialiasing",
     "ARGB",
     "bgra",
@@ -43,6 +44,7 @@
     "Pdfjs",
     "pdfrx",
     "pubspec",
+    "RECTF",
     "rects",
     "reentrantly",
     "relayout",
