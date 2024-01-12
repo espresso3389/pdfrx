@@ -21,7 +21,7 @@ class PdfViewerParams {
     this.annotationRenderingMode =
         PdfAnnotationRenderingMode.annotationAndForms,
     this.pageAnchor = PdfPageAnchor.topCenter,
-    this.enableTextSelection = false,
+    this.enableTextSelection = true,
     this.panEnabled = true,
     this.scaleEnabled = true,
     this.onInteractionEnd,
@@ -102,7 +102,6 @@ class PdfViewerParams {
 
   /// Experimental: Enable text selection on pages.
   ///
-  /// Please note the feature is still in development and may not work properly and disabled by default so far.
   final bool enableTextSelection;
 
   /// See [InteractiveViewer.panEnabled] for details.

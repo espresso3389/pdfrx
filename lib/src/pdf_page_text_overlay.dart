@@ -8,23 +8,45 @@ class PdfPageTextOverlay extends StatefulWidget {
   const PdfPageTextOverlay({
     required this.page,
     required this.pageRect,
-    required this.pageText,
     super.key,
   });
 
   final PdfPage page;
   final Rect pageRect;
-  final PdfPageText pageText;
 
   @override
   State<PdfPageTextOverlay> createState() => _PdfPageTextOverlayState();
 }
 
 class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
+  PdfPageText? pageText;
+
+  @override
+  void initState() {
+    super.initState();
+    _initText();
+  }
+
+  @override
+  void didUpdateWidget(PdfPageTextOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.page != oldWidget.page) {
+      _initText();
+    }
+  }
+
+  Future<void> _initText() async {
+    pageText = await widget.page.loadText();
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (pageText == null) return Container();
     return _generateSelectionArea(
-        widget.pageText.fragments, widget.page, widget.pageRect);
+        pageText!.fragments, widget.page, widget.pageRect);
   }
 
   Widget _generateSelectionArea(
@@ -32,87 +54,44 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
     PdfPage page,
     Rect pageRect,
   ) {
-    final scale = pageRect.height / page.height;
-    Rect? finalBounds;
-    for (final fragment in fragments) {
-      if (fragment.bounds.isEmpty) continue;
-      final rect = fragment.bounds.toRect(height: page.height, scale: scale);
-      if (rect.isEmpty) continue;
-      if (finalBounds == null) {
-        finalBounds = rect;
-      } else {
-        finalBounds = finalBounds.expandToInclude(rect);
-      }
-    }
-    if (finalBounds == null) return Container();
-
     return Positioned(
-      left: pageRect.left + finalBounds.left,
-      top: pageRect.top + finalBounds.top,
-      width: finalBounds.width,
-      height: finalBounds.height,
+      left: pageRect.left,
+      top: pageRect.top,
+      width: pageRect.width,
+      height: pageRect.height,
       child: SelectionArea(
-        child: Builder(builder: (context) {
-          final registrar = SelectionContainer.maybeOf(context);
-          return Stack(
-            children: _generateTextSelectionWidgets(
-                finalBounds!, fragments, page, pageRect, registrar),
-          );
-        }),
+        child: Builder(
+          builder: (context) {
+            final registrar = SelectionContainer.maybeOf(context);
+            return MouseRegion(
+              hitTestBehavior: HitTestBehavior.translucent,
+              cursor: SystemMouseCursors.text,
+              child: _PdfTextWidget(
+                registrar,
+                page,
+                fragments,
+                pageRect.size,
+              ),
+            );
+          },
+        ),
       ),
     );
-  }
-
-  /// This function exists only to receive the [registrar] parameter :(
-  List<Widget> _generateTextSelectionWidgets(
-    Rect finalBounds,
-    List<PdfPageTextFragment> fragments,
-    PdfPage page,
-    Rect pageRect,
-    SelectionRegistrar? registrar,
-  ) {
-    final scale = pageRect.height / page.height;
-    final texts = <Widget>[];
-
-    for (final fragment in fragments) {
-      if (fragment.bounds.isEmpty) continue;
-      final rect = fragment.bounds.toRect(height: page.height, scale: scale);
-      if (rect.isEmpty || fragment.text.isEmpty) continue;
-      texts.add(
-        Positioned(
-          key: ValueKey(fragment.index),
-          left: rect.left - finalBounds.left,
-          top: rect.top - finalBounds.top,
-          width: rect.width,
-          height: rect.height,
-          child: MouseRegion(
-            cursor: SystemMouseCursors.text,
-            child: _PdfTextWidget(
-              registrar,
-              fragment,
-              fragment.charRects
-                  ?.map((e) => e
-                      .toRect(height: page.height, scale: scale)
-                      .translate(-rect.left, -rect.top))
-                  .toList(),
-              rect.size,
-            ),
-          ),
-        ),
-      );
-    }
-    return texts;
   }
 }
 
 /// The code is based on the code on [Making a widget selectable](https://api.flutter.dev/flutter/widgets/SelectableRegion-class.html#widgets).SelectableRegion.2]
 class _PdfTextWidget extends LeafRenderObjectWidget {
   const _PdfTextWidget(
-      this.registrar, this.fragment, this.charRects, this.size);
+    this.registrar,
+    this.page,
+    this.fragments,
+    this.size,
+  );
 
   final SelectionRegistrar? registrar;
-  final PdfPageTextFragment fragment;
-  final List<Rect>? charRects;
+  final PdfPage page;
+  final List<PdfPageTextFragment> fragments;
   final Size size;
 
   @override
@@ -200,66 +179,134 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     var selectionRect = Rect.fromPoints(_start!, _end!);
     if (renderObjectRect.intersect(selectionRect).isEmpty) {
       _geometry.value = _noSelection;
-    } else {
-      selectionRect =
-          !selectionRect.isEmpty ? selectionRect : _getSelectionHighlightRect();
+      return;
+    }
+    selectionRect =
+        !selectionRect.isEmpty ? selectionRect : _getSelectionHighlightRect();
 
-      final selectionRects = <Rect>[];
-      final sb = StringBuffer();
-      _selectedRect = null;
-      if (widget.charRects != null) {
-        final scale = size.width / widget.size.width;
-        for (int i = 0; i < widget.charRects!.length; i++) {
-          final charRect = widget.charRects![i] * scale;
-          if (charRect.intersect(selectionRect).isEmpty) continue;
-          selectionRects.add(charRect);
-          sb.write(widget.fragment.text[i]);
+    final selectionRects = <Rect>[];
+    final sb = StringBuffer();
+    _selectedRect = null;
+    final scale = size.height / widget.page.height;
 
-          if (_selectedRect == null) {
-            _selectedRect = charRect;
-          } else {
-            _selectedRect = _selectedRect!.expandToInclude(charRect);
+    int searchLineEnd(int start) {
+      final lastIndex = widget.fragments.length - 1;
+      var last = widget.fragments[start];
+      for (int i = start; i < lastIndex; i++) {
+        final next = widget.fragments[i + 1];
+        if (last.bounds.bottom != next.bounds.bottom) {
+          return i + 1;
+        }
+        last = next;
+      }
+      return widget.fragments.length;
+    }
+
+    Iterable<({Rect rect, String text})> enumerateCharRects(
+        int start, int end) sync* {
+      for (int i = start; i < end; i++) {
+        final fragment = widget.fragments[i];
+        if (fragment.charRects == null) {
+          yield (
+            rect: fragment.bounds.toRect(
+              height: widget.page.height,
+              scale: scale,
+            ),
+            text: fragment.text
+          );
+        } else {
+          for (int j = 0; j < fragment.charRects!.length; j++) {
+            yield (
+              rect: fragment.charRects![j].toRect(
+                height: widget.page.height,
+                scale: scale,
+              ),
+              text: fragment.text.substring(j, j + 1)
+            );
           }
         }
-        _selectedText = sb.toString();
-      } else {
-        selectionRects.add(selectionRect);
-        _selectedText = widget.fragment.text;
-        _selectedRect = _getSelectionHighlightRect();
       }
-
-      final firstSelectionPoint = SelectionPoint(
-        localPosition: _selectedRect!.bottomLeft,
-        lineHeight: _selectedRect!.height,
-        handleType: TextSelectionHandleType.left,
-      );
-      final secondSelectionPoint = SelectionPoint(
-        localPosition: _selectedRect!.bottomRight,
-        lineHeight: _selectedRect!.height,
-        handleType: TextSelectionHandleType.right,
-      );
-      final bool isReversed;
-      if (_start!.dy > _end!.dy) {
-        isReversed = true;
-      } else if (_start!.dy < _end!.dy) {
-        isReversed = false;
-      } else {
-        isReversed = _start!.dx > _end!.dx;
-      }
-
-      _sizeOnSelection = size;
-      _geometry.value = SelectionGeometry(
-        status: _selectedText!.isNotEmpty
-            ? SelectionStatus.uncollapsed
-            : SelectionStatus.collapsed,
-        hasContent: true,
-        startSelectionPoint:
-            isReversed ? secondSelectionPoint : firstSelectionPoint,
-        endSelectionPoint:
-            isReversed ? firstSelectionPoint : secondSelectionPoint,
-        selectionRects: selectionRects,
-      );
     }
+
+    ({Rect? rect, String text}) selectChars(
+        int start, int end, Rect lineSelectRect) {
+      Rect? rect;
+      final sb = StringBuffer();
+      for (final r in enumerateCharRects(start, end)) {
+        if (!r.rect.intersect(lineSelectRect).isEmpty ||
+            r.rect.bottom < lineSelectRect.bottom) {
+          sb.write(r.text);
+          if (rect == null) {
+            rect = r.rect;
+          } else {
+            rect = rect.expandToInclude(r.rect);
+          }
+        }
+      }
+      return (rect: rect, text: sb.toString());
+    }
+
+    int? lastLineEnd;
+    Rect? lastLineStartRect;
+    for (int i = 0; i < widget.fragments.length;) {
+      final bounds = widget.fragments[i].bounds
+          .toRect(height: widget.page.height, scale: scale);
+      if (lastLineEnd == null && selectionRect.intersect(bounds).isEmpty) {
+        i++;
+      } else {
+        final lineEnd = searchLineEnd(i);
+        final chars = selectChars(
+            lastLineEnd ?? i,
+            lineEnd,
+            lastLineStartRect != null
+                ? lastLineStartRect.expandToInclude(selectionRect)
+                : selectionRect);
+        lastLineStartRect = bounds;
+        lastLineEnd = i = lineEnd;
+        if (chars.rect == null) continue;
+        sb.write(chars.text);
+        selectionRects.add(chars.rect!);
+      }
+    }
+
+    if (selectionRects.isEmpty) {
+      _geometry.value = _noSelection;
+      return;
+    }
+
+    _selectedRect = selectionRects.reduce((a, b) => a.expandToInclude(b));
+    _selectedText = sb.toString();
+    final firstSelectionPoint = SelectionPoint(
+      localPosition: _selectedRect!.bottomLeft,
+      lineHeight: _selectedRect!.height,
+      handleType: TextSelectionHandleType.left,
+    );
+    final secondSelectionPoint = SelectionPoint(
+      localPosition: _selectedRect!.bottomRight,
+      lineHeight: _selectedRect!.height,
+      handleType: TextSelectionHandleType.right,
+    );
+    final bool isReversed;
+    if (_start!.dy > _end!.dy) {
+      isReversed = true;
+    } else if (_start!.dy < _end!.dy) {
+      isReversed = false;
+    } else {
+      isReversed = _start!.dx > _end!.dx;
+    }
+
+    _sizeOnSelection = size;
+    _geometry.value = SelectionGeometry(
+      status: _selectedText!.isNotEmpty
+          ? SelectionStatus.uncollapsed
+          : SelectionStatus.collapsed,
+      hasContent: true,
+      startSelectionPoint:
+          isReversed ? secondSelectionPoint : firstSelectionPoint,
+      endSelectionPoint:
+          isReversed ? firstSelectionPoint : secondSelectionPoint,
+      selectionRects: selectionRects,
+    );
   }
 
   @override
@@ -372,7 +419,9 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
 
   @override
   SelectedContent? getSelectedContent() =>
-      value.hasSelection ? SelectedContent(plainText: _selectedText!) : null;
+      value.hasSelection && _selectedText != null
+          ? SelectedContent(plainText: _selectedText!)
+          : null;
 
   LayerLink? _startHandle;
   LayerLink? _endHandle;
@@ -390,41 +439,28 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     }
   }
 
-  // static int colorIndex = 0;
-  // final colors = [
-  //   Colors.red,
-  //   Colors.deepOrangeAccent,
-  //   Colors.purpleAccent,
-  // ];
-
   @override
   void paint(PaintingContext context, Offset offset) {
     super.paint(context, offset);
-
-    // context.canvas.drawRect(
-    //   _getSelectionHighlightRect().shift(offset),
-    //   Paint()
-    //     ..style = PaintingStyle.stroke
-    //     ..color = colors[colorIndex],
-    // );
-    // colorIndex = (colorIndex + 1) % colors.length;
 
     if (!_geometry.value.hasSelection) {
       return;
     }
 
-    if (_start == null || _end == null) {
+    if (_start == null || _end == null || _selectedRect == null) {
       return;
     }
 
     final scale = size.width / _sizeOnSelection!.width;
 
-    context.canvas.drawRect(
-      (_selectedRect! * scale).shift(offset),
-      Paint()
-        ..style = PaintingStyle.fill
-        ..color = _selectionColor,
-    );
+    for (final rect in _geometry.value.selectionRects) {
+      context.canvas.drawRect(
+        (rect * scale).shift(offset),
+        Paint()
+          ..style = PaintingStyle.fill
+          ..color = _selectionColor,
+      );
+    }
 
     if (_startHandle != null) {
       context.pushLayer(

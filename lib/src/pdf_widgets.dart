@@ -14,6 +14,7 @@ import 'package:vector_math/vector_math_64.dart' as vec;
 import 'interactive_viewer.dart' as iv;
 import 'pdf_api.dart';
 import 'pdf_document_store.dart';
+import 'pdf_page_text_overlay.dart';
 import 'pdf_viewer_params.dart';
 
 /// A widget to display PDF document.
@@ -543,6 +544,8 @@ class _PdfViewerState extends State<PdfViewer>
           rectExternal,
           page,
         );
+        _createTextOverlays(
+            overlayWidgets, Offset.zero & rectExternal.size, page);
 
         widgets.add(Positioned(
           left: rectExternal.left,
@@ -559,6 +562,33 @@ class _PdfViewerState extends State<PdfViewer>
       }
     }
     return widgets;
+  }
+
+  void _createTextOverlays(
+    List<Widget> widgets,
+    Rect rect,
+    PdfPage page,
+  ) {
+    if (!widget.params.enableTextSelection) return;
+    final pageText = _pageTexts[page.pageNumber];
+    if (pageText == null) {
+      Future.microtask(
+        () async {
+          await _loadPageText(page);
+          _invalidate();
+        },
+      );
+      return;
+    }
+
+    widgets.add(
+      PdfPageTextOverlay(
+        key: Key('pageText:${page.pageNumber}'),
+        page: page,
+        pageRect: rect,
+        //pageText: pageText,
+      ),
+    );
   }
 
   void _createLinkOverlays(
