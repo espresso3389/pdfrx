@@ -48,7 +48,7 @@ android {
     }
 
     sourceSets {
-        main.jniLibs.srcDirs += '.lib'
+        main.jniLibs.srcDirs += '.lib/latest'
     }
 
     compileOptions {
