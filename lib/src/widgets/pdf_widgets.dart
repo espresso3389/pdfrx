@@ -167,7 +167,6 @@ class _PdfViewerState extends State<PdfViewer>
   final List<double> _zoomStops = [1.0];
 
   final _realSized = <int, ({ui.Image image, double scale})>{};
-  final _pageLinks = <int, List<PdfLink>>{};
 
   final _stream = BehaviorSubject<Matrix4>();
 
@@ -222,7 +221,6 @@ class _PdfViewerState extends State<PdfViewer>
     _layout = null;
 
     _realSized.clear();
-    _pageLinks.clear();
     _pageNumber = null;
     _initialized = false;
     _controller?.removeListener(_onMatrixChanged);
@@ -256,7 +254,6 @@ class _PdfViewerState extends State<PdfViewer>
     animController.dispose();
     widget.documentRef.removeListener(_onDocumentChanged);
     _realSized.clear();
-    _pageLinks.clear();
     _controller!.removeListener(_onMatrixChanged);
     _controller!._attach(null);
     super.dispose();
@@ -693,7 +690,6 @@ class _PdfViewerState extends State<PdfViewer>
             currentPage,
             (pageNumber) {
               _realSized.remove(pageNumber);
-              _pageLinks.remove(pageNumber);
             },
           );
         }
@@ -772,17 +768,6 @@ class _PdfViewerState extends State<PdfViewer>
       removePage(key);
     }
   }
-
-  Future<List<PdfLink>> _loadPageLinks(PdfPage page) => synchronized(
-        () async {
-          var pageLinks = _pageLinks[page.pageNumber];
-          if (pageLinks == null) {
-            pageLinks = await page.loadLinks();
-            _pageLinks[page.pageNumber] = pageLinks;
-          }
-          return pageLinks;
-        },
-      );
 
   void _onWheelDelta(Offset delta) {
     final m = _controller!.value.clone();
