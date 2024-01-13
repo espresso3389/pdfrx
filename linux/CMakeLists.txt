@@ -7,6 +7,20 @@ cmake_minimum_required(VERSION 3.10)
 set(PROJECT_NAME "pdfrx")
 project(${PROJECT_NAME} LANGUAGES CXX)
 
+# Determine target processor name
+IF(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x64|x86_64)")
+    SET(CPU_NAME "x64")
+ELSEIF(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86)")
+    SET(CPU_NAME "x86")
+ELSEIF(CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|aarch64|ARM64EC|arm64ec|ARM64E|arm64e)")
+    SET(CPU_NAME "arm64")
+ELSEIF(CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM)")
+    SET(CPU_NAME "arm")
+ELSE()
+    MESSAGE(FATAL_ERROR "Unsupported architecture \"${CMAKE_SYSTEM_PROCESSOR}\"")
+ENDIF()
+message( STATUS "Target CPU Name: ${CPU_NAME}" )
+
 # Invoke the build for native code shared with the other target platforms.
 # This can be changed to accommodate different builds.
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../src" "${CMAKE_CURRENT_BINARY_DIR}/shared")
@@ -24,7 +38,7 @@ file(MAKE_DIRECTORY ${PDFIUM_RELEASE_DIR})
 set(PDFIUM_PLATFORM "linux")
 set(PDFIUM_LIB_FILENAME "libpdfium.so")
 set(PDFIUM_LIB_DIR "lib")
-set(PDFIUM_LINUX_ABI "x64")
+set(PDFIUM_LINUX_ABI ${CPU_NAME})
 
 set(PDFIUM_ARCHIVE_NAME pdfium-${PDFIUM_PLATFORM}-${PDFIUM_LINUX_ABI})
 set(PDFIUM_SRC_LIB_FILENAME ${PDFIUM_RELEASE_DIR}/${PDFIUM_LIB_DIR}/${PDFIUM_LIB_FILENAME})
@@ -35,6 +49,7 @@ set(PDFIUM_LIBS_ARCH_DIR ${PDFIUM_LIBS_DIR}/${PDFIUM_LINUX_ABI})
 set(PDFIUM_DEST_LIB_FILENAME ${PDFIUM_LIBS_ARCH_DIR}/${PDFIUM_LIB_FILENAME})
 
 if(NOT EXISTS ${PDFIUM_SRC_LIB_FILENAME})
+    message( STATUS "Download precompiled pdfium..." )
     file(DOWNLOAD https://github.com/bblanchon/pdfium-binaries/releases/download/${PDFIUM_BINARY_RELEASE}/${PDFIUM_ARCHIVE_NAME}.tgz ${PDFIUM_RELEASE_DIR}/${PDFIUM_ARCHIVE_NAME}.tgz)
     execute_process(
         COMMAND ${CMAKE_COMMAND} -E tar zxf ${PDFIUM_RELEASE_DIR}/${PDFIUM_ARCHIVE_NAME}.tgz
@@ -44,6 +59,8 @@ if(NOT EXISTS ${PDFIUM_SRC_LIB_FILENAME})
     if(STATUS AND NOT STATUS EQUAL 0)
         message(FATAL_ERROR "Could not obtain pdfium binary for ${PDFIUM_LINUX_ABI}")
     endif()
+else()
+    message( STATUS "Use existing precompiled pdfium." )
 endif()
 
 if (NOT EXISTS ${PDFIUM_DEST_LIB_FILENAME})
