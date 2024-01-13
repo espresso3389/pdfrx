@@ -1,3 +1,13 @@
+## 0.4.7
+
+- FIXED: Android build broken? Cannot find libpdfium.so error (#25)
+- PdfViewerParams.loadingBannerBuilder to customize HTTP download progress
+- PdfViewerParams.linkWidgetBuilder to support embedded links
+- WIP: Updated text selection mechanism, which is faster and stable but still certain issues
+  - Pan-to-scroll does not work on Desktop/Web
+  - Selection does not work as expected on mobile devices
+- Support Linux running on arm64 Raspberry PI (#23/#24)
+
 ## 0.4.6
 
 - Introduces PdfPage.render cancellation mechanism
