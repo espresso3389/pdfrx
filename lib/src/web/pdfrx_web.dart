@@ -334,7 +334,28 @@ class PdfPageWeb extends PdfPage {
 
   @override
   Future<List<PdfLink>> loadLinks() async {
-    return [];
+    final annots = await js_util.promiseToFuture<List>(
+      page.getAnnotations(
+        PdfjsGetAnnotationsParameters(),
+      ),
+    );
+    final links = <PdfLink>[];
+    for (final annot in annots.cast<PdfjsAnnotationData>()) {
+      if (annot.subtype != 'Link') continue;
+      if (annot.url == null) continue;
+      final rect = annot.rect.cast<double>();
+      print('$rect: ${annot.url}');
+      links.add(
+        PdfLink(
+          Uri.parse(annot.url!),
+          [
+            PdfRect(rect[0], rect[3], rect[2], rect[1]),
+          ],
+        ),
+      );
+    }
+
+    return links;
   }
 }
 

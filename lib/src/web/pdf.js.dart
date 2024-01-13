@@ -65,6 +65,8 @@ class PdfjsPage {
   external List<double> get view;
 
   external Object getTextContent(PdfjsGetTextContentParameters params);
+
+  external Object getAnnotations(PdfjsGetAnnotationsParameters params);
 }
 
 @JS()
@@ -224,4 +226,26 @@ class PdfjsPasswordException {
   external String get message;
   external String get name;
   external String get code;
+}
+
+@JS()
+@anonymous
+class PdfjsGetAnnotationsParameters {
+  external factory PdfjsGetAnnotationsParameters({
+    String intent = 'display',
+  });
+
+  /// 'display' or 'print' or, 'any'
+  external String get intent;
+}
+
+@JS()
+@anonymous
+class PdfjsAnnotationData {
+  external String get subtype;
+  external int get annotationType;
+  external List get rect;
+  external String? get url;
+  external String? get unsafeUrl;
+  external int get annotationFlags;
 }
