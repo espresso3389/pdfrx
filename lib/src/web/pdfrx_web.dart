@@ -333,9 +333,8 @@ class PdfPageWeb extends PdfPage {
   Future<PdfPageText> loadText() => PdfPageTextWeb._loadText(this);
 
   @override
-  Future<List<PdfLink>> loadLinks() {
-    // TODO: implement loadLinks
-    throw UnimplementedError();
+  Future<List<PdfLink>> loadLinks() async {
+    return [];
   }
 }
 

@@ -54,7 +54,7 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
     final thumbSize = widget.thumbSize ?? const Size(25, 40);
     final view = widget.controller.visibleRect;
     final all = widget.controller.documentSize;
-    if (all.height <= view.height) return Container();
+    if (all.height <= view.height) return const SizedBox();
     final y = -widget.controller.value.y / (all.height - view.height);
     final vh = view.height * widget.controller.currentZoom - thumbSize.height;
     final top = y * vh;
@@ -104,7 +104,7 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
     final thumbSize = widget.thumbSize ?? const Size(40, 25);
     final view = widget.controller.visibleRect;
     final all = widget.controller.documentSize;
-    if (all.width <= view.width) return Container();
+    if (all.width <= view.width) return const SizedBox();
     final x = -widget.controller.value.x / (all.width - view.width);
     final vw = view.width * widget.controller.currentZoom - thumbSize.width;
     final left = x * vw;

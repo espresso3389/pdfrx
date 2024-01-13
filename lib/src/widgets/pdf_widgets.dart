@@ -11,9 +11,10 @@ import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
 import 'package:vector_math/vector_math_64.dart' as vec;
 
+import '../pdf_api.dart';
+import '../pdf_document_store.dart';
 import 'interactive_viewer.dart' as iv;
-import 'pdf_api.dart';
-import 'pdf_document_store.dart';
+import 'pdf_page_links_overlay.dart';
 import 'pdf_page_text_overlay.dart';
 import 'pdf_viewer_params.dart';
 
@@ -166,7 +167,6 @@ class _PdfViewerState extends State<PdfViewer>
   final List<double> _zoomStops = [1.0];
 
   final _realSized = <int, ({ui.Image image, double scale})>{};
-  final _pageTexts = <int, PdfPageText>{};
   final _pageLinks = <int, List<PdfLink>>{};
 
   final _stream = BehaviorSubject<Matrix4>();
@@ -222,7 +222,6 @@ class _PdfViewerState extends State<PdfViewer>
     _layout = null;
 
     _realSized.clear();
-    _pageTexts.clear();
     _pageLinks.clear();
     _pageNumber = null;
     _initialized = false;
@@ -257,7 +256,6 @@ class _PdfViewerState extends State<PdfViewer>
     animController.dispose();
     widget.documentRef.removeListener(_onDocumentChanged);
     _realSized.clear();
-    _pageTexts.clear();
     _pageLinks.clear();
     _controller!.removeListener(_onMatrixChanged);
     _controller!._attach(null);
@@ -538,95 +536,47 @@ class _PdfViewerState extends State<PdfViewer>
       final rectExternal = documentToRenderBox(rect, renderBox);
       if (rectExternal != null) {
         final overlayWidgets = <Widget>[];
-        _createLinkOverlays(overlayWidgets, rectExternal, page);
+
+        if (widget.params.linkWidgetBuilder != null) {
+          widgets.add(
+            PdfPageLinksOverlay(
+              key: Key('pageLinks:${page.pageNumber}'),
+              page: page,
+              pageRect: rectExternal,
+              params: widget.params,
+            ),
+          );
+        }
+
+        if (widget.params.enableTextSelection) {
+          widgets.add(
+            PdfPageTextOverlay(
+              key: Key('pageText:${page.pageNumber}'),
+              page: page,
+              pageRect: rectExternal,
+            ),
+          );
+        }
+
         final overlay = widget.params.pageOverlayBuilder?.call(
           context,
           rectExternal,
           page,
         );
-        _createTextOverlays(
-            overlayWidgets, Offset.zero & rectExternal.size, page);
+        if (overlay != null) {
+          overlayWidgets.add(overlay);
+        }
 
         widgets.add(Positioned(
           left: rectExternal.left,
           top: rectExternal.top,
           width: rectExternal.width,
           height: rectExternal.height,
-          child: Stack(
-            children: [
-              ...overlayWidgets,
-              if (overlay != null) overlay,
-            ],
-          ),
+          child: Stack(children: overlayWidgets),
         ));
       }
     }
     return widgets;
-  }
-
-  void _createTextOverlays(
-    List<Widget> widgets,
-    Rect rect,
-    PdfPage page,
-  ) {
-    if (!widget.params.enableTextSelection) return;
-    final pageText = _pageTexts[page.pageNumber];
-    if (pageText == null) {
-      Future.microtask(
-        () async {
-          await _loadPageText(page);
-          _invalidate();
-        },
-      );
-      return;
-    }
-
-    widgets.add(
-      PdfPageTextOverlay(
-        key: Key('pageText:${page.pageNumber}'),
-        page: page,
-        pageRect: rect,
-        //pageText: pageText,
-      ),
-    );
-  }
-
-  void _createLinkOverlays(
-    List<Widget> widgets,
-    Rect rect,
-    PdfPage page,
-  ) {
-    if (widget.params.linkWidgetBuilder == null) return;
-    final pageLinks = _pageLinks[page.pageNumber];
-    if (pageLinks == null) {
-      Future.microtask(
-        () async {
-          await _loadPageLinks(page);
-          _invalidate();
-        },
-      );
-      return;
-    }
-
-    final scale = rect.height / page.height;
-    for (final link in pageLinks) {
-      for (final rect in link.rects) {
-        final rectLink = rect.toRect(height: page.height, scale: scale);
-        final linkWidget =
-            widget.params.linkWidgetBuilder!(context, link, rectLink.size);
-        if (linkWidget != null) {
-          widgets.add(
-            Positioned(
-              left: rectLink.left,
-              top: rectLink.top,
-              width: rectLink.width,
-              height: rectLink.height,
-              child: linkWidget,
-            ),
-          );
-        }
-      }
-    }
   }
 
   Rect? documentToRenderBox(Rect rect, RenderBox renderBox) {
@@ -743,7 +693,6 @@ class _PdfViewerState extends State<PdfViewer>
             currentPage,
             (pageNumber) {
               _realSized.remove(pageNumber);
-              _pageTexts.remove(pageNumber);
               _pageLinks.remove(pageNumber);
             },
           );
@@ -823,17 +772,6 @@ class _PdfViewerState extends State<PdfViewer>
       removePage(key);
     }
   }
-
-  Future<PdfPageText> _loadPageText(PdfPage page) => synchronized(
-        () async {
-          var pageText = _pageTexts[page.pageNumber];
-          if (pageText == null) {
-            pageText = await page.loadText();
-            _pageTexts[page.pageNumber] = pageText;
-          }
-          return pageText;
-        },
-      );
 
   Future<List<PdfLink>> _loadPageLinks(PdfPage page) => synchronized(
         () async {
@@ -1211,7 +1149,7 @@ class PdfPageTextSearcher {
     final pages = _state._document!.pages;
     for (int i = 0; i < pages.length; i++) {
       final page = pages[i];
-      final pageText = await _state._loadPageText(page);
+      final pageText = await page.loadText();
       final matches = pattern.allMatches(pageText.fullText);
       for (final match in matches) {
         yield PdfTextSearchResult.fromTextRange(

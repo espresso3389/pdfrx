@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-import '../pdfrx.dart';
+import '../../pdfrx.dart';
+import 'pdf_widgets.dart';
 
-/// Still too much experimental but provided as is.
+/// A widget that displays selectable text on a page.
 class PdfPageTextOverlay extends StatefulWidget {
   const PdfPageTextOverlay({
     required this.page,
@@ -44,7 +45,7 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    if (pageText == null) return Container();
+    if (pageText == null) return const SizedBox();
     return _generateSelectionArea(
         pageText!.fragments, widget.page, widget.pageRect);
   }

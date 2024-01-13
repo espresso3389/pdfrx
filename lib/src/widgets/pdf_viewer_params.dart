@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'pdf_api.dart';
+import '../../pdfrx.dart';
 import 'pdf_viewer_scroll_thumb.dart';
 import 'pdf_widgets.dart';
 
