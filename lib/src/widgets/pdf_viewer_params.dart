@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../pdfrx.dart';
-import 'pdf_viewer_scroll_thumb.dart';
-import 'pdf_widgets.dart';
 
 /// Viewer customization parameters.
 ///
@@ -21,7 +19,7 @@ class PdfViewerParams {
     this.annotationRenderingMode =
         PdfAnnotationRenderingMode.annotationAndForms,
     this.pageAnchor = PdfPageAnchor.topCenter,
-    this.enableTextSelection = true,
+    this.enableTextSelection = false,
     this.panEnabled = true,
     this.scaleEnabled = true,
     this.onInteractionEnd,

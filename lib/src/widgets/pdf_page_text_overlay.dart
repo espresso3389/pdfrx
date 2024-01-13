@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../../pdfrx.dart';
-import 'pdf_widgets.dart';
 
 /// A widget that displays selectable text on a page.
 class PdfPageTextOverlay extends StatefulWidget {
@@ -46,32 +45,22 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
   @override
   Widget build(BuildContext context) {
     if (pageText == null) return const SizedBox();
-    return _generateSelectionArea(
-        pageText!.fragments, widget.page, widget.pageRect);
-  }
-
-  Widget _generateSelectionArea(
-    List<PdfPageTextFragment> fragments,
-    PdfPage page,
-    Rect pageRect,
-  ) {
     return Positioned(
-      left: pageRect.left,
-      top: pageRect.top,
-      width: pageRect.width,
-      height: pageRect.height,
+      left: widget.pageRect.left,
+      top: widget.pageRect.top,
+      width: widget.pageRect.width,
+      height: widget.pageRect.height,
       child: SelectionArea(
         child: Builder(
           builder: (context) {
             final registrar = SelectionContainer.maybeOf(context);
             return MouseRegion(
               hitTestBehavior: HitTestBehavior.translucent,
+              opaque: true,
               cursor: SystemMouseCursors.text,
               child: _PdfTextWidget(
                 registrar,
-                page,
-                fragments,
-                pageRect.size,
+                this,
               ),
             );
           },
@@ -85,15 +74,12 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
 class _PdfTextWidget extends LeafRenderObjectWidget {
   const _PdfTextWidget(
     this.registrar,
-    this.page,
-    this.fragments,
-    this.size,
+    this.state,
   );
 
   final SelectionRegistrar? registrar;
-  final PdfPage page;
-  final List<PdfPageTextFragment> fragments;
-  final Size size;
+
+  final _PdfPageTextOverlayState state;
 
   @override
   RenderObject createRenderObject(BuildContext context) => _PdfTextRenderBox(
@@ -139,19 +125,23 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     super.dispose();
   }
 
+  Rect get _pageRect => widget.state.widget.pageRect;
+  PdfPage get _page => widget.state.widget.page;
+  List<PdfPageTextFragment> get _fragments => widget.state.pageText!.fragments;
+
   @override
   bool get sizedByParent => true;
   @override
-  double computeMinIntrinsicWidth(double height) => widget.size.width;
+  double computeMinIntrinsicWidth(double height) => _pageRect.size.width;
   @override
-  double computeMaxIntrinsicWidth(double height) => widget.size.width;
+  double computeMaxIntrinsicWidth(double height) => _pageRect.size.width;
   @override
-  double computeMinIntrinsicHeight(double width) => widget.size.height;
+  double computeMinIntrinsicHeight(double width) => _pageRect.size.height;
   @override
-  double computeMaxIntrinsicHeight(double width) => widget.size.height;
+  double computeMaxIntrinsicHeight(double width) => _pageRect.size.height;
   @override
   Size computeDryLayout(BoxConstraints constraints) =>
-      constraints.constrain(widget.size);
+      constraints.constrain(_pageRect.size);
 
   @override
   void addListener(VoidCallback listener) => _geometry.addListener(listener);
@@ -188,29 +178,29 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     final selectionRects = <Rect>[];
     final sb = StringBuffer();
     _selectedRect = null;
-    final scale = size.height / widget.page.height;
+    final scale = size.height / _page.height;
 
     int searchLineEnd(int start) {
-      final lastIndex = widget.fragments.length - 1;
-      var last = widget.fragments[start];
+      final lastIndex = _fragments.length - 1;
+      var last = _fragments[start];
       for (int i = start; i < lastIndex; i++) {
-        final next = widget.fragments[i + 1];
+        final next = _fragments[i + 1];
         if (last.bounds.bottom != next.bounds.bottom) {
           return i + 1;
         }
         last = next;
       }
-      return widget.fragments.length;
+      return _fragments.length;
     }
 
     Iterable<({Rect rect, String text})> enumerateCharRects(
         int start, int end) sync* {
       for (int i = start; i < end; i++) {
-        final fragment = widget.fragments[i];
+        final fragment = _fragments[i];
         if (fragment.charRects == null) {
           yield (
             rect: fragment.bounds.toRect(
-              height: widget.page.height,
+              height: _page.height,
               scale: scale,
             ),
             text: fragment.text
@@ -219,7 +209,7 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
           for (int j = 0; j < fragment.charRects!.length; j++) {
             yield (
               rect: fragment.charRects![j].toRect(
-                height: widget.page.height,
+                height: _page.height,
                 scale: scale,
               ),
               text: fragment.text.substring(j, j + 1)
@@ -249,9 +239,9 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
 
     int? lastLineEnd;
     Rect? lastLineStartRect;
-    for (int i = 0; i < widget.fragments.length;) {
-      final bounds = widget.fragments[i].bounds
-          .toRect(height: widget.page.height, scale: scale);
+    for (int i = 0; i < _fragments.length;) {
+      final bounds =
+          _fragments[i].bounds.toRect(height: _page.height, scale: scale);
       if (lastLineEnd == null && selectionRect.intersect(bounds).isEmpty) {
         i++;
       } else {
@@ -275,7 +265,14 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
       return;
     }
 
-    _selectedRect = selectionRects.reduce((a, b) => a.expandToInclude(b));
+    final selectedBounds =
+        selectionRects.reduce((a, b) => a.expandToInclude(b));
+    _selectedRect = Rect.fromLTRB(
+      _start?.dx ?? selectedBounds.left,
+      selectedBounds.top,
+      _end?.dx ?? selectedBounds.right,
+      selectedBounds.bottom,
+    );
     _selectedText = sb.toString();
     final firstSelectionPoint = SelectionPoint(
       localPosition: _selectedRect!.bottomLeft,
@@ -453,7 +450,6 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     }
 
     final scale = size.width / _sizeOnSelection!.width;
-
     for (final rect in _geometry.value.selectionRects) {
       context.canvas.drawRect(
         (rect * scale).shift(offset),
