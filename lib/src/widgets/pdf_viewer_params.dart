@@ -33,6 +33,8 @@ class PdfViewerParams {
     this.maxThumbCacheCount = 30,
     this.maxRealSizeImageCount = 3,
     this.enableRealSizeRendering = true,
+    this.horizontalCacheExtent = 1.0,
+    this.verticalCacheExtent = 1.0,
     this.viewerOverlayBuilder,
     this.pageOverlayBuilder,
     this.loadingBannerBuilder,
@@ -176,6 +178,12 @@ class PdfViewerParams {
   /// disabling this option may improve the performance.
   final bool enableRealSizeRendering;
 
+  /// The horizontal cache extent specified in ratio to the viewport width. The default is 1.0.
+  final double horizontalCacheExtent;
+
+  /// The vertical cache extent specified in ratio to the viewport height. The default is 1.0.
+  final double verticalCacheExtent;
+
   /// Add overlays to the viewer.
   ///
   /// This function is to generate widgets on PDF viewer's overlay [Stack].
@@ -265,7 +273,9 @@ class PdfViewerParams {
         other.scrollByArrowKey != scrollByArrowKey ||
         other.maxThumbCacheCount != maxThumbCacheCount ||
         other.maxRealSizeImageCount != maxRealSizeImageCount ||
-        other.enableRealSizeRendering != enableRealSizeRendering;
+        other.enableRealSizeRendering != enableRealSizeRendering ||
+        other.horizontalCacheExtent != horizontalCacheExtent ||
+        other.verticalCacheExtent != verticalCacheExtent;
   }
 
   @override
@@ -293,6 +303,8 @@ class PdfViewerParams {
         other.maxThumbCacheCount == maxThumbCacheCount &&
         other.maxRealSizeImageCount == maxRealSizeImageCount &&
         other.enableRealSizeRendering == enableRealSizeRendering &&
+        other.horizontalCacheExtent == horizontalCacheExtent &&
+        other.verticalCacheExtent == verticalCacheExtent &&
         other.viewerOverlayBuilder == viewerOverlayBuilder &&
         other.pageOverlayBuilder == pageOverlayBuilder &&
         other.loadingBannerBuilder == loadingBannerBuilder &&
@@ -323,6 +335,8 @@ class PdfViewerParams {
         maxThumbCacheCount.hashCode ^
         maxRealSizeImageCount.hashCode ^
         enableRealSizeRendering.hashCode ^
+        horizontalCacheExtent.hashCode ^
+        verticalCacheExtent.hashCode ^
         viewerOverlayBuilder.hashCode ^
         pageOverlayBuilder.hashCode ^
         loadingBannerBuilder.hashCode ^

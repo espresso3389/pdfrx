@@ -521,16 +521,14 @@ class _PdfViewerState extends State<PdfViewer>
     if (renderBox is! RenderBox) return [];
 
     final widgets = <Widget>[];
-    final visibleRect = _controller!.visibleRect;
-    final targetRect = visibleRect.inflateHV(
-        horizontal: visibleRect.width, vertical: visibleRect.height);
+    final targetRect = _getCacheExtentRect();
     for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
       final intersection = rect.intersect(targetRect);
       if (intersection.isEmpty) continue;
 
       final page = _document!.pages[i];
-      final rectExternal = documentToRenderBox(rect, renderBox);
+      final rectExternal = _documentToRenderBox(rect, renderBox);
       if (rectExternal != null) {
         final overlayWidgets = <Widget>[];
 
@@ -576,7 +574,15 @@ class _PdfViewerState extends State<PdfViewer>
     return widgets;
   }
 
-  Rect? documentToRenderBox(Rect rect, RenderBox renderBox) {
+  Rect _getCacheExtentRect() {
+    final visibleRect = _controller!.visibleRect;
+    return visibleRect.inflateHV(
+      horizontal: visibleRect.width * widget.params.horizontalCacheExtent,
+      vertical: visibleRect.height * widget.params.verticalCacheExtent,
+    );
+  }
+
+  Rect? _documentToRenderBox(Rect rect, RenderBox renderBox) {
     final tl = _controller?.documentToGlobal(rect.topLeft);
     if (tl == null) return null;
     final br = _controller?.documentToGlobal(rect.bottomRight);
@@ -612,9 +618,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// [_CustomPainter] calls the function to paint PDF pages.
   void _customPaint(ui.Canvas canvas, ui.Size size) {
-    final visibleRect = _controller!.visibleRect;
-    final targetRect = visibleRect.inflateHV(
-        horizontal: visibleRect.width, vertical: visibleRect.height);
+    final targetRect = _getCacheExtentRect();
     final double globalScale = min(
       MediaQuery.of(context).devicePixelRatio * _controller!.currentZoom,
       300.0 / 72.0,
