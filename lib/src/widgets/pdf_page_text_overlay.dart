@@ -307,6 +307,39 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     );
   }
 
+  void _selectFragment(Offset point) {
+    for (final fragment in _fragments) {
+      final bounds = fragment.bounds
+          .toRect(height: _page.height, scale: size.height / _page.height);
+      if (bounds.contains(point)) {
+        _start = bounds.topLeft;
+        _end = bounds.bottomRight;
+        _selectedRect = bounds;
+        _selectedText = fragment.text;
+        _sizeOnSelection = size;
+        _geometry.value = SelectionGeometry(
+          status: _selectedText!.isNotEmpty
+              ? SelectionStatus.uncollapsed
+              : SelectionStatus.collapsed,
+          hasContent: true,
+          startSelectionPoint: SelectionPoint(
+            localPosition: _selectedRect!.bottomLeft,
+            lineHeight: _selectedRect!.height,
+            handleType: TextSelectionHandleType.left,
+          ),
+          endSelectionPoint: SelectionPoint(
+            localPosition: _selectedRect!.bottomRight,
+            lineHeight: _selectedRect!.height,
+            handleType: TextSelectionHandleType.right,
+          ),
+          selectionRects: [bounds],
+        );
+        return;
+      }
+    }
+    _geometry.value = _noSelection;
+  }
+
   @override
   SelectionResult dispatchSelectionEvent(SelectionEvent event) {
     var result = SelectionResult.none;
@@ -328,9 +361,14 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
       case SelectionEventType.clear:
         _start = _end = null;
       case SelectionEventType.selectAll:
-      case SelectionEventType.selectWord:
         _start = Offset.zero;
         _end = Offset.infinite;
+      case SelectionEventType.selectWord:
+        _selectFragment(
+          globalToLocal(
+            (event as SelectWordSelectionEvent).globalPosition,
+          ),
+        );
       case SelectionEventType.granularlyExtendSelection:
         result = SelectionResult.end;
         final extendSelectionEvent = event as GranularlyExtendSelectionEvent;
