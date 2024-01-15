@@ -344,7 +344,6 @@ class PdfPageWeb extends PdfPage {
       if (annot.subtype != 'Link') continue;
       if (annot.url == null) continue;
       final rect = annot.rect.cast<double>();
-      print('$rect: ${annot.url}');
       links.add(
         PdfLink(
           Uri.parse(annot.url!),

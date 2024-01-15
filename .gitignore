@@ -29,4 +29,4 @@ migrate_working_dir/
 build/
 
 # never ever commit the local test example file...
-example/assets/PDF32000_2008.pdf
+example/assets/*.pdf

@@ -1,3 +1,7 @@
+## 0.4.8
+
+- FIXED: Unhandled Exception: type 'Null' is not a subtype of type 'PdfPageRenderCancellationTokenPdfium' in type cast (#26)
+
 ## 0.4.7
 
 - FIXED: Android build broken? Cannot find libpdfium.so error (#25)
