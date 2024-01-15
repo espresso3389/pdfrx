@@ -329,7 +329,11 @@ class _PdfViewerState extends State<PdfViewer>
                         size: _layout!.documentSize,
                       ),
                     ),
-                    ..._buildPageOverlayWidgets(),
+                    SelectionArea(
+                      child: Stack(
+                        children: _buildPageOverlayWidgets(),
+                      ),
+                    ),
                     if (widget.params.viewerOverlayBuilder != null)
                       ...widget.params.viewerOverlayBuilder!(
                           context, _controller!.viewSize)
@@ -530,8 +534,6 @@ class _PdfViewerState extends State<PdfViewer>
       final page = _document!.pages[i];
       final rectExternal = _documentToRenderBox(rect, renderBox);
       if (rectExternal != null) {
-        final overlayWidgets = <Widget>[];
-
         if (widget.params.linkWidgetBuilder != null) {
           widgets.add(
             PdfPageLinksOverlay(
@@ -545,11 +547,16 @@ class _PdfViewerState extends State<PdfViewer>
 
         if (widget.params.enableTextSelection) {
           widgets.add(
-            PdfPageTextOverlay(
-              key: Key('pageText:${page.pageNumber}'),
-              page: page,
-              pageRect: rectExternal,
-            ),
+            Builder(
+                key: Key('pageText:${page.pageNumber}'),
+                builder: (context) {
+                  final registrar = SelectionContainer.maybeOf(context);
+                  return PdfPageTextOverlay(
+                    registrar: registrar,
+                    page: page,
+                    pageRect: rectExternal,
+                  );
+                }),
           );
         }
 
@@ -559,16 +566,15 @@ class _PdfViewerState extends State<PdfViewer>
           page,
         );
         if (overlay != null) {
-          overlayWidgets.add(overlay);
+          widgets.add(Positioned(
+            key: Key('pageOverlay:${page.pageNumber}'),
+            left: rectExternal.left,
+            top: rectExternal.top,
+            width: rectExternal.width,
+            height: rectExternal.height,
+            child: overlay,
+          ));
         }
-
-        widgets.add(Positioned(
-          left: rectExternal.left,
-          top: rectExternal.top,
-          width: rectExternal.width,
-          height: rectExternal.height,
-          child: Stack(children: overlayWidgets),
-        ));
       }
     }
     return widgets;

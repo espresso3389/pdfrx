@@ -6,11 +6,13 @@ import '../../pdfrx.dart';
 /// A widget that displays selectable text on a page.
 class PdfPageTextOverlay extends StatefulWidget {
   const PdfPageTextOverlay({
+    required this.registrar,
     required this.page,
     required this.pageRect,
     super.key,
   });
 
+  final SelectionRegistrar? registrar;
   final PdfPage page;
   final Rect pageRect;
 
@@ -50,20 +52,13 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
       top: widget.pageRect.top,
       width: widget.pageRect.width,
       height: widget.pageRect.height,
-      child: SelectionArea(
-        child: Builder(
-          builder: (context) {
-            final registrar = SelectionContainer.maybeOf(context);
-            return MouseRegion(
-              hitTestBehavior: HitTestBehavior.translucent,
-              opaque: true,
-              cursor: SystemMouseCursors.text,
-              child: _PdfTextWidget(
-                registrar,
-                this,
-              ),
-            );
-          },
+      child: MouseRegion(
+        hitTestBehavior: HitTestBehavior.translucent,
+        opaque: true,
+        cursor: SystemMouseCursors.text,
+        child: _PdfTextWidget(
+          widget.registrar,
+          this,
         ),
       ),
     );
@@ -166,6 +161,7 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
       _geometry.value = _noSelection;
       return;
     }
+
     final renderObjectRect = Rect.fromLTWH(0, 0, size.width, size.height);
     var selectionRect = Rect.fromPoints(_start!, _end!);
     if (renderObjectRect.intersect(selectionRect).isEmpty) {
@@ -521,8 +517,9 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     if (size != _sizeOnSelection) {
       Future.microtask(
         () {
-          final sp = _geometry.value.startSelectionPoint!;
-          final ep = _geometry.value.endSelectionPoint!;
+          final sp = _geometry.value.startSelectionPoint;
+          final ep = _geometry.value.endSelectionPoint;
+          if (sp == null || ep == null) return;
           _sizeOnSelection = size;
           _selectedRect = _selectedRect! * scale;
           _geometry.value = _geometry.value.copyWith(

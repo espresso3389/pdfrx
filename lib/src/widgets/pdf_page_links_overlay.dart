@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../pdfrx.dart';
-import 'pdf_viewer_params.dart';
 
 /// A widget that displays links on a page.
 class PdfPageLinksOverlay extends StatefulWidget {
