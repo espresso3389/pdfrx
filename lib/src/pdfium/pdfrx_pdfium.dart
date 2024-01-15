@@ -403,7 +403,7 @@ class PdfPagePdfium extends PdfPage {
         'cancellationToken',
       );
     }
-    final ct = cancellationToken as PdfPageRenderCancellationTokenPdfium;
+    final ct = cancellationToken as PdfPageRenderCancellationTokenPdfium?;
 
     fullWidth ??= this.width;
     fullHeight ??= this.height;
@@ -417,7 +417,7 @@ class PdfPagePdfium extends PdfPage {
       final isSucceeded = await using(
         (arena) async {
           final cancelFlag = arena.allocate<Bool>(sizeOf<Bool>());
-          ct.attach(cancelFlag);
+          ct?.attach(cancelFlag);
           final isSucceeded = await document.synchronized(
             () async {
               if (cancelFlag.value) return false;
@@ -519,7 +519,7 @@ class PdfPagePdfium extends PdfPage {
       return null;
     } finally {
       malloc.free(buffer);
-      ct.detach();
+      ct?.detach();
     }
   }
 
