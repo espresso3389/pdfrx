@@ -68,24 +68,26 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
 /// The code is based on the code on [Making a widget selectable](https://api.flutter.dev/flutter/widgets/SelectableRegion-class.html#widgets).SelectableRegion.2]
 class _PdfTextWidget extends LeafRenderObjectWidget {
   const _PdfTextWidget(
-    this.registrar,
-    this.state,
+    this._registrar,
+    this._state,
   );
 
-  final SelectionRegistrar? registrar;
+  final SelectionRegistrar? _registrar;
 
-  final _PdfPageTextOverlayState state;
+  final _PdfPageTextOverlayState _state;
 
   @override
-  RenderObject createRenderObject(BuildContext context) => _PdfTextRenderBox(
-      DefaultSelectionStyle.of(context).selectionColor!, this);
+  RenderObject createRenderObject(BuildContext context) {
+    return _PdfTextRenderBox(
+        DefaultSelectionStyle.of(context).selectionColor!, this);
+  }
 
   @override
   void updateRenderObject(
       BuildContext context, _PdfTextRenderBox renderObject) {
     renderObject
       ..selectionColor = DefaultSelectionStyle.of(context).selectionColor!
-      ..registrar = registrar;
+      ..registrar = _registrar;
   }
 }
 
@@ -93,13 +95,13 @@ class _PdfTextWidget extends LeafRenderObjectWidget {
 class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
   _PdfTextRenderBox(
     this._selectionColor,
-    this.widget,
+    this._textWidget,
   ) : _geometry = ValueNotifier<SelectionGeometry>(_noSelection) {
-    registrar = widget.registrar;
+    registrar = _textWidget._registrar;
     _geometry.addListener(markNeedsPaint);
   }
 
-  final _PdfTextWidget widget;
+  final _PdfTextWidget _textWidget;
 
   static const SelectionGeometry _noSelection =
       SelectionGeometry(status: SelectionStatus.none, hasContent: true);
@@ -120,9 +122,10 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     super.dispose();
   }
 
-  Rect get _pageRect => widget.state.widget.pageRect;
-  PdfPage get _page => widget.state.widget.page;
-  List<PdfPageTextFragment> get _fragments => widget.state.pageText!.fragments;
+  Rect get _pageRect => _textWidget._state.widget.pageRect;
+  PdfPage get _page => _textWidget._state.widget.page;
+  List<PdfPageTextFragment> get _fragments =>
+      _textWidget._state.pageText!.fragments;
 
   @override
   bool get sizedByParent => true;
@@ -463,6 +466,7 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     if (_startHandle == startHandle && _endHandle == endHandle) {
       return;
     }
+
     _startHandle = startHandle;
     _endHandle = endHandle;
     // FIXME: pushHandleLayers sometimes called after dispose...
@@ -476,10 +480,6 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     super.paint(context, offset);
 
     if (!_geometry.value.hasSelection) {
-      return;
-    }
-
-    if (_start == null || _end == null || _selectedRect == null) {
       return;
     }
 
@@ -514,30 +514,30 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
       );
     }
 
-    if (size != _sizeOnSelection) {
-      Future.microtask(
-        () {
-          final sp = _geometry.value.startSelectionPoint;
-          final ep = _geometry.value.endSelectionPoint;
-          if (sp == null || ep == null) return;
-          _sizeOnSelection = size;
-          _selectedRect = _selectedRect! * scale;
-          _geometry.value = _geometry.value.copyWith(
-            startSelectionPoint: SelectionPoint(
-                handleType: sp.handleType,
-                lineHeight: sp.lineHeight * scale,
-                localPosition: sp.localPosition * scale),
-            endSelectionPoint: SelectionPoint(
-                handleType: ep.handleType,
-                lineHeight: ep.lineHeight * scale,
-                localPosition: ep.localPosition * scale),
-            selectionRects:
-                _geometry.value.selectionRects.map((r) => r * scale).toList(),
-          );
-          markNeedsPaint();
-        },
-      );
-      return;
-    }
+    // if (size != _sizeOnSelection) {
+    //   Future.microtask(
+    //     () {
+    //       final sp = _geometry.value.startSelectionPoint;
+    //       final ep = _geometry.value.endSelectionPoint;
+    //       if (sp == null || ep == null) return;
+    //       _sizeOnSelection = size;
+    //       _selectedRect = _selectedRect! * scale;
+    //       _geometry.value = _geometry.value.copyWith(
+    //         startSelectionPoint: SelectionPoint(
+    //             handleType: sp.handleType,
+    //             lineHeight: sp.lineHeight * scale,
+    //             localPosition: sp.localPosition * scale),
+    //         endSelectionPoint: SelectionPoint(
+    //             handleType: ep.handleType,
+    //             lineHeight: ep.lineHeight * scale,
+    //             localPosition: ep.localPosition * scale),
+    //         selectionRects:
+    //             _geometry.value.selectionRects.map((r) => r * scale).toList(),
+    //       );
+    //       markNeedsPaint();
+    //     },
+    //   );
+    //   return;
+    // }
   }
 }

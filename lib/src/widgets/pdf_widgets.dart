@@ -329,11 +329,7 @@ class _PdfViewerState extends State<PdfViewer>
                         size: _layout!.documentSize,
                       ),
                     ),
-                    SelectionArea(
-                      child: Stack(
-                        children: _buildPageOverlayWidgets(),
-                      ),
-                    ),
+                    ..._buildPageOverlayWidgets(),
                     if (widget.params.viewerOverlayBuilder != null)
                       ...widget.params.viewerOverlayBuilder!(
                           context, _controller!.viewSize)
@@ -525,7 +521,9 @@ class _PdfViewerState extends State<PdfViewer>
     if (renderBox is! RenderBox) return [];
 
     final widgets = <Widget>[];
+    final textWidgets = <Widget>[];
     final targetRect = _getCacheExtentRect();
+    SelectionArea? selectionArea;
     for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
       final intersection = rect.intersect(targetRect);
@@ -546,18 +544,21 @@ class _PdfViewerState extends State<PdfViewer>
         }
 
         if (widget.params.enableTextSelection) {
-          widgets.add(
-            Builder(
+          textWidgets.add(
+            Builder(builder: (context) {
+              final registrar = SelectionContainer.maybeOf(context);
+              return PdfPageTextOverlay(
                 key: Key('pageText:${page.pageNumber}'),
-                builder: (context) {
-                  final registrar = SelectionContainer.maybeOf(context);
-                  return PdfPageTextOverlay(
-                    registrar: registrar,
-                    page: page,
-                    pageRect: rectExternal,
-                  );
-                }),
+                registrar: registrar,
+                page: page,
+                pageRect: rectExternal,
+              );
+            }),
           );
+          if (selectionArea == null) {
+            selectionArea = SelectionArea(child: Stack(children: textWidgets));
+            widgets.add(selectionArea);
+          }
         }
 
         final overlay = widget.params.pageOverlayBuilder?.call(

@@ -1,3 +1,7 @@
+## 0.4.9
+
+- FIXED: SelectionArea makes Web version almost unusable (#31)
+
 ## 0.4.8
 
 - FIXED: Unhandled Exception: type 'Null' is not a subtype of type 'PdfPageRenderCancellationTokenPdfium' in type cast (#26)
