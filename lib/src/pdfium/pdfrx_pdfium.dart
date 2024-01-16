@@ -247,7 +247,7 @@ class PdfDocumentPdfium extends PdfDocument {
   final Pointer<pdfium_bindings.FPDF_FORMFILLINFO> formInfo;
 
   @override
-  bool get isEncrypted => securityHandlerRevision != 0;
+  bool get isEncrypted => securityHandlerRevision != -1;
   @override
   final PdfPermissions? permissions;
 
