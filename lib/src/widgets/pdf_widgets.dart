@@ -5,6 +5,7 @@ import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:rxdart/rxdart.dart';
@@ -523,7 +524,7 @@ class _PdfViewerState extends State<PdfViewer>
     final widgets = <Widget>[];
     final textWidgets = <Widget>[];
     final targetRect = _getCacheExtentRect();
-    SelectionArea? selectionArea;
+    Widget? selectionArea;
     for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
       final intersection = rect.intersect(targetRect);
@@ -556,7 +557,19 @@ class _PdfViewerState extends State<PdfViewer>
             }),
           );
           if (selectionArea == null) {
-            selectionArea = SelectionArea(child: Stack(children: textWidgets));
+            selectionArea = Listener(
+              // FIXME: Workaround for Web; Web absorbs wheel events.
+              onPointerSignal: kIsWeb
+                  ? (event) {
+                      if (event is PointerScrollEvent) {
+                        _onWheelDelta(event.scrollDelta);
+                      }
+                    }
+                  : null,
+              child: SelectionArea(
+                child: Stack(children: textWidgets),
+              ),
+            );
             widgets.add(selectionArea);
           }
         }
