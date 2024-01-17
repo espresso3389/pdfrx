@@ -40,10 +40,10 @@ dependencies:
 
 ### Windows
 
-- Ensure your Windows installation enables Developer Mode
+- Ensure your Windows installation enables _Developer Mode_
 
-The build process internally uses symblic link and it requires Developer Mode to be enabled.
-Without this, you may encounter errors [like this](https://github.com/espresso3389/pdfrx/issues/34).
+  The build process internally uses symblic link and it requires Developer Mode to be enabled.
+  Without this, you may encounter errors [like this](https://github.com/espresso3389/pdfrx/issues/34).
 
 ### Web
 
