@@ -38,6 +38,13 @@ dependencies:
   pdfrx: ^0.4.10
 ```
 
+### Windows
+
+- Ensure your Windows installation enables Developer Mode
+
+The build process internally uses symblic link and it requires Developer Mode to be enabled.
+Without this, you may encounter errors [like this](https://github.com/espresso3389/pdfrx/issues/34).
+
 ### Web
 
 For Web, you should add the following `<script>` block to your `index.html` just before `<script src="main.dart.js"... </script>` to load [PDF.js](https://mozilla.github.io/pdf.js/):
