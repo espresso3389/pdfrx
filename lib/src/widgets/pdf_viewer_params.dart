@@ -30,9 +30,7 @@ class PdfViewerParams {
     this.scrollByMouseWheel = 0.2,
     this.enableKeyboardNavigation = true,
     this.scrollByArrowKey = 25.0,
-    this.maxThumbCacheCount = 30,
-    this.maxRealSizeImageCount = 3,
-    this.enableRealSizeRendering = true,
+    this.maxImageBytesCachedOnMemory = 100 * 1024 * 1024,
     this.horizontalCacheExtent = 1.0,
     this.verticalCacheExtent = 1.0,
     this.viewerOverlayBuilder,
@@ -166,17 +164,10 @@ class PdfViewerParams {
   /// Amount of pixels to scroll by arrow keys. The default is 25.0.
   final double scrollByArrowKey;
 
-  /// The maximum number of thumbnails to be cached. The default is 30.
-  final int maxThumbCacheCount;
-
-  /// The maximum number of real size images to be cached. The default is 3.
-  final int maxRealSizeImageCount;
-
-  /// Enable real size rendering. The default is true.
+  /// Restrict the total amount of image bytes to be cached on memory. The default is 100 MB.
   ///
-  /// If you want to render PDF pages in relatively small sizes only,
-  /// disabling this option may improve the performance.
-  final bool enableRealSizeRendering;
+  /// The internal cache mechanism tries to limit the actual memory usage under the value but it is not guaranteed.
+  final int maxImageBytesCachedOnMemory;
 
   /// The horizontal cache extent specified in ratio to the viewport width. The default is 1.0.
   final double horizontalCacheExtent;
@@ -271,9 +262,6 @@ class PdfViewerParams {
         other.scrollByMouseWheel != scrollByMouseWheel ||
         other.enableKeyboardNavigation != enableKeyboardNavigation ||
         other.scrollByArrowKey != scrollByArrowKey ||
-        other.maxThumbCacheCount != maxThumbCacheCount ||
-        other.maxRealSizeImageCount != maxRealSizeImageCount ||
-        other.enableRealSizeRendering != enableRealSizeRendering ||
         other.horizontalCacheExtent != horizontalCacheExtent ||
         other.verticalCacheExtent != verticalCacheExtent;
   }
@@ -300,9 +288,6 @@ class PdfViewerParams {
         other.scrollByMouseWheel == scrollByMouseWheel &&
         other.enableKeyboardNavigation == enableKeyboardNavigation &&
         other.scrollByArrowKey == scrollByArrowKey &&
-        other.maxThumbCacheCount == maxThumbCacheCount &&
-        other.maxRealSizeImageCount == maxRealSizeImageCount &&
-        other.enableRealSizeRendering == enableRealSizeRendering &&
         other.horizontalCacheExtent == horizontalCacheExtent &&
         other.verticalCacheExtent == verticalCacheExtent &&
         other.viewerOverlayBuilder == viewerOverlayBuilder &&
@@ -332,9 +317,6 @@ class PdfViewerParams {
         scrollByMouseWheel.hashCode ^
         enableKeyboardNavigation.hashCode ^
         scrollByArrowKey.hashCode ^
-        maxThumbCacheCount.hashCode ^
-        maxRealSizeImageCount.hashCode ^
-        enableRealSizeRendering.hashCode ^
         horizontalCacheExtent.hashCode ^
         verticalCacheExtent.hashCode ^
         viewerOverlayBuilder.hashCode ^

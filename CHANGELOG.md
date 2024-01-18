@@ -1,3 +1,11 @@
+## 0.4.12
+
+- Introduces PdfViewerParams.maxImageBytesCachedOnMemory, which restricts the maximum cache memory consumption
+- Remove the following parameters from PdfViewerParams:
+  - maxThumbCacheCount
+  - maxRealSizeImageCount
+  - enableRealSizeRendering
+
 ## 0.4.11
 
 - Add support for PDF Destination (Page links)

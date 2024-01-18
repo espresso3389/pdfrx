@@ -664,9 +664,7 @@ class _PdfViewerState extends State<PdfViewer>
               ?.call(context, page, _controller!, globalScale) ??
           globalScale;
       if (realSize == null || realSize.scale != scale) {
-        if (widget.params.enableRealSizeRendering && scale > 1.0) {
-          _ensureRealSizeCached(page, scale);
-        }
+        _ensureRealSizeCached(page, scale);
       }
 
       if (realSize != null) {
@@ -708,14 +706,10 @@ class _PdfViewerState extends State<PdfViewer>
         final currentPageNumber = _pageNumber;
         if (currentPageNumber != null && currentPageNumber > 0) {
           final currentPage = _document!.pages[currentPageNumber - 1];
-          _removeSomeImagesIfImageCountExceeds(
-            'realSize',
+          _removeImagesIfCacheBytesExceedsLimit(
             unusedPageList,
-            widget.params.maxRealSizeImageCount,
+            widget.params.maxImageBytesCachedOnMemory,
             currentPage,
-            (pageNumber) {
-              _realSized.remove(pageNumber);
-            },
           );
         }
       }
@@ -775,22 +769,27 @@ class _PdfViewerState extends State<PdfViewer>
     });
   }
 
-  void _removeSomeImagesIfImageCountExceeds(
-      String label,
-      List<int> pageNumbers,
-      int acceptableCount,
-      PdfPage currentPage,
-      void Function(int pageNumber) removePage) {
-    if (pageNumbers.length <= acceptableCount) return;
+  void _removeImagesIfCacheBytesExceedsLimit(
+    List<int> pageNumbers,
+    int acceptableBytes,
+    PdfPage currentPage,
+  ) {
     double dist(int pageNumber) =>
         (_layout!.pageLayouts[pageNumber - 1].center -
                 _layout!.pageLayouts[currentPage.pageNumber - 1].center)
             .distanceSquared;
 
     pageNumbers.sort((a, b) => dist(b).compareTo(dist(a)));
-    for (final key
-        in pageNumbers.sublist(0, pageNumbers.length - acceptableCount)) {
-      removePage(key);
+    int getBytesConsumed(ui.Image? image) =>
+        image == null ? 0 : (image.width * image.height * 4).toInt();
+    int bytesConsumed =
+        _realSized.values.fold(0, (sum, e) => sum + getBytesConsumed(e.image));
+    for (final key in pageNumbers) {
+      _realSized.remove(key);
+      bytesConsumed -= getBytesConsumed(_realSized[key]?.image);
+      if (bytesConsumed <= acceptableBytes) {
+        break;
+      }
     }
   }
 
