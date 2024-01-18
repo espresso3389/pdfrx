@@ -160,7 +160,6 @@ class _PdfViewerState extends State<PdfViewer>
   PdfDocument? _document;
   PdfPageLayout? _layout;
   Size? _viewSize;
-  EdgeInsets _boundaryMargin = EdgeInsets.zero;
   double? _coverScale;
   double? _alternativeFitScale;
   int? _pageNumber;
@@ -280,8 +279,8 @@ class _PdfViewerState extends State<PdfViewer>
           Future.microtask(
             () {
               if (_initialized) {
-                return _controller!
-                    .goTo(_controller!.normalize(_controller!.value));
+                return _controller!.goTo(
+                    _controller!.makeMatrixInSafeRange(_controller!.value));
               }
             },
           );
@@ -314,7 +313,6 @@ class _PdfViewerState extends State<PdfViewer>
                           ? _alternativeFitScale! / 2
                           : 0.1,
                       panAxis: widget.params.panAxis,
-                      boundaryMargin: _boundaryMargin,
                       panEnabled: widget.params.panEnabled,
                       scaleEnabled: widget.params.scaleEnabled,
                       onInteractionEnd: widget.params.onInteractionEnd,
@@ -453,17 +451,11 @@ class _PdfViewerState extends State<PdfViewer>
     if (_pageNumber != null) {
       final params = widget.params;
       final rect = _layout!.pageLayouts[_pageNumber! - 1];
-      final scale = min((_viewSize!.width - params.margin) / rect.width,
-          (_viewSize!.height - params.margin) / rect.height);
-      final w = rect.width * scale;
-      final h = rect.height * scale;
-      final hm = (_viewSize!.width - w) / 2;
-      final vm = (_viewSize!.height - h) / 2;
-      _boundaryMargin = EdgeInsets.symmetric(horizontal: hm, vertical: vm);
-      _alternativeFitScale = scale;
+      final m2 = params.margin * 2;
+      _alternativeFitScale = min((_viewSize!.width - m2) / rect.width,
+          (_viewSize!.height - m2) / rect.height);
       return true;
     } else {
-      _boundaryMargin = EdgeInsets.zero;
       _alternativeFitScale = null;
       return false;
     }
@@ -847,10 +839,11 @@ class PdfViewerController extends TransformationController {
 
   @override
   set value(Matrix4 newValue) {
-    super.value = normalize(newValue);
+    super.value = makeMatrixInSafeRange(newValue);
   }
 
-  Matrix4 normalize(Matrix4 newValue) {
+  /// Restrict matrix to the safe range.
+  Matrix4 makeMatrixInSafeRange(Matrix4 newValue) {
     _state!._calcViewSizeAndCoverScale(viewSize);
 
     final position = newValue.calcPosition(viewSize);
@@ -1022,6 +1015,22 @@ class PdfViewerController extends TransformationController {
   }
 
   /// Go to the specified position by the matrix.
+  ///
+  /// All the `goToXXX` functions internally calls the function.
+  /// So if you customize the behavior of the viewer, you can extend [PdfViewerController] and override the function:
+  ///
+  /// ```dart
+  /// class MyPdfViewerController extends PdfViewerController {
+  ///   @override
+  ///   Future<void> goTo(
+  ///     Matrix4? destination, {
+  ///     Duration duration = const Duration(milliseconds: 200),
+  ///     }) async {
+  ///       print('goTo');
+  ///       super.goTo(destination, duration: duration);
+  ///   }
+  /// }
+  /// ```
   Future<void> goTo(
     Matrix4? destination, {
     Duration duration = const Duration(milliseconds: 200),
@@ -1036,8 +1045,9 @@ class PdfViewerController extends TransformationController {
       _animationResettingGuard++;
       _animController.reset();
       _animationResettingGuard--;
-      _animGoTo = Matrix4Tween(begin: value, end: normalize(destination))
-          .animate(_animController);
+      _animGoTo =
+          Matrix4Tween(begin: value, end: makeMatrixInSafeRange(destination))
+              .animate(_animController);
       _animGoTo!.addListener(update);
       await _animController
           .animateTo(1.0, duration: duration, curve: Curves.easeInOut)
