@@ -1,3 +1,7 @@
+## 0.4.11
+
+- Add support for PDF Destination (Page links)
+
 ## 0.4.10
 
 - FIXED: isEncrypted property of document returns always true even the document is not encrypted (#29)

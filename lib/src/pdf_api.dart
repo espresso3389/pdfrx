@@ -470,11 +470,18 @@ extension PdfRectsExt on Iterable<PdfRect> {
   PdfRect boundingRect() => reduce((a, b) => a.merge(b));
 }
 
+/// Defines the page and inner-page location to jump to.
 @immutable
 class PdfDest {
   const PdfDest(this.pageNumber, this.command, this.params);
+
+  /// Page number to jump to.
   final int pageNumber;
+
+  /// Destination command.
   final PdfDestCommand command;
+
+  /// Destination parameters. For more info, see [PdfDestCommand].
   final List<double?>? params;
 
   @override
@@ -496,6 +503,7 @@ enum PdfDestCommand {
 }
 
 /// Link in PDF page.
+///
 /// Either one of [url] or [dest] is valid (not null).
 @immutable
 class PdfLink {
@@ -505,10 +513,12 @@ class PdfLink {
     this.dest,
   });
 
-  /// Link URL
+  /// Link URL.
   final Uri? url;
 
-  /// Link destination
+  /// Link destination.
+  ///
+  /// Link destination (link to page).
   final PdfDest? dest;
 
   /// Link location.
