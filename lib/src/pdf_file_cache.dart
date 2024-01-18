@@ -103,7 +103,6 @@ class PdfFileCacheNative extends PdfFileCache {
   @override
   int get totalBlocks => _cacheBlockCount;
   @override
-  // TODO: implement fileSize
   int get fileSize => _fileSize;
   @override
   String get filePath => file.path;

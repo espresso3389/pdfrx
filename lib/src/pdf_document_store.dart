@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:synchronized/extension.dart';
 
+import '../src/widgets/pdf_widgets.dart';
 import 'pdf_api.dart';
 
 /// Maintain a reference to a [PdfDocument].

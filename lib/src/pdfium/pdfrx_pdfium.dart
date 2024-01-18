@@ -542,7 +542,6 @@ class PdfPagePdfium extends PdfPage {
     return annots + links;
   }
 
-  @override
   Future<List<PdfLink>> _loadLinks() => document.synchronized(
         () async => (await document._worker).compute(
           (params) {
@@ -921,13 +920,6 @@ PdfRect _rectFromLTRBBuffer(Pointer<Double> buffer) =>
 extension _PointerExt<T extends NativeType> on Pointer<T> {
   Pointer<T> offset(int offsetInBytes) =>
       Pointer.fromAddress(address + offsetInBytes);
-}
-
-extension _PdfPageTextFragmentsExt on Iterable<PdfPageTextFragment> {
-  PdfRect boundingRect() =>
-      fold<PdfRect?>(null, (a, b) => a == null ? b.bounds : a.merge(b.bounds))!;
-
-  String text() => fold(StringBuffer(), (a, b) => a..write(b.text)).toString();
 }
 
 extension _PdfRectsExt on List<PdfRect> {

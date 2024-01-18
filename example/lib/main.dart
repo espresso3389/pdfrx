@@ -135,7 +135,6 @@ class _MainPageState extends State<MainPage> {
               //
               // FIXME: a link with several areas (link that contains line-break) does not correctly
               // show the hover status
-              // FIXME: gestures other than tap should be passed-through to the underlying widget
               linkWidgetBuilder: (context, link, size) => Material(
                 color: Colors.transparent,
                 child: InkWell(
