@@ -1,3 +1,8 @@
+## 0.4.13
+
+- Improves document password handling by async PasswordProvider (#20)
+- Introduces PdfViewerParams.errorBannerBuilder
+
 ## 0.4.12
 
 - Introduces PdfViewerParams.maxImageBytesCachedOnMemory, which restricts the maximum cache memory consumption

@@ -87,11 +87,13 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     _init();
     passwordProvider ??= createOneTimePasswordProvider(password);
 
-    for (;;) {
-      final password = passwordProvider();
+    for (int i = 0;; i++) {
+      final password = i == 0 ? null : await passwordProvider();
       final doc = using((arena) => pdfium.FPDF_LoadDocument(
           filePath.toUtf8(arena), password?.toUtf8(arena) ?? nullptr));
-      if (password == null || doc.address != 0 || !_isPasswordError()) {
+      if ((i != 0 && password == null) ||
+          doc.address != 0 ||
+          !_isPasswordError()) {
         return PdfDocumentPdfium.fromPdfDocument(
           doc,
           sourceName: filePath,
@@ -123,6 +125,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       fileSize: data.length,
       sourceName: sourceName,
       password: password,
+      passwordProvider: passwordProvider,
       maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
       onDispose: onDispose,
     );
@@ -149,14 +152,16 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       return await using((arena) async {
         final buffer = calloc.allocate<Uint8>(fileSize);
         await read(buffer.asTypedList(fileSize), 0, fileSize);
-        for (;;) {
-          final password = passwordProvider!();
+        for (int i = 0;; i++) {
+          final password = i == 0 ? null : await passwordProvider!();
           final doc = pdfium.FPDF_LoadMemDocument(
             buffer.cast<Void>(),
             fileSize,
             password?.toUtf8(arena) ?? nullptr,
           );
-          if (password == null || doc.address != 0 || !_isPasswordError()) {
+          if ((i != 0 && password == null) ||
+              doc.address != 0 ||
+              !_isPasswordError()) {
             return PdfDocumentPdfium.fromPdfDocument(
               doc,
               sourceName: sourceName,
@@ -175,8 +180,8 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
 
     // Otherwise, load the file on demand
     final fa = FileAccess(fileSize, read);
-    for (;;) {
-      final password = passwordProvider();
+    for (int i = 0;; i++) {
+      final password = i == 0 ? null : await passwordProvider();
       final result = await using(
         (arena) async => (await _globalWorker).compute(
           (params) {
@@ -193,7 +198,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
           ),
         ),
       );
-      if (password == null ||
+      if ((i != 0 && password == null) ||
           result.doc != 0 ||
           !_isPasswordError(error: result.error)) {
         return PdfDocumentPdfium.fromPdfDocument(

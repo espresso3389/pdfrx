@@ -33,6 +33,7 @@ class PdfViewer extends StatefulWidget {
     String name, {
     Key? key,
     String? password,
+    PdfPasswordProvider? passwordProvider,
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
@@ -41,8 +42,8 @@ class PdfViewer extends StatefulWidget {
           key: key,
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
             '##PdfViewer:asset:$name',
-            documentLoader: (_) =>
-                PdfDocument.openAsset(name, password: password),
+            documentLoader: (_) => PdfDocument.openAsset(name,
+                password: password, passwordProvider: passwordProvider),
           ),
           controller: controller,
           params: displayParams,
@@ -53,6 +54,7 @@ class PdfViewer extends StatefulWidget {
     String path, {
     Key? key,
     String? password,
+    PdfPasswordProvider? passwordProvider,
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
@@ -61,8 +63,8 @@ class PdfViewer extends StatefulWidget {
           key: key,
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
             '##PdfViewer:file:$path',
-            documentLoader: (_) =>
-                PdfDocument.openFile(path, password: password),
+            documentLoader: (_) => PdfDocument.openFile(path,
+                password: password, passwordProvider: passwordProvider),
           ),
           controller: controller,
           params: displayParams,
@@ -73,6 +75,7 @@ class PdfViewer extends StatefulWidget {
     Uri uri, {
     Key? key,
     String? password,
+    PdfPasswordProvider? passwordProvider,
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
@@ -84,6 +87,7 @@ class PdfViewer extends StatefulWidget {
             documentLoader: (progressCallback) => PdfDocument.openUri(
               uri,
               password: password,
+              passwordProvider: passwordProvider,
               progressCallback: progressCallback,
             ),
           ),
@@ -96,6 +100,7 @@ class PdfViewer extends StatefulWidget {
     Uint8List bytes, {
     Key? key,
     String? password,
+    PdfPasswordProvider? passwordProvider,
     String? sourceName,
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
@@ -105,8 +110,12 @@ class PdfViewer extends StatefulWidget {
           key: key,
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
             '##PdfViewer:data:${sourceName ?? bytes.hashCode}',
-            documentLoader: (_) => PdfDocument.openData(bytes,
-                password: password, sourceName: sourceName),
+            documentLoader: (_) => PdfDocument.openData(
+              bytes,
+              password: password,
+              passwordProvider: passwordProvider,
+              sourceName: sourceName,
+            ),
           ),
           controller: controller,
           params: displayParams,
@@ -119,6 +128,7 @@ class PdfViewer extends StatefulWidget {
     required int fileSize,
     required String sourceName,
     String? password,
+    PdfPasswordProvider? passwordProvider,
     Key? key,
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
@@ -129,10 +139,12 @@ class PdfViewer extends StatefulWidget {
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
             '##PdfViewer:custom:$sourceName',
             documentLoader: (_) => PdfDocument.openCustom(
-                read: read,
-                fileSize: fileSize,
-                sourceName: sourceName,
-                password: password),
+              read: read,
+              fileSize: fileSize,
+              sourceName: sourceName,
+              password: password,
+              passwordProvider: passwordProvider,
+            ),
           ),
           controller: controller,
           params: displayParams,
@@ -265,12 +277,19 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   Widget build(BuildContext context) {
+    if (_document == null && widget.documentRef.error != null) {
+      return Container(
+        color: widget.params.backgroundColor,
+        child: widget.params.errorBannerBuilder
+            ?.call(context, widget.documentRef.error!, widget.documentRef),
+      );
+    }
     if (_document == null) {
-      return widget.params.loadingBannerBuilder?.call(
-              context,
-              widget.documentRef.bytesDownloaded,
-              widget.documentRef.totalBytes) ??
-          Container();
+      return Container(
+        color: widget.params.backgroundColor,
+        child: widget.params.loadingBannerBuilder?.call(context,
+            widget.documentRef.bytesDownloaded, widget.documentRef.totalBytes),
+      );
     }
     return LayoutBuilder(builder: (context, constraints) {
       if (_calcViewSizeAndCoverScale(

@@ -75,7 +75,7 @@ typedef PdfDownloadProgressCallback = void Function(
 /// It is repeatedly called until the function returns `null` or the password is correct.
 ///
 /// [createOneTimePasswordProvider] is a helper function to create [PdfPasswordProvider] that returns the password only once.
-typedef PdfPasswordProvider = String? Function();
+typedef PdfPasswordProvider = FutureOr<String?> Function();
 
 /// Create [PdfPasswordProvider] that returns the password only once.
 ///

@@ -19,17 +19,19 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     String? password,
     PdfPasswordProvider? passwordProvider,
   }) async {
-    final bytes = await rootBundle.load(name);
     passwordProvider ??= createOneTimePasswordProvider(password);
-    for (;;) {
-      final password = passwordProvider();
+    for (int i = 0;; i++) {
+      final password = i == 0 ? null : await passwordProvider();
       try {
+        // NOTE: Moving the asset load outside the loop may cause:
+        // Uncaught TypeError: Cannot perform Construct on a detached ArrayBuffer
+        final bytes = await rootBundle.load(name);
         return await PdfDocumentWeb.fromDocument(
           await pdfjsGetDocumentFromData(bytes.buffer, password: password),
           sourceName: 'asset:$name',
         );
       } catch (e) {
-        if (password == null || !_isPasswordError(e)) rethrow;
+        if ((i != 0 && password == null) || !_isPasswordError(e)) rethrow;
       }
     }
   }
@@ -48,8 +50,8 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     passwordProvider ??= createOneTimePasswordProvider(password);
     final buffer = Uint8List(fileSize);
     await read(buffer, 0, fileSize);
-    for (;;) {
-      final password = passwordProvider();
+    for (int i = 0;; i++) {
+      final password = i == 0 ? null : await passwordProvider();
       try {
         return await PdfDocumentWeb.fromDocument(
           await pdfjsGetDocumentFromData(
@@ -60,7 +62,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
           onDispose: onDispose,
         );
       } catch (e) {
-        if (password == null || !_isPasswordError(e)) {
+        if ((i != 0 && password == null) || !_isPasswordError(e)) {
           rethrow;
         }
       }
@@ -76,8 +78,8 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     void Function()? onDispose,
   }) async {
     passwordProvider ??= createOneTimePasswordProvider(password);
-    for (;;) {
-      final password = passwordProvider();
+    for (int i = 0;; i++) {
+      final password = i == 0 ? null : await passwordProvider();
       try {
         return await PdfDocumentWeb.fromDocument(
           await pdfjsGetDocumentFromData(
@@ -88,7 +90,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
           onDispose: onDispose,
         );
       } catch (e) {
-        if (password == null || !_isPasswordError(e)) {
+        if ((i != 0 && password == null) || !_isPasswordError(e)) {
           rethrow;
         }
       }
@@ -102,8 +104,8 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     PdfPasswordProvider? passwordProvider,
   }) async {
     passwordProvider ??= createOneTimePasswordProvider(password);
-    for (;;) {
-      final password = passwordProvider();
+    for (int i = 0;; i++) {
+      final password = i == 0 ? null : await passwordProvider();
       try {
         return await PdfDocumentWeb.fromDocument(
           await pdfjsGetDocument(
@@ -113,7 +115,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
           sourceName: filePath,
         );
       } catch (e) {
-        if (password == null || !_isPasswordError(e)) {
+        if ((i != 0 && password == null) || !_isPasswordError(e)) {
           rethrow;
         }
       }

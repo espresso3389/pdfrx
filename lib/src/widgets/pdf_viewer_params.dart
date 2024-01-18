@@ -36,6 +36,7 @@ class PdfViewerParams {
     this.viewerOverlayBuilder,
     this.pageOverlayBuilder,
     this.loadingBannerBuilder,
+    this.errorBannerBuilder,
     this.linkWidgetBuilder,
     this.forceReload = false,
   });
@@ -231,6 +232,9 @@ class PdfViewerParams {
   /// ```
   final PdfViewerLoadingBannerBuilder? loadingBannerBuilder;
 
+  /// Build loading error banner.
+  final PdfViewerErrorBannerBuilder? errorBannerBuilder;
+
   /// Build link widget.
   final PdfLinkWidgetBuilder? linkWidgetBuilder;
 
@@ -293,6 +297,7 @@ class PdfViewerParams {
         other.viewerOverlayBuilder == viewerOverlayBuilder &&
         other.pageOverlayBuilder == pageOverlayBuilder &&
         other.loadingBannerBuilder == loadingBannerBuilder &&
+        other.errorBannerBuilder == errorBannerBuilder &&
         other.linkWidgetBuilder == linkWidgetBuilder &&
         other.forceReload == forceReload;
   }
@@ -322,6 +327,7 @@ class PdfViewerParams {
         viewerOverlayBuilder.hashCode ^
         pageOverlayBuilder.hashCode ^
         loadingBannerBuilder.hashCode ^
+        errorBannerBuilder.hashCode ^
         linkWidgetBuilder.hashCode ^
         forceReload.hashCode;
   }
@@ -372,6 +378,10 @@ typedef PdfPageOverlayBuilder = Widget? Function(
 /// [totalBytes] is the total number of bytes to be downloaded if available.
 typedef PdfViewerLoadingBannerBuilder = Widget Function(
     BuildContext context, int bytesDownloaded, int? totalBytes);
+
+/// Function to build loading error banner.
+typedef PdfViewerErrorBannerBuilder = Widget Function(
+    BuildContext context, Object error, PdfDocumentRef documentRef);
 
 typedef PdfLinkWidgetBuilder = Widget? Function(
     BuildContext context, PdfLink link, Size size);
