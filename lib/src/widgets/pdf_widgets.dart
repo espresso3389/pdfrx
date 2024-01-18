@@ -646,7 +646,6 @@ class _PdfViewerState extends State<PdfViewer>
     );
 
     final unusedPageList = <int>[];
-    final needRelayout = <int>[];
 
     for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
@@ -692,15 +691,6 @@ class _PdfViewerState extends State<PdfViewer>
             ..color = Colors.black
             ..strokeWidth = 0.2
             ..style = PaintingStyle.stroke);
-
-      if (needRelayout.isNotEmpty) {
-        Future.microtask(
-          () {
-            _relayoutPages();
-            _invalidate();
-          },
-        );
-      }
 
       if (unusedPageList.isNotEmpty) {
         final currentPageNumber = _pageNumber;
