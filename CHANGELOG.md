@@ -1,6 +1,7 @@
 ## 0.4.12
 
 - Introduces PdfViewerParams.maxImageBytesCachedOnMemory, which restricts the maximum cache memory consumption
+  - Better than logic based on maxThumbCacheCount
 - Remove the following parameters from PdfViewerParams:
   - maxThumbCacheCount
   - maxRealSizeImageCount
