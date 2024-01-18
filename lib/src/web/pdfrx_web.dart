@@ -205,6 +205,61 @@ class PdfDocumentWeb extends PdfDocument {
   @override
   bool isIdenticalDocumentHandle(Object? other) =>
       other is PdfDocumentWeb && _document == other._document;
+
+  Future<Object?> _getDestObject(dynamic dest) async {
+    if (dest == null) return null;
+    if (dest is String) {
+      return await js_util
+          .promiseToFuture<dynamic>(_document.getDestination(dest));
+    } else {
+      return dest;
+    }
+  }
+
+  Future<PdfDest?> getDestination(dynamic dest) async {
+    final destObj = await _getDestObject(dest);
+    if (destObj is! List) return null;
+    final ref = destObj[0] as PdfjsRef;
+    final cmdStr = _getName(destObj[1]);
+    final params =
+        destObj.length < 3 ? null : destObj.sublist(2).cast<double?>();
+    return PdfDest(
+        (await js_util.promiseToFuture<int>(_document.getPageIndex(ref))) + 1,
+        _parseCmdStr(cmdStr),
+        params);
+  }
+
+  static PdfDestCommand _parseCmdStr(String cmdStr) {
+    switch (cmdStr) {
+      case 'XYZ':
+        return PdfDestCommand.xyz;
+      case 'Fit':
+        return PdfDestCommand.fit;
+      case 'FitB':
+        return PdfDestCommand.fitB;
+      case 'FitH':
+        return PdfDestCommand.fitH;
+      case 'FitBH':
+        return PdfDestCommand.fitBH;
+      case 'FitV':
+        return PdfDestCommand.fitV;
+      case 'FitBV':
+        return PdfDestCommand.fitBV;
+      case 'FitR':
+        return PdfDestCommand.fitR;
+      default:
+        return PdfDestCommand.unknown;
+    }
+  }
+
+  static String _getName(dynamic name) {
+    final obj = js_util.dartify(name);
+    if (obj is Map) {
+      return obj['name'].toString();
+    } else {
+      return obj.toString();
+    }
+  }
 }
 
 class PdfPageWeb extends PdfPage {
@@ -340,18 +395,27 @@ class PdfPageWeb extends PdfPage {
       ),
     );
     final links = <PdfLink>[];
-    for (final annot in annots.cast<PdfjsAnnotationData>()) {
-      if (annot.subtype != 'Link') continue;
-      if (annot.url == null) continue;
+    for (final annot in annots) {
+      if (annot == null || annot.subtype != 'Link') {
+        continue;
+      }
       final rect = annot.rect.cast<double>();
-      links.add(
-        PdfLink(
-          Uri.parse(annot.url!),
-          [
-            PdfRect(rect[0], rect[3], rect[2], rect[1]),
-          ],
-        ),
-      );
+      final rects = [
+        PdfRect(rect[0], rect[3], rect[2], rect[1]),
+      ];
+      if (annot.url != null) {
+        links.add(
+          PdfLink(rects, url: Uri.parse(annot.url!)),
+        );
+        continue;
+      }
+      final dest = await document.getDestination(annot.dest);
+      if (dest != null) {
+        links.add(
+          PdfLink(rects, dest: dest),
+        );
+        continue;
+      }
     }
 
     return links;

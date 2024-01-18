@@ -2,18 +2,24 @@ import 'package:flutter/material.dart';
 
 import '../../pdfrx.dart';
 
+typedef PdfPageLinkWrapperWidgetBuilder = Widget Function(Widget child);
+
 /// A widget that displays links on a page.
 class PdfPageLinksOverlay extends StatefulWidget {
   const PdfPageLinksOverlay({
     required this.page,
     required this.pageRect,
     required this.params,
+    this.wrapperBuilder,
     super.key,
   });
 
   final PdfPage page;
   final Rect pageRect;
   final PdfViewerParams params;
+
+  /// Currently, the handler is used to wrap the actual link widget with [Listener] not to absorb wheel-events.
+  final PdfPageLinkWrapperWidgetBuilder? wrapperBuilder;
 
   @override
   State<PdfPageLinksOverlay> createState() => _PdfPageLinksOverlayState();
@@ -61,7 +67,7 @@ class _PdfPageLinksOverlayState extends State<PdfPageLinksOverlay> {
               top: rectLink.top,
               width: rectLink.width,
               height: rectLink.height,
-              child: linkWidget,
+              child: widget.wrapperBuilder?.call(linkWidget) ?? linkWidget,
             ),
           );
         }

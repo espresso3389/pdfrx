@@ -540,6 +540,15 @@ class _PdfViewerState extends State<PdfViewer>
               page: page,
               pageRect: rectExternal,
               params: widget.params,
+              // FIXME: workaround for link widget eats wheel events.
+              wrapperBuilder: (child) => Listener(
+                child: child,
+                onPointerSignal: (event) {
+                  if (event is PointerScrollEvent) {
+                    _onWheelDelta(event.scrollDelta);
+                  }
+                },
+              ),
             ),
           );
         }
@@ -878,17 +887,95 @@ class PdfViewerController extends TransformationController {
 
   int _animationResettingGuard = 0;
 
+  /// Go to the specified destination.
+  Future<bool> goToDest(
+    PdfDest? dest, {
+    Duration duration = const Duration(milliseconds: 200),
+  }) async {
+    if (dest == null) return false;
+    final page = _state!._document!.pages[dest.pageNumber - 1];
+    final pageRect = _state!._layout!.pageLayouts[dest.pageNumber - 1];
+    double calcX(double? x) => (x ?? 0) / page.width * pageRect.width;
+    double calcY(double? y) =>
+        (page.height - (y ?? 0)) / page.height * pageRect.height;
+    final params = dest.params;
+    switch (dest.command) {
+      case PdfDestCommand.xyz:
+        if (params != null && params.length >= 2) {
+          final zoom =
+              params[2] != null && params[2] != 0.0 ? params[2]! : currentZoom;
+          final hw = viewSize.width / 2 / zoom;
+          final hh = viewSize.height / 2 / zoom;
+          await goTo(
+            calcMatrixFor(
+                pageRect.topLeft
+                    .translate(calcX(params[0]) + hw, calcY(params[1]) + hh),
+                zoom: zoom),
+            duration: duration,
+          );
+        }
+        break;
+      case PdfDestCommand.fit:
+      case PdfDestCommand.fitB:
+        await goToPage(pageNumber: dest.pageNumber, anchor: PdfPageAnchor.all);
+        break;
+      case PdfDestCommand.fitH:
+      case PdfDestCommand.fitBH:
+        if (params != null && params.length == 1) {
+          final hh = viewSize.height / 2 / currentZoom;
+          await goTo(
+            calcMatrixFor(pageRect.topLeft.translate(0, calcY(params[0]) + hh)),
+            duration: duration,
+          );
+        }
+        break;
+      case PdfDestCommand.fitV:
+      case PdfDestCommand.fitBV:
+        if (params != null && params.length == 1) {
+          final hw = viewSize.width / 2 / currentZoom;
+          await goTo(
+            calcMatrixFor(pageRect.topLeft.translate(calcX(params[0]) + hw, 0)),
+            duration: duration,
+          );
+        }
+        break;
+      case PdfDestCommand.fitR:
+        if (params != null && params.length == 4) {
+          // page /FitR left bottom right top
+          final rect = Rect.fromLTRB(calcX(params[0]), calcY(params[3]),
+              calcX(params[2]), calcY(params[1]));
+          await goToArea(
+            rect: rect,
+            duration: duration,
+          );
+        }
+        break;
+      default:
+        return false;
+    }
+    return true;
+  }
+
   /// Go to the specified page. [anchor] specifies how the page is positioned if the page is larger than the view.
-  Future<void> goToPage(
-      {required int pageNumber, PdfPageAnchor? anchor}) async {
+  Future<void> goToPage({
+    required int pageNumber,
+    PdfPageAnchor? anchor,
+    Duration duration = const Duration(milliseconds: 200),
+  }) async {
     await goToArea(
-        rect: _state!._layout!.pageLayouts[pageNumber - 1]
-            .inflate(_state!.widget.params.margin),
-        anchor: anchor);
+      rect: _state!._layout!.pageLayouts[pageNumber - 1]
+          .inflate(_state!.widget.params.margin),
+      anchor: anchor,
+      duration: duration,
+    );
   }
 
   /// Go to the specified area. [anchor] specifies how the page is positioned if the page is larger than the view.
-  Future<void> goToArea({required Rect rect, PdfPageAnchor? anchor}) async {
+  Future<void> goToArea({
+    required Rect rect,
+    PdfPageAnchor? anchor,
+    Duration duration = const Duration(milliseconds: 200),
+  }) async {
     anchor ??= _state!.widget.params.pageAnchor;
     if (anchor != PdfPageAnchor.all) {
       final vRatio = viewSize.aspectRatio;
@@ -931,7 +1018,7 @@ class PdfViewerController extends TransformationController {
         }
       }
     }
-    await goTo(calcMatrixForRect(rect));
+    await goTo(calcMatrixForRect(rect), duration: duration);
   }
 
   /// Go to the specified position by the matrix.
@@ -1079,6 +1166,13 @@ class PdfViewerController extends TransformationController {
   Offset? documentToGlobal(Offset document) => localToGlobal(document
       .scale(currentZoom, currentZoom)
       .translate(value.xZoomed, value.yZoomed));
+
+  /// Provided to workaround certain widgets eating wheel events. Use with [Listener.onPointerSignal].
+  void handlePointerSignalEvent(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      _state!._onWheelDelta(event.scrollDelta);
+    }
+  }
 }
 
 extension Matrix4Ext on Matrix4 {

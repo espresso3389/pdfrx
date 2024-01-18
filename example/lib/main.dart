@@ -121,7 +121,13 @@ class _MyAppState extends State<MyApp> {
                 linkWidgetBuilder: (context, link, size) => Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: () => print('link tapped: ${link.url}'),
+                    onTap: () {
+                      if (link.url != null) {
+                        print('Opening ${link.url}');
+                      } else if (link.dest != null) {
+                        controller.goToDest(link.dest);
+                      }
+                    },
                     hoverColor: Colors.blue.withOpacity(0.2),
                   ),
                 ),

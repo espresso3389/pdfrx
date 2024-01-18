@@ -52,6 +52,9 @@ class PdfjsDocument {
   external Object getPermissions();
   external int get numPages;
   external void destroy();
+
+  external Object getPageIndex(PdfjsRef ref);
+  external Object getDestination(String id);
 }
 
 @JS()
@@ -241,6 +244,13 @@ class PdfjsGetAnnotationsParameters {
 
 @JS()
 @anonymous
+class PdfjsRef {
+  external int get num;
+  external int get gen;
+}
+
+@JS()
+@anonymous
 class PdfjsAnnotationData {
   external String get subtype;
   external int get annotationType;
@@ -248,4 +258,5 @@ class PdfjsAnnotationData {
   external String? get url;
   external String? get unsafeUrl;
   external int get annotationFlags;
+  external Object? get dest;
 }

@@ -470,13 +470,46 @@ extension PdfRectsExt on Iterable<PdfRect> {
   PdfRect boundingRect() => reduce((a, b) => a.merge(b));
 }
 
+@immutable
+class PdfDest {
+  const PdfDest(this.pageNumber, this.command, this.params);
+  final int pageNumber;
+  final PdfDestCommand command;
+  final List<double?>? params;
+
+  @override
+  String toString() =>
+      'PdfDest{pageNumber: $pageNumber, command: $command, params: $params}';
+}
+
+/// [PDF 32000-1:2008, 12.3.2.2 Explicit Destinations, Table 151](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=374)
+enum PdfDestCommand {
+  unknown,
+  xyz,
+  fit,
+  fitH,
+  fitV,
+  fitR,
+  fitB,
+  fitBH,
+  fitBV,
+}
+
 /// Link in PDF page.
+/// Either one of [url] or [dest] is valid (not null).
 @immutable
 class PdfLink {
-  const PdfLink(this.url, this.rects);
+  const PdfLink(
+    this.rects, {
+    this.url,
+    this.dest,
+  });
 
   /// Link URL
-  final Uri url;
+  final Uri? url;
+
+  /// Link destination
+  final PdfDest? dest;
 
   /// Link location.
   final List<PdfRect> rects;
