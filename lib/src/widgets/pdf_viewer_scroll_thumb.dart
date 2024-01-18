@@ -29,7 +29,7 @@ class PdfViewerScrollThumb extends StatefulWidget {
   final double margin;
 
   /// Function to customize the thumb widget.
-  final Widget? Function(BuildContext context, Size thumbSize, int pageNumber,
+  final Widget? Function(BuildContext context, Size thumbSize, int? pageNumber,
       PdfViewerController controller)? thumbBuilder;
 
   /// Determine whether the orientation is vertical or not.
@@ -119,7 +119,7 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
       height: thumbSize.height,
       child: GestureDetector(
         child: widget.thumbBuilder?.call(context, thumbSize,
-                widget.controller.pageNumber!, widget.controller) ??
+                widget.controller.pageNumber, widget.controller) ??
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
