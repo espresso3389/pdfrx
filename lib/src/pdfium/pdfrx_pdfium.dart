@@ -32,17 +32,30 @@ final pdfium =
 bool _initialized = false;
 final _globalWorker = BackgroundWorker.create();
 
+Future<R> _ffiCompute<M, R>(
+  R Function(Arena arena, M message) callback,
+  M message,
+) =>
+    compute(
+      (message) => using(
+        (arena) => callback(arena, message),
+      ),
+      message,
+    );
+
 void _init() {
   if (_initialized) return;
-  using((arena) {
-    final config = arena.allocate<pdfium_bindings.FPDF_LIBRARY_CONFIG>(
-        sizeOf<pdfium_bindings.FPDF_LIBRARY_CONFIG>());
-    config.ref.version = 2;
-    config.ref.m_pUserFontPaths = nullptr;
-    config.ref.m_pIsolate = nullptr;
-    config.ref.m_v8EmbedderSlot = 0;
-    pdfium.FPDF_InitLibraryWithConfig(config);
-  });
+  using(
+    (arena) {
+      final config = arena.allocate<pdfium_bindings.FPDF_LIBRARY_CONFIG>(
+          sizeOf<pdfium_bindings.FPDF_LIBRARY_CONFIG>());
+      config.ref.version = 2;
+      config.ref.m_pUserFontPaths = nullptr;
+      config.ref.m_pIsolate = nullptr;
+      config.ref.m_v8EmbedderSlot = 0;
+      pdfium.FPDF_InitLibraryWithConfig(config);
+    },
+  );
   _initialized = true;
 }
 
@@ -52,6 +65,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     String name, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
   }) async {
     final data = await rootBundle.load(name);
     return await _openData(
@@ -59,6 +73,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       'asset:$name',
       password: password,
       passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     );
   }
 
@@ -67,6 +82,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     Uint8List data, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     String? sourceName,
     void Function()? onDispose,
   }) =>
@@ -75,6 +91,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         sourceName ?? 'memory-${data.hashCode}',
         password: password,
         passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         onDispose: onDispose,
       );
 
@@ -83,23 +100,25 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     String filePath, {
     String? password,
     PdfPasswordProvider? passwordProvider,
-  }) async {
+    bool firstAttemptByEmptyPassword = true,
+  }) {
     _init();
-    passwordProvider ??= createOneTimePasswordProvider(password);
-
-    for (int i = 0;; i++) {
-      final password = i == 0 ? null : await passwordProvider();
-      final doc = using((arena) => pdfium.FPDF_LoadDocument(
-          filePath.toUtf8(arena), password?.toUtf8(arena) ?? nullptr));
-      if ((i != 0 && password == null) ||
-          doc.address != 0 ||
-          !_isPasswordError()) {
-        return PdfDocumentPdfium.fromPdfDocument(
-          doc,
-          sourceName: filePath,
-        );
-      }
-    }
+    return _openByFunc(
+      (password) => _ffiCompute(
+        (arena, params) => pdfium.FPDF_LoadDocument(
+                params.filePath.toUtf8(arena),
+                params.password?.toUtf8(arena) ?? nullptr)
+            .address,
+        (
+          filePath: filePath,
+          password: password,
+        ),
+      ),
+      sourceName: filePath,
+      password: password,
+      passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    );
   }
 
   Future<PdfDocument> _openData(
@@ -107,9 +126,10 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     String sourceName, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
-  }) async {
+  }) {
     _init();
     return openCustom(
       read: (buffer, position, size) {
@@ -126,6 +146,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       sourceName: sourceName,
       password: password,
       passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
       onDispose: onDispose,
     );
@@ -139,6 +160,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     required String sourceName,
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
@@ -149,68 +171,64 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
 
     // If the file size is smaller than the specified size, load the file on memory
     if (fileSize <= maxSizeToCacheOnMemory) {
-      return await using((arena) async {
-        final buffer = calloc.allocate<Uint8>(fileSize);
+      final buffer = calloc.allocate<Uint8>(fileSize);
+      try {
         await read(buffer.asTypedList(fileSize), 0, fileSize);
-        for (int i = 0;; i++) {
-          final password = i == 0 ? null : await passwordProvider!();
-          final doc = pdfium.FPDF_LoadMemDocument(
-            buffer.cast<Void>(),
-            fileSize,
-            password?.toUtf8(arena) ?? nullptr,
-          );
-          if ((i != 0 && password == null) ||
-              doc.address != 0 ||
-              !_isPasswordError()) {
-            return PdfDocumentPdfium.fromPdfDocument(
-              doc,
-              sourceName: sourceName,
-              disposeCallback: () {
-                try {
-                  onDispose?.call();
-                } finally {
-                  calloc.free(buffer);
-                }
-              },
-            );
+      } catch (e) {
+        calloc.free(buffer);
+        rethrow;
+      }
+      return _openByFunc(
+        (password) => _ffiCompute(
+          (arena, params) => pdfium.FPDF_LoadMemDocument(
+            Pointer<Void>.fromAddress(params.buffer),
+            params.fileSize,
+            params.password?.toUtf8(arena) ?? nullptr,
+          ).address,
+          (
+            buffer: buffer.address,
+            fileSize: fileSize,
+            password: password,
+          ),
+        ),
+        sourceName: sourceName,
+        password: password,
+        passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+        disposeCallback: () {
+          try {
+            onDispose?.call();
+          } finally {
+            calloc.free(buffer);
           }
-        }
-      });
+        },
+      );
     }
 
     // Otherwise, load the file on demand
     final fa = FileAccess(fileSize, read);
-    for (int i = 0;; i++) {
-      final password = i == 0 ? null : await passwordProvider();
-      final result = await using(
-        (arena) async => (await _globalWorker).compute(
-          (params) {
-            final doc = pdfium.FPDF_LoadCustomDocument(
-              Pointer<pdfium_bindings.FPDF_FILEACCESS>.fromAddress(
-                  params.fileAccess),
-              Pointer<Char>.fromAddress(params.password),
-            ).address;
-            return (doc: doc, error: pdfium.FPDF_GetLastError());
-          },
-          (
-            fileAccess: fa.fileAccess.address,
-            password: password?.toUtf8(arena).address ?? 0,
+    return _openByFunc(
+      (password) => _ffiCompute(
+        (arena, params) => pdfium.FPDF_LoadCustomDocument(
+          Pointer<pdfium_bindings.FPDF_FILEACCESS>.fromAddress(
+            params.fileAccess,
           ),
+          params.password?.toUtf8(arena) ?? nullptr,
+        ).address,
+        (
+          fileAccess: fa.fileAccess.address,
+          password: password,
         ),
-      );
-      if ((i != 0 && password == null) ||
-          result.doc != 0 ||
-          !_isPasswordError(error: result.error)) {
-        return PdfDocumentPdfium.fromPdfDocument(
-          pdfium_bindings.FPDF_DOCUMENT.fromAddress(result.doc),
-          sourceName: sourceName,
-          disposeCallback: () {
-            onDispose?.call();
-            fa.dispose();
-          },
-        );
-      }
-    }
+      ),
+      sourceName: sourceName,
+      password: password,
+      passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      disposeCallback: () {
+        onDispose?.call();
+        fa.dispose();
+      },
+    );
   }
 
   @override
@@ -218,12 +236,14 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     Uri uri, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     PdfDownloadProgressCallback? progressCallback,
   }) =>
       pdfDocumentFromUri(
         uri,
         password: password,
         passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         progressCallback: progressCallback,
       );
 
@@ -235,6 +255,41 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     }
     error ??= pdfium.FPDF_GetLastError();
     return error == pdfium_bindings.FPDF_ERR_PASSWORD;
+  }
+
+  static Future<PdfDocument> _openByFunc(
+    FutureOr<int> Function(String? password) openPdfDocument, {
+    required String sourceName,
+    required String? password,
+    required PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
+    void Function()? disposeCallback,
+  }) async {
+    passwordProvider ??= createOneTimePasswordProvider(password);
+
+    for (int i = 0;; i++) {
+      final String? password;
+      if (firstAttemptByEmptyPassword && i == 0) {
+        password = null;
+      } else {
+        password = await passwordProvider();
+        if (password == null) {
+          throw const PdfException('No password supplied by PasswordProvider.');
+        }
+      }
+      final doc = await openPdfDocument(password);
+      if (doc != 0) {
+        return PdfDocumentPdfium.fromPdfDocument(
+          pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
+          sourceName: sourceName,
+          disposeCallback: disposeCallback,
+        );
+      }
+      if (_isPasswordError()) {
+        continue;
+      }
+      throw const PdfException('Failed to load PDF document.');
+    }
   }
 }
 
@@ -268,7 +323,7 @@ class PdfDocumentPdfium extends PdfDocument {
 
   static Future<PdfDocument> fromPdfDocument(pdfium_bindings.FPDF_DOCUMENT doc,
       {required String sourceName, void Function()? disposeCallback}) async {
-    if (doc.address == 0) {
+    if (doc == nullptr) {
       throw const PdfException('Failed to load PDF document.');
     }
     final result = await (await _globalWorker).compute(
@@ -484,7 +539,7 @@ class PdfPagePdfium extends PdfPage {
                     Pointer.fromAddress(params.buffer),
                     params.width * rgbaSize,
                   );
-                  if (bmp.address == 0) {
+                  if (bmp == nullptr) {
                     throw PdfException(
                         'FPDFBitmap_CreateEx(${params.width}, ${params.height}) failed.');
                   }

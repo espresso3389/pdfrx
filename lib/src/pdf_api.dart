@@ -15,6 +15,7 @@ abstract class PdfDocumentFactory {
     String name, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
   });
 
   /// See [PdfDocument.openData].
@@ -22,6 +23,7 @@ abstract class PdfDocumentFactory {
     Uint8List data, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     String? sourceName,
     void Function()? onDispose,
   });
@@ -31,6 +33,7 @@ abstract class PdfDocumentFactory {
     String filePath, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
   });
 
   /// See [PdfDocument.openCustom].
@@ -41,6 +44,7 @@ abstract class PdfDocumentFactory {
     required String sourceName,
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   });
@@ -50,6 +54,7 @@ abstract class PdfDocumentFactory {
     Uri uri, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     PdfDownloadProgressCallback? progressCallback,
   });
 
@@ -110,6 +115,7 @@ abstract class PdfDocument {
     String filePath, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
   }) =>
       PdfDocumentFactory.instance.openFile(
         filePath,
@@ -156,6 +162,7 @@ abstract class PdfDocument {
     required String sourceName,
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) =>
@@ -165,6 +172,7 @@ abstract class PdfDocument {
         sourceName: sourceName,
         password: password,
         passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
         onDispose: onDispose,
       );
@@ -180,12 +188,14 @@ abstract class PdfDocument {
     Uri uri, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     PdfDownloadProgressCallback? progressCallback,
   }) =>
       PdfDocumentFactory.instance.openUri(
         uri,
         password: password,
         passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         progressCallback: progressCallback,
       );
 
@@ -202,6 +212,8 @@ abstract class PdfDocument {
 }
 
 /// Handles a PDF page in [PdfDocument].
+///
+/// See [PdfDocument.pages].
 abstract class PdfPage {
   /// PDF document.
   PdfDocument get document;
@@ -300,6 +312,8 @@ class PdfPermissions {
 }
 
 /// Image rendered from PDF page.
+///
+/// See [PdfPage.render].
 abstract class PdfImage {
   /// Number of pixels in horizontal direction.
   int get width;
@@ -326,6 +340,8 @@ abstract class PdfImage {
 }
 
 /// Handles text extraction from PDF page.
+///
+/// See [PdfPage.loadText].
 abstract class PdfPageText {
   /// Full text of the page.
   String get fullText;
@@ -507,6 +523,7 @@ enum PdfDestCommand {
 /// Link in PDF page.
 ///
 /// Either one of [url] or [dest] is valid (not null).
+/// See [PdfPage.loadLinks].
 @immutable
 class PdfLink {
   const PdfLink(
@@ -528,6 +545,8 @@ class PdfLink {
 }
 
 /// Outline (a.k.a. Bookmark) node in PDF document.
+///
+/// See [PdfDocument.loadOutline].
 @immutable
 class PdfOutlineNode {
   const PdfOutlineNode({

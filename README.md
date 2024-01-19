@@ -98,6 +98,83 @@ Anyway, the example code for the plugin illustrates how to download and preview 
 </dict>
 ```
 
+## Open PDF File
+
+[PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) supports following functions to open PDF file on specific medium:
+
+- [PdfViewer.asset](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.asset.html)
+  - Open PDF of Flutter's asset
+- [PdfViewer.custom](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.custom.html)
+  - Open PDF using read callback
+- [PdfViewer.data](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.data.html)
+  - Open PDF on [Uint8List](https://api.dart.dev/dart-typed_data/Uint8List/Uint8List.html)
+- [PdfViewer.file](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.file.html)
+  - Open PDF from file
+- [PdfViewer.uri](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.uri.html)
+  - Open PDF from URI (`https://...` or relative path)
+  - On Flutter Web, it may be _blocked by [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)_
+
+### Deal with Password Protected PDF Files
+
+To support password protected PDF files, the most easiest case is just passing password to [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) like the following fragment:
+
+```dart
+PdfViewer.asset(
+  'assets/test.pdf',
+  password: 'password_sample',
+  ...
+),
+```
+
+The problem with the example above is that it could not interactively try multiple passwords.
+
+[passwordProvider](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPasswordProvider.html) is just another way to supply passwords interactively:
+
+```dart
+PdfViewer.asset(
+  'assets/test.pdf',
+  // Set password provider to show password dialog
+  passwordProvider: _passwordDialog,
+  ...
+),
+```
+
+And, `_passwordDialog` function is defined like this:
+
+```dart
+Future<String?> _passwordDialog() async {
+  final textController = TextEditingController();
+  return await showDialog<String?>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Enter password'),
+        content: TextField(
+          controller: textController,
+          autofocus: true,
+          keyboardType: TextInputType.visiblePassword,
+          obscureText: true,
+          onSubmitted: (value) => Navigator.of(context).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(null),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(textController.text),
+            child: const Text('OK'),
+          ),
+        ],
+      );
+    },
+  );
+}
+```
+
+When [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) tries to an open password protected document, it calls the function passed to `passwordProvider` repeatedly to get a new password until the document is correctly opened. And if the function returns `null`, the viewer will give up the password trials and the function is no longer called.
+
 ## Customizations
 
 You can customize the behaviour and visual by configuring [PdfViewerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams-class.html).
@@ -182,4 +259,20 @@ pageOverlayBuilder: (context, pageRect, page) {
     child: Text(page.pageNumber.toString(),
     style: const TextStyle(color: Colors.red)));
 },
+```
+
+### Loading Indicator
+
+[PdfViewer.uri](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.uri.html) may take long time to download PDF file and you want to show some loading indicator. You can do that by [PdfViewerParams.loadingBannerBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/loadingBannerBuilder.html):
+
+```dart
+loadingBannerBuilder: (context, bytesDownloaded, totalBytes) {
+  return Center(
+    child: CircularProgressIndicator(
+      // totalBytes may not be available on certain case
+      value: totalBytes != null ? bytesDownloaded / totalBytes : null,
+      backgroundColor: Colors.grey,
+    ),
+  );
+}
 ```

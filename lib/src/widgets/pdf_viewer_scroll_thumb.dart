@@ -69,8 +69,12 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
       width: thumbSize.width,
       height: thumbSize.height,
       child: GestureDetector(
-        child: widget.thumbBuilder?.call(context, thumbSize,
-                widget.controller.pageNumber!, widget.controller) ??
+        child: widget.thumbBuilder?.call(
+              context,
+              thumbSize,
+              widget.controller.pageNumber,
+              widget.controller,
+            ) ??
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,

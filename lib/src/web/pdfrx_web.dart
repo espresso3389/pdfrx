@@ -18,23 +18,21 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     String name, {
     String? password,
     PdfPasswordProvider? passwordProvider,
-  }) async {
-    passwordProvider ??= createOneTimePasswordProvider(password);
-    for (int i = 0;; i++) {
-      final password = i == 0 ? null : await passwordProvider();
-      try {
-        // NOTE: Moving the asset load outside the loop may cause:
-        // Uncaught TypeError: Cannot perform Construct on a detached ArrayBuffer
-        final bytes = await rootBundle.load(name);
-        return await PdfDocumentWeb.fromDocument(
-          await pdfjsGetDocumentFromData(bytes.buffer, password: password),
-          sourceName: 'asset:$name',
-        );
-      } catch (e) {
-        if ((i != 0 && password == null) || !_isPasswordError(e)) rethrow;
-      }
-    }
-  }
+    bool firstAttemptByEmptyPassword = true,
+  }) =>
+      _openByFunc(
+        (password) async {
+          // NOTE: Moving the asset load outside the loop may cause:
+          // Uncaught TypeError: Cannot perform Construct on a detached ArrayBuffer
+          final bytes = await rootBundle.load(name);
+          return await pdfjsGetDocumentFromData(bytes.buffer,
+              password: password);
+        },
+        sourceName: 'asset:$name',
+        password: password,
+        passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      );
 
   @override
   Future<PdfDocument> openCustom({
@@ -44,29 +42,23 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     required String sourceName,
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
-    passwordProvider ??= createOneTimePasswordProvider(password);
     final buffer = Uint8List(fileSize);
     await read(buffer, 0, fileSize);
-    for (int i = 0;; i++) {
-      final password = i == 0 ? null : await passwordProvider();
-      try {
-        return await PdfDocumentWeb.fromDocument(
-          await pdfjsGetDocumentFromData(
-            buffer.buffer,
-            password: password,
-          ),
-          sourceName: sourceName,
-          onDispose: onDispose,
-        );
-      } catch (e) {
-        if ((i != 0 && password == null) || !_isPasswordError(e)) {
-          rethrow;
-        }
-      }
-    }
+    return _openByFunc(
+      (password) => pdfjsGetDocumentFromData(
+        buffer.buffer,
+        password: password,
+      ),
+      sourceName: sourceName,
+      password: password,
+      passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      onDispose: onDispose,
+    );
   }
 
   @override
@@ -74,27 +66,21 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     Uint8List data, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     String? sourceName,
     void Function()? onDispose,
   }) async {
-    passwordProvider ??= createOneTimePasswordProvider(password);
-    for (int i = 0;; i++) {
-      final password = i == 0 ? null : await passwordProvider();
-      try {
-        return await PdfDocumentWeb.fromDocument(
-          await pdfjsGetDocumentFromData(
-            data.buffer,
-            password: password,
-          ),
-          sourceName: sourceName ?? 'memory-${data.hashCode}',
-          onDispose: onDispose,
-        );
-      } catch (e) {
-        if ((i != 0 && password == null) || !_isPasswordError(e)) {
-          rethrow;
-        }
-      }
-    }
+    return _openByFunc(
+      (password) => pdfjsGetDocumentFromData(
+        data.buffer,
+        password: password,
+      ),
+      sourceName: sourceName ?? 'memory-${data.hashCode}',
+      password: password,
+      passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      onDispose: onDispose,
+    );
   }
 
   @override
@@ -102,24 +88,18 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     String filePath, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
   }) async {
-    passwordProvider ??= createOneTimePasswordProvider(password);
-    for (int i = 0;; i++) {
-      final password = i == 0 ? null : await passwordProvider();
-      try {
-        return await PdfDocumentWeb.fromDocument(
-          await pdfjsGetDocument(
-            filePath,
-            password: password,
-          ),
-          sourceName: filePath,
-        );
-      } catch (e) {
-        if ((i != 0 && password == null) || !_isPasswordError(e)) {
-          rethrow;
-        }
-      }
-    }
+    return _openByFunc(
+      (password) => pdfjsGetDocument(
+        filePath,
+        password: password,
+      ),
+      sourceName: filePath,
+      password: password,
+      passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    );
   }
 
   @override
@@ -127,13 +107,48 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     Uri uri, {
     String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     PdfDownloadProgressCallback? progressCallback,
   }) =>
       openFile(
         uri.path,
         password: password,
         passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       );
+
+  Future<PdfDocument> _openByFunc(
+    Future<PdfjsDocument> Function(String? password) openDocument, {
+    required String sourceName,
+    String? password,
+    PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
+    void Function()? onDispose,
+  }) async {
+    passwordProvider ??= createOneTimePasswordProvider(password);
+    for (int i = 0;; i++) {
+      final String? password;
+      if (firstAttemptByEmptyPassword && i == 0) {
+        password = null;
+      } else {
+        password = await passwordProvider();
+        if (password == null) {
+          throw const PdfException('No password supplied by PasswordProvider.');
+        }
+      }
+      try {
+        return PdfDocumentWeb.fromDocument(
+          await openDocument(password),
+          sourceName: sourceName,
+          onDispose: onDispose,
+        );
+      } catch (e) {
+        if (!_isPasswordError(e)) {
+          rethrow;
+        }
+      }
+    }
+  }
 
   static bool _isPasswordError(dynamic e) =>
       e.toString().startsWith('PasswordException:');

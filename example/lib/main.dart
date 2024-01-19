@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -29,9 +30,11 @@ class _MainPageState extends State<MainPage> {
   final searchTextController = TextEditingController();
   final controller = PdfViewerController();
   bool showSearchToolbar = false;
+  final outline = ValueNotifier<List<PdfOutlineNode>?>(null);
 
   @override
   void dispose() {
+    outline.dispose();
     searchTextController.dispose();
     searchTextFocusNode.dispose();
     super.dispose();
@@ -43,14 +46,17 @@ class _MainPageState extends State<MainPage> {
       appBar: AppBar(title: const Text('Pdfrx example')),
       body: Stack(
         children: [
-          PdfViewer.asset(
-            'assets/hello.pdf',
+          // PdfViewer.file(
+          //   r"D:\pdfrx\example\assets\PDF32000_2008.pdf",
+          // PdfViewer.uri(
+          //   Uri.parse(
+          //       'https://espresso3389.github.io/pdfrx/assets/assets/hello.pdf'),
+          PdfViewer.uri(
+            Uri.parse(kIsWeb
+                ? 'assets/assets/hello.pdf'
+                : 'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
             // Set password provider to show password dialog
             passwordProvider: _passwordDialog,
-            // PdfViewer.uri(
-            //   Uri.parse(kIsWeb
-            //       ? 'assets/assets/hello.pdf'
-            //       : 'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
             controller: controller,
             displayParams: PdfViewerParams(
               enableTextSelection: true,
@@ -148,6 +154,7 @@ class _MainPageState extends State<MainPage> {
                   hoverColor: Colors.blue.withOpacity(0.2),
                 ),
               ),
+              onDocumentChanged: _updateOutline,
             ),
           ),
           AnimatedPositioned(
@@ -220,6 +227,21 @@ class _MainPageState extends State<MainPage> {
                   setState(() => showSearchToolbar = !showSearchToolbar))
         ],
       ),
+      //
+      // Document outline
+      //
+      drawer: Drawer(
+        child: ValueListenableBuilder<List<PdfOutlineNode>?>(
+          valueListenable: outline,
+          builder: (context, outline, child) => Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: PdfOutline(
+              outline: outline,
+              controller: controller,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -254,5 +276,60 @@ class _MainPageState extends State<MainPage> {
         );
       },
     );
+  }
+
+  Future<void> _updateOutline(PdfDocumentRef documentRef) async {
+    outline.value = await documentRef.document?.loadOutline();
+  }
+}
+
+//
+// Just a rough implementation of the document index
+//
+class PdfOutline extends StatelessWidget {
+  const PdfOutline({
+    super.key,
+    required this.outline,
+    required this.controller,
+  });
+
+  final List<PdfOutlineNode>? outline;
+  final PdfViewerController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final list = _getOutlineList(outline, 0).toList();
+    return SizedBox(
+      width: list.isEmpty ? 0 : 200,
+      child: ListView.builder(
+        itemCount: list.length,
+        itemBuilder: (context, index) {
+          final item = list[index];
+          return InkWell(
+            onTap: () => controller.goToDest(item.node.dest),
+            child: Container(
+              margin: EdgeInsets.only(
+                left: item.level * 16.0 + 8,
+                top: 8,
+                bottom: 8,
+              ),
+              child: Text(
+                item.node.title,
+                softWrap: false,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Iterable<({PdfOutlineNode node, int level})> _getOutlineList(
+      List<PdfOutlineNode>? outline, int level) sync* {
+    if (outline == null) return;
+    for (var node in outline) {
+      yield (node: node, level: level);
+      yield* _getOutlineList(node.children, level + 1);
+    }
   }
 }

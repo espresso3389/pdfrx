@@ -276,6 +276,7 @@ Future<PdfDocument> pdfDocumentFromUri(
   Uri uri, {
   String? password,
   PdfPasswordProvider? passwordProvider,
+  bool firstAttemptByEmptyPassword = true,
   int? blockSize,
   PdfFileCache? cache,
   PdfDownloadProgressCallback? progressCallback,
@@ -291,6 +292,7 @@ Future<PdfDocument> pdfDocumentFromUri(
         cache.filePath,
         password: password,
         passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       );
     }
   } else {
@@ -305,6 +307,7 @@ Future<PdfDocument> pdfDocumentFromUri(
           cache.filePath,
           password: password,
           passwordProvider: passwordProvider,
+          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         );
       }
     }
@@ -332,6 +335,7 @@ Future<PdfDocument> pdfDocumentFromUri(
     },
     password: password,
     passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     fileSize: cache.fileSize,
     sourceName: uri.toString(),
     onDispose: () => cache!.close(),
