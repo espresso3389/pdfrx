@@ -1,3 +1,8 @@
+## 0.4.14
+
+- Introduces PdfViewerParams.onDocumentChanged event
+- Introduces PdfDocument.loadOutline to load outline (a.k.a. bookmark)
+
 ## 0.4.13
 
 - Improves document password handling by async PasswordProvider (#20)
