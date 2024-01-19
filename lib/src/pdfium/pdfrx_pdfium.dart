@@ -367,6 +367,52 @@ class PdfDocumentPdfium extends PdfDocument {
     });
     disposeCallback?.call();
   }
+
+  @override
+  Future<List<PdfOutlineNode>> loadOutline() => document.synchronized(
+        () async => (await _worker).compute(
+          (params) => using((arena) {
+            final document =
+                pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
+            return _getOutlineNodeSiblings(
+              pdfium.FPDFBookmark_GetFirstChild(document, nullptr),
+              document,
+              arena,
+            );
+          }),
+          (document: document.address),
+        ),
+      );
+
+  static List<PdfOutlineNode> _getOutlineNodeSiblings(
+    pdfium_bindings.FPDF_BOOKMARK bookmark,
+    pdfium_bindings.FPDF_DOCUMENT document,
+    Arena arena,
+  ) {
+    final siblings = <PdfOutlineNode>[];
+    while (bookmark != nullptr) {
+      final titleBufSize = pdfium.FPDFBookmark_GetTitle(bookmark, nullptr, 0);
+      final titleBuf = arena.allocate<Void>(titleBufSize);
+      pdfium.FPDFBookmark_GetTitle(bookmark, titleBuf, titleBufSize);
+      siblings.add(
+        PdfOutlineNode(
+          title: titleBuf.cast<Utf16>().toDartString(),
+          dest: _pdfDestFromDest(
+            pdfium.FPDFBookmark_GetDest(document, bookmark),
+            document,
+            arena,
+          ),
+          children: _getOutlineNodeSiblings(
+            pdfium.FPDFBookmark_GetFirstChild(document, bookmark),
+            document,
+            arena,
+          ),
+        ),
+      );
+      bookmark = pdfium.FPDFBookmark_GetNextSibling(document, bookmark);
+    }
+    return siblings;
+  }
 }
 
 class PdfPagePdfium extends PdfPage {
@@ -611,10 +657,6 @@ class PdfPagePdfium extends PdfPage {
               final count = pdfium.FPDFPage_GetAnnotCount(page);
               final rectf = arena.allocate<pdfium_bindings.FS_RECTF>(
                   sizeOf<pdfium_bindings.FS_RECTF>());
-              final pul = arena.allocate<UnsignedLong>(sizeOf<UnsignedLong>());
-              final floatSize = sizeOf<pdfium_bindings.FS_FLOAT>();
-              final values =
-                  arena.allocate<pdfium_bindings.FS_FLOAT>(floatSize * 4);
               final links = <PdfLink>[];
               for (int i = 0; i < count; i++) {
                 final annot = pdfium.FPDFPage_GetAnnot(page, i);
@@ -626,21 +668,13 @@ class PdfPagePdfium extends PdfPage {
                   rectf.ref.bottom,
                 );
                 final link = pdfium.FPDFAnnot_GetLink(annot);
-                final dest = pdfium.FPDFLink_GetDest(document, link);
-                if (dest != nullptr) {
-                  final pageIndex =
-                      pdfium.FPDFDest_GetDestPageIndex(document, dest);
-                  final type = pdfium.FPDFDest_GetView(dest, pul, values);
-                  if (type != 0) {
-                    links.add(PdfLink(
-                      [rect],
-                      dest: PdfDest(
-                        pageIndex + 1,
-                        PdfDestCommand.values[type],
-                        List.generate(pul.value, (index) => values[index]),
-                      ),
-                    ));
-                  }
+                final dest = _pdfDestFromDest(
+                  pdfium.FPDFLink_GetDest(document, link),
+                  document,
+                  arena,
+                );
+                if (dest != null) {
+                  links.add(PdfLink([rect], dest: dest));
                 }
                 pdfium.FPDFPage_CloseAnnot(annot);
               }
@@ -929,4 +963,25 @@ extension _PdfRectsExt on List<PdfRect> {
     final prev = last;
     add(PdfRect(prev.right, prev.top, prev.right + width, prev.bottom));
   }
+}
+
+PdfDest? _pdfDestFromDest(
+  pdfium_bindings.FPDF_DEST dest,
+  pdfium_bindings.FPDF_DOCUMENT document,
+  Arena arena,
+) {
+  if (dest == nullptr) return null;
+  final pul = arena.allocate<UnsignedLong>(sizeOf<UnsignedLong>());
+  final values = arena.allocate<pdfium_bindings.FS_FLOAT>(
+      sizeOf<pdfium_bindings.FS_FLOAT>() * 4);
+  final pageIndex = pdfium.FPDFDest_GetDestPageIndex(document, dest);
+  final type = pdfium.FPDFDest_GetView(dest, pul, values);
+  if (type != 0) {
+    return PdfDest(
+      pageIndex + 1,
+      PdfDestCommand.values[type],
+      List.generate(pul.value, (index) => values[index]),
+    );
+  }
+  return null;
 }

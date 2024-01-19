@@ -190,8 +190,10 @@ abstract class PdfDocument {
       );
 
   /// Pages.
-  ///
   List<PdfPage> get pages;
+
+  /// Load outline (a.k.a. bookmark).
+  Future<List<PdfOutlineNode>> loadOutline();
 
   /// Determine whether document handles are identical or not.
   ///
@@ -251,10 +253,10 @@ abstract class PdfPage {
   /// Create [PdfPageRenderCancellationToken] to cancel the rendering process.
   PdfPageRenderCancellationToken createCancellationToken();
 
-  /// Create Text object to extract text from the page.
-  /// The returned object should be disposed after use.
+  /// Load text.
   Future<PdfPageText> loadText();
 
+  /// Load links.
   Future<List<PdfLink>> loadLinks();
 }
 
@@ -523,6 +525,25 @@ class PdfLink {
 
   /// Link location.
   final List<PdfRect> rects;
+}
+
+/// Outline (a.k.a. Bookmark) node in PDF document.
+@immutable
+class PdfOutlineNode {
+  const PdfOutlineNode({
+    required this.title,
+    required this.dest,
+    required this.children,
+  });
+
+  /// Outline node title.
+  final String title;
+
+  /// Outline node destination.
+  final PdfDest? dest;
+
+  /// Outline child nodes.
+  final List<PdfOutlineNode> children;
 }
 
 class PdfException implements Exception {

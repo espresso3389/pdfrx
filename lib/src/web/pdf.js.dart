@@ -55,6 +55,7 @@ class PdfjsDocument {
 
   external Object getPageIndex(PdfjsRef ref);
   external Object getDestination(String id);
+  external Object getOutline();
 }
 
 @JS()
@@ -259,4 +260,12 @@ class PdfjsAnnotationData {
   external String? get unsafeUrl;
   external int get annotationFlags;
   external Object? get dest;
+}
+
+@JS()
+@anonymous
+class PdfjsOutlineNode {
+  external String get title;
+  external Object? get dest;
+  external List<PdfjsOutlineNode> get items;
 }

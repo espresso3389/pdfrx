@@ -25,6 +25,7 @@ class PdfViewerParams {
     this.onInteractionEnd,
     this.onInteractionStart,
     this.onInteractionUpdate,
+    this.onDocumentChanged,
     this.onPageChanged,
     this.getPageRenderingScale,
     this.scrollByMouseWheel = 0.2,
@@ -117,6 +118,9 @@ class PdfViewerParams {
 
   /// See [InteractiveViewer.onInteractionUpdate] for details.
   final GestureScaleUpdateCallback? onInteractionUpdate;
+
+  /// Function to notify that the document is loaded/changed.
+  final PdfViewerDocumentChangedCallback? onDocumentChanged;
 
   /// Function called when the current page is changed.
   final PdfPageChangedCallback? onPageChanged;
@@ -288,6 +292,8 @@ class PdfViewerParams {
         other.onInteractionEnd == onInteractionEnd &&
         other.onInteractionStart == onInteractionStart &&
         other.onInteractionUpdate == onInteractionUpdate &&
+        other.onDocumentChanged == onDocumentChanged &&
+        other.onPageChanged == onPageChanged &&
         other.getPageRenderingScale == getPageRenderingScale &&
         other.scrollByMouseWheel == scrollByMouseWheel &&
         other.enableKeyboardNavigation == enableKeyboardNavigation &&
@@ -318,6 +324,8 @@ class PdfViewerParams {
         onInteractionEnd.hashCode ^
         onInteractionStart.hashCode ^
         onInteractionUpdate.hashCode ^
+        onDocumentChanged.hashCode ^
+        onPageChanged.hashCode ^
         getPageRenderingScale.hashCode ^
         scrollByMouseWheel.hashCode ^
         enableKeyboardNavigation.hashCode ^
@@ -332,6 +340,10 @@ class PdfViewerParams {
         forceReload.hashCode;
   }
 }
+
+/// Function to notify that the document is loaded/changed.
+typedef PdfViewerDocumentChangedCallback = void Function(
+    PdfDocumentRef documentRef);
 
 /// Function called when the current page is changed.
 typedef PdfPageChangedCallback = void Function(int? pageNumber);

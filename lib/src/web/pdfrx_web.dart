@@ -218,7 +218,32 @@ class PdfDocumentWeb extends PdfDocument {
     }
   }
 
-  Future<PdfDest?> getDestination(dynamic dest) async {
+  @override
+  Future<List<PdfOutlineNode>> loadOutline() async {
+    final outline =
+        await js_util.promiseToFuture<List<dynamic>?>(_document.getOutline());
+    if (outline == null) return [];
+    final nodes = <PdfOutlineNode>[];
+    for (final node in outline) {
+      nodes.add(await _pdfOutlineNodeFromOutline(node));
+    }
+    return nodes;
+  }
+
+  Future<PdfOutlineNode> _pdfOutlineNodeFromOutline(
+      PdfjsOutlineNode outline) async {
+    final children = <PdfOutlineNode>[];
+    for (final item in outline.items) {
+      children.add(await _pdfOutlineNodeFromOutline(item));
+    }
+    return PdfOutlineNode(
+      title: outline.title,
+      dest: await _getDestination(outline.dest),
+      children: children,
+    );
+  }
+
+  Future<PdfDest?> _getDestination(dynamic dest) async {
     final destObj = await _getDestObject(dest);
     if (destObj is! List) return null;
     final ref = destObj[0] as PdfjsRef;
@@ -411,7 +436,7 @@ class PdfPageWeb extends PdfPage {
         );
         continue;
       }
-      final dest = await document.getDestination(annot.dest);
+      final dest = await document._getDestination(annot.dest);
       if (dest != null) {
         links.add(
           PdfLink(rects, dest: dest),

@@ -244,6 +244,7 @@ class _PdfViewerState extends State<PdfViewer>
       if (mounted) {
         setState(() {});
       }
+      _notifyOnDocumentChanged();
       return;
     }
 
@@ -257,6 +258,15 @@ class _PdfViewerState extends State<PdfViewer>
 
     if (mounted) {
       setState(() {});
+    }
+
+    _notifyOnDocumentChanged();
+  }
+
+  void _notifyOnDocumentChanged() {
+    if (widget.params.onDocumentChanged != null) {
+      Future.microtask(
+          () => widget.params.onDocumentChanged?.call(widget.documentRef));
     }
   }
 
@@ -824,22 +834,39 @@ class PdfViewerController extends TransformationController {
 
   static const maxZoom = 8.0;
 
+  /// Document layout's size.
   Size get documentSize => _state!._layout!.documentSize;
+
+  /// View port size (The widget's client area's size)
   Size get viewSize => _state!._viewSize!;
+
+  /// The zoom ratio that fits the page width to the view port.
   double get coverScale => _state!._coverScale!;
+
+  /// The zoom ratio that fits whole the page to the view port.
   double? get alternativeFitScale => _state!._alternativeFitScale;
+
+  /// The minimum zoom ratio allowed.
   double get minScale => alternativeFitScale == null
       ? coverScale
       : min(coverScale, alternativeFitScale!);
-  AnimationController get _animController => _state!.animController;
+
+  /// The area of the document layout which is visible on the view port.
   Rect get visibleRect => value.calcVisibleRect(viewSize);
 
+  /// Get the associated document.
+  PdfDocument get document => _state!._document!;
+
+  /// Get the associated pages.
   List<PdfPage> get pages => _state!._document!.pages;
 
+  /// Determine whether the document/pages are ready or not.
   bool get isLoaded => _state?._document?.pages != null;
 
   /// The current page number if available.
   int? get pageNumber => _state?._pageNumber;
+
+  AnimationController get _animController => _state!.animController;
 
   void _attach(_PdfViewerState? state) {
     _state = state;
