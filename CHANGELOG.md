@@ -1,3 +1,9 @@
+## 0.4.15
+
+- Introduces PdfViewer.documentRef (#36)
+- FIXED: PdfViewer.uri is broken on web for non relative paths #37
+- FIXED: Don't Animate to initialPage #39
+
 ## 0.4.14
 
 - Introduces PdfViewerParams.onDocumentChanged event
