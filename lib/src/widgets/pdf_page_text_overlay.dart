@@ -4,6 +4,8 @@ import 'package:flutter/rendering.dart';
 import '../../pdfrx.dart';
 
 /// A widget that displays selectable text on a page.
+///
+/// If [PdfDocument.permissions] does not allow copying, the widget does not show anything.
 class PdfPageTextOverlay extends StatefulWidget {
   const PdfPageTextOverlay({
     required this.registrar,
@@ -46,7 +48,10 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    if (pageText == null) return const SizedBox();
+    if (pageText == null ||
+        widget.page.document.permissions?.allowsCopying == false) {
+      return const SizedBox();
+    }
     return Positioned(
       left: widget.pageRect.left,
       top: widget.pageRect.top,
@@ -273,14 +278,17 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
       selectedBounds.bottom,
     );
     _selectedText = sb.toString();
+
+    final first = selectionRects.first;
     final firstSelectionPoint = SelectionPoint(
-      localPosition: _selectedRect!.bottomLeft,
-      lineHeight: _selectedRect!.height,
+      localPosition: first.bottomLeft,
+      lineHeight: first.height,
       handleType: TextSelectionHandleType.left,
     );
+    final last = selectionRects.last;
     final secondSelectionPoint = SelectionPoint(
-      localPosition: _selectedRect!.bottomRight,
-      lineHeight: _selectedRect!.height,
+      localPosition: last.bottomRight,
+      lineHeight: last.height,
       handleType: TextSelectionHandleType.right,
     );
     final bool isReversed;

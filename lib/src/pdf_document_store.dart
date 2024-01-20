@@ -27,9 +27,15 @@ class PdfDocumentRef extends Listenable {
   /// The error object if some error was occurred on the previous attempt to load the document.
   Object? get error => _error;
 
+  /// Revision is incremented every time [document] or [error] is updated.
   int get revision => _revision;
 
+  /// The number of bytes downloaded so far. (For remote document only)
   int get bytesDownloaded => _bytesDownloaded;
+
+  /// The total number of bytes to download. (For remote document only)
+  ///
+  /// It is null if the total number of bytes is unknown.
   int? get totalBytes => _totalBytes;
 
   @override

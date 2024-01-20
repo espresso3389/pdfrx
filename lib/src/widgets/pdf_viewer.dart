@@ -20,6 +20,16 @@ import 'pdf_page_text_overlay.dart';
 import 'pdf_viewer_params.dart';
 
 /// A widget to display PDF document.
+///
+/// To create a [PdfViewer] widget, use one of the following constructors:
+/// - [PdfViewer.asset]
+/// - [PdfViewer.file]
+/// - [PdfViewer.uri]
+/// - [PdfViewer.data]
+/// - [PdfViewer.custom]
+///
+/// Of course, if you have a [PdfDocumentRef] instance, use [PdfViewer] constructor:
+/// - [PdfViewer]
 class PdfViewer extends StatefulWidget {
   const PdfViewer({
     required this.documentRef,
@@ -152,20 +162,6 @@ class PdfViewer extends StatefulWidget {
               firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
             ),
           ),
-          controller: controller,
-          params: displayParams,
-          initialPageNumber: initialPageNumber,
-        );
-
-  const PdfViewer.documentRef(
-    PdfDocumentRef documentRef, {
-    Key? key,
-    PdfViewerController? controller,
-    PdfViewerParams displayParams = const PdfViewerParams(),
-    int initialPageNumber = 1,
-  }) : this(
-          key: key,
-          documentRef: documentRef,
           controller: controller,
           params: displayParams,
           initialPageNumber: initialPageNumber,
@@ -595,7 +591,8 @@ class _PdfViewerState extends State<PdfViewer>
           );
         }
 
-        if (widget.params.enableTextSelection) {
+        if (widget.params.enableTextSelection &&
+            _document!.permissions?.allowsCopying != false) {
           textWidgets.add(
             Builder(builder: (context) {
               final registrar = SelectionContainer.maybeOf(context);

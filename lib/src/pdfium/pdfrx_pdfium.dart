@@ -16,6 +16,7 @@ import 'pdfium_bindings.dart' as pdfium_bindings;
 import 'pdfium_interop.dart';
 import 'worker.dart';
 
+/// Get the module file name for pdfium.
 String _getModuleFileName() {
   if (Platform.isAndroid) return 'libpdfium.so';
   if (Platform.isIOS || Platform.isMacOS) return 'pdfrx.framework/pdfrx';
@@ -26,23 +27,13 @@ String _getModuleFileName() {
   throw UnsupportedError('Unsupported platform');
 }
 
+/// Loaded pdfium module.
 final pdfium =
     pdfium_bindings.pdfium(DynamicLibrary.open(_getModuleFileName()));
 
 bool _initialized = false;
-final _globalWorker = BackgroundWorker.create();
 
-Future<R> _ffiCompute<M, R>(
-  R Function(Arena arena, M message) callback,
-  M message,
-) =>
-    compute(
-      (message) => using(
-        (arena) => callback(arena, message),
-      ),
-      message,
-    );
-
+/// Initializes pdfium library.
 void _init() {
   if (_initialized) return;
   using(
@@ -58,6 +49,21 @@ void _init() {
   );
   _initialized = true;
 }
+
+/// Global background worker isolate.
+final _globalWorker = BackgroundWorker.create();
+
+/// [compute] wrapper that also provides [Arena] for temporary memory allocation.
+Future<R> _ffiCompute<M, R>(
+  R Function(Arena arena, M message) callback,
+  M message,
+) =>
+    compute(
+      (message) => using(
+        (arena) => callback(arena, message),
+      ),
+      message,
+    );
 
 class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   @override
