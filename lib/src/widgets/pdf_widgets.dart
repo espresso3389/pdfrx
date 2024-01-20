@@ -150,6 +150,21 @@ class PdfViewer extends StatefulWidget {
           params: displayParams,
           initialPageNumber: initialPageNumber,
         );
+
+  const PdfViewer.documentRef(
+    PdfDocumentRef documentRef, {
+    Key? key,
+    PdfViewerController? controller,
+    PdfViewerParams displayParams = const PdfViewerParams(),
+    int initialPageNumber = 1,
+  }) : this(
+          key: key,
+          documentRef: documentRef,
+          controller: controller,
+          params: displayParams,
+          initialPageNumber: initialPageNumber,
+        );
+
   final PdfDocumentRef documentRef;
 
   /// Controller to control the viewer.
