@@ -13,7 +13,6 @@ abstract class PdfDocumentFactory {
   /// See [PdfDocument.openAsset].
   Future<PdfDocument> openAsset(
     String name, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
   });
@@ -21,7 +20,6 @@ abstract class PdfDocumentFactory {
   /// See [PdfDocument.openData].
   Future<PdfDocument> openData(
     Uint8List data, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
@@ -31,7 +29,6 @@ abstract class PdfDocumentFactory {
   /// See [PdfDocument.openFile].
   Future<PdfDocument> openFile(
     String filePath, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
   });
@@ -42,7 +39,6 @@ abstract class PdfDocumentFactory {
         read,
     required int fileSize,
     required String sourceName,
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
@@ -52,7 +48,6 @@ abstract class PdfDocumentFactory {
   /// See [PdfDocument.openUri].
   Future<PdfDocument> openUri(
     Uri uri, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     PdfDownloadProgressCallback? progressCallback,
@@ -113,40 +108,39 @@ abstract class PdfDocument {
   /// For Web, [filePath] can be relative path from `index.html` or any arbitrary URL but it may be restricted by CORS.
   static Future<PdfDocument> openFile(
     String filePath, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
   }) =>
       PdfDocumentFactory.instance.openFile(
         filePath,
-        password: password,
         passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       );
 
   /// Opening the specified asset.
   static Future<PdfDocument> openAsset(
     String name, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
   }) =>
       PdfDocumentFactory.instance.openAsset(
         name,
-        password: password,
         passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       );
 
   /// Opening the PDF on memory.
   static Future<PdfDocument> openData(
     Uint8List data, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     String? sourceName,
     void Function()? onDispose,
   }) =>
       PdfDocumentFactory.instance.openData(
         data,
-        password: password,
         passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         sourceName: sourceName,
         onDispose: onDispose,
       );
@@ -160,7 +154,6 @@ abstract class PdfDocument {
         read,
     required int fileSize,
     required String sourceName,
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
@@ -170,7 +163,6 @@ abstract class PdfDocument {
         read: read,
         fileSize: fileSize,
         sourceName: sourceName,
-        password: password,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
@@ -186,14 +178,12 @@ abstract class PdfDocument {
   /// [progressCallback] is called when the download progress is updated (Not supported on Web).
   static Future<PdfDocument> openUri(
     Uri uri, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     PdfDownloadProgressCallback? progressCallback,
   }) =>
       PdfDocumentFactory.instance.openUri(
         uri,
-        password: password,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         progressCallback: progressCallback,

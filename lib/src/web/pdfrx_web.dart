@@ -16,7 +16,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   @override
   Future<PdfDocument> openAsset(
     String name, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
   }) =>
@@ -29,7 +28,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
               password: password);
         },
         sourceName: 'asset:$name',
-        password: password,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       );
@@ -40,7 +38,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         read,
     required int fileSize,
     required String sourceName,
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
@@ -54,7 +51,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         password: password,
       ),
       sourceName: sourceName,
-      password: password,
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       onDispose: onDispose,
@@ -64,7 +60,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   @override
   Future<PdfDocument> openData(
     Uint8List data, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
@@ -76,7 +71,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         password: password,
       ),
       sourceName: sourceName ?? 'memory-${data.hashCode}',
-      password: password,
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       onDispose: onDispose,
@@ -86,7 +80,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   @override
   Future<PdfDocument> openFile(
     String filePath, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
   }) async {
@@ -96,7 +89,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         password: password,
       ),
       sourceName: filePath,
-      password: password,
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     );
@@ -105,14 +97,12 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   @override
   Future<PdfDocument> openUri(
     Uri uri, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     PdfDownloadProgressCallback? progressCallback,
   }) =>
       openFile(
         uri.toString(),
-        password: password,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       );
@@ -120,18 +110,16 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   Future<PdfDocument> _openByFunc(
     Future<PdfjsDocument> Function(String? password) openDocument, {
     required String sourceName,
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     void Function()? onDispose,
   }) async {
-    passwordProvider ??= createOneTimePasswordProvider(password);
     for (int i = 0;; i++) {
       final String? password;
       if (firstAttemptByEmptyPassword && i == 0) {
         password = null;
       } else {
-        password = await passwordProvider();
+        password = await passwordProvider?.call();
         if (password == null) {
           throw const PdfException('No password supplied by PasswordProvider.');
         }

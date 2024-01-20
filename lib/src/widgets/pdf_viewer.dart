@@ -32,8 +32,8 @@ class PdfViewer extends StatefulWidget {
   PdfViewer.asset(
     String name, {
     Key? key,
-    String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
@@ -42,8 +42,11 @@ class PdfViewer extends StatefulWidget {
           key: key,
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
             '##PdfViewer:asset:$name',
-            documentLoader: (_) => PdfDocument.openAsset(name,
-                password: password, passwordProvider: passwordProvider),
+            documentLoader: (_) => PdfDocument.openAsset(
+              name,
+              passwordProvider: passwordProvider,
+              firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+            ),
           ),
           controller: controller,
           params: displayParams,
@@ -53,8 +56,8 @@ class PdfViewer extends StatefulWidget {
   PdfViewer.file(
     String path, {
     Key? key,
-    String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
@@ -63,8 +66,11 @@ class PdfViewer extends StatefulWidget {
           key: key,
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
             '##PdfViewer:file:$path',
-            documentLoader: (_) => PdfDocument.openFile(path,
-                password: password, passwordProvider: passwordProvider),
+            documentLoader: (_) => PdfDocument.openFile(
+              path,
+              passwordProvider: passwordProvider,
+              firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+            ),
           ),
           controller: controller,
           params: displayParams,
@@ -74,8 +80,8 @@ class PdfViewer extends StatefulWidget {
   PdfViewer.uri(
     Uri uri, {
     Key? key,
-    String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
@@ -86,8 +92,8 @@ class PdfViewer extends StatefulWidget {
             '##PdfViewer:uri:$uri',
             documentLoader: (progressCallback) => PdfDocument.openUri(
               uri,
-              password: password,
               passwordProvider: passwordProvider,
+              firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
               progressCallback: progressCallback,
             ),
           ),
@@ -99,8 +105,8 @@ class PdfViewer extends StatefulWidget {
   PdfViewer.data(
     Uint8List bytes, {
     Key? key,
-    String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     String? sourceName,
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
@@ -112,8 +118,8 @@ class PdfViewer extends StatefulWidget {
             '##PdfViewer:data:${sourceName ?? bytes.hashCode}',
             documentLoader: (_) => PdfDocument.openData(
               bytes,
-              password: password,
               passwordProvider: passwordProvider,
+              firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
               sourceName: sourceName,
             ),
           ),
@@ -127,8 +133,8 @@ class PdfViewer extends StatefulWidget {
         read,
     required int fileSize,
     required String sourceName,
-    String? password,
     PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     Key? key,
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
@@ -142,8 +148,8 @@ class PdfViewer extends StatefulWidget {
               read: read,
               fileSize: fileSize,
               sourceName: sourceName,
-              password: password,
               passwordProvider: passwordProvider,
+              firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
             ),
           ),
           controller: controller,

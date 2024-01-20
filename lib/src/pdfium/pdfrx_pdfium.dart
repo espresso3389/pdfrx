@@ -63,7 +63,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   @override
   Future<PdfDocument> openAsset(
     String name, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
   }) async {
@@ -71,7 +70,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     return await _openData(
       data.buffer.asUint8List(),
       'asset:$name',
-      password: password,
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     );
@@ -80,7 +78,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   @override
   Future<PdfDocument> openData(
     Uint8List data, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
@@ -89,7 +86,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       _openData(
         data,
         sourceName ?? 'memory-${data.hashCode}',
-        password: password,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         onDispose: onDispose,
@@ -98,7 +94,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   @override
   Future<PdfDocument> openFile(
     String filePath, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
   }) {
@@ -115,7 +110,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         ),
       ),
       sourceName: filePath,
-      password: password,
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     );
@@ -124,7 +118,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   Future<PdfDocument> _openData(
     Uint8List data,
     String sourceName, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
@@ -144,7 +137,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       },
       fileSize: data.length,
       sourceName: sourceName,
-      password: password,
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
@@ -158,7 +150,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         read,
     required int fileSize,
     required String sourceName,
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
@@ -167,81 +158,84 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     _init();
 
     maxSizeToCacheOnMemory ??= 1024 * 1024; // the default is 1MB
-    passwordProvider ??= createOneTimePasswordProvider(password);
 
     // If the file size is smaller than the specified size, load the file on memory
     if (fileSize <= maxSizeToCacheOnMemory) {
       final buffer = calloc.allocate<Uint8>(fileSize);
       try {
         await read(buffer.asTypedList(fileSize), 0, fileSize);
+        return _openByFunc(
+          (password) => _ffiCompute(
+            (arena, params) => pdfium.FPDF_LoadMemDocument(
+              Pointer<Void>.fromAddress(params.buffer),
+              params.fileSize,
+              params.password?.toUtf8(arena) ?? nullptr,
+            ).address,
+            (
+              buffer: buffer.address,
+              fileSize: fileSize,
+              password: password,
+            ),
+          ),
+          sourceName: sourceName,
+          passwordProvider: passwordProvider,
+          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+          disposeCallback: () {
+            try {
+              onDispose?.call();
+            } finally {
+              calloc.free(buffer);
+            }
+          },
+        );
       } catch (e) {
         calloc.free(buffer);
         rethrow;
       }
+    }
+
+    // Otherwise, load the file on demand
+    final fa = FileAccess(fileSize, read);
+    try {
       return _openByFunc(
         (password) => _ffiCompute(
-          (arena, params) => pdfium.FPDF_LoadMemDocument(
-            Pointer<Void>.fromAddress(params.buffer),
-            params.fileSize,
+          (arena, params) => pdfium.FPDF_LoadCustomDocument(
+            Pointer<pdfium_bindings.FPDF_FILEACCESS>.fromAddress(
+              params.fileAccess,
+            ),
             params.password?.toUtf8(arena) ?? nullptr,
           ).address,
           (
-            buffer: buffer.address,
-            fileSize: fileSize,
+            fileAccess: fa.fileAccess.address,
             password: password,
           ),
         ),
         sourceName: sourceName,
-        password: password,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         disposeCallback: () {
           try {
             onDispose?.call();
           } finally {
-            calloc.free(buffer);
+            fa.dispose();
           }
         },
       );
+    } catch (e) {
+      fa.dispose();
+      rethrow;
     }
-
-    // Otherwise, load the file on demand
-    final fa = FileAccess(fileSize, read);
-    return _openByFunc(
-      (password) => _ffiCompute(
-        (arena, params) => pdfium.FPDF_LoadCustomDocument(
-          Pointer<pdfium_bindings.FPDF_FILEACCESS>.fromAddress(
-            params.fileAccess,
-          ),
-          params.password?.toUtf8(arena) ?? nullptr,
-        ).address,
-        (
-          fileAccess: fa.fileAccess.address,
-          password: password,
-        ),
-      ),
-      sourceName: sourceName,
-      password: password,
-      passwordProvider: passwordProvider,
-      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-      disposeCallback: () {
-        onDispose?.call();
-        fa.dispose();
-      },
-    );
   }
 
   @override
   Future<PdfDocument> openUri(
     Uri uri, {
-    String? password,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     PdfDownloadProgressCallback? progressCallback,
   }) =>
       pdfDocumentFromUri(
         uri,
-        password: password,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         progressCallback: progressCallback,
@@ -260,19 +254,16 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   static Future<PdfDocument> _openByFunc(
     FutureOr<int> Function(String? password) openPdfDocument, {
     required String sourceName,
-    required String? password,
     required PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     void Function()? disposeCallback,
   }) async {
-    passwordProvider ??= createOneTimePasswordProvider(password);
-
     for (int i = 0;; i++) {
       final String? password;
       if (firstAttemptByEmptyPassword && i == 0) {
         password = null;
       } else {
-        password = await passwordProvider();
+        password = await passwordProvider?.call();
         if (password == null) {
           throw const PdfException('No password supplied by PasswordProvider.');
         }

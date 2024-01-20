@@ -41,8 +41,12 @@ abstract class PdfFileCache {
   /// The file path.
   String get filePath;
 
+  /// Determine if the cache is initialized or not.
   bool get isInitialized;
 
+  /// Close the cache file.
+  ///
+  /// It does not delete the cache file but just close the file handle.
   Future<void> close();
 
   /// Write [bytes] (of the [position]) to the cache.
@@ -274,7 +278,6 @@ class PdfFileCacheNative extends PdfFileCache {
 /// On web, unlike [PdfDocument.openUri], this function uses HTTP's range request to download the file and uses [PdfFileCache].
 Future<PdfDocument> pdfDocumentFromUri(
   Uri uri, {
-  String? password,
   PdfPasswordProvider? passwordProvider,
   bool firstAttemptByEmptyPassword = true,
   int? blockSize,
@@ -283,63 +286,65 @@ Future<PdfDocument> pdfDocumentFromUri(
 }) async {
   progressCallback?.call(0);
   cache ??= await PdfFileCache.fromUri(uri);
-
-  if (!cache.isInitialized) {
-    cache.setBlockSize(blockSize ?? PdfFileCache.defaultBlockSize);
-    final result = await _downloadBlock(uri, cache, progressCallback, 0);
-    if (result.isFullDownload) {
-      return PdfDocument.openFile(
-        cache.filePath,
-        password: password,
-        passwordProvider: passwordProvider,
-        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-      );
-    }
-  } else {
-    // Check if the file is updated.
-    final response = await http.head(uri);
-    final eTag = response.headers['etag'];
-    if (eTag != cache.eTag) {
-      await cache.resetAll();
+  try {
+    if (!cache.isInitialized) {
+      cache.setBlockSize(blockSize ?? PdfFileCache.defaultBlockSize);
       final result = await _downloadBlock(uri, cache, progressCallback, 0);
       if (result.isFullDownload) {
         return PdfDocument.openFile(
           cache.filePath,
-          password: password,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         );
       }
-    }
-  }
-
-  return PdfDocument.openCustom(
-    read: (buffer, position, size) async {
-      final totalSize = size;
-      final end = position + size;
-      int bufferPosition = 0;
-      for (int p = position; p < end;) {
-        final blockId = p ~/ cache!.blockSize;
-        final isAvailable = cache.isCached(blockId);
-        if (!isAvailable) {
-          await _downloadBlock(uri, cache, progressCallback, blockId);
+    } else {
+      // Check if the file is updated.
+      final response = await http.head(uri);
+      final eTag = response.headers['etag'];
+      if (eTag != cache.eTag) {
+        await cache.resetAll();
+        final result = await _downloadBlock(uri, cache, progressCallback, 0);
+        if (result.isFullDownload) {
+          cache.close(); // close the cache file before opening it.
+          return PdfDocument.openFile(
+            cache.filePath,
+            passwordProvider: passwordProvider,
+            firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+          );
         }
-        final readEnd = min(p + size, (blockId + 1) * cache.blockSize);
-        final sizeToRead = readEnd - p;
-        await cache.read(buffer, bufferPosition, p, sizeToRead);
-        p += sizeToRead;
-        bufferPosition += sizeToRead;
-        size -= sizeToRead;
       }
-      return totalSize;
-    },
-    password: password,
-    passwordProvider: passwordProvider,
-    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-    fileSize: cache.fileSize,
-    sourceName: uri.toString(),
-    onDispose: () => cache!.close(),
-  );
+    }
+
+    return PdfDocument.openCustom(
+      read: (buffer, position, size) async {
+        final totalSize = size;
+        final end = position + size;
+        int bufferPosition = 0;
+        for (int p = position; p < end;) {
+          final blockId = p ~/ cache!.blockSize;
+          final isAvailable = cache.isCached(blockId);
+          if (!isAvailable) {
+            await _downloadBlock(uri, cache, progressCallback, blockId);
+          }
+          final readEnd = min(p + size, (blockId + 1) * cache.blockSize);
+          final sizeToRead = readEnd - p;
+          await cache.read(buffer, bufferPosition, p, sizeToRead);
+          p += sizeToRead;
+          bufferPosition += sizeToRead;
+          size -= sizeToRead;
+        }
+        return totalSize;
+      },
+      passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      fileSize: cache.fileSize,
+      sourceName: uri.toString(),
+      onDispose: () => cache!.close(),
+    );
+  } catch (e) {
+    cache.close();
+    rethrow;
+  }
 }
 
 class _DownloadResult {
