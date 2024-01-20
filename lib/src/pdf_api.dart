@@ -63,7 +63,7 @@ abstract class PdfDocumentFactory {
 /// Callback function to notify download progress.
 ///
 /// [downloadedBytes] is the number of bytes downloaded so far.
-/// [totalBytes] is the total number of bytes to download. It may be `null` if the total size is unknown.
+/// [totalBytes] is the total number of bytes to download. It may be null if the total size is unknown.
 typedef PdfDownloadProgressCallback = void Function(
   int downloadedBytes, [
   int? totalBytes,
@@ -72,15 +72,15 @@ typedef PdfDownloadProgressCallback = void Function(
 /// Function to provide password for encrypted PDF.
 ///
 /// The function is called when PDF requires password.
-/// It is repeatedly called until the function returns `null` or the password is correct.
+/// It is repeatedly called until the function returns null or the password is correct.
 ///
 /// [createOneTimePasswordProvider] is a helper function to create [PdfPasswordProvider] that returns the password only once.
 typedef PdfPasswordProvider = FutureOr<String?> Function();
 
 /// Create [PdfPasswordProvider] that returns the password only once.
 ///
-/// The returned [PdfPasswordProvider] returns the password only once and returns `null` afterwards.
-/// If [password] is `null`, the returned [PdfPasswordProvider] returns `null` always.
+/// The returned [PdfPasswordProvider] returns the password only once and returns null afterwards.
+/// If [password] is null, the returned [PdfPasswordProvider] returns null always.
 PdfPasswordProvider createOneTimePasswordProvider(String? password) {
   return () {
     final ret = password;

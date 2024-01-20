@@ -82,7 +82,7 @@ For macOS, Flutter app restrict its capability by enabling [App Sandbox](https:/
 
 ### Deal with App Sandbox
 
-The easiest option to access files on your disk, set [`com.apple.security.app-sandbox`](https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_security_app-sandbox) to `false` on your entitlements file though it is not recommended for releasing apps because it completely disables [App Sandbox](https://developer.apple.com/documentation/security/app_sandbox).
+The easiest option to access files on your disk, set [`com.apple.security.app-sandbox`](https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_security_app-sandbox) to false on your entitlements file though it is not recommended for releasing apps because it completely disables [App Sandbox](https://developer.apple.com/documentation/security/app_sandbox).
 
 Another option is to use [`com.apple.security.files.user-selected.read-only`](https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_security_files_user-selected_read-only) along with [file_selector_macos](https://pub.dev/packages/file_selector_macos). The option is better in security than the previous option.
 
@@ -161,7 +161,7 @@ Future<String?> _passwordDialog() async {
 }
 ```
 
-When [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) tries to an open password protected document, it calls the function passed to `passwordProvider` repeatedly to get a new password until the document is successfully opened. And if the function returns `null`, the viewer will give up the password trials and the function is no longer called.
+When [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) tries to an open password protected document, it calls the function passed to `passwordProvider` repeatedly to get a new password until the document is successfully opened. And if the function returns null, the viewer will give up the password trials and the function is no longer called.
 
 ## Customizations
 
