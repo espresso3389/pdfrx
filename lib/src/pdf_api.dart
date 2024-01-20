@@ -17,6 +17,7 @@ abstract class PdfDocumentFactory {
     String name, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    int rotation = 0,
   });
 
   /// See [PdfDocument.openData].
@@ -25,6 +26,7 @@ abstract class PdfDocumentFactory {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
+    int rotation = 0,
     void Function()? onDispose,
   });
 
@@ -33,6 +35,7 @@ abstract class PdfDocumentFactory {
     String filePath, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    int rotation = 0,
   });
 
   /// See [PdfDocument.openCustom].
@@ -44,6 +47,7 @@ abstract class PdfDocumentFactory {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
+    int rotation = 0,
     void Function()? onDispose,
   });
 
@@ -53,6 +57,7 @@ abstract class PdfDocumentFactory {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     PdfDownloadProgressCallback? progressCallback,
+    int rotation = 0,
   });
 
   /// Singleton [PdfDocumentFactory] instance.
@@ -117,11 +122,13 @@ abstract class PdfDocument {
     String filePath, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    int rotation = 0,
   }) =>
       PdfDocumentFactory.instance.openFile(
         filePath,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+        rotation: rotation,
       );
 
   /// Opening the specified asset.
@@ -133,11 +140,13 @@ abstract class PdfDocument {
     String name, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    int rotation = 0,
   }) =>
       PdfDocumentFactory.instance.openAsset(
         name,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+        rotation: rotation,
       );
 
   /// Opening the PDF on memory.
@@ -150,6 +159,7 @@ abstract class PdfDocument {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
+    int rotation = 0,
     void Function()? onDispose,
   }) =>
       PdfDocumentFactory.instance.openData(
@@ -158,6 +168,7 @@ abstract class PdfDocument {
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         sourceName: sourceName,
         onDispose: onDispose,
+        rotation: rotation,
       );
 
   /// Opening the PDF from custom source.
@@ -177,6 +188,7 @@ abstract class PdfDocument {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
+    int rotation = 0,
     void Function()? onDispose,
   }) =>
       PdfDocumentFactory.instance.openCustom(
@@ -187,6 +199,7 @@ abstract class PdfDocument {
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
         onDispose: onDispose,
+        rotation: rotation,
       );
 
   /// Opening the PDF from URI.
@@ -205,12 +218,14 @@ abstract class PdfDocument {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     PdfDownloadProgressCallback? progressCallback,
+    int rotation = 0,
   }) =>
       PdfDocumentFactory.instance.openUri(
         uri,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         progressCallback: progressCallback,
+        rotation: rotation,
       );
 
   /// Pages.

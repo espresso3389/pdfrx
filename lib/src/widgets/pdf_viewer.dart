@@ -47,15 +47,17 @@ class PdfViewer extends StatefulWidget {
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
+    int rotation = 0,
     PdfDocumentStore? store,
   }) : this(
           key: key,
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
-            '##PdfViewer:asset:$name',
+            '##PdfViewer:asset:$name:$rotation',
             documentLoader: (_) => PdfDocument.openAsset(
               name,
               passwordProvider: passwordProvider,
               firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+              rotation: rotation,
             ),
           ),
           controller: controller,
@@ -71,15 +73,17 @@ class PdfViewer extends StatefulWidget {
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
+    int rotation = 0,
     PdfDocumentStore? store,
   }) : this(
           key: key,
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
-            '##PdfViewer:file:$path',
+            '##PdfViewer:file:$path:$rotation',
             documentLoader: (_) => PdfDocument.openFile(
               path,
               passwordProvider: passwordProvider,
               firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+              rotation: rotation,
             ),
           ),
           controller: controller,
@@ -95,16 +99,18 @@ class PdfViewer extends StatefulWidget {
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
+    int rotation = 0,
     PdfDocumentStore? store,
   }) : this(
           key: key,
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
-            '##PdfViewer:uri:$uri',
+            '##PdfViewer:uri:$uri:$rotation',
             documentLoader: (progressCallback) => PdfDocument.openUri(
               uri,
               passwordProvider: passwordProvider,
               firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
               progressCallback: progressCallback,
+              rotation: rotation,
             ),
           ),
           controller: controller,
@@ -121,16 +127,18 @@ class PdfViewer extends StatefulWidget {
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
+    int rotation = 0,
     PdfDocumentStore? store,
   }) : this(
           key: key,
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
-            '##PdfViewer:data:${sourceName ?? bytes.hashCode}',
+            '##PdfViewer:data:${sourceName ?? bytes.hashCode}:$rotation',
             documentLoader: (_) => PdfDocument.openData(
               bytes,
               passwordProvider: passwordProvider,
               firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
               sourceName: sourceName,
+              rotation: rotation,
             ),
           ),
           controller: controller,
@@ -149,17 +157,19 @@ class PdfViewer extends StatefulWidget {
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
+    int rotation = 0,
     PdfDocumentStore? store,
   }) : this(
           key: key,
           documentRef: (store ?? PdfDocumentStore.defaultStore).load(
-            '##PdfViewer:custom:$sourceName',
+            '##PdfViewer:custom:$sourceName:$rotation',
             documentLoader: (_) => PdfDocument.openCustom(
               read: read,
               fileSize: fileSize,
               sourceName: sourceName,
               passwordProvider: passwordProvider,
               firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+              rotation: rotation,
             ),
           ),
           controller: controller,

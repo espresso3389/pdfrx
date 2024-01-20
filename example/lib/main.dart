@@ -31,6 +31,7 @@ class _MainPageState extends State<MainPage> {
   final controller = PdfViewerController();
   bool showSearchToolbar = false;
   final outline = ValueNotifier<List<PdfOutlineNode>?>(null);
+  int rotation = 0;
 
   @override
   void dispose() {
@@ -58,6 +59,7 @@ class _MainPageState extends State<MainPage> {
             // Set password provider to show password dialog
             passwordProvider: _passwordDialog,
             controller: controller,
+            rotation: rotation,
             displayParams: PdfViewerParams(
               enableTextSelection: true,
               maxScale: 8,
@@ -224,7 +226,10 @@ class _MainPageState extends State<MainPage> {
           FloatingActionButton(
               child: const Icon(Icons.search),
               onPressed: () =>
-                  setState(() => showSearchToolbar = !showSearchToolbar))
+                  setState(() => showSearchToolbar = !showSearchToolbar)),
+          FloatingActionButton(
+              child: const Icon(Icons.rotate_90_degrees_cw),
+              onPressed: () => setState(() => rotation = (rotation + 90) % 360))
         ],
       ),
       //

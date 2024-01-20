@@ -283,6 +283,7 @@ Future<PdfDocument> pdfDocumentFromUri(
   int? blockSize,
   PdfFileCache? cache,
   PdfDownloadProgressCallback? progressCallback,
+  int rotation = 0,
 }) async {
   progressCallback?.call(0);
   cache ??= await PdfFileCache.fromUri(uri);
@@ -291,11 +292,10 @@ Future<PdfDocument> pdfDocumentFromUri(
       cache.setBlockSize(blockSize ?? PdfFileCache.defaultBlockSize);
       final result = await _downloadBlock(uri, cache, progressCallback, 0);
       if (result.isFullDownload) {
-        return PdfDocument.openFile(
-          cache.filePath,
-          passwordProvider: passwordProvider,
-          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-        );
+        return PdfDocument.openFile(cache.filePath,
+            passwordProvider: passwordProvider,
+            firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+            rotation: rotation);
       }
     } else {
       // Check if the file is updated.
@@ -306,41 +306,40 @@ Future<PdfDocument> pdfDocumentFromUri(
         final result = await _downloadBlock(uri, cache, progressCallback, 0);
         if (result.isFullDownload) {
           cache.close(); // close the cache file before opening it.
-          return PdfDocument.openFile(
-            cache.filePath,
-            passwordProvider: passwordProvider,
-            firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-          );
+          return PdfDocument.openFile(cache.filePath,
+              passwordProvider: passwordProvider,
+              firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+              rotation: rotation);
         }
       }
     }
 
     return PdfDocument.openCustom(
-      read: (buffer, position, size) async {
-        final totalSize = size;
-        final end = position + size;
-        int bufferPosition = 0;
-        for (int p = position; p < end;) {
-          final blockId = p ~/ cache!.blockSize;
-          final isAvailable = cache.isCached(blockId);
-          if (!isAvailable) {
-            await _downloadBlock(uri, cache, progressCallback, blockId);
+        read: (buffer, position, size) async {
+          final totalSize = size;
+          final end = position + size;
+          int bufferPosition = 0;
+          for (int p = position; p < end;) {
+            final blockId = p ~/ cache!.blockSize;
+            final isAvailable = cache.isCached(blockId);
+            if (!isAvailable) {
+              await _downloadBlock(uri, cache, progressCallback, blockId);
+            }
+            final readEnd = min(p + size, (blockId + 1) * cache.blockSize);
+            final sizeToRead = readEnd - p;
+            await cache.read(buffer, bufferPosition, p, sizeToRead);
+            p += sizeToRead;
+            bufferPosition += sizeToRead;
+            size -= sizeToRead;
           }
-          final readEnd = min(p + size, (blockId + 1) * cache.blockSize);
-          final sizeToRead = readEnd - p;
-          await cache.read(buffer, bufferPosition, p, sizeToRead);
-          p += sizeToRead;
-          bufferPosition += sizeToRead;
-          size -= sizeToRead;
-        }
-        return totalSize;
-      },
-      passwordProvider: passwordProvider,
-      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-      fileSize: cache.fileSize,
-      sourceName: uri.toString(),
-      onDispose: () => cache!.close(),
-    );
+          return totalSize;
+        },
+        passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+        fileSize: cache.fileSize,
+        sourceName: uri.toString(),
+        onDispose: () => cache!.close(),
+        rotation: rotation);
   } catch (e) {
     cache.close();
     rethrow;

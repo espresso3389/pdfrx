@@ -71,6 +71,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     String name, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    int rotation = 0,
   }) async {
     final data = await rootBundle.load(name);
     return await _openData(
@@ -78,6 +79,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       'asset:$name',
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      rotation: rotation,
     );
   }
 
@@ -87,6 +89,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
+    int rotation = 0,
     void Function()? onDispose,
   }) =>
       _openData(
@@ -95,6 +98,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         onDispose: onDispose,
+        rotation: rotation,
       );
 
   @override
@@ -102,6 +106,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     String filePath, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    int rotation = 0,
   }) {
     _init();
     return _openByFunc(
@@ -118,6 +123,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       sourceName: filePath,
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      rotation: rotation,
     );
   }
 
@@ -127,6 +133,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
+    int rotation = 0,
     void Function()? onDispose,
   }) {
     _init();
@@ -147,6 +154,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
       onDispose: onDispose,
+      rotation: rotation,
     );
   }
 
@@ -159,6 +167,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
+    int rotation = 0,
     void Function()? onDispose,
   }) async {
     _init();
@@ -171,29 +180,28 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       try {
         await read(buffer.asTypedList(fileSize), 0, fileSize);
         return _openByFunc(
-          (password) => _ffiCompute(
-            (arena, params) => pdfium.FPDF_LoadMemDocument(
-              Pointer<Void>.fromAddress(params.buffer),
-              params.fileSize,
-              params.password?.toUtf8(arena) ?? nullptr,
-            ).address,
-            (
-              buffer: buffer.address,
-              fileSize: fileSize,
-              password: password,
-            ),
-          ),
-          sourceName: sourceName,
-          passwordProvider: passwordProvider,
-          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-          disposeCallback: () {
-            try {
-              onDispose?.call();
-            } finally {
-              calloc.free(buffer);
-            }
-          },
-        );
+            (password) => _ffiCompute(
+                  (arena, params) => pdfium.FPDF_LoadMemDocument(
+                    Pointer<Void>.fromAddress(params.buffer),
+                    params.fileSize,
+                    params.password?.toUtf8(arena) ?? nullptr,
+                  ).address,
+                  (
+                    buffer: buffer.address,
+                    fileSize: fileSize,
+                    password: password,
+                  ),
+                ),
+            sourceName: sourceName,
+            passwordProvider: passwordProvider,
+            firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+            disposeCallback: () {
+          try {
+            onDispose?.call();
+          } finally {
+            calloc.free(buffer);
+          }
+        }, rotation: rotation);
       } catch (e) {
         calloc.free(buffer);
         rethrow;
@@ -204,29 +212,28 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     final fa = FileAccess(fileSize, read);
     try {
       return _openByFunc(
-        (password) => _ffiCompute(
-          (arena, params) => pdfium.FPDF_LoadCustomDocument(
-            Pointer<pdfium_bindings.FPDF_FILEACCESS>.fromAddress(
-              params.fileAccess,
-            ),
-            params.password?.toUtf8(arena) ?? nullptr,
-          ).address,
-          (
-            fileAccess: fa.fileAccess.address,
-            password: password,
-          ),
-        ),
-        sourceName: sourceName,
-        passwordProvider: passwordProvider,
-        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-        disposeCallback: () {
-          try {
-            onDispose?.call();
-          } finally {
-            fa.dispose();
-          }
-        },
-      );
+          (password) => _ffiCompute(
+                (arena, params) => pdfium.FPDF_LoadCustomDocument(
+                  Pointer<pdfium_bindings.FPDF_FILEACCESS>.fromAddress(
+                    params.fileAccess,
+                  ),
+                  params.password?.toUtf8(arena) ?? nullptr,
+                ).address,
+                (
+                  fileAccess: fa.fileAccess.address,
+                  password: password,
+                ),
+              ),
+          sourceName: sourceName,
+          passwordProvider: passwordProvider,
+          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+          disposeCallback: () {
+        try {
+          onDispose?.call();
+        } finally {
+          fa.dispose();
+        }
+      }, rotation: rotation);
     } catch (e) {
       fa.dispose();
       rethrow;
@@ -239,12 +246,14 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     PdfDownloadProgressCallback? progressCallback,
+    int rotation = 0,
   }) =>
       pdfDocumentFromUri(
         uri,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         progressCallback: progressCallback,
+        rotation: rotation,
       );
 
   static bool _isPasswordError({int? error}) {
@@ -262,6 +271,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     required String sourceName,
     required PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    int rotation = 0,
     void Function()? disposeCallback,
   }) async {
     for (int i = 0;; i++) {
@@ -280,6 +290,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
           pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
           sourceName: sourceName,
           disposeCallback: disposeCallback,
+          rotation: rotation,
         );
       }
       if (_isPasswordError()) {
@@ -302,6 +313,7 @@ class PdfDocumentPdfium extends PdfDocument {
   final int securityHandlerRevision;
   final pdfium_bindings.FPDF_FORMHANDLE formHandle;
   final Pointer<pdfium_bindings.FPDF_FORMFILLINFO> formInfo;
+  final int rotation;
 
   @override
   bool get isEncrypted => securityHandlerRevision != -1;
@@ -315,11 +327,14 @@ class PdfDocumentPdfium extends PdfDocument {
     required this.permissions,
     required this.formHandle,
     required this.formInfo,
+    required this.rotation,
     this.disposeCallback,
   });
 
   static Future<PdfDocument> fromPdfDocument(pdfium_bindings.FPDF_DOCUMENT doc,
-      {required String sourceName, void Function()? disposeCallback}) async {
+      {required String sourceName,
+      required int rotation,
+      void Function()? disposeCallback}) async {
     if (doc == nullptr) {
       throw const PdfException('Failed to load PDF document.');
     }
@@ -347,8 +362,13 @@ class PdfDocumentPdfium extends PdfDocument {
               final w = pdfium.FPDF_GetPageWidthF(page);
               final h = pdfium.FPDF_GetPageHeightF(page);
               pages.add(page.address);
-              pages.add(w);
-              pages.add(h);
+              if (rotation % 180 > 0) {
+                pages.add(h);
+                pages.add(w);
+              } else {
+                pages.add(w);
+                pages.add(h);
+              }
             }
 
             return (
@@ -377,6 +397,7 @@ class PdfDocumentPdfium extends PdfDocument {
       formInfo: Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(
           result.formInfo),
       disposeCallback: disposeCallback,
+      rotation: rotation,
     );
 
     final pages = <PdfPagePdfium>[];
@@ -391,6 +412,7 @@ class PdfDocumentPdfium extends PdfDocument {
         width: w,
         height: h,
         page: page,
+        rotation: rotation,
       ));
     }
     pdfDoc.pages = List.unmodifiable(pages);
@@ -477,6 +499,7 @@ class PdfPagePdfium extends PdfPage {
   @override
   final double height;
   final pdfium_bindings.FPDF_PAGE page;
+  final int rotation;
 
   PdfPagePdfium._({
     required this.document,
@@ -484,6 +507,7 @@ class PdfPagePdfium extends PdfPage {
     required this.width,
     required this.height,
     required this.page,
+    required this.rotation,
   });
 
   @override
@@ -558,7 +582,7 @@ class PdfPagePdfium extends PdfPage {
                     -params.y,
                     params.fullWidth,
                     params.fullHeight,
-                    0,
+                    params.rotation,
                     params.annotationRenderingMode !=
                             PdfAnnotationRenderingMode.none
                         ? pdfium_bindings.FPDF_ANNOT
@@ -577,7 +601,7 @@ class PdfPagePdfium extends PdfPage {
                       -params.y,
                       params.fullWidth,
                       params.fullHeight,
-                      0,
+                      params.rotation,
                       0,
                     );
                   }
@@ -599,6 +623,7 @@ class PdfPagePdfium extends PdfPage {
                   formHandle: document.formHandle.address,
                   formInfo: document.formInfo.address,
                   cancelFlag: cancelFlag.address,
+                  rotation: rotation ~/ 90,
                 ),
               );
             },

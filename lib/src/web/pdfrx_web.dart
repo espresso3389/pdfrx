@@ -18,6 +18,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     String name, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    int rotation = 0,
   }) =>
       _openByFunc(
         (password) async {
@@ -30,6 +31,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         sourceName: 'asset:$name',
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+        rotation: rotation,
       );
 
   @override
@@ -41,6 +43,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
+    int rotation = 0,
     void Function()? onDispose,
   }) async {
     final buffer = Uint8List(fileSize);
@@ -53,6 +56,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       sourceName: sourceName,
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      rotation: rotation,
       onDispose: onDispose,
     );
   }
@@ -63,6 +67,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
+    int rotation = 0,
     void Function()? onDispose,
   }) async {
     return _openByFunc(
@@ -73,6 +78,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       sourceName: sourceName ?? 'memory-${data.hashCode}',
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      rotation: rotation,
       onDispose: onDispose,
     );
   }
@@ -81,6 +87,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   Future<PdfDocument> openFile(
     String filePath, {
     PdfPasswordProvider? passwordProvider,
+    int rotation = 0,
     bool firstAttemptByEmptyPassword = true,
   }) async {
     return _openByFunc(
@@ -91,6 +98,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       sourceName: filePath,
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      rotation: rotation,
     );
   }
 
@@ -100,16 +108,19 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     PdfDownloadProgressCallback? progressCallback,
+    int rotation = 0,
   }) =>
       openFile(
         uri.toString(),
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+        rotation: rotation,
       );
 
   Future<PdfDocument> _openByFunc(
     Future<PdfjsDocument> Function(String? password) openDocument, {
     required String sourceName,
+    required int rotation,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     void Function()? onDispose,
@@ -129,6 +140,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
           await openDocument(password),
           sourceName: sourceName,
           onDispose: onDispose,
+          rotation: rotation,
         );
       } catch (e) {
         if (!_isPasswordError(e)) {
@@ -148,6 +160,7 @@ class PdfDocumentWeb extends PdfDocument {
     required super.sourceName,
     required this.isEncrypted,
     required this.permissions,
+    required this.rotation,
     this.onDispose,
   });
 
@@ -159,9 +172,12 @@ class PdfDocumentWeb extends PdfDocument {
   final PdfjsDocument _document;
   final void Function()? onDispose;
 
+  final int rotation;
+
   static Future<PdfDocumentWeb> fromDocument(
     PdfjsDocument document, {
     required String sourceName,
+    required int rotation,
     void Function()? onDispose,
   }) async {
     final permsObj =
@@ -176,6 +192,7 @@ class PdfDocumentWeb extends PdfDocument {
           ? PdfPermissions(perms.fold<int>(0, (p, e) => p | e), 2)
           : null,
       onDispose: onDispose,
+      rotation: rotation,
     );
     final pageCount = document.numPages;
     final pages = <PdfPage>[];
@@ -195,13 +212,15 @@ class PdfDocumentWeb extends PdfDocument {
   Future<PdfPage> _getPage(PdfjsDocument document, int pageNumber) async {
     final page =
         await js_util.promiseToFuture<PdfjsPage>(_document.getPage(pageNumber));
-    final vp1 = page.getViewport(PdfjsViewportParams(scale: 1));
+    final vp1 =
+        page.getViewport(PdfjsViewportParams(scale: 1, rotation: rotation));
     return PdfPageWeb._(
         document: this,
         pageNumber: pageNumber,
         page: page,
         width: vp1.width,
-        height: vp1.height);
+        height: vp1.height,
+        rotation: rotation);
   }
 
   @override
@@ -293,13 +312,13 @@ class PdfDocumentWeb extends PdfDocument {
 }
 
 class PdfPageWeb extends PdfPage {
-  PdfPageWeb._({
-    required this.document,
-    required this.pageNumber,
-    required this.page,
-    required this.width,
-    required this.height,
-  });
+  PdfPageWeb._(
+      {required this.document,
+      required this.pageNumber,
+      required this.page,
+      required this.width,
+      required this.height,
+      required this.rotation});
   @override
   final PdfDocumentWeb document;
   @override
@@ -309,6 +328,8 @@ class PdfPageWeb extends PdfPage {
   final double width;
   @override
   final double height;
+
+  final int rotation;
 
   @override
   Future<PdfImage?> render({
@@ -373,7 +394,8 @@ class PdfPageWeb extends PdfPage {
     bool dontFlip,
     PdfAnnotationRenderingMode annotationRenderingMode,
   ) async {
-    final vp1 = page.getViewport(PdfjsViewportParams(scale: 1));
+    final vp1 =
+        page.getViewport(PdfjsViewportParams(scale: 1, rotation: rotation));
     final pageWidth = vp1.width;
     if (width <= 0 || height <= 0) {
       throw PdfException(
@@ -384,7 +406,8 @@ class PdfPageWeb extends PdfPage {
         scale: fullWidth / pageWidth,
         offsetX: -x.toDouble(),
         offsetY: -y.toDouble(),
-        dontFlip: dontFlip));
+        dontFlip: dontFlip,
+        rotation: rotation));
 
     final canvas = html.document.createElement('canvas') as html.CanvasElement;
     canvas.width = width;
