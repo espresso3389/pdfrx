@@ -6,6 +6,8 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+// The trick to support Flutter Web is to use conditional import
+// Both of the files define PdfDocumentFactoryImpl class but only one of them is imported.
 import 'pdfium/pdfrx_pdfium.dart' if (dart.library.js) 'web/pdfrx_web.dart';
 
 /// For platform abstraction purpose; use [PdfDocument] instead.

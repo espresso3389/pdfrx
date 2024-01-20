@@ -1,5 +1,5 @@
 name: pdfrx
-description: "Yet another PDF renderer for Flutter using PDFium."
+description: High speed zooming/scrolling PDF viewer implementation that supports mobile, desktop, and Web.
 version: 0.4.15
 homepage: https://github.com/espresso3389/pdfrx
 
