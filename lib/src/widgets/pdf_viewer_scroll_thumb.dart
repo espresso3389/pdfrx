@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'pdf_viewer.dart';
 import 'pdf_viewer_params.dart';
-import 'pdf_widgets.dart';
 
 /// Scroll thumb for [PdfViewer].
 ///

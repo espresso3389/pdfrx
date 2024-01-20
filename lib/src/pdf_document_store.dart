@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:synchronized/extension.dart';
 
-import '../src/widgets/pdf_widgets.dart';
 import 'pdf_api.dart';
 
 /// Maintain a reference to a [PdfDocument].
@@ -104,7 +103,7 @@ typedef PdfDocumentLoaderFunction = Future<PdfDocument> Function(
 
 /// A store to maintain [PdfDocumentRef] instances.
 ///
-/// [PdfViewer] instances using the same [PdfDocumentStore] share the same [PdfDocumentRef] instances.
+/// Each widget that uses the same [PdfDocumentStore] instance shares the same [PdfDocumentRef] instances.
 class PdfDocumentStore {
   final _docRefs = <String, PdfDocumentRef>{};
 
