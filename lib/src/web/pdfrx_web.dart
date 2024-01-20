@@ -111,7 +111,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     PdfDownloadProgressCallback? progressCallback,
   }) =>
       openFile(
-        uri.path,
+        uri.toString(),
         password: password,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
