@@ -278,14 +278,17 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
       selectedBounds.bottom,
     );
     _selectedText = sb.toString();
+
+    final first = selectionRects.first;
     final firstSelectionPoint = SelectionPoint(
-      localPosition: _selectedRect!.bottomLeft,
-      lineHeight: _selectedRect!.height,
+      localPosition: first.bottomLeft,
+      lineHeight: first.height,
       handleType: TextSelectionHandleType.left,
     );
+    final last = selectionRects.last;
     final secondSelectionPoint = SelectionPoint(
-      localPosition: _selectedRect!.bottomRight,
-      lineHeight: _selectedRect!.height,
+      localPosition: last.bottomRight,
+      lineHeight: last.height,
       handleType: TextSelectionHandleType.right,
     );
     final bool isReversed;

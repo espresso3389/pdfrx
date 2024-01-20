@@ -3,6 +3,7 @@
 - Remove password parameters; use passwordProvider instead.
 - Fixes several resource leak scenarios on PdfDocument open failures
 - Restrict text selection if PDF permission does not allow copying
+- Remove PdfViewer.documentRef; unnamed constructor is enough for the purpose
 
 ## 0.4.15
 
