@@ -2,6 +2,7 @@
 
 - Remove password parameters; use passwordProvider instead.
 - Fixes several resource leak scenarios on PdfDocument open failures
+- Restrict text selection if PDF permission does not allow copying
 
 ## 0.4.15
 

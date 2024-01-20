@@ -76,7 +76,8 @@ typedef PdfDownloadProgressCallback = void Function(
 /// The function is called when PDF requires password.
 /// It is repeatedly called until the function returns null or the password is correct.
 ///
-/// [createOneTimePasswordProvider] is a helper function to create [PdfPasswordProvider] that returns the password only once.
+/// [createOneTimePasswordProvider] is a helper function to create [PdfPasswordProvider] that returns the password
+/// only once.
 typedef PdfPasswordProvider = FutureOr<String?> Function();
 
 /// Create [PdfPasswordProvider] that returns the password only once.
@@ -108,6 +109,10 @@ abstract class PdfDocument {
 
   /// Opening the specified file.
   /// For Web, [filePath] can be relative path from `index.html` or any arbitrary URL but it may be restricted by CORS.
+  ///
+  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// or not. For more info, see [PdfPasswordProvider].
   static Future<PdfDocument> openFile(
     String filePath, {
     PdfPasswordProvider? passwordProvider,
@@ -120,6 +125,10 @@ abstract class PdfDocument {
       );
 
   /// Opening the specified asset.
+  ///
+  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// or not. For more info, see [PdfPasswordProvider].
   static Future<PdfDocument> openAsset(
     String name, {
     PdfPasswordProvider? passwordProvider,
@@ -132,6 +141,10 @@ abstract class PdfDocument {
       );
 
   /// Opening the PDF on memory.
+  ///
+  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// or not. For more info, see [PdfPasswordProvider].
   static Future<PdfDocument> openData(
     Uint8List data, {
     PdfPasswordProvider? passwordProvider,
@@ -148,9 +161,14 @@ abstract class PdfDocument {
       );
 
   /// Opening the PDF from custom source.
+  ///
   /// [maxSizeToCacheOnMemory] is the maximum size of the PDF to cache on memory in bytes; the custom loading process
   /// may be heavy because of FFI overhead and it may be better to cache the PDF on memory if it's not too large.
   /// The default size is 1MB.
+  ///
+  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// or not. For more info, see [PdfPasswordProvider].
   static Future<PdfDocument> openCustom({
     required FutureOr<int> Function(Uint8List buffer, int position, int size)
         read,
@@ -176,6 +194,10 @@ abstract class PdfDocument {
   /// For Flutter Web, the implementation uses browser's function and restricted by CORS.
   // ignore: comment_references
   /// For other platforms, it uses [pdfDocumentFromUri] that uses HTTP's range request to download the file.
+  ///
+  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// or not. For more info, see [PdfPasswordProvider].
   ///
   /// [progressCallback] is called when the download progress is updated (Not supported on Web).
   static Future<PdfDocument> openUri(

@@ -595,7 +595,8 @@ class _PdfViewerState extends State<PdfViewer>
           );
         }
 
-        if (widget.params.enableTextSelection) {
+        if (widget.params.enableTextSelection &&
+            _document!.permissions?.allowsCopying != false) {
           textWidgets.add(
             Builder(builder: (context) {
               final registrar = SelectionContainer.maybeOf(context);
