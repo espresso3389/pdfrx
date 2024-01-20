@@ -116,19 +116,7 @@ Anyway, the example code for the plugin illustrates how to download and preview 
 
 ### Deal with Password Protected PDF Files
 
-To support password protected PDF files, the most easiest case is just passing password to [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) like the following fragment:
-
-```dart
-PdfViewer.asset(
-  'assets/test.pdf',
-  password: 'password_sample',
-  ...
-),
-```
-
-The problem with the example above is that it could not interactively try multiple passwords.
-
-[passwordProvider](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPasswordProvider.html) is just another way to supply passwords interactively:
+To support password protected PDF files, use [passwordProvider](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPasswordProvider.html) to supply passwords interactively:
 
 ```dart
 PdfViewer.asset(
@@ -173,7 +161,7 @@ Future<String?> _passwordDialog() async {
 }
 ```
 
-When [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) tries to an open password protected document, it calls the function passed to `passwordProvider` repeatedly to get a new password until the document is correctly opened. And if the function returns `null`, the viewer will give up the password trials and the function is no longer called.
+When [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) tries to an open password protected document, it calls the function passed to `passwordProvider` repeatedly to get a new password until the document is successfully opened. And if the function returns `null`, the viewer will give up the password trials and the function is no longer called.
 
 ## Customizations
 
