@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -23,7 +24,7 @@ class PdfPageTextOverlay extends StatefulWidget {
 }
 
 class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
-  PdfPageText? pageText;
+  List<PdfPageTextFragment>? fragments;
 
   @override
   void initState() {
@@ -39,8 +40,34 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
     }
   }
 
+  bool _almostIdenticalY(double a, double b) {
+    return (a - b).abs() < .25;
+  }
+
   Future<void> _initText() async {
-    pageText = await widget.page.loadText();
+    final pageText = await widget.page.loadText();
+    final ranges = <({int index, int end})>[];
+    double y = pageText.fragments[0].bounds.bottom;
+    int start = 0;
+    for (int i = 1; i < pageText.fragments.length; i++) {
+      final fragment = pageText.fragments[i];
+      if (!_almostIdenticalY(fragment.bounds.bottom, y)) {
+        ranges.add((index: start, end: i));
+        y = fragment.bounds.bottom;
+        start = i;
+      }
+    }
+    if (start < pageText.fragments.length) {
+      ranges.add((index: start, end: pageText.fragments.length));
+    }
+    ranges.sortByCompare((f) => pageText.fragments[f.index].bounds.bottom,
+        (a, b) => (b - a).sign.toInt());
+
+    final fragments = <PdfPageTextFragment>[];
+    for (final range in ranges) {
+      fragments.addAll(pageText.fragments.sublist(range.index, range.end));
+    }
+    this.fragments = fragments;
     if (mounted) {
       setState(() {});
     }
@@ -48,7 +75,8 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    if (pageText == null ||
+    if (fragments == null ||
+        fragments!.isEmpty ||
         widget.page.document.permissions?.allowsCopying == false) {
       return const SizedBox();
     }
@@ -129,8 +157,7 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
 
   Rect get _pageRect => _textWidget._state.widget.pageRect;
   PdfPage get _page => _textWidget._state.widget.page;
-  List<PdfPageTextFragment> get _fragments =>
-      _textWidget._state.pageText!.fragments;
+  List<PdfPageTextFragment> get _fragments => _textWidget._state.fragments!;
 
   @override
   bool get sizedByParent => true;

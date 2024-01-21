@@ -818,14 +818,14 @@ class PdfPageTextPdfium extends PdfPageText {
   final List<PdfPageTextFragment> fragments;
 
   static Future<PdfPageTextPdfium> _loadText(PdfPagePdfium page) async {
-    final params = await _loadTextPartial(page);
+    final result = await _load(page);
     final pageText = PdfPageTextPdfium(
-      fullText: params.fullText,
+      fullText: result.fullText,
       fragments: [],
     );
     int pos = 0;
-    for (final fragment in params.fragments) {
-      final charRects = params.charRects.sublist(pos, pos + fragment);
+    for (final fragment in result.fragments) {
+      final charRects = result.charRects.sublist(pos, pos + fragment);
       pageText.fragments.add(
         PdfPageTextFragmentPdfium(
           pageText,
@@ -841,36 +841,37 @@ class PdfPageTextPdfium extends PdfPageText {
   }
 
   static Future<
-          ({String fullText, List<PdfRect> charRects, List<int> fragments})>
-      _loadTextPartial(PdfPagePdfium page) => page.document.synchronized(
-            () async => (await page.document._worker).compute(
-              (params) => using(
-                (arena) {
-                  final textPage = pdfium.FPDFText_LoadPage(
-                      pdfium_bindings.FPDF_PAGE.fromAddress(params.page));
-                  try {
-                    final charCount = pdfium.FPDFText_CountChars(textPage);
-                    final charRects = <PdfRect>[];
-                    final fragments = <int>[];
-                    final fullText = _loadTextPartialIsolated(
-                        textPage, 0, charCount, arena, charRects, fragments);
-                    return (
-                      fullText: fullText,
-                      charRects: charRects,
-                      fragments: fragments
-                    );
-                  } finally {
-                    pdfium.FPDFText_ClosePage(textPage);
-                  }
-                },
-              ),
-              (page: page.page.address),
-            ),
-          );
+      ({String fullText, List<PdfRect> charRects, List<int> fragments})> _load(
+          PdfPagePdfium page) =>
+      page.document.synchronized(
+        () async => (await page.document._worker).compute(
+          (params) => using(
+            (arena) {
+              final textPage = pdfium.FPDFText_LoadPage(
+                  pdfium_bindings.FPDF_PAGE.fromAddress(params.page));
+              try {
+                final charCount = pdfium.FPDFText_CountChars(textPage);
+                final charRects = <PdfRect>[];
+                final fragments = <int>[];
+                final fullText = _loadInternal(
+                    textPage, 0, charCount, arena, charRects, fragments);
+                return (
+                  fullText: fullText,
+                  charRects: charRects,
+                  fragments: fragments
+                );
+              } finally {
+                pdfium.FPDFText_ClosePage(textPage);
+              }
+            },
+          ),
+          (page: page.page.address),
+        ),
+      );
 
   static const _charLF = 10, _charCR = 13, _charSpace = 32;
 
-  static String _loadTextPartialIsolated(
+  static String _loadInternal(
     pdfium_bindings.FPDF_TEXTPAGE textPage,
     int from,
     int length,
