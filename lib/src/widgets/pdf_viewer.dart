@@ -840,12 +840,16 @@ class _PdfViewerState extends State<PdfViewer>
   }
 }
 
+/// Defines page layout.
 class PdfPageLayout {
   PdfPageLayout({required this.pageLayouts, required this.documentSize});
   final List<Rect> pageLayouts;
   final Size documentSize;
 }
 
+/// Controls associated [PdfViewer].
+///
+/// It's always your option to extend (inherit) the class to customize the [PdfViewer] behavior.
 class PdfViewerController extends TransformationController {
   _PdfViewerState? _state;
   Animation<Matrix4>? _animGoTo;
