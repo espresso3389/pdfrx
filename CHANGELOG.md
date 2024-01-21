@@ -1,3 +1,7 @@
+## 0.4.17
+
+- Additional fixes to text selection mechanism
+
 ## 0.4.16
 
 - Remove password parameters; use passwordProvider instead.
