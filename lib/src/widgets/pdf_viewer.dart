@@ -282,8 +282,8 @@ class _PdfViewerState extends State<PdfViewer>
     documentRef?.removeListener(_onDocumentChanged);
     documentRef?.dispose();
     _realSized.clear();
-    _controller!.removeListener(_onMatrixChanged);
-    _controller!._attach(null);
+    _controller?.removeListener(_onMatrixChanged);
+    _controller?._attach(null);
     super.dispose();
   }
 
