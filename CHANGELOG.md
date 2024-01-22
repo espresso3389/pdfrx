@@ -1,3 +1,7 @@
+## 0.4.19
+
+- firstAttemptByEmptyPassword should be true by default
+
 ## 0.4.18
 
 - PdfDocumentProvider supercedes PdfDocumentStore (PR #42)

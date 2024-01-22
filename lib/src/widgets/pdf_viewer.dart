@@ -39,7 +39,7 @@ class PdfViewer extends StatefulWidget {
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
     this.passwordProvider,
-    this.firstAttemptByEmptyPassword = false,
+    this.firstAttemptByEmptyPassword = true,
   }) : provider = PdfDocumentProvider.document(document);
 
   PdfViewer.asset(
@@ -126,7 +126,7 @@ class PdfViewer extends StatefulWidget {
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
     this.passwordProvider,
-    this.firstAttemptByEmptyPassword = false,
+    this.firstAttemptByEmptyPassword = true,
   }) : provider = PdfDocumentProvider.custom(
           sourceName: sourceName,
           fileSize: fileSize,
@@ -141,7 +141,7 @@ class PdfViewer extends StatefulWidget {
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
     this.passwordProvider,
-    this.firstAttemptByEmptyPassword = false,
+    this.firstAttemptByEmptyPassword = true,
   });
 
   final PdfDocumentProvider provider;
