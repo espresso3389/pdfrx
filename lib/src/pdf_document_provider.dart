@@ -1,24 +1,27 @@
-import '../pdfrx.dart';
-import 'dart:typed_data';
 import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
-typedef PdfDocumentLoaderFunction = Future<PdfDocument> Function(
-    PdfDownloadProgressCallback progressCallback);
+import '../pdfrx.dart';
 
 /// Maintain a reference to a [PdfDocument].
+///
+/// If the reference is no longer needed, call [dispose] to dispose the reference.
 class PdfDocumentRef extends Listenable {
-  PdfDocumentRef._(PdfDocument? document, Object? error, int revision)
-      : _document = document,
-        _error = error,
-        _revision = revision,
-        _autoDispose = true;
-
-  PdfDocumentRef.from(this._document)
-      : _autoDispose = false,
+  PdfDocumentRef.empty({
+    this.autoDispose = true,
+  })  : _document = null,
+        _error = null,
         _revision = 0;
 
-  final bool _autoDispose;
+  PdfDocumentRef.from(
+    this._document, {
+    this.autoDispose = true,
+  }) : _revision = 0;
+
+  /// Whether to dispose the document on reference dispose or not.
+  final bool autoDispose;
 
   final _listeners = <VoidCallback>{};
   PdfDocument? _document;
@@ -63,9 +66,10 @@ class PdfDocumentRef extends Listenable {
     }
   }
 
+  /// Dispose the reference.
   void dispose() {
     _listeners.clear();
-    if (_autoDispose) {
+    if (autoDispose) {
       _document?.dispose();
     }
     _document = null;
@@ -77,20 +81,29 @@ class PdfDocumentRef extends Listenable {
     notifyListeners();
   }
 
+  /// Set an error object.
+  ///
+  /// If [autoDispose] is true, the previous document will be disposed on setting the error.
   void setError(Object error) {
     _error = error;
+    if (autoDispose) {
+      _document?.dispose();
+    }
     _document = null;
     _revision++;
     notifyListeners();
   }
 
+  /// Set a new document.
+  ///
+  /// If [autoDispose] is true, the previous document will be disposed on setting the error.
   bool setDocument(PdfDocument newDocument) {
     final oldDocument = _document;
     if (newDocument == oldDocument) {
       return false;
     }
     _document = newDocument;
-    if (_autoDispose) {
+    if (autoDispose) {
       oldDocument?.dispose();
     }
     _error = null;
@@ -100,37 +113,82 @@ class PdfDocumentRef extends Listenable {
   }
 }
 
+/// [PdfDocumentProvider] is to provide a [PdfDocument] instance on demand and asynchronously.
+///
+/// When you implement your own [PdfDocumentProvider], please make sure to override [==] and [hashCode] to
+/// properly identify [PdfDocumentProvider] instances.
 abstract class PdfDocumentProvider {
   const PdfDocumentProvider();
 
+  /// Create a [PdfDocumentProvider] from a [Uri].
+  static PdfDocumentProvider uri(Uri uri) => _PdfDocumentProviderUri(uri);
+
+  /// Create a [PdfDocumentProvider] from a file path.
+  static PdfDocumentProvider file(String path) =>
+      _PdfDocumentProviderFile(path);
+
+  /// Create a [PdfDocumentProvider] from an asset.
+  static PdfDocumentProvider asset(String name) =>
+      _PdfDocumentProviderAsset(name);
+
+  /// Create a [PdfDocumentProvider] from a byte data.
+  static PdfDocumentProvider data(Uint8List data) =>
+      _PdfDocumentProviderData(data);
+
+  /// Create a [PdfDocumentProvider] from a custom data source.
+  static PdfDocumentProvider custom({
+    required String sourceName,
+    required int fileSize,
+    required FutureOr<int> Function(Uint8List buffer, int position, int size)
+        read,
+    bool autoDispose = true,
+  }) =>
+      _PdfDocumentProviderCustom(
+        sourceName: sourceName,
+        fileSize: fileSize,
+        read: read,
+        autoDispose: autoDispose,
+      );
+
+  /// Create a [PdfDocumentProvider] from a [PdfDocument].
+  static PdfDocumentProvider document(PdfDocument document,
+          {bool autoDispose = true}) =>
+      _PdfDocumentProviderRaw(document, autoDispose: autoDispose);
+
   PdfDocumentRef getDocument(
       PdfPasswordProvider? passwordProvider, bool firstAttemptByEmptyPassword);
+
+  @override
+  bool operator ==(Object? other) =>
+      throw UnimplementedError('Implement operator== and hashCode');
+
+  @override
+  int get hashCode =>
+      throw UnimplementedError('Implement operator== and hashCode');
 }
 
-class NetworkPdfDocumentProvider extends PdfDocumentProvider {
-  const NetworkPdfDocumentProvider(this.uri);
+class _PdfDocumentProviderUri extends PdfDocumentProvider {
+  const _PdfDocumentProviderUri(this.uri);
 
   final Uri uri;
 
   @override
-  bool operator ==(Object? other) {
-    return other is NetworkPdfDocumentProvider && other.uri == uri;
-  }
+  bool operator ==(Object? other) =>
+      other is _PdfDocumentProviderUri && other.uri == uri;
 
   @override
-  int get hashCode {
-    return uri.hashCode;
-  }
+  int get hashCode => uri.hashCode;
 
   @override
   PdfDocumentRef getDocument(
       PdfPasswordProvider? passwordProvider, bool firstAttemptByEmptyPassword) {
-    final ref = PdfDocumentRef._(null, null, 0);
-    PdfDocument.openUri(uri,
-            passwordProvider: passwordProvider,
-            firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-            progressCallback: ref._progress)
-        .then((value) {
+    final ref = PdfDocumentRef.empty();
+    PdfDocument.openUri(
+      uri,
+      passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      progressCallback: ref._progress,
+    ).then((value) {
       ref.setDocument(value);
     }).catchError((err) {
       ref.setError(err);
@@ -139,29 +197,27 @@ class NetworkPdfDocumentProvider extends PdfDocumentProvider {
   }
 }
 
-class FilePdfDocumentProvider extends PdfDocumentProvider {
-  const FilePdfDocumentProvider(this.path);
+class _PdfDocumentProviderFile extends PdfDocumentProvider {
+  const _PdfDocumentProviderFile(this.path);
 
   final String path;
 
   @override
-  bool operator ==(Object? other) {
-    return other is FilePdfDocumentProvider && other.path == path;
-  }
+  bool operator ==(Object? other) =>
+      other is _PdfDocumentProviderFile && other.path == path;
 
   @override
-  int get hashCode {
-    return path.hashCode;
-  }
+  int get hashCode => path.hashCode;
 
   @override
   PdfDocumentRef getDocument(
       PdfPasswordProvider? passwordProvider, bool firstAttemptByEmptyPassword) {
-    final ref = PdfDocumentRef._(null, null, 0);
-    PdfDocument.openFile(path,
-            passwordProvider: passwordProvider,
-            firstAttemptByEmptyPassword: firstAttemptByEmptyPassword)
-        .then((value) {
+    final ref = PdfDocumentRef.empty();
+    PdfDocument.openFile(
+      path,
+      passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    ).then((value) {
       ref.setDocument(value);
     }).catchError((err) {
       ref.setError(err);
@@ -170,29 +226,27 @@ class FilePdfDocumentProvider extends PdfDocumentProvider {
   }
 }
 
-class AssetPdfDocumentProvider extends PdfDocumentProvider {
-  const AssetPdfDocumentProvider(this.name);
+class _PdfDocumentProviderAsset extends PdfDocumentProvider {
+  const _PdfDocumentProviderAsset(this.name);
 
   final String name;
 
   @override
-  bool operator ==(Object? other) {
-    return other is AssetPdfDocumentProvider && other.name == name;
-  }
+  bool operator ==(Object? other) =>
+      other is _PdfDocumentProviderAsset && other.name == name;
 
   @override
-  int get hashCode {
-    return name.hashCode;
-  }
+  int get hashCode => name.hashCode;
 
   @override
   PdfDocumentRef getDocument(
       PdfPasswordProvider? passwordProvider, bool firstAttemptByEmptyPassword) {
-    final ref = PdfDocumentRef._(null, null, 0);
-    PdfDocument.openAsset(name,
-            firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-            passwordProvider: passwordProvider)
-        .then((value) {
+    final ref = PdfDocumentRef.empty();
+    PdfDocument.openAsset(
+      name,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      passwordProvider: passwordProvider,
+    ).then((value) {
       ref.setDocument(value);
     }).catchError((err) {
       ref.setError(err);
@@ -201,29 +255,27 @@ class AssetPdfDocumentProvider extends PdfDocumentProvider {
   }
 }
 
-class DataPdfDocumentProvider extends PdfDocumentProvider {
-  const DataPdfDocumentProvider(this.data);
+class _PdfDocumentProviderData extends PdfDocumentProvider {
+  const _PdfDocumentProviderData(this.data);
 
   final Uint8List data;
 
   @override
-  bool operator ==(Object? other) {
-    return other is DataPdfDocumentProvider && other.data == data;
-  }
+  bool operator ==(Object? other) =>
+      other is _PdfDocumentProviderData && other.data == data;
 
   @override
-  int get hashCode {
-    return data.hashCode;
-  }
+  int get hashCode => data.hashCode;
 
   @override
   PdfDocumentRef getDocument(
       PdfPasswordProvider? passwordProvider, bool firstAttemptByEmptyPassword) {
-    final ref = PdfDocumentRef._(null, null, 0);
-    PdfDocument.openData(data,
-            passwordProvider: passwordProvider,
-            firstAttemptByEmptyPassword: firstAttemptByEmptyPassword)
-        .then((value) {
+    final ref = PdfDocumentRef.empty();
+    PdfDocument.openData(
+      data,
+      passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    ).then((value) {
       ref.setDocument(value);
     }).catchError((err) {
       ref.setError(err);
@@ -233,26 +285,33 @@ class DataPdfDocumentProvider extends PdfDocumentProvider {
 }
 
 // Make sure to override equals / getHashCode when implementing
-abstract class CustomPdfDocumentProvider extends PdfDocumentProvider {
-  const CustomPdfDocumentProvider();
+class _PdfDocumentProviderCustom extends PdfDocumentProvider {
+  const _PdfDocumentProviderCustom({
+    required this.sourceName,
+    required this.fileSize,
+    required this.read,
+    this.autoDispose = true,
+  });
 
-  String get sourceName;
+  final String sourceName;
 
-  int get fileSize;
+  final int fileSize;
 
-  FutureOr<int> read(Uint8List buffer, int position, int size);
+  final FutureOr<int> Function(Uint8List buffer, int position, int size) read;
+
+  final bool autoDispose;
 
   @override
   PdfDocumentRef getDocument(
       PdfPasswordProvider? passwordProvider, bool firstAttemptByEmptyPassword) {
-    final ref = PdfDocumentRef._(null, null, 0);
+    final ref = PdfDocumentRef.empty(autoDispose: autoDispose);
     PdfDocument.openCustom(
-            sourceName: sourceName,
-            read: read,
-            fileSize: fileSize,
-            firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-            passwordProvider: passwordProvider)
-        .then((value) {
+      sourceName: sourceName,
+      read: read,
+      fileSize: fileSize,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      passwordProvider: passwordProvider,
+    ).then((value) {
       ref.setDocument(value);
     }).catchError((err) {
       ref.setError(err);
@@ -261,25 +320,30 @@ abstract class CustomPdfDocumentProvider extends PdfDocumentProvider {
   }
 }
 
-class RawPdfDocumentProvider extends PdfDocumentProvider {
-  const RawPdfDocumentProvider(this.document);
+class _PdfDocumentProviderRaw extends PdfDocumentProvider {
+  const _PdfDocumentProviderRaw(
+    this.document, {
+    this.autoDispose = true,
+  });
 
   final PdfDocument document;
 
-  @override
-  bool operator ==(Object? other) {
-    return other is RawPdfDocumentProvider && other.document == document;
-  }
+  final bool autoDispose;
 
   @override
-  int get hashCode {
-    return document.hashCode;
-  }
+  bool operator ==(Object? other) =>
+      other is _PdfDocumentProviderRaw && other.document == document;
+
+  @override
+  int get hashCode => document.hashCode;
 
   @override
   PdfDocumentRef getDocument(
       PdfPasswordProvider? passwordProvider, bool firstAttemptByEmptyPassword) {
-    final ref = PdfDocumentRef.from(document);
+    final ref = PdfDocumentRef.from(
+      document,
+      autoDispose: autoDispose,
+    );
     return ref;
   }
 }

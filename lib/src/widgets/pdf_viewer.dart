@@ -13,11 +13,11 @@ import 'package:synchronized/extension.dart';
 import 'package:vector_math/vector_math_64.dart' as vec;
 
 import '../pdf_api.dart';
+import '../pdf_document_provider.dart';
 import 'interactive_viewer.dart' as iv;
 import 'pdf_page_links_overlay.dart';
 import 'pdf_page_text_overlay.dart';
 import 'pdf_viewer_params.dart';
-import '../pdf_document_provider.dart';
 
 /// A widget to display PDF document.
 ///
@@ -26,6 +26,8 @@ import '../pdf_document_provider.dart';
 /// - [PdfViewer.file]
 /// - [PdfViewer.uri]
 /// - [PdfViewer.data]
+/// - [PdfViewer.custom]
+/// - [PdfViewer.provider]
 ///
 /// Of course, if you have a [PdfDocument] use [PdfViewer] constructor:
 /// - [PdfViewer]
@@ -38,21 +40,7 @@ class PdfViewer extends StatefulWidget {
     this.initialPageNumber = 1,
     this.passwordProvider,
     this.firstAttemptByEmptyPassword = false,
-  }) : provider = RawPdfDocumentProvider(document);
-
-  const PdfViewer.provider({
-    required this.provider,
-    super.key,
-    this.controller,
-    this.params = const PdfViewerParams(),
-    this.initialPageNumber = 1,
-    this.passwordProvider,
-    this.firstAttemptByEmptyPassword = false,
-  });
-
-  final PdfDocumentProvider provider;
-  final PdfPasswordProvider? passwordProvider;
-  final bool firstAttemptByEmptyPassword;
+  }) : provider = PdfDocumentProvider.document(document);
 
   PdfViewer.asset(
     String name, {
@@ -66,7 +54,7 @@ class PdfViewer extends StatefulWidget {
           key: key,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-          provider: AssetPdfDocumentProvider(name),
+          provider: PdfDocumentProvider.asset(name),
           controller: controller,
           params: displayParams,
           initialPageNumber: initialPageNumber,
@@ -84,7 +72,7 @@ class PdfViewer extends StatefulWidget {
           key: key,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-          provider: FilePdfDocumentProvider(path),
+          provider: PdfDocumentProvider.file(path),
           controller: controller,
           params: displayParams,
           initialPageNumber: initialPageNumber,
@@ -102,7 +90,7 @@ class PdfViewer extends StatefulWidget {
           key: key,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-          provider: NetworkPdfDocumentProvider(uri),
+          provider: PdfDocumentProvider.uri(uri),
           controller: controller,
           params: displayParams,
           initialPageNumber: initialPageNumber,
@@ -121,11 +109,44 @@ class PdfViewer extends StatefulWidget {
           key: key,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-          provider: DataPdfDocumentProvider(bytes),
+          provider: PdfDocumentProvider.data(bytes),
           controller: controller,
           params: displayParams,
           initialPageNumber: initialPageNumber,
         );
+
+  PdfViewer.custom({
+    required String sourceName,
+    required int fileSize,
+    required FutureOr<int> Function(Uint8List buffer, int position, int size)
+        read,
+    bool autoDispose = true,
+    super.key,
+    this.controller,
+    this.params = const PdfViewerParams(),
+    this.initialPageNumber = 1,
+    this.passwordProvider,
+    this.firstAttemptByEmptyPassword = false,
+  }) : provider = PdfDocumentProvider.custom(
+          sourceName: sourceName,
+          fileSize: fileSize,
+          read: read,
+          autoDispose: autoDispose,
+        );
+
+  const PdfViewer.provider({
+    required this.provider,
+    super.key,
+    this.controller,
+    this.params = const PdfViewerParams(),
+    this.initialPageNumber = 1,
+    this.passwordProvider,
+    this.firstAttemptByEmptyPassword = false,
+  });
+
+  final PdfDocumentProvider provider;
+  final PdfPasswordProvider? passwordProvider;
+  final bool firstAttemptByEmptyPassword;
 
   /// Controller to control the viewer.
   final PdfViewerController? controller;
