@@ -1,3 +1,9 @@
+## 0.4.18
+
+- PdfDocumentProvider supercedes PdfDocumentStore (PR #42)
+- pdfium 6259 for Windows, Linux, and Android
+- FIXED: Bug: Tests fail due to null operator check on PdfViewerController #44
+
 ## 0.4.17
 
 - Additional fixes to text selection mechanism
