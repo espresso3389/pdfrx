@@ -46,8 +46,10 @@ class _MainPageState extends State<MainPage> {
       appBar: AppBar(title: const Text('Pdfrx example')),
       body: Stack(
         children: [
+          // PdfViewer.asset(
+          //   'assets/hello.pdf',
           // PdfViewer.file(
-          //   r"D:\pdfrx\example\assets\PDF32000_2008.pdf",
+          //   r"D:\pdfrx\example\assets\hello.pdf",
           // PdfViewer.uri(
           //   Uri.parse(
           //       'https://espresso3389.github.io/pdfrx/assets/assets/hello.pdf'),
@@ -58,7 +60,7 @@ class _MainPageState extends State<MainPage> {
             // Set password provider to show password dialog
             passwordProvider: _passwordDialog,
             controller: controller,
-            displayParams: PdfViewerParams(
+            params: PdfViewerParams(
               enableTextSelection: true,
               maxScale: 8,
               // code to display pages horizontally

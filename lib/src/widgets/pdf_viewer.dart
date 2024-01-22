@@ -13,7 +13,7 @@ import 'package:synchronized/extension.dart';
 import 'package:vector_math/vector_math_64.dart' as vec;
 
 import '../pdf_api.dart';
-import '../pdf_document_provider.dart';
+import '../pdf_document_ref.dart';
 import 'interactive_viewer.dart' as iv;
 import 'pdf_page_links_overlay.dart';
 import 'pdf_page_text_overlay.dart';
@@ -38,81 +38,64 @@ class PdfViewer extends StatefulWidget {
     this.controller,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
-    this.passwordProvider,
-    this.firstAttemptByEmptyPassword = true,
-  }) : provider = PdfDocumentProvider.document(document);
+  }) : provider = PdfDocumentRef.document(document);
 
   PdfViewer.asset(
     String name, {
-    Key? key,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
-    PdfViewerController? controller,
-    PdfViewerParams displayParams = const PdfViewerParams(),
-    int initialPageNumber = 1,
-  }) : this.provider(
-          key: key,
+    super.key,
+    this.controller,
+    this.params = const PdfViewerParams(),
+    this.initialPageNumber = 1,
+  }) : provider = PdfDocumentRef.asset(
+          name,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-          provider: PdfDocumentProvider.asset(name),
-          controller: controller,
-          params: displayParams,
-          initialPageNumber: initialPageNumber,
         );
 
   PdfViewer.file(
     String path, {
-    Key? key,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
-    PdfViewerController? controller,
-    PdfViewerParams displayParams = const PdfViewerParams(),
-    int initialPageNumber = 1,
-  }) : this.provider(
-          key: key,
+    super.key,
+    this.controller,
+    this.params = const PdfViewerParams(),
+    this.initialPageNumber = 1,
+  }) : provider = PdfDocumentRef.file(
+          path,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-          provider: PdfDocumentProvider.file(path),
-          controller: controller,
-          params: displayParams,
-          initialPageNumber: initialPageNumber,
         );
 
   PdfViewer.uri(
     Uri uri, {
-    Key? key,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
-    PdfViewerController? controller,
-    PdfViewerParams displayParams = const PdfViewerParams(),
-    int initialPageNumber = 1,
-  }) : this.provider(
-          key: key,
+    super.key,
+    this.controller,
+    this.params = const PdfViewerParams(),
+    this.initialPageNumber = 1,
+  }) : provider = PdfDocumentRef.uri(
+          uri,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-          provider: PdfDocumentProvider.uri(uri),
-          controller: controller,
-          params: displayParams,
-          initialPageNumber: initialPageNumber,
         );
 
   PdfViewer.data(
     Uint8List bytes, {
-    Key? key,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
-    PdfViewerController? controller,
-    PdfViewerParams displayParams = const PdfViewerParams(),
-    int initialPageNumber = 1,
-  }) : this.provider(
-          key: key,
+    super.key,
+    this.controller,
+    this.params = const PdfViewerParams(),
+    this.initialPageNumber = 1,
+  }) : provider = PdfDocumentRef.data(
+          bytes,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-          provider: PdfDocumentProvider.data(bytes),
-          controller: controller,
-          params: displayParams,
-          initialPageNumber: initialPageNumber,
+          sourceName: sourceName,
         );
 
   PdfViewer.custom({
@@ -120,17 +103,19 @@ class PdfViewer extends StatefulWidget {
     required int fileSize,
     required FutureOr<int> Function(Uint8List buffer, int position, int size)
         read,
+    PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     bool autoDispose = true,
     super.key,
     this.controller,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
-    this.passwordProvider,
-    this.firstAttemptByEmptyPassword = true,
-  }) : provider = PdfDocumentProvider.custom(
+  }) : provider = PdfDocumentRef.custom(
           sourceName: sourceName,
           fileSize: fileSize,
           read: read,
+          passwordProvider: passwordProvider,
+          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
           autoDispose: autoDispose,
         );
 
@@ -140,13 +125,9 @@ class PdfViewer extends StatefulWidget {
     this.controller,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
-    this.passwordProvider,
-    this.firstAttemptByEmptyPassword = true,
   });
 
-  final PdfDocumentProvider provider;
-  final PdfPasswordProvider? passwordProvider;
-  final bool firstAttemptByEmptyPassword;
+  final PdfDocumentRef provider;
 
   /// Controller to control the viewer.
   final PdfViewerController? controller;
@@ -211,17 +192,14 @@ class _PdfViewerState extends State<PdfViewer>
       }
       return;
     } else {
-      documentRef?.removeListener(_onDocumentChanged);
-      documentRef?.dispose();
-      documentRef = widget.provider.getDocument(
-          widget.passwordProvider, widget.firstAttemptByEmptyPassword);
-      documentRef!.addListener(_onDocumentChanged);
+      oldWidget?.provider.removeListener(_onDocumentChanged);
+      oldWidget?.provider.dispose();
+      widget.provider.addListener(_onDocumentChanged);
+      widget.provider.load();
     }
 
     _onDocumentChanged();
   }
-
-  PdfDocumentRef? documentRef;
 
   void _relayout() {
     _relayoutPages();
@@ -240,7 +218,7 @@ class _PdfViewerState extends State<PdfViewer>
     _controller?.removeListener(_onMatrixChanged);
     _controller?._attach(null);
 
-    final document = documentRef?.document;
+    final document = widget.provider.document;
     if (document == null) {
       _document = null;
       if (mounted) {
@@ -266,12 +244,9 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _notifyOnDocumentChanged() {
-    final documentRef = this.documentRef;
-    if (documentRef != null) {
-      if (widget.params.onDocumentChanged != null) {
-        Future.microtask(
-            () => widget.params.onDocumentChanged?.call(documentRef));
-      }
+    if (widget.params.onDocumentChanged != null) {
+      Future.microtask(
+          () => widget.params.onDocumentChanged?.call(widget.provider));
     }
   }
 
@@ -279,8 +254,7 @@ class _PdfViewerState extends State<PdfViewer>
   void dispose() {
     _cancelAllPendingRenderings();
     animController.dispose();
-    documentRef?.removeListener(_onDocumentChanged);
-    documentRef?.dispose();
+    widget.provider.removeListener(_onDocumentChanged);
     _realSized.clear();
     _controller?.removeListener(_onMatrixChanged);
     _controller?._attach(null);
@@ -293,18 +267,21 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   Widget build(BuildContext context) {
-    if (_document == null && documentRef?.error != null) {
+    if (widget.provider.error != null) {
       return Container(
         color: widget.params.backgroundColor,
         child: widget.params.errorBannerBuilder
-            ?.call(context, documentRef!.error!, documentRef!),
+            ?.call(context, widget.provider.error!, widget.provider),
       );
     }
     if (_document == null) {
       return Container(
         color: widget.params.backgroundColor,
-        child: widget.params.loadingBannerBuilder?.call(context,
-            documentRef?.bytesDownloaded ?? 0, documentRef?.totalBytes),
+        child: widget.params.loadingBannerBuilder?.call(
+          context,
+          widget.provider.bytesDownloaded,
+          widget.provider.totalBytes,
+        ),
       );
     }
     return LayoutBuilder(builder: (context, constraints) {
