@@ -13,11 +13,11 @@ import 'package:synchronized/extension.dart';
 import 'package:vector_math/vector_math_64.dart' as vec;
 
 import '../pdf_api.dart';
-import '../pdf_document_store.dart';
 import 'interactive_viewer.dart' as iv;
 import 'pdf_page_links_overlay.dart';
 import 'pdf_page_text_overlay.dart';
 import 'pdf_viewer_params.dart';
+import '../pdf_document_provider.dart';
 
 /// A widget to display PDF document.
 ///
@@ -26,18 +26,33 @@ import 'pdf_viewer_params.dart';
 /// - [PdfViewer.file]
 /// - [PdfViewer.uri]
 /// - [PdfViewer.data]
-/// - [PdfViewer.custom]
 ///
-/// Of course, if you have a [PdfDocumentRef] instance, use [PdfViewer] constructor:
+/// Of course, if you have a [PdfDocument] use [PdfViewer] constructor:
 /// - [PdfViewer]
 class PdfViewer extends StatefulWidget {
-  const PdfViewer({
-    required this.documentRef,
+  PdfViewer({
+    required PdfDocument document,
     super.key,
     this.controller,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
+    this.passwordProvider,
+    this.firstAttemptByEmptyPassword = false,
+  }) : provider = RawPdfDocumentProvider(document);
+
+  const PdfViewer.provider({
+    required this.provider,
+    super.key,
+    this.controller,
+    this.params = const PdfViewerParams(),
+    this.initialPageNumber = 1,
+    this.passwordProvider,
+    this.firstAttemptByEmptyPassword = false,
   });
+
+  final PdfDocumentProvider provider;
+  final PdfPasswordProvider? passwordProvider;
+  final bool firstAttemptByEmptyPassword;
 
   PdfViewer.asset(
     String name, {
@@ -47,17 +62,11 @@ class PdfViewer extends StatefulWidget {
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
-    PdfDocumentStore? store,
-  }) : this(
+  }) : this.provider(
           key: key,
-          documentRef: (store ?? PdfDocumentStore.defaultStore).load(
-            '##PdfViewer:asset:$name',
-            documentLoader: (_) => PdfDocument.openAsset(
-              name,
-              passwordProvider: passwordProvider,
-              firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-            ),
-          ),
+          passwordProvider: passwordProvider,
+          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+          provider: AssetPdfDocumentProvider(name),
           controller: controller,
           params: displayParams,
           initialPageNumber: initialPageNumber,
@@ -71,17 +80,11 @@ class PdfViewer extends StatefulWidget {
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
-    PdfDocumentStore? store,
-  }) : this(
+  }) : this.provider(
           key: key,
-          documentRef: (store ?? PdfDocumentStore.defaultStore).load(
-            '##PdfViewer:file:$path',
-            documentLoader: (_) => PdfDocument.openFile(
-              path,
-              passwordProvider: passwordProvider,
-              firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-            ),
-          ),
+          passwordProvider: passwordProvider,
+          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+          provider: FilePdfDocumentProvider(path),
           controller: controller,
           params: displayParams,
           initialPageNumber: initialPageNumber,
@@ -95,18 +98,11 @@ class PdfViewer extends StatefulWidget {
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
-    PdfDocumentStore? store,
-  }) : this(
+  }) : this.provider(
           key: key,
-          documentRef: (store ?? PdfDocumentStore.defaultStore).load(
-            '##PdfViewer:uri:$uri',
-            documentLoader: (progressCallback) => PdfDocument.openUri(
-              uri,
-              passwordProvider: passwordProvider,
-              firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-              progressCallback: progressCallback,
-            ),
-          ),
+          passwordProvider: passwordProvider,
+          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+          provider: NetworkPdfDocumentProvider(uri),
           controller: controller,
           params: displayParams,
           initialPageNumber: initialPageNumber,
@@ -121,53 +117,15 @@ class PdfViewer extends StatefulWidget {
     PdfViewerController? controller,
     PdfViewerParams displayParams = const PdfViewerParams(),
     int initialPageNumber = 1,
-    PdfDocumentStore? store,
-  }) : this(
+  }) : this.provider(
           key: key,
-          documentRef: (store ?? PdfDocumentStore.defaultStore).load(
-            '##PdfViewer:data:${sourceName ?? bytes.hashCode}',
-            documentLoader: (_) => PdfDocument.openData(
-              bytes,
-              passwordProvider: passwordProvider,
-              firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-              sourceName: sourceName,
-            ),
-          ),
+          passwordProvider: passwordProvider,
+          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+          provider: DataPdfDocumentProvider(bytes),
           controller: controller,
           params: displayParams,
           initialPageNumber: initialPageNumber,
         );
-
-  PdfViewer.custom({
-    required FutureOr<int> Function(Uint8List buffer, int position, int size)
-        read,
-    required int fileSize,
-    required String sourceName,
-    PdfPasswordProvider? passwordProvider,
-    bool firstAttemptByEmptyPassword = true,
-    Key? key,
-    PdfViewerController? controller,
-    PdfViewerParams displayParams = const PdfViewerParams(),
-    int initialPageNumber = 1,
-    PdfDocumentStore? store,
-  }) : this(
-          key: key,
-          documentRef: (store ?? PdfDocumentStore.defaultStore).load(
-            '##PdfViewer:custom:$sourceName',
-            documentLoader: (_) => PdfDocument.openCustom(
-              read: read,
-              fileSize: fileSize,
-              sourceName: sourceName,
-              passwordProvider: passwordProvider,
-              firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-            ),
-          ),
-          controller: controller,
-          params: displayParams,
-          initialPageNumber: initialPageNumber,
-        );
-
-  final PdfDocumentRef documentRef;
 
   /// Controller to control the viewer.
   final PdfViewerController? controller;
@@ -218,7 +176,7 @@ class _PdfViewerState extends State<PdfViewer>
       return;
     }
 
-    if (oldWidget?.documentRef.sourceName == widget.documentRef.sourceName) {
+    if (oldWidget?.provider == widget.provider) {
       if (widget.params.doChangesRequireReload(oldWidget?.params)) {
         if (widget.params.annotationRenderingMode !=
             oldWidget?.params.annotationRenderingMode) {
@@ -231,12 +189,18 @@ class _PdfViewerState extends State<PdfViewer>
         }
       }
       return;
+    } else {
+      documentRef?.removeListener(_onDocumentChanged);
+      documentRef?.dispose();
+      documentRef = widget.provider.getDocument(
+          widget.passwordProvider, widget.firstAttemptByEmptyPassword);
+      documentRef?.addListener(_onDocumentChanged);
     }
 
-    oldWidget?.documentRef.removeListener(_onDocumentChanged);
-    widget.documentRef.addListener(_onDocumentChanged);
     _onDocumentChanged();
   }
+
+  PdfDocumentRef? documentRef;
 
   void _relayout() {
     _relayoutPages();
@@ -255,7 +219,7 @@ class _PdfViewerState extends State<PdfViewer>
     _controller?.removeListener(_onMatrixChanged);
     _controller?._attach(null);
 
-    final document = widget.documentRef.document;
+    final document = documentRef?.document;
     if (document == null) {
       _document = null;
       if (mounted) {
@@ -281,9 +245,12 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _notifyOnDocumentChanged() {
-    if (widget.params.onDocumentChanged != null) {
-      Future.microtask(
-          () => widget.params.onDocumentChanged?.call(widget.documentRef));
+    final documentRef = this.documentRef;
+    if (documentRef != null) {
+      if (widget.params.onDocumentChanged != null) {
+        Future.microtask(
+            () => widget.params.onDocumentChanged?.call(documentRef));
+      }
     }
   }
 
@@ -291,7 +258,8 @@ class _PdfViewerState extends State<PdfViewer>
   void dispose() {
     _cancelAllPendingRenderings();
     animController.dispose();
-    widget.documentRef.removeListener(_onDocumentChanged);
+    documentRef?.removeListener(_onDocumentChanged);
+    documentRef?.dispose();
     _realSized.clear();
     _controller!.removeListener(_onMatrixChanged);
     _controller!._attach(null);
@@ -304,18 +272,18 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   Widget build(BuildContext context) {
-    if (_document == null && widget.documentRef.error != null) {
+    if (_document == null && documentRef?.error != null) {
       return Container(
         color: widget.params.backgroundColor,
         child: widget.params.errorBannerBuilder
-            ?.call(context, widget.documentRef.error!, widget.documentRef),
+            ?.call(context, documentRef!.error!, documentRef!),
       );
     }
     if (_document == null) {
       return Container(
         color: widget.params.backgroundColor,
         child: widget.params.loadingBannerBuilder?.call(context,
-            widget.documentRef.bytesDownloaded, widget.documentRef.totalBytes),
+            documentRef?.bytesDownloaded ?? 0, documentRef?.totalBytes),
       );
     }
     return LayoutBuilder(builder: (context, constraints) {
