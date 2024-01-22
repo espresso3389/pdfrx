@@ -1,3 +1,8 @@
+## 0.4.20
+
+- Removes PdfDocumentProvider (Actually PdfDocumentRef does everything)
+- Fixes breakage introduced by 0.4.18
+
 ## 0.4.19
 
 - firstAttemptByEmptyPassword should be true by default
