@@ -215,7 +215,7 @@ class _PdfViewerState extends State<PdfViewer>
       documentRef?.dispose();
       documentRef = widget.provider.getDocument(
           widget.passwordProvider, widget.firstAttemptByEmptyPassword);
-      documentRef?.addListener(_onDocumentChanged);
+      documentRef!.addListener(_onDocumentChanged);
     }
 
     _onDocumentChanged();
