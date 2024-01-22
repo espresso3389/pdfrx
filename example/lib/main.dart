@@ -280,8 +280,8 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  Future<void> _updateOutline(PdfDocumentRef documentRef) async {
-    outline.value = await documentRef.document?.loadOutline();
+  Future<void> _updateOutline(PdfDocument? document) async {
+    outline.value = await document?.loadOutline();
   }
 }
 
