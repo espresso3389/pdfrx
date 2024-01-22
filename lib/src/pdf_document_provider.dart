@@ -302,6 +302,13 @@ class _PdfDocumentProviderCustom extends PdfDocumentProvider {
   final bool autoDispose;
 
   @override
+  bool operator ==(Object? other) =>
+      other is _PdfDocumentProviderCustom && other.sourceName == sourceName;
+
+  @override
+  int get hashCode => sourceName.hashCode;
+
+  @override
   PdfDocumentRef getDocument(
       PdfPasswordProvider? passwordProvider, bool firstAttemptByEmptyPassword) {
     final ref = PdfDocumentRef.empty(autoDispose: autoDispose);
