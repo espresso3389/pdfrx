@@ -106,10 +106,11 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     _init();
     return _openByFunc(
       (password) => _ffiCompute(
-        (arena, params) => pdfium.FPDF_LoadDocument(
-                params.filePath.toUtf8(arena),
-                params.password?.toUtf8(arena) ?? nullptr)
-            .address,
+        (arena, params) {
+          final doc = pdfium.FPDF_LoadDocument(params.filePath.toUtf8(arena),
+              params.password?.toUtf8(arena) ?? nullptr);
+          return doc.address;
+        },
         (
           filePath: filePath,
           password: password,

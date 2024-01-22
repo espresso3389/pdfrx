@@ -343,7 +343,7 @@ class PdfViewerParams {
 
 /// Function to notify that the document is loaded/changed.
 typedef PdfViewerDocumentChangedCallback = void Function(
-    PdfDocumentRef documentRef);
+    PdfDocument? documentRef);
 
 /// Function called when the current page is changed.
 typedef PdfPageChangedCallback = void Function(int? pageNumber);

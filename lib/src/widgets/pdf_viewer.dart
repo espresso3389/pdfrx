@@ -27,7 +27,7 @@ import 'pdf_viewer_params.dart';
 /// - [PdfViewer.uri]
 /// - [PdfViewer.data]
 /// - [PdfViewer.custom]
-/// - [PdfViewer.provider]
+/// - [PdfViewer.documentRef]
 ///
 /// Of course, if you have a [PdfDocument] use [PdfViewer] constructor:
 /// - [PdfViewer]
@@ -38,7 +38,7 @@ class PdfViewer extends StatefulWidget {
     this.controller,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
-  }) : provider = PdfDocumentRef.document(document);
+  }) : documentRef = PdfDocumentRefDirect(document);
 
   PdfViewer.asset(
     String name, {
@@ -48,7 +48,7 @@ class PdfViewer extends StatefulWidget {
     this.controller,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
-  }) : provider = PdfDocumentRef.asset(
+  }) : documentRef = PdfDocumentRefAsset(
           name,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -62,7 +62,7 @@ class PdfViewer extends StatefulWidget {
     this.controller,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
-  }) : provider = PdfDocumentRef.file(
+  }) : documentRef = PdfDocumentRefFile(
           path,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -76,7 +76,7 @@ class PdfViewer extends StatefulWidget {
     this.controller,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
-  }) : provider = PdfDocumentRef.uri(
+  }) : documentRef = PdfDocumentRefUri(
           uri,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -84,18 +84,18 @@ class PdfViewer extends StatefulWidget {
 
   PdfViewer.data(
     Uint8List bytes, {
+    required String sourceName,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
-    String? sourceName,
     super.key,
     this.controller,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
-  }) : provider = PdfDocumentRef.data(
+  }) : documentRef = PdfDocumentRefData(
           bytes,
+          sourceName: sourceName,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-          sourceName: sourceName,
         );
 
   PdfViewer.custom({
@@ -110,7 +110,7 @@ class PdfViewer extends StatefulWidget {
     this.controller,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
-  }) : provider = PdfDocumentRef.custom(
+  }) : documentRef = PdfDocumentRefCustom(
           sourceName: sourceName,
           fileSize: fileSize,
           read: read,
@@ -119,15 +119,15 @@ class PdfViewer extends StatefulWidget {
           autoDispose: autoDispose,
         );
 
-  const PdfViewer.provider({
-    required this.provider,
+  const PdfViewer.documentRef({
+    required this.documentRef,
     super.key,
     this.controller,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
   });
 
-  final PdfDocumentRef provider;
+  final PdfDocumentRef documentRef;
 
   /// Controller to control the viewer.
   final PdfViewerController? controller;
@@ -178,7 +178,7 @@ class _PdfViewerState extends State<PdfViewer>
       return;
     }
 
-    if (oldWidget?.provider == widget.provider) {
+    if (oldWidget?.documentRef == widget.documentRef) {
       if (widget.params.doChangesRequireReload(oldWidget?.params)) {
         if (widget.params.annotationRenderingMode !=
             oldWidget?.params.annotationRenderingMode) {
@@ -192,10 +192,11 @@ class _PdfViewerState extends State<PdfViewer>
       }
       return;
     } else {
-      oldWidget?.provider.removeListener(_onDocumentChanged);
-      oldWidget?.provider.dispose();
-      widget.provider.addListener(_onDocumentChanged);
-      widget.provider.load();
+      final oldListenable = oldWidget?.documentRef.resolveListenable();
+      oldListenable?.removeListener(_onDocumentChanged);
+      final listenable = widget.documentRef.resolveListenable();
+      listenable.addListener(_onDocumentChanged);
+      listenable.load();
     }
 
     _onDocumentChanged();
@@ -218,7 +219,7 @@ class _PdfViewerState extends State<PdfViewer>
     _controller?.removeListener(_onMatrixChanged);
     _controller?._attach(null);
 
-    final document = widget.provider.document;
+    final document = widget.documentRef.resolveListenable().document;
     if (document == null) {
       _document = null;
       if (mounted) {
@@ -245,8 +246,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _notifyOnDocumentChanged() {
     if (widget.params.onDocumentChanged != null) {
-      Future.microtask(
-          () => widget.params.onDocumentChanged?.call(widget.provider));
+      Future.microtask(() => widget.params.onDocumentChanged?.call(_document));
     }
   }
 
@@ -254,7 +254,7 @@ class _PdfViewerState extends State<PdfViewer>
   void dispose() {
     _cancelAllPendingRenderings();
     animController.dispose();
-    widget.provider.removeListener(_onDocumentChanged);
+    widget.documentRef.resolveListenable().removeListener(_onDocumentChanged);
     _realSized.clear();
     _controller?.removeListener(_onMatrixChanged);
     _controller?._attach(null);
@@ -267,11 +267,12 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   Widget build(BuildContext context) {
-    if (widget.provider.error != null) {
+    final listenable = widget.documentRef.resolveListenable();
+    if (listenable.error != null) {
       return Container(
         color: widget.params.backgroundColor,
         child: widget.params.errorBannerBuilder
-            ?.call(context, widget.provider.error!, widget.provider),
+            ?.call(context, listenable.error!, widget.documentRef),
       );
     }
     if (_document == null) {
@@ -279,8 +280,8 @@ class _PdfViewerState extends State<PdfViewer>
         color: widget.params.backgroundColor,
         child: widget.params.loadingBannerBuilder?.call(
           context,
-          widget.provider.bytesDownloaded,
-          widget.provider.totalBytes,
+          listenable.bytesDownloaded,
+          listenable.totalBytes,
         ),
       );
     }
