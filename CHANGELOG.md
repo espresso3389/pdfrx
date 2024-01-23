@@ -1,3 +1,7 @@
+## 0.4.21
+
+- Now PdfDocumentRef has const constructor and PdfViewer.documentRef is also const
+
 ## 0.4.20
 
 - Removes PdfDocumentProvider (Actually PdfDocumentRef does everything)

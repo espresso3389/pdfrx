@@ -8,6 +8,7 @@ import '../pdfrx.dart';
 typedef PdfDocumentLoaderProgressCallback = void Function(int progress,
     [int? total]);
 
+/// PdfDocumentRef controls loading of a [PdfDocument].
 abstract class PdfDocumentRef {
   const PdfDocumentRef({
     this.autoDispose = true,
@@ -16,22 +17,31 @@ abstract class PdfDocumentRef {
   /// Whether to dispose the document on reference dispose or not.
   final bool autoDispose;
 
+  /// Source name to identify the reference.
   String get sourceName;
 
   static final _listenables = <PdfDocumentRef, PdfDocumentListenable>{};
 
+  /// Resolve the [PdfDocumentListenable] for this reference.
   PdfDocumentListenable resolveListenable() =>
-      _listenables.putIfAbsent(this, () => PdfDocumentListenable(this));
+      _listenables.putIfAbsent(this, () => PdfDocumentListenable._(this));
 
+  /// Classes that extends [PdfDocumentRef] should override this function to load the document.
+  ///
+  /// [progressCallback] should be called when the document is loaded from remote source to notify the progress.
   Future<PdfDocument> _load(PdfDocumentLoaderProgressCallback progressCallback);
 
+  /// Classes that extends [PdfDocumentRef] should override this function to compare the equality by [sourceName]
+  /// or such.
   @override
   bool operator ==(Object other) => throw UnimplementedError();
 
+  /// Classes that extends [PdfDocumentRef] should override this function.
   @override
   int get hashCode => throw UnimplementedError();
 }
 
+/// A [PdfDocumentRef] that loads the document from asset.
 class PdfDocumentRefAsset extends PdfDocumentRef {
   const PdfDocumentRefAsset(
     this.name, {
@@ -64,7 +74,18 @@ class PdfDocumentRefAsset extends PdfDocumentRef {
   int get hashCode => name.hashCode;
 }
 
-class PdfDocumentRefUri extends PdfDocumentRef {
+mixin PdfDocumentRefPasswordMixin on PdfDocumentRef {
+  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  PdfPasswordProvider? get passwordProvider;
+
+  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// or not. For more info, see [PdfPasswordProvider].
+  bool get firstAttemptByEmptyPassword;
+}
+
+/// A [PdfDocumentRef] that loads the document from network.
+class PdfDocumentRefUri extends PdfDocumentRef
+    with PdfDocumentRefPasswordMixin {
   const PdfDocumentRefUri(
     this.uri, {
     this.passwordProvider,
@@ -73,7 +94,9 @@ class PdfDocumentRefUri extends PdfDocumentRef {
   });
 
   final Uri uri;
+  @override
   final PdfPasswordProvider? passwordProvider;
+  @override
   final bool firstAttemptByEmptyPassword;
 
   @override
@@ -97,7 +120,9 @@ class PdfDocumentRefUri extends PdfDocumentRef {
   int get hashCode => uri.hashCode;
 }
 
-class PdfDocumentRefFile extends PdfDocumentRef {
+/// A [PdfDocumentRef] that loads the document from file.
+class PdfDocumentRefFile extends PdfDocumentRef
+    with PdfDocumentRefPasswordMixin {
   const PdfDocumentRefFile(
     this.file, {
     this.passwordProvider,
@@ -106,7 +131,9 @@ class PdfDocumentRefFile extends PdfDocumentRef {
   });
 
   final String file;
+  @override
   final PdfPasswordProvider? passwordProvider;
+  @override
   final bool firstAttemptByEmptyPassword;
   @override
   String get sourceName => file;
@@ -128,7 +155,9 @@ class PdfDocumentRefFile extends PdfDocumentRef {
   int get hashCode => file.hashCode;
 }
 
-class PdfDocumentRefData extends PdfDocumentRef {
+/// A [PdfDocumentRef] that loads the document from data.
+class PdfDocumentRefData extends PdfDocumentRef
+    with PdfDocumentRefPasswordMixin {
   const PdfDocumentRefData(
     this.data, {
     required this.sourceName,
@@ -139,7 +168,9 @@ class PdfDocumentRefData extends PdfDocumentRef {
   });
 
   final Uint8List data;
+  @override
   final PdfPasswordProvider? passwordProvider;
+  @override
   final bool firstAttemptByEmptyPassword;
   final void Function()? onDispose;
 
@@ -165,7 +196,9 @@ class PdfDocumentRefData extends PdfDocumentRef {
   int get hashCode => sourceName.hashCode;
 }
 
-class PdfDocumentRefCustom extends PdfDocumentRef {
+/// A [PdfDocumentRef] that loads the document from custom source.
+class PdfDocumentRefCustom extends PdfDocumentRef
+    with PdfDocumentRefPasswordMixin {
   const PdfDocumentRefCustom({
     required this.fileSize,
     required this.read,
@@ -179,7 +212,9 @@ class PdfDocumentRefCustom extends PdfDocumentRef {
 
   final int fileSize;
   final FutureOr<int> Function(Uint8List buffer, int position, int size) read;
+  @override
   final PdfPasswordProvider? passwordProvider;
+  @override
   final bool firstAttemptByEmptyPassword;
   final int? maxSizeToCacheOnMemory;
   final void Function()? onDispose;
@@ -208,6 +243,7 @@ class PdfDocumentRefCustom extends PdfDocumentRef {
   int get hashCode => sourceName.hashCode;
 }
 
+/// A [PdfDocumentRef] that directly contains [PdfDocument].
 class PdfDocumentRefDirect extends PdfDocumentRef {
   const PdfDocumentRefDirect(
     this.document, {
@@ -232,9 +268,11 @@ class PdfDocumentRefDirect extends PdfDocumentRef {
   int get hashCode => sourceName.hashCode;
 }
 
+/// The class is used to load the referenced document and notify the listeners.
 class PdfDocumentListenable extends Listenable {
-  PdfDocumentListenable(this.ref);
+  PdfDocumentListenable._(this.ref);
 
+  /// A [PdfDocumentRef] instance.
   final PdfDocumentRef ref;
 
   final _listeners = <VoidCallback>{};
