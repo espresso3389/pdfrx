@@ -279,6 +279,7 @@ class PdfDocumentListenable extends Listenable {
 
   PdfDocument? _document;
   Object? _error;
+  StackTrace? _stackTrace;
   int _revision = 0;
   int _bytesDownloaded = 0;
   int? _totalBytes;
@@ -288,6 +289,8 @@ class PdfDocumentListenable extends Listenable {
 
   /// The error object if some error was occurred on the previous attempt to load the document.
   Object? get error => _error;
+
+  StackTrace? get stackTrace => _stackTrace;
 
   /// Revision is incremented every time [document] or [error] is updated.
   int get revision => _revision;
@@ -314,8 +317,8 @@ class PdfDocumentListenable extends Listenable {
         final PdfDocument document;
         try {
           document = await ref._load(_progress);
-        } catch (err) {
-          setError(err);
+        } catch (err, stackTrace) {
+          setError(err, stackTrace);
           return;
         }
         setDocument(document);
@@ -350,6 +353,7 @@ class PdfDocumentListenable extends Listenable {
     }
     _document = null;
     _error = null;
+    _stackTrace = null;
     _revision = 0;
     _bytesDownloaded = 0;
     _totalBytes = null;
@@ -364,8 +368,9 @@ class PdfDocumentListenable extends Listenable {
   /// Set an error object.
   ///
   /// If [PdfDocumentRef.autoDispose] is true, the previous document will be disposed on setting the error.
-  void setError(Object error) {
+  void setError(Object error, [StackTrace? stackTrace]) {
     _error = error;
+    _stackTrace = stackTrace;
     if (ref.autoDispose) {
       _document?.dispose();
     }
@@ -387,6 +392,7 @@ class PdfDocumentListenable extends Listenable {
       oldDocument?.dispose();
     }
     _error = null;
+    _stackTrace = null;
     _revision++;
     notifyListeners();
     return true;

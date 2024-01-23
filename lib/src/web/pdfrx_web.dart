@@ -121,10 +121,13 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       } else {
         password = await passwordProvider?.call();
         if (password == null) {
-          throw const PdfException('No password supplied by PasswordProvider.');
+          throw const PdfPasswordException(
+              'No password supplied by PasswordProvider.');
         }
       }
       try {
+        await ensurePdfjsInitialized();
+
         return PdfDocumentWeb.fromDocument(
           await openDocument(password),
           sourceName: sourceName,

@@ -44,7 +44,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^0.4.21
+  pdfrx: ^0.4.22
 ```
 
 ### Windows
@@ -56,31 +56,7 @@ dependencies:
 
 ### Web
 
-For Web, you should add the following `<script>` block to your `index.html` just before `<script src="main.dart.js"... </script>` to load [PDF.js](https://mozilla.github.io/pdf.js/):
-
-```html
-<!-- IMPORTANT: load pdfjs files -->
-<script
-  src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"
-  type="text/javascript"
-></script>
-<script type="text/javascript">
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
-  pdfRenderOptions = {
-    // where cmaps are downloaded from
-    cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/",
-    // The cmaps are compressed in the case
-    cMapPacked: true,
-    // any other options for pdfjsLib.getDocument.
-    // params: {}
-  };
-</script>
-```
-
-Please check [example's code](example/web/index.html) for the actual usage.
-
-Please note that; with pdf.js 4.0 series, [they changed the way to load `pdfjsLib`](https://github.com/mozilla/pdf.js/issues/17228), it does not simply work with the current code. We need further investigation to support them.
+[pdf.js](https://mozilla.github.io/pdf.js/) is now automatically loaded and no modification to `index.html` is required.
 
 ## macOS
 

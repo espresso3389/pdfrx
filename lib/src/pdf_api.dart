@@ -585,3 +585,7 @@ class PdfException implements Exception {
   @override
   String toString() => 'PdfException: $message';
 }
+
+class PdfPasswordException extends PdfException {
+  const PdfPasswordException(super.message);
+}

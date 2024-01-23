@@ -15,6 +15,7 @@ import 'package:vector_math/vector_math_64.dart' as vec;
 import '../pdf_api.dart';
 import '../pdf_document_ref.dart';
 import 'interactive_viewer.dart' as iv;
+import 'pdf_error_widget.dart';
 import 'pdf_page_links_overlay.dart';
 import 'pdf_page_text_overlay.dart';
 import 'pdf_viewer_params.dart';
@@ -47,7 +48,7 @@ class PdfViewer extends StatefulWidget {
 
   /// Create [PdfViewer] from an asset.
   ///
-  /// [name] is the asset name.
+  /// [assetName] is the asset name.
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
@@ -55,7 +56,7 @@ class PdfViewer extends StatefulWidget {
   /// [params] is the parameters to customize the viewer.
   /// [initialPageNumber] is the page number to show initially.
   PdfViewer.asset(
-    String name, {
+    String assetName, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     super.key,
@@ -63,7 +64,7 @@ class PdfViewer extends StatefulWidget {
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
   }) : documentRef = PdfDocumentRefAsset(
-          name,
+          assetName,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         );
@@ -342,8 +343,11 @@ class _PdfViewerState extends State<PdfViewer>
     if (listenable.error != null) {
       return Container(
         color: widget.params.backgroundColor,
-        child: widget.params.errorBannerBuilder
-            ?.call(context, listenable.error!, widget.documentRef),
+        child: (widget.params.errorBannerBuilder ?? _defaultErrorBannerBuilder)(
+            context,
+            listenable.error!,
+            listenable.stackTrace,
+            widget.documentRef),
       );
     }
     if (_document == null) {
@@ -1423,4 +1427,17 @@ extension RawKeyEventExt on RawKeyEvent {
   /// Key pressing state of ⌘ or Control depending on the platform.
   bool get isCommandKeyPressed =>
       Platform.isMacOS || Platform.isIOS ? isMetaPressed : isControlPressed;
+}
+
+Widget _defaultErrorBannerBuilder(
+  BuildContext context,
+  Object error,
+  StackTrace? stackTrace,
+  PdfDocumentRef documentRef,
+) {
+  return pdfErrorWidget(
+    context,
+    error,
+    stackTrace: stackTrace,
+  );
 }

@@ -272,7 +272,8 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       } else {
         password = await passwordProvider?.call();
         if (password == null) {
-          throw const PdfException('No password supplied by PasswordProvider.');
+          throw const PdfPasswordException(
+              'No password supplied by PasswordProvider.');
         }
       }
       final doc = await openPdfDocument(password);
@@ -286,7 +287,8 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       if (_isPasswordError()) {
         continue;
       }
-      throw const PdfException('Failed to load PDF document.');
+      throw PdfException(
+          'Failed to load PDF document (FPDF_GetLastError=${pdfium.FPDF_GetLastError()}).');
     }
   }
 }

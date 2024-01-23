@@ -1,6 +1,6 @@
 name: pdfrx
 description: High speed zooming/scrolling PDF viewer implementation that supports mobile, desktop, and Web.
-version: 0.4.21
+version: 0.4.22
 homepage: https://github.com/espresso3389/pdfrx
 
 environment:
@@ -19,6 +19,7 @@ dependencies:
   path_provider: ^2.1.2
   rxdart: ^0.27.7
   synchronized: ^3.1.0+1
+  url_launcher: ^6.2.4
   vector_math: ^2.1.4
 
 dev_dependencies:

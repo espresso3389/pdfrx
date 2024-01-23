@@ -393,7 +393,11 @@ typedef PdfViewerLoadingBannerBuilder = Widget Function(
 
 /// Function to build loading error banner.
 typedef PdfViewerErrorBannerBuilder = Widget Function(
-    BuildContext context, Object error, PdfDocumentRef documentRef);
+  BuildContext context,
+  Object error,
+  StackTrace? stackTrace,
+  PdfDocumentRef documentRef,
+);
 
 typedef PdfLinkWidgetBuilder = Widget? Function(
     BuildContext context, PdfLink link, Size size);

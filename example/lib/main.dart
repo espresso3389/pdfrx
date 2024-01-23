@@ -133,11 +133,12 @@ class _MainPageState extends State<MainPage> {
               //
               // Loading error
               //
-              errorBannerBuilder: (context, error, documentRef) => Center(
-                child: Text(
-                  error.toString(),
-                ),
-              ),
+              // errorBannerBuilder: (context, error, stackTrace, documentRef) =>
+              //     Center(
+              //   child: Text(
+              //     error.toString(),
+              //   ),
+              // ),
               //
               // Link handling example
               //

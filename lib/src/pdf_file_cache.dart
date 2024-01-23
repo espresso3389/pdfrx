@@ -286,10 +286,12 @@ Future<PdfDocument> pdfDocumentFromUri(
 }) async {
   progressCallback?.call(0);
   cache ??= await PdfFileCache.fromUri(uri);
+  final httpClient = http.Client();
   try {
     if (!cache.isInitialized) {
       cache.setBlockSize(blockSize ?? PdfFileCache.defaultBlockSize);
-      final result = await _downloadBlock(uri, cache, progressCallback, 0);
+      final result =
+          await _downloadBlock(httpClient, uri, cache, progressCallback, 0);
       if (result.isFullDownload) {
         return PdfDocument.openFile(
           cache.filePath,
@@ -299,13 +301,15 @@ Future<PdfDocument> pdfDocumentFromUri(
       }
     } else {
       // Check if the file is updated.
-      final response = await http.head(uri);
+      final response = await httpClient.head(uri);
       final eTag = response.headers['etag'];
       if (eTag != cache.eTag) {
         await cache.resetAll();
-        final result = await _downloadBlock(uri, cache, progressCallback, 0);
+        final result =
+            await _downloadBlock(httpClient, uri, cache, progressCallback, 0);
         if (result.isFullDownload) {
           cache.close(); // close the cache file before opening it.
+          httpClient.close();
           return PdfDocument.openFile(
             cache.filePath,
             passwordProvider: passwordProvider,
@@ -324,7 +328,8 @@ Future<PdfDocument> pdfDocumentFromUri(
           final blockId = p ~/ cache!.blockSize;
           final isAvailable = cache.isCached(blockId);
           if (!isAvailable) {
-            await _downloadBlock(uri, cache, progressCallback, blockId);
+            await _downloadBlock(
+                httpClient, uri, cache, progressCallback, blockId);
           }
           final readEnd = min(p + size, (blockId + 1) * cache.blockSize);
           final sizeToRead = readEnd - p;
@@ -339,10 +344,14 @@ Future<PdfDocument> pdfDocumentFromUri(
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       fileSize: cache.fileSize,
       sourceName: uri.toString(),
-      onDispose: () => cache!.close(),
+      onDispose: () {
+        cache!.close();
+        httpClient.close();
+      },
     );
   } catch (e) {
     cache.close();
+    httpClient.close();
     rethrow;
   }
 }
@@ -355,6 +364,7 @@ class _DownloadResult {
 
 // Download blocks of the file and cache the data to file.
 Future<_DownloadResult> _downloadBlock(
+  http.Client httpClient,
   Uri uri,
   PdfFileCache cache,
   PdfDownloadProgressCallback? progressCallback,
@@ -364,8 +374,8 @@ Future<_DownloadResult> _downloadBlock(
   int? fileSize;
   final blockOffset = blockId * cache.blockSize;
   final end = blockOffset + cache.blockSize * blockCount;
-  final response =
-      await http.get(uri, headers: {'Range': 'bytes=$blockOffset-${end - 1}'});
+  final response = await httpClient
+      .get(uri, headers: {'Range': 'bytes=$blockOffset-${end - 1}'});
   final contentRange = response.headers['content-range'];
   bool isFullDownload = false;
   if (response.statusCode == 206 && contentRange != null) {

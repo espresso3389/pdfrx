@@ -1,3 +1,11 @@
+# 0.4.22
+
+- Web: Now pdf.js is loaded automatically and no modification to index.html is required!
+- Default implementation for PdfViewerParams.errorBannerBuilder to show internally thrown errors
+- PdfPasswordException is introduced to notify password error
+- PdfDocumentRef now has stackTrace for error
+- PdfFileCache now uses dedicated http.Client instance
+
 ## 0.4.21
 
 - Now PdfDocumentRef has const constructor and PdfViewer.documentRef is also const

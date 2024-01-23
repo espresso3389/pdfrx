@@ -4,16 +4,23 @@
 library pdf.js;
 
 import 'dart:html';
+import 'dart:js' as js;
 import 'dart:js_util';
 import 'dart:typed_data';
 
 import 'package:js/js.dart';
+import 'package:synchronized/extension.dart';
+
+bool get _isPdfjsLoaded => js.context.hasProperty('pdfjsLib');
 
 @JS('pdfjsLib.getDocument')
 external _PDFDocumentLoadingTask _pdfjsGetDocument(dynamic data);
 
 @JS('pdfRenderOptions')
 external Object _pdfRenderOptions;
+
+@JS('pdfjsLib.GlobalWorkerOptions.workerSrc')
+external set _pdfjsWorkerSrc(String src);
 
 @JS()
 @anonymous
@@ -268,4 +275,44 @@ class PdfjsOutlineNode {
   external String get title;
   external Object? get dest;
   external List<PdfjsOutlineNode> get items;
+}
+
+Object _dummyJsSyncContext = {};
+
+bool _pdfjsInitialized = false;
+
+Future<void> ensurePdfjsInitialized() async {
+  if (_pdfjsInitialized) return;
+  await _dummyJsSyncContext.synchronized(() async {
+    await _pdfjsInitialize();
+  });
+}
+
+Future<void> _pdfjsInitialize() async {
+  if (_pdfjsInitialized) return;
+  if (_isPdfjsLoaded) {
+    _pdfjsInitialized = true;
+    return;
+  }
+  const version = '3.11.174';
+
+  final script = ScriptElement()
+    ..type = 'text/javascript'
+    ..charset = 'utf-8'
+    ..async = true
+    ..src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$version/pdf.min.js';
+  querySelector('head')!.children.add(script);
+  await script.onLoad.first;
+
+  if (!_isPdfjsLoaded) {
+    throw StateError('Failed to load pdfjs');
+  }
+  _pdfjsWorkerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$version/pdf.worker.min.js';
+  _pdfRenderOptions = jsify({
+    'cMapUrl': 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$version/cmaps/',
+    'cMapPacked': true,
+  });
+
+  _pdfjsInitialized = true;
 }
