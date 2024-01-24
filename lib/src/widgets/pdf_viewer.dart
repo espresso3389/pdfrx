@@ -115,76 +115,6 @@ class PdfViewer extends StatefulWidget {
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         );
 
-  /// Create [PdfViewer] from a byte array.
-  ///
-  /// [bytes] is the byte array.
-  /// [sourceName] is the name of the source. Please set unique source name such as file name or URI, where the PDF
-  /// is loaded from. Or if you don't have any unique name, you can set any string.
-  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
-  /// or not. For more info, see [PdfPasswordProvider].
-  /// [controller] is the controller to control the viewer.
-  /// [params] is the parameters to customize the viewer.
-  /// [initialPageNumber] is the page number to show initially.
-  PdfViewer.data(
-    Uint8List bytes, {
-    required String sourceName,
-    PdfPasswordProvider? passwordProvider,
-    bool firstAttemptByEmptyPassword = true,
-    void Function()? onDispose,
-    bool autoDispose = true,
-    super.key,
-    this.controller,
-    this.params = const PdfViewerParams(),
-    this.initialPageNumber = 1,
-  }) : documentRef = PdfDocumentRefData(
-          bytes,
-          sourceName: sourceName,
-          passwordProvider: passwordProvider,
-          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-          onDispose: onDispose,
-          autoDispose: autoDispose,
-        );
-
-  /// Create [PdfViewer] from a custom source.
-  ///
-  /// [sourceName] is the name of the source. Please set unique source name such as file name or URI, where the PDF
-  /// is loaded from. Or if you don't have any unique name, you can set any string.
-  /// [fileSize] is the size of the PDF file.
-  /// [read] is the function to read the PDF file. The function should return the number of bytes read.
-  /// position/size are the position and the size of the source data to read.
-  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
-  /// or not. For more info, see [PdfPasswordProvider].
-  /// [autoDispose] is used to determine whether the source data is disposed automatically or not.
-  /// [controller] is the controller to control the viewer.
-  /// [params] is the parameters to customize the viewer.
-  /// [initialPageNumber] is the page number to show initially.
-  PdfViewer.custom({
-    required String sourceName,
-    required int fileSize,
-    required FutureOr<int> Function(Uint8List buffer, int position, int size)
-        read,
-    PdfPasswordProvider? passwordProvider,
-    bool firstAttemptByEmptyPassword = true,
-    int? maxSizeToCacheOnMemory,
-    void Function()? onDispose,
-    bool autoDispose = true,
-    super.key,
-    this.controller,
-    this.params = const PdfViewerParams(),
-    this.initialPageNumber = 1,
-  }) : documentRef = PdfDocumentRefCustom(
-          sourceName: sourceName,
-          fileSize: fileSize,
-          read: read,
-          passwordProvider: passwordProvider,
-          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-          maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
-          onDispose: onDispose,
-          autoDispose: autoDispose,
-        );
-
   /// Create [PdfViewer] from a [PdfDocumentRef].
   ///
   /// [documentRef] is the [PdfDocumentRef].
@@ -929,6 +859,9 @@ class PdfViewerController extends TransformationController {
 
   /// The current page number if available.
   int? get pageNumber => _state?._pageNumber;
+
+  /// The document reference associated to the [PdfViewer].
+  PdfDocumentRef get documentRef => _state!.widget.documentRef;
 
   AnimationController get _animController => _state!.animController;
 

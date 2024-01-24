@@ -1,3 +1,8 @@
+# 0.4.23
+
+- Introduces PdfDocumentViewBuilder/PdfPageView widgets
+- Example code is super updated with index and thumbnails.
+
 # 0.4.22
 
 - Web: Now pdf.js is loaded automatically and no modification to index.html is required!

@@ -5,6 +5,7 @@ import 'package:synchronized/extension.dart';
 
 import '../pdfrx.dart';
 
+/// Download progress callback used by
 typedef PdfDocumentLoaderProgressCallback = void Function(int progress,
     [int? total]);
 
@@ -26,10 +27,15 @@ abstract class PdfDocumentRef {
   PdfDocumentListenable resolveListenable() =>
       _listenables.putIfAbsent(this, () => PdfDocumentListenable._(this));
 
+  /// Use [resolveListenable]/[PdfDocumentListenable.document] instead to load the shared [PdfDocument].
+  ///
+  /// Direct use of the function also works but it loads the document every time and it results in more memory usage.
+  ///
   /// Classes that extends [PdfDocumentRef] should override this function to load the document.
   ///
   /// [progressCallback] should be called when the document is loaded from remote source to notify the progress.
-  Future<PdfDocument> _load(PdfDocumentLoaderProgressCallback progressCallback);
+  Future<PdfDocument> loadDocument(
+      PdfDocumentLoaderProgressCallback progressCallback);
 
   /// Classes that extends [PdfDocumentRef] should override this function to compare the equality by [sourceName]
   /// or such.
@@ -41,8 +47,18 @@ abstract class PdfDocumentRef {
   int get hashCode => throw UnimplementedError();
 }
 
+mixin PdfDocumentRefPasswordMixin on PdfDocumentRef {
+  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  PdfPasswordProvider? get passwordProvider;
+
+  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// or not. For more info, see [PdfPasswordProvider].
+  bool get firstAttemptByEmptyPassword;
+}
+
 /// A [PdfDocumentRef] that loads the document from asset.
-class PdfDocumentRefAsset extends PdfDocumentRef {
+class PdfDocumentRefAsset extends PdfDocumentRef
+    with PdfDocumentRefPasswordMixin {
   const PdfDocumentRefAsset(
     this.name, {
     this.passwordProvider,
@@ -51,14 +67,15 @@ class PdfDocumentRefAsset extends PdfDocumentRef {
   });
 
   final String name;
+  @override
   final PdfPasswordProvider? passwordProvider;
+  @override
   final bool firstAttemptByEmptyPassword;
-
   @override
   String get sourceName => name;
 
   @override
-  Future<PdfDocument> _load(
+  Future<PdfDocument> loadDocument(
           PdfDocumentLoaderProgressCallback progressCallback) =>
       PdfDocument.openAsset(
         name,
@@ -72,15 +89,6 @@ class PdfDocumentRefAsset extends PdfDocumentRef {
 
   @override
   int get hashCode => name.hashCode;
-}
-
-mixin PdfDocumentRefPasswordMixin on PdfDocumentRef {
-  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  PdfPasswordProvider? get passwordProvider;
-
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
-  /// or not. For more info, see [PdfPasswordProvider].
-  bool get firstAttemptByEmptyPassword;
 }
 
 /// A [PdfDocumentRef] that loads the document from network.
@@ -103,7 +111,7 @@ class PdfDocumentRefUri extends PdfDocumentRef
   String get sourceName => uri.toString();
 
   @override
-  Future<PdfDocument> _load(
+  Future<PdfDocument> loadDocument(
           PdfDocumentLoaderProgressCallback progressCallback) =>
       PdfDocument.openUri(
         uri,
@@ -139,7 +147,7 @@ class PdfDocumentRefFile extends PdfDocumentRef
   String get sourceName => file;
 
   @override
-  Future<PdfDocument> _load(
+  Future<PdfDocument> loadDocument(
           PdfDocumentLoaderProgressCallback progressCallback) =>
       PdfDocument.openFile(
         file,
@@ -178,7 +186,7 @@ class PdfDocumentRefData extends PdfDocumentRef
   final String sourceName;
 
   @override
-  Future<PdfDocument> _load(
+  Future<PdfDocument> loadDocument(
           PdfDocumentLoaderProgressCallback progressCallback) =>
       PdfDocument.openData(
         data,
@@ -223,7 +231,7 @@ class PdfDocumentRefCustom extends PdfDocumentRef
   final String sourceName;
 
   @override
-  Future<PdfDocument> _load(
+  Future<PdfDocument> loadDocument(
           PdfDocumentLoaderProgressCallback progressCallback) =>
       PdfDocument.openCustom(
         read: read,
@@ -256,7 +264,7 @@ class PdfDocumentRefDirect extends PdfDocumentRef {
   String get sourceName => document.sourceName;
 
   @override
-  Future<PdfDocument> _load(
+  Future<PdfDocument> loadDocument(
           PdfDocumentLoaderProgressCallback progressCallback) =>
       Future.value(document);
 
@@ -272,7 +280,7 @@ class PdfDocumentRefDirect extends PdfDocumentRef {
 class PdfDocumentListenable extends Listenable {
   PdfDocumentListenable._(this.ref);
 
-  /// A [PdfDocumentRef] instance.
+  /// A [PdfDocumentRef] instance that references the [PdfDocumentListenable].
   final PdfDocumentRef ref;
 
   final _listeners = <VoidCallback>{};
@@ -283,8 +291,14 @@ class PdfDocumentListenable extends Listenable {
   int _revision = 0;
   int _bytesDownloaded = 0;
   int? _totalBytes;
+  int _additionalRefs = 0;
 
   /// The [PdfDocument] instance if available.
+  ///
+  /// Use [load] function to load the document; the field does not start loading the document automatically.
+  ///
+  /// If you use the document in async function, your use may encounter sudden document dispose unless you call
+  /// [addListener]. In such case, you had better use [useDocument] function instead.
   PdfDocument? get document => _document;
 
   /// The error object if some error was occurred on the previous attempt to load the document.
@@ -306,17 +320,25 @@ class PdfDocumentListenable extends Listenable {
   /// Whether document loading is attempted in the past or not.
   bool get loadAttempted => _document != null || _error != null;
 
-  /// Try to load the document.
-  void load({bool forceReload = false}) {
+  /// Load the document.
+  ///
+  /// After the document is loaded (or failed to load), the registered listeners (see [addListener]) are notified
+  /// and then you can access [document] or [error]/[stackTrace] to check the result.
+  ///
+  /// Of course, you can also `await` the function and then call [document] to get [PdfDocument].
+  ///
+  /// The function can be called multiple times but the document is loaded only once unless [forceReload] is true.
+  /// In that case, if the document requires password, the password is asked again.
+  Future<void> load({bool forceReload = false}) async {
     if (!forceReload && loadAttempted) {
       return;
     }
-    synchronized(
+    await synchronized(
       () async {
-        if (loadAttempted) return;
+        if (!forceReload && loadAttempted) return;
         final PdfDocument document;
         try {
-          document = await ref._load(_progress);
+          document = await ref.loadDocument(_progress);
         } catch (err, stackTrace) {
           setError(err, stackTrace);
           return;
@@ -326,28 +348,38 @@ class PdfDocumentListenable extends Listenable {
     );
   }
 
+  /// Register a listener to be notified when the document state is changed (such as loaded, or error).
+  ///
+  /// Unlike original [Listenable], the function return a [VoidCallback] to remove the listener;
+  /// that is, the following code is valid:
+  ///
+  /// ```dart
+  /// final removeListener = documentRef.addListener(() { /* do something */});
+  /// // remove the listener
+  /// removeListener();
+  /// ```
+  ///
+  /// Of course, you can use [removeListener] function directly.
   @override
-  void addListener(VoidCallback listener) {
+  VoidCallback addListener(VoidCallback listener) {
     _listeners.add(listener);
+    return () => removeListener(listener);
   }
 
   @override
   void removeListener(VoidCallback listener) {
     _listeners.remove(listener);
-    if (_listeners.isEmpty) {
+    _releaseIfNoRefs();
+  }
+
+  void _releaseIfNoRefs() {
+    if (_listeners.isEmpty && _additionalRefs == 0) {
       PdfDocumentRef._listenables.remove(ref);
-      dispose();
+      _release();
     }
   }
 
-  void notifyListeners() {
-    for (final listener in _listeners) {
-      listener();
-    }
-  }
-
-  void dispose() {
-    _listeners.clear();
+  void _release() {
     if (ref.autoDispose) {
       _document?.dispose();
     }
@@ -357,6 +389,41 @@ class PdfDocumentListenable extends Listenable {
     _revision = 0;
     _bytesDownloaded = 0;
     _totalBytes = null;
+  }
+
+  void notifyListeners() {
+    for (final listener in _listeners) {
+      listener();
+    }
+  }
+
+  /// Within call to the function, it ensures that the document is alive (not null and not disposed).
+  ///
+  /// If [ensureLoaded] is true, it tries to ensure that the document is loaded.
+  /// If the document is not loaded, the function does not call [task] and return null.
+  /// [cancelLoading] is used to cancel the loading process.
+  ///
+  /// As a side note, you can of course use [addListener] to keep the document alive.
+  FutureOr<T?> useDocument<T>(
+    FutureOr<T> Function(PdfDocument document) task, {
+    bool ensureLoaded = true,
+    Completer? cancelLoading,
+  }) async {
+    try {
+      _additionalRefs++;
+      if (ensureLoaded) {
+        await Future.any(
+          [
+            load(),
+            if (cancelLoading != null) cancelLoading.future,
+          ],
+        );
+      }
+      return _document != null ? await task(_document!) : null;
+    } finally {
+      _additionalRefs--;
+      _releaseIfNoRefs();
+    }
   }
 
   void _progress(int progress, [int? total]) {

@@ -58,7 +58,7 @@ class _MainPageState extends State<MainPage> {
                 ? 'assets/assets/hello.pdf'
                 : 'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
             // Set password provider to show password dialog
-            passwordProvider: _passwordDialog,
+            passwordProvider: () => _passwordDialog(context),
             controller: controller,
             params: PdfViewerParams(
               enableTextSelection: true,
@@ -160,6 +160,7 @@ class _MainPageState extends State<MainPage> {
               onDocumentChanged: _updateOutline,
             ),
           ),
+
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
             right: 2,
@@ -238,46 +239,37 @@ class _MainPageState extends State<MainPage> {
           valueListenable: outline,
           builder: (context, outline, child) => Padding(
             padding: const EdgeInsets.all(8.0),
-            child: PdfOutline(
-              outline: outline,
-              controller: controller,
-            ),
+            child: DefaultTabController(
+                length: 2,
+                child: Column(
+                  children: [
+                    const TabBar(
+                      tabs: [
+                        Tab(
+                          icon: Icon(Icons.list),
+                          text: 'Index',
+                        ),
+                        Tab(
+                          icon: Icon(Icons.image),
+                          text: 'Thumbnails',
+                        ),
+                      ],
+                    ),
+                    Expanded(
+                        child: TabBarView(
+                      children: [
+                        PdfOutline(
+                          outline: outline,
+                          controller: controller,
+                        ),
+                        ThumbnailsView(controller: controller),
+                      ],
+                    )),
+                  ],
+                )),
           ),
         ),
       ),
-    );
-  }
-
-  //
-  // Simple password dialog
-  //
-  Future<String?> _passwordDialog() async {
-    final textController = TextEditingController();
-    return await showDialog<String?>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Enter password'),
-          content: TextField(
-            controller: textController,
-            autofocus: true,
-            keyboardType: TextInputType.visiblePassword,
-            obscureText: true,
-            onSubmitted: (value) => Navigator.of(context).pop(value),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(null),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(textController.text),
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -334,5 +326,88 @@ class PdfOutline extends StatelessWidget {
       yield (node: node, level: level);
       yield* _getOutlineList(node.children, level + 1);
     }
+  }
+}
+
+//
+// Simple password dialog
+//
+Future<String?> _passwordDialog(BuildContext context) async {
+  final textController = TextEditingController();
+  return await showDialog<String?>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Enter password'),
+        content: TextField(
+          controller: textController,
+          autofocus: true,
+          keyboardType: TextInputType.visiblePassword,
+          obscureText: true,
+          onSubmitted: (value) => Navigator.of(context).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(null),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(textController.text),
+            child: const Text('OK'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+//
+// Super simple thumbnails view
+//
+class ThumbnailsView extends StatelessWidget {
+  const ThumbnailsView({super.key, this.controller});
+
+  final PdfViewerController? controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.grey,
+      child: controller?.documentRef == null
+          ? null
+          : PdfDocumentViewBuilder(
+              documentRef: controller!.documentRef,
+              builder: (context, document) => ListView.builder(
+                itemCount: document?.pages.length ?? 0,
+                itemBuilder: (context, index) {
+                  return Container(
+                    margin: const EdgeInsets.all(8),
+                    height: 240,
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: 220,
+                          child: InkWell(
+                            onTap: () => controller!.goToPage(
+                              pageNumber: index + 1,
+                            ),
+                            child: PdfPageView(
+                              document: document,
+                              pageNumber: index + 1,
+                              alignment: Alignment.center,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${index + 1}',
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+    );
   }
 }
