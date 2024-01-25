@@ -146,8 +146,12 @@ class PdfViewer extends StatefulWidget {
 
 class _PdfViewerState extends State<PdfViewer>
     with SingleTickerProviderStateMixin {
-  late final AnimationController animController;
   PdfViewerController? _controller;
+  final TransformationController _txController = TransformationController();
+  late final AnimationController _animController;
+  Animation<Matrix4>? _animGoTo;
+  int _animationResettingGuard = 0;
+
   PdfDocument? _document;
   PdfPageLayout? _layout;
   Size? _viewSize;
@@ -164,7 +168,7 @@ class _PdfViewerState extends State<PdfViewer>
   @override
   void initState() {
     super.initState();
-    animController = AnimationController(
+    _animController = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 200));
     _widgetUpdated(null);
   }
@@ -218,7 +222,7 @@ class _PdfViewerState extends State<PdfViewer>
     _realSized.clear();
     _pageNumber = null;
     _initialized = false;
-    _controller?.removeListener(_onMatrixChanged);
+    _txController.removeListener(_onMatrixChanged);
     _controller?._attach(null);
 
     final document = widget.documentRef.resolveListenable().document;
@@ -237,7 +241,7 @@ class _PdfViewerState extends State<PdfViewer>
 
     _controller ??= widget.controller ?? PdfViewerController();
     _controller!._attach(this);
-    _controller!.addListener(_onMatrixChanged);
+    _txController.addListener(_onMatrixChanged);
 
     if (mounted) {
       setState(() {});
@@ -255,16 +259,17 @@ class _PdfViewerState extends State<PdfViewer>
   @override
   void dispose() {
     _cancelAllPendingRenderings();
-    animController.dispose();
+    _animController.dispose();
     widget.documentRef.resolveListenable().removeListener(_onDocumentChanged);
     _realSized.clear();
-    _controller?.removeListener(_onMatrixChanged);
+    _txController.removeListener(_onMatrixChanged);
     _controller?._attach(null);
+    _txController.dispose();
     super.dispose();
   }
 
   void _onMatrixChanged() {
-    _stream.add(_controller!.value);
+    _stream.add(_txController.value);
   }
 
   @override
@@ -296,9 +301,8 @@ class _PdfViewerState extends State<PdfViewer>
         if (_initialized) {
           Future.microtask(
             () {
-              if (_initialized) {
-                return _controller!.goTo(
-                    _controller!.makeMatrixInSafeRange(_controller!.value));
+              if (_initialized && mounted) {
+                _goTo(_makeMatrixInSafeRange(_txController.value));
               }
             },
           );
@@ -307,8 +311,12 @@ class _PdfViewerState extends State<PdfViewer>
 
       if (!_initialized && _layout != null) {
         _initialized = true;
-        Future.microtask(() => _controller!.goToPage(
-            pageNumber: widget.initialPageNumber, duration: Duration.zero));
+        Future.microtask(() {
+          if (mounted) {
+            _goToPage(
+                pageNumber: widget.initialPageNumber, duration: Duration.zero);
+          }
+        });
       }
 
       return Container(
@@ -324,7 +332,7 @@ class _PdfViewerState extends State<PdfViewer>
                 return Stack(
                   children: [
                     iv.InteractiveViewer(
-                      transformationController: _controller,
+                      transformationController: _txController,
                       constrained: false,
                       maxScale: widget.params.maxScale,
                       minScale: _alternativeFitScale != null
@@ -349,7 +357,7 @@ class _PdfViewerState extends State<PdfViewer>
                     ..._buildPageOverlayWidgets(),
                     if (widget.params.viewerOverlayBuilder != null)
                       ...widget.params.viewerOverlayBuilder!(
-                          context, _controller!.viewSize)
+                          context, _viewSize!)
                   ],
                 );
               }),
@@ -365,32 +373,32 @@ class _PdfViewerState extends State<PdfViewer>
     switch (event.logicalKey) {
       case LogicalKeyboardKey.pageUp:
         if (isDown) {
-          _goToPage((_gotoTargetPageNumber ?? _pageNumber!) - 1);
+          _goToPageRangeChecked((_gotoTargetPageNumber ?? _pageNumber!) - 1);
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.pageDown:
         if (isDown) {
-          _goToPage((_gotoTargetPageNumber ?? _pageNumber!) + 1);
+          _goToPageRangeChecked((_gotoTargetPageNumber ?? _pageNumber!) + 1);
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.home:
         if (isDown) {
-          _goToPage(1);
+          _goToPageRangeChecked(1);
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.end:
         if (isDown) {
-          _goToPage(_document!.pages.length);
+          _goToPageRangeChecked(_document!.pages.length);
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.equal:
         if (isDown && event.isCommandKeyPressed) {
-          _controller!.zoomUp();
+          _zoomUp();
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.minus:
         if (isDown && event.isCommandKeyPressed) {
-          _controller!.zoomDown();
+          _zoomDown();
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowDown:
@@ -421,15 +429,15 @@ class _PdfViewerState extends State<PdfViewer>
     return KeyEventResult.ignored;
   }
 
-  Future<void> _goToPage(int pageNumber) async {
+  Future<void> _goToPageRangeChecked(int pageNumber) async {
     _gotoTargetPageNumber = pageNumber.clamp(1, _document!.pages.length);
-    await _controller!.goToPage(pageNumber: _gotoTargetPageNumber!);
+    await _goToPage(pageNumber: _gotoTargetPageNumber!);
   }
 
   Future<void> _goToManipulated(void Function(Matrix4 m) manipulate) async {
-    final m = _controller!.value.clone();
+    final m = _txController.value.clone();
     manipulate(m);
-    _controller!.value = m;
+    _txController.value = m;
   }
 
   bool _calcViewSizeAndCoverScale(Size viewSize) {
@@ -443,8 +451,10 @@ class _PdfViewerState extends State<PdfViewer>
     return false;
   }
 
+  Rect get _visibleRect => _txController.value.calcVisibleRect(_viewSize!);
+
   void _determineCurrentPage() {
-    final visibleRect = _controller!.visibleRect;
+    final visibleRect = _visibleRect;
     int? pageNumberMaxInt;
     double maxIntersection = 0;
     for (int i = 0; i < _document!.pages.length; i++) {
@@ -615,7 +625,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   Rect _getCacheExtentRect() {
-    final visibleRect = _controller!.visibleRect;
+    final visibleRect = _visibleRect;
     return visibleRect.inflateHV(
       horizontal: visibleRect.width * widget.params.horizontalCacheExtent,
       vertical: visibleRect.height * widget.params.verticalCacheExtent,
@@ -623,9 +633,9 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   Rect? _documentToRenderBox(Rect rect, RenderBox renderBox) {
-    final tl = _controller?.documentToGlobal(rect.topLeft);
+    final tl = _documentToGlobal(rect.topLeft);
     if (tl == null) return null;
-    final br = _controller?.documentToGlobal(rect.bottomRight);
+    final br = _documentToGlobal(rect.bottomRight);
     if (br == null) return null;
     return Rect.fromPoints(
         renderBox.globalToLocal(tl), renderBox.globalToLocal(br));
@@ -660,7 +670,7 @@ class _PdfViewerState extends State<PdfViewer>
   void _customPaint(ui.Canvas canvas, ui.Size size) {
     final targetRect = _getCacheExtentRect();
     final double globalScale = min(
-      MediaQuery.of(context).devicePixelRatio * _controller!.currentZoom,
+      MediaQuery.of(context).devicePixelRatio * _currentZoom,
       300.0 / 72.0,
     );
 
@@ -751,7 +761,7 @@ class _PdfViewerState extends State<PdfViewer>
     );
   }
 
-  void _invalidate() => _stream.add(_controller!.value);
+  void _invalidate() => _stream.add(_txController.value);
 
   Future<void> _ensureRealSizeCached(PdfPage page, double scale) async {
     final width = page.width * scale;
@@ -803,208 +813,68 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _onWheelDelta(Offset delta) {
-    final m = _controller!.value.clone();
+    final m = _txController.value.clone();
     m.translate(
       -delta.dx * widget.params.scrollByMouseWheel!,
       -delta.dy * widget.params.scrollByMouseWheel!,
     );
-    _controller!.value = m;
-  }
-}
-
-/// Defines page layout.
-class PdfPageLayout {
-  PdfPageLayout({required this.pageLayouts, required this.documentSize});
-  final List<Rect> pageLayouts;
-  final Size documentSize;
-}
-
-/// Controls associated [PdfViewer].
-///
-/// It's always your option to extend (inherit) the class to customize the [PdfViewer] behavior.
-class PdfViewerController extends TransformationController {
-  _PdfViewerState? _state;
-  Animation<Matrix4>? _animGoTo;
-
-  static const maxZoom = 8.0;
-
-  /// Document layout's size.
-  Size get documentSize => _state!._layout!.documentSize;
-
-  /// View port size (The widget's client area's size)
-  Size get viewSize => _state!._viewSize!;
-
-  /// The zoom ratio that fits the page width to the view port.
-  double get coverScale => _state!._coverScale!;
-
-  /// The zoom ratio that fits whole the page to the view port.
-  double? get alternativeFitScale => _state!._alternativeFitScale;
-
-  /// The minimum zoom ratio allowed.
-  double get minScale => alternativeFitScale == null
-      ? coverScale
-      : min(coverScale, alternativeFitScale!);
-
-  /// The area of the document layout which is visible on the view port.
-  Rect get visibleRect => value.calcVisibleRect(viewSize);
-
-  /// Get the associated document.
-  PdfDocument get document => _state!._document!;
-
-  /// Get the associated pages.
-  List<PdfPage> get pages => _state!._document!.pages;
-
-  /// Determine whether the document/pages are ready or not.
-  bool get isLoaded => _state?._document?.pages != null;
-
-  /// The current page number if available.
-  int? get pageNumber => _state?._pageNumber;
-
-  /// The document reference associated to the [PdfViewer].
-  PdfDocumentRef get documentRef => _state!.widget.documentRef;
-
-  AnimationController get _animController => _state!.animController;
-
-  void _attach(_PdfViewerState? state) {
-    _state = state;
-  }
-
-  @override
-  set value(Matrix4 newValue) {
-    super.value = makeMatrixInSafeRange(newValue);
+    _txController.value = m;
   }
 
   /// Restrict matrix to the safe range.
-  Matrix4 makeMatrixInSafeRange(Matrix4 newValue) {
-    _state!._calcViewSizeAndCoverScale(viewSize);
+  Matrix4 _makeMatrixInSafeRange(Matrix4 newValue) {
+    _calcViewSizeAndCoverScale(_viewSize!);
 
-    final position = newValue.calcPosition(viewSize);
+    final position = newValue.calcPosition(_viewSize!);
 
-    final params = _state!.widget.params;
+    final params = widget.params;
 
     final newZoom = params.boundaryMargin != null
         ? newValue.zoom
         : max(newValue.zoom, minScale);
-    final hw = viewSize.width / 2 / newZoom;
-    final hh = viewSize.height / 2 / newZoom;
-    final x = position.dx.range(hw, documentSize.width - hw);
-    final y = position.dy.range(hh, documentSize.height - hh);
+    final hw = _viewSize!.width / 2 / newZoom;
+    final hh = _viewSize!.height / 2 / newZoom;
+    final x = position.dx.range(hw, _layout!.documentSize.width - hw);
+    final y = position.dy.range(hh, _layout!.documentSize.height - hh);
 
-    return calcMatrixFor(Offset(x, y), zoom: newZoom);
+    return _calcMatrixFor(Offset(x, y), zoom: newZoom);
   }
 
-  double getNextZoom({bool loop = true}) =>
-      _state!._findNextZoomStop(currentZoom, zoomUp: true, loop: loop);
-  double getPreviousZoom({bool loop = true}) =>
-      _state!._findNextZoomStop(currentZoom, zoomUp: false, loop: loop);
+  Matrix4 _calcMatrixFor(Offset position, {required double zoom}) {
+    final hw = _viewSize!.width / 2;
+    final hh = _viewSize!.height / 2;
 
-  void notifyFirstChange(void Function() onFirstChange) {
-    void handler() {
-      removeListener(handler);
-      onFirstChange();
-    }
-
-    addListener(handler);
+    return Matrix4.compose(
+        vec.Vector3(
+          -position.dx * zoom + hw,
+          -position.dy * zoom + hh,
+          0,
+        ),
+        vec.Quaternion.identity(),
+        vec.Vector3(zoom, zoom, 1));
   }
 
-  /// Forcibly relayout the pages.
-  void relayout() => _state!._relayout();
+  /// The minimum zoom ratio allowed.
+  double get minScale => _alternativeFitScale == null
+      ? _coverScale!
+      : min(_coverScale!, _alternativeFitScale!);
 
-  int _animationResettingGuard = 0;
-
-  /// Go to the specified destination.
-  Future<bool> goToDest(
-    PdfDest? dest, {
-    Duration duration = const Duration(milliseconds: 200),
-  }) async {
-    if (dest == null) return false;
-    final page = _state!._document!.pages[dest.pageNumber - 1];
-    final pageRect = _state!._layout!.pageLayouts[dest.pageNumber - 1];
-    double calcX(double? x) => (x ?? 0) / page.width * pageRect.width;
-    double calcY(double? y) =>
-        (page.height - (y ?? 0)) / page.height * pageRect.height;
-    final params = dest.params;
-    switch (dest.command) {
-      case PdfDestCommand.xyz:
-        if (params != null && params.length >= 2) {
-          final zoom =
-              params[2] != null && params[2] != 0.0 ? params[2]! : currentZoom;
-          final hw = viewSize.width / 2 / zoom;
-          final hh = viewSize.height / 2 / zoom;
-          await goTo(
-            calcMatrixFor(
-                pageRect.topLeft
-                    .translate(calcX(params[0]) + hw, calcY(params[1]) + hh),
-                zoom: zoom),
-            duration: duration,
-          );
-        }
-        break;
-      case PdfDestCommand.fit:
-      case PdfDestCommand.fitB:
-        await goToPage(pageNumber: dest.pageNumber, anchor: PdfPageAnchor.all);
-        break;
-      case PdfDestCommand.fitH:
-      case PdfDestCommand.fitBH:
-        if (params != null && params.length == 1) {
-          final hh = viewSize.height / 2 / currentZoom;
-          await goTo(
-            calcMatrixFor(pageRect.topLeft.translate(0, calcY(params[0]) + hh)),
-            duration: duration,
-          );
-        }
-        break;
-      case PdfDestCommand.fitV:
-      case PdfDestCommand.fitBV:
-        if (params != null && params.length == 1) {
-          final hw = viewSize.width / 2 / currentZoom;
-          await goTo(
-            calcMatrixFor(pageRect.topLeft.translate(calcX(params[0]) + hw, 0)),
-            duration: duration,
-          );
-        }
-        break;
-      case PdfDestCommand.fitR:
-        if (params != null && params.length == 4) {
-          // page /FitR left bottom right top
-          final rect = Rect.fromLTRB(calcX(params[0]), calcY(params[3]),
-              calcX(params[2]), calcY(params[1]));
-          await goToArea(
-            rect: rect,
-            duration: duration,
-          );
-        }
-        break;
-      default:
-        return false;
-    }
-    return true;
+  Matrix4 _calcMatrixForRect(Rect rect, {double? zoomMax, double? margin}) {
+    margin ??= 0;
+    var zoom = min((_viewSize!.width - margin * 2) / rect.width,
+        (_viewSize!.height - margin * 2) / rect.height);
+    if (zoomMax != null && zoom > zoomMax) zoom = zoomMax;
+    return _calcMatrixFor(rect.center, zoom: zoom);
   }
 
-  /// Go to the specified page. [anchor] specifies how the page is positioned if the page is larger than the view.
-  Future<void> goToPage({
-    required int pageNumber,
-    PdfPageAnchor? anchor,
-    Duration duration = const Duration(milliseconds: 200),
-  }) async {
-    await goToArea(
-      rect: _state!._layout!.pageLayouts[pageNumber - 1]
-          .inflate(_state!.widget.params.margin),
-      anchor: anchor,
-      duration: duration,
-    );
-  }
-
-  /// Go to the specified area. [anchor] specifies how the page is positioned if the page is larger than the view.
-  Future<void> goToArea({
+  Matrix4 _calcMatrixForArea({
     required Rect rect,
     PdfPageAnchor? anchor,
-    Duration duration = const Duration(milliseconds: 200),
-  }) async {
-    anchor ??= _state!.widget.params.pageAnchor;
+  }) {
+    anchor ??= widget.params.pageAnchor;
     if (anchor != PdfPageAnchor.all) {
-      final vRatio = viewSize.aspectRatio;
-      final dRatio = documentSize.aspectRatio;
+      final vRatio = _viewSize!.aspectRatio;
+      final dRatio = _layout!.documentSize.aspectRatio;
       if (vRatio > dRatio) {
         final yAnchor = anchor.index ~/ 3;
         switch (yAnchor) {
@@ -1015,8 +885,8 @@ class PdfViewerController extends TransformationController {
           case 1:
             rect = Rect.fromCenter(
                 center: rect.center,
-                width: viewSize.width,
-                height: viewSize.height);
+                width: _viewSize!.width,
+                height: _viewSize!.height);
             break;
           case 2:
             rect = Rect.fromLTRB(rect.left, rect.bottom - rect.width / vRatio,
@@ -1033,8 +903,8 @@ class PdfViewerController extends TransformationController {
           case 1:
             rect = Rect.fromCenter(
                 center: rect.center,
-                width: viewSize.width,
-                height: viewSize.height);
+                width: _viewSize!.width,
+                height: _viewSize!.height);
             break;
           case 2:
             rect = Rect.fromLTRB(rect.right - rect.height * vRatio, rect.top,
@@ -1043,8 +913,386 @@ class PdfViewerController extends TransformationController {
         }
       }
     }
-    await goTo(calcMatrixForRect(rect), duration: duration);
+    return _calcMatrixForRect(rect);
   }
+
+  Matrix4 _calcMatrixForPage({
+    required int pageNumber,
+    PdfPageAnchor? anchor,
+  }) =>
+      _calcMatrixForArea(
+        rect:
+            _layout!.pageLayouts[pageNumber - 1].inflate(widget.params.margin),
+        anchor: anchor,
+      );
+
+  Matrix4? _calcMatrixForDest(PdfDest? dest) {
+    if (dest == null) return null;
+    final page = _document!.pages[dest.pageNumber - 1];
+    final pageRect = _layout!.pageLayouts[dest.pageNumber - 1];
+    double calcX(double? x) => (x ?? 0) / page.width * pageRect.width;
+    double calcY(double? y) =>
+        (page.height - (y ?? 0)) / page.height * pageRect.height;
+    final params = dest.params;
+    switch (dest.command) {
+      case PdfDestCommand.xyz:
+        if (params != null && params.length >= 2) {
+          final zoom =
+              params[2] != null && params[2] != 0.0 ? params[2]! : _currentZoom;
+          final hw = _viewSize!.width / 2 / zoom;
+          final hh = _viewSize!.height / 2 / zoom;
+          return _calcMatrixFor(
+              pageRect.topLeft
+                  .translate(calcX(params[0]) + hw, calcY(params[1]) + hh),
+              zoom: zoom);
+        }
+        break;
+      case PdfDestCommand.fit:
+      case PdfDestCommand.fitB:
+        return _calcMatrixForPage(
+            pageNumber: dest.pageNumber, anchor: PdfPageAnchor.all);
+
+      case PdfDestCommand.fitH:
+      case PdfDestCommand.fitBH:
+        if (params != null && params.length == 1) {
+          final hh = _viewSize!.height / 2 / _currentZoom;
+          return _calcMatrixFor(
+            pageRect.topLeft.translate(0, calcY(params[0]) + hh),
+            zoom: _currentZoom,
+          );
+        }
+        break;
+      case PdfDestCommand.fitV:
+      case PdfDestCommand.fitBV:
+        if (params != null && params.length == 1) {
+          final hw = _viewSize!.width / 2 / _currentZoom;
+          return _calcMatrixFor(
+            pageRect.topLeft.translate(calcX(params[0]) + hw, 0),
+            zoom: _currentZoom,
+          );
+        }
+        break;
+      case PdfDestCommand.fitR:
+        if (params != null && params.length == 4) {
+          // page /FitR left bottom right top
+          return _calcMatrixForArea(
+            rect: Rect.fromLTRB(
+              calcX(params[0]),
+              calcY(params[3]),
+              calcX(params[2]),
+              calcY(params[1]),
+            ),
+          );
+        }
+        break;
+      default:
+        return null;
+    }
+    return null;
+  }
+
+  Future<void> _goTo(
+    Matrix4? destination, {
+    Duration duration = const Duration(milliseconds: 200),
+  }) async {
+    void update() {
+      if (_animationResettingGuard != 0) return;
+      _txController.value = _animGoTo!.value;
+    }
+
+    try {
+      if (destination == null) return; // do nothing
+      _animationResettingGuard++;
+      _animController.reset();
+      _animationResettingGuard--;
+      _animGoTo = Matrix4Tween(
+              begin: _txController.value,
+              end: _makeMatrixInSafeRange(destination))
+          .animate(_animController);
+      _animGoTo!.addListener(update);
+      await _animController
+          .animateTo(1.0, duration: duration, curve: Curves.easeInOut)
+          .orCancel;
+    } on TickerCanceled {
+      // expected
+    } finally {
+      _animGoTo!.removeListener(update);
+    }
+  }
+
+  Future<void> _ensureVisible(
+    Rect rect, {
+    Duration duration = const Duration(milliseconds: 200),
+    double margin = 0,
+  }) async {
+    final restrictedRect =
+        _txController.value.calcVisibleRect(_viewSize!, margin: margin);
+    if (restrictedRect.containsRect(rect)) return;
+    if (rect.width <= restrictedRect.width &&
+        rect.height < restrictedRect.height) {
+      final intRect = Rect.fromLTWH(
+        rect.left < restrictedRect.left
+            ? rect.left
+            : rect.right < restrictedRect.right
+                ? restrictedRect.left
+                : restrictedRect.left + rect.right - restrictedRect.right,
+        rect.top < restrictedRect.top
+            ? rect.top
+            : rect.bottom < restrictedRect.bottom
+                ? restrictedRect.top
+                : restrictedRect.top + rect.bottom - restrictedRect.bottom,
+        restrictedRect.width,
+        restrictedRect.height,
+      );
+      final newRect = intRect.inflate(margin / _currentZoom);
+      await _goTo(
+        _calcMatrixForRect(newRect),
+        duration: duration,
+      );
+      return;
+    }
+    await _goTo(
+      _calcMatrixForRect(rect),
+      duration: duration,
+    );
+  }
+
+  Future<void> _goToArea({
+    required Rect rect,
+    PdfPageAnchor? anchor,
+    Duration duration = const Duration(milliseconds: 200),
+  }) =>
+      _goTo(
+        _calcMatrixForArea(rect: rect, anchor: anchor),
+        duration: duration,
+      );
+
+  Future<void> _goToPage({
+    required int pageNumber,
+    PdfPageAnchor? anchor,
+    Duration duration = const Duration(milliseconds: 200),
+  }) =>
+      _goTo(
+        _calcMatrixForPage(pageNumber: pageNumber, anchor: anchor),
+        duration: duration,
+      );
+
+  Future<bool> _goToDest(
+    PdfDest? dest, {
+    Duration duration = const Duration(milliseconds: 200),
+  }) async {
+    final m = _calcMatrixForDest(dest);
+    if (m == null) return false;
+    await _goTo(m, duration: duration);
+    return true;
+  }
+
+  double get _currentZoom => _txController.value.zoom;
+
+  double _getNextZoom({bool loop = true}) =>
+      _findNextZoomStop(_currentZoom, zoomUp: true, loop: loop);
+  double _getPreviousZoom({bool loop = true}) =>
+      _findNextZoomStop(_currentZoom, zoomUp: false, loop: loop);
+
+  Future<void> _setZoom(
+    Offset position,
+    double zoom,
+  ) =>
+      _goTo(_calcMatrixFor(position, zoom: zoom));
+
+  Offset get _centerPosition => _txController.value.calcPosition(_viewSize!);
+
+  Future<void> _zoomUp({
+    bool loop = false,
+    Offset? zoomCenter,
+  }) =>
+      _setZoom(zoomCenter ?? _centerPosition, _getNextZoom(loop: loop));
+
+  Future<void> _zoomDown({
+    bool loop = false,
+    Offset? zoomCenter,
+  }) async {
+    await _setZoom(zoomCenter ?? _centerPosition, _getPreviousZoom(loop: loop));
+  }
+
+  RenderBox? get _renderBox {
+    final renderBox = context.findRenderObject();
+    if (renderBox is! RenderBox) return null;
+    return renderBox;
+  }
+
+  /// Converts the global position to the local position in the widget.
+  Offset? _globalToLocal(Offset global) {
+    final renderBox = _renderBox;
+    if (renderBox == null) return null;
+    return renderBox.globalToLocal(global);
+  }
+
+  /// Converts the local position to the global position in the widget.
+  Offset? _localToGlobal(Offset local) {
+    final renderBox = _renderBox;
+    if (renderBox == null) return null;
+    return renderBox.localToGlobal(local);
+  }
+
+  /// Converts the global position to the local position in the PDF document structure.
+  Offset? _globalToDocument(Offset global) {
+    final ratio = 1 / _currentZoom;
+    return _globalToLocal(global)
+        ?.translate(-_txController.value.xZoomed, -_txController.value.yZoomed)
+        .scale(ratio, ratio);
+  }
+
+  /// Converts the local position in the PDF document structure to the global position.
+  Offset? _documentToGlobal(Offset document) => _localToGlobal(document
+      .scale(_currentZoom, _currentZoom)
+      .translate(_txController.value.xZoomed, _txController.value.yZoomed));
+}
+
+/// Defines page layout.
+class PdfPageLayout {
+  PdfPageLayout({required this.pageLayouts, required this.documentSize});
+  final List<Rect> pageLayouts;
+  final Size documentSize;
+}
+
+/// Controls associated [PdfViewer].
+///
+/// It's always your option to extend (inherit) the class to customize the [PdfViewer] behavior.
+///
+/// Please note that almost all fields and functions are not working if the controller is not associated
+/// to any [PdfViewer].
+/// You can check whether the controller is associated or not by checking [isReady] property.
+class PdfViewerController extends ValueListenable<Matrix4> {
+  _PdfViewerState? __state;
+
+  static const maxZoom = 8.0;
+
+  void _attach(_PdfViewerState? state) {
+    __state = state;
+  }
+
+  _PdfViewerState get _state {
+    return __state!;
+  }
+
+  /// Determine whether the document/pages are ready or not.
+  bool get isReady => __state?._document?.pages != null;
+
+  /// Document layout's size.
+  Size get documentSize => _state._layout!.documentSize;
+
+  /// View port size (The widget's client area's size)
+  Size get viewSize => _state._viewSize!;
+
+  /// The zoom ratio that fits the page width to the view port.
+  double get coverScale => _state._coverScale!;
+
+  /// The zoom ratio that fits whole the page to the view port.
+  double? get alternativeFitScale => _state._alternativeFitScale;
+
+  /// The minimum zoom ratio allowed.
+  double get minScale => _state.minScale;
+
+  /// The area of the document layout which is visible on the view port.
+  Rect get visibleRect => _state._visibleRect;
+
+  /// Get the associated document.
+  PdfDocument get document => _state._document!;
+
+  /// Get the associated pages.
+  List<PdfPage> get pages => _state._document!.pages;
+
+  /// The current page number if available.
+  int? get pageNumber => _state._pageNumber;
+
+  /// The document reference associated to the [PdfViewer].
+  PdfDocumentRef get documentRef => _state.widget.documentRef;
+
+  @override
+  Matrix4 get value => _state._txController.value;
+
+  set value(Matrix4 newValue) =>
+      _state._txController.value = makeMatrixInSafeRange(newValue);
+
+  @override
+  void addListener(ui.VoidCallback listener) =>
+      _state._txController.addListener(listener);
+
+  @override
+  void removeListener(ui.VoidCallback listener) =>
+      _state._txController.removeListener(listener);
+
+  /// Restrict matrix to the safe range.
+  Matrix4 makeMatrixInSafeRange(Matrix4 newValue) =>
+      _state._makeMatrixInSafeRange(newValue);
+
+  double getNextZoom({bool loop = true}) =>
+      _state._findNextZoomStop(currentZoom, zoomUp: true, loop: loop);
+
+  double getPreviousZoom({bool loop = true}) =>
+      _state._findNextZoomStop(currentZoom, zoomUp: false, loop: loop);
+
+  void notifyFirstChange(void Function() onFirstChange) {
+    void handler() {
+      removeListener(handler);
+      onFirstChange();
+    }
+
+    addListener(handler);
+  }
+
+  /// Forcibly relayout the pages.
+  void relayout() => _state._relayout();
+
+  /// Go to the specified area.
+  ///
+  /// [anchor] specifies how the page is positioned if the page is larger than the view.
+  Future<void> goToArea({
+    required Rect rect,
+    PdfPageAnchor? anchor,
+    Duration duration = const Duration(milliseconds: 200),
+  }) =>
+      _state._goToArea(rect: rect, anchor: anchor, duration: duration);
+
+  /// Go to the specified page.
+  ///
+  /// [anchor] specifies how the page is positioned if the page is larger than the view.
+  Future<void> goToPage({
+    required int pageNumber,
+    PdfPageAnchor? anchor,
+    Duration duration = const Duration(milliseconds: 200),
+  }) =>
+      _state._goToPage(
+          pageNumber: pageNumber, anchor: anchor, duration: duration);
+
+  /// Go to the specified destination.
+  Future<bool> goToDest(
+    PdfDest? dest, {
+    Duration duration = const Duration(milliseconds: 200),
+  }) =>
+      _state._goToDest(dest, duration: duration);
+
+  /// Calculate the matrix for the specified destination.
+  Matrix4? calcMatrixForDest(PdfDest? dest) => _state._calcMatrixForDest(dest);
+
+  /// Calculate the matrix for the page.
+  ///
+  /// [anchor] specifies how the page is positioned if the page is larger than the view.
+  Matrix4 calcMatrixForPage({
+    required int pageNumber,
+    PdfPageAnchor? anchor,
+  }) =>
+      _state._calcMatrixForPage(pageNumber: pageNumber, anchor: anchor);
+
+  /// Calculate the matrix for the specified area.
+  ///
+  /// [anchor] specifies how the page is positioned if the page is larger than the view.
+  Matrix4 calcMatrixForArea({
+    required Rect rect,
+    PdfPageAnchor? anchor,
+  }) =>
+      _state._calcMatrixForArea(rect: rect, anchor: anchor);
 
   /// Go to the specified position by the matrix.
   ///
@@ -1066,153 +1314,63 @@ class PdfViewerController extends TransformationController {
   Future<void> goTo(
     Matrix4? destination, {
     Duration duration = const Duration(milliseconds: 200),
-  }) async {
-    void update() {
-      if (_animationResettingGuard != 0) return;
-      value = _animGoTo!.value;
-    }
-
-    try {
-      if (destination == null) return; // do nothing
-      _animationResettingGuard++;
-      _animController.reset();
-      _animationResettingGuard--;
-      _animGoTo =
-          Matrix4Tween(begin: value, end: makeMatrixInSafeRange(destination))
-              .animate(_animController);
-      _animGoTo!.addListener(update);
-      await _animController
-          .animateTo(1.0, duration: duration, curve: Curves.easeInOut)
-          .orCancel;
-    } on TickerCanceled {
-      // expected
-    } finally {
-      _animGoTo!.removeListener(update);
-    }
-  }
+  }) =>
+      _state._goTo(destination, duration: duration);
 
   Future<void> ensureVisible(
     Rect rect, {
     Duration duration = const Duration(milliseconds: 200),
     double margin = 0,
-  }) async {
-    final restrictedRect = value.calcVisibleRect(viewSize, margin: margin);
-    if (restrictedRect.containsRect(rect)) return;
-    if (rect.width <= restrictedRect.width &&
-        rect.height < restrictedRect.height) {
-      final intRect = Rect.fromLTWH(
-        rect.left < restrictedRect.left
-            ? rect.left
-            : rect.right < restrictedRect.right
-                ? restrictedRect.left
-                : restrictedRect.left + rect.right - restrictedRect.right,
-        rect.top < restrictedRect.top
-            ? rect.top
-            : rect.bottom < restrictedRect.bottom
-                ? restrictedRect.top
-                : restrictedRect.top + rect.bottom - restrictedRect.bottom,
-        restrictedRect.width,
-        restrictedRect.height,
-      );
-      final newRect = intRect.inflate(margin / currentZoom);
-      await goTo(
-        calcMatrixForRect(newRect),
-        duration: duration,
-      );
-      return;
-    }
-    await goTo(
-      calcMatrixForRect(rect),
-      duration: duration,
-    );
-  }
+  }) =>
+      _state._ensureVisible(rect, duration: duration, margin: margin);
 
-  Matrix4 calcMatrixFor(Offset position, {double? zoom}) {
-    zoom ??= currentZoom;
-
-    final hw = viewSize.width / 2;
-    final hh = viewSize.height / 2;
-
-    return Matrix4.compose(
-        vec.Vector3(
-          -position.dx * zoom + hw,
-          -position.dy * zoom + hh,
-          0,
-        ),
-        vec.Quaternion.identity(),
-        vec.Vector3(zoom, zoom, 1));
-  }
+  Matrix4 calcMatrixFor(Offset position, {double? zoom}) =>
+      _state._calcMatrixFor(position, zoom: zoom ?? currentZoom);
 
   Offset get centerPosition => value.calcPosition(viewSize);
 
-  Matrix4 calcMatrixForRect(Rect rect, {double? zoomMax, double? margin}) {
-    margin ??= 0;
-    var zoom = min((viewSize.width - margin * 2) / rect.width,
-        (viewSize.height - margin * 2) / rect.height);
-    if (zoomMax != null && zoom > zoomMax) zoom = zoomMax;
-    return calcMatrixFor(rect.center, zoom: zoom);
-  }
+  Matrix4 calcMatrixForRect(Rect rect, {double? zoomMax, double? margin}) =>
+      _state._calcMatrixForRect(rect, zoomMax: zoomMax, margin: margin);
 
   double get currentZoom => value.zoom;
 
   Future<void> setZoom(
     Offset position,
     double zoom,
-  ) async {
-    goTo(calcMatrixFor(position, zoom: zoom));
-  }
+  ) =>
+      _state._setZoom(position, zoom);
 
   Future<void> zoomUp({
     bool loop = false,
     Offset? zoomCenter,
-  }) async {
-    await setZoom(zoomCenter ?? centerPosition, getNextZoom(loop: loop));
-  }
+  }) =>
+      _state._zoomUp(loop: loop, zoomCenter: zoomCenter);
 
   Future<void> zoomDown({
     bool loop = false,
     Offset? zoomCenter,
-  }) async {
-    await setZoom(zoomCenter ?? centerPosition, getPreviousZoom(loop: loop));
-  }
+  }) =>
+      _state._zoomDown(loop: loop, zoomCenter: zoomCenter);
 
-  RenderBox? get renderBox {
-    final renderBox = _state!.context.findRenderObject();
-    if (renderBox is! RenderBox) return null;
-    return renderBox;
-  }
+  RenderBox? get renderBox => _state._renderBox;
 
   /// Converts the global position to the local position in the widget.
-  Offset? globalToLocal(Offset global) {
-    final renderBox = this.renderBox;
-    if (renderBox == null) return null;
-    return renderBox.globalToLocal(global);
-  }
+  Offset? globalToLocal(Offset global) => _state._globalToLocal(global);
 
   /// Converts the local position to the global position in the widget.
-  Offset? localToGlobal(Offset local) {
-    final renderBox = this.renderBox;
-    if (renderBox == null) return null;
-    return renderBox.localToGlobal(local);
-  }
+  Offset? localToGlobal(Offset local) => _state._localToGlobal(local);
 
   /// Converts the global position to the local position in the PDF document structure.
-  Offset? globalToDocument(Offset global) {
-    final ratio = 1 / currentZoom;
-    return globalToLocal(global)
-        ?.translate(-value.xZoomed, -value.yZoomed)
-        .scale(ratio, ratio);
-  }
+  Offset? globalToDocument(Offset global) => _state._globalToDocument(global);
 
   /// Converts the local position in the PDF document structure to the global position.
-  Offset? documentToGlobal(Offset document) => localToGlobal(document
-      .scale(currentZoom, currentZoom)
-      .translate(value.xZoomed, value.yZoomed));
+  Offset? documentToGlobal(Offset document) =>
+      _state._documentToGlobal(document);
 
   /// Provided to workaround certain widgets eating wheel events. Use with [Listener.onPointerSignal].
   void handlePointerSignalEvent(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
-      _state!._onWheelDelta(event.scrollDelta);
+      _state._onWheelDelta(event.scrollDelta);
     }
   }
 }
