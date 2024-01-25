@@ -1,3 +1,8 @@
+# 0.4.24
+
+- Huge refactoring on PdfViewerController; it's no longer TransformationController but just a ValueListenable<Matrix4>
+  - This fixes an "Unhandled Exception: Null check operator used on a null value" on widget state disposal (#46)
+
 # 0.4.23
 
 - Introduces PdfDocumentViewBuilder/PdfPageView widgets
