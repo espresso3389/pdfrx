@@ -147,7 +147,8 @@ class PdfViewer extends StatefulWidget {
 class _PdfViewerState extends State<PdfViewer>
     with SingleTickerProviderStateMixin {
   PdfViewerController? _controller;
-  final TransformationController _txController = TransformationController();
+  late final TransformationController _txController =
+      _PdfViewerTransformationController(this);
   late final AnimationController _animController;
   Animation<Matrix4>? _animGoTo;
   int _animationResettingGuard = 0;
@@ -1149,6 +1150,17 @@ class _PdfViewerState extends State<PdfViewer>
       .translate(_txController.value.xZoomed, _txController.value.yZoomed));
 }
 
+class _PdfViewerTransformationController extends TransformationController {
+  _PdfViewerTransformationController(this._state);
+
+  final _PdfViewerState _state;
+
+  @override
+  set value(Matrix4 newValue) {
+    super.value = _state._makeMatrixInSafeRange(newValue);
+  }
+}
+
 /// Defines page layout.
 class PdfPageLayout {
   PdfPageLayout({required this.pageLayouts, required this.documentSize});
@@ -1375,7 +1387,7 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   }
 }
 
-extension Matrix4Ext on Matrix4 {
+extension PdfMatrix4Ext on Matrix4 {
   /// Zoom ratio of the matrix.
   double get zoom => storage[0];
 
@@ -1409,7 +1421,7 @@ extension Matrix4Ext on Matrix4 {
       height: (viewSize.height - margin * 2) / zoom);
 }
 
-extension RangeDouble<T extends num> on T {
+extension _RangeDouble<T extends num> on T {
   /// Identical to [num.clamp] but it does nothing if [a] is larger or equal to [b].
   T range(T a, T b) => a < b ? clamp(a, b) as T : (a + b) / 2 as T;
 }
@@ -1417,6 +1429,7 @@ extension RangeDouble<T extends num> on T {
 extension RectExt on Rect {
   Rect operator *(double operand) => Rect.fromLTRB(
       left * operand, top * operand, right * operand, bottom * operand);
+
   Rect operator /(double operand) => Rect.fromLTRB(
       left / operand, top / operand, right / operand, bottom / operand);
 
@@ -1444,77 +1457,7 @@ class _CustomPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-class PdfPageTextSearcher {
-  PdfPageTextSearcher._(this._state);
-  final _PdfViewerState _state;
-
-  Stream<PdfTextSearchResult> search(RegExp pattern) async* {
-    final pages = _state._document!.pages;
-    for (int i = 0; i < pages.length; i++) {
-      final page = pages[i];
-      final pageText = await page.loadText();
-      final matches = pattern.allMatches(pageText.fullText);
-      for (final match in matches) {
-        yield PdfTextSearchResult.fromTextRange(
-            pageText, match.start, match.end);
-      }
-    }
-  }
-}
-
-class PdfTextSearchResult {
-  PdfTextSearchResult(this.fragments, this.start, this.end, this.bounds);
-
-  final List<PdfPageTextFragment> fragments;
-  final int start;
-  final int end;
-  final PdfRect bounds;
-
-  static PdfTextSearchResult fromTextRange(PdfPageText pageText, int a, int b) {
-    // basically a should be less than or equal to b, but we anyway swap them if not
-    if (a > b) {
-      final temp = a;
-      a = b;
-      b = temp;
-    }
-    final s = pageText.getFragmentIndexForTextIndex(a);
-    final e = pageText.getFragmentIndexForTextIndex(b);
-    final sf = pageText.fragments[s];
-    if (s == e) {
-      if (sf.charRects == null) {
-        return PdfTextSearchResult(
-          pageText.fragments.sublist(s, e),
-          a - sf.index,
-          b - sf.index,
-          sf.bounds,
-        );
-      } else {
-        return PdfTextSearchResult(
-          pageText.fragments.sublist(s, e),
-          a - sf.index,
-          b - sf.index,
-          sf.charRects!.skip(a - sf.index).take(b - a).boundingRect(),
-        );
-      }
-    }
-
-    var bounds = sf.charRects != null
-        ? sf.charRects!.skip(a - sf.index).boundingRect()
-        : sf.bounds;
-    for (int i = s + 1; i < e; i++) {
-      bounds = bounds.merge(pageText.fragments[i].bounds);
-    }
-    final ef = pageText.fragments[e];
-    bounds = bounds.merge(ef.charRects != null
-        ? ef.charRects!.take(b - ef.index).boundingRect()
-        : ef.bounds);
-
-    return PdfTextSearchResult(
-        pageText.fragments.sublist(s, e), s - sf.index, e - ef.index, bounds);
-  }
-}
-
-extension RawKeyEventExt on RawKeyEvent {
+extension _RawKeyEventExt on RawKeyEvent {
   /// Key pressing state of ⌘ or Control depending on the platform.
   bool get isCommandKeyPressed =>
       Platform.isMacOS || Platform.isIOS ? isMetaPressed : isControlPressed;

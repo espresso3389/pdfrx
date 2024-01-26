@@ -1,3 +1,7 @@
+# 0.4.25
+
+- FIXED: Able to scroll outside document area
+
 # 0.4.24
 
 - Huge refactoring on PdfViewerController; it's no longer TransformationController but just a ValueListenable<Matrix4>

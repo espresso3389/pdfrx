@@ -369,6 +369,14 @@ abstract class PdfPageText {
   /// Find text fragment index for the specified text index.
   int getFragmentIndexForTextIndex(int textIndex) => fragments.lowerBound(
       _PdfPageTextFragmentForSearch(textIndex), (a, b) => a.index - b.index);
+
+  /// Search text with [pattern].
+  Stream<PdfTextSearchResult> search(Pattern pattern) async* {
+    final matches = pattern.allMatches(fullText);
+    for (final match in matches) {
+      yield PdfTextSearchResult.fromTextRange(this, match.start, match.end);
+    }
+  }
 }
 
 /// Text fragment in PDF page.
@@ -415,6 +423,69 @@ class _PdfPageTextFragmentForSearch extends PdfPageTextFragment {
   String get text => throw UnimplementedError();
   @override
   List<PdfRect>? get charRects => null;
+}
+
+class PdfTextSearchResult {
+  PdfTextSearchResult(this.fragments, this.start, this.end, this.bounds);
+
+  final List<PdfPageTextFragment> fragments;
+  final int start;
+  final int end;
+  final PdfRect bounds;
+
+  static PdfTextSearchResult fromTextRange(PdfPageText pageText, int a, int b) {
+    // basically a should be less than or equal to b, but we anyway swap them if not
+    if (a > b) {
+      final temp = a;
+      a = b;
+      b = temp;
+    }
+    final s = pageText.getFragmentIndexForTextIndex(a);
+    final e = pageText.getFragmentIndexForTextIndex(b);
+    final sf = pageText.fragments[s];
+    if (s == e) {
+      if (sf.charRects == null) {
+        return PdfTextSearchResult(
+          pageText.fragments.sublist(s, e),
+          a - sf.index,
+          b - sf.index,
+          sf.bounds,
+        );
+      } else {
+        return PdfTextSearchResult(
+          pageText.fragments.sublist(s, e),
+          a - sf.index,
+          b - sf.index,
+          sf.charRects!.skip(a - sf.index).take(b - a).boundingRect(),
+        );
+      }
+    }
+
+    var bounds = sf.charRects != null
+        ? sf.charRects!.skip(a - sf.index).boundingRect()
+        : sf.bounds;
+    for (int i = s + 1; i < e; i++) {
+      bounds = bounds.merge(pageText.fragments[i].bounds);
+    }
+    final ef = pageText.fragments[e];
+    bounds = bounds.merge(ef.charRects != null
+        ? ef.charRects!.take(b - ef.index).boundingRect()
+        : ef.bounds);
+
+    return PdfTextSearchResult(
+        pageText.fragments.sublist(s, e), s - sf.index, e - ef.index, bounds);
+  }
+}
+
+/// Extension to provide search over document feature.
+extension PdfDocumentSearchExt on PdfDocument {
+  /// Search text with [pattern].
+  Stream<PdfTextSearchResult> search(Pattern pattern) async* {
+    for (final page in pages) {
+      final text = await page.loadText();
+      yield* text.search(pattern);
+    }
+  }
 }
 
 /// Rectangle in PDF page coordinates.
