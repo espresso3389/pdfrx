@@ -357,6 +357,9 @@ abstract class PdfImage {
 ///
 /// See [PdfPage.loadText].
 abstract class PdfPageText {
+  /// Page number. The first page is 1.
+  int get pageNumber;
+
   /// Full text of the page.
   String get fullText;
 
@@ -367,14 +370,54 @@ abstract class PdfPageText {
   List<PdfPageTextFragment> get fragments;
 
   /// Find text fragment index for the specified text index.
-  int getFragmentIndexForTextIndex(int textIndex) => fragments.lowerBound(
-      _PdfPageTextFragmentForSearch(textIndex), (a, b) => a.index - b.index);
+  ///
+  /// If the specified text index is out of range, it returns -1.
+  int getFragmentIndexForTextIndex(int textIndex) {
+    final index = fragments.lowerBound(
+        _PdfPageTextFragmentForSearch(textIndex), (a, b) => a.index - b.index);
+    if (index > fragments.length) {
+      return -1; // range error
+    }
+    if (index == fragments.length) {
+      final f = fragments.last;
+      if (textIndex >= f.index + f.length) {
+        return -1; // range error
+      }
+      return index - 1;
+    }
+
+    final f = fragments[index];
+    if (textIndex < f.index) {
+      return index - 1;
+    }
+    return index;
+  }
 
   /// Search text with [pattern].
-  Stream<PdfTextSearchResult> search(Pattern pattern) async* {
-    final matches = pattern.allMatches(fullText);
+  ///
+  /// Just work like [Pattern.allMatches] but it returns stream of [PdfTextMatch].
+  /// [caseInsensitive] is used to specify case-insensitive search only if [pattern] is [String].
+  Stream<PdfTextMatch> allMatches(
+    Pattern pattern, {
+    bool caseInsensitive = true,
+  }) async* {
+    final String text;
+    if (pattern is RegExp) {
+      caseInsensitive = pattern.isCaseSensitive;
+      text = fullText;
+    } else if (pattern is String) {
+      pattern = caseInsensitive ? pattern.toLowerCase() : pattern;
+      text = caseInsensitive ? fullText.toLowerCase() : fullText;
+    } else {
+      throw ArgumentError.value(pattern, 'pattern');
+    }
+    final matches = pattern.allMatches(text);
     for (final match in matches) {
-      yield PdfTextSearchResult.fromTextRange(this, match.start, match.end);
+      if (match.start == match.end) continue;
+      final m = PdfTextMatch.fromTextRange(this, match.start, match.end);
+      if (m != null) {
+        yield m;
+      }
     }
   }
 }
@@ -386,6 +429,9 @@ abstract class PdfPageTextFragment {
 
   /// Length of the text fragment.
   int get length;
+
+  /// End index of the text fragment on [PdfPageText.fullText].
+  int get end => index + length;
 
   /// Bounds of the text fragment in PDF page coordinates.
   PdfRect get bounds;
@@ -425,66 +471,87 @@ class _PdfPageTextFragmentForSearch extends PdfPageTextFragment {
   List<PdfRect>? get charRects => null;
 }
 
-class PdfTextSearchResult {
-  PdfTextSearchResult(this.fragments, this.start, this.end, this.bounds);
+/// Text match result in PDF page.
+class PdfTextMatch {
+  PdfTextMatch(
+    this.pageNumber,
+    this.fragments,
+    this.start,
+    this.end,
+    this.bounds,
+  );
 
+  /// Page number of the page.
+  final int pageNumber;
+
+  /// Fragments that contains the text.
   final List<PdfPageTextFragment> fragments;
+
+  /// In-fragment text start index on the first fragment.
   final int start;
+
+  /// In-fragment text end index on the last fragment.
   final int end;
+
+  /// Bounding rectangle of the text.
   final PdfRect bounds;
 
-  static PdfTextSearchResult fromTextRange(PdfPageText pageText, int a, int b) {
-    // basically a should be less than or equal to b, but we anyway swap them if not
-    if (a > b) {
-      final temp = a;
-      a = b;
-      b = temp;
+  /// Create [PdfTextMatch] from text range in [PdfPageText].
+  static PdfTextMatch? fromTextRange(PdfPageText pageText, int start, int end) {
+    if (start >= end) {
+      return null;
     }
-    final s = pageText.getFragmentIndexForTextIndex(a);
-    final e = pageText.getFragmentIndexForTextIndex(b);
+    final s = pageText.getFragmentIndexForTextIndex(start);
     final sf = pageText.fragments[s];
-    if (s == e) {
+    if (start + 1 == end) {
+      return PdfTextMatch(
+        pageText.pageNumber,
+        [pageText.fragments[s]],
+        start - sf.index,
+        end - sf.index,
+        sf.bounds,
+      );
+    }
+
+    final l = pageText.getFragmentIndexForTextIndex(end - 1);
+    if (s == l) {
       if (sf.charRects == null) {
-        return PdfTextSearchResult(
-          pageText.fragments.sublist(s, e),
-          a - sf.index,
-          b - sf.index,
+        return PdfTextMatch(
+          pageText.pageNumber,
+          [pageText.fragments[s]],
+          start - sf.index,
+          end - sf.index,
           sf.bounds,
         );
       } else {
-        return PdfTextSearchResult(
-          pageText.fragments.sublist(s, e),
-          a - sf.index,
-          b - sf.index,
-          sf.charRects!.skip(a - sf.index).take(b - a).boundingRect(),
+        return PdfTextMatch(
+          pageText.pageNumber,
+          [pageText.fragments[s]],
+          start - sf.index,
+          end - sf.index,
+          sf.charRects!.skip(start - sf.index).take(end - start).boundingRect(),
         );
       }
     }
 
     var bounds = sf.charRects != null
-        ? sf.charRects!.skip(a - sf.index).boundingRect()
+        ? sf.charRects!.skip(start - sf.index).boundingRect()
         : sf.bounds;
-    for (int i = s + 1; i < e; i++) {
+    for (int i = s + 1; i < l; i++) {
       bounds = bounds.merge(pageText.fragments[i].bounds);
     }
-    final ef = pageText.fragments[e];
-    bounds = bounds.merge(ef.charRects != null
-        ? ef.charRects!.take(b - ef.index).boundingRect()
-        : ef.bounds);
+    final lf = pageText.fragments[l];
+    bounds = bounds.merge(lf.charRects != null
+        ? lf.charRects!.take(end - lf.index).boundingRect()
+        : lf.bounds);
 
-    return PdfTextSearchResult(
-        pageText.fragments.sublist(s, e), s - sf.index, e - ef.index, bounds);
-  }
-}
-
-/// Extension to provide search over document feature.
-extension PdfDocumentSearchExt on PdfDocument {
-  /// Search text with [pattern].
-  Stream<PdfTextSearchResult> search(Pattern pattern) async* {
-    for (final page in pages) {
-      final text = await page.loadText();
-      yield* text.search(pattern);
-    }
+    return PdfTextMatch(
+      pageText.pageNumber,
+      pageText.fragments.sublist(s, l + 1),
+      start - sf.index,
+      end - lf.index,
+      bounds,
+    );
   }
 }
 

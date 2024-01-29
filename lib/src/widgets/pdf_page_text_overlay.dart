@@ -1,6 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 
 import '../../pdfrx.dart';
 
@@ -25,6 +26,7 @@ class PdfPageTextOverlay extends StatefulWidget {
 
 class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
   List<PdfPageTextFragment>? fragments;
+  SystemMouseCursor cursor = SystemMouseCursors.basic;
 
   @override
   void initState() {
@@ -80,21 +82,46 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
         widget.page.document.permissions?.allowsCopying == false) {
       return const SizedBox();
     }
-    return Positioned(
-      left: widget.pageRect.left,
-      top: widget.pageRect.top,
-      width: widget.pageRect.width,
-      height: widget.pageRect.height,
-      child: MouseRegion(
-        hitTestBehavior: HitTestBehavior.translucent,
-        opaque: true,
-        cursor: SystemMouseCursors.text,
-        child: _PdfTextWidget(
-          widget.registrar,
-          this,
-        ),
+    return MouseRegion(
+      hitTestBehavior: HitTestBehavior.translucent,
+      cursor: cursor,
+      onHover: _onHover,
+      child: _PdfTextWidget(
+        widget.registrar,
+        this,
       ),
     );
+  }
+
+  void _onHover(PointerHoverEvent event) {
+    final point = toPdfPoint(event.localPosition, widget.page.height,
+        widget.pageRect.height / widget.page.height);
+    for (final fragment in fragments!) {
+      if (pdfRectContains(fragment.bounds, point)) {
+        _setCursor(SystemMouseCursors.text);
+        return;
+      }
+    }
+    _setCursor(SystemMouseCursors.basic);
+  }
+
+  void _setCursor(SystemMouseCursor cursor) {
+    if (this.cursor == cursor) return;
+    this.cursor = cursor;
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  static Offset toPdfPoint(Offset point, double pageHeight, double scale) {
+    return Offset(point.dx / scale, pageHeight - point.dy / scale);
+  }
+
+  static bool pdfRectContains(PdfRect rect, Offset point) {
+    return rect.left <= point.dx &&
+        rect.right >= point.dx &&
+        rect.bottom <= point.dy &&
+        rect.top >= point.dy;
   }
 }
 
