@@ -153,6 +153,63 @@ By default, the first password attempt uses empty password. This is because cnry
 
 You can customize the behaviour and visual by configuring [PdfViewerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams-class.html).
 
+### Text Selection
+
+Text selection feature is still experimental but you can easily enable it like the following fragment:
+
+```dart
+PdfViewer.asset(
+  'assets/test.pdf',
+  enableTextSelection: true,
+  ...
+),
+```
+
+### PDF Link Handling
+
+To enable Link in PDF file, you should set [PdfViewerParams.linkWidgetBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/linkWidgetBuilder.html).
+
+The following fragment creates a widget that handles user's tap on link:
+
+```dart
+linkWidgetBuilder: (context, link, size) => Material(
+  color: Colors.transparent,
+  child: InkWell(
+    onTap: () {
+      // handle URL or Dest
+      if (link.url != null) {
+        // TODO: implement your own isSecureUrl by yourself...
+        if (await isSecureUrl(link.url!)) {
+          launchUrl(link.url!);
+        }
+      } else if (link.dest != null) {
+        controller.goToDest(link.dest);
+      }
+    },
+    hoverColor: Colors.blue.withOpacity(0.2),
+  ),
+),
+```
+
+For URIs, you should check the validity of the URIs before opening the URI; the example code just show dialog to ask whether to open the URL or not.
+
+For destinations, you can use [PdfViewerController.goToDest](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/goToDest.html) to go to the destination. Or you can use [PdfViewerController.calcMatrixForDest](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/calcMatrixForDest.html) to get the matrix for it.
+
+### Document Outline (a.k.a Bookmarks)
+
+PDF defines document outline ([PdfOutlineNode](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfOutlineNode-class.html)), which is sometimes called as bookmarks or index. And you can access it by [PdfDocument.loadOutline](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/loadOutline.html).
+
+The following fragment obtains it on [PdfViewerParams.onDocumentChanged](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/onDocumentChanged.html):
+
+```dart
+onDocumentChanged: (document) async {
+  // Please note that document may be null
+  outline.value = await document?.loadOutline();
+},
+```
+
+[PdfOutlineNode](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfOutlineNode-class.html) is tree structured data and for more information, see the usage on [example code](https://github.com/espresso3389/pdfrx/blob/master/example/lib/outline_view.dart).
+
 ### Horizontal Scroll View
 
 By default, the pages are layed out vertically.

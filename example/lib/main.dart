@@ -222,9 +222,9 @@ class _MainPageState extends State<MainPage> {
                     linkWidgetBuilder: (context, link, size) => Material(
                       color: Colors.transparent,
                       child: InkWell(
-                        onTap: () {
+                        onTap: () async {
                           if (link.url != null) {
-                            launchUrl(link.url!);
+                            navigateToUrl(link.url!);
                           } else if (link.dest != null) {
                             controller.goToDest(link.dest);
                           }
@@ -246,5 +246,49 @@ class _MainPageState extends State<MainPage> {
         ],
       ),
     );
+  }
+
+  Future<void> navigateToUrl(Uri url) async {
+    if (await shouldOpenUrl(context, url)) {
+      await launchUrl(url);
+    }
+  }
+
+  Future<bool> shouldOpenUrl(BuildContext context, Uri url) async {
+    final result = await showDialog<bool?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Navigate to URL?'),
+          content: SelectionArea(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  const TextSpan(
+                      text:
+                          'Do you want to navigate to the following location?\n'),
+                  TextSpan(
+                    text: url.toString(),
+                    style: const TextStyle(color: Colors.blue),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Go'),
+            ),
+          ],
+        );
+      },
+    );
+    return result ?? false;
   }
 }

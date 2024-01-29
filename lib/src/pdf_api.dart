@@ -640,7 +640,7 @@ extension PdfRectsExt on Iterable<PdfRect> {
   PdfRect boundingRect() => reduce((a, b) => a.merge(b));
 }
 
-/// Defines the page and inner-page location to jump to.
+/// PDF [Explicit Destination](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=374) the page and inner-page location to jump to.
 @immutable
 class PdfDest {
   const PdfDest(this.pageNumber, this.command, this.params);
