@@ -44,6 +44,7 @@ class _MainPageState extends State<MainPage> {
 
   @override
   void dispose() {
+    textSearcher.removeListener(_update);
     textSearcher.dispose();
     showLeftPane.dispose();
     outline.dispose();

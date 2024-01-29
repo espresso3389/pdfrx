@@ -1,3 +1,7 @@
+# 0.4.27
+
+- Minor updates and README.md updates
+
 # 0.4.26
 
 - Introduces PdfTextSearcher that helps you to implement search UI feature (#47)

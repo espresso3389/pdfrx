@@ -33,7 +33,7 @@ class PdfTextSearcher extends Listenable {
   /// The current match index in [matches] if available.
   int? get currentIndex => _currentIndex;
 
-  /// Get the match for the given index.
+  /// Get the current matches.
   List<PdfTextMatch> get matches => _matches;
 
   /// Whether there are any matches or not (so far).
@@ -68,6 +68,7 @@ class PdfTextSearcher extends Listenable {
   void startTextSearch(
     Pattern pattern, {
     bool caseInsensitive = true,
+    bool goToFirstMatch = true,
   }) {
     _cancelTextSearch();
     final searchSession = ++_searchSession;
@@ -82,7 +83,8 @@ class PdfTextSearcher extends Listenable {
           _resetTextSearch();
           return;
         }
-        _startTextSearchInternal(pattern, searchSession, caseInsensitive);
+        _startTextSearchInternal(
+            pattern, searchSession, caseInsensitive, goToFirstMatch);
       },
     );
   }
@@ -112,7 +114,11 @@ class PdfTextSearcher extends Listenable {
   }
 
   Future<void> _startTextSearchInternal(
-      Pattern text, int searchSession, bool caseInsensitive) async {
+    Pattern text,
+    int searchSession,
+    bool caseInsensitive,
+    bool goToFirstMatch,
+  ) async {
     await controller?.documentRef.resolveListenable().useDocument(
       (document) async {
         final textMatches = <PdfTextMatch>[];
@@ -140,9 +146,11 @@ class PdfTextSearcher extends Listenable {
 
           if (_matches.isNotEmpty && first) {
             first = false;
-            _currentIndex = 0;
-            _currentMatch = null;
-            goToMatchOfIndex(_currentIndex!);
+            if (goToFirstMatch) {
+              _currentIndex = 0;
+              _currentMatch = null;
+              goToMatchOfIndex(_currentIndex!);
+            }
           }
         }
       },
@@ -160,20 +168,26 @@ class PdfTextSearcher extends Listenable {
 
   /// Go to the previous match.
   Future<void> goToPrevMatch() async {
-    if (_currentIndex == null) return;
+    if (_currentIndex == null) {
+      _currentIndex = _matches.length - 1;
+      await goToMatchOfIndex(_currentIndex!);
+      return;
+    }
     if (_currentIndex! > 0) {
       _currentIndex = _currentIndex! - 1;
-      notifyListeners();
       await goToMatchOfIndex(_currentIndex!);
     }
   }
 
   /// Go to the next match.
   Future<void> goToNextMatch() async {
-    if (_currentIndex == null) return;
+    if (_currentIndex == null) {
+      _currentIndex = 0;
+      await goToMatchOfIndex(_currentIndex!);
+      return;
+    }
     if (_currentIndex! + 1 < _matches.length) {
       _currentIndex = _currentIndex! + 1;
-      notifyListeners();
       await goToMatchOfIndex(_currentIndex!);
     }
   }

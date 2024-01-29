@@ -44,7 +44,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^0.4.26
+  pdfrx: ^0.4.27
 ```
 
 ### Windows
@@ -89,10 +89,6 @@ Anyway, the example code for the plugin illustrates how to download and preview 
 
 - [PdfViewer.asset](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.asset.html)
   - Open PDF of Flutter's asset
-- [PdfViewer.custom](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.custom.html)
-  - Open PDF using read callback
-- [PdfViewer.data](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.data.html)
-  - Open PDF on [Uint8List](https://api.dart.dev/dart-typed_data/Uint8List/Uint8List.html)
 - [PdfViewer.file](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.file.html)
   - Open PDF from file
 - [PdfViewer.uri](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.uri.html)
@@ -253,4 +249,87 @@ loadingBannerBuilder: (context, bytesDownloaded, totalBytes) {
     ),
   );
 }
+```
+
+### Text Search
+
+[TextSearcher](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html) is just a helper class that helps you to implement text searching feature on your app.
+
+The following fragment illustrates the overall structure of the [TextSearcher](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html):
+
+```dart
+class _MainPageState extends State<MainPage> {
+  final controller = PdfViewerController();
+  // create a PdfTextSearcher and add a listener to update the GUI on search result changes
+  late final textSearcher = PdfTextSearcher(controller)..addListener(_update);
+
+  void _update() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    // dispose the PdfTextSearcher
+    textSearcher.removeListener(_update);
+    textSearcher.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Pdfrx example'),
+      ),
+      body: PdfViewer.asset(
+        'assets/hello.pdf',
+        controller: controller,
+        params: PdfViewerParams(
+          // add pageTextMatchPaintCallback that paints search hit highlights
+          pagePaintCallbacks: [
+            textSearcher.pageTextMatchPaintCallback
+          ],
+        ),
+      )
+    );
+  }
+  ...
+}
+```
+
+On the fragment above, it does:
+
+- Create [TextSearcher](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html) instance
+- Add a listener (Using [PdfTextSearcher.addListener](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/addListener.html)) to update UI on search result change
+- Add [TextSearcher.pageTextMatchPaintCallback](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/pageTextMatchPaintCallback.html) to [PdfViewerParams.pagePaintCallbacks](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pagePaintCallbacks.html) to show search matches
+
+Then, you can use [TextSearcher](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html) to search text in the PDF document:
+
+```dart
+textSearcher.startTextSearch('hello', caseInsensitive: true);
+```
+
+The search starts running in background and the search progress is notified by the listener.
+
+There are several functions that helps you to navigate user to the search matches:
+
+- [TextSearcher.goToMatchOfIndex](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/goToMatchOfIndex.html) to go to the match of the specified index
+- [TextSearcher.goToNextMatch](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/goToNextMatch.html) to go to the next match
+- [TextSearcher.goToPrevMatch](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/goToPrevMatch.html) to go to the previous match
+
+You can get the search result (even when the search is still running) in the list of [PdfTextMatch](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextMatch-class.html) by [PdfTextSearcher.matches](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/matches.html):
+
+```dart
+for (final match in textSearcher.matches) {
+  print(match.pageNumber);
+  ...
+}
+```
+
+You can also cancel the background search:
+
+```dart
+textSearcher.resetTextSearch();
 ```
