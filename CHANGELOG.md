@@ -1,10 +1,15 @@
+# 0.4.26
+
+- Introduces PdfTextSearcher that helps you to implement search UI feature (#47)
+- Example code is vastly changed to explain more about the widget functions
+
 # 0.4.25
 
 - FIXED: Able to scroll outside document area
 
 # 0.4.24
 
-- Huge refactoring on PdfViewerController; it's no longer TransformationController but just a ValueListenable<Matrix4>
+- Huge refactoring on PdfViewerController; it's no longer TransformationController but just a `ValueListenable<Matrix4>`
   - This fixes an "Unhandled Exception: Null check operator used on a null value" on widget state disposal (#46)
 
 # 0.4.23
