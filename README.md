@@ -147,7 +147,7 @@ When [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-clas
 
 ### `firstAttemptByEmptyPassword`
 
-By default, the first password attempt uses empty password. This is because cnrypted PDF files frequently uses empty password for viewing purpose. It's _normally_ useful but if you want to use authoring password, it can be disabled by setting `firstAttemptByEmptyPassword` to false.
+By default, the first password attempt uses empty password. This is because encrypted PDF files frequently use empty password for viewing purpose. It's _normally_ useful but if you want to use authoring password, it can be disabled by setting `firstAttemptByEmptyPassword` to false.
 
 ## Customizations
 
