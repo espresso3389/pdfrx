@@ -23,26 +23,26 @@ import 'pdf_viewer_params.dart';
 /// A widget to display PDF document.
 ///
 /// To create a [PdfViewer] widget, use one of the following constructors:
-/// - [PdfViewer.asset]
-/// - [PdfViewer.file]
-/// - [PdfViewer.uri]
-/// - [PdfViewer.documentRef]
+/// - [PdfDocument] with [PdfViewer.documentRef]
+/// - [PdfViewer.asset] with an asset name
+/// - [PdfViewer.file] with a file path
+/// - [PdfViewer.uri] with a URI
 ///
-/// Of course, if you have a [PdfDocument] use [PdfViewer] constructor:
-/// - [PdfViewer]
+/// Or otherwise, you can pass [PdfDocumentRef] to [PdfViewer] constructor.
 class PdfViewer extends StatefulWidget {
-  /// Create [PdfViewer] using [PdfDocument].
+  /// Create [PdfViewer] from a [PdfDocumentRef].
   ///
+  /// [documentRef] is the [PdfDocumentRef].
   /// [controller] is the controller to control the viewer.
   /// [params] is the parameters to customize the viewer.
   /// [initialPageNumber] is the page number to show initially.
-  PdfViewer({
-    required PdfDocument document,
+  const PdfViewer(
+    this.documentRef, {
     super.key,
     this.controller,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
-  }) : documentRef = PdfDocumentRefDirect(document);
+  });
 
   /// Create [PdfViewer] from an asset.
   ///
@@ -113,20 +113,42 @@ class PdfViewer extends StatefulWidget {
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         );
 
-  /// Create [PdfViewer] from a [PdfDocumentRef].
-  ///
-  /// [documentRef] is the [PdfDocumentRef].
-  /// [controller] is the controller to control the viewer.
-  /// [params] is the parameters to customize the viewer.
-  /// [initialPageNumber] is the page number to show initially.
-  const PdfViewer.documentRef({
-    required this.documentRef,
+  PdfViewer.data(
+    Uint8List data, {
+    required String sourceName,
+    PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
     super.key,
     this.controller,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
-  });
+  }) : documentRef = PdfDocumentRefData(
+          data,
+          sourceName: sourceName,
+          passwordProvider: passwordProvider,
+          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+        );
 
+  PdfViewer.custom({
+    required int fileSize,
+    required FutureOr<int> Function(Uint8List buffer, int position, int size)
+        read,
+    required String sourceName,
+    PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
+    super.key,
+    this.controller,
+    this.params = const PdfViewerParams(),
+    this.initialPageNumber = 1,
+  }) : documentRef = PdfDocumentRefCustom(
+          fileSize: fileSize,
+          read: read,
+          sourceName: sourceName,
+          passwordProvider: passwordProvider,
+          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+        );
+
+  /// [PdfDocumentRef] that represents the PDF document.
   final PdfDocumentRef documentRef;
 
   /// Controller to control the viewer.

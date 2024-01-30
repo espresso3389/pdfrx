@@ -10,6 +10,15 @@ typedef PdfDocumentLoaderProgressCallback = void Function(int progress,
     [int? total]);
 
 /// PdfDocumentRef controls loading of a [PdfDocument].
+/// There are several types of [PdfDocumentRef]s predefined:
+/// * [PdfDocumentRefAsset] loads the document from asset.
+/// * [PdfDocumentRefUri] loads the document from network.
+/// * [PdfDocumentRefFile] loads the document from file.
+/// * [PdfDocumentRefData] loads the document from data in [Uint8List].
+/// * [PdfDocumentRefCustom] loads the document from custom source.
+/// * [PdfDocumentRefDirect] directly contains [PdfDocument].
+///
+/// Or you can create your own [PdfDocumentRef] by extending the class.
 abstract class PdfDocumentRef {
   const PdfDocumentRef({
     this.autoDispose = true,
