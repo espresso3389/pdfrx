@@ -187,6 +187,9 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
   List<PdfPageTextFragment> get _fragments => _textWidget._state.fragments!;
 
   @override
+  List<Rect> get boundingBoxes => <Rect>[paintBounds];
+
+  @override
   bool get sizedByParent => true;
   @override
   double computeMinIntrinsicWidth(double height) => _pageRect.size.width;
