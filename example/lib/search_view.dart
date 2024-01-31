@@ -23,15 +23,19 @@ class _TextSearchViewState extends State<TextSearchView> {
   final searchTextController = TextEditingController();
   late final pageTextStore =
       PdfPageTextStore(textSearcher: widget.textSearcher);
+  final scrollController = ScrollController();
 
   @override
   void initState() {
+    widget.textSearcher.addListener(_searchResultUpdated);
     searchTextController.addListener(_searchTextUpdated);
     super.initState();
   }
 
   @override
   void dispose() {
+    scrollController.dispose();
+    widget.textSearcher.removeListener(_searchResultUpdated);
     searchTextController.removeListener(_searchTextUpdated);
     searchTextController.dispose();
     focusNode.dispose();
@@ -41,6 +45,34 @@ class _TextSearchViewState extends State<TextSearchView> {
   void _searchTextUpdated() {
     widget.textSearcher.startTextSearch(searchTextController.text);
   }
+
+  int? _currentSearchSession;
+  final _matchIndexToListIndex = <int>[];
+  final _listIndexToMatchIndex = <int>[];
+
+  void _searchResultUpdated() {
+    if (_currentSearchSession != widget.textSearcher.searchSession) {
+      _currentSearchSession = widget.textSearcher.searchSession;
+      _matchIndexToListIndex.clear();
+      _listIndexToMatchIndex.clear();
+    }
+    for (int i = _matchIndexToListIndex.length;
+        i < widget.textSearcher.matches.length;
+        i++) {
+      if (i == 0 ||
+          widget.textSearcher.matches[i - 1].pageNumber !=
+              widget.textSearcher.matches[i].pageNumber) {
+        _listIndexToMatchIndex.add(-widget.textSearcher.matches[i]
+            .pageNumber); // negative index to indicate page header
+      }
+      _matchIndexToListIndex.add(_listIndexToMatchIndex.length);
+      _listIndexToMatchIndex.add(i);
+    }
+
+    if (mounted) setState(() {});
+  }
+
+  static const double itemHeight = 50;
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +124,7 @@ class _TextSearchViewState extends State<TextSearchView> {
                       widget.textSearcher.matches.length
                   ? () async {
                       await widget.textSearcher.goToNextMatch();
-                      if (mounted) setState(() {});
+                      _conditionScrollPosition();
                     }
                   : null,
               icon: const Icon(Icons.arrow_downward),
@@ -102,7 +134,7 @@ class _TextSearchViewState extends State<TextSearchView> {
               onPressed: (widget.textSearcher.currentIndex ?? 0) > 0
                   ? () async {
                       await widget.textSearcher.goToPrevMatch();
-                      if (mounted) setState(() {});
+                      _conditionScrollPosition();
                     }
                   : null,
               icon: const Icon(Icons.arrow_upward),
@@ -121,23 +153,67 @@ class _TextSearchViewState extends State<TextSearchView> {
             ),
           ],
         ),
+        const SizedBox(height: 4),
         Expanded(
           child: ListView.builder(
             key: Key(searchTextController.text),
-            itemCount: widget.textSearcher.matches.length,
-            itemBuilder: (context, index) => SearchResultTile(
-              key: ValueKey(index),
-              match: widget.textSearcher.matches[index],
-              onTap: () => widget.textSearcher
-                  .goToMatch(widget.textSearcher.matches[index]),
-              pageTextStore: pageTextStore,
-              height: 50,
-              isLast: index + 1 == widget.textSearcher.matches.length,
-            ),
+            controller: scrollController,
+            itemCount: _listIndexToMatchIndex.length,
+            itemBuilder: (context, index) {
+              final matchIndex = _listIndexToMatchIndex[index];
+              if (matchIndex >= 0) {
+                final match = widget.textSearcher.matches[matchIndex];
+                return SearchResultTile(
+                  key: ValueKey(index),
+                  match: match,
+                  onTap: () async {
+                    await widget.textSearcher.goToMatchOfIndex(matchIndex);
+                    if (mounted) setState(() {});
+                  },
+                  pageTextStore: pageTextStore,
+                  height: itemHeight,
+                  isCurrent: matchIndex == widget.textSearcher.currentIndex,
+                );
+              } else {
+                return Container(
+                  height: itemHeight,
+                  alignment: Alignment.bottomLeft,
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Text(
+                    'Page ${-matchIndex}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                );
+              }
+            },
           ),
         ),
       ],
     );
+  }
+
+  void _conditionScrollPosition() {
+    final pos = scrollController.position;
+    final newPos =
+        itemHeight * _matchIndexToListIndex[widget.textSearcher.currentIndex!];
+    if (newPos + itemHeight > pos.pixels + pos.viewportDimension) {
+      scrollController.animateTo(
+        newPos + itemHeight - pos.viewportDimension,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.decelerate,
+      );
+    } else if (newPos < pos.pixels) {
+      scrollController.animateTo(
+        newPos,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.decelerate,
+      );
+    }
+
+    if (mounted) setState(() {});
   }
 }
 
@@ -148,14 +224,14 @@ class SearchResultTile extends StatefulWidget {
     required this.onTap,
     required this.pageTextStore,
     required this.height,
-    required this.isLast,
+    required this.isCurrent,
   });
 
   final PdfTextMatch match;
   final void Function() onTap;
   final PdfPageTextStore pageTextStore;
   final double height;
-  final bool isLast;
+  final bool isCurrent;
 
   @override
   State<SearchResultTile> createState() => _SearchResultTileState();
@@ -194,37 +270,28 @@ class _SearchResultTileState extends State<SearchResultTile> {
   Widget build(BuildContext context) {
     final text = Text.rich(createTextSpanForMatch(pageText, widget.match));
 
-    return InkWell(
-      child: SizedBox(
-        height: widget.height,
-        child: Stack(
-          children: [
-            Container(
-              margin: const EdgeInsets.all(3),
-              child: text,
-            ),
-            Align(
-              alignment: Alignment.bottomRight,
-              child: Container(
-                color: Colors.black38,
-                padding: const EdgeInsets.all(3),
-                child: Text(
-                  'Page ${widget.match.pageNumber}',
-                  style: const TextStyle(fontSize: 12, color: Colors.white),
+    return SizedBox(
+      height: widget.height,
+      child: Material(
+        color: widget.isCurrent
+            ? DefaultSelectionStyle.of(context).selectionColor!
+            : null,
+        child: InkWell(
+          onTap: () => widget.onTap(),
+          child: Container(
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.black12,
+                  width: 0.5,
                 ),
               ),
             ),
-            if (!widget.isLast)
-              const Align(
-                alignment: Alignment.bottomCenter,
-                child: Divider(
-                  height: 1,
-                ),
-              ),
-          ],
+            padding: const EdgeInsets.all(3),
+            child: text,
+          ),
         ),
       ),
-      onTap: () => widget.onTap(),
     );
   }
 

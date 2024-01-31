@@ -54,6 +54,8 @@ class PdfTextSearcher extends Listenable {
 
   Pattern? get pattern => _lastSearchPattern;
 
+  int get searchSession => _searchSession;
+
   final List<VoidCallback> _listeners = [];
 
   void notifyListeners() {
@@ -202,6 +204,7 @@ class PdfTextSearcher extends Listenable {
   /// Go to the given match.
   Future<void> goToMatch(PdfTextMatch match) async {
     _currentMatch = match;
+    _currentIndex = _matches.indexOf(match);
     await controller?.ensureVisible(
       controller!.calcRectForRectInsidePage(
         pageNumber: match.pageNumber,
@@ -209,6 +212,7 @@ class PdfTextSearcher extends Listenable {
       ),
       margin: 50,
     );
+    controller!.invalidate();
   }
 
   /// Get the matches range for the given page number.
@@ -224,6 +228,7 @@ class PdfTextSearcher extends Listenable {
   /// Go to the match of the given index.
   Future<int> goToMatchOfIndex(int index) async {
     if (index < 0 || index >= _matches.length) return -1;
+    _currentIndex = index;
     await goToMatch(_matches[index]);
     return index;
   }
