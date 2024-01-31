@@ -1,3 +1,7 @@
+# 0.4.29
+
+- Minor fixes to PdfTextSearcher
+
 # 0.4.28
 
 - README.md/example updates
