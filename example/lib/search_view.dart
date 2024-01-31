@@ -19,6 +19,7 @@ class TextSearchView extends StatefulWidget {
 }
 
 class _TextSearchViewState extends State<TextSearchView> {
+  final focusNode = FocusNode();
   final searchTextController = TextEditingController();
   late final pageTextStore =
       PdfPageTextStore(textSearcher: widget.textSearcher);
@@ -33,6 +34,7 @@ class _TextSearchViewState extends State<TextSearchView> {
   void dispose() {
     searchTextController.removeListener(_searchTextUpdated);
     searchTextController.dispose();
+    focusNode.dispose();
     super.dispose();
   }
 
@@ -59,10 +61,16 @@ class _TextSearchViewState extends State<TextSearchView> {
                 children: [
                   TextField(
                     autofocus: true,
+                    focusNode: focusNode,
                     controller: searchTextController,
                     decoration: const InputDecoration(
                       contentPadding: EdgeInsets.only(right: 50),
                     ),
+                    textInputAction: TextInputAction.none,
+                    // onSubmitted: (value) {
+                    //   // just focus back to the text field
+                    //   focusNode.requestFocus();
+                    // },
                   ),
                   if (widget.textSearcher.hasMatches)
                     Align(
@@ -80,38 +88,54 @@ class _TextSearchViewState extends State<TextSearchView> {
             ),
             const SizedBox(width: 4),
             IconButton(
-              onPressed: () => widget.textSearcher.goToNextMatch(),
+              onPressed: (widget.textSearcher.currentIndex ?? 0) <
+                      widget.textSearcher.matches.length
+                  ? () async {
+                      await widget.textSearcher.goToNextMatch();
+                      if (mounted) setState(() {});
+                    }
+                  : null,
               icon: const Icon(Icons.arrow_downward),
               iconSize: 20,
             ),
             IconButton(
-              onPressed: () => widget.textSearcher.goToPrevMatch(),
+              onPressed: (widget.textSearcher.currentIndex ?? 0) > 0
+                  ? () async {
+                      await widget.textSearcher.goToPrevMatch();
+                      if (mounted) setState(() {});
+                    }
+                  : null,
               icon: const Icon(Icons.arrow_upward),
               iconSize: 20,
             ),
             IconButton(
-              onPressed: () {
-                searchTextController.text = '';
-                widget.textSearcher.resetTextSearch();
-              },
+              onPressed: searchTextController.text.isNotEmpty
+                  ? () {
+                      searchTextController.text = '';
+                      widget.textSearcher.resetTextSearch();
+                      focusNode.requestFocus();
+                    }
+                  : null,
               icon: const Icon(Icons.close),
               iconSize: 20,
             ),
           ],
         ),
-        if (widget.textSearcher.hasMatches)
-          Expanded(
-            child: ListView.separated(
-              itemCount: widget.textSearcher.matches.length,
-              itemBuilder: (context, index) => SearchResultTile(
-                match: widget.textSearcher.matches[index],
-                onTap: () => widget.textSearcher
-                    .goToMatch(widget.textSearcher.matches[index]),
-                pageTextStore: pageTextStore,
-              ),
-              separatorBuilder: (context, index) => const Divider(),
+        Expanded(
+          child: ListView.builder(
+            key: Key(searchTextController.text),
+            itemCount: widget.textSearcher.matches.length,
+            itemBuilder: (context, index) => SearchResultTile(
+              key: ValueKey(index),
+              match: widget.textSearcher.matches[index],
+              onTap: () => widget.textSearcher
+                  .goToMatch(widget.textSearcher.matches[index]),
+              pageTextStore: pageTextStore,
+              height: 50,
+              isLast: index + 1 == widget.textSearcher.matches.length,
             ),
           ),
+        ),
       ],
     );
   }
@@ -123,11 +147,15 @@ class SearchResultTile extends StatefulWidget {
     required this.match,
     required this.onTap,
     required this.pageTextStore,
+    required this.height,
+    required this.isLast,
   });
 
   final PdfTextMatch match;
   final void Function() onTap;
   final PdfPageTextStore pageTextStore;
+  final double height;
+  final bool isLast;
 
   @override
   State<SearchResultTile> createState() => _SearchResultTileState();
@@ -139,45 +167,78 @@ class _SearchResultTileState extends State<SearchResultTile> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() async {
-      pageText = await widget.pageTextStore.loadText(widget.match.pageNumber);
-      if (mounted) {
-        setState(() {});
-      }
-    });
+    _load();
+  }
+
+  void _release() {
+    if (pageText != null) {
+      widget.pageTextStore.releaseText(pageText!.pageNumber);
+    }
+  }
+
+  Future<void> _load() async {
+    _release();
+    pageText = await widget.pageTextStore.loadText(widget.match.pageNumber);
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
-    if (pageText != null) {
-      widget.pageTextStore.releaseText(widget.match.pageNumber);
-    }
+    _release();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final Widget text;
-    if (pageText == null) {
-      text = Text('Page ${widget.match.pageNumber}');
-    } else {
-      text = Text.rich(test(pageText!, widget.match));
-    }
+    final text = Text.rich(createTextSpanForMatch(pageText, widget.match));
 
-    return ListTile(
-      title: text,
-      subtitle: Align(
-        alignment: Alignment.bottomRight,
-        child: Text(
-          'Page ${widget.match.pageNumber}',
-          style: const TextStyle(fontSize: 12),
+    return InkWell(
+      child: SizedBox(
+        height: widget.height,
+        child: Stack(
+          children: [
+            Container(
+              margin: const EdgeInsets.all(3),
+              child: text,
+            ),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Container(
+                color: Colors.black38,
+                padding: const EdgeInsets.all(3),
+                child: Text(
+                  'Page ${widget.match.pageNumber}',
+                  style: const TextStyle(fontSize: 12, color: Colors.white),
+                ),
+              ),
+            ),
+            if (!widget.isLast)
+              const Align(
+                alignment: Alignment.bottomCenter,
+                child: Divider(
+                  height: 1,
+                ),
+              ),
+          ],
         ),
       ),
       onTap: () => widget.onTap(),
     );
   }
 
-  TextSpan test(PdfPageText pageText, PdfTextMatch match) {
+  TextSpan createTextSpanForMatch(PdfPageText? pageText, PdfTextMatch match,
+      {TextStyle? style}) {
+    style ??= const TextStyle(
+      fontSize: 14,
+    );
+    if (pageText == null) {
+      return TextSpan(
+        text: match.fragments.map((f) => f.text).join(),
+        style: style,
+      );
+    }
     final fullText = pageText.fullText;
     int first = 0;
     for (int i = match.fragments.first.index - 1; i >= 0;) {
@@ -213,9 +274,7 @@ class _SearchResultTileState extends State<SearchResultTile> {
         ),
         TextSpan(text: footer),
       ],
-      style: const TextStyle(
-        fontSize: 14,
-      ),
+      style: style,
     );
   }
 }
@@ -248,15 +307,13 @@ class PdfPageTextStore {
   }
 
   /// Release the text of the given page number.
-  void releaseText(int pageNumber) => synchronized(
-        () {
-          final ref = _pageTextRefs[pageNumber]!;
-          ref.refCount--;
-          if (ref.refCount == 0) {
-            _pageTextRefs.remove(pageNumber);
-          }
-        },
-      );
+  void releaseText(int pageNumber) {
+    final ref = _pageTextRefs[pageNumber]!;
+    ref.refCount--;
+    if (ref.refCount == 0) {
+      _pageTextRefs.remove(pageNumber);
+    }
+  }
 }
 
 class _PdfPageTextRefCount {

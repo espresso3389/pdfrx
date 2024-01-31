@@ -553,6 +553,19 @@ class PdfTextMatch {
       bounds,
     );
   }
+
+  @override
+  int get hashCode => pageNumber ^ start ^ end;
+
+  @override
+  bool operator ==(Object other) {
+    return other is PdfTextMatch &&
+        other.pageNumber == pageNumber &&
+        other.start == start &&
+        other.end == end &&
+        other.bounds == bounds &&
+        listEquals(other.fragments, fragments);
+  }
 }
 
 /// Rectangle in PDF page coordinates.

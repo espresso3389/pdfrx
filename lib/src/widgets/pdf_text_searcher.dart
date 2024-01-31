@@ -52,6 +52,8 @@ class PdfTextSearcher extends Listenable {
     return _searchingPageNumber! / _totalPageCount!;
   }
 
+  Pattern? get pattern => _lastSearchPattern;
+
   final List<VoidCallback> _listeners = [];
 
   void notifyListeners() {
@@ -69,24 +71,29 @@ class PdfTextSearcher extends Listenable {
     Pattern pattern, {
     bool caseInsensitive = true,
     bool goToFirstMatch = true,
+    bool searchImmediately = false,
   }) {
     _cancelTextSearch();
     final searchSession = ++_searchSession;
-    _searchTextTimer = Timer(
-      const Duration(milliseconds: 500),
-      () {
-        // BUG: Pattern does not implement ==, so we can't do the exact comparison here; only Strings
-        // can be compared correctly...
-        if (_lastSearchPattern == pattern) return;
-        _lastSearchPattern = pattern;
-        if (pattern.isEmpty) {
-          _resetTextSearch();
-          return;
-        }
-        _startTextSearchInternal(
-            pattern, searchSession, caseInsensitive, goToFirstMatch);
-      },
-    );
+
+    void search() {
+      // BUG: Pattern does not implement ==, so we can't do the exact comparison here; only Strings
+      // can be compared correctly...
+      if (_lastSearchPattern == pattern) return;
+      _lastSearchPattern = pattern;
+      if (pattern.isEmpty) {
+        _resetTextSearch();
+        return;
+      }
+      _startTextSearchInternal(
+          pattern, searchSession, caseInsensitive, goToFirstMatch);
+    }
+
+    if (searchImmediately) {
+      search();
+    } else {
+      _searchTextTimer = Timer(const Duration(milliseconds: 500), search);
+    }
   }
 
   /// Reset the current search.
@@ -167,29 +174,29 @@ class PdfTextSearcher extends Listenable {
   }
 
   /// Go to the previous match.
-  Future<void> goToPrevMatch() async {
+  Future<int> goToPrevMatch() async {
     if (_currentIndex == null) {
       _currentIndex = _matches.length - 1;
-      await goToMatchOfIndex(_currentIndex!);
-      return;
+      return await goToMatchOfIndex(_currentIndex!);
     }
     if (_currentIndex! > 0) {
       _currentIndex = _currentIndex! - 1;
-      await goToMatchOfIndex(_currentIndex!);
+      return await goToMatchOfIndex(_currentIndex!);
     }
+    return -1;
   }
 
   /// Go to the next match.
-  Future<void> goToNextMatch() async {
+  Future<int> goToNextMatch() async {
     if (_currentIndex == null) {
       _currentIndex = 0;
-      await goToMatchOfIndex(_currentIndex!);
-      return;
+      return await goToMatchOfIndex(_currentIndex!);
     }
     if (_currentIndex! + 1 < _matches.length) {
       _currentIndex = _currentIndex! + 1;
-      await goToMatchOfIndex(_currentIndex!);
+      return await goToMatchOfIndex(_currentIndex!);
     }
+    return -1;
   }
 
   /// Go to the given match.
@@ -215,9 +222,10 @@ class PdfTextSearcher extends Listenable {
   }
 
   /// Go to the match of the given index.
-  Future<bool> goToMatchOfIndex(int index) async {
+  Future<int> goToMatchOfIndex(int index) async {
+    if (index < 0 || index >= _matches.length) return -1;
     await goToMatch(_matches[index]);
-    return true;
+    return index;
   }
 
   /// Paint callback to highlight the matches.
