@@ -31,6 +31,7 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
+  final documentRef = ValueNotifier<PdfDocumentRef?>(null);
   final controller = PdfViewerController();
   final showLeftPane = ValueNotifier<bool>(false);
   final outline = ValueNotifier<List<PdfOutlineNode>?>(null);
@@ -48,6 +49,7 @@ class _MainPageState extends State<MainPage> {
     textSearcher.dispose();
     showLeftPane.dispose();
     outline.dispose();
+    documentRef.dispose();
     super.dispose();
   }
 
@@ -106,7 +108,13 @@ class _MainPageState extends State<MainPage> {
                       Expanded(
                         child: TabBarView(
                           children: [
-                            TextSearchView(textSearcher: textSearcher),
+                            // NOTE: documentRef is not explicitly used but it indicates that
+                            // the document is changed.
+                            ValueListenableBuilder(
+                              valueListenable: documentRef,
+                              builder: (context, documentRef, child) => child!,
+                              child: TextSearchView(textSearcher: textSearcher),
+                            ),
                             ValueListenableBuilder(
                               valueListenable: outline,
                               builder: (context, outline, child) => OutlineView(
@@ -114,7 +122,11 @@ class _MainPageState extends State<MainPage> {
                                 controller: controller,
                               ),
                             ),
-                            ThumbnailsView(controller: controller),
+                            ValueListenableBuilder(
+                              valueListenable: documentRef,
+                              builder: (context, documentRef, child) => child!,
+                              child: ThumbnailsView(controller: controller),
+                            ),
                           ],
                         ),
                       ),
@@ -236,6 +248,8 @@ class _MainPageState extends State<MainPage> {
                       textSearcher.pageTextMatchPaintCallback
                     ],
                     onDocumentChanged: (document) async {
+                      documentRef.value =
+                          controller.isReady ? controller.documentRef : null;
                       outline.value = await document?.loadOutline();
                     },
                   ),

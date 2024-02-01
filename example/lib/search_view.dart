@@ -22,7 +22,7 @@ class _TextSearchViewState extends State<TextSearchView> {
   final focusNode = FocusNode();
   final searchTextController = TextEditingController();
   late final pageTextStore =
-      PdfPageTextStore(textSearcher: widget.textSearcher);
+      PdfPageTextCache(textSearcher: widget.textSearcher);
   final scrollController = ScrollController();
 
   @override
@@ -229,7 +229,7 @@ class SearchResultTile extends StatefulWidget {
 
   final PdfTextMatch match;
   final void Function() onTap;
-  final PdfPageTextStore pageTextStore;
+  final PdfPageTextCache pageTextStore;
   final double height;
   final bool isCurrent;
 
@@ -347,9 +347,9 @@ class _SearchResultTileState extends State<SearchResultTile> {
 }
 
 /// A helper class to cache loaded page texts.
-class PdfPageTextStore {
+class PdfPageTextCache {
   final PdfTextSearcher textSearcher;
-  PdfPageTextStore({
+  PdfPageTextCache({
     required this.textSearcher,
   });
 

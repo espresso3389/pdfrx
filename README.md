@@ -390,3 +390,45 @@ You can also cancel the background search:
 ```dart
 textSearcher.resetTextSearch();
 ```
+
+### PdfDocumentViewBuilder/PdfPageView
+
+[PdfPageView](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageView-class.html) is just another PDF widget that shows only one page. It accepts [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) and page number to show a page within the document.
+
+[PdfDocumentViewBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentViewBuilder-class.html) is used to safely manage [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) inside widget tree and it accepts `builder` parameter that creates child widgets.
+
+The following fragment is a typical use of these widgets:
+
+```dart
+PdfDocumentViewBuilder.asset(
+  'asset/test.pdf',
+  builder: (context, document) => ListView.builder(
+    itemCount: document?.pages.length ?? 0,
+    itemBuilder: (context, index) {
+      return Container(
+        margin: const EdgeInsets.all(8),
+        height: 240,
+        child: Column(
+          children: [
+            SizedBox(
+              height: 220,
+              child: PdfPageView(
+                document: document,
+                pageNumber: index + 1,
+                alignment: Alignment.center,
+              ),
+            ),
+            Text(
+              '${index + 1}',
+            ),
+          ],
+        ),
+      );
+    },
+  ),
+),
+```
+
+## PdfDocument management and sharing it between widgets
+
+[PdfDocumentViewBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentViewBuilder-class.html) can accept [PdfDocumentRef](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRef-class.html) from [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) to safely share the same [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) instance. For more information, see [example/lib/thumbnails_view.dart](example/lib/thumbnails_view.dart).

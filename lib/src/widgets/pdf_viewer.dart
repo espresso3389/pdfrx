@@ -967,8 +967,7 @@ class _PdfViewerState extends State<PdfViewer>
   }) {
     final page = _document!.pages[pageNumber - 1];
     final pageRect = _layout!.pageLayouts[pageNumber - 1];
-    final scale = pageRect.width / page.width;
-    final area = rect.toRect(height: page.height, scale: scale);
+    final area = rect.toRect(page: page, scaledTo: pageRect.size);
     return area.translate(pageRect.left, pageRect.top);
   }
 

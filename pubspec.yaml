@@ -50,11 +50,12 @@ ffigen:
     bindings: 'lib/src/pdfium/pdfium_bindings.dart'
   headers:
     entry-points:
-      - 'example/build/windows/x64/.lib/include/fpdfview.h'
-      - 'example/build/windows/x64/.lib/include/fpdf_annot.h'
-      - 'example/build/windows/x64/.lib/include/fpdf_text.h'
-      - 'example/build/windows/x64/.lib/include/fpdf_doc.h'
-      - 'example/build/windows/x64/.lib/include/fpdf_formfill.h'
+      - 'example/build/windows/x64/.lib/latest/include/fpdfview.h'
+      - 'example/build/windows/x64/.lib/latest/include/fpdf_annot.h'
+      - 'example/build/windows/x64/.lib/latest/include/fpdf_text.h'
+      - 'example/build/windows/x64/.lib/latest/include/fpdf_doc.h'
+      - 'example/build/windows/x64/.lib/latest/include/fpdf_edit.h'
+      - 'example/build/windows/x64/.lib/latest/include/fpdf_formfill.h'
     include-directives:
-      - 'example/build/windows/x64/.lib/include/**'
+      - 'example/build/windows/x64/.lib/latest/include/**'
   name: 'pdfium'

@@ -241,6 +241,9 @@ abstract class PdfPage {
   /// PDF page height in points (height in pixels at 72 dpi) (rotated).
   double get height;
 
+  /// PDF page rotation.
+  PdfPageRotation get rotation;
+
   /// Render a sub-area or full image of specified PDF file.
   /// Returned image should be disposed after use.
   /// [x], [y], [width], [height] specify sub-area to render in pixels.
@@ -284,6 +287,13 @@ abstract class PdfPage {
 
   /// Load links.
   Future<List<PdfLink>> loadLinks();
+}
+
+enum PdfPageRotation {
+  none,
+  clockwise90,
+  clockwise180,
+  clockwise270,
 }
 
 /// Annotation rendering mode.
@@ -616,15 +626,52 @@ class PdfRect {
   /// Convert to [Rect] in Flutter coordinate. [height] specifies the height of the page (original size).
   /// [scale] is used to scale the rectangle.
   Rect toRect({
-    required double height,
-    double scale = 1.0,
-  }) =>
-      Rect.fromLTRB(
-        left * scale,
-        (height - top) * scale,
-        right * scale,
-        (height - bottom) * scale,
-      );
+    required PdfPage page,
+    Size? scaledTo,
+    int? rotation,
+  }) {
+    final rotated = rotate(rotation ?? page.rotation.index, page);
+    final scale = scaledTo == null ? 1.0 : scaledTo.height / page.height;
+    return Rect.fromLTRB(
+      rotated.left * scale,
+      (page.height - rotated.top) * scale,
+      rotated.right * scale,
+      (page.height - rotated.bottom) * scale,
+    );
+  }
+
+  PdfRect rotate(int rotation, PdfPage page) {
+    final swap = (page.rotation.index & 1) == 1;
+    final width = swap ? page.height : page.width;
+    final height = swap ? page.width : page.height;
+    switch (rotation & 3) {
+      case 0:
+        return this;
+      case 1:
+        return PdfRect(
+          bottom,
+          width - left,
+          top,
+          width - right,
+        );
+      case 2:
+        return PdfRect(
+          width - right,
+          height - bottom,
+          width - left,
+          height - top,
+        );
+      case 3:
+        return PdfRect(
+          height - top,
+          right,
+          height - bottom,
+          left,
+        );
+      default:
+        throw ArgumentError.value(rotate, 'rotate');
+    }
+  }
 
   @override
   bool operator ==(Object other) {
