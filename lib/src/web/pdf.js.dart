@@ -73,6 +73,8 @@ class PdfjsPage {
   /// `viewport` for [PdfjsViewport] and `transform` for
   external PdfjsRender render(PdfjsRenderContext params);
   external int get pageNumber;
+  external int get rotate;
+  external num get userUnit;
   external List<double> get view;
 
   external Object getTextContent(PdfjsGetTextContentParameters params);

@@ -168,7 +168,7 @@ class PdfTextSearcher extends Listenable {
 
   /// Just a helper function to load the text of a page.
   Future<PdfPageText?> loadText({required int pageNumber}) async {
-    return await controller!.documentRef.resolveListenable().useDocument(
+    return await controller?.documentRef.resolveListenable().useDocument(
       (document) async {
         return await document.pages[pageNumber - 1].loadText();
       },
@@ -212,7 +212,7 @@ class PdfTextSearcher extends Listenable {
       ),
       margin: 50,
     );
-    controller!.invalidate();
+    controller?.invalidate();
   }
 
   /// Get the matches range for the given page number.
@@ -241,11 +241,10 @@ class PdfTextSearcher extends Listenable {
     final textMatches = getMatchesRangeForPage(page.pageNumber);
     if (textMatches == null) return;
 
-    final scale = pageRect.width / page.width;
     for (int i = textMatches.start; i < textMatches.end; i++) {
       final m = _matches[i];
       final rect = m.bounds
-          .toRect(height: page.height, scale: scale)
+          .toRect(page: page, scaledTo: pageRect.size)
           .translate(pageRect.left, pageRect.top);
       canvas.drawRect(
         rect,

@@ -1,6 +1,6 @@
 name: pdfrx
 description: High speed zooming/scrolling PDF viewer implementation that supports mobile, desktop, and Web.
-version: 0.4.29
+version: 0.4.30
 homepage: https://github.com/espresso3389/pdfrx
 
 environment:
@@ -13,7 +13,7 @@ dependencies:
   ffi: ^2.1.0
   flutter:
     sdk: flutter
-  http: ^1.1.2
+  http: ^1.2.0
   js: ^0.7.0
   path: ^1.8.3
   path_provider: ^2.1.2
@@ -50,11 +50,12 @@ ffigen:
     bindings: 'lib/src/pdfium/pdfium_bindings.dart'
   headers:
     entry-points:
-      - 'example/build/windows/x64/.lib/include/fpdfview.h'
-      - 'example/build/windows/x64/.lib/include/fpdf_annot.h'
-      - 'example/build/windows/x64/.lib/include/fpdf_text.h'
-      - 'example/build/windows/x64/.lib/include/fpdf_doc.h'
-      - 'example/build/windows/x64/.lib/include/fpdf_formfill.h'
+      - 'example/build/windows/x64/.lib/latest/include/fpdfview.h'
+      - 'example/build/windows/x64/.lib/latest/include/fpdf_annot.h'
+      - 'example/build/windows/x64/.lib/latest/include/fpdf_text.h'
+      - 'example/build/windows/x64/.lib/latest/include/fpdf_doc.h'
+      - 'example/build/windows/x64/.lib/latest/include/fpdf_edit.h'
+      - 'example/build/windows/x64/.lib/latest/include/fpdf_formfill.h'
     include-directives:
-      - 'example/build/windows/x64/.lib/include/**'
+      - 'example/build/windows/x64/.lib/latest/include/**'
   name: 'pdfium'

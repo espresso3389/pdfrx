@@ -1,3 +1,11 @@
+# 0.4.30
+
+- FIXED: Link URI contains null-terminator
+- Add support text/links on rotated pages
+- Stability updates for PdfTextSearcher
+- README.md/example updates
+- Revival of PdfViewer.data/PdfViewer.custom
+
 # 0.4.29
 
 - Minor fixes to PdfTextSearcher

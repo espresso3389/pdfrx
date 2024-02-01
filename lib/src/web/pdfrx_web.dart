@@ -204,7 +204,8 @@ class PdfDocumentWeb extends PdfDocument {
         pageNumber: pageNumber,
         page: page,
         width: vp1.width,
-        height: vp1.height);
+        height: vp1.height,
+        rotation: PdfPageRotation.values[page.rotate ~/ 90]);
   }
 
   @override
@@ -302,6 +303,7 @@ class PdfPageWeb extends PdfPage {
     required this.page,
     required this.width,
     required this.height,
+    required this.rotation,
   });
   @override
   final PdfDocumentWeb document;
@@ -312,6 +314,8 @@ class PdfPageWeb extends PdfPage {
   final double width;
   @override
   final double height;
+  @override
+  final PdfPageRotation rotation;
 
   @override
   Future<PdfImage?> render({

@@ -13,7 +13,7 @@ class ThumbnailsView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Colors.grey,
-      child: controller?.documentRef == null
+      child: controller?.isReady != true || controller?.documentRef == null
           ? null
           : PdfDocumentViewBuilder(
               documentRef: controller!.documentRef,

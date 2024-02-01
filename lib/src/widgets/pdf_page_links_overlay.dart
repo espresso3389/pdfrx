@@ -54,10 +54,10 @@ class _PdfPageLinksOverlayState extends State<PdfPageLinksOverlay> {
     if (links == null) return const SizedBox();
 
     final linkWidgets = <Widget>[];
-    final scale = widget.pageRect.height / widget.page.height;
     for (final link in links!) {
       for (final rect in link.rects) {
-        final rectLink = rect.toRect(height: widget.page.height, scale: scale);
+        final rectLink =
+            rect.toRect(page: widget.page, scaledTo: widget.pageRect.size);
         final linkWidget =
             widget.params.linkWidgetBuilder!(context, link, rectLink.size);
         if (linkWidget != null) {

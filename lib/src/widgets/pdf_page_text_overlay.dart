@@ -239,7 +239,6 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     final selectionRects = <Rect>[];
     final sb = StringBuffer();
     _selectedRect = null;
-    final scale = size.height / _page.height;
 
     int searchLineEnd(int start) {
       final lastIndex = _fragments.length - 1;
@@ -260,19 +259,13 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
         final fragment = _fragments[i];
         if (fragment.charRects == null) {
           yield (
-            rect: fragment.bounds.toRect(
-              height: _page.height,
-              scale: scale,
-            ),
+            rect: fragment.bounds.toRect(page: _page, scaledTo: size),
             text: fragment.text
           );
         } else {
           for (int j = 0; j < fragment.charRects!.length; j++) {
             yield (
-              rect: fragment.charRects![j].toRect(
-                height: _page.height,
-                scale: scale,
-              ),
+              rect: fragment.charRects![j].toRect(page: _page, scaledTo: size),
               text: fragment.text.substring(j, j + 1)
             );
           }
@@ -301,8 +294,7 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     int? lastLineEnd;
     Rect? lastLineStartRect;
     for (int i = 0; i < _fragments.length;) {
-      final bounds =
-          _fragments[i].bounds.toRect(height: _page.height, scale: scale);
+      final bounds = _fragments[i].bounds.toRect(page: _page, scaledTo: size);
       if (lastLineEnd == null && selectionRect.intersect(bounds).isEmpty) {
         i++;
       } else {
@@ -373,8 +365,7 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
 
   void _selectFragment(Offset point) {
     for (final fragment in _fragments) {
-      final bounds = fragment.bounds
-          .toRect(height: _page.height, scale: size.height / _page.height);
+      final bounds = fragment.bounds.toRect(page: _page, scaledTo: size);
       if (bounds.contains(point)) {
         _start = bounds.topLeft;
         _end = bounds.bottomRight;
