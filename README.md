@@ -3,7 +3,7 @@
 [pdfrx](https://pub.dartlang.org/packages/pdfrx) is a rich and fast PDF viewer implementation built on the top of [pdfium](https://pdfium.googlesource.com/pdfium/).
 The plugin supports Android, iOS, Windows, macOS, Linux, and Web.
 
-https://github.com/espresso3389/pdfrx/assets/1311400/ca83d2c6-556f-412c-880e-33ce4813342d
+![pdfrx](https://github.com/espresso3389/pdfrx/assets/1311400/b076ac0b-e2cb-48f0-8772-9891537ade7b)
 
 ## Main Features
 
