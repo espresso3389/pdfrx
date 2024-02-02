@@ -1,3 +1,7 @@
+# 0.4.31
+
+- Remove explicit CMake version spec 3.18.1
+
 # 0.4.30
 
 - FIXED: Link URI contains null-terminator
