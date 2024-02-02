@@ -1,22 +1,38 @@
 # pdfrx
 
-[pdfrx](https://pub.dartlang.org/packages/pdfrx) is a PDF viewer implementation built on the top of [pdfium](https://pdfium.googlesource.com/pdfium/).
-The plugin currently supports Android, iOS, Windows, macOS, Linux, and Web.
+[pdfrx](https://pub.dartlang.org/packages/pdfrx) is a rich and fast PDF viewer implementation built on the top of [pdfium](https://pdfium.googlesource.com/pdfium/).
+The plugin supports Android, iOS, Windows, macOS, Linux, and Web.
 
-Please note that "Web" is not shown in [pub.dev](https://pub.dev/packages/pdfrx)'s platform list, but **IT DOES SUPPORT** Web.
+## Main Features
+
+- [Zoomable and scrollable PDF document viewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html)
+- [PDF Link Handling](#pdf-link-handling) support
+- [Document Outline (a.k.a Bookmarks)](#document-outline-aka-bookmarks) support
+- [Text Selection (still experimental)](#text-selection) support
+- [Text Search](#text-search) support
+- Flexibily customizable
+- Multi-platform support
+
+  - Android
+  - iOS
+  - Windows
+  - macOS
+  - Linux (even on Raspberry PI)
+  - Web (\*using [PDF.js](https://mozilla.github.io/pdf.js/))
+
+- Three layers of APIs:
+  - Easy to use Flutter widgets
+    - [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html)
+    - [PdfDocumentViewBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentViewBuilder-class.html)
+    - [PdfPageView](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageView-class.html)
+  - Easy to use PDF APIs
+    - [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html)
+  - pdfium bindings
+    - Not encouraged but you can import [package:pdfrx/src/pdfium/pdfium_bindings.dart](https://github.com/espresso3389/pdfrx/blob/master/lib/src/pdfium/pdfium_bindings.dart)
+
+## Demo site
 
 - A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web
-
-![](https://private-user-images.githubusercontent.com/1311400/288040209-c4c44fde-2fb7-4e45-9261-5e33c0d1a0a9.gif?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTEiLCJleHAiOjE3MDE3ODAxNzIsIm5iZiI6MTcwMTc3OTg3MiwicGF0aCI6Ii8xMzExNDAwLzI4ODA0MDIwOS1jNGM0NGZkZS0yZmI3LTRlNDUtOTI2MS01ZTMzYzBkMWEwYTkuZ2lmP1gtQW16LUFsZ29yaXRobT1BV1M0LUhNQUMtU0hBMjU2JlgtQW16LUNyZWRlbnRpYWw9QUtJQUlXTkpZQVg0Q1NWRUg1M0ElMkYyMDIzMTIwNSUyRnVzLWVhc3QtMSUyRnMzJTJGYXdzNF9yZXF1ZXN0JlgtQW16LURhdGU9MjAyMzEyMDVUMTIzNzUyWiZYLUFtei1FeHBpcmVzPTMwMCZYLUFtei1TaWduYXR1cmU9ZTdlNmY1ODY5NWUwNjAzNzU3MWViZmU3ZDNkMGM4MTgxNWU4NmU3ZmU1NmRlNGZmYWZhNzZkNjQxNTQ5ZjdiZiZYLUFtei1TaWduZWRIZWFkZXJzPWhvc3QmYWN0b3JfaWQ9MCZrZXlfaWQ9MCZyZXBvX2lkPTAifQ.hU9zW_HQycBEC9N4heOQG7x9qc6IhSzJBIu3_4mZ7nA)
-
-The plugin provides three different layers of APIs:
-
-- Easy to use Flutter widgets
-  - [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html)
-- Easy to use PDF APIs
-  - [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html)
-- pdfium bindings
-  - Not encouraged but you can import `package:pdfrx/src/pdfium/pdfium_bindings.dart`
 
 ## Getting Started
 
