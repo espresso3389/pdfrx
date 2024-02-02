@@ -1,3 +1,7 @@
+# 0.4.33
+
+- Document update
+
 # 0.4.32
 
 - Add PdfViewerParams.calculateInitialPageNumber to calculate the initial page number dynamically
