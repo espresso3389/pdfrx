@@ -332,10 +332,17 @@ class _PdfViewerState extends State<PdfViewer>
 
       if (!_initialized && _layout != null) {
         _initialized = true;
-        Future.microtask(() {
+        Future.microtask(() async {
           if (mounted) {
-            _goToPage(
-                pageNumber: widget.initialPageNumber, duration: Duration.zero);
+            final initialPageNumber = widget.params.calculateInitialPageNumber
+                    ?.call(_document!, _controller!) ??
+                widget.initialPageNumber;
+            await _goToPage(
+                pageNumber: initialPageNumber, duration: Duration.zero);
+
+            if (mounted && _document != null && _controller != null) {
+              widget.params.onViewerReady?.call(_document!, _controller!);
+            }
           }
         });
       }

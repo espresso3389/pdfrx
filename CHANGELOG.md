@@ -1,3 +1,8 @@
+# 0.4.32
+
+- Add PdfViewerParams.calculateInitialPageNumber to calculate the initial page number dynamically
+- Add PdfViewerParams.onViewerReady to know when the viewer gets ready
+
 # 0.4.31
 
 - Remove explicit CMake version spec 3.18.1

@@ -248,9 +248,14 @@ class _MainPageState extends State<MainPage> {
                       textSearcher.pageTextMatchPaintCallback
                     ],
                     onDocumentChanged: (document) async {
-                      documentRef.value =
-                          controller.isReady ? controller.documentRef : null;
-                      outline.value = await document?.loadOutline();
+                      if (document == null) {
+                        documentRef.value = null;
+                        outline.value = null;
+                      }
+                    },
+                    onViewerReady: (document, controller) async {
+                      documentRef.value = controller.documentRef;
+                      outline.value = await document.loadOutline();
                     },
                   ),
                 ),

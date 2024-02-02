@@ -44,7 +44,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^0.4.31
+  pdfrx: ^0.4.32
 ```
 
 ### Windows
@@ -199,12 +199,11 @@ For destinations, you can use [PdfViewerController.goToDest](https://pub.dev/doc
 
 PDF defines document outline ([PdfOutlineNode](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfOutlineNode-class.html)), which is sometimes called as bookmarks or index. And you can access it by [PdfDocument.loadOutline](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/loadOutline.html).
 
-The following fragment obtains it on [PdfViewerParams.onDocumentChanged](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/onDocumentChanged.html):
+The following fragment obtains it on [PdfViewerParams.onViewerReady](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/onViewerReady.html):
 
 ```dart
-onDocumentChanged: (document) async {
-  // Please note that document may be null
-  outline.value = await document?.loadOutline();
+onViewerReady: (document, controller) async {
+  outline.value = await document.loadOutline();
 },
 ```
 
