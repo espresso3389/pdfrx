@@ -1,3 +1,7 @@
+# 0.4.34
+
+- Document update
+
 # 0.4.33
 
 - Document update
