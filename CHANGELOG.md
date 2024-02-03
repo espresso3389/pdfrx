@@ -1,3 +1,7 @@
+# 0.4.36
+
+- Introduces PdfJsConfiguration to configure pdf.js download URLs
+
 # 0.4.35
 
 - Download cache mechanism update (#57/#58)
