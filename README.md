@@ -325,6 +325,8 @@ loadingBannerBuilder: (context, bytesDownloaded, totalBytes) {
 }
 ```
 
+## Other Features
+
 ### Text Search
 
 [TextSearcher](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html) is just a helper class that helps you to implement text searching feature on your app.
