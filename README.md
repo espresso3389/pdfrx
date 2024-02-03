@@ -79,7 +79,7 @@ dependencies:
 It's not required but you can customize download URLs for pdf.js by setting [PdfJsConfiguration.configuration](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfJsConfiguration/configuration.html):
 
 ```dart
-// place the code on main.js or somewhere that is executed before the actual
+// place the code on main function or somewhere that is executed before the actual
 // app code.
 PdfJsConfiguration.configuration = const PdfJsConfiguration(
   pdfJsSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.mjs',
