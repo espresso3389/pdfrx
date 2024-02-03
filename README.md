@@ -379,7 +379,7 @@ On the fragment above, it does:
 - Add a listener (Using [PdfTextSearcher.addListener](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/addListener.html)) to update UI on search result change
 - Add [TextSearcher.pageTextMatchPaintCallback](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/pageTextMatchPaintCallback.html) to [PdfViewerParams.pagePaintCallbacks](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pagePaintCallbacks.html) to show search matches
 
-Then, you can use [TextSearcher](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html) to search text in the PDF document:
+Then, you can use [TextSearcher.startTextSearch](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/startTextSearch.html) to search text in the PDF document:
 
 ```dart
 textSearcher.startTextSearch('hello', caseInsensitive: true);
@@ -393,7 +393,7 @@ There are several functions that helps you to navigate user to the search matche
 - [TextSearcher.goToNextMatch](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/goToNextMatch.html) to go to the next match
 - [TextSearcher.goToPrevMatch](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/goToPrevMatch.html) to go to the previous match
 
-You can get the search result (even when the search is still running) in the list of [PdfTextMatch](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextMatch-class.html) by [PdfTextSearcher.matches](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/matches.html):
+You can get the search result (even during the search running) in the list of [PdfTextMatch](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextMatch-class.html) by [PdfTextSearcher.matches](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/matches.html):
 
 ```dart
 for (final match in textSearcher.matches) {

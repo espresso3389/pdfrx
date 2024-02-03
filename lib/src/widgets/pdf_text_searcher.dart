@@ -69,6 +69,9 @@ class PdfTextSearcher extends Listenable {
   ///
   /// [pattern] is the text to search for. It can be a [String] or a [RegExp].
   /// If [caseInsensitive] is true, the search will be case insensitive.
+  /// If [goToFirstMatch] is true, the viewer will automatically go to the first match.
+  /// If [searchImmediately] is true, the search will start immediately,
+  /// otherwise it will wait for a short delay not to make the process too heavy.
   void startTextSearch(
     Pattern pattern, {
     bool caseInsensitive = true,
@@ -79,9 +82,7 @@ class PdfTextSearcher extends Listenable {
     final searchSession = ++_searchSession;
 
     void search() {
-      // BUG: Pattern does not implement ==, so we can't do the exact comparison here; only Strings
-      // can be compared correctly...
-      if (_lastSearchPattern == pattern) return;
+      if (_isIdenticalPattern(_lastSearchPattern, pattern)) return;
       _lastSearchPattern = pattern;
       if (pattern.isEmpty) {
         _resetTextSearch();
@@ -96,6 +97,23 @@ class PdfTextSearcher extends Listenable {
     } else {
       _searchTextTimer = Timer(const Duration(milliseconds: 500), search);
     }
+  }
+
+  bool _isIdenticalPattern(Pattern? a, Pattern? b) {
+    if (a is String && b is String) {
+      return a == b;
+    }
+    if (a is RegExp && b is RegExp) {
+      return a.pattern == b.pattern &&
+          a.isCaseSensitive == b.isCaseSensitive &&
+          a.isMultiLine == b.isMultiLine &&
+          a.isUnicode == b.isUnicode &&
+          a.isDotAll == b.isDotAll;
+    }
+    if (a == null && b == null) {
+      return true;
+    }
+    return false;
   }
 
   /// Reset the current search.
