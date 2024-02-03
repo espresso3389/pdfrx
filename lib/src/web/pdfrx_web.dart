@@ -100,6 +100,8 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     PdfDownloadProgressCallback? progressCallback,
+    PdfDownloadReportCallback? reportCallback,
+    bool preferRangeAccess = false,
   }) =>
       openFile(
         uri.toString(),

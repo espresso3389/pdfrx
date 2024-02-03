@@ -53,6 +53,8 @@ abstract class PdfDocumentFactory {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     PdfDownloadProgressCallback? progressCallback,
+    PdfDownloadReportCallback? reportCallback,
+    bool preferRangeAccess = false,
   });
 
   /// Singleton [PdfDocumentFactory] instance.
@@ -70,6 +72,17 @@ typedef PdfDownloadProgressCallback = void Function(
   int downloadedBytes, [
   int? totalBytes,
 ]);
+
+/// Callback function to report download status on completion.
+///
+/// [downloaded] is the number of bytes downloaded.
+/// [total] is the total number of bytes downloaded.
+/// [elapsedTime] is the time taken to download the file.
+typedef PdfDownloadReportCallback = void Function(
+  int downloaded,
+  int total,
+  Duration elapsedTime,
+);
 
 /// Function to provide password for encrypted PDF.
 ///
@@ -200,17 +213,23 @@ abstract class PdfDocument {
   /// or not. For more info, see [PdfPasswordProvider].
   ///
   /// [progressCallback] is called when the download progress is updated (Not supported on Web).
+  /// [reportCallback] is called when the download is completed (Not supported on Web).
+  /// [preferRangeAccess] to prefer range access to download the PDF (Not supported on Web).
   static Future<PdfDocument> openUri(
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     PdfDownloadProgressCallback? progressCallback,
+    PdfDownloadReportCallback? reportCallback,
+    bool preferRangeAccess = false,
   }) =>
       PdfDocumentFactory.instance.openUri(
         uri,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         progressCallback: progressCallback,
+        reportCallback: reportCallback,
+        preferRangeAccess: preferRangeAccess,
       );
 
   /// Pages.

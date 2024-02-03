@@ -5,9 +5,25 @@ import 'package:synchronized/extension.dart';
 
 import '../pdfrx.dart';
 
-/// Download progress callback used by
-typedef PdfDocumentLoaderProgressCallback = void Function(int progress,
-    [int? total]);
+/// Callback function to notify download progress.
+///
+/// [downloadedBytes] is the number of bytes downloaded so far.
+/// [totalBytes] is the total number of bytes to download. It may be null if the total size is unknown.
+typedef PdfDocumentLoaderProgressCallback = void Function(
+  int downloadedBytes, [
+  int? totalBytes,
+]);
+
+/// Callback function to report download status on completion.
+///
+/// [downloaded] is the number of bytes downloaded.
+/// [total] is the total number of bytes downloaded.
+/// [elapsedTime] is the time taken to download the file.
+typedef PdfDocumentLoaderReportCallback = void Function(
+  int downloaded,
+  int total,
+  Duration elapsedTime,
+);
 
 /// PdfDocumentRef controls loading of a [PdfDocument].
 /// There are several types of [PdfDocumentRef]s predefined:
@@ -44,7 +60,8 @@ abstract class PdfDocumentRef {
   ///
   /// [progressCallback] should be called when the document is loaded from remote source to notify the progress.
   Future<PdfDocument> loadDocument(
-      PdfDocumentLoaderProgressCallback progressCallback);
+      PdfDocumentLoaderProgressCallback progressCallback,
+      PdfDocumentLoaderReportCallback reportCallback);
 
   /// Classes that extends [PdfDocumentRef] should override this function to compare the equality by [sourceName]
   /// or such.
@@ -85,7 +102,9 @@ class PdfDocumentRefAsset extends PdfDocumentRef
 
   @override
   Future<PdfDocument> loadDocument(
-          PdfDocumentLoaderProgressCallback progressCallback) =>
+    PdfDocumentLoaderProgressCallback progressCallback,
+    PdfDocumentLoaderReportCallback reportCallback,
+  ) =>
       PdfDocument.openAsset(
         name,
         passwordProvider: passwordProvider,
@@ -108,6 +127,7 @@ class PdfDocumentRefUri extends PdfDocumentRef
     this.passwordProvider,
     this.firstAttemptByEmptyPassword = true,
     super.autoDispose = true,
+    this.preferRangeAccess = false,
   });
 
   final Uri uri;
@@ -115,18 +135,23 @@ class PdfDocumentRefUri extends PdfDocumentRef
   final PdfPasswordProvider? passwordProvider;
   @override
   final bool firstAttemptByEmptyPassword;
+  final bool preferRangeAccess;
 
   @override
   String get sourceName => uri.toString();
 
   @override
   Future<PdfDocument> loadDocument(
-          PdfDocumentLoaderProgressCallback progressCallback) =>
+    PdfDocumentLoaderProgressCallback progressCallback,
+    PdfDocumentLoaderReportCallback reportCallback,
+  ) =>
       PdfDocument.openUri(
         uri,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         progressCallback: progressCallback,
+        reportCallback: reportCallback,
+        preferRangeAccess: preferRangeAccess,
       );
 
   @override
@@ -157,7 +182,9 @@ class PdfDocumentRefFile extends PdfDocumentRef
 
   @override
   Future<PdfDocument> loadDocument(
-          PdfDocumentLoaderProgressCallback progressCallback) =>
+    PdfDocumentLoaderProgressCallback progressCallback,
+    PdfDocumentLoaderReportCallback reportCallback,
+  ) =>
       PdfDocument.openFile(
         file,
         passwordProvider: passwordProvider,
@@ -196,7 +223,9 @@ class PdfDocumentRefData extends PdfDocumentRef
 
   @override
   Future<PdfDocument> loadDocument(
-          PdfDocumentLoaderProgressCallback progressCallback) =>
+    PdfDocumentLoaderProgressCallback progressCallback,
+    PdfDocumentLoaderReportCallback reportCallback,
+  ) =>
       PdfDocument.openData(
         data,
         passwordProvider: passwordProvider,
@@ -241,7 +270,9 @@ class PdfDocumentRefCustom extends PdfDocumentRef
 
   @override
   Future<PdfDocument> loadDocument(
-          PdfDocumentLoaderProgressCallback progressCallback) =>
+    PdfDocumentLoaderProgressCallback progressCallback,
+    PdfDocumentLoaderReportCallback reportCallback,
+  ) =>
       PdfDocument.openCustom(
         read: read,
         fileSize: fileSize,
@@ -274,7 +305,9 @@ class PdfDocumentRefDirect extends PdfDocumentRef {
 
   @override
   Future<PdfDocument> loadDocument(
-          PdfDocumentLoaderProgressCallback progressCallback) =>
+    PdfDocumentLoaderProgressCallback progressCallback,
+    PdfDocumentLoaderReportCallback reportCallback,
+  ) =>
       Future.value(document);
 
   @override
@@ -338,21 +371,34 @@ class PdfDocumentListenable extends Listenable {
   ///
   /// The function can be called multiple times but the document is loaded only once unless [forceReload] is true.
   /// In that case, if the document requires password, the password is asked again.
-  Future<void> load({bool forceReload = false}) async {
+  ///
+  /// The function returns a [PdfDownloadReport] if the document is loaded from remote source.
+  Future<PdfDownloadReport?> load({
+    bool forceReload = false,
+  }) async {
     if (!forceReload && loadAttempted) {
-      return;
+      return null;
     }
-    await synchronized(
+    return await synchronized(
       () async {
-        if (!forceReload && loadAttempted) return;
+        if (!forceReload && loadAttempted) return null;
         final PdfDocument document;
+        PdfDownloadReport? report;
         try {
-          document = await ref.loadDocument(_progress);
+          document = await ref.loadDocument(
+            _progress,
+            (downloaded, totalBytes, elapsed) => report = PdfDownloadReport(
+              downloaded: downloaded,
+              total: totalBytes,
+              elapsedTime: elapsed,
+            ),
+          );
         } catch (err, stackTrace) {
           setError(err, stackTrace);
-          return;
+          return report;
         }
         setDocument(document);
+        return report;
       },
     );
   }
@@ -473,4 +519,15 @@ class PdfDocumentListenable extends Listenable {
     notifyListeners();
     return true;
   }
+}
+
+class PdfDownloadReport {
+  const PdfDownloadReport({
+    required this.downloaded,
+    required this.total,
+    required this.elapsedTime,
+  });
+  final int downloaded;
+  final int total;
+  final Duration elapsedTime;
 }

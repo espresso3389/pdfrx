@@ -21,57 +21,59 @@ Widget pdfErrorWidget(
         mainAxisSize: MainAxisSize.min,
         children: [
           _GestureRecognizerDisposer(builder: (context, markForDispose) {
-            return Text.rich(
-              TextSpan(
-                children: [
-                  const WidgetSpan(
-                    child: Icon(
-                      Icons.error,
-                      size: 50,
-                      color: Colors.yellow,
-                    ),
-                    alignment: PlaceholderAlignment.middle,
-                  ),
-                  TextSpan(
-                    text: ' $error\n\n',
-                    style: const TextStyle(
-                      color: Colors.white,
-                    ),
-                  ),
-                  if (stackTrace != null)
-                    TextSpan(
-                      text: stackTrace.toString(),
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  if (error is PdfPasswordException &&
-                      !kIsWeb &&
-                      Platform.isWindows)
-                    const TextSpan(
-                      text:
-                          '\n***On Windows, pdfium could not report errors correctly and every error is recognized as password error.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontStyle: FontStyle.italic,
+            return SelectionArea(
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    const WidgetSpan(
+                      child: Icon(
+                        Icons.error,
+                        size: 50,
                         color: Colors.yellow,
                       ),
+                      alignment: PlaceholderAlignment.middle,
                     ),
-                  if (bannerWarning)
                     TextSpan(
-                      recognizer: markForDispose(
-                        TapGestureRecognizer()
-                          ..onTap = () {
-                            launchUrlString(
-                                'https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/errorBannerBuilder.html');
-                          },
+                      text: ' $error\n\n',
+                      style: const TextStyle(
+                        color: Colors.white,
                       ),
-                      text:
-                          '\n\nTo replace the error banner, set PdfViewerParams.errorBannerBuilder.',
                     ),
-                ],
-              ),
-              style: const TextStyle(
-                fontSize: 20,
-                color: Colors.white,
+                    if (stackTrace != null)
+                      TextSpan(
+                        text: stackTrace.toString(),
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    if (error is PdfPasswordException &&
+                        !kIsWeb &&
+                        Platform.isWindows)
+                      const TextSpan(
+                        text:
+                            '\n***On Windows, pdfium could not report errors correctly and every error is recognized as password error.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.yellow,
+                        ),
+                      ),
+                    if (bannerWarning)
+                      TextSpan(
+                        recognizer: markForDispose(
+                          TapGestureRecognizer()
+                            ..onTap = () {
+                              launchUrlString(
+                                  'https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/errorBannerBuilder.html');
+                            },
+                        ),
+                        text:
+                            '\n\nTo replace the error banner, set PdfViewerParams.errorBannerBuilder.',
+                      ),
+                  ],
+                ),
+                style: const TextStyle(
+                  fontSize: 20,
+                  color: Colors.white,
+                ),
               ),
             );
           }),
