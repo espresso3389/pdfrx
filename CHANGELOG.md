@@ -1,3 +1,7 @@
+# 0.4.35
+
+- Download cache mechanism update (#57/#58)
+
 # 0.4.34
 
 - Document update
