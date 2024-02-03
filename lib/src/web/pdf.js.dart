@@ -11,6 +11,8 @@ import 'dart:typed_data';
 import 'package:js/js.dart';
 import 'package:synchronized/extension.dart';
 
+import '../../pdfrx.dart';
+
 bool get _isPdfjsLoaded => js.context.hasProperty('pdfjsLib');
 
 @JS('pdfjsLib.getDocument')
@@ -296,24 +298,36 @@ Future<void> _pdfjsInitialize() async {
     _pdfjsInitialized = true;
     return;
   }
+  // https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs
+  // https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.mjs
+  // https://unpkg.com/pdfjs-dist@4.0.379/build/pdf.min.mjs
   const version = '3.11.174';
 
-  final script = ScriptElement()
-    ..type = 'text/javascript'
-    ..charset = 'utf-8'
-    ..async = true
-    ..src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$version/pdf.min.js';
-  querySelector('head')!.children.add(script);
-  await script.onLoad.first;
+  final pdfJsSrc = PdfJsConfiguration.configuration?.pdfJsSrc ??
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$version/pdf.min.js';
+  try {
+    final script = ScriptElement()
+      ..type = 'text/javascript'
+      ..charset = 'utf-8'
+      ..async = true
+      ..src = pdfJsSrc;
+    querySelector('head')!.children.add(script);
+    await script.onLoad.first.timeout(
+        PdfJsConfiguration.configuration?.pdfJsDownloadTimeout ??
+            const Duration(seconds: 10));
+  } catch (e) {
+    throw StateError('Failed to load pdf.js from $pdfJsSrc: $e');
+  }
 
   if (!_isPdfjsLoaded) {
     throw StateError('Failed to load pdfjs');
   }
-  _pdfjsWorkerSrc =
+  _pdfjsWorkerSrc = PdfJsConfiguration.configuration?.workerSrc ??
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$version/pdf.worker.min.js';
   _pdfRenderOptions = jsify({
-    'cMapUrl': 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$version/cmaps/',
-    'cMapPacked': true,
+    'cMapUrl': PdfJsConfiguration.configuration?.cMapUrl ??
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$version/cmaps/',
+    'cMapPacked': PdfJsConfiguration.configuration?.cMapPacked ?? true,
   });
 
   _pdfjsInitialized = true;

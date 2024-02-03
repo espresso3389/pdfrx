@@ -76,6 +76,20 @@ dependencies:
 
 [pdf.js](https://mozilla.github.io/pdf.js/) is now automatically loaded and no modification to `index.html` is required.
 
+It's not required but you can customize download URLs for pdf.js by setting [PdfJsConfiguration.configuration](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfJsConfiguration/configuration.html):
+
+```dart
+// place the code on main.js or somewhere that is executed before the actual
+// app code.
+PdfJsConfiguration.configuration = const PdfJsConfiguration(
+  pdfJsSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.mjs',
+  workerSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+  cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+);
+```
+
+Please note that pdf.js 4.X is not supported yet and use 3.X versions.
+
 ## macOS
 
 For macOS, Flutter app restrict its capability by enabling [App Sandbox](https://developer.apple.com/documentation/security/app_sandbox) by default. You can change the behavior by editing your app's entitlements files depending on your configuration. See [the discussion below](#deal-with-app-sandbox).
