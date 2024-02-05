@@ -1,3 +1,7 @@
+# 0.4.37
+
+- CMake version "3.18.1+" for #48, #62
+
 # 0.4.36
 
 - Introduces PdfJsConfiguration to configure pdf.js download URLs
