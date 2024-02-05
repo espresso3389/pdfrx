@@ -286,7 +286,8 @@ class _PdfPageViewState extends State<PdfPageView> {
     final document = widget.document;
     if (document == null ||
         widget.pageNumber < 1 ||
-        widget.pageNumber > document.pages.length) {
+        widget.pageNumber > document.pages.length ||
+        size.isEmpty) {
       return;
     }
     final page = document.pages[widget.pageNumber - 1];
