@@ -112,8 +112,10 @@ class _MainPageState extends State<MainPage> {
                             // the document is changed.
                             ValueListenableBuilder(
                               valueListenable: documentRef,
-                              builder: (context, documentRef, child) => child!,
-                              child: TextSearchView(textSearcher: textSearcher),
+                              builder: (context, documentRef, child) =>
+                                  TextSearchView(
+                                textSearcher: textSearcher,
+                              ),
                             ),
                             ValueListenableBuilder(
                               valueListenable: outline,
@@ -124,8 +126,11 @@ class _MainPageState extends State<MainPage> {
                             ),
                             ValueListenableBuilder(
                               valueListenable: documentRef,
-                              builder: (context, documentRef, child) => child!,
-                              child: ThumbnailsView(controller: controller),
+                              builder: (context, documentRef, child) =>
+                                  ThumbnailsView(
+                                documentRef: documentRef,
+                                controller: controller,
+                              ),
                             ),
                           ],
                         ),
