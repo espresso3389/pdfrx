@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -48,26 +47,20 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
 
   Future<void> _initText() async {
     final pageText = await widget.page.loadText();
-    final ranges = <({int index, int end})>[];
+    final fragments = <PdfPageTextFragment>[];
     double y = pageText.fragments[0].bounds.bottom;
     int start = 0;
     for (int i = 1; i < pageText.fragments.length; i++) {
       final fragment = pageText.fragments[i];
       if (!_almostIdenticalY(fragment.bounds.bottom, y)) {
-        ranges.add((index: start, end: i));
+        fragments.addAll(pageText.fragments.sublist(start, i));
         y = fragment.bounds.bottom;
         start = i;
       }
     }
     if (start < pageText.fragments.length) {
-      ranges.add((index: start, end: pageText.fragments.length));
-    }
-    ranges.sortByCompare((f) => pageText.fragments[f.index].bounds.bottom,
-        (a, b) => (b - a).sign.toInt());
-
-    final fragments = <PdfPageTextFragment>[];
-    for (final range in ranges) {
-      fragments.addAll(pageText.fragments.sublist(range.index, range.end));
+      fragments
+          .addAll(pageText.fragments.sublist(start, pageText.fragments.length));
     }
     this.fragments = fragments;
     if (mounted) {
@@ -295,9 +288,8 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     Rect? lastLineStartRect;
     for (int i = 0; i < _fragments.length;) {
       final bounds = _fragments[i].bounds.toRect(page: _page, scaledTo: size);
-      if (lastLineEnd == null && selectionRect.intersect(bounds).isEmpty) {
-        i++;
-      } else {
+      final intersects = !selectionRect.intersect(bounds).isEmpty;
+      if (intersects) {
         final lineEnd = searchLineEnd(i);
         final chars = selectChars(
             lastLineEnd ?? i,
@@ -310,6 +302,8 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
         if (chars.rect == null) continue;
         sb.write(chars.text);
         selectionRects.add(chars.rect!);
+      } else {
+        i++;
       }
     }
 
@@ -322,9 +316,9 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
         selectionRects.reduce((a, b) => a.expandToInclude(b));
     _selectedRect = Rect.fromLTRB(
       _start?.dx ?? selectedBounds.left,
-      selectedBounds.top,
+      _start?.dy ?? selectedBounds.top,
       _end?.dx ?? selectedBounds.right,
-      selectedBounds.bottom,
+      _end?.dy ?? selectedBounds.bottom,
     );
     _selectedText = sb.toString();
 
@@ -535,11 +529,33 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
   void paint(PaintingContext context, Offset offset) {
     super.paint(context, offset);
 
+    final scale =
+        _sizeOnSelection != null ? size.width / _sizeOnSelection!.width : 1.0;
+    // for (int i = 0; i < _fragments.length; i++) {
+    //   final f = _fragments[i];
+    //   final rect = f.bounds.toRect(page: _page, scaledTo: size);
+    //   context.canvas.drawRect(
+    //     rect.shift(offset),
+    //     Paint()
+    //       ..style = PaintingStyle.stroke
+    //       ..color = Colors.red
+    //       ..strokeWidth = 1,
+    //   );
+    // }
+
+    // if (_selectedRect != null) {
+    //   context.canvas.drawRect(
+    //     (_selectedRect! * scale).shift(offset),
+    //     Paint()
+    //       ..style = PaintingStyle.fill
+    //       ..color = Colors.blue.withAlpha(100),
+    //   );
+    // }
+
     if (!_geometry.value.hasSelection) {
       return;
     }
 
-    final scale = size.width / _sizeOnSelection!.width;
     for (final rect in _geometry.value.selectionRects) {
       context.canvas.drawRect(
         (rect * scale).shift(offset),

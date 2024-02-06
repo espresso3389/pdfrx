@@ -145,7 +145,7 @@ class _MainPageState extends State<MainPage> {
             child: Stack(
               children: [
                 PdfViewer.asset(
-                  'assets/hello.pdf',
+                  'assets/compressed.tracemonkey-pldi-09.pdf',
                   // PdfViewer.file(
                   //   r"D:\pdfrx\example\assets\hello.pdf",
                   // PdfViewer.uri(
