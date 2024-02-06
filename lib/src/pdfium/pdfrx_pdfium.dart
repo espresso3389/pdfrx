@@ -987,8 +987,10 @@ class PdfPageTextPdfium extends PdfPageText {
       }
 
       if (sb.length > lineStart) {
+        const columnHeightThreshold = 72.0; // 1 inch
         final prev = charRects.last;
-        if (prev.left > rect.left) {
+        if (prev.left > rect.left ||
+            prev.bottom + columnHeightThreshold < rect.bottom) {
           if (_makeLineFlat(charRects, lineStart, sb.length, sb)) {
             if (sb.length > wordStart) {
               fragments.add(sb.length - wordStart);
@@ -1024,6 +1026,7 @@ class PdfPageTextPdfium extends PdfPageText {
     return sb.toString();
   }
 
+  /// return true if any meaningful characters in the line (start -> end)
   static bool _makeLineFlat(
     List<PdfRect> rects,
     int start,

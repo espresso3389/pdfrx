@@ -600,7 +600,9 @@ class PdfTextMatch {
 /// Rectangle in PDF page coordinates.
 ///
 /// Please note that PDF page coordinates is different from Flutter's coordinate.
-/// PDF page coordinates's origin is at the bottom-left corner and Y-axis is pointing upward; [bottom] is generally smaller than [top].
+/// PDF page coordinates's origin is at the bottom-left corner and Y-axis is pointing upward;
+/// [bottom] is generally smaller than [top].
+/// The unit is normally in points (1/72 inch).
 @immutable
 class PdfRect {
   const PdfRect(this.left, this.top, this.right, this.bottom);
