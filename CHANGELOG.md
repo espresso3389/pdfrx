@@ -1,3 +1,7 @@
+# 0.4.39
+
+- Minor updates on text selection (still experimental......)
+
 # 0.4.38
 
 - Minor updates on text selection (still experimental...)
