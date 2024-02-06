@@ -1,3 +1,8 @@
+# 0.4.38
+
+- Minor updates on text selection (still experimental...)
+- Minor fix on PdfPageView
+
 # 0.4.37
 
 - CMake version "3.18.1+" for #48, #62
