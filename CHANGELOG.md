@@ -1,3 +1,8 @@
+# 0.4.41
+
+- Marker example for PdfViewerParams.onTextSelectionChange (#65)
+- Add more explanation for sourceName (#66)
+
 # 0.4.40
 
 - Introduces PdfViewerParams.onTextSelectionChange (#65) to know the last text selection
