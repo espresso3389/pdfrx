@@ -620,6 +620,7 @@ class _PdfViewerState extends State<PdfViewer>
                     registrar: registrar,
                     page: page,
                     pageRect: rectExternal,
+                    onTextSelectionChange: widget.params.onTextSelectionChange,
                   );
                 }),
               ),

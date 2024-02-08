@@ -44,6 +44,7 @@ class PdfViewerParams {
     this.errorBannerBuilder,
     this.linkWidgetBuilder,
     this.pagePaintCallbacks,
+    this.onTextSelectionChange,
     this.forceReload = false,
   });
 
@@ -260,7 +261,13 @@ class PdfViewerParams {
   /// Build link widget.
   final PdfLinkWidgetBuilder? linkWidgetBuilder;
 
+  /// Page paint callbacks.
+  ///
+  /// For the detail usage, see [PdfViewerPagePaintCallback].
   final List<PdfViewerPagePaintCallback>? pagePaintCallbacks;
+
+  /// Function to be notified when the text selection is changed.
+  final PdfViewerTextSelectionChangeCallback? onTextSelectionChange;
 
   /// Force reload the viewer.
   ///
@@ -328,6 +335,7 @@ class PdfViewerParams {
         other.errorBannerBuilder == errorBannerBuilder &&
         other.linkWidgetBuilder == linkWidgetBuilder &&
         other.pagePaintCallbacks == pagePaintCallbacks &&
+        other.onTextSelectionChange == onTextSelectionChange &&
         other.forceReload == forceReload;
   }
 
@@ -363,6 +371,7 @@ class PdfViewerParams {
         errorBannerBuilder.hashCode ^
         linkWidgetBuilder.hashCode ^
         pagePaintCallbacks.hashCode ^
+        onTextSelectionChange.hashCode ^
         forceReload.hashCode;
   }
 }
@@ -439,11 +448,37 @@ typedef PdfViewerErrorBannerBuilder = Widget Function(
   PdfDocumentRef documentRef,
 );
 
+/// Function to build link widget for [PdfLink].
+///
+/// [size] is the size of the link.
 typedef PdfLinkWidgetBuilder = Widget? Function(
     BuildContext context, PdfLink link, Size size);
 
+/// Function to paint things on page.
+///
+/// [canvas] is the canvas to paint on.
+/// [pageRect] is the rectangle of the page in the viewer.
+/// [page] is the page.
+///
+/// If you have some [PdfRect] that describes something on the page,
+/// you can use [PdfRect.toRect] to convert it to [Rect] and draw the rect on the canvas:
+///
+/// ```dart
+/// PdfRect pdfRect = ...;
+/// canvas.drawRect(
+///   pdfRect.toRectInPageRect(page: page, pageRect: pageRect),
+///   Paint()..color = Colors.red);
+/// ```
 typedef PdfViewerPagePaintCallback = void Function(
     ui.Canvas canvas, Rect pageRect, PdfPage page);
+
+/// Function to be notified when the text selection is changed.
+///
+/// [selection] is the selected text ranges.
+/// If page selection is cleared on page dispose (it means, the page is scrolled out of the view), [selection] is null.
+/// Otherwise, [selection] is the selected text ranges. If no selection is made, [selection] is an empty list.
+typedef PdfViewerTextSelectionChangeCallback = void Function(
+    PdfTextRanges? selection);
 
 /// When [PdfViewerController.goToPage] is called, the page is aligned to the specified anchor.
 ///
