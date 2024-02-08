@@ -158,6 +158,9 @@ abstract class PdfDocument {
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
+  ///
+  /// [sourceName] can be any arbitrary string to identify the source of the PDF; [data] does not identify the source
+  /// if such name is explicitly specified.
   static Future<PdfDocument> openData(
     Uint8List data, {
     PdfPasswordProvider? passwordProvider,
@@ -182,6 +185,9 @@ abstract class PdfDocument {
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
+  ///
+  /// [sourceName] can be any arbitrary string to identify the source of the PDF; Neither of [read]/[fileSize]
+  /// identify the source if such name is explicitly specified.
   static Future<PdfDocument> openCustom({
     required FutureOr<int> Function(Uint8List buffer, int position, int size)
         read,
@@ -586,6 +592,19 @@ class PdfTextRanges {
 
   /// Determine whether the text ranges are *NOT* empty.
   bool get isNotEmpty => !isEmpty;
+
+  /// Bounds of the text ranges.
+  PdfRect get bounds => ranges
+      .map((r) =>
+          PdfTextRangeWithFragments.fromTextRange(pageText, r.start, r.end))
+      .map((r) => r!.bounds)
+      .boundingRect();
+
+  /// Page number of the text ranges.
+  int get pageNumber => pageText.pageNumber;
+
+  String get text =>
+      ranges.map((r) => pageText.fullText.substring(r.start, r.end)).join();
 }
 
 /// For backward compatibility; [PdfTextRangeWithFragments] is previously named [PdfTextMatch].

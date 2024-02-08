@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
-import 'package:pdfrx_example/search_view.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'markers_view.dart';
 import 'outline_view.dart';
 import 'password_dialog.dart';
+import 'search_view.dart';
 import 'thumbnails_view.dart';
 
 void main() {
@@ -36,6 +37,8 @@ class _MainPageState extends State<MainPage> {
   final showLeftPane = ValueNotifier<bool>(false);
   final outline = ValueNotifier<List<PdfOutlineNode>?>(null);
   late final textSearcher = PdfTextSearcher(controller)..addListener(_update);
+  final _markers = <int, List<Marker>>{};
+  PdfTextRanges? _selectedText;
 
   void _update() {
     if (mounted) {
@@ -65,6 +68,27 @@ class _MainPageState extends State<MainPage> {
         ),
         title: const Text('Pdfrx example'),
         actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.circle,
+              color: Colors.red,
+            ),
+            onPressed: () => _addCurrentSelectionToMarkers(Colors.red),
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.circle,
+              color: Colors.green,
+            ),
+            onPressed: () => _addCurrentSelectionToMarkers(Colors.green),
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.circle,
+              color: Colors.orangeAccent,
+            ),
+            onPressed: () => _addCurrentSelectionToMarkers(Colors.orangeAccent),
+          ),
           IconButton(
             icon: const Icon(Icons.zoom_in),
             onPressed: () => controller.zoomUp(),
@@ -97,13 +121,14 @@ class _MainPageState extends State<MainPage> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(1, 0, 4, 0),
                 child: DefaultTabController(
-                  length: 3,
+                  length: 4,
                   child: Column(
                     children: [
                       const TabBar(tabs: [
-                        Tab(text: 'Search'),
-                        Tab(text: 'Outline'),
-                        Tab(text: 'Thumbnails'),
+                        Tab(icon: Icon(Icons.search), text: 'Search'),
+                        Tab(icon: Icon(Icons.menu_book), text: 'TOC'),
+                        Tab(icon: Icon(Icons.image), text: 'Pages'),
+                        Tab(icon: Icon(Icons.bookmark), text: 'Markers'),
                       ]),
                       Expanded(
                         child: TabBarView(
@@ -132,6 +157,23 @@ class _MainPageState extends State<MainPage> {
                                 controller: controller,
                               ),
                             ),
+                            MarkersView(
+                              markers:
+                                  _markers.values.expand((e) => e).toList(),
+                              onTap: (marker) {
+                                final rect =
+                                    controller.calcRectForRectInsidePage(
+                                  pageNumber: marker.ranges.pageText.pageNumber,
+                                  rect: marker.ranges.bounds,
+                                );
+                                controller.ensureVisible(rect);
+                              },
+                              onDeleteTap: (marker) {
+                                _markers[marker.ranges.pageNumber]!
+                                    .remove(marker);
+                                setState(() {});
+                              },
+                            ),
                           ],
                         ),
                       ),
@@ -145,7 +187,7 @@ class _MainPageState extends State<MainPage> {
             child: Stack(
               children: [
                 PdfViewer.asset(
-                  'assets/compressed.tracemonkey-pldi-09.pdf',
+                  'assets/hello.pdf',
                   // PdfViewer.file(
                   //   r"D:\pdfrx\example\assets\hello.pdf",
                   // PdfViewer.uri(
@@ -237,7 +279,7 @@ class _MainPageState extends State<MainPage> {
                     // FIXME: a link with several areas (link that contains line-break) does not correctly
                     // show the hover status
                     linkWidgetBuilder: (context, link, size) => Material(
-                      color: Colors.transparent,
+                      color: Colors.blue.withOpacity(0.2),
                       child: InkWell(
                         onTap: () async {
                           if (link.url != null) {
@@ -250,17 +292,23 @@ class _MainPageState extends State<MainPage> {
                       ),
                     ),
                     pagePaintCallbacks: [
-                      textSearcher.pageTextMatchPaintCallback
+                      textSearcher.pageTextMatchPaintCallback,
+                      _paintMarkers,
                     ],
                     onDocumentChanged: (document) async {
                       if (document == null) {
                         documentRef.value = null;
                         outline.value = null;
+                        _selectedText = null;
+                        _markers.clear();
                       }
                     },
                     onViewerReady: (document, controller) async {
                       documentRef.value = controller.documentRef;
                       outline.value = await document.loadOutline();
+                    },
+                    onTextSelectionChange: (selection) {
+                      _selectedText = selection;
                     },
                   ),
                 ),
@@ -270,6 +318,43 @@ class _MainPageState extends State<MainPage> {
         ],
       ),
     );
+  }
+
+  void _paintMarkers(Canvas canvas, Rect pageRect, PdfPage page) {
+    final markers = _markers[page.pageNumber];
+    if (markers == null) {
+      return;
+    }
+    for (final marker in markers) {
+      final paint = Paint()
+        ..color = marker.color.withAlpha(100)
+        ..style = PaintingStyle.fill;
+
+      for (final range in marker.ranges.ranges) {
+        final f = PdfTextRangeWithFragments.fromTextRange(
+          marker.ranges.pageText,
+          range.start,
+          range.end,
+        );
+        if (f != null) {
+          canvas.drawRect(
+            f.bounds.toRectInPageRect(page: page, pageRect: pageRect),
+            paint,
+          );
+        }
+      }
+    }
+  }
+
+  void _addCurrentSelectionToMarkers(Color color) {
+    if (controller.pageNumber != null &&
+        _selectedText != null &&
+        _selectedText!.isNotEmpty) {
+      _markers
+          .putIfAbsent(controller.pageNumber!, () => [])
+          .add(Marker(color, _selectedText!));
+      setState(() {});
+    }
   }
 
   Future<void> navigateToUrl(Uri url) async {

@@ -116,6 +116,17 @@ class PdfViewer extends StatefulWidget {
           preferRangeAccess: preferRangeAccess,
         );
 
+  /// Create [PdfViewer] from a byte data.
+  ///
+  /// [data] is the byte data.
+  /// [sourceName] can be any arbitrary string to identify the source of the PDF; [data] does not identify the source
+  /// if such name is explicitly specified.
+  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// or not. For more info, see [PdfPasswordProvider].
+  /// [controller] is the controller to control the viewer.
+  /// [params] is the parameters to customize the viewer.
+  /// [initialPageNumber] is the page number to show initially.
   PdfViewer.data(
     Uint8List data, {
     required String sourceName,
@@ -132,6 +143,18 @@ class PdfViewer extends StatefulWidget {
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         );
 
+  /// Create [PdfViewer] from a custom source.
+  ///
+  /// [fileSize] is the size of the PDF file.
+  /// [read] is the function to read the PDF file.
+  /// [sourceName] can be any arbitrary string to identify the source of the PDF; Neither of [read]/[fileSize]
+  /// identify the source if such name is explicitly specified.
+  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// or not. For more info, see [PdfPasswordProvider].
+  /// [controller] is the controller to control the viewer.
+  /// [params] is the parameters to customize the viewer.
+  /// [initialPageNumber] is the page number to show initially.
   PdfViewer.custom({
     required int fileSize,
     required FutureOr<int> Function(Uint8List buffer, int position, int size)
