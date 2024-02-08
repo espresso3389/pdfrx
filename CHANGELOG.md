@@ -1,3 +1,7 @@
+# 0.4.40
+
+- Introduces PdfViewerParams.onTextSelectionChange (#65) to know the last text selection
+
 # 0.4.39
 
 - Minor updates on text selection (still experimental......)
