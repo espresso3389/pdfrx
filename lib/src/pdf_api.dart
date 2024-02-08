@@ -424,9 +424,9 @@ abstract class PdfPageText {
 
   /// Search text with [pattern].
   ///
-  /// Just work like [Pattern.allMatches] but it returns stream of [PdfTextMatch].
+  /// Just work like [Pattern.allMatches] but it returns stream of [PdfTextRange].
   /// [caseInsensitive] is used to specify case-insensitive search only if [pattern] is [String].
-  Stream<PdfTextMatch> allMatches(
+  Stream<PdfTextRange> allMatches(
     Pattern pattern, {
     bool caseInsensitive = true,
   }) async* {
@@ -443,7 +443,7 @@ abstract class PdfPageText {
     final matches = pattern.allMatches(text);
     for (final match in matches) {
       if (match.start == match.end) continue;
-      final m = PdfTextMatch.fromTextRange(this, match.start, match.end);
+      final m = PdfTextRange.fromTextRange(this, match.start, match.end);
       if (m != null) {
         yield m;
       }
@@ -483,6 +483,37 @@ abstract class PdfPageTextFragment {
 
   @override
   int get hashCode => index.hashCode ^ bounds.hashCode ^ text.hashCode;
+
+  /// Create a [PdfPageTextFragment].
+  static PdfPageTextFragment fromParams(
+    int index,
+    int length,
+    PdfRect bounds,
+    String text, {
+    List<PdfRect>? charRects,
+  }) =>
+      _PdfPageTextFragment(index, length, bounds, text, charRects: charRects);
+}
+
+class _PdfPageTextFragment extends PdfPageTextFragment {
+  _PdfPageTextFragment(
+    this.index,
+    this.length,
+    this.bounds,
+    this.text, {
+    this.charRects,
+  });
+
+  @override
+  final int index;
+  @override
+  final int length;
+  @override
+  final PdfRect bounds;
+  @override
+  final List<PdfRect>? charRects;
+  @override
+  final String text;
 }
 
 /// Used only for searching fragments with [lowerBound].
@@ -500,9 +531,12 @@ class _PdfPageTextFragmentForSearch extends PdfPageTextFragment {
   List<PdfRect>? get charRects => null;
 }
 
-/// Text match result in PDF page.
-class PdfTextMatch {
-  PdfTextMatch(
+/// For backward compatibility.
+typedef PdfTextMatch = PdfTextRange;
+
+/// Text range (start/end index) in PDF page and it's associated text and bounding rectangle.
+class PdfTextRange {
+  PdfTextRange(
     this.pageNumber,
     this.fragments,
     this.start,
@@ -525,15 +559,15 @@ class PdfTextMatch {
   /// Bounding rectangle of the text.
   final PdfRect bounds;
 
-  /// Create [PdfTextMatch] from text range in [PdfPageText].
-  static PdfTextMatch? fromTextRange(PdfPageText pageText, int start, int end) {
+  /// Create [PdfTextRange] from text range in [PdfPageText].
+  static PdfTextRange? fromTextRange(PdfPageText pageText, int start, int end) {
     if (start >= end) {
       return null;
     }
     final s = pageText.getFragmentIndexForTextIndex(start);
     final sf = pageText.fragments[s];
     if (start + 1 == end) {
-      return PdfTextMatch(
+      return PdfTextRange(
         pageText.pageNumber,
         [pageText.fragments[s]],
         start - sf.index,
@@ -545,7 +579,7 @@ class PdfTextMatch {
     final l = pageText.getFragmentIndexForTextIndex(end - 1);
     if (s == l) {
       if (sf.charRects == null) {
-        return PdfTextMatch(
+        return PdfTextRange(
           pageText.pageNumber,
           [pageText.fragments[s]],
           start - sf.index,
@@ -553,7 +587,7 @@ class PdfTextMatch {
           sf.bounds,
         );
       } else {
-        return PdfTextMatch(
+        return PdfTextRange(
           pageText.pageNumber,
           [pageText.fragments[s]],
           start - sf.index,
@@ -574,7 +608,7 @@ class PdfTextMatch {
         ? lf.charRects!.take(end - lf.index).boundingRect()
         : lf.bounds);
 
-    return PdfTextMatch(
+    return PdfTextRange(
       pageText.pageNumber,
       pageText.fragments.sublist(s, l + 1),
       start - sf.index,
@@ -588,7 +622,7 @@ class PdfTextMatch {
 
   @override
   bool operator ==(Object other) {
-    return other is PdfTextMatch &&
+    return other is PdfTextRange &&
         other.pageNumber == pageNumber &&
         other.start == start &&
         other.end == end &&

@@ -21,11 +21,11 @@ class PdfTextSearcher extends Listenable {
 
   Timer? _searchTextTimer; // timer to start search
   int _searchSession = 0; // current search session
-  List<PdfTextMatch> _matches = const [];
+  List<PdfTextRange> _matches = const [];
   List<int> _matchesPageStartIndices = const [];
   Pattern? _lastSearchPattern;
   int? _currentIndex;
-  PdfTextMatch? _currentMatch;
+  PdfTextRange? _currentMatch;
   int? _searchingPageNumber;
   int? _totalPageCount;
   bool _isSearching = false;
@@ -34,7 +34,7 @@ class PdfTextSearcher extends Listenable {
   int? get currentIndex => _currentIndex;
 
   /// Get the current matches.
-  List<PdfTextMatch> get matches => _matches;
+  List<PdfTextRange> get matches => _matches;
 
   /// Whether there are any matches or not (so far).
   bool get hasMatches => _currentIndex != null && matches.isNotEmpty;
@@ -148,7 +148,7 @@ class PdfTextSearcher extends Listenable {
   ) async {
     await controller?.documentRef.resolveListenable().useDocument(
       (document) async {
-        final textMatches = <PdfTextMatch>[];
+        final textMatches = <PdfTextRange>[];
         final textMatchesPageStartIndex = <int>[];
         bool first = true;
         _isSearching = true;
@@ -220,7 +220,7 @@ class PdfTextSearcher extends Listenable {
   }
 
   /// Go to the given match.
-  Future<void> goToMatch(PdfTextMatch match) async {
+  Future<void> goToMatch(PdfTextRange match) async {
     _currentMatch = match;
     _currentIndex = _matches.indexOf(match);
     await controller?.ensureVisible(
@@ -234,13 +234,13 @@ class PdfTextSearcher extends Listenable {
   }
 
   /// Get the matches range for the given page number.
-  PdfTextMatchRange? getMatchesRangeForPage(int pageNumber) {
+  ({int start, int end})? getMatchesRangeForPage(int pageNumber) {
     if (_matchesPageStartIndices.length < pageNumber) return null;
     final start = _matchesPageStartIndices[pageNumber - 1];
     final end = _matchesPageStartIndices.length > pageNumber
         ? _matchesPageStartIndices[pageNumber]
         : _matches.length;
-    return PdfTextMatchRange(start: start, end: end);
+    return (start: start, end: end);
   }
 
   /// Go to the match of the given index.
@@ -256,10 +256,10 @@ class PdfTextSearcher extends Listenable {
   /// Use this with [PdfViewerParams.pagePaintCallback] to highlight the matches.
   void pageTextMatchPaintCallback(
       ui.Canvas canvas, Rect pageRect, PdfPage page) {
-    final textMatches = getMatchesRangeForPage(page.pageNumber);
-    if (textMatches == null) return;
+    final range = getMatchesRangeForPage(page.pageNumber);
+    if (range == null) return;
 
-    for (int i = textMatches.start; i < textMatches.end; i++) {
+    for (int i = range.start; i < range.end; i++) {
       final m = _matches[i];
       final rect = m.bounds
           .toRect(page: page, scaledTo: pageRect.size)
@@ -282,12 +282,6 @@ class PdfTextSearcher extends Listenable {
 
   @override
   void removeListener(VoidCallback listener) => _listeners.remove(listener);
-}
-
-class PdfTextMatchRange {
-  const PdfTextMatchRange({required this.start, required this.end});
-  final int start;
-  final int end;
 }
 
 extension PatternExts on Pattern {

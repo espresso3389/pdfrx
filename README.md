@@ -409,7 +409,7 @@ There are several functions that helps you to navigate user to the search matche
 - [TextSearcher.goToNextMatch](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/goToNextMatch.html) to go to the next match
 - [TextSearcher.goToPrevMatch](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/goToPrevMatch.html) to go to the previous match
 
-You can get the search result (even during the search running) in the list of [PdfTextMatch](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextMatch-class.html) by [PdfTextSearcher.matches](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/matches.html):
+You can get the search result (even during the search running) in the list of [PdfTextRange](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextRange-class.html) by [PdfTextSearcher.matches](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/matches.html):
 
 ```dart
 for (final match in textSearcher.matches) {

@@ -246,20 +246,25 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
       return _fragments.length;
     }
 
-    Iterable<({Rect rect, String text})> enumerateCharRects(
-        int start, int end) sync* {
+    Iterable<
+            ({Rect rect, String text, PdfPageTextFragment fragment, int index})>
+        enumerateCharRects(int start, int end) sync* {
       for (int i = start; i < end; i++) {
         final fragment = _fragments[i];
         if (fragment.charRects == null) {
           yield (
             rect: fragment.bounds.toRect(page: _page, scaledTo: size),
-            text: fragment.text
+            text: fragment.text,
+            fragment: fragment,
+            index: -1,
           );
         } else {
           for (int j = 0; j < fragment.charRects!.length; j++) {
             yield (
               rect: fragment.charRects![j].toRect(page: _page, scaledTo: size),
-              text: fragment.text.substring(j, j + 1)
+              text: fragment.text.substring(j, j + 1),
+              fragment: fragment,
+              index: j,
             );
           }
         }

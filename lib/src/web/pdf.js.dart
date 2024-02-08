@@ -80,6 +80,8 @@ class PdfjsPage {
   external List<double> get view;
 
   external Object getTextContent(PdfjsGetTextContentParameters params);
+  external ReadableStream streamTextContent(
+      PdfjsGetTextContentParameters params);
 
   external Object getAnnotations(PdfjsGetAnnotationsParameters params);
 }
@@ -187,8 +189,8 @@ class PdfjsGetTextContentParameters {
 @anonymous
 class PdfjsTextContent {
   /// Either [PdfjsTextItem] or [PdfjsTextMarkedContent]
-  external List<Object> get items;
-  external Map<String, PdfjsTextStyle> styles;
+  external List<PdfjsTextItem> get items;
+  external Object get styles;
 }
 
 @JS()
@@ -331,4 +333,26 @@ Future<void> _pdfjsInitialize() async {
   });
 
   _pdfjsInitialized = true;
+}
+
+@JS()
+@anonymous
+class ReadableStream {
+  external Object cancel();
+  external ReadableStreamDefaultReader getReader(dynamic options);
+}
+
+@JS()
+@anonymous
+class ReadableStreamDefaultReader {
+  external Object cancel(Object reason);
+  external Object read();
+  external Object releaseLock();
+}
+
+@JS()
+@anonymous
+class ReadableStreamChunk {
+  external Object get value;
+  external bool get done;
 }

@@ -227,7 +227,7 @@ class SearchResultTile extends StatefulWidget {
     required this.isCurrent,
   });
 
-  final PdfTextMatch match;
+  final PdfTextRange match;
   final void Function() onTap;
   final PdfPageTextCache pageTextStore;
   final double height;
@@ -295,7 +295,7 @@ class _SearchResultTileState extends State<SearchResultTile> {
     );
   }
 
-  TextSpan createTextSpanForMatch(PdfPageText? pageText, PdfTextMatch match,
+  TextSpan createTextSpanForMatch(PdfPageText? pageText, PdfTextRange match,
       {TextStyle? style}) {
     style ??= const TextStyle(
       fontSize: 14,
