@@ -1,6 +1,7 @@
 # 0.4.43
 
 - Add note for dark/night mode support on README.md; the trick is originally introduced by [pckimlong](https://github.com/pckimlong) on #46.
+- FIXED: wrong PdfPageAnchor behavior with landscape pages
 
 # 0.4.42
 
