@@ -1,3 +1,7 @@
+# 0.4.42
+
+- FIXED: PdfDocumentRefData's operator== is broken (#66)
+
 # 0.4.41
 
 - Marker example for PdfViewerParams.onTextSelectionChange (#65)
