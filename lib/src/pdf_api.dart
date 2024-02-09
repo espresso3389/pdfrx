@@ -539,24 +539,29 @@ class _PdfPageTextFragmentForSearch extends PdfPageTextFragment {
 }
 
 /// Simple text range in a PDF page.
+///
+/// The text range is used to describe text selection in a page but it does not indicate the actual page text;
+/// [PdfTextRanges] contains multiple [PdfTextRange]s and the actual [PdfPageText] the ranges are associated with.
 class PdfTextRange {
   const PdfTextRange({
     required this.start,
     required this.end,
   });
 
+  /// Text start index in [PdfPageText.fullText].
   final int start;
+
+  /// Text end index in [PdfPageText.fullText].
   final int end;
 
   PdfTextRange copyWith({
     int? start,
     int? end,
-  }) {
-    return PdfTextRange(
-      start: start ?? this.start,
-      end: end ?? this.end,
-    );
-  }
+  }) =>
+      PdfTextRange(
+        start: start ?? this.start,
+        end: end ?? this.end,
+      );
 
   @override
   int get hashCode => start ^ end;
@@ -568,6 +573,12 @@ class PdfTextRange {
 
   @override
   String toString() => '[$start $end]';
+
+  /// Convert to [PdfTextRangeWithFragments].
+  ///
+  /// The method is used to convert [PdfTextRange] to [PdfTextRangeWithFragments] using [PdfPageText].
+  PdfTextRangeWithFragments? toTextRangeWithFragments(PdfPageText pageText) =>
+      PdfTextRangeWithFragments.fromTextRange(pageText, start, end);
 }
 
 /// Text ranges in a PDF page typically used to describe text selection.
@@ -593,16 +604,15 @@ class PdfTextRanges {
   /// Determine whether the text ranges are *NOT* empty.
   bool get isNotEmpty => !isEmpty;
 
-  /// Bounds of the text ranges.
-  PdfRect get bounds => ranges
-      .map((r) =>
-          PdfTextRangeWithFragments.fromTextRange(pageText, r.start, r.end))
-      .map((r) => r!.bounds)
-      .boundingRect();
-
   /// Page number of the text ranges.
   int get pageNumber => pageText.pageNumber;
 
+  /// Bounds of the text ranges.
+  PdfRect get bounds => ranges
+      .map((r) => r.toTextRangeWithFragments(pageText)!.bounds)
+      .boundingRect();
+
+  /// The composed text of the text ranges.
   String get text =>
       ranges.map((r) => pageText.fullText.substring(r.start, r.end)).join();
 }

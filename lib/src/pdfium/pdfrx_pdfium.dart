@@ -130,7 +130,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) {
-    _init();
     return openCustom(
       read: (buffer, position, size) {
         if (position + size > data.length) {
