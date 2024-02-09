@@ -1,3 +1,7 @@
+# 0.4.44
+
+- FIXED: PdfViewerParams.boundaryMargin does not work correctly.
+
 # 0.4.43
 
 - Add note for dark/night mode support on README.md; the trick is originally introduced by [pckimlong](https://github.com/pckimlong) on #46.

@@ -98,6 +98,8 @@ class PdfViewerParams {
   final PanAxis panAxis;
 
   /// See [InteractiveViewer.boundaryMargin] for details.
+  ///
+  /// The default is `EdgeInsets.all(double.infinity)`.
   final EdgeInsets? boundaryMargin;
 
   /// Annotation rendering mode.
