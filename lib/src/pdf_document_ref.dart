@@ -236,7 +236,7 @@ class PdfDocumentRefData extends PdfDocumentRef
 
   @override
   bool operator ==(Object other) =>
-      other is PdfDocumentRefFile && sourceName == other.sourceName;
+      other is PdfDocumentRefData && sourceName == other.sourceName;
 
   @override
   int get hashCode => sourceName.hashCode;
