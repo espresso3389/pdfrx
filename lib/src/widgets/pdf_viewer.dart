@@ -953,9 +953,7 @@ class _PdfViewerState extends State<PdfViewer>
             break;
           case 1:
             rect = Rect.fromCenter(
-                center: rect.center,
-                width: _viewSize!.width,
-                height: _viewSize!.height);
+                center: rect.center, width: rect.width, height: rect.height);
             break;
           case 2:
             rect = Rect.fromLTRB(rect.left, rect.bottom - rect.width / vRatio,
@@ -971,9 +969,7 @@ class _PdfViewerState extends State<PdfViewer>
             break;
           case 1:
             rect = Rect.fromCenter(
-                center: rect.center,
-                width: _viewSize!.width,
-                height: _viewSize!.height);
+                center: rect.center, width: rect.width, height: rect.height);
             break;
           case 2:
             rect = Rect.fromLTRB(rect.right - rect.height * vRatio, rect.top,
