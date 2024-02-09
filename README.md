@@ -339,6 +339,19 @@ loadingBannerBuilder: (context, bytesDownloaded, totalBytes) {
 }
 ```
 
+## Dark/Night Mode Support
+
+[PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) does not have any native dark (or night) mode support but it can be easily implemented using [ColorFiltered](https://api.flutter.dev/flutter/widgets/ColorFiltered-class.html) widget:
+
+```dart
+ColorFiltered(
+  colorFilter: ColorFilter.mode(Colors.white, darkMode ? BlendMode.difference : BlendMode.dst),
+  child: PdfViewer.file(filePath, ...),
+),
+```
+
+The trick is originally introduced by [pckimlong](https://github.com/pckimlong).
+
 ## Other Features
 
 ### Text Search
@@ -462,6 +475,6 @@ PdfDocumentViewBuilder.asset(
 ),
 ```
 
-## PdfDocument management and sharing it between widgets
+## PdfDocument Management
 
 [PdfDocumentViewBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentViewBuilder-class.html) can accept [PdfDocumentRef](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRef-class.html) from [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) to safely share the same [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) instance. For more information, see [example/lib/thumbnails_view.dart](example/lib/thumbnails_view.dart).
