@@ -1,3 +1,7 @@
+# 1.0.1
+
+- PdfViewerController.addListener/removeListener independently has listener list on it to make it work regardless of PdfViewer attached or not (#74)
+
 # 1.0.0
 
 - Requires Flutter 3.19/Dart 3.3

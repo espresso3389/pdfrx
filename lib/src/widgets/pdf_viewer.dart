@@ -1280,11 +1280,20 @@ class PdfPageLayout {
 /// You can check whether the controller is associated or not by checking [isReady] property.
 class PdfViewerController extends ValueListenable<Matrix4> {
   _PdfViewerState? __state;
+  final _listeners = <VoidCallback>[];
 
   static const maxZoom = 8.0;
 
   void _attach(_PdfViewerState? state) {
+    __state?._txController.removeListener(_notifyListeners);
     __state = state;
+    __state?._txController.addListener(_notifyListeners);
+  }
+
+  void _notifyListeners() {
+    for (final listener in _listeners) {
+      listener();
+    }
   }
 
   _PdfViewerState get _state {
@@ -1331,12 +1340,10 @@ class PdfViewerController extends ValueListenable<Matrix4> {
       _state._txController.value = makeMatrixInSafeRange(newValue);
 
   @override
-  void addListener(ui.VoidCallback listener) =>
-      _state._txController.addListener(listener);
+  void addListener(ui.VoidCallback listener) => _listeners.add(listener);
 
   @override
-  void removeListener(ui.VoidCallback listener) =>
-      _state._txController.removeListener(listener);
+  void removeListener(ui.VoidCallback listener) => _listeners.remove(listener);
 
   /// Restrict matrix to the safe range.
   Matrix4 makeMatrixInSafeRange(Matrix4 newValue) =>
