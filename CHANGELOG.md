@@ -1,3 +1,9 @@
+# 1.0.5
+
+_NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packages/pdfrx/versions/1.0.5-testing-version-constraints-1/score). It does not affect your code consistency but API reference is not available until [pub.dev upgrades their toolchains](https://github.com/dart-lang/pub-dev/issues/7484#issuecomment-1948206197)._
+
+- Requires Flutter 3.19/Dart 3.3
+
 # 1.0.4
 
 - Rollback version constraints to the older stable versions...
