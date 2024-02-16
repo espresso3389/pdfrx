@@ -1,3 +1,7 @@
+# 1.0.3
+
+- Again, `flutter: '>=3.19.0-0.4.pre'`
+
 # 1.0.2
 
 - To make the pub.dev analyzer work, we should use `sdk: '>=3.3.0-76.0.dev <4.0.0'` as version constraint...
