@@ -1,3 +1,7 @@
+# 1.0.2
+
+- To make the pub.dev analyzer work, we should use `sdk: '>=3.3.0-76.0.dev <4.0.0'` as version constraint...
+
 # 1.0.1
 
 - PdfViewerController.addListener/removeListener independently has listener list on it to make it work regardless of PdfViewer attached or not (#74)
