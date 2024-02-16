@@ -1,3 +1,8 @@
+# 1.0.4
+
+- Rollback version constraints to the older stable versions...
+  - I've created an issue for pub.dev: <https://github.com/dart-lang/pub-dev/issues/7484>
+
 # 1.0.3
 
 - Again, `flutter: '>=3.19.0-0.4.pre'`
