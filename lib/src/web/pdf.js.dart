@@ -3,13 +3,13 @@
 @JS()
 library pdf.js;
 
-import 'dart:html';
 import 'dart:js' as js;
 import 'dart:js_util';
 import 'dart:typed_data';
 
 import 'package:js/js.dart';
 import 'package:synchronized/extension.dart';
+import 'package:web/web.dart' as web;
 
 import '../../pdfrx.dart';
 
@@ -138,7 +138,7 @@ class PdfjsViewport {
 @anonymous
 class PdfjsRenderContext {
   external factory PdfjsRenderContext(
-      {required CanvasRenderingContext2D canvasContext,
+      {required web.CanvasRenderingContext2D canvasContext,
       required PdfjsViewport viewport,
       String intent = 'display',
       int annotationMode = 1,
@@ -147,8 +147,8 @@ class PdfjsRenderContext {
       dynamic imageLayer,
       dynamic canvasFactory,
       dynamic background});
-  external CanvasRenderingContext2D get canvasContext;
-  external set canvasContext(CanvasRenderingContext2D ctx);
+  external web.CanvasRenderingContext2D get canvasContext;
+  external set canvasContext(web.CanvasRenderingContext2D ctx);
   external PdfjsViewport get viewport;
   external set viewport(PdfjsViewport viewport);
 
@@ -308,12 +308,12 @@ Future<void> _pdfjsInitialize() async {
   final pdfJsSrc = PdfJsConfiguration.configuration?.pdfJsSrc ??
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$version/pdf.min.js';
   try {
-    final script = ScriptElement()
+    final script = web.document.createElement('script') as web.HTMLScriptElement
       ..type = 'text/javascript'
       ..charset = 'utf-8'
       ..async = true
       ..src = pdfJsSrc;
-    querySelector('head')!.children.add(script);
+    web.document.querySelector('head')!.appendChild(script);
     await script.onLoad.first.timeout(
         PdfJsConfiguration.configuration?.pdfJsDownloadTimeout ??
             const Duration(seconds: 10));

@@ -16,7 +16,12 @@ A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web
 - [Document Outline (a.k.a Bookmarks)](#document-outline-aka-bookmarks) support
 - [Text Selection (still experimental)](#text-selection) support
 - [Text Search](#text-search) support
-- Flexibily customizable
+- Viewer decoration support
+  - Scroll bar by [PdfScrollThumb](#showing-scroll-thumbs)
+  - More viewer customizations by [PdfViewerParams.viewerOverlayBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html)
+- Page decoration support
+  - Overlay widgets on page by [PdfViewerParams.pageOverlaysBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pageOverlaysBuilder.html)
+  - Canvas based paint on page by [PdfViewerParams.pagePaintCallbacks](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pagePaintCallbacks.html)
 - Multi-platform support
 
   - Android
@@ -62,7 +67,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^0.4.44
+  pdfrx: ^1.0.0
 ```
 
 ### Windows
@@ -309,6 +314,10 @@ viewerOverlayBuilder: (context, size) => [
   ),
 ],
 ```
+
+Basically, [PdfViewerParams.viewerOverlayBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html) can be used to insert any widgets under viewer's internal [Stack](https://api.flutter.dev/flutter/widgets/Stack-class.html).
+
+But if you want to place many visual objects that does not interact with user, you'd better use [PdfViewerParams.pagePaintCallback](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pagePaintCallbacks.html).
 
 ### Adding Page Number on Page Bottom
 

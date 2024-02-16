@@ -2,12 +2,13 @@
 // ignore_for_file: avoid_web_libraries_in_flutter
 
 import 'dart:async';
-import 'dart:html' as html;
+import 'dart:js_interop';
 import 'dart:js_util' as js_util;
 import 'dart:ui';
 
 import 'package:flutter/services.dart';
 import 'package:synchronized/extension.dart';
+import 'package:web/web.dart' as web;
 
 import '../../pdfrx.dart';
 import 'pdf.js.dart';
@@ -395,13 +396,14 @@ class PdfPageWeb extends PdfPage {
         offsetY: -y.toDouble(),
         dontFlip: dontFlip));
 
-    final canvas = html.document.createElement('canvas') as html.CanvasElement;
+    final canvas =
+        web.document.createElement('canvas') as web.HTMLCanvasElement;
     canvas.width = width;
     canvas.height = height;
 
     if (backgroundColor != null) {
       canvas.context2D.fillStyle =
-          '#${backgroundColor.value.toRadixString(16).padLeft(8, '0')}';
+          '#${backgroundColor.value.toRadixString(16).padLeft(8, '0')}'.toJS;
       canvas.context2D.fillRect(0, 0, width, height);
     }
 
@@ -418,6 +420,7 @@ class PdfPageWeb extends PdfPage {
     final src = canvas.context2D
         .getImageData(0, 0, width, height)
         .data
+        .toDart
         .buffer
         .asUint8List();
     return src;

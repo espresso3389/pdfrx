@@ -1,3 +1,8 @@
+# 1.0.0
+
+- Requires Flutter 3.19/Dart 3.3
+- Update Web code to use package:web (removing dependency to dart:html)
+
 # 0.4.44
 
 - FIXED: PdfViewerParams.boundaryMargin does not work correctly.

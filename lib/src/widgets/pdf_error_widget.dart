@@ -93,7 +93,6 @@ typedef _GestureRecognizerDisposerBuilderFunction = Widget Function(
 class _GestureRecognizerDisposer extends StatefulWidget {
   const _GestureRecognizerDisposer({
     required this.builder,
-    super.key,
   });
 
   final _GestureRecognizerDisposerBuilderFunction builder;
