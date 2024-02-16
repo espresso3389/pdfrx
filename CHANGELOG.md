@@ -1,3 +1,11 @@
+# 1.0.6
+
+- Due to the pub.dev version issues, the version introduces a "temporary workaround", which downgrades several packages:
+  - `sdk: '>=3.3.0-76.0.dev <4.0.0'`
+  - `flutter: '>=3.19.0-0.4.pre'`
+  - `web: ^0.4.2`
+    I'll update them as soon as [pub.dev upgrades their toolchains](https://github.com/dart-lang/pub-dev/issues/7484#issuecomment-1948206197)
+
 # 1.0.5
 
 _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packages/pdfrx/versions/1.0.5-testing-version-constraints-1/score). It does not affect your code consistency but API reference is not available until [pub.dev upgrades their toolchains](https://github.com/dart-lang/pub-dev/issues/7484#issuecomment-1948206197)._
