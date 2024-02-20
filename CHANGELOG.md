@@ -1,3 +1,8 @@
+# 1.0.9
+
+- PdfRect.toRect: scaledTo -> scaledPageSize
+- FIXED: PdfJsConfiguration.cMapUrl/cMapPacked does not have correct default values
+
 # 1.0.8
 
 - Condition analysis warnings on auto-generated pdfium_bindings.dart
