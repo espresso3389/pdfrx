@@ -1,3 +1,8 @@
+# 1.0.7
+
+- Requires Flutter 3.19/Dart 3.3 again (pub.dev is upgraded to the stable🎉)
+- dart:js_interop based pdf.js interop implementation (remove dependency on package:js)
+
 # 1.0.6
 
 - Due to the pub.dev version issues, the version introduces a "temporary workaround", which downgrades several packages:
@@ -5,6 +10,7 @@
   - `flutter: '>=3.19.0-0.4.pre'`
   - `web: ^0.4.2`
     I'll update them as soon as [pub.dev upgrades their toolchains](https://github.com/dart-lang/pub-dev/issues/7484#issuecomment-1948206197)
+- pdf.js interop refactoring
 
 # 1.0.5
 

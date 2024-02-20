@@ -376,7 +376,7 @@ class _PdfViewerState extends State<PdfViewer>
       return Container(
         color: widget.params.backgroundColor,
         child: Focus(
-          onKey: _onKey,
+          onKeyEvent: _onKey,
           child: StreamBuilder(
               stream: _stream,
               builder: (context, snapshot) {
@@ -424,8 +424,13 @@ class _PdfViewerState extends State<PdfViewer>
 
   int? _gotoTargetPageNumber;
 
-  KeyEventResult _onKey(FocusNode node, RawKeyEvent event) {
-    final isDown = event is RawKeyDownEvent;
+  /// Key pressing state of ⌘ or Control depending on the platform.
+  static bool get _isCommandKeyPressed => Platform.isMacOS || Platform.isIOS
+      ? HardwareKeyboard.instance.isMetaPressed
+      : HardwareKeyboard.instance.isControlPressed;
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    final isDown = event is KeyDownEvent;
     switch (event.logicalKey) {
       case LogicalKeyboardKey.pageUp:
         if (isDown) {
@@ -448,12 +453,12 @@ class _PdfViewerState extends State<PdfViewer>
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.equal:
-        if (isDown && event.isCommandKeyPressed) {
+        if (isDown && _isCommandKeyPressed) {
           _zoomUp();
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.minus:
-        if (isDown && event.isCommandKeyPressed) {
+        if (isDown && _isCommandKeyPressed) {
           _zoomDown();
         }
         return KeyEventResult.handled;
@@ -1625,12 +1630,6 @@ class _CustomPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-extension _RawKeyEventExt on RawKeyEvent {
-  /// Key pressing state of ⌘ or Control depending on the platform.
-  bool get isCommandKeyPressed =>
-      Platform.isMacOS || Platform.isIOS ? isMetaPressed : isControlPressed;
 }
 
 Widget _defaultErrorBannerBuilder(

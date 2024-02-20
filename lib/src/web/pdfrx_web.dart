@@ -170,9 +170,7 @@ class PdfDocumentWeb extends PdfDocument {
     required String sourceName,
     void Function()? onDispose,
   }) async {
-    final permsObj =
-        await js_util.promiseToFuture<List?>(document.getPermissions());
-    final perms = permsObj?.cast<int>();
+    final perms = (await document.getPermissions().toDart)?.toDart.cast<int>();
 
     final doc = PdfDocumentWeb._(
       document,
@@ -199,8 +197,7 @@ class PdfDocumentWeb extends PdfDocument {
   }
 
   Future<PdfPage> _getPage(PdfjsDocument document, int pageNumber) async {
-    final page =
-        await js_util.promiseToFuture<PdfjsPage>(_document.getPage(pageNumber));
+    final page = await _document.getPage(pageNumber).toDart;
     final vp1 = page.getViewport(PdfjsViewportParams(scale: 1));
     return PdfPageWeb._(
         document: this,
@@ -218,23 +215,22 @@ class PdfDocumentWeb extends PdfDocument {
   bool isIdenticalDocumentHandle(Object? other) =>
       other is PdfDocumentWeb && _document == other._document;
 
-  Future<Object?> _getDestObject(dynamic dest) async {
+  Future<JSObject?> _getDestObject(JSAny? dest) async {
     if (dest == null) return null;
     if (dest is String) {
-      return await js_util
-          .promiseToFuture<dynamic>(_document.getDestination(dest));
+      final destObj = await _document.getDestination(dest as String).toDart;
+      return destObj;
     } else {
-      return dest;
+      return dest as JSObject;
     }
   }
 
   @override
   Future<List<PdfOutlineNode>> loadOutline() async {
-    final outline =
-        await js_util.promiseToFuture<List<dynamic>?>(_document.getOutline());
+    final outline = await _document.getOutline().toDart;
     if (outline == null) return [];
     final nodes = <PdfOutlineNode>[];
-    for (final node in outline) {
+    for (final node in outline.toDart) {
       nodes.add(await _pdfOutlineNodeFromOutline(node));
     }
     return nodes;
@@ -243,7 +239,7 @@ class PdfDocumentWeb extends PdfDocument {
   Future<PdfOutlineNode> _pdfOutlineNodeFromOutline(
       PdfjsOutlineNode outline) async {
     final children = <PdfOutlineNode>[];
-    for (final item in outline.items) {
+    for (final item in outline.items.toDart) {
       children.add(await _pdfOutlineNodeFromOutline(item));
     }
     return PdfOutlineNode(
@@ -253,17 +249,18 @@ class PdfDocumentWeb extends PdfDocument {
     );
   }
 
-  Future<PdfDest?> _getDestination(dynamic dest) async {
+  Future<PdfDest?> _getDestination(JSAny? dest) async {
     final destObj = await _getDestObject(dest);
-    if (destObj is! List) return null;
-    final ref = destObj[0] as PdfjsRef;
-    final cmdStr = _getName(destObj[1]);
-    final params =
-        destObj.length < 3 ? null : destObj.sublist(2).cast<double?>();
+    if (destObj is! JSArray) return null;
+    final arr = destObj.toDart;
+    final ref = arr[0] as PdfjsRef;
+    final cmdStr = _getName(arr[1]);
+    final params = arr.length < 3 ? null : arr.sublist(2).cast<double?>();
     return PdfDest(
-        (await js_util.promiseToFuture<int>(_document.getPageIndex(ref))) + 1,
-        _parseCmdStr(cmdStr),
-        params);
+      (await _document.getPageIndex(ref).toDart).toDartInt + 1,
+      _parseCmdStr(cmdStr),
+      params,
+    );
   }
 
   static PdfDestCommand _parseCmdStr(String cmdStr) {
@@ -407,7 +404,7 @@ class PdfPageWeb extends PdfPage {
       canvas.context2D.fillRect(0, 0, width, height);
     }
 
-    await js_util.promiseToFuture(page
+    await page
         .render(
           PdfjsRenderContext(
             canvasContext: canvas.context2D,
@@ -415,7 +412,8 @@ class PdfPageWeb extends PdfPage {
             annotationMode: annotationRenderingMode.index,
           ),
         )
-        .promise);
+        .promise
+        .toDart;
 
     final src = canvas.context2D
         .getImageData(0, 0, width, height)
@@ -431,17 +429,15 @@ class PdfPageWeb extends PdfPage {
 
   @override
   Future<List<PdfLink>> loadLinks() async {
-    final annots = await js_util.promiseToFuture<List>(
-      page.getAnnotations(
-        PdfjsGetAnnotationsParameters(),
-      ),
-    );
+    final annots =
+        (await page.getAnnotations(PdfjsGetAnnotationsParameters()).toDart)
+            .toDart;
     final links = <PdfLink>[];
     for (final annot in annots) {
-      if (annot == null || annot.subtype != 'Link') {
+      if (annot.subtype != 'Link') {
         continue;
       }
-      final rect = annot.rect.cast<double>();
+      final rect = annot.rect.toDart.cast<double>();
       final rects = [
         PdfRect(rect[0], rect[3], rect[2], rect[1]),
       ];
@@ -521,33 +517,22 @@ class PdfPageTextWeb extends PdfPageText {
   final List<PdfPageTextFragment> fragments;
 
   static Future<PdfPageTextWeb> _loadText(PdfPageWeb page) async {
-    final content = await js_util.promiseToFuture<PdfjsTextContent>(
-      page.page.getTextContent(
-        PdfjsGetTextContentParameters()
-          ..includeMarkedContent = false
-          ..disableNormalization = false,
-      ),
-    );
+    final content = await page.page
+        .getTextContent(
+          PdfjsGetTextContentParameters(
+            includeMarkedContent: false,
+            disableNormalization: false,
+          ),
+        )
+        .toDart;
     final sb = StringBuffer();
     final fragments = <PdfPageTextFragmentWeb>[];
-    for (final item in content.items.cast<PdfjsTextItem>()) {
-      final x = item.transform[4];
-      final y = item.transform[5];
+    for (final item in content.items.toDart) {
+      final t = item.transform.toDart.cast<double>();
+      final x = t[4];
+      final y = t[5];
       final str = item.hasEOL ? '${item.str}\n' : item.str;
-      if (str != '\n' || fragments.isEmpty) {
-        fragments.add(
-          PdfPageTextFragmentWeb(
-            sb.length,
-            PdfRect(
-              x,
-              y + item.height.toDouble(),
-              x + item.width.toDouble(),
-              y,
-            ),
-            str,
-          ),
-        );
-      } else {
+      if (str == '\n' && fragments.isNotEmpty) {
         final prev = fragments.last;
         fragments.add(
           PdfPageTextFragmentWeb(
@@ -557,6 +542,19 @@ class PdfPageTextWeb extends PdfPageText {
               prev.bounds.top,
               prev.bounds.right + item.width.toDouble(),
               prev.bounds.bottom,
+            ),
+            str,
+          ),
+        );
+      } else {
+        fragments.add(
+          PdfPageTextFragmentWeb(
+            sb.length,
+            PdfRect(
+              x,
+              y + item.height.toDouble(),
+              x + item.width.toDouble(),
+              y,
             ),
             str,
           ),
