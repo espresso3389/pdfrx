@@ -1,3 +1,7 @@
+# 1.0.8
+
+- Condition analysis warnings on auto-generated pdfium_bindings.dart
+
 # 1.0.7
 
 - Requires Flutter 3.19/Dart 3.3 again (pub.dev is upgraded to the stable🎉)
