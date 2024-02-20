@@ -267,6 +267,9 @@ abstract class PdfPage {
   /// PDF page height in points (height in pixels at 72 dpi) (rotated).
   double get height;
 
+  /// PDF page size in points (size in pixels at 72 dpi) (rotated).
+  Size get size => Size(width, height);
+
   /// PDF page rotation.
   PdfPageRotation get rotation;
 
@@ -781,15 +784,18 @@ class PdfRect {
   /// Empty rectangle.
   static const empty = PdfRect(0, 0, 0, 0);
 
-  /// Convert to [Rect] in Flutter coordinate. [height] specifies the height of the page (original size).
-  /// [scale] is used to scale the rectangle.
+  /// Convert to [Rect] in Flutter coordinate.
+  /// [page] is the page to convert the rectangle.
+  /// [scaledPageSize] is the scaled page size to scale the rectangle. If not specified, [PdfPage.size] is used.
+  /// [rotation] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
   Rect toRect({
     required PdfPage page,
-    Size? scaledTo,
+    Size? scaledPageSize,
     int? rotation,
   }) {
     final rotated = rotate(rotation ?? page.rotation.index, page);
-    final scale = scaledTo == null ? 1.0 : scaledTo.height / page.height;
+    final scale =
+        scaledPageSize == null ? 1.0 : scaledPageSize.height / page.height;
     return Rect.fromLTRB(
       rotated.left * scale,
       (page.height - rotated.top) * scale,
@@ -803,7 +809,7 @@ class PdfRect {
     required PdfPage page,
     required Rect pageRect,
   }) =>
-      toRect(page: page, scaledTo: pageRect.size)
+      toRect(page: page, scaledPageSize: pageRect.size)
           .translate(pageRect.left, pageRect.top);
 
   PdfRect rotate(int rotation, PdfPage page) {

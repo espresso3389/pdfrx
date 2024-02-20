@@ -281,7 +281,7 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
         final fragment = _fragments[i];
         if (fragment.charRects == null) {
           yield (
-            rect: fragment.bounds.toRect(page: _page, scaledTo: size),
+            rect: fragment.bounds.toRect(page: _page, scaledPageSize: size),
             text: fragment.text,
             range: PdfTextRange(
               start: fragment.index,
@@ -291,7 +291,8 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
         } else {
           for (int j = 0; j < fragment.charRects!.length; j++) {
             yield (
-              rect: fragment.charRects![j].toRect(page: _page, scaledTo: size),
+              rect: fragment.charRects![j]
+                  .toRect(page: _page, scaledPageSize: size),
               text: fragment.text.substring(j, j + 1),
               range: PdfTextRange(
                 start: fragment.index + j,
@@ -326,7 +327,8 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
     int? lastLineEnd;
     Rect? lastLineStartRect;
     for (int i = 0; i < _fragments.length;) {
-      final bounds = _fragments[i].bounds.toRect(page: _page, scaledTo: size);
+      final bounds =
+          _fragments[i].bounds.toRect(page: _page, scaledPageSize: size);
       final intersects = !selectionRect.intersect(bounds).isEmpty;
       if (intersects) {
         final lineEnd = searchLineEnd(i);
@@ -398,7 +400,7 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
 
   void _selectFragment(Offset point) {
     for (final fragment in _fragments) {
-      final bounds = fragment.bounds.toRect(page: _page, scaledTo: size);
+      final bounds = fragment.bounds.toRect(page: _page, scaledPageSize: size);
       if (bounds.contains(point)) {
         _start = bounds.topLeft;
         _end = bounds.bottomRight;
@@ -572,7 +574,7 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
         _sizeOnSelection != null ? size.width / _sizeOnSelection!.width : 1.0;
     // for (int i = 0; i < _fragments.length; i++) {
     //   final f = _fragments[i];
-    //   final rect = f.bounds.toRect(page: _page, scaledTo: size);
+    //   final rect = f.bounds.toRect(page: _page, scaledPageSize: size);
     //   context.canvas.drawRect(
     //     rect.shift(offset),
     //     Paint()

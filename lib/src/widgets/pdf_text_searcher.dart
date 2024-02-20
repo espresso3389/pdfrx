@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../pdf_api.dart';
 import '../widgets/pdf_viewer.dart';
+import '../widgets/pdf_viewer_params.dart';
 
 /// Helper class to interactively search text in a PDF document.
 ///
@@ -262,7 +263,7 @@ class PdfTextSearcher extends Listenable {
     for (int i = range.start; i < range.end; i++) {
       final m = _matches[i];
       final rect = m.bounds
-          .toRect(page: page, scaledTo: pageRect.size)
+          .toRect(page: page, scaledPageSize: pageRect.size)
           .translate(pageRect.left, pageRect.top);
       canvas.drawRect(
         rect,

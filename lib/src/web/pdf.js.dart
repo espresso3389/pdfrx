@@ -61,8 +61,8 @@ Future<PdfjsDocument> pdfjsGetDocument(String url, {String? password}) =>
       _PdfjsGetDocumentParams(
         url: url,
         password: password,
-        cMapUrl: PdfJsConfiguration.configuration?.cMapUrl,
-        cMapPacked: PdfJsConfiguration.configuration?.cMapPacked,
+        cMapUrl: PdfJsConfiguration.configuration?.cMapUrl ?? _pdfjsCMapUrl,
+        cMapPacked: PdfJsConfiguration.configuration?.cMapPacked ?? true,
       ),
     ).promise.toDart;
 
