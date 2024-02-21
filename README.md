@@ -3,6 +3,11 @@
 [pdfrx](https://pub.dartlang.org/packages/pdfrx) is a rich and fast PDF viewer implementation built on the top of [pdfium](https://pdfium.googlesource.com/pdfium/).
 The plugin supports Android, iOS, Windows, macOS, Linux, and Web.
 
+> [!NOTE]
+> pdfrx 1.0.0+ supports Flutter 3.19/Dart 3.3 and could not be compatible with older Flutter/Dart versions.
+> **Please use 0.4.46+ for older projects that can not upgrade to Flutter 3.19/Dart 3.3.**
+> 1.0.0+ versions receive new features and bug fixes but 0.4.46+ versions receive critical bug fixes only.
+
 ## Interactive Demo
 
 A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web
