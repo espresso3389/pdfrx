@@ -1,3 +1,7 @@
+# 1.0.10
+
+- FIXED: calcZoomStopTable hangs app if zoom ratio is almost 0 (#79)
+
 # 1.0.9
 
 - PdfRect.toRect: scaledTo -> scaledPageSize
