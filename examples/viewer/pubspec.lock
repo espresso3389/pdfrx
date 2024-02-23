@@ -235,10 +235,10 @@ packages:
   pdfrx:
     dependency: "direct main"
     description:
-      path: ".."
+      path: "../.."
       relative: true
     source: path
-    version: "1.0.10"
+    version: "1.0.10+1"
   platform:
     dependency: transitive
     description:

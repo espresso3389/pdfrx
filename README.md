@@ -250,7 +250,7 @@ onViewerReady: (document, controller) async {
 },
 ```
 
-[PdfOutlineNode](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfOutlineNode-class.html) is tree structured data and for more information, see the usage on [example code](https://github.com/espresso3389/pdfrx/blob/master/example/lib/outline_view.dart).
+[PdfOutlineNode](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfOutlineNode-class.html) is tree structured data and for more information, see the usage on [example code](https://github.com/espresso3389/pdfrx/blob/master/examples/viewer/lib/outline_view.dart).
 
 ### Horizontal Scroll View
 
@@ -492,4 +492,4 @@ PdfDocumentViewBuilder.asset(
 
 ## PdfDocument Management
 
-[PdfDocumentViewBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentViewBuilder-class.html) can accept [PdfDocumentRef](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRef-class.html) from [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) to safely share the same [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) instance. For more information, see [example/lib/thumbnails_view.dart](example/lib/thumbnails_view.dart).
+[PdfDocumentViewBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentViewBuilder-class.html) can accept [PdfDocumentRef](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRef-class.html) from [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) to safely share the same [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) instance. For more information, see [examples/viewer/lib/thumbnails_view.dart](examples/viewer/lib/thumbnails_view.dart).
