@@ -1,3 +1,7 @@
+# 1.0.11
+
+- intl 0.18.1 (#87)
+
 # 1.0.10+1
 
 - Add note for Flutter 3.19/Dart 3.3 support on 1.0.0+
