@@ -8,7 +8,7 @@
       "name": "viewer example",
       "request": "launch",
       "type": "dart",
-      "program": "examples/viewer/lib/main.dart"
+      "program": "example/viewer/lib/main.dart"
     }
   ]
 }
