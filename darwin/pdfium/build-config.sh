@@ -129,7 +129,7 @@ if [[ "$TARGET_OS" == "ios" ]]; then
   # See ios/pdfium/.tmp/work/pdfium/build/config/ios/rules.gni
   cat <<EOF >> $BUILDDIR/args.gn
 ios_enable_code_signing = false
-ios_deployment_target = "13.0"
+ios_deployment_target = "12.0"
 use_custom_libcxx = false
 pdf_use_partition_alloc = false
 target_environment = "$TARGET_ENVIRONMENT"
