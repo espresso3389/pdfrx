@@ -62,14 +62,12 @@ class PdfViewerParams {
   ///
   /// ```dart
   /// PdfViewerParams(
-  ///   layoutPages: (pages, templatePage, params) {
-  ///     final height = pages.where((p) => p != null).fold(
-  ///       templatePage.height,
-  ///       (prev, page) => max(prev, page!.height)) + params.margin * 2;
+  ///   layoutPages: (pages, params) {
+  ///     final height = pages.fold(
+  ///       0.0, (prev, page) => max(prev, page.height)) + params.margin * 2;
   ///     final pageLayouts = <Rect>[];
   ///     double x = params.margin;
-  ///     for (var page in pages) {
-  ///       page ??= templatePage; // in case the page is not loaded yet
+  ///     for (final page in pages) {
   ///       pageLayouts.add(
   ///         Rect.fromLTWH(
   ///           x,
