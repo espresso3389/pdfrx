@@ -204,6 +204,7 @@ class _PdfViewerState extends State<PdfViewer>
   Size? _viewSize;
   double? _coverScale;
   double? _alternativeFitScale;
+  double _minScale = 0.1;
   int? _pageNumber;
   bool _initialized = false;
   final List<double> _zoomStops = [1.0];
@@ -543,11 +544,15 @@ class _PdfViewerState extends State<PdfViewer>
       final m2 = params.margin * 2;
       _alternativeFitScale = min((_viewSize!.width - m2) / rect.width,
           (_viewSize!.height - m2) / rect.height);
-      return true;
     } else {
       _alternativeFitScale = null;
-      return false;
     }
+    _minScale = !widget.params.useAlternativeFitScaleAsMinScale
+        ? widget.params.minScale
+        : _alternativeFitScale == null
+            ? _coverScale!
+            : min(_coverScale!, _alternativeFitScale!);
+    return _alternativeFitScale != null;
   }
 
   void _calcZoomStopTable() {
@@ -573,6 +578,17 @@ class _PdfViewerState extends State<PdfViewer>
     while (z < PdfViewerController.maxZoom) {
       _zoomStops.add(z);
       z *= 2;
+    }
+
+    if (!widget.params.useAlternativeFitScaleAsMinScale) {
+      z = _zoomStops.first;
+      while (z > widget.params.minScale) {
+        z /= 2;
+        _zoomStops.insert(0, z);
+      }
+      if (!_areZoomsAlmostIdentical(z, widget.params.minScale)) {
+        _zoomStops.insert(0, widget.params.minScale);
+      }
     }
   }
 
@@ -936,9 +952,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   /// The minimum zoom ratio allowed.
-  double get minScale => _alternativeFitScale == null
-      ? _coverScale!
-      : min(_coverScale!, _alternativeFitScale!);
+  double get minScale => _minScale;
 
   Matrix4 _calcMatrixForRect(Rect rect, {double? zoomMax, double? margin}) {
     margin ??= 0;
@@ -1313,13 +1327,13 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// Determine whether the document/pages are ready or not.
   bool get isReady => __state?._document?.pages != null;
 
-  /// Document layout's size.
+  /// The document layout size.
   Size get documentSize => _state._layout!.documentSize;
 
-  /// View port size (The widget's client area's size)
+  /// The view port size (The widget's client area's size)
   Size get viewSize => _state._viewSize!;
 
-  /// The zoom ratio that fits the page width to the view port.
+  /// The zoom ratio that fits the page's smaller side (either horizontal or vertical) to the view port.
   double get coverScale => _state._coverScale!;
 
   /// The zoom ratio that fits whole the page to the view port.

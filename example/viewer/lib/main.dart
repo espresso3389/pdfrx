@@ -203,29 +203,49 @@ class _MainPageState extends State<MainPage> {
                   params: PdfViewerParams(
                     enableTextSelection: true,
                     maxScale: 8,
-                    // code to display pages horizontally
+                    // facing pages algoritm
                     // layoutPages: (pages, params) {
-                    //   final height = pages.fold(
-                    //           templatePage.height,
-                    //           (prev, page) => max(prev, page.height)) +
-                    //       params.margin * 2;
+                    //   // They should be moved outside function
+                    //   const isRightToLeftReadingOrder = false;
+                    //   const needCoverPage = true;
+                    //   final width = pages.fold(
+                    //       0.0, (prev, page) => max(prev, page.width));
+
                     //   final pageLayouts = <Rect>[];
-                    //   double x = params.margin;
-                    //   for (var page in pages) {
-                    //     page ??= templatePage; // in case the page is not loaded yet
+                    //   double y = params.margin;
+                    //   for (int i = 0; i < pages.length; i++) {
+                    //     const offset = needCoverPage ? 1 : 0;
+                    //     final page = pages[i];
+                    //     final pos = i + offset;
+                    //     final isLeft = isRightToLeftReadingOrder
+                    //         ? (pos & 1) == 1
+                    //         : (pos & 1) == 0;
+
+                    //     final otherSide = (pos ^ 1) - offset;
+                    //     final h = 0 <= otherSide && otherSide < pages.length
+                    //         ? max(page.height, pages[otherSide].height)
+                    //         : page.height;
+
                     //     pageLayouts.add(
                     //       Rect.fromLTWH(
-                    //         x,
-                    //         (height - page.height) / 2, // center vertically
+                    //         isLeft
+                    //             ? width + params.margin - page.width
+                    //             : params.margin * 2 + width,
+                    //         y + (h - page.height) / 2,
                     //         page.width,
                     //         page.height,
                     //       ),
                     //     );
-                    //     x += page.width + params.margin;
+                    //     if (pos & 1 == 1 || i + 1 == pages.length) {
+                    //       y += h + params.margin;
+                    //     }
                     //   }
                     //   return PdfPageLayout(
                     //     pageLayouts: pageLayouts,
-                    //     documentSize: Size(x, height),
+                    //     documentSize: Size(
+                    //       (params.margin + width) * 2 + params.margin,
+                    //       y,
+                    //     ),
                     //   );
                     // },
                     //

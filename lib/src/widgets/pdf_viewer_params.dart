@@ -16,6 +16,7 @@ class PdfViewerParams {
     this.layoutPages,
     this.maxScale = 2.5,
     this.minScale = 0.1,
+    this.useAlternativeFitScaleAsMinScale = true,
     this.panAxis = PanAxis.free,
     this.boundaryMargin,
     this.annotationRenderingMode =
@@ -86,11 +87,23 @@ class PdfViewerParams {
 
   /// The maximum allowed scale.
   ///
-  /// Defaults to 2.5.
+  /// The default is 2.5.
   final double maxScale;
 
   /// The minimum allowed scale.
+  ///
+  /// The default is 0.1.
+  ///
+  /// Please note that the value is not used if [useAlternativeFitScaleAsMinScale] is true.
+  /// See [useAlternativeFitScaleAsMinScale] for the details.
   final double minScale;
+
+  /// If true, the minimum scale is set to the calculated [PdfViewerController.alternativeFitScale].
+  ///
+  /// If the minimum scale is small value, it makes many pages visible inside the view and it finally
+  /// renders many pages at once. It may make the viewer to be slow or even crash due to high memory consumption.
+  /// So, it is recommended to set this to false if you want to show PDF documents with many pages.
+  final bool useAlternativeFitScaleAsMinScale;
 
   /// See [InteractiveViewer.panAxis] for details.
   final PanAxis panAxis;
@@ -287,6 +300,8 @@ class PdfViewerParams {
         other.backgroundColor != backgroundColor ||
         other.maxScale != maxScale ||
         other.minScale != minScale ||
+        other.useAlternativeFitScaleAsMinScale !=
+            useAlternativeFitScaleAsMinScale ||
         other.panAxis != panAxis ||
         other.boundaryMargin != boundaryMargin ||
         other.annotationRenderingMode != annotationRenderingMode ||
@@ -309,6 +324,8 @@ class PdfViewerParams {
         other.backgroundColor == backgroundColor &&
         other.maxScale == maxScale &&
         other.minScale == minScale &&
+        other.useAlternativeFitScaleAsMinScale ==
+            useAlternativeFitScaleAsMinScale &&
         other.panAxis == panAxis &&
         other.boundaryMargin == boundaryMargin &&
         other.annotationRenderingMode == annotationRenderingMode &&
@@ -345,6 +362,7 @@ class PdfViewerParams {
         backgroundColor.hashCode ^
         maxScale.hashCode ^
         minScale.hashCode ^
+        useAlternativeFitScaleAsMinScale.hashCode ^
         panAxis.hashCode ^
         boundaryMargin.hashCode ^
         annotationRenderingMode.hashCode ^

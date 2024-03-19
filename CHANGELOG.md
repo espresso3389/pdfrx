@@ -1,3 +1,7 @@
+# 1.0.50
+
+- Introduces PdfViewerParams.useAlternativeFitScaleAsMinScale but it's not recommended to set the value to false because it may degrade the viewer performance
+
 # 1.0.49
 
 - iOS minimum deployment target 12.0
