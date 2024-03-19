@@ -59,4 +59,8 @@ android {
     defaultConfig {
         minSdkVersion 19
     }
+
+    packagingOptions {
+        pickFirst '**/libpdfium.so'
+    }
 }
