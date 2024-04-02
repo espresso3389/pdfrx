@@ -220,6 +220,7 @@ class _PdfPageViewState extends State<PdfPageView> {
 
   @override
   void dispose() {
+    _image?.dispose();
     _cancellationToken?.cancel();
     super.dispose();
   }
@@ -319,10 +320,11 @@ class _PdfPageViewState extends State<PdfPageView> {
     if (pageImage == null) return;
     final newImage = await pageImage.createImage();
     pageImage.dispose();
+    final oldImage = _image;
+    _image = newImage;
+    oldImage?.dispose();
     if (mounted) {
-      setState(() {
-        _image = newImage;
-      });
+      setState(() {});
     }
   }
 }
