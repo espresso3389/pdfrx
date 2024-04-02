@@ -167,7 +167,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
 
     // If the file size is smaller than the specified size, load the file on memory
     if (fileSize <= maxSizeToCacheOnMemory) {
-      final buffer = calloc.allocate<Uint8>(fileSize);
+      final buffer = malloc.allocate<Uint8>(fileSize);
       try {
         await read(buffer.asTypedList(fileSize), 0, fileSize);
         return _openByFunc(
@@ -190,12 +190,12 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
             try {
               onDispose?.call();
             } finally {
-              calloc.free(buffer);
+              malloc.free(buffer);
             }
           },
         );
       } catch (e) {
-        calloc.free(buffer);
+        malloc.free(buffer);
         rethrow;
       }
     }
@@ -339,7 +339,7 @@ class PdfDocumentPdfium extends PdfDocument {
             final securityHandlerRevision =
                 pdfium.FPDF_GetSecurityHandlerRevision(doc);
 
-            final formInfo = calloc<pdfium_bindings.FPDF_FORMFILLINFO>(
+            final formInfo = calloc.allocate<pdfium_bindings.FPDF_FORMFILLINFO>(
                 sizeOf<pdfium_bindings.FPDF_FORMFILLINFO>());
             formInfo.ref.version = 1;
             final formHandle = pdfium.FPDFDOC_InitFormFillEnvironment(
@@ -550,37 +550,18 @@ class PdfPagePdfium extends PdfPage {
                     throw PdfException(
                         'FPDFBitmap_CreateEx(${params.width}, ${params.height}) failed.');
                   }
-
-                  final page =
-                      pdfium_bindings.FPDF_PAGE.fromAddress(params.page);
-                  pdfium.FPDFBitmap_FillRect(
-                    bmp,
-                    0,
-                    0,
-                    params.width,
-                    params.height,
-                    params.backgroundColor,
-                  );
-                  pdfium.FPDF_RenderPageBitmap(
-                    bmp,
-                    page,
-                    -params.x,
-                    -params.y,
-                    params.fullWidth,
-                    params.fullHeight,
-                    0,
-                    params.annotationRenderingMode !=
-                            PdfAnnotationRenderingMode.none
-                        ? pdfium_bindings.FPDF_ANNOT
-                        : 0,
-                  );
-
-                  if (params.formHandle != 0 &&
-                      params.annotationRenderingMode ==
-                          PdfAnnotationRenderingMode.annotationAndForms) {
-                    pdfium.FPDF_FFLDraw(
-                      pdfium_bindings.FPDF_FORMHANDLE
-                          .fromAddress(params.formHandle),
+                  try {
+                    final page =
+                        pdfium_bindings.FPDF_PAGE.fromAddress(params.page);
+                    pdfium.FPDFBitmap_FillRect(
+                      bmp,
+                      0,
+                      0,
+                      params.width,
+                      params.height,
+                      params.backgroundColor,
+                    );
+                    pdfium.FPDF_RenderPageBitmap(
                       bmp,
                       page,
                       -params.x,
@@ -588,12 +569,32 @@ class PdfPagePdfium extends PdfPage {
                       params.fullWidth,
                       params.fullHeight,
                       0,
-                      0,
+                      params.annotationRenderingMode !=
+                              PdfAnnotationRenderingMode.none
+                          ? pdfium_bindings.FPDF_ANNOT
+                          : 0,
                     );
-                  }
 
-                  pdfium.FPDFBitmap_Destroy(bmp);
-                  return true;
+                    if (params.formHandle != 0 &&
+                        params.annotationRenderingMode ==
+                            PdfAnnotationRenderingMode.annotationAndForms) {
+                      pdfium.FPDF_FFLDraw(
+                        pdfium_bindings.FPDF_FORMHANDLE
+                            .fromAddress(params.formHandle),
+                        bmp,
+                        page,
+                        -params.x,
+                        -params.y,
+                        params.fullWidth,
+                        params.fullHeight,
+                        0,
+                        0,
+                      );
+                    }
+                    return true;
+                  } finally {
+                    pdfium.FPDFBitmap_Destroy(bmp);
+                  }
                 },
                 (
                   page: page.address,
@@ -834,7 +835,7 @@ class PdfImagePdfium extends PdfImage {
 
   @override
   void dispose() {
-    calloc.free(_buffer);
+    malloc.free(_buffer);
   }
 }
 
