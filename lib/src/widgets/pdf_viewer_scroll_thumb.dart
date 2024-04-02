@@ -45,6 +45,9 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
   double _panStartOffset = 0;
   @override
   Widget build(BuildContext context) {
+    if (!widget.controller.isReady) {
+      return const SizedBox();
+    }
     return widget.isVertical
         ? _buildVertical(context)
         : _buildHorizontal(context);
