@@ -3,7 +3,6 @@
 
 import 'dart:async';
 import 'dart:js_interop';
-import 'dart:js_util' as js_util;
 import 'dart:ui';
 
 import 'package:flutter/services.dart';
@@ -286,8 +285,8 @@ class PdfDocumentWeb extends PdfDocument {
     }
   }
 
-  static String _getName(dynamic name) {
-    final obj = js_util.dartify(name);
+  static String _getName(JSAny? name) {
+    final obj = name.dartify();
     if (obj is Map) {
       return obj['name'].toString();
     } else {
