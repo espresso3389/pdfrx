@@ -11,6 +11,22 @@ import 'package:flutter/material.dart';
 import '../pdfrx.dart';
 import 'pdfium/pdfrx_pdfium.dart' if (dart.library.js) 'web/pdfrx_web.dart';
 
+/// Global configuration for pdfrx
+abstract class PdfrxConfig {
+  /// Some of the iOS frameworks just provides static libraries only and you may need to link
+  /// them statically by specifying the following in your app's `ios/Podfile`;
+  ///
+  /// ```Podfile
+  /// target 'Runner' do
+  ///   use_frameworks! :linkage => :static
+  ///   use_modular_headers!
+  /// ```
+  ///
+  /// In that case, the pdfrx's default loading approach using [DynamicLibrary.open](https://api.dart.dev/dev/3.5.0-14.0.dev/dart-ffi/DynamicLibrary/DynamicLibrary.open.html) will fail.
+  /// To workaround the issue, pdfrx should use [DynamicLibrary.process](https://api.dart.dev/dev/3.5.0-14.0.dev/dart-ffi/DynamicLibrary/DynamicLibrary.process.html) and `useStaticLinkedPdfrx = true` should be set.
+  static bool useDynamicLibraryProcess = false;
+}
+
 /// For platform abstraction purpose; use [PdfDocument] instead.
 abstract class PdfDocumentFactory {
   /// See [PdfDocument.openAsset].

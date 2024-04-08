@@ -28,8 +28,9 @@ String _getModuleFileName() {
 }
 
 /// Loaded pdfium module.
-final pdfium =
-    pdfium_bindings.pdfium(DynamicLibrary.open(_getModuleFileName()));
+final pdfium = pdfium_bindings.pdfium(PdfrxConfig.useDynamicLibraryProcess
+    ? DynamicLibrary.process()
+    : DynamicLibrary.open(_getModuleFileName()));
 
 bool _initialized = false;
 
