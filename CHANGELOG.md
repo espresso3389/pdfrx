@@ -1,3 +1,8 @@
+# 1.0.53
+
+- Fixes flicker on scrolling/zooming that was introduced on 1.0.52
+- Revival of high resolution partial rendering
+
 # 1.0.52
 
 - Fixes memory consumption control issues (Related: #121)

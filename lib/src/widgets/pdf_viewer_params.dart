@@ -14,7 +14,7 @@ class PdfViewerParams {
     this.margin = 8.0,
     this.backgroundColor = Colors.grey,
     this.layoutPages,
-    this.maxScale = 2.5,
+    this.maxScale = 8.0,
     this.minScale = 0.1,
     this.useAlternativeFitScaleAsMinScale = true,
     this.panAxis = PanAxis.free,
@@ -87,7 +87,7 @@ class PdfViewerParams {
 
   /// The maximum allowed scale.
   ///
-  /// The default is 2.5.
+  /// The default is 8.0.
   final double maxScale;
 
   /// The minimum allowed scale.

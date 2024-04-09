@@ -52,7 +52,7 @@ class InteractiveViewer extends StatefulWidget {
     this.constrained = true,
     // These default scale values were eyeballed as reasonable limits for common
     // use cases.
-    this.maxScale = 2.5,
+    this.maxScale = 8.0,
     this.minScale = 0.8,
     this.interactionEndFrictionCoefficient = _kDrag,
     this.onInteractionEnd,
@@ -98,7 +98,7 @@ class InteractiveViewer extends StatefulWidget {
     this.boundaryMargin = EdgeInsets.zero,
     // These default scale values were eyeballed as reasonable limits for common
     // use cases.
-    this.maxScale = 2.5,
+    this.maxScale = 8.0,
     this.minScale = 0.8,
     this.interactionEndFrictionCoefficient = _kDrag,
     this.onInteractionEnd,

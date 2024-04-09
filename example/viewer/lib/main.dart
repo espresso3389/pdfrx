@@ -203,7 +203,7 @@ class _MainPageState extends State<MainPage> {
                   params: PdfViewerParams(
                     enableTextSelection: true,
                     maxScale: 8,
-                    // facing pages algoritm
+                    // facing pages algorithm
                     // layoutPages: (pages, params) {
                     //   // They should be moved outside function
                     //   const isRightToLeftReadingOrder = false;

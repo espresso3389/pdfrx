@@ -339,6 +339,9 @@ enum PdfAnnotationRenderingMode {
 abstract class PdfPageRenderCancellationToken {
   /// Cancel the rendering process.
   void cancel();
+
+  /// Determine whether the rendering process is canceled or not.
+  bool get isCanceled;
 }
 
 /// PDF permissions defined on PDF 32000-1:2008, Table 22.

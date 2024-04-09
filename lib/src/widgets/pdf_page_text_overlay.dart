@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../../pdfrx.dart';
+import '../utils/double_extensions.dart';
 
 /// A widget that displays selectable text on a page.
 ///
@@ -61,10 +62,6 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
     widget.onTextSelectionChange?.call(ranges);
   }
 
-  bool _almostIdenticalY(double a, double b) {
-    return (a - b).abs() < .25;
-  }
-
   Future<void> _initText() async {
     _release();
     final pageText = _pageText = await widget.page.loadText();
@@ -74,7 +71,7 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
       int start = 0;
       for (int i = 1; i < pageText.fragments.length; i++) {
         final fragment = pageText.fragments[i];
-        if (!_almostIdenticalY(fragment.bounds.bottom, y)) {
+        if (!fragment.bounds.bottom.isAlmostIdentical(y, error: .25)) {
           fragments.addAll(pageText.fragments.sublist(start, i));
           y = fragment.bounds.bottom;
           start = i;
