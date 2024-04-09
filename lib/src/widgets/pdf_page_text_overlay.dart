@@ -69,19 +69,21 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
     _release();
     final pageText = _pageText = await widget.page.loadText();
     final fragments = <PdfPageTextFragment>[];
-    double y = pageText.fragments[0].bounds.bottom;
-    int start = 0;
-    for (int i = 1; i < pageText.fragments.length; i++) {
-      final fragment = pageText.fragments[i];
-      if (!_almostIdenticalY(fragment.bounds.bottom, y)) {
-        fragments.addAll(pageText.fragments.sublist(start, i));
-        y = fragment.bounds.bottom;
-        start = i;
+    if (pageText.fragments.isNotEmpty) {
+      double y = pageText.fragments[0].bounds.bottom;
+      int start = 0;
+      for (int i = 1; i < pageText.fragments.length; i++) {
+        final fragment = pageText.fragments[i];
+        if (!_almostIdenticalY(fragment.bounds.bottom, y)) {
+          fragments.addAll(pageText.fragments.sublist(start, i));
+          y = fragment.bounds.bottom;
+          start = i;
+        }
       }
-    }
-    if (start < pageText.fragments.length) {
-      fragments
-          .addAll(pageText.fragments.sublist(start, pageText.fragments.length));
+      if (start < pageText.fragments.length) {
+        fragments.addAll(
+            pageText.fragments.sublist(start, pageText.fragments.length));
+      }
     }
     this.fragments = fragments;
     if (mounted) {
