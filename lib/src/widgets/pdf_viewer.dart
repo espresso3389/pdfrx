@@ -901,8 +901,8 @@ class _PdfViewerState extends State<PdfViewer>
     int bytesConsumed =
         _realSized.values.fold(0, (sum, e) => sum + getBytesConsumed(e.image));
     for (final key in pageNumbers) {
-      _realSized.remove(key);
       bytesConsumed -= getBytesConsumed(_realSized[key]?.image);
+      _realSized.remove(key);
       if (bytesConsumed <= acceptableBytes) {
         break;
       }
