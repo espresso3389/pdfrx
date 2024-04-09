@@ -236,7 +236,7 @@ class _PdfViewerState extends State<PdfViewer>
       if (widget.params.doChangesRequireReload(oldWidget?.params)) {
         if (widget.params.annotationRenderingMode !=
             oldWidget?.params.annotationRenderingMode) {
-          _realSized.clear();
+          _releaseAllImages();
         }
         _relayoutPages();
 
@@ -256,9 +256,14 @@ class _PdfViewerState extends State<PdfViewer>
     _onDocumentChanged();
   }
 
+  void _releaseAllImages() {
+    _realSized.forEach((key, value) => value.image.dispose());
+    _realSized.clear();
+  }
+
   void _relayout() {
     _relayoutPages();
-    _realSized.clear();
+    _releaseAllImages();
     if (mounted) {
       setState(() {});
     }
@@ -267,7 +272,7 @@ class _PdfViewerState extends State<PdfViewer>
   void _onDocumentChanged() async {
     _layout = null;
 
-    _realSized.clear();
+    _releaseAllImages();
     _pageNumber = null;
     _initialized = false;
     _txController.removeListener(_onMatrixChanged);
@@ -309,7 +314,7 @@ class _PdfViewerState extends State<PdfViewer>
     _cancelAllPendingRenderings();
     _animController.dispose();
     widget.documentRef.resolveListenable().removeListener(_onDocumentChanged);
-    _realSized.clear();
+    _releaseAllImages();
     _txController.removeListener(_onMatrixChanged);
     _controller?._attach(null);
     _txController.dispose();
@@ -773,7 +778,9 @@ class _PdfViewerState extends State<PdfViewer>
       if (intersection.isEmpty) {
         final page = _document!.pages[i];
         _cancelPendingRenderings(page.pageNumber);
-        unusedPageList.add(i + 1);
+        if (_realSized.containsKey(i + 1)) {
+          unusedPageList.add(i + 1);
+        }
         continue;
       }
 
@@ -878,6 +885,7 @@ class _PdfViewerState extends State<PdfViewer>
         cancellationToken: cancellationToken,
       );
       if (img == null) return;
+      _realSized[page.pageNumber]?.image.dispose();
       _realSized[page.pageNumber] =
           (image: await img.createImage(), scale: scale);
       img.dispose();
@@ -890,10 +898,11 @@ class _PdfViewerState extends State<PdfViewer>
     int acceptableBytes,
     PdfPage currentPage,
   ) {
-    double dist(int pageNumber) =>
-        (_layout!.pageLayouts[pageNumber - 1].center -
-                _layout!.pageLayouts[currentPage.pageNumber - 1].center)
-            .distanceSquared;
+    double dist(int pageNumber) {
+      return (_layout!.pageLayouts[pageNumber - 1].center -
+              _layout!.pageLayouts[currentPage.pageNumber - 1].center)
+          .distanceSquared;
+    }
 
     pageNumbers.sort((a, b) => dist(b).compareTo(dist(a)));
     int getBytesConsumed(ui.Image? image) =>
@@ -901,8 +910,11 @@ class _PdfViewerState extends State<PdfViewer>
     int bytesConsumed =
         _realSized.values.fold(0, (sum, e) => sum + getBytesConsumed(e.image));
     for (final key in pageNumbers) {
-      bytesConsumed -= getBytesConsumed(_realSized[key]?.image);
-      _realSized.remove(key);
+      final removed = _realSized.remove(key);
+      if (removed != null) {
+        bytesConsumed -= getBytesConsumed(removed.image);
+        removed.image.dispose();
+      }
       if (bytesConsumed <= acceptableBytes) {
         break;
       }
