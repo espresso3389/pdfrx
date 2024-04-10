@@ -400,7 +400,7 @@ class _PdfViewerState extends State<PdfViewer>
       return Container(
         color: widget.params.backgroundColor,
         child: Focus(
-          onKeyEvent: _onKey,
+          onKeyEvent: _onKeyEvent,
           child: StreamBuilder(
               stream: _stream,
               builder: (context, snapshot) {
@@ -453,7 +453,7 @@ class _PdfViewerState extends State<PdfViewer>
       ? HardwareKeyboard.instance.isMetaPressed
       : HardwareKeyboard.instance.isControlPressed;
 
-  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     final isDown = event is KeyDownEvent;
     switch (event.logicalKey) {
       case LogicalKeyboardKey.pageUp:
@@ -473,7 +473,8 @@ class _PdfViewerState extends State<PdfViewer>
         return KeyEventResult.handled;
       case LogicalKeyboardKey.end:
         if (isDown) {
-          _goToPageRangeChecked(_document!.pages.length);
+          _goToPageRangeChecked(_document!.pages.length,
+              anchor: widget.params.pageAnchorEnd);
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.equal:
@@ -514,9 +515,18 @@ class _PdfViewerState extends State<PdfViewer>
     return KeyEventResult.ignored;
   }
 
-  Future<void> _goToPageRangeChecked(int pageNumber) async {
-    _gotoTargetPageNumber = pageNumber.clamp(1, _document!.pages.length);
-    await _goToPage(pageNumber: _gotoTargetPageNumber!);
+  Future<void> _goToPageRangeChecked(int pageNumber,
+      {PdfPageAnchor? anchor}) async {
+    final pageCount = _document!.pages.length;
+    if (pageNumber < 1) {
+      _gotoTargetPageNumber = 1;
+    } else if (pageNumber > pageCount) {
+      _gotoTargetPageNumber = pageCount;
+      anchor ??= widget.params.pageAnchorEnd;
+    } else {
+      _gotoTargetPageNumber = pageNumber;
+    }
+    await _goToPage(pageNumber: _gotoTargetPageNumber!, anchor: anchor);
   }
 
   Future<void> _goToManipulated(void Function(Matrix4 m) manipulate) async {

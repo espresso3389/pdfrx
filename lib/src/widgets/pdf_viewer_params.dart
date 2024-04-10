@@ -22,6 +22,7 @@ class PdfViewerParams {
     this.annotationRenderingMode =
         PdfAnnotationRenderingMode.annotationAndForms,
     this.pageAnchor = PdfPageAnchor.topCenter,
+    this.pageAnchorEnd = PdfPageAnchor.bottomCenter,
     this.enableTextSelection = false,
     this.panEnabled = true,
     this.scaleEnabled = true,
@@ -118,6 +119,9 @@ class PdfViewerParams {
 
   /// Anchor to position the page.
   final PdfPageAnchor pageAnchor;
+
+  /// Anchor to position the page at the end of the page.
+  final PdfPageAnchor pageAnchorEnd;
 
   /// Experimental: Enable text selection on pages.
   ///
@@ -306,6 +310,7 @@ class PdfViewerParams {
         other.boundaryMargin != boundaryMargin ||
         other.annotationRenderingMode != annotationRenderingMode ||
         other.pageAnchor != pageAnchor ||
+        other.pageAnchorEnd != pageAnchorEnd ||
         other.enableTextSelection != enableTextSelection ||
         other.panEnabled != panEnabled ||
         other.scaleEnabled != scaleEnabled ||
@@ -330,6 +335,7 @@ class PdfViewerParams {
         other.boundaryMargin == boundaryMargin &&
         other.annotationRenderingMode == annotationRenderingMode &&
         other.pageAnchor == pageAnchor &&
+        other.pageAnchorEnd == pageAnchorEnd &&
         other.enableTextSelection == enableTextSelection &&
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
@@ -367,6 +373,7 @@ class PdfViewerParams {
         boundaryMargin.hashCode ^
         annotationRenderingMode.hashCode ^
         pageAnchor.hashCode ^
+        pageAnchorEnd.hashCode ^
         enableTextSelection.hashCode ^
         panEnabled.hashCode ^
         scaleEnabled.hashCode ^
