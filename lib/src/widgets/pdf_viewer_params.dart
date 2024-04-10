@@ -23,6 +23,7 @@ class PdfViewerParams {
         PdfAnnotationRenderingMode.annotationAndForms,
     this.pageAnchor = PdfPageAnchor.topCenter,
     this.pageAnchorEnd = PdfPageAnchor.bottomCenter,
+    this.onePassRenderingScaleThreshold = 200 / 72,
     this.enableTextSelection = false,
     this.panEnabled = true,
     this.scaleEnabled = true,
@@ -123,6 +124,17 @@ class PdfViewerParams {
   /// Anchor to position the page at the end of the page.
   final PdfPageAnchor pageAnchorEnd;
 
+  /// If a page is rendered over the scale threshold, the page is rendered with the threshold scale
+  /// and actual resolution image is rendered after some delay (progressive rendering).
+  ///
+  /// Basically, if the value is larger, the viewer renders each page in one-pass rendering; it is
+  /// faster and looks better to the user. However, larger value may consume more memory.
+  /// So you may want to set the smaller value to reduce memory consumption.
+  ///
+  /// The default is 200 / 72, which implies rendering at 300 dpi.
+  /// If you want more granular control for each page, use [getPageRenderingScale].
+  final double onePassRenderingScaleThreshold;
+
   /// Experimental: Enable text selection on pages.
   ///
   final bool enableTextSelection;
@@ -163,10 +175,11 @@ class PdfViewerParams {
 
   /// Function to customize the rendering scale of the page.
   ///
-  /// In some cases, if [maxScale] is too large, certain pages may not be
-  /// rendered correctly due to memory limitation, or anyway they may take too
-  /// long to render. In such cases, you can use this function to customize the
-  /// rendering scales for such pages.
+  /// In some cases, if [maxScale]/[onePassRenderingScaleThreshold] is too large,
+  /// certain pages may not be rendered correctly due to memory limitation,
+  /// or anyway they may take too long to render.
+  /// In such cases, you can use this function to customize the rendering scales
+  /// for such pages.
   ///
   /// The following fragment is an example of rendering pages always on 300 dpi:
   /// ```dart
@@ -311,6 +324,8 @@ class PdfViewerParams {
         other.annotationRenderingMode != annotationRenderingMode ||
         other.pageAnchor != pageAnchor ||
         other.pageAnchorEnd != pageAnchorEnd ||
+        other.onePassRenderingScaleThreshold !=
+            onePassRenderingScaleThreshold ||
         other.enableTextSelection != enableTextSelection ||
         other.panEnabled != panEnabled ||
         other.scaleEnabled != scaleEnabled ||
@@ -336,6 +351,8 @@ class PdfViewerParams {
         other.annotationRenderingMode == annotationRenderingMode &&
         other.pageAnchor == pageAnchor &&
         other.pageAnchorEnd == pageAnchorEnd &&
+        other.onePassRenderingScaleThreshold ==
+            onePassRenderingScaleThreshold &&
         other.enableTextSelection == enableTextSelection &&
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
@@ -374,6 +391,7 @@ class PdfViewerParams {
         annotationRenderingMode.hashCode ^
         pageAnchor.hashCode ^
         pageAnchorEnd.hashCode ^
+        onePassRenderingScaleThreshold.hashCode ^
         enableTextSelection.hashCode ^
         panEnabled.hashCode ^
         scaleEnabled.hashCode ^

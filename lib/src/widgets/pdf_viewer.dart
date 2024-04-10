@@ -797,7 +797,6 @@ class _PdfViewerState extends State<PdfViewer>
   void _customPaint(ui.Canvas canvas, ui.Size size) {
     final targetRect = _getCacheExtentRect();
     final scale = MediaQuery.of(context).devicePixelRatio * _currentZoom;
-    const globalScale = 300.0 / 72.0;
 
     final unusedPageList = <int>[];
 
@@ -817,9 +816,12 @@ class _PdfViewerState extends State<PdfViewer>
       final realSize = _pageImages[page.pageNumber];
       final partial = _pageImagesPartial[page.pageNumber];
 
-      final scaleLimit = widget.params.getPageRenderingScale
-              ?.call(context, page, _controller!, globalScale) ??
-          globalScale;
+      final scaleLimit = widget.params.getPageRenderingScale?.call(
+              context,
+              page,
+              _controller!,
+              widget.params.onePassRenderingScaleThreshold) ??
+          widget.params.onePassRenderingScaleThreshold;
 
       if (realSize != null) {
         canvas.drawImageRect(
