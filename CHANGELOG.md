@@ -1,3 +1,7 @@
+# 1.0.55
+
+- Improve memory consumption by opening/closing page handle every time pdfrx need it (PR #125)
+
 # 1.0.54
 
 - Improves [End] button behavior to reach the actual end of document rather than the top of the last page
