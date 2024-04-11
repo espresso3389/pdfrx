@@ -663,6 +663,9 @@ class _PdfViewerState extends State<PdfViewer>
     final textWidgets = <Widget>[];
     final overlayWidgets = <Widget>[];
     final targetRect = _getCacheExtentRect();
+    final selectionAreaInjector = widget.params.perPageSelectionAreaInjector ??
+        (page, child) => SelectionArea(child: child);
+
     for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
       final intersection = rect.intersect(targetRect);
@@ -699,8 +702,9 @@ class _PdfViewerState extends State<PdfViewer>
               top: rectExternal.top,
               width: rectExternal.width,
               height: rectExternal.height,
-              child: SelectionArea(
-                child: Builder(builder: (context) {
+              child: selectionAreaInjector(
+                page,
+                Builder(builder: (context) {
                   final registrar = SelectionContainer.maybeOf(context);
                   return PdfPageTextOverlay(
                     key: Key('pageText:${page.pageNumber}'),
