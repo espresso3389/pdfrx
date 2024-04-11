@@ -1,3 +1,11 @@
+# 1.0.54
+
+- Improves [End] button behavior to reach the actual end of document rather than the top of the last page
+  - PdfViewerParams.pageAnchorEnd for specifying anchor for the "virtual" page next to the last page
+- PdfViewerParams.onePassRenderingScaleThreshold to specify maximum scale that is rendered in single rendering call
+  - If a page is scaled over the threshold scale, the page is once rendered in the threshold scale and after a some delay, the real scaled image is rendered partially that fits in the view port
+- PdfViewerParams.perPageSelectionAreaInjector is introduced to customize text selection behavior
+
 # 1.0.53
 
 - Fixes flicker on scrolling/zooming that was introduced on 1.0.52
