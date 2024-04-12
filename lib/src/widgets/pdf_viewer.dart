@@ -381,7 +381,6 @@ class _PdfViewerState extends State<PdfViewer>
       }
 
       if (!_initialized && _layout != null) {
-        _initialized = true;
         Future.microtask(() async {
           if (mounted) {
             final initialPageNumber = widget.params.calculateInitialPageNumber
@@ -394,6 +393,7 @@ class _PdfViewerState extends State<PdfViewer>
               widget.params.onViewerReady?.call(_document!, _controller!);
             }
           }
+          _initialized = true;
         });
       }
 
@@ -428,11 +428,13 @@ class _PdfViewerState extends State<PdfViewer>
                           ? _onWheelDelta
                           : null,
                       // PDF pages
-                      child: CustomPaint(
-                        foregroundPainter:
-                            _CustomPainter.fromFunction(_customPaint),
-                        size: _layout!.documentSize,
-                      ),
+                      child: _initialized
+                          ? CustomPaint(
+                              foregroundPainter:
+                                  _CustomPainter.fromFunction(_customPaint),
+                              size: _layout!.documentSize,
+                            )
+                          : Container(),
                     ),
                     ..._buildPageOverlayWidgets(),
                     if (widget.params.viewerOverlayBuilder != null)
