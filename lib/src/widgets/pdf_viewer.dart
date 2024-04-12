@@ -968,17 +968,14 @@ class _PdfViewerState extends State<PdfViewer>
         _pageImages[page.pageNumber] = newImage;
         img.dispose();
 
+        final imagePngBytes = await newImage.image.toByteData(format: ui.ImageByteFormat.png);
+
         if (!_firstPageRendered) {
           _firstPageRendered = true;
           Future.microtask(() async {
-            if (mounted) {
-              if (mounted && _document != null && _controller != null) {
-                widget.params.onViewerReady?.call(
-                  _document!,
-                  _controller!,
-                  newImage.image
-                );
-              }
+            if (mounted && _document != null && _controller != null && imagePngBytes != null) {
+              widget.params.onViewerReady
+                  ?.call(_document!, _controller!, imagePngBytes!.buffer.asUint8List());
             }
           });
         }
