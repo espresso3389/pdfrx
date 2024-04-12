@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -165,6 +166,13 @@ typedef PdfPageViewDecorationBuilder = Widget Function(
   RawImage? pageImage,
 );
 
+/// Function called when the viewer is ready.
+///
+typedef PdfPageViewReadyCallback = void Function(
+  PdfDocument document,
+  Uint8List firstPagePngBytes,
+);
+
 /// A widget that displays a page of a PDF document.
 class PdfPageView extends StatefulWidget {
   const PdfPageView(
@@ -176,6 +184,7 @@ class PdfPageView extends StatefulWidget {
       this.backgroundColor,
       this.pageSizeCallback,
       this.decorationBuilder,
+      this.onViewerReady,
       super.key});
 
   /// The PDF document.
@@ -209,12 +218,19 @@ class PdfPageView extends StatefulWidget {
   /// and drop-shadow.
   final PdfPageViewDecorationBuilder? decorationBuilder;
 
+  /// Function called when the viewer is ready.
+  ///
+  /// This function is called after the viewer is ready to interact.
+  final PdfPageViewReadyCallback? onViewerReady;
+
   @override
   State<PdfPageView> createState() => _PdfPageViewState();
 }
 
 class _PdfPageViewState extends State<PdfPageView> {
   ui.Image? _image;
+
+  ByteData? _imagePngBytes;
   Size? _pageSize;
   PdfPageRenderCancellationToken? _cancellationToken;
 
@@ -323,6 +339,16 @@ class _PdfPageViewState extends State<PdfPageView> {
     final oldImage = _image;
     _image = newImage;
     oldImage?.dispose();
+
+    final imagePngBytes =
+        await newImage.toByteData(format: ui.ImageByteFormat.png);
+    Future.microtask(() async {
+      if (mounted && document != null && imagePngBytes != null) {
+        widget.onViewerReady
+            ?.call(document!, _imagePngBytes!.buffer.asUint8List());
+      }
+    });
+
     if (mounted) {
       setState(() {});
     }
