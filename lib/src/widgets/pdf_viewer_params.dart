@@ -460,7 +460,7 @@ typedef PdfViewerCalculateInitialPageNumberFunction = int? Function(
 typedef PdfViewerReadyCallback = void Function(
   PdfDocument document,
   PdfViewerController controller,
-  Image firstPage,
+  ui.Image firstPage,
 );
 
 /// Function called when the current page is changed.

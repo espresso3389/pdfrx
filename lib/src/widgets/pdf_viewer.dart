@@ -976,7 +976,7 @@ class _PdfViewerState extends State<PdfViewer>
                 widget.params.onViewerReady?.call(
                   _document!,
                   _controller!,
-                  newImage
+                  newImage.image
                 );
               }
             }
