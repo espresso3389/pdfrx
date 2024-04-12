@@ -230,7 +230,6 @@ class PdfPageView extends StatefulWidget {
 class _PdfPageViewState extends State<PdfPageView> {
   ui.Image? _image;
 
-  ByteData? _imagePngBytes;
   Size? _pageSize;
   PdfPageRenderCancellationToken? _cancellationToken;
 
@@ -345,7 +344,7 @@ class _PdfPageViewState extends State<PdfPageView> {
     Future.microtask(() async {
       if (mounted && document != null && imagePngBytes != null) {
         widget.onViewerReady
-            ?.call(document!, _imagePngBytes!.buffer.asUint8List());
+            ?.call(document!, imagePngBytes!.buffer.asUint8List());
       }
     });
 
