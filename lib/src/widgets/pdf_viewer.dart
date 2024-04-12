@@ -207,6 +207,7 @@ class _PdfViewerState extends State<PdfViewer>
   double _minScale = 0.1;
   int? _pageNumber;
   bool _initialized = false;
+  bool _firstPageRendered = false;
   final List<double> _zoomStops = [1.0];
 
   final _pageImages = <int, ({ui.Image image, double scale})>{};
@@ -388,10 +389,6 @@ class _PdfViewerState extends State<PdfViewer>
                 widget.initialPageNumber;
             await _goToPage(
                 pageNumber: initialPageNumber, duration: Duration.zero);
-
-            if (mounted && _document != null && _controller != null) {
-              widget.params.onViewerReady?.call(_document!, _controller!);
-            }
           }
           _initialized = true;
         });
@@ -801,7 +798,8 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// [_CustomPainter] calls the function to paint PDF pages.
   void _customPaint(ui.Canvas canvas, ui.Size size) {
-    final targetRect = _getCacheExtentRect();
+    final targetRect =
+        _firstPageRendered ? _getCacheExtentRect() : _visibleRect;
     final scale = MediaQuery.of(context).devicePixelRatio * _currentZoom;
 
     final unusedPageList = <int>[];
@@ -957,19 +955,34 @@ class _PdfViewerState extends State<PdfViewer>
     await synchronized(() async {
       if (cancellationToken.isCanceled) return;
       if (_pageImages[page.pageNumber]?.scale == scale) return;
-      final img = await page.render(
-        fullWidth: width,
-        fullHeight: height,
-        backgroundColor: Colors.white,
-        annotationRenderingMode: widget.params.annotationRenderingMode,
-        cancellationToken: cancellationToken,
-      );
-      if (img == null) return;
-      final newImage = (image: await img.createImage(), scale: scale);
-      _pageImages[page.pageNumber]?.image.dispose();
-      _pageImages[page.pageNumber] = newImage;
-      img.dispose();
-      _invalidate();
+        final img = await page.render(
+          fullWidth: width,
+          fullHeight: height,
+          backgroundColor: Colors.white,
+          annotationRenderingMode: widget.params.annotationRenderingMode,
+          cancellationToken: cancellationToken,
+        );
+        if (img == null) return;
+        final newImage = (image: await img.createImage(), scale: scale);
+        _pageImages[page.pageNumber]?.image.dispose();
+        _pageImages[page.pageNumber] = newImage;
+        img.dispose();
+
+        if (!_firstPageRendered) {
+          _firstPageRendered = true;
+          Future.microtask(() async {
+            if (mounted) {
+              if (mounted && _document != null && _controller != null) {
+                widget.params.onViewerReady?.call(
+                  _document!,
+                  _controller!,
+                  newImage
+                );
+              }
+            }
+          });
+        }
+        _invalidate();
     });
   }
 
