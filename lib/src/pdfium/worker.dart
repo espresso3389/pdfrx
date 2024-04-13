@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:isolate';
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 
 /// Background worker based on Dart [Isolate].
@@ -40,9 +41,25 @@ class BackgroundWorker {
     return await sendPort.first as R;
   }
 
+  /// [compute] wrapper that also provides [Arena] for temporary memory allocation.
+  Future<R> ffiCompute<M, R>(
+    R Function(Arena arena, M message) callback,
+    M message,
+  ) =>
+      compute(
+        (message) => using(
+          (arena) => callback(arena, message),
+        ),
+        message,
+      );
+
   Future<void> dispose() async {
-    _sendPort.send(null);
-    _receivePort.close();
+    try {
+      _sendPort.send(null);
+      _receivePort.close();
+    } catch (e) {
+      debugPrint('Failed to dispose worker (possible double-dispose?): $e');
+    }
   }
 }
 

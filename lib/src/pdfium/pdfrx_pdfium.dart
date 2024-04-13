@@ -50,21 +50,6 @@ void _init() {
   _initialized = true;
 }
 
-/// Global background worker isolate.
-final _globalWorker = BackgroundWorker.create();
-
-/// [compute] wrapper that also provides [Arena] for temporary memory allocation.
-Future<R> _ffiCompute<M, R>(
-  R Function(Arena arena, M message) callback,
-  M message,
-) =>
-    compute(
-      (message) => using(
-        (arena) => callback(arena, message),
-      ),
-      message,
-    );
-
 class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   @override
   Future<PdfDocument> openAsset(
@@ -105,7 +90,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   }) {
     _init();
     return _openByFunc(
-      (password) => _ffiCompute(
+      (password, worker) => worker.ffiCompute(
         (arena, params) {
           final doc = pdfium.FPDF_LoadDocument(params.filePath.toUtf8(arena),
               params.password?.toUtf8(arena) ?? nullptr);
@@ -171,7 +156,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       try {
         await read(buffer.asTypedList(fileSize), 0, fileSize);
         return _openByFunc(
-          (password) => _ffiCompute(
+          (password, worker) => worker.ffiCompute(
             (arena, params) => pdfium.FPDF_LoadMemDocument(
               Pointer<Void>.fromAddress(params.buffer),
               params.fileSize,
@@ -204,7 +189,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     final fa = FileAccess(fileSize, read);
     try {
       return _openByFunc(
-        (password) => _ffiCompute(
+        (password, worker) => worker.ffiCompute(
           (arena, params) => pdfium.FPDF_LoadCustomDocument(
             Pointer<pdfium_bindings.FPDF_FILEACCESS>.fromAddress(
               params.fileAccess,
@@ -262,36 +247,45 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   }
 
   static Future<PdfDocument> _openByFunc(
-    FutureOr<int> Function(String? password) openPdfDocument, {
+    FutureOr<int> Function(String? password, BackgroundWorker worker)
+        openPdfDocument, {
     required String sourceName,
     required PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     void Function()? disposeCallback,
   }) async {
-    for (int i = 0;; i++) {
-      final String? password;
-      if (firstAttemptByEmptyPassword && i == 0) {
-        password = null;
-      } else {
-        password = await passwordProvider?.call();
-        if (password == null) {
-          throw const PdfPasswordException(
-              'No password supplied by PasswordProvider.');
+    final worker =
+        await BackgroundWorker.create(debugName: 'PdfiumWorker-$sourceName');
+    try {
+      for (int i = 0;; i++) {
+        final String? password;
+        if (firstAttemptByEmptyPassword && i == 0) {
+          password = null;
+        } else {
+          password = await passwordProvider?.call();
+          if (password == null) {
+            throw const PdfPasswordException(
+                'No password supplied by PasswordProvider.');
+          }
         }
+        final doc = await openPdfDocument(password, worker);
+        if (doc != 0) {
+          return PdfDocumentPdfium.fromPdfDocument(
+            pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
+            sourceName: sourceName,
+            disposeCallback: disposeCallback,
+            worker: worker,
+          );
+        }
+        if (_isPasswordError()) {
+          continue;
+        }
+        throw PdfException(
+            'Failed to load PDF document (FPDF_GetLastError=${pdfium.FPDF_GetLastError()}).');
       }
-      final doc = await openPdfDocument(password);
-      if (doc != 0) {
-        return PdfDocumentPdfium.fromPdfDocument(
-          pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
-          sourceName: sourceName,
-          disposeCallback: disposeCallback,
-        );
-      }
-      if (_isPasswordError()) {
-        continue;
-      }
-      throw PdfException(
-          'Failed to load PDF document (FPDF_GetLastError=${pdfium.FPDF_GetLastError()}).');
+    } catch (e) {
+      worker.dispose();
+      rethrow;
     }
   }
 }
@@ -304,7 +298,7 @@ extension FpdfUtf8StringExt on String {
 class PdfDocumentPdfium extends PdfDocument {
   final pdfium_bindings.FPDF_DOCUMENT document;
   final void Function()? disposeCallback;
-  final _worker = BackgroundWorker.create();
+  final BackgroundWorker _worker;
   final int securityHandlerRevision;
   final pdfium_bindings.FPDF_FORMHANDLE formHandle;
   final Pointer<pdfium_bindings.FPDF_FORMFILLINFO> formInfo;
@@ -321,18 +315,23 @@ class PdfDocumentPdfium extends PdfDocument {
     required this.permissions,
     required this.formHandle,
     required this.formInfo,
+    required BackgroundWorker worker,
     this.disposeCallback,
-  });
+  }) : _worker = worker;
 
-  static Future<PdfDocument> fromPdfDocument(pdfium_bindings.FPDF_DOCUMENT doc,
-      {required String sourceName, void Function()? disposeCallback}) async {
+  static Future<PdfDocument> fromPdfDocument(
+    pdfium_bindings.FPDF_DOCUMENT doc, {
+    required String sourceName,
+    required BackgroundWorker worker,
+    void Function()? disposeCallback,
+  }) async {
     if (doc == nullptr) {
       throw const PdfException('Failed to load PDF document.');
     }
     pdfium_bindings.FPDF_FORMHANDLE formHandle = nullptr;
     Pointer<pdfium_bindings.FPDF_FORMFILLINFO> formInfo = nullptr;
     try {
-      final result = await (await _globalWorker).compute(
+      final result = await worker.compute(
         (docAddress) {
           final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(docAddress);
           return using(
@@ -399,6 +398,7 @@ class PdfDocumentPdfium extends PdfDocument {
         formHandle: formHandle,
         formInfo: formInfo,
         disposeCallback: disposeCallback,
+        worker: worker,
       );
 
       final pages = <PdfPagePdfium>[];
@@ -431,7 +431,7 @@ class PdfDocumentPdfium extends PdfDocument {
 
   @override
   Future<void> dispose() async {
-    (await _worker).dispose();
+    _worker.dispose();
     await synchronized(() {
       pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
       calloc.free(formInfo);
@@ -442,7 +442,7 @@ class PdfDocumentPdfium extends PdfDocument {
 
   @override
   Future<List<PdfOutlineNode>> loadOutline() => document.synchronized(
-        () async => (await _worker).compute(
+        () async => _worker.compute(
           (params) => using((arena) {
             final document =
                 pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
@@ -672,7 +672,7 @@ class PdfPagePdfium extends PdfPage {
   }
 
   Future<List<PdfLink>> _loadLinks() => document.synchronized(
-        () async => (await document._worker).compute(
+        () async => (document._worker).compute(
           (params) {
             pdfium_bindings.FPDF_PAGE page = nullptr;
             pdfium_bindings.FPDF_TEXTPAGE textPage = nullptr;
@@ -734,7 +734,7 @@ class PdfPagePdfium extends PdfPage {
   }
 
   Future<List<PdfLink>> _loadAnnotLinks() => document.synchronized(
-        () async => (await document._worker).compute(
+        () async => (document._worker).compute(
           (params) => using(
             (arena) {
               final document =
@@ -935,7 +935,7 @@ class PdfPageTextPdfium extends PdfPageText {
       ({String fullText, List<PdfRect> charRects, List<int> fragments})> _load(
           PdfPagePdfium page) =>
       page.document.synchronized(
-        () async => (await page.document._worker).compute(
+        () async => (page.document._worker).compute(
           (params) => using(
             (arena) {
               final doc =
