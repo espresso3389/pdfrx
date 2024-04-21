@@ -32,6 +32,7 @@ class PdfViewerParams {
     this.onInteractionUpdate,
     this.onDocumentChanged,
     this.calculateInitialPageNumber,
+    this.calculateCurrentPageNumber,
     this.onViewerReady,
     this.onPageChanged,
     this.getPageRenderingScale,
@@ -171,6 +172,11 @@ class PdfViewerParams {
   /// It is useful when you want to determine the initial page number based on the document content.
   final PdfViewerCalculateInitialPageNumberFunction? calculateInitialPageNumber;
 
+  /// Function to guess the current page number based on the visible rectangle and page layouts.
+  ///
+  /// The function is used to override the default behavior to calculate the current page number.
+  final PdfViewerCalculateCurrentPageNumberFunction? calculateCurrentPageNumber;
+
   /// Function called when the current page is changed.
   final PdfPageChangedCallback? onPageChanged;
 
@@ -205,7 +211,7 @@ class PdfViewerParams {
   ///   },
   /// ),
   /// ```
-  final PdfViewerParamGetPageRenderingScale? getPageRenderingScale;
+  final PdfViewerGetPageRenderingScale? getPageRenderingScale;
 
   /// Set the scroll amount ratio by mouse wheel. The default is 0.2.
   ///
@@ -384,6 +390,7 @@ class PdfViewerParams {
         other.onInteractionUpdate == onInteractionUpdate &&
         other.onDocumentChanged == onDocumentChanged &&
         other.calculateInitialPageNumber == calculateInitialPageNumber &&
+        other.calculateCurrentPageNumber == calculateCurrentPageNumber &&
         other.onViewerReady == onViewerReady &&
         other.onPageChanged == onPageChanged &&
         other.getPageRenderingScale == getPageRenderingScale &&
@@ -424,6 +431,7 @@ class PdfViewerParams {
         onInteractionUpdate.hashCode ^
         onDocumentChanged.hashCode ^
         calculateInitialPageNumber.hashCode ^
+        calculateCurrentPageNumber.hashCode ^
         onViewerReady.hashCode ^
         onPageChanged.hashCode ^
         getPageRenderingScale.hashCode ^
@@ -455,6 +463,13 @@ typedef PdfViewerCalculateInitialPageNumberFunction = int? Function(
   PdfViewerController controller,
 );
 
+/// Function to guess the current page number based on the visible rectangle and page layouts.
+typedef PdfViewerCalculateCurrentPageNumberFunction = int? Function(
+  Rect visibleRect,
+  List<Rect> pageRects,
+  PdfViewerController controller,
+);
+
 /// Function called when the viewer is ready.
 ///
 typedef PdfViewerReadyCallback = void Function(
@@ -471,7 +486,7 @@ typedef PdfPageChangedCallback = void Function(int? pageNumber);
 /// - [page] can be used to determine the page dimensions
 /// - [controller] can be used to get the current zoom by [PdfViewerController.currentZoom]
 /// - [estimatedScale] is the precalculated scale for the page
-typedef PdfViewerParamGetPageRenderingScale = double? Function(
+typedef PdfViewerGetPageRenderingScale = double? Function(
   BuildContext context,
   PdfPage page,
   PdfViewerController controller,

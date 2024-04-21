@@ -549,25 +549,35 @@ class _PdfViewerState extends State<PdfViewer>
   Rect get _visibleRect => _txController.value.calcVisibleRect(_viewSize!);
 
   void _determineCurrentPage() {
+    final pageNumber = _guessCurrentPage();
+    if (_pageNumber != pageNumber) {
+      _pageNumber = pageNumber;
+      if (widget.params.onPageChanged != null) {
+        Future.microtask(() => widget.params.onPageChanged?.call(_pageNumber));
+      }
+    }
+  }
+
+  int? _guessCurrentPage() {
+    if (widget.params.calculateCurrentPageNumber != null) {
+      return widget.params.calculateCurrentPageNumber!(
+          _visibleRect, _layout!.pageLayouts, _controller!);
+    }
     final visibleRect = _visibleRect;
-    int? pageNumberMaxInt;
-    double maxIntersection = 0;
+    int? pageNumber;
+    double pageIntersectionArea = 0;
     for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
       final intersection = rect.intersect(visibleRect);
       if (intersection.isEmpty) continue;
       final intersectionArea = intersection.width * intersection.height;
-      if (intersectionArea > maxIntersection) {
-        maxIntersection = intersectionArea;
-        pageNumberMaxInt = i + 1;
+      if (intersectionArea > pageIntersectionArea) {
+        pageIntersectionArea = intersectionArea;
+        pageNumber = i + 1;
       }
+      return pageNumber;
     }
-    if (_pageNumber != pageNumberMaxInt) {
-      _pageNumber = pageNumberMaxInt;
-      if (widget.params.onPageChanged != null) {
-        Future.microtask(() => widget.params.onPageChanged?.call(_pageNumber));
-      }
-    }
+    return null;
   }
 
   bool _calcAlternativeFitScale() {
