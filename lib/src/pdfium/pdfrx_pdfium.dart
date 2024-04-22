@@ -416,11 +416,9 @@ class PdfDocumentPdfium extends PdfDocument {
       pdfDoc.pages = List.unmodifiable(pages);
       return pdfDoc;
     } catch (e) {
-      await pdfium.synchronized(() async {
-        pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
-        calloc.free(formInfo);
-        pdfium.FPDF_CloseDocument(doc);
-      });
+      pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
+      calloc.free(formInfo);
+      pdfium.FPDF_CloseDocument(doc);
       rethrow;
     }
   }
@@ -435,31 +433,36 @@ class PdfDocumentPdfium extends PdfDocument {
   @override
   Future<void> dispose() async {
     await synchronized(() {
-      isDisposed = true;
-      _worker.dispose();
-      pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
-      calloc.free(formInfo);
-      pdfium.FPDF_CloseDocument(document);
+      if (!isDisposed) {
+        isDisposed = true;
+        _worker.dispose();
+        pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
+        calloc.free(formInfo);
+        pdfium.FPDF_CloseDocument(document);
+        if (disposeCallback != null) {
+          Future.microtask(() => disposeCallback?.call());
+        }
+      }
     });
-    disposeCallback?.call();
   }
 
   @override
-  Future<List<PdfOutlineNode>> loadOutline() =>
-      document.synchronized(() async => (isDisposed
-          ? <PdfOutlineNode>[]
-          : (await _worker.compute(
-              (params) => using((arena) {
-                final document =
-                    pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
-                return _getOutlineNodeSiblings(
-                  pdfium.FPDFBookmark_GetFirstChild(document, nullptr),
-                  document,
-                  arena,
-                );
-              }),
-              (document: document.address),
-            ))));
+  Future<List<PdfOutlineNode>> loadOutline() => document.synchronized(
+        () async => isDisposed
+            ? <PdfOutlineNode>[]
+            : await _worker.compute(
+                (params) => using((arena) {
+                  final document = pdfium_bindings.FPDF_DOCUMENT
+                      .fromAddress(params.document);
+                  return _getOutlineNodeSiblings(
+                    pdfium.FPDFBookmark_GetFirstChild(document, nullptr),
+                    document,
+                    arena,
+                  );
+                }),
+                (document: document.address),
+              ),
+      );
 
   static List<PdfOutlineNode> _getOutlineNodeSiblings(
     pdfium_bindings.FPDF_BOOKMARK bookmark,
@@ -677,7 +680,7 @@ class PdfPagePdfium extends PdfPage {
   }
 
   Future<List<PdfLink>> _loadLinks() => document.synchronized(
-        () async => (document.isDisposed
+        () async => document.isDisposed
             ? []
             : await document._worker.compute(
                 (params) {
@@ -729,7 +732,7 @@ class PdfPagePdfium extends PdfPage {
                   }
                 },
                 (document: document.document.address, pageNumber: pageNumber),
-              )),
+              ),
       );
 
   static String _getLinkUrl(
@@ -742,9 +745,9 @@ class PdfPagePdfium extends PdfPage {
   }
 
   Future<List<PdfLink>> _loadAnnotLinks() => document.synchronized(
-        () async => (document.isDisposed
+        () async => document.isDisposed
             ? []
-            : (await document._worker.compute(
+            : await document._worker.compute(
                 (params) => using(
                   (arena) {
                     final document = pdfium_bindings.FPDF_DOCUMENT
@@ -789,7 +792,7 @@ class PdfPagePdfium extends PdfPage {
                   },
                 ),
                 (document: document.document.address, pageNumber: pageNumber),
-              ))),
+              ),
       );
 
   static pdfium_bindings.FPDF_DEST _processAnnotDest(
