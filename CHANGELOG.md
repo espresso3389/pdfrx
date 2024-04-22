@@ -1,3 +1,9 @@
+# 1.0.56
+
+- Reduce total number of Isolates used when opening PDF documents
+- Add PdfViewerParams.calculateCurrentPageNumber
+- FIXED: Could not handle certain destination coordinates correctly (#135)
+
 # 1.0.55
 
 - Improve memory consumption by opening/closing page handle every time pdfrx need it (PR #125)
