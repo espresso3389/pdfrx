@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -475,6 +476,7 @@ typedef PdfViewerCalculateCurrentPageNumberFunction = int? Function(
 typedef PdfViewerReadyCallback = void Function(
   PdfDocument document,
   PdfViewerController controller,
+  Uint8List firstPagePngBytes,
 );
 
 /// Function called when the current page is changed.
