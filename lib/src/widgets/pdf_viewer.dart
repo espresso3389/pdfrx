@@ -783,6 +783,8 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   final _cancellationTokens = <int, List<PdfPageRenderCancellationToken>>{};
+  PdfPageRenderCancellationToken? _currentPartialCancelToken;
+  PdfPageRenderCancellationToken? get currentPartialCancelToken => _currentPartialCancelToken;
 
   void _addCancellationToken(
       int pageNumber, PdfPageRenderCancellationToken token) {
@@ -804,6 +806,8 @@ class _PdfViewerState extends State<PdfViewer>
     for (final pageNumber in _cancellationTokens.keys) {
       _cancelPendingRenderings(pageNumber);
     }
+    _currentPartialCancelToken?.cancel();
+    _currentPartialCancelToken = null;
     _cancellationTokens.clear();
   }
 
@@ -986,9 +990,10 @@ class _PdfViewerState extends State<PdfViewer>
     _pageImagePartialRenderingTimers[page.pageNumber] = Timer(
       const Duration(milliseconds: 300),
       () async {
-        final cancellationToken = page.createCancellationToken();
+        _currentPartialCancelToken?.cancel();
+        _currentPartialCancelToken = page.createCancellationToken();
         final newImage =
-            await _createPartialImage(page, scale, cancellationToken);
+            await _createPartialImage(page, scale, _currentPartialCancelToken!);
         if (_pageImagesPartial[page.pageNumber] == newImage) return;
         _pageImagesPartial.remove(page.pageNumber)?.image.dispose();
         if (newImage != null) {
@@ -1002,7 +1007,7 @@ class _PdfViewerState extends State<PdfViewer>
   Future<({ui.Image image, Rect rect, double scale})?> _createPartialImage(
       PdfPage page,
       double scale,
-      PdfPageRenderCancellationToken? cancellationToken) async {
+      PdfPageRenderCancellationToken cancellationToken) async {
     final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
     final rect = pageRect.intersect(_visibleRect);
     final prev = _pageImagesPartial[page.pageNumber];
@@ -1011,7 +1016,7 @@ class _PdfViewerState extends State<PdfViewer>
     final inPageRect = rect.translate(-pageRect.left, -pageRect.top);
 
     return await synchronized(() async {
-      if (cancellationToken != null && cancellationToken.isCanceled) {
+      if (cancellationToken != currentPartialCancelToken || cancellationToken.isCanceled) {
         return null;
       }
 
