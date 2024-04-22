@@ -749,11 +749,12 @@ class PdfPagePdfium extends PdfPage {
                 for (int i = 0; i < count; i++) {
                   final annot = pdfium.FPDFPage_GetAnnot(page, i);
                   pdfium.FPDFAnnot_GetRect(annot, rectf);
+                  final r = rectf.ref;
                   final rect = PdfRect(
-                    rectf.ref.left,
-                    rectf.ref.top,
-                    rectf.ref.right,
-                    rectf.ref.bottom,
+                    r.left,
+                    r.top > r.bottom ? r.top : r.bottom,
+                    r.right,
+                    r.top > r.bottom ? r.bottom : r.top,
                   );
                   final dest = _processAnnotDest(annot, document, arena);
                   if (dest != nullptr) {
