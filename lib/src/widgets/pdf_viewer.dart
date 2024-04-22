@@ -209,11 +209,12 @@ class _PdfViewerState extends State<PdfViewer>
   bool _initialized = false;
   final List<double> _zoomStops = [1.0];
 
-  final _pageImages = <int, ({ui.Image image, double scale})>{};
+  final _pageImages = <int, _PdfImageWithScale>{};
   final _pageImageRenderingTimers = <int, Timer>{};
-  final _pageImagesPartial =
-      <int, ({ui.Image image, Rect rect, double scale})>{};
-  final _pageImagePartialRenderingTimers = <int, Timer>{};
+  final _pageImagesPartial = <int, _PdfImageWithScaleAndRect>{};
+  final _cancellationTokens = <int, List<PdfPageRenderCancellationToken>>{};
+  final _pageImagePartialRenderingRequests =
+      <int, _PdfPartialImageRenderingRequest>{};
 
   final _stream = BehaviorSubject<Matrix4>();
 
@@ -265,10 +266,10 @@ class _PdfViewerState extends State<PdfViewer>
       timer.cancel();
     }
     _pageImageRenderingTimers.clear();
-    for (final timer in _pageImagePartialRenderingTimers.values) {
-      timer.cancel();
+    for (final request in _pageImagePartialRenderingRequests.values) {
+      request.cancel();
     }
-    _pageImagePartialRenderingTimers.clear();
+    _pageImagePartialRenderingRequests.clear();
     for (final image in _pageImages.values) {
       image.image.dispose();
     }
@@ -782,10 +783,6 @@ class _PdfViewerState extends State<PdfViewer>
         renderBox.globalToLocal(tl), renderBox.globalToLocal(br));
   }
 
-  final _cancellationTokens = <int, List<PdfPageRenderCancellationToken>>{};
-  PdfPageRenderCancellationToken? _currentPartialCancelToken;
-  PdfPageRenderCancellationToken? get currentPartialCancelToken => _currentPartialCancelToken;
-
   void _addCancellationToken(
       int pageNumber, PdfPageRenderCancellationToken token) {
     var tokens = _cancellationTokens.putIfAbsent(pageNumber, () => []);
@@ -806,8 +803,6 @@ class _PdfViewerState extends State<PdfViewer>
     for (final pageNumber in _cancellationTokens.keys) {
       _cancelPendingRenderings(pageNumber);
     }
-    _currentPartialCancelToken?.cancel();
-    _currentPartialCancelToken = null;
     _cancellationTokens.clear();
   }
 
@@ -977,8 +972,8 @@ class _PdfViewerState extends State<PdfViewer>
         cancellationToken: cancellationToken,
       );
       if (img == null) return;
-      final newImage = (image: await img.createImage(), scale: scale);
-      _pageImages[page.pageNumber]?.image.dispose();
+      final newImage = _PdfImageWithScale(await img.createImage(), scale);
+      _pageImages[page.pageNumber]?.dispose();
       _pageImages[page.pageNumber] = newImage;
       img.dispose();
       _invalidate();
@@ -986,28 +981,32 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   Future<void> _requestPartialImage(PdfPage page, double scale) async {
-    _pageImagePartialRenderingTimers[page.pageNumber]?.cancel();
-    _pageImagePartialRenderingTimers[page.pageNumber] = Timer(
-      const Duration(milliseconds: 300),
-      () async {
-        _currentPartialCancelToken?.cancel();
-        _currentPartialCancelToken = page.createCancellationToken();
-        final newImage =
-            await _createPartialImage(page, scale, _currentPartialCancelToken!);
-        if (_pageImagesPartial[page.pageNumber] == newImage) return;
-        _pageImagesPartial.remove(page.pageNumber)?.image.dispose();
-        if (newImage != null) {
-          _pageImagesPartial[page.pageNumber] = newImage;
-        }
-        _invalidate();
-      },
+    _pageImagePartialRenderingRequests[page.pageNumber]?.cancel();
+    final cancellationToken = page.createCancellationToken();
+    _pageImagePartialRenderingRequests[page.pageNumber] =
+        _PdfPartialImageRenderingRequest(
+      Timer(
+        const Duration(milliseconds: 300),
+        () async {
+          final newImage =
+              await _createPartialImage(page, scale, cancellationToken);
+          if (_pageImagesPartial[page.pageNumber] == newImage) return;
+          _pageImagesPartial.remove(page.pageNumber)?.dispose();
+          if (newImage != null) {
+            _pageImagesPartial[page.pageNumber] = newImage;
+          }
+          _invalidate();
+        },
+      ),
+      cancellationToken,
     );
   }
 
-  Future<({ui.Image image, Rect rect, double scale})?> _createPartialImage(
-      PdfPage page,
-      double scale,
-      PdfPageRenderCancellationToken cancellationToken) async {
+  Future<_PdfImageWithScaleAndRect?> _createPartialImage(
+    PdfPage page,
+    double scale,
+    PdfPageRenderCancellationToken cancellationToken,
+  ) async {
     final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
     final rect = pageRect.intersect(_visibleRect);
     final prev = _pageImagesPartial[page.pageNumber];
@@ -1016,7 +1015,7 @@ class _PdfViewerState extends State<PdfViewer>
     final inPageRect = rect.translate(-pageRect.left, -pageRect.top);
 
     return await synchronized(() async {
-      if (cancellationToken != currentPartialCancelToken || cancellationToken.isCanceled) {
+      if (cancellationToken.isCanceled) {
         return null;
       }
 
@@ -1032,7 +1031,8 @@ class _PdfViewerState extends State<PdfViewer>
         cancellationToken: cancellationToken,
       );
       if (img == null) return null;
-      final result = (image: await img.createImage(), rect: rect, scale: scale);
+      final result =
+          _PdfImageWithScaleAndRect(await img.createImage(), scale, rect);
       img.dispose();
       return result;
     });
@@ -1439,6 +1439,32 @@ class _PdfViewerState extends State<PdfViewer>
   Offset? _documentToGlobal(Offset document) => _localToGlobal(document
       .scale(_currentZoom, _currentZoom)
       .translate(_txController.value.xZoomed, _txController.value.yZoomed));
+}
+
+class _PdfPartialImageRenderingRequest {
+  _PdfPartialImageRenderingRequest(this.timer, this.cancellationToken);
+  final Timer timer;
+  final PdfPageRenderCancellationToken cancellationToken;
+
+  void cancel() {
+    timer.cancel();
+    cancellationToken.cancel();
+  }
+}
+
+class _PdfImageWithScale {
+  _PdfImageWithScale(this.image, this.scale);
+  final ui.Image image;
+  final double scale;
+
+  void dispose() {
+    image.dispose();
+  }
+}
+
+class _PdfImageWithScaleAndRect extends _PdfImageWithScale {
+  _PdfImageWithScaleAndRect(super.image, super.scale, this.rect);
+  final Rect rect;
 }
 
 class _PdfViewerTransformationController extends TransformationController {
