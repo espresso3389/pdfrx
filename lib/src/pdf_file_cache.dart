@@ -315,6 +315,7 @@ Future<PdfDocument> pdfDocumentFromUri(
   PdfDownloadProgressCallback? progressCallback,
   PdfDownloadReportCallback? reportCallback,
   bool useRangeAccess = true,
+  Map<String, String>? headers,
 }) async {
   final startTime = reportCallback != null ? DateTime.now() : null;
   void report() {
@@ -334,13 +335,8 @@ Future<PdfDocument> pdfDocumentFromUri(
     if (!cache.isInitialized) {
       cache.setBlockSize(blockSize ?? PdfFileCache.defaultBlockSize);
       final result = await _downloadBlock(
-        httpClient,
-        uri,
-        cache,
-        progressCallback,
-        0,
-        useRangeAccess: useRangeAccess,
-      );
+          httpClient, uri, cache, progressCallback, 0,
+          useRangeAccess: useRangeAccess, headers: headers);
       if (result.isFullDownload) {
         return await PdfDocument.openFile(
           cache.filePath,
@@ -355,8 +351,14 @@ Future<PdfDocument> pdfDocumentFromUri(
         // cache is valid; no need to download.
       } else {
         final result = await _downloadBlock(
-            httpClient, uri, cache, progressCallback, 0,
-            addCacheControlHeaders: true);
+          httpClient,
+          uri,
+          cache,
+          progressCallback,
+          0,
+          addCacheControlHeaders: true,
+          headers: headers,
+        );
         if (result.isFullDownload) {
           cache.close(); // close the cache file before opening it.
           httpClient.close();
@@ -379,7 +381,13 @@ Future<PdfDocument> pdfDocumentFromUri(
           final isAvailable = cache.isCached(blockId);
           if (!isAvailable) {
             await _downloadBlock(
-                httpClient, uri, cache, progressCallback, blockId);
+              httpClient,
+              uri,
+              cache,
+              progressCallback,
+              blockId,
+              headers: headers,
+            );
           }
           final readEnd = min(p + size, (blockId + 1) * cache.blockSize);
           final sizeToRead = readEnd - p;
@@ -435,6 +443,7 @@ Future<_DownloadResult> _downloadBlock(
   int blockCount = 1,
   bool addCacheControlHeaders = false,
   bool useRangeAccess = true,
+  Map<String, String>? headers,
 }) async {
   int? fileSize;
   final blockOffset = blockId * cache.blockSize;
@@ -447,6 +456,7 @@ Future<_DownloadResult> _downloadBlock(
           if (useRangeAccess) 'Range': 'bytes=$blockOffset-${end - 1}',
           if (addCacheControlHeaders)
             ...cache.cacheControlState.getHeadersForFetch(),
+          if (headers != null) ...headers,
         },
       )
       ..sink.close(),

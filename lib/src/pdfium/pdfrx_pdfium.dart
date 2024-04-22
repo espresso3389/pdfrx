@@ -226,6 +226,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     PdfDownloadProgressCallback? progressCallback,
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
+    Map<String, String>? headers,
   }) =>
       pdfDocumentFromUri(
         uri,
@@ -234,6 +235,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         progressCallback: progressCallback,
         reportCallback: reportCallback,
         useRangeAccess: preferRangeAccess,
+        headers: headers,
       );
 
   static bool _isPasswordError({int? error}) {

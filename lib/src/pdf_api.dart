@@ -56,6 +56,7 @@ abstract class PdfDocumentFactory {
     PdfDownloadProgressCallback? progressCallback,
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
+    Map<String, String>? headers,
   });
 
   /// Singleton [PdfDocumentFactory] instance.
@@ -222,6 +223,7 @@ abstract class PdfDocument {
   /// [progressCallback] is called when the download progress is updated (Not supported on Web).
   /// [reportCallback] is called when the download is completed (Not supported on Web).
   /// [preferRangeAccess] to prefer range access to download the PDF (Not supported on Web).
+  /// [headers] is used to specify additional HTTP headers especially for authentication/authorization.
   static Future<PdfDocument> openUri(
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
@@ -229,6 +231,7 @@ abstract class PdfDocument {
     PdfDownloadProgressCallback? progressCallback,
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
+    Map<String, String>? headers,
   }) =>
       PdfDocumentFactory.instance.openUri(
         uri,
@@ -237,6 +240,7 @@ abstract class PdfDocument {
         progressCallback: progressCallback,
         reportCallback: reportCallback,
         preferRangeAccess: preferRangeAccess,
+        headers: headers,
       );
 
   /// Pages.

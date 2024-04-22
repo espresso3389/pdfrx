@@ -82,17 +82,16 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     String filePath, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
-  }) async {
-    return _openByFunc(
-      (password) => pdfjsGetDocument(
-        filePath,
-        password: password,
-      ),
-      sourceName: filePath,
-      passwordProvider: passwordProvider,
-      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-    );
-  }
+  }) =>
+      _openByFunc(
+        (password) => pdfjsGetDocument(
+          filePath,
+          password: password,
+        ),
+        sourceName: filePath,
+        passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      );
 
   @override
   Future<PdfDocument> openUri(
@@ -102,9 +101,15 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     PdfDownloadProgressCallback? progressCallback,
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
+    Map<String, String>? headers,
   }) =>
-      openFile(
-        uri.toString(),
+      _openByFunc(
+        (password) => pdfjsGetDocument(
+          uri.toString(),
+          password: password,
+          headers: headers,
+        ),
+        sourceName: uri.toString(),
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       );
