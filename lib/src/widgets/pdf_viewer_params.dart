@@ -25,6 +25,8 @@ class PdfViewerParams {
     this.pageAnchorEnd = PdfPageAnchor.bottomCenter,
     this.onePassRenderingScaleThreshold = 200 / 72,
     this.enableTextSelection = false,
+    this.matchTextColor,
+    this.activeMatchTextColor,
     this.panEnabled = true,
     this.scaleEnabled = true,
     this.onInteractionEnd,
@@ -140,6 +142,14 @@ class PdfViewerParams {
   /// Experimental: Enable text selection on pages.
   ///
   final bool enableTextSelection;
+
+  /// Color for text search match.
+  /// If null, the default color is `Colors.yellow.withOpacity(0.5)`.
+  final Color? matchTextColor;
+
+  /// Color for active text search match.
+  /// If null, the default color is `Colors.orange.withOpacity(0.5)`.
+  final Color? activeMatchTextColor;
 
   /// See [InteractiveViewer.panEnabled] for details.
   final bool panEnabled;
@@ -356,6 +366,8 @@ class PdfViewerParams {
         other.onePassRenderingScaleThreshold !=
             onePassRenderingScaleThreshold ||
         other.enableTextSelection != enableTextSelection ||
+        other.matchTextColor != matchTextColor ||
+        other.activeMatchTextColor != activeMatchTextColor ||
         other.panEnabled != panEnabled ||
         other.scaleEnabled != scaleEnabled ||
         other.scrollByMouseWheel != scrollByMouseWheel ||
@@ -383,6 +395,8 @@ class PdfViewerParams {
         other.onePassRenderingScaleThreshold ==
             onePassRenderingScaleThreshold &&
         other.enableTextSelection == enableTextSelection &&
+        other.matchTextColor == matchTextColor &&
+        other.activeMatchTextColor == activeMatchTextColor &&
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
         other.onInteractionEnd == onInteractionEnd &&
@@ -424,6 +438,8 @@ class PdfViewerParams {
         pageAnchorEnd.hashCode ^
         onePassRenderingScaleThreshold.hashCode ^
         enableTextSelection.hashCode ^
+        matchTextColor.hashCode ^
+        activeMatchTextColor.hashCode ^
         panEnabled.hashCode ^
         scaleEnabled.hashCode ^
         onInteractionEnd.hashCode ^

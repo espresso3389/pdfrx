@@ -12,13 +12,11 @@ import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
 import 'package:vector_math/vector_math_64.dart' as vec;
 
-import '../pdf_api.dart';
-import '../pdf_document_ref.dart';
+import '../../pdfrx.dart';
 import 'interactive_viewer.dart' as iv;
 import 'pdf_error_widget.dart';
 import 'pdf_page_links_overlay.dart';
 import 'pdf_page_text_overlay.dart';
-import 'pdf_viewer_params.dart';
 
 /// A widget to display PDF document.
 ///
@@ -1508,9 +1506,13 @@ class PdfViewerController extends ValueListenable<Matrix4> {
     }
   }
 
-  _PdfViewerState get _state {
-    return __state!;
-  }
+  _PdfViewerState get _state => __state!;
+
+  /// Get the associated [PdfViewer] widget.
+  PdfViewer get widget => _state.widget;
+
+  /// Get the associated [PdfViewerParams] parameters.
+  PdfViewerParams get params => widget.params;
 
   /// Determine whether the document/pages are ready or not.
   bool get isReady => __state?._document?.pages != null;
