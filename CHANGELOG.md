@@ -1,3 +1,10 @@
+# 1.0.57
+
+- FIXED: possible double-dispose on race condition (#136)
+- Add mechanism to cancel partial real size rendering (#137)
+- WIP: Custom HTTP header for downloading PDF files (#132)
+- Text search match color customization (#142)
+
 # 1.0.56
 
 - Reduce total number of Isolates used when opening PDF documents
