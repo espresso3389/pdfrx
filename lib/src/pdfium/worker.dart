@@ -53,7 +53,7 @@ class BackgroundWorker {
         message,
       );
 
-  Future<void> dispose() async {
+  void dispose() {
     try {
       _sendPort.send(null);
       _receivePort.close();
