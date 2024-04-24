@@ -1,3 +1,8 @@
+# 1.0.58
+
+- Any API calls that wraps pdfium are now completely synchronized. They are run in an app-wide single worker isolate
+  - This is because pdfium does not support any kind of concurrency and even different PdfDocument instances could not be called concurrently
+
 # 1.0.57
 
 - FIXED: possible double-dispose on race condition (#136)
