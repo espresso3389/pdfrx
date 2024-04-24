@@ -9,6 +9,7 @@ class BackgroundWorker {
   BackgroundWorker._(this._receivePort, this._sendPort);
   final ReceivePort _receivePort;
   final SendPort _sendPort;
+  bool _isDisposed = false;
 
   static Future<BackgroundWorker> create({String? debugName}) async {
     final receivePort = ReceivePort();
@@ -36,6 +37,9 @@ class BackgroundWorker {
   }
 
   Future<R> compute<M, R>(ComputeCallback<M, R> callback, M message) async {
+    if (_isDisposed) {
+      throw StateError('Worker is already disposed');
+    }
     final sendPort = ReceivePort();
     _sendPort.send(_ComputeParams(sendPort.sendPort, callback, message));
     return await sendPort.first as R;
@@ -55,6 +59,7 @@ class BackgroundWorker {
 
   void dispose() {
     try {
+      _isDisposed = true;
       _sendPort.send(null);
       _receivePort.close();
     } catch (e) {
