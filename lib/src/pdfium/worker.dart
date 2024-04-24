@@ -46,7 +46,7 @@ class BackgroundWorker {
   }
 
   /// [compute] wrapper that also provides [Arena] for temporary memory allocation.
-  Future<R> ffiCompute<M, R>(
+  Future<R> computeWithArena<M, R>(
     R Function(Arena arena, M message) callback,
     M message,
   ) =>
