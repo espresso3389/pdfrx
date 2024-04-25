@@ -320,8 +320,7 @@ class PdfDocumentPdfium extends PdfDocument {
     if (doc == nullptr) {
       throw const PdfException('Failed to load PDF document.');
     }
-    pdfium_bindings.FPDF_FORMHANDLE formHandle = nullptr;
-    Pointer<pdfium_bindings.FPDF_FORMFILLINFO> formInfo = nullptr;
+    PdfDocumentPdfium? pdfDoc;
     try {
       final result = await (await backgroundWorker).compute(
         (docAddress) {
@@ -366,19 +365,8 @@ class PdfDocumentPdfium extends PdfDocument {
                   formInfo: formInfo.address,
                 );
               } catch (e) {
-                backgroundWorker.then((worker) => worker.compute((params) {
-                      final formHandle = pdfium_bindings.FPDF_FORMHANDLE
-                          .fromAddress(params.formHandle);
-                      final formInfo = Pointer<
-                          pdfium_bindings
-                          .FPDF_FORMFILLINFO>.fromAddress(params.formInfo);
-                      pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
-                      calloc.free(formInfo);
-                    }, (
-                      formHandle: formHandle.address,
-                      formInfo: formInfo.address
-                    )));
-
+                pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
+                calloc.free(formInfo);
                 rethrow;
               }
             },
@@ -386,20 +374,18 @@ class PdfDocumentPdfium extends PdfDocument {
         },
         doc.address,
       );
-      formHandle =
-          pdfium_bindings.FPDF_FORMHANDLE.fromAddress(result.formHandle);
-      formInfo = Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(
-          result.formInfo);
 
-      final pdfDoc = PdfDocumentPdfium._(
+      pdfDoc = PdfDocumentPdfium._(
         doc,
         sourceName: sourceName,
         securityHandlerRevision: result.securityHandlerRevision,
         permissions: result.securityHandlerRevision != -1
             ? PdfPermissions(result.permissions, result.securityHandlerRevision)
             : null,
-        formHandle: formHandle,
-        formInfo: formInfo,
+        formHandle:
+            pdfium_bindings.FPDF_FORMHANDLE.fromAddress(result.formHandle),
+        formInfo: Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(
+            result.formInfo),
         disposeCallback: disposeCallback,
       );
 
@@ -417,24 +403,7 @@ class PdfDocumentPdfium extends PdfDocument {
       pdfDoc.pages = List.unmodifiable(pages);
       return pdfDoc;
     } catch (e) {
-      backgroundWorker.then((worker) => worker.compute((params) {
-            final formHandle =
-                pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle);
-            final formInfo =
-                Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(
-                    params.formInfo);
-            pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
-            calloc.free(formInfo);
-
-            final doc =
-                pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
-            pdfium.FPDF_CloseDocument(doc);
-          }, (
-            formHandle: formHandle.address,
-            formInfo: formInfo.address,
-            document: doc.address,
-          )));
-
+      pdfDoc?.dispose();
       rethrow;
     }
   }
@@ -450,22 +419,26 @@ class PdfDocumentPdfium extends PdfDocument {
   Future<void> dispose() async {
     if (!isDisposed) {
       isDisposed = true;
-      await (await backgroundWorker).compute((params) {
-        final formHandle =
-            pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle);
-        final formInfo = Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(
-            params.formInfo);
-        pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
-        calloc.free(formInfo);
+      await (await backgroundWorker).compute(
+        (params) {
+          final formHandle =
+              pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle);
+          final formInfo =
+              Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(
+                  params.formInfo);
+          pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
+          calloc.free(formInfo);
 
-         final doc =
-                pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
-            pdfium.FPDF_CloseDocument(doc);
-      }, (
-        formHandle: formHandle.address, 
-        formInfo: formInfo.address,
-        document: document.address,
-      ));
+          final doc =
+              pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
+          pdfium.FPDF_CloseDocument(doc);
+        },
+        (
+          formHandle: formHandle.address,
+          formInfo: formInfo.address,
+          document: document.address,
+        ),
+      );
 
       disposeCallback?.call();
     }
