@@ -51,14 +51,14 @@ ffigen:
     bindings: 'lib/src/pdfium/pdfium_bindings.dart'
   headers:
     entry-points:
-      - 'example/build/windows/x64/.lib/latest/include/fpdfview.h'
-      - 'example/build/windows/x64/.lib/latest/include/fpdf_annot.h'
-      - 'example/build/windows/x64/.lib/latest/include/fpdf_text.h'
-      - 'example/build/windows/x64/.lib/latest/include/fpdf_doc.h'
-      - 'example/build/windows/x64/.lib/latest/include/fpdf_edit.h'
-      - 'example/build/windows/x64/.lib/latest/include/fpdf_formfill.h'
+      - 'example/viewer/build/windows/x64/.lib/latest/include/fpdfview.h'
+      - 'example/viewer/build/windows/x64/.lib/latest/include/fpdf_annot.h'
+      - 'example/viewer/build/windows/x64/.lib/latest/include/fpdf_text.h'
+      - 'example/viewer/build/windows/x64/.lib/latest/include/fpdf_doc.h'
+      - 'example/viewer/build/windows/x64/.lib/latest/include/fpdf_edit.h'
+      - 'example/viewer/build/windows/x64/.lib/latest/include/fpdf_formfill.h'
     include-directives:
-      - 'example/build/windows/x64/.lib/latest/include/**'
+      - 'example/viewer/build/windows/x64/.lib/latest/include/**'
   preamble: |
     // ignore_for_file: unused_field
   name: 'pdfium'

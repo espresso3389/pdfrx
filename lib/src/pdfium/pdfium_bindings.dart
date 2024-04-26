@@ -2151,6 +2151,37 @@ class pdfium {
   late final _FPDFAnnot_SetURI = _FPDFAnnot_SetURIPtr.asFunction<
       int Function(FPDF_ANNOTATION, ffi.Pointer<ffi.Char>)>();
 
+  FPDF_ATTACHMENT FPDFAnnot_GetFileAttachment(
+    FPDF_ANNOTATION annot,
+  ) {
+    return _FPDFAnnot_GetFileAttachment(
+      annot,
+    );
+  }
+
+  late final _FPDFAnnot_GetFileAttachmentPtr =
+      _lookup<ffi.NativeFunction<FPDF_ATTACHMENT Function(FPDF_ANNOTATION)>>(
+          'FPDFAnnot_GetFileAttachment');
+  late final _FPDFAnnot_GetFileAttachment = _FPDFAnnot_GetFileAttachmentPtr
+      .asFunction<FPDF_ATTACHMENT Function(FPDF_ANNOTATION)>();
+
+  FPDF_ATTACHMENT FPDFAnnot_AddFileAttachment(
+    FPDF_ANNOTATION annot,
+    FPDF_WIDESTRING name,
+  ) {
+    return _FPDFAnnot_AddFileAttachment(
+      annot,
+      name,
+    );
+  }
+
+  late final _FPDFAnnot_AddFileAttachmentPtr = _lookup<
+      ffi.NativeFunction<
+          FPDF_ATTACHMENT Function(FPDF_ANNOTATION,
+              FPDF_WIDESTRING)>>('FPDFAnnot_AddFileAttachment');
+  late final _FPDFAnnot_AddFileAttachment = _FPDFAnnot_AddFileAttachmentPtr
+      .asFunction<FPDF_ATTACHMENT Function(FPDF_ANNOTATION, FPDF_WIDESTRING)>();
+
   FPDF_TEXTPAGE FPDFText_LoadPage(
     FPDF_PAGE page,
   ) {
@@ -5011,6 +5042,38 @@ class pdfium {
   late final _FPDFText_LoadStandardFont = _FPDFText_LoadStandardFontPtr
       .asFunction<FPDF_FONT Function(FPDF_DOCUMENT, FPDF_BYTESTRING)>();
 
+  FPDF_FONT FPDFText_LoadCidType2Font(
+    FPDF_DOCUMENT document,
+    ffi.Pointer<ffi.Uint8> font_data,
+    int font_data_size,
+    FPDF_BYTESTRING to_unicode_cmap,
+    ffi.Pointer<ffi.Uint8> cid_to_gid_map_data,
+    int cid_to_gid_map_data_size,
+  ) {
+    return _FPDFText_LoadCidType2Font(
+      document,
+      font_data,
+      font_data_size,
+      to_unicode_cmap,
+      cid_to_gid_map_data,
+      cid_to_gid_map_data_size,
+    );
+  }
+
+  late final _FPDFText_LoadCidType2FontPtr = _lookup<
+      ffi.NativeFunction<
+          FPDF_FONT Function(
+              FPDF_DOCUMENT,
+              ffi.Pointer<ffi.Uint8>,
+              ffi.Uint32,
+              FPDF_BYTESTRING,
+              ffi.Pointer<ffi.Uint8>,
+              ffi.Uint32)>>('FPDFText_LoadCidType2Font');
+  late final _FPDFText_LoadCidType2Font =
+      _FPDFText_LoadCidType2FontPtr.asFunction<
+          FPDF_FONT Function(FPDF_DOCUMENT, ffi.Pointer<ffi.Uint8>, int,
+              FPDF_BYTESTRING, ffi.Pointer<ffi.Uint8>, int)>();
+
   int FPDFTextObj_GetFontSize(
     FPDF_PAGEOBJECT text,
     ffi.Pointer<ffi.Float> size,
@@ -6484,6 +6547,7 @@ typedef FPDF_WIDESTRING = ffi.Pointer<FPDF_WCHAR>;
 typedef FPDF_ANNOT_APPEARANCEMODE = ffi.Int;
 typedef DartFPDF_ANNOT_APPEARANCEMODE = int;
 typedef FPDF_LINK = ffi.Pointer<fpdf_link_t__>;
+typedef FPDF_ATTACHMENT = ffi.Pointer<fpdf_attachment_t__>;
 typedef FPDF_TEXTPAGE = ffi.Pointer<fpdf_textpage_t__>;
 typedef FPDF_SCHHANDLE = ffi.Pointer<fpdf_schhandle_t__>;
 typedef FPDF_PAGELINK = ffi.Pointer<fpdf_pagelink_t__>;
