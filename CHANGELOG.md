@@ -1,3 +1,8 @@
+# 1.0.59
+
+- Fixes concurrency issue on PdfDocument dispose (#143)
+- FIXED: Null check operator used on \_guessCurrentPage (#147)
+
 # 1.0.58
 
 - Any API calls that wraps pdfium are now completely synchronized. They are run in an app-wide single worker isolate
