@@ -812,6 +812,8 @@ class _PdfViewerState extends State<PdfViewer>
     final scale = MediaQuery.of(context).devicePixelRatio * _currentZoom;
 
     final unusedPageList = <int>[];
+    final dropShadowPaint = widget.params.pageDropShadow?.toPaint()
+      ?..style = PaintingStyle.fill;
 
     for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
@@ -835,6 +837,21 @@ class _PdfViewerState extends State<PdfViewer>
               _controller!,
               widget.params.onePassRenderingScaleThreshold) ??
           widget.params.onePassRenderingScaleThreshold;
+
+      if (dropShadowPaint != null) {
+        final offset = widget.params.pageDropShadow!.offset;
+        final spread = widget.params.pageDropShadow!.spreadRadius;
+        final shadowRect = rect
+            .translate(offset.dx, offset.dy)
+            .inflateHV(horizontal: spread, vertical: spread);
+        canvas.drawRect(shadowRect, dropShadowPaint);
+      }
+
+      if (widget.params.pageBackgroundPaintCallbacks != null) {
+        for (final callback in widget.params.pageBackgroundPaintCallbacks!) {
+          callback(canvas, rect, page);
+        }
+      }
 
       if (realSize != null) {
         canvas.drawImageRect(
@@ -878,13 +895,6 @@ class _PdfViewerState extends State<PdfViewer>
           Paint()..filterQuality = FilterQuality.high,
         );
       }
-
-      canvas.drawRect(
-          rect,
-          Paint()
-            ..color = Colors.black
-            ..strokeWidth = 0.2
-            ..style = PaintingStyle.stroke);
 
       if (widget.params.pagePaintCallbacks != null) {
         for (final callback in widget.params.pagePaintCallbacks!) {

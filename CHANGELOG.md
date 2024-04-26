@@ -1,3 +1,8 @@
+# 1.0.61
+
+- Introduces PdfViewerParams.pageDropShadow
+- Introduces PdfViewerParams.pageBackgroundPaintCallbacks
+
 # 1.0.60
 
 - bblanchon/pdfium-binaries 125.0.6406.0 (chromium/6406)

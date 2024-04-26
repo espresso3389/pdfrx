@@ -241,11 +241,11 @@ class _PdfPageViewState extends State<PdfPageView> {
               decoration: widget.decoration ??
                   BoxDecoration(
                     color: widget.backgroundColor ?? Colors.white,
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.5),
+                        color: Colors.black54,
                         blurRadius: 4,
-                        offset: const Offset(2, 2),
+                        offset: Offset(2, 2),
                       ),
                     ],
                   ),

@@ -27,6 +27,12 @@ class PdfViewerParams {
     this.enableTextSelection = false,
     this.matchTextColor,
     this.activeMatchTextColor,
+    this.pageDropShadow = const BoxShadow(
+      color: Colors.black54,
+      blurRadius: 4,
+      spreadRadius: 2,
+      offset: Offset(2, 2),
+    ),
     this.panEnabled = true,
     this.scaleEnabled = true,
     this.onInteractionEnd,
@@ -50,6 +56,7 @@ class PdfViewerParams {
     this.errorBannerBuilder,
     this.linkWidgetBuilder,
     this.pagePaintCallbacks,
+    this.pageBackgroundPaintCallbacks,
     this.onTextSelectionChange,
     this.perPageSelectionAreaInjector,
     this.forceReload = false,
@@ -144,12 +151,29 @@ class PdfViewerParams {
   final bool enableTextSelection;
 
   /// Color for text search match.
+  ///
   /// If null, the default color is `Colors.yellow.withOpacity(0.5)`.
   final Color? matchTextColor;
 
   /// Color for active text search match.
+  ///
   /// If null, the default color is `Colors.orange.withOpacity(0.5)`.
   final Color? activeMatchTextColor;
+
+  /// Drop shadow for the page.
+  ///
+  /// The default is:
+  /// ```dart
+  /// BoxShadow(
+  ///   color: Colors.black54,
+  ///   blurRadius: 4,
+  ///   spreadRadius: 0,
+  ///   offset: Offset(2, 2))
+  /// ```
+  ///
+  /// If you need to remove the shadow, set this to null.
+  /// To customize more of the shadow, you can use [pageBackgroundPaintCallbacks] to paint the shadow manually.
+  final BoxShadow? pageDropShadow;
 
   /// See [InteractiveViewer.panEnabled] for details.
   final bool panEnabled;
@@ -308,10 +332,16 @@ class PdfViewerParams {
   /// Build link widget.
   final PdfLinkWidgetBuilder? linkWidgetBuilder;
 
-  /// Page paint callbacks.
+  /// Callback to paint over the rendered page.
   ///
   /// For the detail usage, see [PdfViewerPagePaintCallback].
   final List<PdfViewerPagePaintCallback>? pagePaintCallbacks;
+
+  /// Callback to paint on the background of the rendered page (called before painting the page content).
+  ///
+  /// It is useful to paint some background such as drop shadow of the page.
+  /// For the detail usage, see [PdfViewerPagePaintCallback].
+  final List<PdfViewerPagePaintCallback>? pageBackgroundPaintCallbacks;
 
   /// Function to be notified when the text selection is changed.
   final PdfViewerTextSelectionChangeCallback? onTextSelectionChange;
@@ -368,6 +398,7 @@ class PdfViewerParams {
         other.enableTextSelection != enableTextSelection ||
         other.matchTextColor != matchTextColor ||
         other.activeMatchTextColor != activeMatchTextColor ||
+        other.pageDropShadow != pageDropShadow ||
         other.panEnabled != panEnabled ||
         other.scaleEnabled != scaleEnabled ||
         other.scrollByMouseWheel != scrollByMouseWheel ||
@@ -397,6 +428,7 @@ class PdfViewerParams {
         other.enableTextSelection == enableTextSelection &&
         other.matchTextColor == matchTextColor &&
         other.activeMatchTextColor == activeMatchTextColor &&
+        other.pageDropShadow == pageDropShadow &&
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
         other.onInteractionEnd == onInteractionEnd &&
@@ -419,6 +451,7 @@ class PdfViewerParams {
         other.errorBannerBuilder == errorBannerBuilder &&
         other.linkWidgetBuilder == linkWidgetBuilder &&
         other.pagePaintCallbacks == pagePaintCallbacks &&
+        other.pageBackgroundPaintCallbacks == pageBackgroundPaintCallbacks &&
         other.onTextSelectionChange == onTextSelectionChange &&
         other.perPageSelectionAreaInjector == perPageSelectionAreaInjector &&
         other.forceReload == forceReload;
@@ -440,6 +473,7 @@ class PdfViewerParams {
         enableTextSelection.hashCode ^
         matchTextColor.hashCode ^
         activeMatchTextColor.hashCode ^
+        pageDropShadow.hashCode ^
         panEnabled.hashCode ^
         scaleEnabled.hashCode ^
         onInteractionEnd.hashCode ^
@@ -462,6 +496,7 @@ class PdfViewerParams {
         errorBannerBuilder.hashCode ^
         linkWidgetBuilder.hashCode ^
         pagePaintCallbacks.hashCode ^
+        pageBackgroundPaintCallbacks.hashCode ^
         onTextSelectionChange.hashCode ^
         perPageSelectionAreaInjector.hashCode ^
         forceReload.hashCode;
