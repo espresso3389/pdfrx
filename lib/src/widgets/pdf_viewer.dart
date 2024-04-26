@@ -549,7 +549,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _determineCurrentPage() {
     final pageNumber = _guessCurrentPage();
-    if (_pageNumber != pageNumber) {
+    if (pageNumber != null && _pageNumber != pageNumber) {
       _pageNumber = pageNumber;
       if (widget.params.onPageChanged != null) {
         Future.microtask(() => widget.params.onPageChanged?.call(_pageNumber));
@@ -562,19 +562,21 @@ class _PdfViewerState extends State<PdfViewer>
       return widget.params.calculateCurrentPageNumber!(
           _visibleRect, _layout!.pageLayouts, _controller!);
     }
-    final visibleRect = _visibleRect;
-    int? pageNumber;
-    double pageIntersectionArea = 0;
-    for (int i = 0; i < _document!.pages.length; i++) {
-      final rect = _layout!.pageLayouts[i];
-      final intersection = rect.intersect(visibleRect);
-      if (intersection.isEmpty) continue;
-      final intersectionArea = intersection.width * intersection.height;
-      if (intersectionArea > pageIntersectionArea) {
-        pageIntersectionArea = intersectionArea;
-        pageNumber = i + 1;
+    if (_layout != null) {
+      final visibleRect = _visibleRect;
+      int? pageNumber;
+      double pageIntersectionArea = 0;
+      for (int i = 0; i < _document!.pages.length; i++) {
+        final rect = _layout!.pageLayouts[i];
+        final intersection = rect.intersect(visibleRect);
+        if (intersection.isEmpty) continue;
+        final intersectionArea = intersection.width * intersection.height;
+        if (intersectionArea > pageIntersectionArea) {
+          pageIntersectionArea = intersectionArea;
+          pageNumber = i + 1;
+        }
+        return pageNumber;
       }
-      return pageNumber;
     }
     return null;
   }
