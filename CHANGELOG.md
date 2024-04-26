@@ -1,3 +1,8 @@
+# 1.0.60
+
+- bblanchon/pdfium-binaries 125.0.6406.0 (chromium/6406)
+  - default_min_sdk_version=21 to support lower API level devices (#145)
+
 # 1.0.59
 
 - Fixes concurrency issue on PdfDocument dispose (#143)
