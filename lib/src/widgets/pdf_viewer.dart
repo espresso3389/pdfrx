@@ -202,7 +202,8 @@ class _PdfViewerState extends State<PdfViewer>
   Size? _viewSize;
   double? _coverScale;
   double? _alternativeFitScale;
-  double _minScale = 0.1;
+  static const _defaultMinScale = 0.1;
+  double _minScale = _defaultMinScale;
   int? _pageNumber;
   bool _initialized = false;
   final List<double> _zoomStops = [1.0];
@@ -591,6 +592,11 @@ class _PdfViewerState extends State<PdfViewer>
     } else {
       _alternativeFitScale = null;
     }
+    if (_coverScale == null) {
+      _minScale = _defaultMinScale;
+      return false;
+    }
+
     _minScale = !widget.params.useAlternativeFitScaleAsMinScale
         ? widget.params.minScale
         : _alternativeFitScale == null
