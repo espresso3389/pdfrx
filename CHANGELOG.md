@@ -1,3 +1,9 @@
+# 1.0.62
+
+- iOS/macOS also uses bblanchon/pdfium-binaries 125.0.6406.0 (chromium/6406)
+- Additional fix for [#147](https://github.com/espresso3389/pdfrx/issues/147)
+- Additional implementation for [#132](https://github.com/espresso3389/pdfrx/issues/132)
+
 # 1.0.61
 
 - Introduces PdfViewerParams.pageDropShadow
@@ -6,12 +12,12 @@
 # 1.0.60
 
 - bblanchon/pdfium-binaries 125.0.6406.0 (chromium/6406)
-  - default_min_sdk_version=21 to support lower API level devices (#145)
+  - default_min_sdk_version=21 to support lower API level devices ([#145](https://github.com/espresso3389/pdfrx/issues/145))
 
 # 1.0.59
 
 - Fixes concurrency issue on PdfDocument dispose (#143)
-- FIXED: Null check operator used on \_guessCurrentPage (#147)
+- FIXED: Null check operator used on \_guessCurrentPage ([#147](https://github.com/espresso3389/pdfrx/issues/147))
 
 # 1.0.58
 
