@@ -128,14 +128,21 @@ class PdfDocumentRefUri extends PdfDocumentRef
     this.firstAttemptByEmptyPassword = true,
     super.autoDispose = true,
     this.preferRangeAccess = false,
+    this.headers,
   });
 
+  /// The URI to load the document.
   final Uri uri;
   @override
   final PdfPasswordProvider? passwordProvider;
   @override
   final bool firstAttemptByEmptyPassword;
+
+  /// Whether to prefer range access or not (Not supported on Web).
   final bool preferRangeAccess;
+
+  /// Additional HTTP headers especially for authentication/authorization.
+  final Map<String, String>? headers;
 
   @override
   String get sourceName => uri.toString();
@@ -152,6 +159,7 @@ class PdfDocumentRefUri extends PdfDocumentRef
         progressCallback: progressCallback,
         reportCallback: reportCallback,
         preferRangeAccess: preferRangeAccess,
+        headers: headers,
       );
 
   @override
