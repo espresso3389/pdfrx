@@ -1,3 +1,8 @@
+# 1.0.63
+
+- Workaround for SelectionEventType.selectParagraph that is introduced in master (#156/PR #157)
+  - The code uses `default` to handle the case but we should update it with the "right" code when it is introduced to the stable
+
 # 1.0.62
 
 - iOS/macOS also uses bblanchon/pdfium-binaries 125.0.6406.0 (chromium/6406)
