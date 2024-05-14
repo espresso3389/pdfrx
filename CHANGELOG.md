@@ -1,3 +1,7 @@
+# 1.0.64
+
+- Android: minSdkVersion to 21 (related #158)
+
 # 1.0.63
 
 - Workaround for SelectionEventType.selectParagraph that is introduced in master (#156/PR #157)
