@@ -96,6 +96,7 @@
     "malloc",
     "MATCHCASE",
     "MATCHWHOLEWORD",
+    "maxage",
     "microtask",
     "MOVETO",
     "NATIVETEXT",

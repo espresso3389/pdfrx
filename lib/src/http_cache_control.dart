@@ -1,5 +1,3 @@
-import 'package:intl/intl.dart';
-
 /// HTTP cache-control directives.
 class HttpCacheControl {
   const HttpCacheControl({required this.directives, this.maxAge, this.sMaxAge});
@@ -102,16 +100,10 @@ class HttpCacheControlState {
     Duration? maxAgeForNoStore,
   }) {
     final cacheControl = headers['cache-control']?.split(',');
-    final date = headers['date'] != null
-        ? _httpDateTimeFormat.parseUtc(headers['date']!)
-        : null;
-    final expires = headers['expires'] != null
-        ? _httpDateTimeFormat.parseUtc(headers['expires']!)
-        : null;
+    final date = _parseHttpDateTime(headers['date']);
+    final expires = _parseHttpDateTime(headers['expires']);
     final etag = headers['etag'];
-    final lastModified = headers['last-modified'] != null
-        ? _httpDateTimeFormat.parseUtc(headers['last-modified']!)
-        : null;
+    final lastModified = _parseHttpDateTime(headers['last-modified']);
     var noCache = cacheControl?.contains('no-cache') == true;
     var noStore = cacheControl?.contains('no-store') == true;
     var maxAge = int.tryParse(cacheControl
@@ -225,11 +217,44 @@ DateTime? _parseDateTime(String s) => s == 'null'
     ? null
     : DateTime.fromMillisecondsSinceEpoch(int.parse(s) * 1000);
 
-final _httpDateTimeFormat =
-    DateFormat('EEE, dd MMM yyyy HH:mm:ss zzz', 'en_US');
+/// Parse HTTP date-time string.
+DateTime? _parseHttpDateTime(String? s) {
+  if (s == null) return null;
+  final parts = s.split(' ');
+  final day = int.parse(parts[1]);
+  final month = _months.indexOf(parts[2]) + 1;
+  final year = int.parse(parts[3]);
+  final timeParts = parts[4].split(':');
+  final hour = int.parse(timeParts[0]);
+  final minute = int.parse(timeParts[1]);
+  final second = int.parse(timeParts[2]);
+  return DateTime.utc(year, month, day, hour, minute, second);
+}
 
 extension DateTimeHttpExtension on DateTime {
-  String toHttpDate() => '${_httpDateTimeFormat.format(toUtc())}GMT';
+  /// Convert to HTTP date-time string.
+  String toHttpDate() {
+    // final _httpDateTimeFormat = DateFormat('EEE, dd MMM yyyy HH:mm:ss zzz', 'en_US');
+    // '${_httpDateTimeFormat.format(toUtc())}GMT';
+    final time = toUtc();
+    return '${_weekDays[time.weekday - 1]}, ${time.day} ${_months[time.month - 1]} ${time.year} ${time.hour}:${time.minute}:${time.second} GMT';
+  }
 
   int get secondsSinceEpoch => millisecondsSinceEpoch ~/ 1000;
 }
+
+const _weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const _months = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec'
+];
