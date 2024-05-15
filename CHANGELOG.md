@@ -1,3 +1,7 @@
+# 1.0.65
+
+- Remove dependency to intl (#151)
+
 # 1.0.64
 
 - Android: minSdkVersion to 21 (related #158)
