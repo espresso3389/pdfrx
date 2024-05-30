@@ -47,11 +47,15 @@ A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web
   - pdfium bindings
     - Not encouraged but you can import [package:pdfrx/src/pdfium/pdfium_bindings.dart](https://github.com/espresso3389/pdfrx/blob/master/lib/src/pdfium/pdfium_bindings.dart)
 
-## Getting Started
+## Example Code
 
 The following fragment illustrates the easiest way to show a PDF file in assets:
 
 ```dart
+import 'package:pdfrx/pdfrx.dart';
+
+...
+
 class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
@@ -66,6 +70,10 @@ class _MyAppState extends State<MyApp> {
   }
 }
 ```
+
+Anyway, please follow the instructions below to install on your environment.
+
+## Getting Started
 
 ## Installation
 
