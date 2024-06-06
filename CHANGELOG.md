@@ -1,3 +1,8 @@
+# 1.0.66
+
+- Add explicit HTTP error handling code (to show the error detail)
+- bblanchon/pdfium-binaries 127.0.6517.0 (chromium/6517)
+
 # 1.0.65
 
 - Remove dependency to intl (#151)
