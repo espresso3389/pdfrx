@@ -465,6 +465,11 @@ Future<_DownloadResult> _downloadBlock(
     return _DownloadResult(cache.fileSize, false, true);
   }
 
+  if (response.statusCode != 200 && response.statusCode != 206) {
+    throw PdfException(
+        'Failed to download PDF file: ${response.statusCode} ${response.reasonPhrase}');
+  }
+
   if (addCacheControlHeaders) {
     await cache.invalidateCache();
   }
