@@ -1,3 +1,7 @@
+# 1.0.67
+
+- FIXED: LateInitializationError: Field '\_cacheBlockCount@1436474497' has not been initialized (#167)
+
 # 1.0.66
 
 - FIXED: PdfException: Failed to load PDF document (FPDF_GetLastError=3) (#166)
