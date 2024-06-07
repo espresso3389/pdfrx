@@ -1,7 +1,8 @@
 # 1.0.66
 
+- FIXED: PdfException: Failed to load PDF document (FPDF_GetLastError=3) (#166)
 - Add explicit HTTP error handling code (to show the error detail)
-- bblanchon/pdfium-binaries 127.0.6517.0 (chromium/6517)
+- bblanchon/pdfium-binaries 127.0.6517.0 (chromium/6517) (iOS/macOS is still using 6406)
 
 # 1.0.65
 
