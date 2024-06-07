@@ -449,18 +449,16 @@ Future<_DownloadResult> _downloadBlock(
   final blockOffset = blockId * cache.blockSize;
   final end = blockOffset + cache.blockSize * blockCount;
 
-  final response = await httpClient.send(
-    http.StreamedRequest('GET', uri)
-      ..headers.addAll(
-        {
-          if (useRangeAccess) 'Range': 'bytes=$blockOffset-${end - 1}',
-          if (addCacheControlHeaders)
-            ...cache.cacheControlState.getHeadersForFetch(),
-          if (headers != null) ...headers,
-        },
-      )
-      ..sink.close(),
-  );
+  final request = http.Request('GET', uri)
+    ..headers.addAll(
+      {
+        if (useRangeAccess) 'Range': 'bytes=$blockOffset-${end - 1}',
+        if (addCacheControlHeaders)
+          ...cache.cacheControlState.getHeadersForFetch(),
+        if (headers != null) ...headers,
+      },
+    );
+  final response = await httpClient.send(request);
   if (response.statusCode == 304) {
     return _DownloadResult(cache.fileSize, false, true);
   }
