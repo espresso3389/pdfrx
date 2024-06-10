@@ -3,9 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import '../pdf_api.dart';
-import '../widgets/pdf_viewer.dart';
-import '../widgets/pdf_viewer_params.dart';
+import '../../pdfrx.dart';
 
 /// Helper class to interactively search text in a PDF document.
 ///
