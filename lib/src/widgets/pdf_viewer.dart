@@ -449,6 +449,7 @@ class _PdfViewerState extends State<PdfViewer>
     });
   }
 
+  /// Last page number that is explicitly requested to go to.
   int? _gotoTargetPageNumber;
 
   /// Key pressing state of ⌘ or Control depending on the platform.
@@ -461,22 +462,23 @@ class _PdfViewerState extends State<PdfViewer>
     switch (event.logicalKey) {
       case LogicalKeyboardKey.pageUp:
         if (isDown) {
-          _goToPageRangeChecked((_gotoTargetPageNumber ?? _pageNumber!) - 1);
+          _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) - 1);
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.pageDown:
         if (isDown) {
-          _goToPageRangeChecked((_gotoTargetPageNumber ?? _pageNumber!) + 1);
+          _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) + 1);
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.home:
         if (isDown) {
-          _goToPageRangeChecked(1);
+          _goToPage(pageNumber: 1);
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.end:
         if (isDown) {
-          _goToPageRangeChecked(_document!.pages.length,
+          _goToPage(
+              pageNumber: _document!.pages.length,
               anchor: widget.params.pageAnchorEnd);
         }
         return KeyEventResult.handled;
@@ -518,20 +520,6 @@ class _PdfViewerState extends State<PdfViewer>
     return KeyEventResult.ignored;
   }
 
-  Future<void> _goToPageRangeChecked(int pageNumber,
-      {PdfPageAnchor? anchor}) async {
-    final pageCount = _document!.pages.length;
-    if (pageNumber < 1) {
-      _gotoTargetPageNumber = 1;
-    } else if (pageNumber > pageCount) {
-      _gotoTargetPageNumber = pageCount;
-      anchor ??= widget.params.pageAnchorEnd;
-    } else {
-      _gotoTargetPageNumber = pageNumber;
-    }
-    await _goToPage(pageNumber: _gotoTargetPageNumber!, anchor: anchor);
-  }
-
   Future<void> _goToManipulated(void Function(Matrix4 m) manipulate) async {
     final m = _txController.value.clone();
     manipulate(m);
@@ -551,10 +539,13 @@ class _PdfViewerState extends State<PdfViewer>
 
   Rect get _visibleRect => _txController.value.calcVisibleRect(_viewSize!);
 
-  void _determineCurrentPage() {
+  void _determineCurrentPage({bool doSetState = false}) {
     final pageNumber = _guessCurrentPage();
     if (pageNumber != null && _pageNumber != pageNumber) {
       _pageNumber = pageNumber;
+      if (doSetState) {
+        _invalidate();
+      }
       if (widget.params.onPageChanged != null) {
         Future.microtask(() => widget.params.onPageChanged?.call(_pageNumber));
       }
@@ -566,23 +557,34 @@ class _PdfViewerState extends State<PdfViewer>
       return widget.params.calculateCurrentPageNumber!(
           _visibleRect, _layout!.pageLayouts, _controller!);
     }
-    if (_layout != null) {
-      final visibleRect = _visibleRect;
-      int? pageNumber;
-      double pageIntersectionArea = 0;
-      for (int i = 0; i < _document!.pages.length; i++) {
-        final rect = _layout!.pageLayouts[i];
-        final intersection = rect.intersect(visibleRect);
-        if (intersection.isEmpty) continue;
-        final intersectionArea = intersection.width * intersection.height;
-        if (intersectionArea > pageIntersectionArea) {
-          pageIntersectionArea = intersectionArea;
-          pageNumber = i + 1;
-        }
-        return pageNumber;
+    if (_layout == null) return null;
+
+    final visibleRect = _visibleRect;
+    double calcIntersectionArea(int pageNumber) {
+      final rect = _layout!.pageLayouts[pageNumber - 1];
+      final intersection = rect.intersect(visibleRect);
+      if (intersection.isEmpty) return 0;
+      final area = intersection.width * intersection.height;
+      return area / (rect.width * rect.height);
+    }
+
+    if (_gotoTargetPageNumber != null) {
+      final ratio = calcIntersectionArea(_gotoTargetPageNumber!);
+      if (ratio > .8) return _gotoTargetPageNumber;
+    }
+    _gotoTargetPageNumber = null;
+
+    int? pageNumber;
+    double maxRatio = 0;
+    for (int i = 1; i <= _document!.pages.length; i++) {
+      final ratio = calcIntersectionArea(i);
+      if (ratio == 0) continue;
+      if (ratio > maxRatio) {
+        maxRatio = ratio;
+        pageNumber = i;
       }
     }
-    return null;
+    return pageNumber;
   }
 
   bool _calcAlternativeFitScale() {
@@ -1367,11 +1369,24 @@ class _PdfViewerState extends State<PdfViewer>
     required int pageNumber,
     PdfPageAnchor? anchor,
     Duration duration = const Duration(milliseconds: 200),
-  }) =>
-      _goTo(
-        _calcMatrixForPage(pageNumber: pageNumber, anchor: anchor),
-        duration: duration,
-      );
+  }) async {
+    final pageCount = _document!.pages.length;
+    final int targetPageNumber;
+    if (pageNumber < 1) {
+      targetPageNumber = 1;
+    } else if (pageNumber > pageCount) {
+      targetPageNumber = pageCount;
+      anchor ??= widget.params.pageAnchorEnd;
+    } else {
+      targetPageNumber = pageNumber;
+    }
+    await _goTo(
+      _calcMatrixForPage(pageNumber: targetPageNumber, anchor: anchor),
+      duration: duration,
+    );
+    _gotoTargetPageNumber = targetPageNumber;
+    _determineCurrentPage(doSetState: true);
+  }
 
   Future<void> _goToRectInsidePage({
     required int pageNumber,
