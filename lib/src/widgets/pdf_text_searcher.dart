@@ -229,6 +229,7 @@ class PdfTextSearcher extends Listenable {
       ),
       margin: 50,
     );
+    controller?.setCurrentPageNumber(match.pageNumber);
     controller?.invalidate();
   }
 

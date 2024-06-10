@@ -539,8 +539,22 @@ class _PdfViewerState extends State<PdfViewer>
 
   Rect get _visibleRect => _txController.value.calcVisibleRect(_viewSize!);
 
-  void _determineCurrentPage({bool doSetState = false}) {
-    final pageNumber = _guessCurrentPage();
+  /// Set the current page number.
+  ///
+  /// Please note that the function does not scroll/zoom to the specified page but changes the current page number.
+  void _setCurrentPageNumber(int pageNumber) {
+    _gotoTargetPageNumber = pageNumber;
+    _setCurrentPageNumberInternal(_gotoTargetPageNumber, doSetState: true);
+  }
+
+  void _determineCurrentPage() {
+    _setCurrentPageNumberInternal(_guessCurrentPage());
+  }
+
+  void _setCurrentPageNumberInternal(
+    int? pageNumber, {
+    bool doSetState = false,
+  }) {
     if (pageNumber != null && _pageNumber != pageNumber) {
       _pageNumber = pageNumber;
       if (doSetState) {
@@ -570,7 +584,7 @@ class _PdfViewerState extends State<PdfViewer>
 
     if (_gotoTargetPageNumber != null) {
       final ratio = calcIntersectionArea(_gotoTargetPageNumber!);
-      if (ratio > .8) return _gotoTargetPageNumber;
+      if (ratio > .2) return _gotoTargetPageNumber;
     }
     _gotoTargetPageNumber = null;
 
@@ -1384,8 +1398,7 @@ class _PdfViewerState extends State<PdfViewer>
       _calcMatrixForPage(pageNumber: targetPageNumber, anchor: anchor),
       duration: duration,
     );
-    _gotoTargetPageNumber = targetPageNumber;
-    _determineCurrentPage(doSetState: true);
+    _setCurrentPageNumber(targetPageNumber);
   }
 
   Future<void> _goToRectInsidePage({
@@ -1393,15 +1406,17 @@ class _PdfViewerState extends State<PdfViewer>
     required PdfRect rect,
     PdfPageAnchor? anchor,
     Duration duration = const Duration(milliseconds: 200),
-  }) =>
-      _goTo(
-        _calcMatrixForRectInsidePage(
-          pageNumber: pageNumber,
-          rect: rect,
-          anchor: anchor,
-        ),
-        duration: duration,
-      );
+  }) async {
+    await _goTo(
+      _calcMatrixForRectInsidePage(
+        pageNumber: pageNumber,
+        rect: rect,
+        anchor: anchor,
+      ),
+      duration: duration,
+    );
+    _setCurrentPageNumber(pageNumber);
+  }
 
   Future<bool> _goToDest(
     PdfDest? dest, {
@@ -1410,6 +1425,9 @@ class _PdfViewerState extends State<PdfViewer>
     final m = _calcMatrixForDest(dest);
     if (m == null) return false;
     await _goTo(m, duration: duration);
+    if (dest != null) {
+      _setCurrentPageNumber(dest.pageNumber);
+    }
     return true;
   }
 
@@ -1761,6 +1779,12 @@ class PdfViewerController extends ValueListenable<Matrix4> {
 
   Matrix4 calcMatrixForRect(Rect rect, {double? zoomMax, double? margin}) =>
       _state._calcMatrixForRect(rect, zoomMax: zoomMax, margin: margin);
+
+  /// Set the current page number.
+  ///
+  /// This function does not scroll/zoom to the specified page but changes the current page number.
+  void setCurrentPageNumber(int pageNumber) =>
+      _state._setCurrentPageNumber(pageNumber);
 
   double get currentZoom => value.zoom;
 
