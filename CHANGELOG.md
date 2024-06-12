@@ -1,3 +1,11 @@
+# 1.0.68
+
+- Introduces PdfViewerController.setCurrentPageNumber (#152)
+- BREAKING CHANGE: Current page number behavior change (#152)
+- BREAKING CHANGE: PdfPageAnchor behavior changes for existing PdfPageAnchor enumeration values.
+- Introduces PdfPageAnchor.top/left/right/bottom
+- Introduces PdfViewerController.calcMatrixToEnsureRectVisible
+
 # 1.0.67
 
 - FIXED: LateInitializationError: Field '\_cacheBlockCount@1436474497' has not been initialized (#167)

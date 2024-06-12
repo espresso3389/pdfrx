@@ -21,8 +21,8 @@ class PdfViewerParams {
     this.boundaryMargin,
     this.annotationRenderingMode =
         PdfAnnotationRenderingMode.annotationAndForms,
-    this.pageAnchor = PdfPageAnchor.topCenter,
-    this.pageAnchorEnd = PdfPageAnchor.bottomCenter,
+    this.pageAnchor = PdfPageAnchor.top,
+    this.pageAnchorEnd = PdfPageAnchor.bottom,
     this.onePassRenderingScaleThreshold = 200 / 72,
     this.enableTextSelection = false,
     this.matchTextColor,
@@ -627,11 +627,15 @@ typedef PerPageSelectionAreaInjector = Widget Function(
 /// And the anchor determines which part of the page should be shown in the viewer when [PdfViewerController.goToPage]
 /// is called.
 ///
-/// If you prefer to show the top of the page, [PdfPageAnchor.topCenter] will do that.
+/// If you prefer to show the top of the page, [PdfPageAnchor.top] will do that.
 ///
 /// If you prefer to show whole the page even if the page will be zoomed down to fit into the viewer,
 /// [PdfPageAnchor.all] will do that.
 enum PdfPageAnchor {
+  top,
+  left,
+  right,
+  bottom,
   topLeft,
   topCenter,
   topRight,

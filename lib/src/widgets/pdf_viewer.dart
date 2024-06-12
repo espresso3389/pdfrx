@@ -1166,44 +1166,41 @@ class _PdfViewerState extends State<PdfViewer>
     PdfPageAnchor? anchor,
   }) {
     anchor ??= widget.params.pageAnchor;
-    if (anchor != PdfPageAnchor.all) {
-      final vRatio = _viewSize!.aspectRatio;
-      final dRatio = _layout!.documentSize.aspectRatio;
-      if (vRatio > dRatio) {
-        final yAnchor = anchor.index ~/ 3;
-        switch (yAnchor) {
-          case 0:
-            rect = Rect.fromLTRB(rect.left, rect.top, rect.right,
-                rect.top + rect.width / vRatio);
-            break;
-          case 1:
-            rect = Rect.fromCenter(
-                center: rect.center, width: rect.width, height: rect.height);
-            break;
-          case 2:
-            rect = Rect.fromLTRB(rect.left, rect.bottom - rect.width / vRatio,
-                rect.right, rect.bottom);
-            break;
-        }
-      } else {
-        final xAnchor = anchor.index % 3;
-        switch (xAnchor) {
-          case 0:
-            rect = Rect.fromLTRB(rect.left, rect.top,
-                rect.left + rect.height * vRatio, rect.bottom);
-            break;
-          case 1:
-            rect = Rect.fromCenter(
-                center: rect.center, width: rect.width, height: rect.height);
-            break;
-          case 2:
-            rect = Rect.fromLTRB(rect.right - rect.height * vRatio, rect.top,
-                rect.right, rect.bottom);
-            break;
-        }
-      }
+    final visibleRect = _visibleRect;
+    final w = min(rect.width, visibleRect.width);
+    final h = min(rect.height, visibleRect.height);
+    switch (anchor) {
+      case PdfPageAnchor.top:
+        return _calcMatrixForRect((rect.topLeft) & Size(rect.width, h));
+      case PdfPageAnchor.left:
+        return _calcMatrixForRect((rect.topLeft) & Size(w, rect.height));
+      case PdfPageAnchor.right:
+        return _calcMatrixForRect(
+            Rect.fromLTWH(rect.right - w, rect.top, w, rect.height));
+      case PdfPageAnchor.bottom:
+        return _calcMatrixForRect(
+            Rect.fromLTWH(rect.left, rect.bottom - h, rect.width, h));
+      case PdfPageAnchor.topLeft:
+        return _calcMatrixForRect((rect.topLeft) & visibleRect.size);
+      case PdfPageAnchor.topCenter:
+        return _calcMatrixForRect(rect.topCenter & visibleRect.size);
+      case PdfPageAnchor.topRight:
+        return _calcMatrixForRect((rect.topRight) & visibleRect.size);
+      case PdfPageAnchor.centerLeft:
+        return _calcMatrixForRect(rect.centerLeft & visibleRect.size);
+      case PdfPageAnchor.center:
+        return _calcMatrixForRect(rect.center & visibleRect.size);
+      case PdfPageAnchor.centerRight:
+        return _calcMatrixForRect(rect.centerRight & visibleRect.size);
+      case PdfPageAnchor.bottomLeft:
+        return _calcMatrixForRect((rect.bottomLeft) & visibleRect.size);
+      case PdfPageAnchor.bottomCenter:
+        return _calcMatrixForRect(rect.bottomCenter & visibleRect.size);
+      case PdfPageAnchor.bottomRight:
+        return _calcMatrixForRect((rect.bottomRight) & visibleRect.size);
+      case PdfPageAnchor.all:
+        return _calcMatrixForRect(rect);
     }
-    return _calcMatrixForRect(rect);
   }
 
   Matrix4 _calcMatrixForPage({
@@ -1332,14 +1329,15 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
-  Future<void> _ensureVisible(
+  Matrix4 _calcMatrixToEnsureRectVisible(
     Rect rect, {
-    Duration duration = const Duration(milliseconds: 200),
     double margin = 0,
-  }) async {
+  }) {
     final restrictedRect =
         _txController.value.calcVisibleRect(_viewSize!, margin: margin);
-    if (restrictedRect.containsRect(rect)) return;
+    if (restrictedRect.containsRect(rect)) {
+      return _txController.value; // keep the current position
+    }
     if (rect.width <= restrictedRect.width &&
         rect.height < restrictedRect.height) {
       final intRect = Rect.fromLTWH(
@@ -1357,17 +1355,20 @@ class _PdfViewerState extends State<PdfViewer>
         restrictedRect.height,
       );
       final newRect = intRect.inflate(margin / _currentZoom);
-      await _goTo(
-        _calcMatrixForRect(newRect),
+      return _calcMatrixForRect(newRect);
+    }
+    return _calcMatrixForRect(rect);
+  }
+
+  Future<void> _ensureVisible(
+    Rect rect, {
+    Duration duration = const Duration(milliseconds: 200),
+    double margin = 0,
+  }) =>
+      _goTo(
+        _calcMatrixToEnsureRectVisible(rect),
         duration: duration,
       );
-      return;
-    }
-    await _goTo(
-      _calcMatrixForRect(rect),
-      duration: duration,
-    );
-  }
 
   Future<void> _goToArea({
     required Rect rect,
@@ -1388,7 +1389,7 @@ class _PdfViewerState extends State<PdfViewer>
     final int targetPageNumber;
     if (pageNumber < 1) {
       targetPageNumber = 1;
-    } else if (pageNumber > pageCount) {
+    } else if (pageNumber >= pageCount) {
       targetPageNumber = pageCount;
       anchor ??= widget.params.pageAnchorEnd;
     } else {
@@ -1779,6 +1780,12 @@ class PdfViewerController extends ValueListenable<Matrix4> {
 
   Matrix4 calcMatrixForRect(Rect rect, {double? zoomMax, double? margin}) =>
       _state._calcMatrixForRect(rect, zoomMax: zoomMax, margin: margin);
+
+  Matrix4 calcMatrixToEnsureRectVisible(
+    Rect rect, {
+    double margin = 0,
+  }) =>
+      _state._calcMatrixToEnsureRectVisible(rect, margin: margin);
 
   /// Set the current page number.
   ///

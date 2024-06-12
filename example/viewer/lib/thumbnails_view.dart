@@ -32,6 +32,7 @@ class ThumbnailsView extends StatelessWidget {
                           child: InkWell(
                             onTap: () => controller!.goToPage(
                               pageNumber: index + 1,
+                              anchor: PdfPageAnchor.top,
                             ),
                             child: PdfPageView(
                               document: document,
