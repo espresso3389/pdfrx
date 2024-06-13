@@ -296,19 +296,22 @@ class _MainPageState extends State<MainPage> {
                     //
                     // Link handling example
                     //
-                    // FIXME: a link with several areas (link that contains line-break) does not correctly
-                    // show the hover status
-                    linkWidgetBuilder: (context, link, size) => Material(
-                      color: Colors.blue.withOpacity(0.2),
-                      child: InkWell(
-                        onTap: () async {
-                          if (link.url != null) {
-                            navigateToUrl(link.url!);
-                          } else if (link.dest != null) {
-                            controller.goToDest(link.dest);
-                          }
-                        },
-                        hoverColor: Colors.blue.withOpacity(0.2),
+                    // GestureDetector/IgnorePointer propagate panning/zooming gestures to the viewer
+                    linkWidgetBuilder: (context, link, size) => GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: () async {
+                        if (link.url != null) {
+                          navigateToUrl(link.url!);
+                        } else if (link.dest != null) {
+                          controller.goToDest(link.dest);
+                        }
+                      },
+                      child: IgnorePointer(
+                        child: Container(
+                          color: Colors.blue.withOpacity(0.2),
+                          width: size.width,
+                          height: size.height,
+                        ),
                       ),
                     ),
                     pagePaintCallbacks: [

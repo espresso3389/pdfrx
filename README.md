@@ -223,8 +223,8 @@ To enable Link in PDF file, you should set [PdfViewerParams.linkWidgetBuilder](h
 The following fragment creates a widget that handles user's tap on link:
 
 ```dart
-linkWidgetBuilder: (context, link, size) => Material(
-  color: Colors.transparent,
+linkWidgetBuilder: (context, link, size) =>  GestureDetector(
+  behavior: HitTestBehavior.translucent,
   child: InkWell(
     onTap: () {
       // handle URL or Dest
@@ -237,7 +237,13 @@ linkWidgetBuilder: (context, link, size) => Material(
         controller.goToDest(link.dest);
       }
     },
-    hoverColor: Colors.blue.withOpacity(0.2),
+    child: IgnorePointer(
+      child: Container(
+        color: Colors.blue.withOpacity(0.2),
+        width: size.width,
+        height: size.height,
+      ),
+    ),
   ),
 ),
 ```
