@@ -161,7 +161,8 @@ class _TextSearchViewState extends State<TextSearchView> {
             itemCount: _listIndexToMatchIndex.length,
             itemBuilder: (context, index) {
               final matchIndex = _listIndexToMatchIndex[index];
-              if (matchIndex >= 0) {
+              if (matchIndex >= 0 &&
+                  matchIndex < widget.textSearcher.matches.length) {
                 final match = widget.textSearcher.matches[matchIndex];
                 return SearchResultTile(
                   key: ValueKey(index),
