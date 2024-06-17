@@ -223,25 +223,29 @@ To enable Link in PDF file, you should set [PdfViewerParams.linkWidgetBuilder](h
 The following fragment creates a widget that handles user's tap on link:
 
 ```dart
-linkWidgetBuilder: (context, link, size) =>  GestureDetector(
-  behavior: HitTestBehavior.translucent,
-  child: InkWell(
-    onTap: () {
-      // handle URL or Dest
-      if (link.url != null) {
-        // TODO: implement your own isSecureUrl by yourself...
-        if (await isSecureUrl(link.url!)) {
-          launchUrl(link.url!);
+linkWidgetBuilder: (context, link, size) => MouseRegion(
+  cursor: SystemMouseCursors.click,
+  hitTestBehavior: HitTestBehavior.translucent,
+  GestureDetector(
+    behavior: HitTestBehavior.translucent,
+    child: InkWell(
+      onTap: () {
+        // handle URL or Dest
+        if (link.url != null) {
+          // TODO: implement your own isSecureUrl by yourself...
+          if (await isSecureUrl(link.url!)) {
+            launchUrl(link.url!);
+          }
+        } else if (link.dest != null) {
+          controller.goToDest(link.dest);
         }
-      } else if (link.dest != null) {
-        controller.goToDest(link.dest);
-      }
-    },
-    child: IgnorePointer(
-      child: Container(
-        color: Colors.blue.withOpacity(0.2),
-        width: size.width,
-        height: size.height,
+      },
+      child: IgnorePointer(
+        child: Container(
+          color: Colors.blue.withOpacity(0.2),
+          width: size.width,
+          height: size.height,
+        ),
       ),
     ),
   ),
