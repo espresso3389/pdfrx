@@ -1,3 +1,7 @@
+# 1.0.69
+
+- FIXED: Small Page Size PDF Not Scaling to Fit Screen (#174)
+
 # 1.0.68
 
 - Introduces PdfViewerController.setCurrentPageNumber (#152)
