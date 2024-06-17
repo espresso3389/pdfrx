@@ -252,6 +252,22 @@ class _MainPageState extends State<MainPage> {
                     // Scroll-thumbs example
                     //
                     viewerOverlayBuilder: (context, size) => [
+                      //
+                      // Double-tap to zoom
+                      //
+                      GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onDoubleTap: () {
+                          controller.zoomUp(loop: true);
+                        },
+                        child: IgnorePointer(
+                          child:
+                              SizedBox(width: size.width, height: size.height),
+                        ),
+                      ),
+                      //
+                      // Scroll-thumbs example
+                      //
                       // Show vertical scroll thumb on the right; it has page number on it
                       PdfViewerScrollThumb(
                         controller: controller,
