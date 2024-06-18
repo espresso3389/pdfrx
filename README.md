@@ -81,7 +81,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^1.0.67
+  pdfrx: ^1.0.69
 ```
 
 ### Windows
@@ -109,14 +109,14 @@ PdfJsConfiguration.configuration = const PdfJsConfiguration(
 
 Please note that pdf.js 4.X is not supported yet and use 3.X versions.
 
-## macOS
+### macOS
 
 For macOS, Flutter app restrict its capability by enabling [App Sandbox](https://developer.apple.com/documentation/security/app_sandbox) by default. You can change the behavior by editing your app's entitlements files depending on your configuration. See [the discussion below](#deal-with-app-sandbox).
 
 - [`macos/Runner/Release.entitlements`](https://github.com/espresso3389/flutter_pdf_render/blob/master/example/macos/Runner/Release.entitlements)
 - [`macos/Runner/DebugProfile.entitlements`](https://github.com/espresso3389/flutter_pdf_render/blob/master/example/macos/Runner/DebugProfile.entitlements)
 
-### Deal with App Sandbox
+#### Deal with App Sandbox
 
 The easiest option to access files on your disk, set [`com.apple.security.app-sandbox`](https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_security_app-sandbox) to false on your entitlements file though it is not recommended for releasing apps because it completely disables [App Sandbox](https://developer.apple.com/documentation/security/app_sandbox).
 
@@ -223,25 +223,29 @@ To enable Link in PDF file, you should set [PdfViewerParams.linkWidgetBuilder](h
 The following fragment creates a widget that handles user's tap on link:
 
 ```dart
-linkWidgetBuilder: (context, link, size) =>  GestureDetector(
-  behavior: HitTestBehavior.translucent,
-  child: InkWell(
-    onTap: () {
-      // handle URL or Dest
-      if (link.url != null) {
-        // TODO: implement your own isSecureUrl by yourself...
-        if (await isSecureUrl(link.url!)) {
-          launchUrl(link.url!);
+linkWidgetBuilder: (context, link, size) => MouseRegion(
+  cursor: SystemMouseCursors.click,
+  hitTestBehavior: HitTestBehavior.translucent,
+  GestureDetector(
+    behavior: HitTestBehavior.translucent,
+    child: InkWell(
+      onTap: () {
+        // handle URL or Dest
+        if (link.url != null) {
+          // TODO: implement your own isSecureUrl by yourself...
+          if (await isSecureUrl(link.url!)) {
+            launchUrl(link.url!);
+          }
+        } else if (link.dest != null) {
+          controller.goToDest(link.dest);
         }
-      } else if (link.dest != null) {
-        controller.goToDest(link.dest);
-      }
-    },
-    child: IgnorePointer(
-      child: Container(
-        color: Colors.blue.withOpacity(0.2),
-        width: size.width,
-        height: size.height,
+      },
+      child: IgnorePointer(
+        child: Container(
+          color: Colors.blue.withOpacity(0.2),
+          width: size.width,
+          height: size.height,
+        ),
       ),
     ),
   ),
@@ -264,7 +268,7 @@ onViewerReady: (document, controller) async {
 },
 ```
 
-[PdfOutlineNode](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfOutlineNode-class.html) is tree structured data and for more information, see the usage on [example code](https://github.com/espresso3389/pdfrx/blob/master/examples/viewer/lib/outline_view.dart).
+[PdfOutlineNode](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfOutlineNode-class.html) is tree structured data and for more information, see the usage on [example code](https://github.com/espresso3389/pdfrx/blob/master/example/viewer/lib/outline_view.dart).
 
 ### Horizontal Scroll View
 
@@ -561,4 +565,4 @@ PdfDocumentViewBuilder.asset(
 
 ## PdfDocument Management
 
-[PdfDocumentViewBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentViewBuilder-class.html) can accept [PdfDocumentRef](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRef-class.html) from [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) to safely share the same [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) instance. For more information, see [examples/viewer/lib/thumbnails_view.dart](examples/viewer/lib/thumbnails_view.dart).
+[PdfDocumentViewBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentViewBuilder-class.html) can accept [PdfDocumentRef](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRef-class.html) from [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) to safely share the same [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) instance. For more information, see [example/viewer/lib/thumbnails_view.dart](example/viewer/lib/thumbnails_view.dart).

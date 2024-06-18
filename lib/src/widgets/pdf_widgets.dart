@@ -240,7 +240,9 @@ class _PdfPageViewState extends State<PdfPageView> {
             Container(
               decoration: widget.decoration ??
                   BoxDecoration(
-                    color: widget.backgroundColor ?? Colors.white,
+                    color: pageImage == null
+                        ? widget.backgroundColor ?? Colors.white
+                        : Colors.transparent,
                     boxShadow: const [
                       BoxShadow(
                         color: Colors.black54,
@@ -267,6 +269,8 @@ class _PdfPageViewState extends State<PdfPageView> {
         if (_pageSize != null) {
           final decorationBuilder =
               widget.decorationBuilder ?? _defaultDecorationBuilder;
+          final scale = min(constraints.maxWidth / _pageSize!.width,
+              constraints.maxHeight / _pageSize!.height);
           return decorationBuilder(
             context,
             _pageSize!,
@@ -274,6 +278,9 @@ class _PdfPageViewState extends State<PdfPageView> {
             _image != null
                 ? RawImage(
                     image: _image,
+                    width: _pageSize!.width * scale,
+                    height: _pageSize!.height * scale,
+                    fit: BoxFit.fill,
                   )
                 : null,
           );
