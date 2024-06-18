@@ -218,7 +218,8 @@ class _PdfViewerState extends State<PdfViewer>
   final _pageImagePartialRenderingRequests =
       <int, _PdfPartialImageRenderingRequest>{};
 
-  final _stream = BehaviorSubject<Matrix4>();
+  // Changes to the stream rebuilds the viewer
+  final _updateStream = BehaviorSubject<Matrix4>();
 
   @override
   void initState() {
@@ -343,7 +344,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _onMatrixChanged() {
-    _stream.add(_txController.value);
+    _updateStream.add(_txController.value);
   }
 
   @override
@@ -405,8 +406,9 @@ class _PdfViewerState extends State<PdfViewer>
         child: Focus(
           onKeyEvent: _onKeyEvent,
           child: StreamBuilder(
-              stream: _stream,
+              stream: _updateStream,
               builder: (context, snapshot) {
+                _relayoutPages();
                 _determineCurrentPage();
                 _calcAlternativeFitScale();
                 _calcZoomStopTable();
@@ -946,8 +948,7 @@ class _PdfViewerState extends State<PdfViewer>
         _document!.pages, widget.params);
   }
 
-  static PdfPageLayout _layoutPages(
-      List<PdfPage> pages, PdfViewerParams params) {
+  PdfPageLayout _layoutPages(List<PdfPage> pages, PdfViewerParams params) {
     final width =
         pages.fold(0.0, (w, p) => max(w, p.width)) + params.margin * 2;
 
@@ -967,7 +968,7 @@ class _PdfViewerState extends State<PdfViewer>
     );
   }
 
-  void _invalidate() => _stream.add(_txController.value);
+  void _invalidate() => _updateStream.add(_txController.value);
 
   Future<void> _requestPageImageCached(PdfPage page, double scale) async {
     final width = page.width * scale;
