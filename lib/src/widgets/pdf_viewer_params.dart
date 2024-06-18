@@ -60,6 +60,7 @@ class PdfViewerParams {
     this.onTextSelectionChange,
     this.perPageSelectionAreaInjector,
     this.forceReload = false,
+    this.interactionEndFrictionCoefficient = _kDrag,
   });
 
   /// Margin around the page.
@@ -213,6 +214,10 @@ class PdfViewerParams {
 
   /// Function called when the current page is changed.
   final PdfPageChangedCallback? onPageChanged;
+
+  // Used as the coefficient of friction in the inertial translation animation.
+  // This value was eyeballed to give a feel similar to Google Photos.
+  static const double _kDrag = 0.0000135;
 
   /// Function to customize the rendering scale of the page.
   ///
