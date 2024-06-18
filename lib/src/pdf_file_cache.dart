@@ -28,6 +28,7 @@ abstract class PdfFileCache {
 
   /// Number of bytes cached.
   int get cachedBytes {
+    if (!isInitialized) return 0;
     var countCached = 0;
     for (int i = 0; i < totalBlocks; i++) {
       if (isCached(i)) {
@@ -342,7 +343,7 @@ Future<PdfDocument> pdfDocumentFromUri(
 }) async {
   final startTime = reportCallback != null ? DateTime.now() : null;
   void report() {
-    if (reportCallback != null) {
+    if (reportCallback != null && cache?.isInitialized == true) {
       reportCallback(
         cache?.cachedBytes ?? 0,
         cache?.fileSize ?? 0,
