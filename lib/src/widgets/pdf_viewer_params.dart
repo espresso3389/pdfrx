@@ -38,6 +38,7 @@ class PdfViewerParams {
     this.onInteractionEnd,
     this.onInteractionStart,
     this.onInteractionUpdate,
+    this.interactionEndFrictionCoefficient = _kDrag,
     this.onDocumentChanged,
     this.calculateInitialPageNumber,
     this.calculateCurrentPageNumber,
@@ -60,7 +61,6 @@ class PdfViewerParams {
     this.onTextSelectionChange,
     this.perPageSelectionAreaInjector,
     this.forceReload = false,
-    this.interactionEndFrictionCoefficient = _kDrag,
   });
 
   /// Margin around the page.
@@ -191,6 +191,13 @@ class PdfViewerParams {
   /// See [InteractiveViewer.onInteractionUpdate] for details.
   final GestureScaleUpdateCallback? onInteractionUpdate;
 
+  /// See [InteractiveViewer.interactionEndFrictionCoefficient] for details.
+  final double interactionEndFrictionCoefficient;
+
+  // Used as the coefficient of friction in the inertial translation animation.
+  // This value was eyeballed to give a feel similar to Google Photos.
+  static const double _kDrag = 0.0000135;
+
   /// Function to notify that the document is loaded/changed.
   ///
   /// The function is called even if the document is null (it means the document is unloaded).
@@ -214,10 +221,6 @@ class PdfViewerParams {
 
   /// Function called when the current page is changed.
   final PdfPageChangedCallback? onPageChanged;
-
-  // Used as the coefficient of friction in the inertial translation animation.
-  // This value was eyeballed to give a feel similar to Google Photos.
-  static const double _kDrag = 0.0000135;
 
   /// Function to customize the rendering scale of the page.
   ///
@@ -406,6 +409,8 @@ class PdfViewerParams {
         other.pageDropShadow != pageDropShadow ||
         other.panEnabled != panEnabled ||
         other.scaleEnabled != scaleEnabled ||
+        other.interactionEndFrictionCoefficient !=
+            interactionEndFrictionCoefficient ||
         other.scrollByMouseWheel != scrollByMouseWheel ||
         other.enableKeyboardNavigation != enableKeyboardNavigation ||
         other.scrollByArrowKey != scrollByArrowKey ||
@@ -439,6 +444,8 @@ class PdfViewerParams {
         other.onInteractionEnd == onInteractionEnd &&
         other.onInteractionStart == onInteractionStart &&
         other.onInteractionUpdate == onInteractionUpdate &&
+        other.interactionEndFrictionCoefficient ==
+            interactionEndFrictionCoefficient &&
         other.onDocumentChanged == onDocumentChanged &&
         other.calculateInitialPageNumber == calculateInitialPageNumber &&
         other.calculateCurrentPageNumber == calculateCurrentPageNumber &&
@@ -484,6 +491,7 @@ class PdfViewerParams {
         onInteractionEnd.hashCode ^
         onInteractionStart.hashCode ^
         onInteractionUpdate.hashCode ^
+        interactionEndFrictionCoefficient.hashCode ^
         onDocumentChanged.hashCode ^
         calculateInitialPageNumber.hashCode ^
         calculateCurrentPageNumber.hashCode ^
