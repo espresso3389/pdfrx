@@ -57,6 +57,7 @@ abstract class PdfDocumentFactory {
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
     Map<String, String>? headers,
+    bool withCredentials = false,
   });
 
   /// Singleton [PdfDocumentFactory] instance.
@@ -224,6 +225,7 @@ abstract class PdfDocument {
   /// [reportCallback] is called when the download is completed (Not supported on Web).
   /// [preferRangeAccess] to prefer range access to download the PDF (Not supported on Web).
   /// [headers] is used to specify additional HTTP headers especially for authentication/authorization.
+  /// [withCredentials] is used to specify whether to include credentials in the request (Only supported on Web).
   static Future<PdfDocument> openUri(
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
@@ -232,6 +234,7 @@ abstract class PdfDocument {
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
     Map<String, String>? headers,
+    bool withCredentials = false,
   }) =>
       PdfDocumentFactory.instance.openUri(
         uri,
@@ -241,6 +244,7 @@ abstract class PdfDocument {
         reportCallback: reportCallback,
         preferRangeAccess: preferRangeAccess,
         headers: headers,
+        withCredentials: withCredentials,
       );
 
   /// Pages.

@@ -99,6 +99,7 @@ class PdfViewer extends StatefulWidget {
   /// [initialPageNumber] is the page number to show initially.
   /// [preferRangeAccess] to prefer range access to download the PDF. The default is false.
   /// [headers] is used to specify additional HTTP headers especially for authentication/authorization.
+  /// [withCredentials] is used to specify whether to include credentials in the request (Only supported on Web).
   PdfViewer.uri(
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
@@ -109,12 +110,14 @@ class PdfViewer extends StatefulWidget {
     this.initialPageNumber = 1,
     bool preferRangeAccess = false,
     Map<String, String>? headers,
+    bool withCredentials = false,
   }) : documentRef = PdfDocumentRefUri(
           uri,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
           preferRangeAccess: preferRangeAccess,
           headers: headers,
+          withCredentials: withCredentials,
         );
 
   /// Create [PdfViewer] from a byte data.

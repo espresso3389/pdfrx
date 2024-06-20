@@ -228,6 +228,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
     Map<String, String>? headers,
+    bool withCredentials = false,
   }) =>
       pdfDocumentFromUri(
         uri,

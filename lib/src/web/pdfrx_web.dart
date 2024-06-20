@@ -102,12 +102,14 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
     Map<String, String>? headers,
+    bool withCredentials = false,
   }) =>
       _openByFunc(
         (password) => pdfjsGetDocument(
           uri.toString(),
           password: password,
           headers: headers,
+          withCredentials: withCredentials,
         ),
         sourceName: uri.toString(),
         passwordProvider: passwordProvider,

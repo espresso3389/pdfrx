@@ -129,6 +129,7 @@ class PdfDocumentRefUri extends PdfDocumentRef
     super.autoDispose = true,
     this.preferRangeAccess = false,
     this.headers,
+    this.withCredentials = false,
   });
 
   /// The URI to load the document.
@@ -143,6 +144,9 @@ class PdfDocumentRefUri extends PdfDocumentRef
 
   /// Additional HTTP headers especially for authentication/authorization.
   final Map<String, String>? headers;
+
+  /// Whether to include credentials in the request (Only supported on Web).
+  final bool withCredentials;
 
   @override
   String get sourceName => uri.toString();
@@ -160,6 +164,7 @@ class PdfDocumentRefUri extends PdfDocumentRef
         reportCallback: reportCallback,
         preferRangeAccess: preferRangeAccess,
         headers: headers,
+        withCredentials: withCredentials,
       );
 
   @override
