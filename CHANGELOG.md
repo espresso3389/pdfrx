@@ -1,3 +1,8 @@
+# 1.0.70
+
+- Add PdfViewerParams.interactionEndFrictionCoefficient (#176)
+- Minor fix for downloading cache
+
 # 1.0.69
 
 - FIXED: Small Page Size PDF Not Scaling to Fit Screen (#174)

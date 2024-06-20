@@ -40,7 +40,6 @@ extension type _PdfjsDocumentInitParameters._(JSObject _) implements JSObject {
     JSAny? httpHeaders,
     bool? withCredentials,
     String? password,
-    int? length,
     String? cMapUrl,
     bool? cMapPacked,
     bool? useSystemFonts,
@@ -52,7 +51,6 @@ extension type _PdfjsDocumentInitParameters._(JSObject _) implements JSObject {
   external JSAny? get httpHeaders;
   external bool? get withCredentials;
   external String? get password;
-  external int? get length;
   external String? get cMapUrl;
   external bool? get cMapPacked;
   external bool? get useSystemFonts;
