@@ -429,7 +429,8 @@ class _PdfViewerState extends State<PdfViewer>
                       onInteractionEnd: widget.params.onInteractionEnd,
                       onInteractionStart: widget.params.onInteractionStart,
                       onInteractionUpdate: widget.params.onInteractionUpdate,
-                      interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
+                      interactionEndFrictionCoefficient:
+                          widget.params.interactionEndFrictionCoefficient,
                       onWheelDelta: widget.params.scrollByMouseWheel != null
                           ? _onWheelDelta
                           : null,
@@ -1359,7 +1360,7 @@ class _PdfViewerState extends State<PdfViewer>
       final newRect = intRect.inflate(margin / _currentZoom);
       return _calcMatrixForRect(newRect);
     }
-    return _calcMatrixForRect(rect);
+    return _calcMatrixForRect(rect, margin: margin);
   }
 
   Future<void> _ensureVisible(
@@ -1368,7 +1369,7 @@ class _PdfViewerState extends State<PdfViewer>
     double margin = 0,
   }) =>
       _goTo(
-        _calcMatrixToEnsureRectVisible(rect),
+        _calcMatrixToEnsureRectVisible(rect, margin: margin),
         duration: duration,
       );
 
