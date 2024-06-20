@@ -1,6 +1,6 @@
 name: pdfrx
 description: pdfrx is a rich and fast PDF viewer implementation built on the top of pdfium. The plugin supports Android, iOS, Windows, macOS, Linux, and Web.
-version: 1.0.69
+version: 1.0.70
 homepage: https://github.com/espresso3389/pdfrx
 
 environment:
@@ -17,7 +17,8 @@ dependencies:
   http: ^1.2.1
   path: ^1.9.0
   path_provider: ^2.1.3
-  rxdart: ^0.28.0
+  # rxdart 0.27.7 to keep compatibility with other plugins
+  rxdart: ^0.27.7
   synchronized: ^3.1.0
   url_launcher: ^6.3.0
   vector_math: ^2.1.4

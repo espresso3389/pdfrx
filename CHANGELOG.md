@@ -1,7 +1,9 @@
 # 1.0.70
 
+- PdfViewer calls re-layout logic on every zoom ratio changes (#131)
 - Add PdfViewerParams.interactionEndFrictionCoefficient (#176)
 - Minor fix for downloading cache
+- rxdart gets back to 0.27.7 because 0.28.0 causes incompatibility with several other plugins...
 
 # 1.0.69
 
