@@ -1,3 +1,8 @@
+# 1.0.71
+
+- Introduces withCredentials for Web to download PDF file using current session credentials (Cookie) (#182)
+- FIXED: Re-download logic error that causes 416 on certain web site (#183)
+
 # 1.0.70
 
 - PdfViewer calls re-layout logic on every zoom ratio changes (#131)
