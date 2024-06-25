@@ -78,11 +78,17 @@ class PdfDocumentViewBuilder extends StatefulWidget {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     bool autoDispose = true,
+    bool preferRangeAccess = false,
+    Map<String, String>? headers,
+    bool withCredentials = false,
   }) : documentRef = PdfDocumentRefUri(
           uri,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
           autoDispose: autoDispose,
+          preferRangeAccess: preferRangeAccess,
+          headers: headers,
+          withCredentials: withCredentials,
         );
 
   /// A reference to the PDF document.

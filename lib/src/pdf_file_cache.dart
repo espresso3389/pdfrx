@@ -359,8 +359,14 @@ Future<PdfDocument> pdfDocumentFromUri(
     if (!cache.isInitialized) {
       cache.setBlockSize(blockSize ?? PdfFileCache.defaultBlockSize);
       final result = await _downloadBlock(
-          httpClient, uri, cache, progressCallback, 0,
-          useRangeAccess: useRangeAccess, headers: headers);
+        httpClient,
+        uri,
+        cache,
+        progressCallback,
+        0,
+        useRangeAccess: useRangeAccess,
+        headers: headers,
+      );
       if (result.isFullDownload) {
         return await PdfDocument.openFile(
           cache.filePath,
@@ -381,6 +387,7 @@ Future<PdfDocument> pdfDocumentFromUri(
           progressCallback,
           0,
           addCacheControlHeaders: true,
+          useRangeAccess: useRangeAccess,
           headers: headers,
         );
         if (result.isFullDownload) {
