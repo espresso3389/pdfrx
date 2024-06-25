@@ -391,11 +391,10 @@ class _MainPageState extends State<MainPage> {
 
   void _addCurrentSelectionToMarkers(Color color) {
     if (controller.isReady &&
-        controller.pageNumber != null &&
         _selectedText != null &&
         _selectedText!.isNotEmpty) {
       _markers
-          .putIfAbsent(controller.pageNumber!, () => [])
+          .putIfAbsent(_selectedText!.pageNumber, () => [])
           .add(Marker(color, _selectedText!));
       setState(() {});
     }
