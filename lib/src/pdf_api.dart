@@ -326,6 +326,7 @@ abstract class PdfPage {
   Future<List<PdfLink>> loadLinks();
 }
 
+/// Page rotation.
 enum PdfPageRotation {
   none,
   clockwise90,

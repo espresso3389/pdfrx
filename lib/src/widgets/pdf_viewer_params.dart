@@ -640,10 +640,17 @@ typedef PerPageSelectionAreaInjector = Widget Function(
 /// And the anchor determines which part of the page should be shown in the viewer when [PdfViewerController.goToPage]
 /// is called.
 ///
-/// If you prefer to show the top of the page, [PdfPageAnchor.top] will do that.
+/// If you prefer to show the top of the page, [top] will do that.
 ///
 /// If you prefer to show whole the page even if the page will be zoomed down to fit into the viewer,
-/// [PdfPageAnchor.all] will do that.
+/// [all] will do that.
+///
+/// Basically, [top], [left], [right], [bottom] anchors are used to make page edge line of that side visible inside
+/// the view area.
+///
+/// [topLeft], [topCenter], [topRight], [centerLeft], [center], [centerRight], [bottomLeft], [bottomCenter],
+/// and [bottomRight] are used to make the "point" visible inside the view area.
+///
 enum PdfPageAnchor {
   top,
   left,
