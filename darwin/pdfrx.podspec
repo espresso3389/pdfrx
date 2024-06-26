@@ -6,7 +6,7 @@ lib_tag = 'pdfium-apple-v7'
 
 Pod::Spec.new do |s|
   s.name             = 'pdfrx'
-  s.version          = '0.0.1'
+  s.version          = '0.0.2'
   s.summary          = 'Yet another PDF renderer for Flutter using PDFium.'
   s.description      = <<-DESC
   Yet another PDF renderer for Flutter using PDFium.
@@ -36,8 +36,18 @@ Pod::Spec.new do |s|
   s.prepare_command = <<-CMD
     mkdir -p pdfium/.lib/#{lib_tag}
     cd pdfium/.lib/#{lib_tag}
-    curl -Lo ios.tgz https://github.com/espresso3389/pdfrx/releases/download/#{lib_tag}/pdfium-ios.tgz && tar xzf ios.tgz && rm ios.tgz
-    curl -Lo macos.tgz https://github.com/espresso3389/pdfrx/releases/download/#{lib_tag}/pdfium-macos.tgz && tar xzf macos.tgz && rm macos.tgz
+    if [ ! -f ios.tgz ]; then
+      curl -Lo ios.tgz https://github.com/espresso3389/pdfrx/releases/download/#{lib_tag}/pdfium-ios.tgz
+    fi
+    if [ ! -d ios ]; then
+      tar xzf ios.tgz
+    fi
+    if [ ! -f macos.tgz ]; then
+      curl -Lo macos.tgz https://github.com/espresso3389/pdfrx/releases/download/#{lib_tag}/pdfium-macos.tgz
+    fi
+    if [ ! -d macos ]; then
+      tar xzf macos.tgz
+    fi
   CMD
 
   s.swift_version = '5.0'
