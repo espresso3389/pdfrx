@@ -1,18 +1,3 @@
-diff --git a/BUILD.gn b/BUILD.gn
-index 42a2c73db..a6002b962 100644
---- a/BUILD.gn
-+++ b/BUILD.gn
-@@ -228,6 +228,10 @@ config("pdfium_common_config") {
-       "-Wno-return-type",
-     ]
-   }
-+
-+  cflags += [
-+    "-Wno-unknown-warning-option"
-+  ]
- }
- 
- config("pdfium_implementation_config") {
 diff --git a/public/fpdfview.h b/public/fpdfview.h
 index c066e6cb4..fbfcd9670 100644
 --- a/public/fpdfview.h
