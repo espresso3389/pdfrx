@@ -1,3 +1,12 @@
+# 1.0.72
+
+- FIXED: Example code is not compilable
+- FIXED: Marker could not be placed correctly on the example code (#189)
+- FIXED: Updated podspec file not to download the same archive again and again (#154)
+- Introduces chromium/6555 for all platforms
+  - Darwin uses pdfium-apple-v9 (chromium/6555)
+  - Improves memory consumption by pdfium's internal caching feature (#184)
+
 # 1.0.71
 
 - Introduces withCredentials for Web to download PDF file using current session credentials (Cookie) (#182)
