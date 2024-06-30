@@ -90,9 +90,9 @@ typedef PdfDownloadReportCallback = void Function(
 /// Function to provide password for encrypted PDF.
 ///
 /// The function is called when PDF requires password.
-/// It is repeatedly called until the function returns null or the password is correct.
+/// It is repeatedly called until the function returns null or a valid password.
 ///
-/// [createOneTimePasswordProvider] is a helper function to create [PdfPasswordProvider] that returns the password
+/// [createSimplePasswordProvider] is a helper function to create [PdfPasswordProvider] that returns the password
 /// only once.
 typedef PdfPasswordProvider = FutureOr<String?> Function();
 
@@ -100,7 +100,7 @@ typedef PdfPasswordProvider = FutureOr<String?> Function();
 ///
 /// The returned [PdfPasswordProvider] returns the password only once and returns null afterwards.
 /// If [password] is null, the returned [PdfPasswordProvider] returns null always.
-PdfPasswordProvider createOneTimePasswordProvider(String? password) {
+PdfPasswordProvider createSimplePasswordProvider(String? password) {
   return () {
     final ret = password;
     password = null;
