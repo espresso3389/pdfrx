@@ -43,6 +43,7 @@ class PdfViewerParams {
     this.calculateInitialPageNumber,
     this.calculateCurrentPageNumber,
     this.onViewerReady,
+    this.onViewSizeChanged,
     this.onPageChanged,
     this.getPageRenderingScale,
     this.scrollByMouseWheel = 0.2,
@@ -208,6 +209,34 @@ class PdfViewerParams {
   ///
   /// Unlike [PdfViewerDocumentChangedCallback], this function is called after the viewer is ready to interact.
   final PdfViewerReadyCallback? onViewerReady;
+
+  /// Function to be notified when the viewer size is changed.
+  ///
+  /// Please note that the function might be called during widget build,
+  /// so you should not synchronously call functions that may cause rebuild;
+  /// instead, you can use [Future.microtask] or [Future.delayed] to schedule the function call after the build.
+  ///
+  /// The following code illustrates how to keep the center position during device screen rotation:
+  ///
+  /// ```dart
+  /// onViewSizeChanged: (viewSize, oldViewSize, controller) {
+  ///   if (oldViewSize != null) {
+  ///   // The most important thing here is that the transformation matrix
+  ///   // is not changed on the view change.
+  ///   final centerPosition =
+  ///       controller.value.calcPosition(oldViewSize);
+  ///   final newMatrix =
+  ///       controller.calcMatrixFor(centerPosition);
+  ///   // Don't change the matrix in sync; the callback might be called
+  ///   // during widget-tree's build process.
+  ///   Future.delayed(
+  ///     const Duration(milliseconds: 200),
+  ///     () => controller.goTo(newMatrix),
+  ///   );
+  ///   }
+  /// },
+  /// ```
+  final PdfViewerViewSizeChanged? onViewSizeChanged;
 
   /// Function to calculate the initial page number.
   ///
@@ -450,6 +479,7 @@ class PdfViewerParams {
         other.calculateInitialPageNumber == calculateInitialPageNumber &&
         other.calculateCurrentPageNumber == calculateCurrentPageNumber &&
         other.onViewerReady == onViewerReady &&
+        other.onViewSizeChanged == onViewSizeChanged &&
         other.onPageChanged == onPageChanged &&
         other.getPageRenderingScale == getPageRenderingScale &&
         other.scrollByMouseWheel == scrollByMouseWheel &&
@@ -496,6 +526,7 @@ class PdfViewerParams {
         calculateInitialPageNumber.hashCode ^
         calculateCurrentPageNumber.hashCode ^
         onViewerReady.hashCode ^
+        onViewSizeChanged.hashCode ^
         onPageChanged.hashCode ^
         getPageRenderingScale.hashCode ^
         scrollByMouseWheel.hashCode ^
@@ -538,6 +569,16 @@ typedef PdfViewerCalculateCurrentPageNumberFunction = int? Function(
 ///
 typedef PdfViewerReadyCallback = void Function(
   PdfDocument document,
+  PdfViewerController controller,
+);
+
+/// Function to be called when the viewer view size is changed.
+///
+/// [viewSize] is the new view size.
+/// [oldViewSize] is the previous view size.
+typedef PdfViewerViewSizeChanged = void Function(
+  Size viewSize,
+  Size? oldViewSize,
   PdfViewerController controller,
 );
 

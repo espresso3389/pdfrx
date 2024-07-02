@@ -374,7 +374,7 @@ class _PdfViewerState extends State<PdfViewer>
       );
     }
     return LayoutBuilder(builder: (context, constraints) {
-      if (_calcViewSizeAndCoverScale(
+      if (_updateViewSizeAndCoverScale(
           Size(constraints.maxWidth, constraints.maxHeight))) {
         if (_initialized) {
           Future.microtask(
@@ -533,12 +533,20 @@ class _PdfViewerState extends State<PdfViewer>
     _txController.value = m;
   }
 
-  bool _calcViewSizeAndCoverScale(Size viewSize) {
+  bool _updateViewSizeAndCoverScale(Size viewSize) {
     if (_viewSize != viewSize) {
+      final oldSize = _viewSize;
       _viewSize = viewSize;
       final s1 = viewSize.width / _layout!.documentSize.width;
       final s2 = viewSize.height / _layout!.documentSize.height;
       _coverScale = max(s1, s2);
+      if (_controller != null && widget.params.onViewSizeChanged != null) {
+        widget.params.onViewSizeChanged!(
+          viewSize,
+          oldSize,
+          _controller!,
+        );
+      }
       return true;
     }
     return false;
@@ -1125,7 +1133,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// Restrict matrix to the safe range.
   Matrix4 _makeMatrixInSafeRange(Matrix4 newValue) {
-    _calcViewSizeAndCoverScale(_viewSize!);
+    _updateViewSizeAndCoverScale(_viewSize!);
 
     final position = newValue.calcPosition(_viewSize!);
 
@@ -1139,12 +1147,17 @@ class _PdfViewerState extends State<PdfViewer>
     final x = position.dx.range(hw, _layout!.documentSize.width - hw);
     final y = position.dy.range(hh, _layout!.documentSize.height - hh);
 
-    return _calcMatrixFor(Offset(x, y), zoom: newZoom);
+    return _calcMatrixFor(Offset(x, y), zoom: newZoom, viewSize: _viewSize!);
   }
 
-  Matrix4 _calcMatrixFor(Offset position, {required double zoom}) {
-    final hw = _viewSize!.width / 2;
-    final hh = _viewSize!.height / 2;
+  /// Calculate matrix to center the specified position.
+  Matrix4 _calcMatrixFor(
+    Offset position, {
+    required double zoom,
+    required Size viewSize,
+  }) {
+    final hw = viewSize.width / 2;
+    final hh = viewSize.height / 2;
 
     return Matrix4.compose(
         vec.Vector3(
@@ -1164,7 +1177,7 @@ class _PdfViewerState extends State<PdfViewer>
     var zoom = min((_viewSize!.width - margin * 2) / rect.width,
         (_viewSize!.height - margin * 2) / rect.height);
     if (zoomMax != null && zoom > zoomMax) zoom = zoomMax;
-    return _calcMatrixFor(rect.center, zoom: zoom);
+    return _calcMatrixFor(rect.center, zoom: zoom, viewSize: _viewSize!);
   }
 
   Matrix4 _calcMatrixForArea({
@@ -1256,9 +1269,11 @@ class _PdfViewerState extends State<PdfViewer>
           final hw = _viewSize!.width / 2 / zoom;
           final hh = _viewSize!.height / 2 / zoom;
           return _calcMatrixFor(
-              pageRect.topLeft
-                  .translate(calcX(params[0]) + hw, calcY(params[1]) + hh),
-              zoom: zoom);
+            pageRect.topLeft
+                .translate(calcX(params[0]) + hw, calcY(params[1]) + hh),
+            zoom: zoom,
+            viewSize: _viewSize!,
+          );
         }
         break;
       case PdfDestCommand.fit:
@@ -1273,6 +1288,7 @@ class _PdfViewerState extends State<PdfViewer>
           return _calcMatrixFor(
             pageRect.topLeft.translate(0, calcY(params[0]) + hh),
             zoom: _currentZoom,
+            viewSize: _viewSize!,
           );
         }
         break;
@@ -1283,6 +1299,7 @@ class _PdfViewerState extends State<PdfViewer>
           return _calcMatrixFor(
             pageRect.topLeft.translate(calcX(params[0]) + hw, 0),
             zoom: _currentZoom,
+            viewSize: _viewSize!,
           );
         }
         break;
@@ -1449,7 +1466,7 @@ class _PdfViewerState extends State<PdfViewer>
     Offset position,
     double zoom,
   ) =>
-      _goTo(_calcMatrixFor(position, zoom: zoom));
+      _goTo(_calcMatrixFor(position, zoom: zoom, viewSize: _viewSize!));
 
   Offset get _centerPosition => _txController.value.calcPosition(_viewSize!);
 
@@ -1779,8 +1796,17 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   }) =>
       _state._ensureVisible(rect, duration: duration, margin: margin);
 
-  Matrix4 calcMatrixFor(Offset position, {double? zoom}) =>
-      _state._calcMatrixFor(position, zoom: zoom ?? currentZoom);
+  /// Calculate the matrix to center the specified position.
+  Matrix4 calcMatrixFor(
+    Offset position, {
+    double? zoom,
+    Size? viewSize,
+  }) =>
+      _state._calcMatrixFor(
+        position,
+        zoom: zoom ?? currentZoom,
+        viewSize: viewSize ?? this.viewSize,
+      );
 
   Offset get centerPosition => value.calcPosition(viewSize);
 
@@ -1868,10 +1894,19 @@ extension PdfMatrix4Ext on Matrix4 {
 
   set y(double value) => yZoomed = value * zoom;
 
+  /// Calculate the position of the matrix based on the specified view size.
+  ///
+  /// Because [Matrix4] does not have the information of the view size,
+  /// this function calculates the position based on the specified view size.
   Offset calcPosition(Size viewSize) =>
       Offset((viewSize.width / 2 - xZoomed), (viewSize.height / 2 - yZoomed)) /
       zoom;
 
+  /// Calculate the visible rectangle based on the specified view size.
+  ///
+  /// [margin] adds extra margin to the area.
+  /// Because [Matrix4] does not have the information of the view size,
+  /// this function calculates the visible rectangle based on the specified view size.
   Rect calcVisibleRect(Size viewSize, {double margin = 0}) => Rect.fromCenter(
       center: calcPosition(viewSize),
       width: (viewSize.width - margin * 2) / zoom,
