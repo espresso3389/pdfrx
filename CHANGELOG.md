@@ -1,3 +1,8 @@
+# 1.0.74
+
+- Introduces PdfViewerController.getPdfPageHitTestResult
+- Introduces PdfViewerController.layout to get page layout
+
 # 1.0.73
 
 - Introduces PdfViewerParams.onViewSizeChanged, which is called on view size change
