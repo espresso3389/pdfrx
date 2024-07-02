@@ -793,6 +793,13 @@ class PdfRect {
     );
   }
 
+  /// Determine whether the rectangle contains the specified point (in the PDF page coordinates).
+  bool contains(double x, double y) =>
+      x >= left && x <= right && y >= bottom && y <= top;
+
+  /// Determine whether the rectangle contains the specified point (in the PDF page coordinates).
+  bool containsOffset(Offset offset) => contains(offset.dx, offset.dy);
+
   /// Empty rectangle.
   static const empty = PdfRect(0, 0, 0, 0);
 

@@ -1457,6 +1457,33 @@ class _PdfViewerState extends State<PdfViewer>
 
   double get _currentZoom => _txController.value.zoom;
 
+  PdfPageHitTestResult? _getPdfPageHitTestResult(
+    Offset offset, {
+    required bool useDocumentLayoutCoordinates,
+  }) {
+    final pages = _document?.pages;
+    final pageLayouts = _layout?.pageLayouts;
+    if (pages == null || pageLayouts == null) return null;
+    if (!useDocumentLayoutCoordinates) {
+      final r = Matrix4.inverted(_txController.value);
+      offset = r.transformOffset(offset);
+    }
+    for (int i = 0; i < pages.length; i++) {
+      final page = pages[i];
+      final pageRect = pageLayouts[i];
+      if (pageRect.contains(offset)) {
+        return PdfPageHitTestResult(
+          page: page,
+          offset:
+              Offset(offset.dx - pageRect.left, pageRect.bottom - offset.dy) *
+                  page.height /
+                  pageRect.height,
+        );
+      }
+    }
+    return null;
+  }
+
   double _getNextZoom({bool loop = true}) =>
       _findNextZoomStop(_currentZoom, zoomUp: true, loop: loop);
   double _getPreviousZoom({bool loop = true}) =>
@@ -1561,6 +1588,17 @@ class PdfPageLayout {
   final Size documentSize;
 }
 
+/// Represents the result of the hit test on the page.
+class PdfPageHitTestResult {
+  PdfPageHitTestResult({required this.page, required this.offset});
+
+  /// The page that was hit.
+  final PdfPage page;
+
+  /// The offset in the PDF page coordinates; the origin is at the bottom-left corner.
+  final Offset offset;
+}
+
 /// Controls associated [PdfViewer].
 ///
 /// It's always your option to extend (inherit) the class to customize the [PdfViewer] behavior.
@@ -1597,6 +1635,9 @@ class PdfViewerController extends ValueListenable<Matrix4> {
 
   /// The document layout size.
   Size get documentSize => _state._layout!.documentSize;
+
+  /// Page layout.
+  PdfPageLayout get layout => _state._layout!;
 
   /// The view port size (The widget's client area's size)
   Size get viewSize => _state._viewSize!;
@@ -1819,6 +1860,19 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   }) =>
       _state._calcMatrixToEnsureRectVisible(rect, margin: margin);
 
+  /// Do hit-test against laid out pages.
+  ///
+  /// Returns the hit-test result if the specified offset is inside a page; otherwise null.
+  ///
+  /// [useDocumentLayoutCoordinates] specifies whether the offset is in the document layout coordinates;
+  /// if true, the offset is in the document layout coordinates; otherwise, the offset is in the widget coordinates.
+  PdfPageHitTestResult? getPdfPageHitTestResult(
+    Offset offset, {
+    required bool useDocumentLayoutCoordinates,
+  }) =>
+      _state._getPdfPageHitTestResult(offset,
+          useDocumentLayoutCoordinates: useDocumentLayoutCoordinates);
+
   /// Set the current page number.
   ///
   /// This function does not scroll/zoom to the specified page but changes the current page number.
@@ -1911,6 +1965,16 @@ extension PdfMatrix4Ext on Matrix4 {
       center: calcPosition(viewSize),
       width: (viewSize.width - margin * 2) / zoom,
       height: (viewSize.height - margin * 2) / zoom);
+
+  Offset transformOffset(Offset xy) {
+    final x = xy.dx;
+    final y = xy.dy;
+    final w = x * storage[3] + y * storage[7] + storage[15];
+    return Offset(
+      (x * storage[0] + y * storage[4] + storage[12]) / w,
+      (x * storage[1] + y * storage[5] + storage[13]) / w,
+    );
+  }
 }
 
 extension _RangeDouble<T extends num> on T {
