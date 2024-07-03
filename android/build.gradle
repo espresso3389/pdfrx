@@ -59,4 +59,11 @@ android {
     defaultConfig {
         minSdkVersion 21
     }
+
+    packagingOptions {
+        exclude 'lib/x86/libpdfium.so'
+        exclude 'lib/x86_64/libpdfium.so'
+        exclude 'lib/armeabi-v7a/libpdfium.so'
+        exclude 'lib/arm64-v8a/libpdfium.so'
+    }
 }
