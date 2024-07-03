@@ -144,7 +144,7 @@ class PdfViewerParams {
   /// faster and looks better to the user. However, larger value may consume more memory.
   /// So you may want to set the smaller value to reduce memory consumption.
   ///
-  /// The default is 200 / 72, which implies rendering at 300 dpi.
+  /// The default is 200 / 72, which implies rendering at 200 dpi.
   /// If you want more granular control for each page, use [getPageRenderingScale].
   final double onePassRenderingScaleThreshold;
 
