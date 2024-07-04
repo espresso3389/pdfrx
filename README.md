@@ -101,13 +101,11 @@ It's not required but you can customize download URLs for pdf.js by setting [Pdf
 // place the code on main function or somewhere that is executed before the actual
 // app code.
 PdfJsConfiguration.configuration = const PdfJsConfiguration(
-  pdfJsSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.mjs',
-  workerSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
-  cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+  pdfJsSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs',
+  workerSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs',
+  cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/cmaps/',
 );
 ```
-
-Please note that pdf.js 4.X is not supported yet and use 3.X versions.
 
 ### macOS
 

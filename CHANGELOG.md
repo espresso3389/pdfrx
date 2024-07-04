@@ -1,3 +1,7 @@
+# 1.0.75
+
+- PDF.js 4.4.168
+
 # 1.0.74
 
 - Introduces PdfViewerController.getPdfPageHitTestResult

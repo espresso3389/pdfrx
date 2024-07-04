@@ -12,13 +12,13 @@ class PdfJsConfiguration {
     this.pdfJsDownloadTimeout = const Duration(seconds: 10),
   });
 
-  /// `psf.js` file URL such as https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.mjs
+  /// `psf.js` file URL such as https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs
   final String pdfJsSrc;
 
-  /// `psf.worker.js` file URL such as https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js
+  /// `psf.worker.js` file URL such as https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs
   final String workerSrc;
 
-  /// `cmaps` directory URL such as https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/
+  /// `cmaps` directory URL such as https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/cmaps/
   final String cMapUrl;
 
   /// Whether to use the packed cmaps. The default is true.
@@ -40,9 +40,9 @@ class PdfJsConfiguration {
   ///
   /// ```dart
   /// PdfJsConfiguration.configuration = const PdfJsConfiguration(
-  ///   pdfJsSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.mjs',
-  ///   workerSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
-  ///   cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+  ///   pdfJsSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs',
+  ///   workerSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs',
+  ///   cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/cmaps/',
   /// );
   /// ```
   static PdfJsConfiguration? configuration;

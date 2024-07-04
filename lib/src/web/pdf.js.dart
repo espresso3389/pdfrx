@@ -13,15 +13,15 @@ import 'package:web/web.dart' as web;
 import '../../pdfrx.dart';
 
 /// Default pdf.js version
-const _pdfjsVersion = '3.11.174';
+const _pdfjsVersion = '4.4.168';
 
 /// Default pdf.js URL
 const _pdfjsUrl =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$_pdfjsVersion/pdf.min.js';
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$_pdfjsVersion/pdf.min.mjs';
 
 /// Default pdf.worker.js URL
 const _pdfjsWorkerSrc =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$_pdfjsVersion/pdf.worker.min.js';
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$_pdfjsVersion/pdf.worker.min.mjs';
 
 /// Default CMap URL
 const _pdfjsCMapUrl =
@@ -339,6 +339,7 @@ Future<void> _pdfjsInitialize() async {
       ..type = 'text/javascript'
       ..charset = 'utf-8'
       ..async = true
+      ..type = 'module'
       ..src = pdfJsSrc;
     web.document.querySelector('head')!.appendChild(script);
     await script.onLoad.first.timeout(
