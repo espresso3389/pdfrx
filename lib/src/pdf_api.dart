@@ -323,7 +323,10 @@ abstract class PdfPage {
   Future<PdfPageText> loadText();
 
   /// Load links.
-  Future<List<PdfLink>> loadLinks();
+  ///
+  /// if [compact] is true, it tries to reduce memory usage by compacting the link data.
+  /// See [PdfLink.compact] for more info.
+  Future<List<PdfLink>> loadLinks({bool compact = false});
 }
 
 /// Page rotation.
@@ -908,6 +911,16 @@ class PdfDest {
   @override
   String toString() =>
       'PdfDest{pageNumber: $pageNumber, command: $command, params: $params}';
+
+  /// Compact the destination.
+  ///
+  /// The method is used to compact the destination to reduce memory usage.
+  /// [params] is typically growable and also modifiable. The method ensures that [params] is unmodifiable.
+  PdfDest compact() {
+    return params == null
+        ? this
+        : PdfDest(pageNumber, command, List.unmodifiable(params!));
+  }
 }
 
 /// [PDF 32000-1:2008, 12.3.2.2 Explicit Destinations, Table 151](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=374)
@@ -945,6 +958,19 @@ class PdfLink {
 
   /// Link location.
   final List<PdfRect> rects;
+
+  /// Compact the link.
+  ///
+  /// The method is used to compact the link to reduce memory usage.
+  /// [rects] is typically growable and also modifiable. The method ensures that [rects] is unmodifiable.
+  /// [dest] is also compacted by calling [PdfDest.compact].
+  PdfLink compact() {
+    return PdfLink(
+      List.unmodifiable(rects),
+      url: url,
+      dest: dest?.compact(),
+    );
+  }
 }
 
 /// Outline (a.k.a. Bookmark) node in PDF document.

@@ -255,13 +255,16 @@ class PdfDocumentWeb extends PdfDocument {
     );
   }
 
+  /// NOTE: The returned [PdfDest] is always compacted.
   Future<PdfDest?> _getDestination(JSAny? dest) async {
     final destObj = await _getDestObject(dest);
     if (destObj is! JSArray) return null;
     final arr = destObj.toDart;
     final ref = arr[0] as PdfjsRef;
     final cmdStr = _getName(arr[1]);
-    final params = arr.length < 3 ? null : arr.sublist(2).cast<double?>();
+    final params = arr.length < 3
+        ? null
+        : List<double?>.unmodifiable(arr.sublist(2).cast<double?>());
     return PdfDest(
       (await _document.getPageIndex(ref).toDart).toDartInt + 1,
       _parseCmdStr(cmdStr),
@@ -434,7 +437,7 @@ class PdfPageWeb extends PdfPage {
   Future<PdfPageText> loadText() => PdfPageTextWeb._loadText(this);
 
   @override
-  Future<List<PdfLink>> loadLinks() async {
+  Future<List<PdfLink>> loadLinks({bool compact = false}) async {
     final annots =
         (await page.getAnnotations(PdfjsGetAnnotationsParameters()).toDart)
             .toDart;
@@ -444,9 +447,8 @@ class PdfPageWeb extends PdfPage {
         continue;
       }
       final rect = annot.rect.toDart.cast<double>();
-      final rects = [
-        PdfRect(rect[0], rect[3], rect[2], rect[1]),
-      ];
+      final rects = List<PdfRect>.unmodifiable(
+          [PdfRect(rect[0], rect[3], rect[2], rect[1])]);
       if (annot.url != null) {
         links.add(
           PdfLink(rects, url: Uri.parse(annot.url!)),
@@ -461,8 +463,7 @@ class PdfPageWeb extends PdfPage {
         continue;
       }
     }
-
-    return links;
+    return compact ? List.unmodifiable(links) : links;
   }
 }
 
