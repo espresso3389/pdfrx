@@ -221,6 +221,8 @@ class _PdfViewerState extends State<PdfViewer>
   final _pageImagePartialRenderingRequests =
       <int, _PdfPartialImageRenderingRequest>{};
 
+  late final _canvasLinkPainter = _CanvasLinkPainter(this);
+
   // Changes to the stream rebuilds the viewer
   final _updateStream = BehaviorSubject<Matrix4>();
 
@@ -298,6 +300,7 @@ class _PdfViewerState extends State<PdfViewer>
     _layout = null;
 
     _releaseAllImages();
+    _canvasLinkPainter.resetAll();
     _pageNumber = null;
     _initialized = false;
     _txController.removeListener(_onMatrixChanged);
@@ -340,6 +343,7 @@ class _PdfViewerState extends State<PdfViewer>
     _animController.dispose();
     widget.documentRef.resolveListenable().removeListener(_onDocumentChanged);
     _releaseAllImages();
+    _canvasLinkPainter.resetAll();
     _txController.removeListener(_onMatrixChanged);
     _controller?._attach(null);
     _txController.dispose();
@@ -447,7 +451,9 @@ class _PdfViewerState extends State<PdfViewer>
                     ..._buildPageOverlayWidgets(),
                     if (widget.params.viewerOverlayBuilder != null)
                       ...widget.params.viewerOverlayBuilder!(
-                          context, _viewSize!)
+                          context, _viewSize!),
+                    if (_canvasLinkPainter.isEnabled)
+                      _canvasLinkPainter.linkHandlingOverlay(_viewSize!),
                   ],
                 );
               }),
@@ -725,7 +731,8 @@ class _PdfViewerState extends State<PdfViewer>
       final page = _document!.pages[i];
       final rectExternal = _documentToRenderBox(rect, renderBox);
       if (rectExternal != null) {
-        if (widget.params.linkWidgetBuilder != null) {
+        if (widget.params.linkHandlerParams == null &&
+            widget.params.linkWidgetBuilder != null) {
           linkWidgets.add(
             PdfPageLinksOverlay(
               key: Key('pageLinks:${page.pageNumber}'),
@@ -934,6 +941,10 @@ class _PdfViewerState extends State<PdfViewer>
           partial.rect,
           Paint()..filterQuality = FilterQuality.high,
         );
+      }
+
+      if (_canvasLinkPainter.isEnabled) {
+        _canvasLinkPainter.paintLinkHighlights(canvas, rect, page);
       }
 
       if (widget.params.pagePaintCallbacks != null) {
@@ -2024,4 +2035,125 @@ Widget _defaultErrorBannerBuilder(
     error,
     stackTrace: stackTrace,
   );
+}
+
+/// Handles the link painting and tap handling.
+class _CanvasLinkPainter {
+  _CanvasLinkPainter(this._state);
+  final _PdfViewerState _state;
+  MouseCursor _cursor = MouseCursor.defer;
+  final _links = <int, List<PdfLink>>{};
+
+  bool get isEnabled => _state.widget.params.linkHandlerParams != null;
+
+  /// Reset all the internal data.
+  void resetAll() {
+    _cursor = MouseCursor.defer;
+    _links.clear();
+  }
+
+  /// Release the page data.
+  void releaseLinksForPage(int pageNumber) {
+    _links.remove(pageNumber);
+  }
+
+  List<PdfLink>? _ensureLinksLoaded(PdfPage page, {void Function()? onLoaded}) {
+    final links = _links[page.pageNumber];
+    if (links != null) return links;
+    Future.microtask(() async {
+      _links[page.pageNumber] = await page.loadLinks(compact: true);
+      if (onLoaded != null) {
+        onLoaded();
+      } else {
+        _state._invalidate();
+      }
+    });
+    return null;
+  }
+
+  PdfLink? _findLinkAtPosition(Offset position) {
+    final hitResult = _state._getPdfPageHitTestResult(
+      position,
+      useDocumentLayoutCoordinates: false,
+    );
+    if (hitResult == null) return null;
+    final links = _ensureLinksLoaded(hitResult.page);
+    if (links == null) return null;
+    for (final link in links) {
+      for (final rect in link.rects) {
+        if (rect.containsOffset(hitResult.offset)) {
+          return link;
+        }
+      }
+    }
+    return null;
+  }
+
+  void _handleLinkTap(Offset tapPosition) {
+    final link = _findLinkAtPosition(tapPosition);
+    if (link == null) return;
+    _state.widget.params.linkHandlerParams?.onLinkTap(link);
+  }
+
+  void _handleLinkMouseCursor(
+      Offset position, void Function(void Function()) setState) {
+    final link = _findLinkAtPosition(position);
+    final newCursor =
+        link == null ? MouseCursor.defer : SystemMouseCursors.click;
+    if (newCursor != _cursor) {
+      _cursor = newCursor;
+      setState(() {});
+    }
+  }
+
+  /// Creates a [GestureDetector] for handling link taps and mouse cursor.
+  Widget linkHandlingOverlay(Size size) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      // link taps
+      onTapUp: (details) {
+        _cursor = MouseCursor.defer;
+        _handleLinkTap(details.localPosition);
+      },
+      child: StatefulBuilder(builder: (context, setState) {
+        return MouseRegion(
+          hitTestBehavior: HitTestBehavior.translucent,
+          onHover: (event) =>
+              _handleLinkMouseCursor(event.localPosition, setState),
+          onExit: (event) {
+            _cursor = MouseCursor.defer;
+            setState(() {});
+          },
+          cursor: _cursor,
+          child: IgnorePointer(
+            child: SizedBox(width: size.width, height: size.height),
+          ),
+        );
+      }),
+    );
+  }
+
+  /// Paints the link highlights.
+  void paintLinkHighlights(Canvas canvas, Rect pageRect, PdfPage page) {
+    final links = _ensureLinksLoaded(page);
+    if (links == null) return;
+
+    final customPainter = _state.widget.params.linkHandlerParams?.customPainter;
+
+    if (customPainter != null) {
+      customPainter.call(canvas, pageRect, page, links);
+      return;
+    }
+
+    final paint = Paint()
+      ..color = _state.widget.params.linkHandlerParams?.linkColor ??
+          Colors.blue.withOpacity(0.2)
+      ..style = PaintingStyle.fill;
+    for (final link in links) {
+      for (final rect in link.rects) {
+        final rectLink = rect.toRectInPageRect(page: page, pageRect: pageRect);
+        canvas.drawRect(rectLink, paint);
+      }
+    }
+  }
 }

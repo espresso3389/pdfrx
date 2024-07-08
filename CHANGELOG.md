@@ -1,3 +1,8 @@
+# 1.0.76
+
+- Add several tweaks to reduce PdfLink's memory footprint (Related: #175)
+- Introduces PdfViewerParam.linkHandlerParams and PdfLinkHandlerParams to show/handle PDF links without using Flutter Widgets (#175)
+
 # 1.0.75
 
 - PDF.js 4.4.168

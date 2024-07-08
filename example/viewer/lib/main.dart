@@ -192,7 +192,7 @@ class _MainPageState extends State<MainPage> {
                   //   r"D:\pdfrx\example\assets\hello.pdf",
                   // PdfViewer.uri(
                   //   Uri.parse(
-                  //       'https://espresso3389.github.io/pdfrx/assets/assets/PDF32000_2008.pdf'),
+                  //       'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
                   // PdfViewer.uri(
                   //   Uri.parse(kIsWeb
                   //       ? 'assets/assets/hello.pdf'
@@ -332,27 +332,14 @@ class _MainPageState extends State<MainPage> {
                     //
                     // Link handling example
                     //
-                    // GestureDetector/IgnorePointer propagate panning/zooming gestures to the viewer
-                    linkWidgetBuilder: (context, link, size) => MouseRegion(
-                      cursor: SystemMouseCursors.click,
-                      hitTestBehavior: HitTestBehavior.translucent,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.translucent,
-                        onTap: () async {
-                          if (link.url != null) {
-                            navigateToUrl(link.url!);
-                          } else if (link.dest != null) {
-                            controller.goToDest(link.dest);
-                          }
-                        },
-                        child: IgnorePointer(
-                          child: Container(
-                            color: Colors.blue.withOpacity(0.2),
-                            width: size.width,
-                            height: size.height,
-                          ),
-                        ),
-                      ),
+                    linkHandlerParams: PdfLinkHandlerParams(
+                      onLinkTap: (link) {
+                        if (link.url != null) {
+                          navigateToUrl(link.url!);
+                        } else if (link.dest != null) {
+                          controller.goToDest(link.dest);
+                        }
+                      },
                     ),
                     pagePaintCallbacks: [
                       textSearcher.pageTextMatchPaintCallback,

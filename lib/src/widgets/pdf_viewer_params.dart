@@ -52,6 +52,7 @@ class PdfViewerParams {
     this.maxImageBytesCachedOnMemory = 100 * 1024 * 1024,
     this.horizontalCacheExtent = 1.0,
     this.verticalCacheExtent = 1.0,
+    this.linkHandlerParams,
     this.viewerOverlayBuilder,
     this.pageOverlaysBuilder,
     this.loadingBannerBuilder,
@@ -307,6 +308,11 @@ class PdfViewerParams {
   /// The vertical cache extent specified in ratio to the viewport height. The default is 1.0.
   final double verticalCacheExtent;
 
+  /// Parameters for the built-in link handler.
+  ///
+  /// It is mutually exclusive with [linkWidgetBuilder].
+  final PdfLinkHandlerParams? linkHandlerParams;
+
   /// Add overlays to the viewer.
   ///
   /// This function is to generate widgets on PDF viewer's overlay [Stack].
@@ -367,6 +373,8 @@ class PdfViewerParams {
   final PdfViewerErrorBannerBuilder? errorBannerBuilder;
 
   /// Build link widget.
+  ///
+  /// If [linkHandlerParams] is specified, it is ignored.
   final PdfLinkWidgetBuilder? linkWidgetBuilder;
 
   /// Callback to paint over the rendered page.
@@ -444,7 +452,8 @@ class PdfViewerParams {
         other.enableKeyboardNavigation != enableKeyboardNavigation ||
         other.scrollByArrowKey != scrollByArrowKey ||
         other.horizontalCacheExtent != horizontalCacheExtent ||
-        other.verticalCacheExtent != verticalCacheExtent;
+        other.verticalCacheExtent != verticalCacheExtent ||
+        other.linkHandlerParams != linkHandlerParams;
   }
 
   @override
@@ -487,6 +496,7 @@ class PdfViewerParams {
         other.scrollByArrowKey == scrollByArrowKey &&
         other.horizontalCacheExtent == horizontalCacheExtent &&
         other.verticalCacheExtent == verticalCacheExtent &&
+        other.linkHandlerParams == linkHandlerParams &&
         other.viewerOverlayBuilder == viewerOverlayBuilder &&
         other.pageOverlaysBuilder == pageOverlaysBuilder &&
         other.loadingBannerBuilder == loadingBannerBuilder &&
@@ -534,6 +544,7 @@ class PdfViewerParams {
         scrollByArrowKey.hashCode ^
         horizontalCacheExtent.hashCode ^
         verticalCacheExtent.hashCode ^
+        linkHandlerParams.hashCode ^
         viewerOverlayBuilder.hashCode ^
         pageOverlaysBuilder.hashCode ^
         loadingBannerBuilder.hashCode ^
@@ -708,3 +719,53 @@ enum PdfPageAnchor {
   bottomRight,
   all,
 }
+
+/// Parameters for the built-in link handler.
+class PdfLinkHandlerParams {
+  const PdfLinkHandlerParams({
+    required this.onLinkTap,
+    this.linkColor,
+    this.customPainter,
+  });
+
+  /// Function to be called when the link is tapped.
+  final void Function(PdfLink link) onLinkTap;
+
+  /// Color for the link. If null, the default color is `Colors.blue.withOpacity(0.2)`.
+  final Color? linkColor;
+
+  /// Custom link painter for the page.
+  ///
+  /// The custom painter completely overrides the default link painter.
+  /// The following fragment is an example to draw a red rectangle on the link area:
+  ///
+  /// ```dart
+  /// customPainter: (canvas, pageRect, page, links) {
+  ///   final paint = Paint()
+  ///     ..color = Colors.red.withOpacity(0.2)
+  ///     ..style = PaintingStyle.fill;
+  ///   for (final link in links) {
+  ///     final rect = link.rect.toRectInPageRect(page: page, pageRect: pageRect);
+  ///     canvas.drawRect(rect, paint);
+  ///   }
+  /// }
+  /// ```
+  final PdfLinkCustomPagePainter? customPainter;
+
+  @override
+  bool operator ==(covariant PdfLinkHandlerParams other) {
+    if (identical(this, other)) return true;
+
+    return other.onLinkTap == onLinkTap &&
+        other.linkColor == linkColor &&
+        other.customPainter == customPainter;
+  }
+
+  @override
+  int get hashCode {
+    return onLinkTap.hashCode ^ linkColor.hashCode ^ customPainter.hashCode;
+  }
+}
+
+typedef PdfLinkCustomPagePainter = void Function(
+    ui.Canvas canvas, Rect pageRect, PdfPage page, List<PdfLink> links);
