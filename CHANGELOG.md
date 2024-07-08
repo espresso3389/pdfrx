@@ -1,3 +1,7 @@
+# 1.0.77
+
+- #175: Woops, just missing synchronized to call loadLinks causes multiple load invocations...
+
 # 1.0.76
 
 - Add several tweaks to reduce PdfLink's memory footprint (Related: #175)
