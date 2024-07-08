@@ -2060,7 +2060,9 @@ class _CanvasLinkPainter {
   List<PdfLink>? _ensureLinksLoaded(PdfPage page, {void Function()? onLoaded}) {
     final links = _links[page.pageNumber];
     if (links != null) return links;
-    Future.microtask(() async {
+    synchronized(() async {
+      final links = _links[page.pageNumber];
+      if (links != null) return links;
       _links[page.pageNumber] = await page.loadLinks(compact: true);
       if (onLoaded != null) {
         onLoaded();
