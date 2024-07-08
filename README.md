@@ -223,43 +223,50 @@ There are still several limitations and issues on text selection feature:
 
 ### PDF Link Handling
 
-To enable Link in PDF file, you should set [PdfViewerParams.linkWidgetBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/linkWidgetBuilder.html).
+To enable Link in PDF file, you should set [PdfViewerParams.linkHandlerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/linkHandlerParams.html).
 
-The following fragment creates a widget that handles user's tap on link:
+The following fragment handles user's tap on link:
 
 ```dart
-linkWidgetBuilder: (context, link, size) => MouseRegion(
-  cursor: SystemMouseCursors.click,
-  hitTestBehavior: HitTestBehavior.translucent,
-  GestureDetector(
-    behavior: HitTestBehavior.translucent,
-    child: InkWell(
-      onTap: () {
-        // handle URL or Dest
-        if (link.url != null) {
-          // TODO: implement your own isSecureUrl by yourself...
-          if (await isSecureUrl(link.url!)) {
-            launchUrl(link.url!);
-          }
-        } else if (link.dest != null) {
-          controller.goToDest(link.dest);
-        }
-      },
-      child: IgnorePointer(
-        child: Container(
-          color: Colors.blue.withOpacity(0.2),
-          width: size.width,
-          height: size.height,
-        ),
-      ),
-    ),
-  ),
+linkHandlerParams: PdfLinkHandlerParams(
+  onLinkTap: (link) {
+    // handle URL or Dest
+    if (link.url != null) {
+      // TODO: implement your own isSecureUrl by yourself...
+      if (await isSecureUrl(link.url!)) {
+        launchUrl(link.url!);
+      }
+    } else if (link.dest != null) {
+      controller.goToDest(link.dest);
+    }
+  },
 ),
 ```
 
-For URIs, you should check the validity of the URIs before opening the URI; the example code just show dialog to ask whether to open the URL or not.
+#### Note for Link Validation
+
+For URIs, you should check the validity of the URIs before opening the URI; [the example code](https://github.com/espresso3389/pdfrx/blob/7462532645311754a048c62e62a4a32bf9eae32a/example/viewer/lib/main.dart#L410) just show dialog to ask whether to open the URL or not.
 
 For destinations, you can use [PdfViewerController.goToDest](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/goToDest.html) to go to the destination. Or you can use [PdfViewerController.calcMatrixForDest](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/calcMatrixForDest.html) to get the matrix for it.
+
+#### Link Appearance
+
+For link appearance, you can change its color using [PdfLinkHandlerParams.linkColor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/linkColor.html).
+
+For more further customization, you can use [PdfLinkHandlerParams.customPainter](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/customPainter.html):
+
+```dart
+customPainter: (canvas, pageRect, page, links) {
+  final paint = Paint()
+    ..color = Colors.red.withOpacity(0.2)
+    ..style = PaintingStyle.fill;
+  for (final link in links) {
+    // you can customize here to make your own link appearance
+    final rect = link.rect.toRectInPageRect(page: page, pageRect: pageRect);
+    canvas.drawRect(rect, paint);
+  }
+}
+```
 
 ### Document Outline (a.k.a Bookmarks)
 
