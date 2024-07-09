@@ -221,6 +221,7 @@ DateTime? _parseDateTime(String s) => s == 'null'
 DateTime? _parseHttpDateTime(String? s) {
   if (s == null) return null;
   final parts = s.split(' ');
+  if (parts.length != 6) return null;
   final day = int.parse(parts[1]);
   final month = _months.indexOf(parts[2]) + 1;
   final year = int.parse(parts[3]);
