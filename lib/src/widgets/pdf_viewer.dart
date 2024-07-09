@@ -968,6 +968,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _relayoutPages() {
+    if (_document == null) return;
     _layout = (widget.params.layoutPages ?? _layoutPages)(
         _document!.pages, widget.params);
   }
