@@ -1,3 +1,7 @@
+# 1.0.79
+
+- FIXED: RangeError on PdfViewer.uri when missing "Expires" header (#206)
+
 # 1.0.78
 
 - Add packagingOptions pickFirst to workaround multiple libpdfium.so problem on Android build (#8)
