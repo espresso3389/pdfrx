@@ -1,3 +1,9 @@
+# 1.0.78
+
+- Add packagingOptions pickFirst to workaround multiple libpdfium.so problem on Android build (#8)
+- FIXED: \_relayoutPages may cause null access
+- Update README.md to explain PdfViewerParam.linkHandlerParams for link handling
+
 # 1.0.77
 
 - #175: Woops, just missing synchronized to call loadLinks causes multiple load invocations...

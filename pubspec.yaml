@@ -1,11 +1,11 @@
 name: pdfrx
 description: pdfrx is a rich and fast PDF viewer implementation built on the top of pdfium. The plugin supports Android, iOS, Windows, macOS, Linux, and Web.
-version: 1.0.77
+version: 1.0.78
 homepage: https://github.com/espresso3389/pdfrx
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
-  flutter: '>=3.19.0'
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.19.0"
 
 dependencies:
   # keep collection compatible with flutter_test, which still requires 1.18.0
@@ -49,17 +49,17 @@ flutter:
 # dart run ffigen
 ffigen:
   output:
-    bindings: 'lib/src/pdfium/pdfium_bindings.dart'
+    bindings: "lib/src/pdfium/pdfium_bindings.dart"
   headers:
     entry-points:
-      - 'example/viewer/build/windows/x64/.lib/latest/include/fpdfview.h'
-      - 'example/viewer/build/windows/x64/.lib/latest/include/fpdf_annot.h'
-      - 'example/viewer/build/windows/x64/.lib/latest/include/fpdf_text.h'
-      - 'example/viewer/build/windows/x64/.lib/latest/include/fpdf_doc.h'
-      - 'example/viewer/build/windows/x64/.lib/latest/include/fpdf_edit.h'
-      - 'example/viewer/build/windows/x64/.lib/latest/include/fpdf_formfill.h'
+      - "example/viewer/build/windows/x64/.lib/latest/include/fpdfview.h"
+      - "example/viewer/build/windows/x64/.lib/latest/include/fpdf_annot.h"
+      - "example/viewer/build/windows/x64/.lib/latest/include/fpdf_text.h"
+      - "example/viewer/build/windows/x64/.lib/latest/include/fpdf_doc.h"
+      - "example/viewer/build/windows/x64/.lib/latest/include/fpdf_edit.h"
+      - "example/viewer/build/windows/x64/.lib/latest/include/fpdf_formfill.h"
     include-directives:
-      - 'example/viewer/build/windows/x64/.lib/latest/include/**'
+      - "example/viewer/build/windows/x64/.lib/latest/include/**"
   preamble: |
     // ignore_for_file: unused_field
-  name: 'pdfium'
+  name: "pdfium"
