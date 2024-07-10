@@ -78,22 +78,12 @@ dependencies:
   pdfrx: ^1.0.80
 ```
 
-### Windows
+### Note for Windows
 
-- Ensure your Windows installation enables _Developer Mode_
+Ensure your Windows installation enables _Developer Mode_.
 
-  The build process internally uses symblic link and it requires Developer Mode to be enabled.
-  Without this, you may encounter errors [like this](https://github.com/espresso3389/pdfrx/issues/34).
-
-### Web
-
-- It's not required but you can customize download URLs for pdf.js by setting [PdfJsConfiguration.configuration](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfJsConfiguration/configuration.html):
-
-### macOS
-
-For macOS, Flutter app restrict its capability, like Internet access, by enabling [App Sandbox](https://developer.apple.com/documentation/security/app_sandbox) by default.
-
-See [macOS: Deal with App Sandbox](https://github.com/espresso3389/pdfrx/wiki/macOS:-Deal-with-App-Sandbox) for more details.
+The build process internally uses symbolic link and it requires Developer Mode to be enabled.
+Without this, you may encounter errors [like this](https://github.com/espresso3389/pdfrx/issues/34).
 
 ## Open PDF File
 
@@ -103,9 +93,11 @@ See [macOS: Deal with App Sandbox](https://github.com/espresso3389/pdfrx/wiki/ma
   - Open PDF of Flutter's asset
 - [PdfViewer.file](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.file.html)
   - Open PDF from file
+    - macOS: may be blocked by [App Sandbox](https://github.com/espresso3389/pdfrx/wiki/macOS:-Deal-with-App-Sandbox)
 - [PdfViewer.uri](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.uri.html)
   - Open PDF from URI (`https://...` or relative path)
-  - On Flutter Web, it may be _blocked by [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)_
+    - Flutter Web: may be blocked by [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS)
+    - macOS: may be blocked by [App Sandbox](https://github.com/espresso3389/pdfrx/wiki/macOS:-Deal-with-App-Sandbox)
 
 ### Deal with Password Protected PDF Files
 
