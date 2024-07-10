@@ -6,7 +6,7 @@ lib_tag = 'pdfium-apple-v9'
 
 Pod::Spec.new do |s|
   s.name             = 'pdfrx'
-  s.version          = '0.0.2'
+  s.version          = '0.0.3'
   s.summary          = 'Yet another PDF renderer for Flutter using PDFium.'
   s.description      = <<-DESC
   Yet another PDF renderer for Flutter using PDFium.
