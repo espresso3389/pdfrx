@@ -1,3 +1,8 @@
+# 1.0.80
+
+- BREAKING CHANGE: PdfViewerParams.viewerOverlayBuilder introduces third parameter named handleLinkTap, which is used with GestureDetector to handle link-tap events on user code (#175)
+- Fix typos on README.md
+
 # 1.0.79
 
 - FIXED: RangeError on PdfViewer.uri when missing "Expires" header (#206)
