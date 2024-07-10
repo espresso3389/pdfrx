@@ -26,13 +26,13 @@ String _getModuleFileName() {
   throw UnsupportedError('Unsupported platform');
 }
 
-/// Loaded pdfium module.
+/// Loaded PDFium module.
 final pdfium =
     pdfium_bindings.pdfium(DynamicLibrary.open(_getModuleFileName()));
 
 bool _initialized = false;
 
-/// Initializes pdfium library.
+/// Initializes PDFium library.
 void _init() {
   if (_initialized) return;
   using(

@@ -49,7 +49,7 @@ Widget pdfErrorWidget(
                         Platform.isWindows)
                       const TextSpan(
                         text:
-                            '\n***On Windows, pdfium could not report errors correctly and every error is recognized as password error.',
+                            '\n***On Windows, PDFium could not report errors correctly and every error is recognized as password error.',
                         style: TextStyle(
                           fontSize: 14,
                           fontStyle: FontStyle.italic,

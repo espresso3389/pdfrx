@@ -115,8 +115,8 @@
 
 # 1.0.58
 
-- Any API calls that wraps pdfium are now completely synchronized. They are run in an app-wide single worker isolate
-  - This is because pdfium does not support any kind of concurrency and even different PdfDocument instances could not be called concurrently
+- Any API calls that wraps PDFium are now completely synchronized. They are run in an app-wide single worker isolate
+  - This is because PDFium does not support any kind of concurrency and even different PdfDocument instances could not be called concurrently
 
 # 1.0.57
 
@@ -352,7 +352,7 @@ _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packa
 ## 0.4.18
 
 - PdfDocumentProvider supercedes PdfDocumentStore (PR #42)
-- pdfium 6259 for Windows, Linux, and Android
+- PDFium 6259 for Windows, Linux, and Android
 - FIXED: Bug: Tests fail due to null operator check on PdfViewerController #44
 
 ## 0.4.17

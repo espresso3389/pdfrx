@@ -1,13 +1,7 @@
 # pdfrx
 
-[pdfrx](https://pub.dartlang.org/packages/pdfrx) is a rich and fast PDF viewer implementation built on the top of [pdfium](https://pdfium.googlesource.com/pdfium/).
+[pdfrx](https://pub.dartlang.org/packages/pdfrx) is a rich and fast PDF viewer implementation built on the top of [PDFium](https://pdfium.googlesource.com/pdfium/).
 The plugin supports Android, iOS, Windows, macOS, Linux, and Web.
-
-> [!NOTE]
-> pdfrx 1.0.0+ supports Flutter 3.19/Dart 3.3 and could not be compatible with older Flutter/Dart versions.
-> **Please use 0.4.46+ for older projects that can not upgrade to Flutter 3.19/Dart 3.3.**
->
-> 1.0.0+ versions receive new features and bug fixes but 0.4.46+ versions receive critical bug fixes only.
 
 ## Interactive Demo
 
@@ -44,7 +38,7 @@ A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web
     - [PdfPageView](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageView-class.html)
   - Easy to use PDF APIs
     - [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html)
-  - pdfium bindings
+  - PDFium bindings
     - Not encouraged but you can import [package:pdfrx/src/pdfium/pdfium_bindings.dart](https://github.com/espresso3389/pdfrx/blob/master/lib/src/pdfium/pdfium_bindings.dart)
 
 ## Example Code
@@ -93,44 +87,13 @@ dependencies:
 
 ### Web
 
-[pdf.js](https://mozilla.github.io/pdf.js/) is now automatically loaded and no modification to `index.html` is required.
-
-It's not required but you can customize download URLs for pdf.js by setting [PdfJsConfiguration.configuration](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfJsConfiguration/configuration.html):
-
-```dart
-// place the code on main function or somewhere that is executed before the actual
-// app code.
-PdfJsConfiguration.configuration = const PdfJsConfiguration(
-  pdfJsSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs',
-  workerSrc: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs',
-  cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/cmaps/',
-);
-```
+- It's not required but you can customize download URLs for pdf.js by setting [PdfJsConfiguration.configuration](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfJsConfiguration/configuration.html):
 
 ### macOS
 
-For macOS, Flutter app restrict its capability by enabling [App Sandbox](https://developer.apple.com/documentation/security/app_sandbox) by default. You can change the behavior by editing your app's entitlements files depending on your configuration. See [the discussion below](#deal-with-app-sandbox).
+For macOS, Flutter app restrict its capability, like Internet access, by enabling [App Sandbox](https://developer.apple.com/documentation/security/app_sandbox) by default.
 
-- [`macos/Runner/Release.entitlements`](https://github.com/espresso3389/flutter_pdf_render/blob/master/example/macos/Runner/Release.entitlements)
-- [`macos/Runner/DebugProfile.entitlements`](https://github.com/espresso3389/flutter_pdf_render/blob/master/example/macos/Runner/DebugProfile.entitlements)
-
-#### Deal with App Sandbox
-
-The easiest option to access files on your disk, set [`com.apple.security.app-sandbox`](https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_security_app-sandbox) to false on your entitlements file though it is not recommended for releasing apps because it completely disables [App Sandbox](https://developer.apple.com/documentation/security/app_sandbox).
-
-Another option is to use [`com.apple.security.files.user-selected.read-only`](https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_security_files_user-selected_read-only) along with [file_selector_macos](https://pub.dev/packages/file_selector_macos). The option is better in security than the previous option.
-
-Anyway, the example code for the plugin illustrates how to download and preview internet hosted PDF file. It uses
-[`com.apple.security.network.client`](https://developer.apple.com/documentation/bundleresources/entitlements/com_apple_security_network_client) along with [flutter_cache_manager](https://pub.dev/packages/flutter_cache_manager):
-
-```xml
-<dict>
-  <key>com.apple.security.app-sandbox</key>
-  <true/>
-  <key>com.apple.security.network.client</key>
-  <true/>
-</dict>
-```
+See [macOS: Deal with App Sandbox](https://github.com/espresso3389/pdfrx/wiki/macOS:-Deal-with-App-Sandbox) for more details.
 
 ## Open PDF File
 

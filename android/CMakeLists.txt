@@ -39,7 +39,7 @@ set(PDFIUM_LATEST_LIBS_ARCH_DIR ${PDFIUM_LATEST_DIR}/${ANDROID_ABI})
 set(PDFIUM_LASTEST_LIB_FILENAME ${PDFIUM_LATEST_LIBS_ARCH_DIR}/${PDFIUM_LIB_FILENAME})
 
 if(NOT EXISTS ${PDFIUM_SRC_LIB_FILENAME})
-    message(STATUS "Download precompiled pdfium...")
+    message(STATUS "Download precompiled PDFium...")
     file(DOWNLOAD https://github.com/bblanchon/pdfium-binaries/releases/download/${PDFIUM_RELEASE}/${PDFIUM_ARCHIVE_NAME}.tgz ${PDFIUM_RELEASE_DIR}/${PDFIUM_ARCHIVE_NAME}.tgz)
     execute_process(
         COMMAND ${CMAKE_COMMAND} -E tar zxf ${PDFIUM_RELEASE_DIR}/${PDFIUM_ARCHIVE_NAME}.tgz
@@ -47,10 +47,10 @@ if(NOT EXISTS ${PDFIUM_SRC_LIB_FILENAME})
         ERROR_QUIET
     )
     if(STATUS AND NOT STATUS EQUAL 0)
-        message(FATAL_ERROR "Could not obtain pdfium binary for ${ANDROID_ABI}")
+        message(FATAL_ERROR "Could not obtain PDFium binary for ${ANDROID_ABI}")
     endif()
 else()
-    message(STATUS "Use existing precompiled pdfium." )
+    message(STATUS "Use existing precompiled PDFium." )
 endif()
 
 if (NOT EXISTS ${PDFIUM_DEST_LIB_FILENAME})

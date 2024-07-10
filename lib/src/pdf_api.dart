@@ -62,7 +62,7 @@ abstract class PdfDocumentFactory {
 
   /// Singleton [PdfDocumentFactory] instance.
   ///
-  /// It is used to switch pdfium/web implementation based on the running platform and of course, you can
+  /// It is used to switch PDFium/web implementation based on the running platform and of course, you can
   /// override it to use your own implementation.
   static PdfDocumentFactory instance = PdfDocumentFactoryImpl();
 }
