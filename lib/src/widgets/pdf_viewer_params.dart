@@ -320,8 +320,9 @@ class PdfViewerParams {
   ///
   /// The most typical use case is to add scroll thumbs to the viewer.
   /// The following fragment illustrates how to add vertical and horizontal scroll thumbs:
+  ///
   /// ```dart
-  /// viewerOverlayBuilder: (context, size) => [
+  /// viewerOverlayBuilder: (context, size, handleLinkTap) => [
   ///   PdfViewerScrollThumb(
   ///       controller: controller,
   ///       orientation: ScrollbarOrientation.right),
@@ -332,6 +333,30 @@ class PdfViewerParams {
   /// ```
   ///
   /// For more information, see [PdfViewerScrollThumb].
+  ///
+  /// ### Note for using [GestureDetector] inside [viewerOverlayBuilder]:
+  /// You may want to use [GestureDetector] inside [viewerOverlayBuilder] to handle certain gesture events.
+  /// In such cases, your [GestureDetector] eats the gestures and the viewer cannot handle them directly.
+  /// So, when you use [GestureDetector] inside [viewerOverlayBuilder], please ensure the following things:
+  ///
+  /// - [GestureDetector.behavior] should be [HitTestBehavior.translucent]
+  /// - [GestureDetector.onTapUp] (or such depending on your situation) should call `handleLinkTap` to handle link tap
+  ///
+  /// The following fragment illustrates how to handle link tap in [GestureDetector]:
+  /// ```dart
+  /// viewerOverlayBuilder: (context, size, handleLinkTap) => [
+  ///   GestureDetector(
+  ///     behavior: HitTestBehavior.translucent,
+  ///     onTapUp: (details) => handleLinkTap(details.localPosition),
+  ///     // Make the GestureDetector covers all the viewer widget's area
+  ///     // but also make the event go through to the viewer.
+  ///     child: IgnorePointer(child: SizedBox(width: size.width, height: size.height)),
+  ///     ...
+  ///   ),
+  ///   ...
+  /// ]
+  /// ```
+  ///
   final PdfViewerOverlaysBuilder? viewerOverlayBuilder;
 
   /// Add overlays to each page.
@@ -622,8 +647,19 @@ typedef PdfPageLayoutFunction = PdfPageLayout Function(
 /// Function to build viewer overlays.
 ///
 /// [size] is the size of the viewer widget.
+/// [handleLinkTap] is a function to handle link tap. For more details, see [PdfViewerParams.viewerOverlayBuilder].
 typedef PdfViewerOverlaysBuilder = List<Widget> Function(
-    BuildContext context, Size size);
+  BuildContext context,
+  Size size,
+  PdfViewerHandleLinkTap handleLinkTap,
+);
+
+/// Function to handle link tap.
+///
+/// The function returns true if it processes the link on the specified position; otherwise, returns false.
+/// [position] is the position of the tap in the viewer;
+/// typically it is [GestureDetector.onTapUp]'s [TapUpDetails.localPosition].
+typedef PdfViewerHandleLinkTap = bool Function(Offset position);
 
 /// Function to build page overlays.
 ///
@@ -729,6 +765,8 @@ class PdfLinkHandlerParams {
   });
 
   /// Function to be called when the link is tapped.
+  ///
+  /// The functions should return true if it processes the link; otherwise, it should return false.
   final void Function(PdfLink link) onLinkTap;
 
   /// Color for the link. If null, the default color is `Colors.blue.withOpacity(0.2)`.

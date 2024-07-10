@@ -271,15 +271,22 @@ class _MainPageState extends State<MainPage> {
                     },
                     // Scroll-thumbs example
                     //
-                    viewerOverlayBuilder: (context, size) => [
+                    viewerOverlayBuilder: (context, size, handleLinkTap) => [
                       //
                       // Double-tap to zoom
                       //
                       GestureDetector(
                         behavior: HitTestBehavior.translucent,
+                        // If you use GestureDetector on viewerOverlayBuilder, it breaks link-tap handling
+                        // and you should manually handle it using onTapUp callback
+                        onTapUp: (details) {
+                          handleLinkTap(details.localPosition);
+                        },
                         onDoubleTap: () {
                           controller.zoomUp(loop: true);
                         },
+                        // Make the GestureDetector covers all the viewer widget's area
+                        // but also make the event go through to the viewer.
                         child: IgnorePointer(
                           child:
                               SizedBox(width: size.width, height: size.height),

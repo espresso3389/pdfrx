@@ -449,11 +449,14 @@ class _PdfViewerState extends State<PdfViewer>
                       ),
                     ),
                     ..._buildPageOverlayWidgets(),
-                    if (widget.params.viewerOverlayBuilder != null)
-                      ...widget.params.viewerOverlayBuilder!(
-                          context, _viewSize!),
                     if (_canvasLinkPainter.isEnabled)
                       _canvasLinkPainter.linkHandlingOverlay(_viewSize!),
+                    if (widget.params.viewerOverlayBuilder != null)
+                      ...widget.params.viewerOverlayBuilder!(
+                        context,
+                        _viewSize!,
+                        _canvasLinkPainter._handleLinkTap,
+                      ),
                   ],
                 );
               }),
@@ -798,6 +801,7 @@ class _PdfViewerState extends State<PdfViewer>
     }
     return [
       Listener(
+        behavior: HitTestBehavior.translucent,
         // FIXME: Workaround for Web; Web absorbs wheel events.
         onPointerSignal: kIsWeb
             ? (event) {
@@ -2092,10 +2096,16 @@ class _CanvasLinkPainter {
     return null;
   }
 
-  void _handleLinkTap(Offset tapPosition) {
+  bool _handleLinkTap(Offset tapPosition) {
+    _cursor = MouseCursor.defer;
     final link = _findLinkAtPosition(tapPosition);
-    if (link == null) return;
-    _state.widget.params.linkHandlerParams?.onLinkTap(link);
+    if (link == null) return false;
+    final onLinkTap = _state.widget.params.linkHandlerParams?.onLinkTap;
+    if (onLinkTap != null) {
+      onLinkTap(link);
+      return true;
+    }
+    return false;
   }
 
   void _handleLinkMouseCursor(
@@ -2114,10 +2124,7 @@ class _CanvasLinkPainter {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       // link taps
-      onTapUp: (details) {
-        _cursor = MouseCursor.defer;
-        _handleLinkTap(details.localPosition);
-      },
+      onTapUp: (details) => _handleLinkTap(details.localPosition),
       child: StatefulBuilder(builder: (context, setState) {
         return MouseRegion(
           hitTestBehavior: HitTestBehavior.translucent,
