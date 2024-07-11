@@ -25,7 +25,9 @@ typedef PdfDocumentLoaderReportCallback = void Function(
   Duration elapsedTime,
 );
 
-/// PdfDocumentRef controls loading of a [PdfDocument].
+/// PdfDocumentRef controls loading of a [PdfDocument] and it also provide you with a way to use [PdfDocument]
+/// safely in your long running async operations.
+///
 /// There are several types of [PdfDocumentRef]s predefined:
 /// * [PdfDocumentRefAsset] loads the document from asset.
 /// * [PdfDocumentRefUri] loads the document from network.
@@ -35,6 +37,17 @@ typedef PdfDocumentLoaderReportCallback = void Function(
 /// * [PdfDocumentRefDirect] directly contains [PdfDocument].
 ///
 /// Or you can create your own [PdfDocumentRef] by extending the class.
+///
+/// The following fragment explains how to get [PdfDocument] using [PdfDocumentRef]:
+///
+/// ```dart
+/// await documentRef.resolveListenable().useDocument(
+///   (document) async {
+///     // Use the document here
+///   },
+/// );
+/// ```
+///
 abstract class PdfDocumentRef {
   const PdfDocumentRef({
     this.autoDispose = true,

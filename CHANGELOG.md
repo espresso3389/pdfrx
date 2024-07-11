@@ -1,3 +1,9 @@
+# 1.0.81
+
+- Introduces PdfViewerController.useDocument to make it easy to use PdfDocument safely
+- Introduces PdfViewerController.pageCount to get page count without explicitly access PdfViewerController.pages
+- PdfViewerController.document/PdfViewerController.pages are now deprecated
+
 # 1.0.80
 
 - BREAKING CHANGE: PdfViewerParams.viewerOverlayBuilder introduces third parameter named handleLinkTap, which is used with GestureDetector to handle link-tap events on user code (#175)

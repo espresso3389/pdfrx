@@ -104,7 +104,7 @@ class _MainPageState extends State<MainPage> {
           IconButton(
             icon: const Icon(Icons.last_page),
             onPressed: () =>
-                controller.goToPage(pageNumber: controller.pages.length),
+                controller.goToPage(pageNumber: controller.pageCount),
           ),
         ],
       ),

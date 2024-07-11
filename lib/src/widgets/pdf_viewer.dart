@@ -1671,16 +1671,58 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   Rect get visibleRect => _state._visibleRect;
 
   /// Get the associated document.
+  ///
+  /// Please note that the field does not ensure that the [PdfDocument] is alive during long asynchronous operations.
+  /// If you want to do some time consuming asynchronous operation, use [useDocument] instead.
+  @Deprecated('Use useDocument instead')
   PdfDocument get document => _state._document!;
 
   /// Get the associated pages.
+  ///
+  /// Please note that the field does not ensure that the associated [PdfDocument] is alive during long asynchronous
+  /// operations. If you want to do some time consuming asynchronous operation, use [useDocument] instead.
+  /// For page count, use [pageCount] instead.
+  @Deprecated('Use useDocument instead')
   List<PdfPage> get pages => _state._document!.pages;
+
+  /// Get the page count of the document.
+  int get pageCount => _state._document!.pages.length;
 
   /// The current page number if available.
   int? get pageNumber => _state._pageNumber;
 
   /// The document reference associated to the [PdfViewer].
   PdfDocumentRef get documentRef => _state.widget.documentRef;
+
+  /// Within call to the function, it ensures that the [PdfDocument] is alive (not null and not disposed).
+  ///
+  /// If [ensureLoaded] is true, it tries to ensure that the document is loaded.
+  /// If the document is not loaded, the function does not call [task] and return null.
+  /// [cancelLoading] is used to cancel the loading process.
+  ///
+  /// The following fragment explains how to use [PdfDocument]:
+  ///
+  /// ```dart
+  /// await controller.useDocument(
+  ///   (document) async {
+  ///     // Use the document here
+  ///   },
+  /// );
+  /// ```
+  ///
+  /// This is just a shortcut for the combination of [PdfDocumentRef.resolveListenable] and [PdfDocumentListenable.useDocument].
+  ///
+  /// For more information, see [PdfDocumentRef], [PdfDocumentRef.resolveListenable], and [PdfDocumentListenable.useDocument].
+  FutureOr<T?> useDocument<T>(
+    FutureOr<T> Function(PdfDocument document) task, {
+    bool ensureLoaded = true,
+    Completer? cancelLoading,
+  }) =>
+      documentRef.resolveListenable().useDocument(
+            task,
+            ensureLoaded: ensureLoaded,
+            cancelLoading: cancelLoading,
+          );
 
   @override
   Matrix4 get value => _state._txController.value;

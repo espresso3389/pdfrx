@@ -145,7 +145,7 @@ class PdfTextSearcher extends Listenable {
     bool caseInsensitive,
     bool goToFirstMatch,
   ) async {
-    await controller?.documentRef.resolveListenable().useDocument(
+    await controller?.useDocument(
       (document) async {
         final textMatches = <PdfTextRangeWithFragments>[];
         final textMatchesPageStartIndex = <int>[];
@@ -185,11 +185,8 @@ class PdfTextSearcher extends Listenable {
 
   /// Just a helper function to load the text of a page.
   Future<PdfPageText?> loadText({required int pageNumber}) async {
-    return await controller?.documentRef.resolveListenable().useDocument(
-      (document) async {
-        return await document.pages[pageNumber - 1].loadText();
-      },
-    );
+    return await controller
+        ?.useDocument((document) => document.pages[pageNumber - 1].loadText());
   }
 
   /// Go to the previous match.
