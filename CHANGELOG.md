@@ -1,3 +1,7 @@
+# 1.0.82
+
+- collection/rxdart dependency workaround (#211)
+
 # 1.0.81
 
 - Introduces PdfViewerController.useDocument to make it easy to use PdfDocument safely
