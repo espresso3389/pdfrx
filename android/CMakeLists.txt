@@ -44,10 +44,11 @@ if(NOT EXISTS ${PDFIUM_SRC_LIB_FILENAME})
     execute_process(
         COMMAND ${CMAKE_COMMAND} -E tar zxf ${PDFIUM_RELEASE_DIR}/${PDFIUM_ARCHIVE_NAME}.tgz
         WORKING_DIRECTORY ${PDFIUM_RELEASE_DIR}
+        RESULT_VARIABLE STATUS
         ERROR_QUIET
     )
     if(STATUS AND NOT STATUS EQUAL 0)
-        message(FATAL_ERROR "Could not obtain PDFium binary for ${ANDROID_ABI}")
+        message(FATAL_ERROR "Could not obtain PDFium binary for ${ANDROID_ABI}: ${STATUS}")
     endif()
 else()
     message(STATUS "Use existing precompiled PDFium." )
