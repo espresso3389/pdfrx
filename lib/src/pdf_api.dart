@@ -399,15 +399,30 @@ abstract class PdfImage {
   /// Raw pixel data. The actual format is platform dependent.
   Uint8List get pixels;
 
+  bool _disposed = false;
+
   /// Dispose the image.
-  void dispose();
+  @mustCallSuper
+  void dispose() {
+    _disposed = true;
+  }
 
   /// Create [ui.Image] from the rendered image.
-  Future<ui.Image> createImage() {
+  Future<ui.Image> createImage() async {
+    if (_disposed) {
+      throw PdfException("Image is already disposed");
+    }
     final comp = Completer<ui.Image>();
+
     ui.decodeImageFromPixels(
         pixels, width, height, format, (image) => comp.complete(image));
-    return comp.future;
+
+    final result = await comp.future;
+    if (_disposed) {
+      result.dispose();
+      throw PdfException("Image was disposed during rendering");
+    }
+    return result;
   }
 }
 

@@ -872,6 +872,7 @@ class PdfImagePdfium extends PdfImage {
 
   @override
   void dispose() {
+    super.dispose();
     malloc.free(_buffer);
   }
 }

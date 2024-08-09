@@ -331,10 +331,19 @@ class _PdfPageViewState extends State<PdfPageView> {
       cancellationToken: _cancellationToken,
     );
     if (pageImage == null) return;
-    final newImage = await pageImage.createImage();
-    pageImage.dispose();
+
     final oldImage = _image;
-    _image = newImage;
+
+    if (mounted) {
+      final newImage = await pageImage.createImage();
+      if (mounted) {
+        _image = newImage;
+      } else {
+        newImage.dispose();
+      }
+    }
+    pageImage.dispose();
+
     oldImage?.dispose();
     if (mounted) {
       setState(() {});
