@@ -427,9 +427,11 @@ class _PdfViewerState extends State<PdfViewer>
                       boundaryMargin: widget.params.boundaryMargin ??
                           const EdgeInsets.all(double.infinity),
                       maxScale: widget.params.maxScale,
-                      minScale: _alternativeFitScale != null
-                          ? _alternativeFitScale! / 2
-                          : 0.1,
+                      minScale: min(
+                          widget.params.maxScale,
+                          _alternativeFitScale != null
+                              ? _alternativeFitScale! / 2
+                              : 0.1),
                       panAxis: widget.params.panAxis,
                       panEnabled: widget.params.panEnabled,
                       scaleEnabled: widget.params.scaleEnabled,
@@ -860,7 +862,8 @@ class _PdfViewerState extends State<PdfViewer>
   /// [_CustomPainter] calls the function to paint PDF pages.
   void _customPaint(ui.Canvas canvas, ui.Size size) {
     final targetRect = _getCacheExtentRect();
-    final scale = MediaQuery.of(context).devicePixelRatio * _currentZoom;
+    final scale = min(MediaQuery.of(context).devicePixelRatio * _currentZoom,
+        widget.params.maxScale);
 
     final unusedPageList = <int>[];
     final dropShadowPaint = widget.params.pageDropShadow?.toPaint()
@@ -1023,11 +1026,18 @@ class _PdfViewerState extends State<PdfViewer>
     double height,
     double scale,
   ) async {
+    if (!mounted) {
+      return;
+    }
     if (_pageImages[page.pageNumber]?.scale == scale) return;
     final cancellationToken = page.createCancellationToken();
     _addCancellationToken(page.pageNumber, cancellationToken);
-    await synchronized(() async {
+    await widget.documentRef.synchronized(() async {
       if (cancellationToken.isCanceled) return;
+      if (!mounted) {
+        return;
+      }
+
       if (_pageImages[page.pageNumber]?.scale == scale) return;
       final img = await page.render(
         fullWidth: width,
@@ -1037,9 +1047,16 @@ class _PdfViewerState extends State<PdfViewer>
         cancellationToken: cancellationToken,
       );
       if (img == null) return;
-      final newImage = _PdfImageWithScale(await img.createImage(), scale);
-      _pageImages[page.pageNumber]?.dispose();
-      _pageImages[page.pageNumber] = newImage;
+      if (mounted) {
+        final newImage = _PdfImageWithScale(await img.createImage(), scale);
+        if (mounted) {
+          _pageImages[page.pageNumber]?.dispose();
+          _pageImages[page.pageNumber] = newImage;
+        } else {
+          newImage.dispose();
+        }
+      }
+
       img.dispose();
       _invalidate();
     });
@@ -1053,14 +1070,22 @@ class _PdfViewerState extends State<PdfViewer>
       Timer(
         const Duration(milliseconds: 300),
         () async {
+          if (!mounted) {
+            return;
+          }
           final newImage =
               await _createPartialImage(page, scale, cancellationToken);
-          if (_pageImagesPartial[page.pageNumber] == newImage) return;
-          _pageImagesPartial.remove(page.pageNumber)?.dispose();
-          if (newImage != null) {
-            _pageImagesPartial[page.pageNumber] = newImage;
+
+          if (mounted && !cancellationToken.isCanceled) {
+            if (_pageImagesPartial[page.pageNumber] == newImage) return;
+            _pageImagesPartial.remove(page.pageNumber)?.dispose();
+            if (newImage != null) {
+              _pageImagesPartial[page.pageNumber] = newImage;
+            }
+            _invalidate();
+          } else {
+            newImage?.dispose();
           }
-          _invalidate();
         },
       ),
       cancellationToken,
@@ -1079,7 +1104,10 @@ class _PdfViewerState extends State<PdfViewer>
     if (rect.width < 1 || rect.height < 1) return null;
     final inPageRect = rect.translate(-pageRect.left, -pageRect.top);
 
-    return await synchronized(() async {
+    return await widget.documentRef.synchronized(() async {
+      if (!mounted) {
+        return null;
+      }
       if (cancellationToken.isCanceled) {
         return null;
       }
@@ -1096,9 +1124,17 @@ class _PdfViewerState extends State<PdfViewer>
         cancellationToken: cancellationToken,
       );
       if (img == null) return null;
-      final result =
-          _PdfImageWithScaleAndRect(await img.createImage(), scale, rect);
+
+      _PdfImageWithScaleAndRect? result;
+      if (mounted && !cancellationToken.isCanceled) {
+        result =
+            _PdfImageWithScaleAndRect(await img.createImage(), scale, rect);
+      }
       img.dispose();
+      if (!mounted && result != null || cancellationToken.isCanceled) {
+        result?.dispose();
+        return null;
+      }
       return result;
     });
   }

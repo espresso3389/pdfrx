@@ -488,8 +488,6 @@ class PdfImageWeb extends PdfImage {
   final Uint8List pixels;
   @override
   PixelFormat get format => PixelFormat.rgba8888;
-  @override
-  void dispose() {}
 }
 
 class PdfPageTextFragmentWeb implements PdfPageTextFragment {
