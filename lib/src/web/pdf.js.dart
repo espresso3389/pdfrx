@@ -4,7 +4,6 @@
 library pdf.js;
 
 import 'dart:js_interop';
-import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
 import 'package:synchronized/extension.dart';
@@ -27,7 +26,10 @@ const _pdfjsWorkerSrc =
 const _pdfjsCMapUrl =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$_pdfjsVersion/cmaps/';
 
-bool get _isPdfjsLoaded => globalContext['pdfjsLib'] != null;
+@JS('pdfjsLib')
+external JSAny? get _pdfjsLib;
+
+bool get _isPdfjsLoaded => _pdfjsLib != null;
 
 @JS('pdfjsLib.getDocument')
 external _PDFDocumentLoadingTask _pdfjsGetDocument(
@@ -315,47 +317,44 @@ extension type PdfjsOutlineNode._(JSObject _) implements JSObject {
   external JSArray<PdfjsOutlineNode> get items;
 }
 
-Object _dummyJsSyncContext = {};
+final _dummyJsSyncContext = {};
 
 bool _pdfjsInitialized = false;
 
 Future<void> ensurePdfjsInitialized() async {
   if (_pdfjsInitialized) return;
   await _dummyJsSyncContext.synchronized(() async {
-    await _pdfjsInitialize();
-  });
-}
+    if (_pdfjsInitialized) return;
+    if (_isPdfjsLoaded) {
+      _pdfjsInitialized = true;
+      return;
+    }
 
-Future<void> _pdfjsInitialize() async {
-  if (_pdfjsInitialized) return;
-  if (_isPdfjsLoaded) {
+    final pdfJsSrc = PdfJsConfiguration.configuration?.pdfJsSrc ?? _pdfjsUrl;
+    try {
+      final script =
+          web.document.createElement('script') as web.HTMLScriptElement
+            ..type = 'text/javascript'
+            ..charset = 'utf-8'
+            ..async = true
+            ..type = 'module'
+            ..src = pdfJsSrc;
+      web.document.querySelector('head')!.appendChild(script);
+      await script.onLoad.first.timeout(
+          PdfJsConfiguration.configuration?.pdfJsDownloadTimeout ??
+              const Duration(seconds: 10));
+    } catch (e) {
+      throw StateError('Failed to load pdf.js from $pdfJsSrc: $e');
+    }
+
+    if (!_isPdfjsLoaded) {
+      throw StateError('Failed to load pdfjs');
+    }
+    _pdfjsWorkerSrc =
+        PdfJsConfiguration.configuration?.workerSrc ?? _pdfjsWorkerSrc;
+
     _pdfjsInitialized = true;
-    return;
-  }
-
-  final pdfJsSrc = PdfJsConfiguration.configuration?.pdfJsSrc ?? _pdfjsUrl;
-  try {
-    final script = web.document.createElement('script') as web.HTMLScriptElement
-      ..type = 'text/javascript'
-      ..charset = 'utf-8'
-      ..async = true
-      ..type = 'module'
-      ..src = pdfJsSrc;
-    web.document.querySelector('head')!.appendChild(script);
-    await script.onLoad.first.timeout(
-        PdfJsConfiguration.configuration?.pdfJsDownloadTimeout ??
-            const Duration(seconds: 10));
-  } catch (e) {
-    throw StateError('Failed to load pdf.js from $pdfJsSrc: $e');
-  }
-
-  if (!_isPdfjsLoaded) {
-    throw StateError('Failed to load pdfjs');
-  }
-  _pdfjsWorkerSrc =
-      PdfJsConfiguration.configuration?.workerSrc ?? _pdfjsWorkerSrc;
-
-  _pdfjsInitialized = true;
+  });
 }
 
 extension type ReadableStream._(JSObject _) implements JSObject {
