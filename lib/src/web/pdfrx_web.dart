@@ -6,7 +6,6 @@ import 'dart:js_interop';
 import 'dart:ui';
 
 import 'package:flutter/services.dart';
-import 'package:synchronized/extension.dart';
 import 'package:web/web.dart' as web;
 
 import '../../pdfrx.dart';
@@ -350,28 +349,23 @@ class PdfPageWeb extends PdfPage {
     fullHeight ??= this.height;
     width ??= fullWidth.toInt();
     height ??= fullHeight.toInt();
-    return await synchronized(() async {
-      if (cancellationToken is PdfPageRenderCancellationTokenWeb &&
-          cancellationToken.isCanceled == true) {
-        return null;
-      }
-      final data = await _renderRaw(
+
+    return PdfImageWeb(
+      width: width,
+      height: height,
+      pixels: await _renderRaw(
         x,
         y,
-        width!,
-        height!,
-        fullWidth!,
-        fullHeight!,
+        width,
+        height,
+        fullWidth,
+        fullHeight,
         backgroundColor,
         false,
         annotationRenderingMode,
-      );
-      return PdfImageWeb(
-        width: width,
-        height: height,
-        pixels: data,
-      );
-    });
+        cancellationToken as PdfPageRenderCancellationTokenWeb,
+      ),
+    );
   }
 
   @override
@@ -388,6 +382,7 @@ class PdfPageWeb extends PdfPage {
     Color? backgroundColor,
     bool dontFlip,
     PdfAnnotationRenderingMode annotationRenderingMode,
+    PdfPageRenderCancellationTokenWeb cancellationToken,
   ) async {
     final vp1 = page.getViewport(PdfjsViewportParams(scale: 1));
     final pageWidth = vp1.width;
@@ -424,13 +419,12 @@ class PdfPageWeb extends PdfPage {
         .promise
         .toDart;
 
-    final src = canvas.context2D
+    return canvas.context2D
         .getImageData(0, 0, width, height)
         .data
         .toDart
         .buffer
         .asUint8List();
-    return src;
   }
 
   @override
