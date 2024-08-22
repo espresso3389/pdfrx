@@ -12,7 +12,7 @@ import 'package:web/web.dart' as web;
 import '../../pdfrx.dart';
 
 /// Default pdf.js version
-const _pdfjsVersion = '4.4.168';
+const _pdfjsVersion = '4.5.136';
 
 /// Default pdf.js URL
 const _pdfjsUrl =
