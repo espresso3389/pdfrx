@@ -10,14 +10,12 @@ import '../utils/double_extensions.dart';
 /// If [PdfDocument.permissions] does not allow copying, the widget does not show anything.
 class PdfPageTextOverlay extends StatefulWidget {
   const PdfPageTextOverlay({
-    required this.registrar,
     required this.page,
     required this.pageRect,
     this.onTextSelectionChange,
     super.key,
   });
 
-  final SelectionRegistrar? registrar;
   final PdfPage page;
   final Rect pageRect;
   final void Function(PdfTextRanges? ranges)? onTextSelectionChange;
@@ -95,12 +93,13 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
         widget.page.document.permissions?.allowsCopying == false) {
       return const SizedBox();
     }
+    final registrar = SelectionContainer.maybeOf(context);
     return MouseRegion(
       hitTestBehavior: HitTestBehavior.translucent,
       cursor: cursor,
       onHover: _onHover,
       child: _PdfTextWidget(
-        widget.registrar,
+        registrar,
         this,
       ),
     );

@@ -759,22 +759,18 @@ class _PdfViewerState extends State<PdfViewer>
             _document!.permissions?.allowsCopying != false) {
           textWidgets.add(
             Positioned(
+              key: Key('_pagePos:${page.pageNumber}'),
               left: rectExternal.left,
               top: rectExternal.top,
               width: rectExternal.width,
               height: rectExternal.height,
               child: selectionAreaInjector(
                 page,
-                Builder(builder: (context) {
-                  final registrar = SelectionContainer.maybeOf(context);
-                  return PdfPageTextOverlay(
-                    key: Key('pageText:${page.pageNumber}'),
-                    registrar: registrar,
-                    page: page,
-                    pageRect: rectExternal,
-                    onTextSelectionChange: widget.params.onTextSelectionChange,
-                  );
-                }),
+                PdfPageTextOverlay(
+                  page: page,
+                  pageRect: rectExternal,
+                  onTextSelectionChange: widget.params.onTextSelectionChange,
+                ),
               ),
             ),
           );
