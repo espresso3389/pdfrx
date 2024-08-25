@@ -1534,16 +1534,24 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// Converts the global position to the local position in the widget.
   Offset? _globalToLocal(Offset global) {
-    final renderBox = _renderBox;
-    if (renderBox == null) return null;
-    return renderBox.globalToLocal(global);
+    try {
+      final renderBox = _renderBox;
+      if (renderBox == null) return null;
+      return renderBox.globalToLocal(global);
+    } catch (e) {
+      return null;
+    }
   }
 
   /// Converts the local position to the global position in the widget.
   Offset? _localToGlobal(Offset local) {
-    final renderBox = _renderBox;
-    if (renderBox == null) return null;
-    return renderBox.localToGlobal(local);
+    try {
+      final renderBox = _renderBox;
+      if (renderBox == null) return null;
+      return renderBox.localToGlobal(local);
+    } catch (e) {
+      return null;
+    }
   }
 
   /// Converts the global position to the local position in the PDF document structure.
