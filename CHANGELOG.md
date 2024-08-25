@@ -1,3 +1,12 @@
+# 1.0.83
+
+- Web related improvements
+  - PDF.js 4.5.136
+  - Remove dependency to dart:js_interop_unsafe
+  - Remove unnecessary synchronized call
+- Improve text selection stability (#4, #185)
+- Add more mounted checks to improve PdfViewer stability and speed
+
 # 1.0.82
 
 - collection/rxdart dependency workaround (#211)
