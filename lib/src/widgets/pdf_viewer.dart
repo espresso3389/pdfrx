@@ -1019,11 +1019,12 @@ class _PdfViewerState extends State<PdfViewer>
     double height,
     double scale,
   ) async {
+    if (!mounted) return;
     if (_pageImages[page.pageNumber]?.scale == scale) return;
     final cancellationToken = page.createCancellationToken();
     _addCancellationToken(page.pageNumber, cancellationToken);
     await synchronized(() async {
-      if (cancellationToken.isCanceled) return;
+      if (!mounted || cancellationToken.isCanceled) return;
       if (_pageImages[page.pageNumber]?.scale == scale) return;
       final img = await page.render(
         fullWidth: width,
@@ -1033,7 +1034,16 @@ class _PdfViewerState extends State<PdfViewer>
         cancellationToken: cancellationToken,
       );
       if (img == null) return;
+      if (!mounted || cancellationToken.isCanceled) {
+        img.dispose();
+        return;
+      }
       final newImage = _PdfImageWithScale(await img.createImage(), scale);
+      if (!mounted || cancellationToken.isCanceled) {
+        img.dispose();
+        newImage.dispose();
+        return;
+      }
       _pageImages[page.pageNumber]?.dispose();
       _pageImages[page.pageNumber] = newImage;
       img.dispose();
@@ -1049,6 +1059,7 @@ class _PdfViewerState extends State<PdfViewer>
       Timer(
         const Duration(milliseconds: 300),
         () async {
+          if (!mounted || cancellationToken.isCanceled) return;
           final newImage =
               await _createPartialImage(page, scale, cancellationToken);
           if (_pageImagesPartial[page.pageNumber] == newImage) return;
@@ -1075,28 +1086,28 @@ class _PdfViewerState extends State<PdfViewer>
     if (rect.width < 1 || rect.height < 1) return null;
     final inPageRect = rect.translate(-pageRect.left, -pageRect.top);
 
-    return await synchronized(() async {
-      if (cancellationToken.isCanceled) {
-        return null;
-      }
+    if (!mounted || cancellationToken.isCanceled) return null;
 
-      final img = await page.render(
-        x: (inPageRect.left * scale).toInt(),
-        y: (inPageRect.top * scale).toInt(),
-        width: (inPageRect.width * scale).toInt(),
-        height: (inPageRect.height * scale).toInt(),
-        fullWidth: pageRect.width * scale,
-        fullHeight: pageRect.height * scale,
-        backgroundColor: Colors.white,
-        annotationRenderingMode: widget.params.annotationRenderingMode,
-        cancellationToken: cancellationToken,
-      );
-      if (img == null) return null;
-      final result =
-          _PdfImageWithScaleAndRect(await img.createImage(), scale, rect);
+    final img = await page.render(
+      x: (inPageRect.left * scale).toInt(),
+      y: (inPageRect.top * scale).toInt(),
+      width: (inPageRect.width * scale).toInt(),
+      height: (inPageRect.height * scale).toInt(),
+      fullWidth: pageRect.width * scale,
+      fullHeight: pageRect.height * scale,
+      backgroundColor: Colors.white,
+      annotationRenderingMode: widget.params.annotationRenderingMode,
+      cancellationToken: cancellationToken,
+    );
+    if (img == null) return null;
+    if (!mounted || cancellationToken.isCanceled) {
       img.dispose();
-      return result;
-    });
+      return null;
+    }
+    final result =
+        _PdfImageWithScaleAndRect(await img.createImage(), scale, rect);
+    img.dispose();
+    return result;
   }
 
   void _removeImagesIfCacheBytesExceedsLimit(
