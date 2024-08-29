@@ -269,11 +269,9 @@ class _MainPageState extends State<MainPage> {
                         );
                       }
                     },
-                    // Scroll-thumbs example
-                    //
                     viewerOverlayBuilder: (context, size, handleLinkTap) => [
                       //
-                      // Double-tap to zoom
+                      // Example use of GestureDetector to handle custom gestures
                       //
                       GestureDetector(
                         behavior: HitTestBehavior.translucent,
