@@ -871,6 +871,8 @@ class PdfRect {
     }
   }
 
+  PdfRect inflate(double dx, double dy) => PdfRect(left - dx, top + dy, right + dx, bottom - dy);
+
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;

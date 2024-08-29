@@ -228,7 +228,7 @@ class _PdfViewerState extends State<PdfViewer>
   // Changes to the stream rebuilds the viewer
   final _updateStream = BehaviorSubject<Matrix4>();
 
-  final _selectionHandlers = <Selectable>{};
+  final _selectionHandlers = <int, Selectable>{};
 
   final _textSelections = SplayTreeSet<PdfTextRanges>(
       (a, b) => a.pageNumber.compareTo(b.pageNumber));
@@ -860,7 +860,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _clearAllTextSelections() {
-    for (final s in _selectionHandlers) {
+    for (final s in _selectionHandlers.values) {
       s.dispatchSelectionEvent(const ClearSelectionEvent());
     }
   }

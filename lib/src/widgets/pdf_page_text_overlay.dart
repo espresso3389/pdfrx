@@ -27,7 +27,7 @@ class PdfPageTextOverlay extends StatefulWidget {
     super.key,
   });
 
-  final Set<Selectable> selectables;
+  final Map<int, Selectable> selectables;
   final bool enabled;
   final PdfPage page;
   final Rect pageRect;
@@ -115,11 +115,26 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
       hitTestBehavior: HitTestBehavior.translucent,
       cursor: cursor,
       onHover: _onHover,
-      child: _PdfTextWidget(
-        registrar,
-        this,
+      child: _ignorePointer(
+        child: _PdfTextWidget(
+          registrar,
+          this,
+        ),
       ),
     );
+  }
+
+  Widget _ignorePointer({required Widget child}) {
+    return IgnorePointer(
+      ignoring: !_anySelections,
+      child: child,
+    );
+  }
+
+  bool get _anySelections {
+    if (_pageText == null) return false;
+    final pageSelection = widget.selectables[_pageText!.pageNumber];
+    return pageSelection != null && pageSelection.value.hasSelection;
   }
 
   void _onHover(PointerHoverEvent event) {
@@ -138,7 +153,7 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
     }
   }
 
-  bool isPointOnText(Offset point, {double margin = 3}) {
+  bool isPointOnText(Offset point, {double margin = 5}) {
     for (final fragment in fragments!) {
       if (pdfRectContains(fragment.bounds, point, margin)) {
         return true;
@@ -176,7 +191,7 @@ class _PdfTextWidget extends LeafRenderObjectWidget {
   @override
   RenderObject createRenderObject(BuildContext context) {
     final selectable = _PdfTextRenderBox(_state.widget.selectionColor, this);
-    _state.widget.selectables.add(selectable);
+    _state.widget.selectables[_state._pageText!.pageNumber] = selectable;
     return selectable;
   }
 
@@ -186,7 +201,7 @@ class _PdfTextWidget extends LeafRenderObjectWidget {
     renderObject
       ..selectionColor = _state.widget.selectionColor
       ..registrar = _registrar;
-    _state.widget.selectables.add(renderObject);
+    _state.widget.selectables[_state._pageText!.pageNumber] = renderObject;
   }
 }
 

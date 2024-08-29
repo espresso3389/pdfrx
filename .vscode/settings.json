@@ -141,6 +141,8 @@
     "SCHHANDLE",
     "Schyler",
     "scrollable",
+    "selectable",
+    "selectables",
     "SIZEF",
     "SKIA",
     "SMOOTHIMAGE",
