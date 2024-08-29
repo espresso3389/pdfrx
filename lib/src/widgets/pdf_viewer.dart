@@ -303,6 +303,7 @@ class _PdfViewerState extends State<PdfViewer>
   void _onDocumentChanged() async {
     _layout = null;
 
+    _stopInteraction();
     _releaseAllImages();
     _canvasLinkPainter.resetAll();
     _pageNumber = null;
@@ -343,6 +344,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   void dispose() {
+    _stopInteraction();
     _cancelAllPendingRenderings();
     _animController.dispose();
     widget.documentRef.resolveListenable().removeListener(_onDocumentChanged);
@@ -444,8 +446,8 @@ class _PdfViewerState extends State<PdfViewer>
                           panAxis: widget.params.panAxis,
                           panEnabled: widget.params.panEnabled,
                           scaleEnabled: widget.params.scaleEnabled,
-                          onInteractionEnd: widget.params.onInteractionEnd,
-                          onInteractionStart: widget.params.onInteractionStart,
+                          onInteractionEnd: _onInteractionEnd,
+                          onInteractionStart: _onInteractionStart,
                           onInteractionUpdate:
                               widget.params.onInteractionUpdate,
                           interactionEndFrictionCoefficient:
@@ -477,6 +479,33 @@ class _PdfViewerState extends State<PdfViewer>
         ),
       );
     });
+  }
+
+  Timer? _interactionEndedTimer;
+  bool _isInteractionGoingOn = false;
+
+  void _startInteraction() {
+    _interactionEndedTimer?.cancel();
+    _interactionEndedTimer = null;
+    _isInteractionGoingOn = true;
+  }
+  
+  void _stopInteraction() {
+    _interactionEndedTimer?.cancel();
+    _interactionEndedTimer = Timer(const Duration(milliseconds: 300), () {
+      _isInteractionGoingOn = false;
+      _invalidate();
+    });
+  }
+
+  void _onInteractionEnd(ScaleEndDetails details) {
+    widget.params.onInteractionEnd?.call(details);
+    _stopInteraction();
+  }
+
+  void _onInteractionStart(ScaleStartDetails details) {
+    _startInteraction();
+    widget.params.onInteractionStart?.call(details);
   }
 
   /// Last page number that is explicitly requested to go to.
@@ -751,7 +780,7 @@ class _PdfViewerState extends State<PdfViewer>
             widget.params.linkWidgetBuilder != null) {
           linkWidgets.add(
             PdfPageLinksOverlay(
-              key: Key('pageLinks:${page.pageNumber}'),
+              key: Key('#__pageLinks__:${page.pageNumber}'),
               page: page,
               pageRect: rectExternal,
               params: widget.params,
@@ -772,12 +801,13 @@ class _PdfViewerState extends State<PdfViewer>
             _document!.permissions?.allowsCopying != false) {
           textWidgets.add(
             Positioned(
-              key: Key('_pagePos:${page.pageNumber}'),
+              key: Key('#__pageTextOverlay__:${page.pageNumber}'),
               left: rectExternal.left,
               top: rectExternal.top,
               width: rectExternal.width,
               height: rectExternal.height,
               child: PdfPageTextOverlay(
+                enabled: !_isInteractionGoingOn,
                 page: page,
                 pageRect: rectExternal,
                 onTextSelectionChange: _onSelectionChange,
@@ -796,7 +826,7 @@ class _PdfViewerState extends State<PdfViewer>
         if (overlay != null && overlay.isNotEmpty) {
           overlayWidgets.add(
             Positioned(
-              key: Key('pageOverlay:${page.pageNumber}'),
+              key: Key('#__pageOverlay__:${page.pageNumber}'),
               left: rectExternal.left,
               top: rectExternal.top,
               width: rectExternal.width,
@@ -1169,12 +1199,14 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _onWheelDelta(Offset delta) {
+    _startInteraction();
     final m = _txController.value.clone();
     m.translate(
       -delta.dx * widget.params.scrollByMouseWheel!,
       -delta.dy * widget.params.scrollByMouseWheel!,
     );
     _txController.value = m;
+    _stopInteraction();
   }
 
   /// Restrict matrix to the safe range.

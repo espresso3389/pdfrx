@@ -21,10 +21,12 @@ class PdfPageTextOverlay extends StatefulWidget {
     required this.page,
     required this.pageRect,
     required this.selectionColor,
+    required this.enabled,
     this.onTextSelectionChange,
     super.key,
   });
 
+  final bool enabled;
   final PdfPage page;
   final Rect pageRect;
   final PdfViewerPageTextSelectionChangeCallback? onTextSelectionChange;
@@ -219,7 +221,9 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
   List<PdfPageTextFragment> get _fragments => _textWidget._state.fragments!;
 
   @override
-  late final List<Rect> boundingBoxes = _fragments.map((f) => f.bounds.toRect(page: _page, scaledPageSize: size)).toList(growable: false);
+  late final List<Rect> boundingBoxes = _fragments
+      .map((f) => f.bounds.toRect(page: _page, scaledPageSize: size))
+      .toList(growable: false);
 
   @override
   bool hitTestSelf(Offset position) {
@@ -466,6 +470,10 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
 
   @override
   SelectionResult dispatchSelectionEvent(SelectionEvent event) {
+    if (!_textWidget._state.widget.enabled) {
+      return SelectionResult.none;
+    }
+
     var result = SelectionResult.none;
     switch (event.type) {
       case SelectionEventType.startEdgeUpdate:
