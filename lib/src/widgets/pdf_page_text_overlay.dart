@@ -18,6 +18,7 @@ typedef PdfViewerPageTextSelectionChangeCallback = void Function(
 /// If [PdfDocument.permissions] does not allow copying, the widget does not show anything.
 class PdfPageTextOverlay extends StatefulWidget {
   const PdfPageTextOverlay({
+    required this.selectables,
     required this.page,
     required this.pageRect,
     required this.selectionColor,
@@ -26,6 +27,7 @@ class PdfPageTextOverlay extends StatefulWidget {
     super.key,
   });
 
+  final Set<Selectable> selectables;
   final bool enabled;
   final PdfPage page;
   final Rect pageRect;
@@ -173,7 +175,9 @@ class _PdfTextWidget extends LeafRenderObjectWidget {
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    return _PdfTextRenderBox(_state.widget.selectionColor, this);
+    final selectable = _PdfTextRenderBox(_state.widget.selectionColor, this);
+    _state.widget.selectables.add(selectable);
+    return selectable;
   }
 
   @override
@@ -182,6 +186,7 @@ class _PdfTextWidget extends LeafRenderObjectWidget {
     renderObject
       ..selectionColor = _state.widget.selectionColor
       ..registrar = _registrar;
+    _state.widget.selectables.add(renderObject);
   }
 }
 

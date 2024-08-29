@@ -8,6 +8,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
@@ -226,6 +227,8 @@ class _PdfViewerState extends State<PdfViewer>
 
   // Changes to the stream rebuilds the viewer
   final _updateStream = BehaviorSubject<Matrix4>();
+
+  final _selectionHandlers = <Selectable>{};
 
   final _textSelections = SplayTreeSet<PdfTextRanges>(
       (a, b) => a.pageNumber.compareTo(b.pageNumber));
@@ -489,7 +492,7 @@ class _PdfViewerState extends State<PdfViewer>
     _interactionEndedTimer = null;
     _isInteractionGoingOn = true;
   }
-  
+
   void _stopInteraction() {
     _interactionEndedTimer?.cancel();
     _interactionEndedTimer = Timer(const Duration(milliseconds: 300), () {
@@ -759,6 +762,8 @@ class _PdfViewerState extends State<PdfViewer>
       (z1 - z2).abs() < 0.01;
 
   List<Widget> _buildPageOverlayWidgets(BuildContext context) {
+    _selectionHandlers.clear();
+
     final renderBox = context.findRenderObject();
     if (renderBox is! RenderBox) return [];
 
@@ -807,6 +812,7 @@ class _PdfViewerState extends State<PdfViewer>
               width: rectExternal.width,
               height: rectExternal.height,
               child: PdfPageTextOverlay(
+                selectables: _selectionHandlers,
                 enabled: !_isInteractionGoingOn,
                 page: page,
                 pageRect: rectExternal,
@@ -851,6 +857,12 @@ class _PdfViewerState extends State<PdfViewer>
       ...linkWidgets,
       ...overlayWidgets,
     ];
+  }
+
+  void _clearAllTextSelections() {
+    for (final s in _selectionHandlers) {
+      s.dispatchSelectionEvent(const ClearSelectionEvent());
+    }
   }
 
   void _onSelectionChange(PdfTextRanges selection) {
@@ -2211,12 +2223,14 @@ class _CanvasLinkPainter {
   bool _handleLinkTap(Offset tapPosition) {
     _cursor = MouseCursor.defer;
     final link = _findLinkAtPosition(tapPosition);
-    if (link == null) return false;
-    final onLinkTap = _state.widget.params.linkHandlerParams?.onLinkTap;
-    if (onLinkTap != null) {
-      onLinkTap(link);
-      return true;
+    if (link != null) {
+      final onLinkTap = _state.widget.params.linkHandlerParams?.onLinkTap;
+      if (onLinkTap != null) {
+        onLinkTap(link);
+        return true;
+      }
     }
+    _state._clearAllTextSelections();
     return false;
   }
 
