@@ -2,6 +2,7 @@ export 'src/pdf_api.dart';
 export 'src/pdf_document_ref.dart';
 export 'src/pdf_file_cache.dart';
 export 'src/web/pdf_js_configuration.dart';
+export 'src/widgets/pdf_page_text_overlay.dart';
 export 'src/widgets/pdf_text_searcher.dart';
 export 'src/widgets/pdf_viewer.dart';
 export 'src/widgets/pdf_viewer_params.dart';

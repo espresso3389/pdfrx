@@ -38,7 +38,7 @@ class _MainPageState extends State<MainPage> {
   final outline = ValueNotifier<List<PdfOutlineNode>?>(null);
   late final textSearcher = PdfTextSearcher(controller)..addListener(_update);
   final _markers = <int, List<Marker>>{};
-  PdfTextRanges? _selectedText;
+  List<PdfTextRanges>? _textSelections;
 
   void _update() {
     if (mounted) {
@@ -354,7 +354,7 @@ class _MainPageState extends State<MainPage> {
                       if (document == null) {
                         documentRef.value = null;
                         outline.value = null;
-                        _selectedText = null;
+                        _textSelections = null;
                         _markers.clear();
                       }
                     },
@@ -362,8 +362,8 @@ class _MainPageState extends State<MainPage> {
                       documentRef.value = controller.documentRef;
                       outline.value = await document.loadOutline();
                     },
-                    onTextSelectionChange: (selection) {
-                      _selectedText = selection;
+                    onTextSelectionChange: (selections) {
+                      _textSelections = selections;
                     },
                   ),
                 ),
@@ -402,12 +402,12 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _addCurrentSelectionToMarkers(Color color) {
-    if (controller.isReady &&
-        _selectedText != null &&
-        _selectedText!.isNotEmpty) {
-      _markers
-          .putIfAbsent(_selectedText!.pageNumber, () => [])
-          .add(Marker(color, _selectedText!));
+    if (controller.isReady && _textSelections != null) {
+      for (final selectedText in _textSelections!) {
+        _markers
+            .putIfAbsent(selectedText.pageNumber, () => [])
+            .add(Marker(color, selectedText));
+      }
       setState(() {});
     }
   }

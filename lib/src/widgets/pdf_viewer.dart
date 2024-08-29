@@ -1,5 +1,6 @@
 // ignore_for_file: public_member_api_docs
 import 'dart:async';
+import 'dart:collection';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
@@ -16,7 +17,6 @@ import '../../pdfrx.dart';
 import 'interactive_viewer.dart' as iv;
 import 'pdf_error_widget.dart';
 import 'pdf_page_links_overlay.dart';
-import 'pdf_page_text_overlay.dart';
 
 /// A widget to display PDF document.
 ///
@@ -212,6 +212,7 @@ class _PdfViewerState extends State<PdfViewer>
   double _minScale = _defaultMinScale;
   int? _pageNumber;
   bool _initialized = false;
+
   final List<double> _zoomStops = [1.0];
 
   final _pageImages = <int, _PdfImageWithScale>{};
@@ -225,6 +226,9 @@ class _PdfViewerState extends State<PdfViewer>
 
   // Changes to the stream rebuilds the viewer
   final _updateStream = BehaviorSubject<Matrix4>();
+
+  final _textSelections = SplayTreeSet<PdfTextRanges>(
+      (a, b) => a.pageNumber.compareTo(b.pageNumber));
 
   @override
   void initState() {
@@ -408,6 +412,11 @@ class _PdfViewerState extends State<PdfViewer>
         });
       }
 
+      final Widget Function(Widget) selectionAreaInjector =
+          widget.params.enableTextSelection
+              ? (child) => SelectionArea(child: child)
+              : (child) => child;
+
       return Container(
         color: widget.params.backgroundColor,
         child: Focus(
@@ -419,45 +428,50 @@ class _PdfViewerState extends State<PdfViewer>
                 _determineCurrentPage();
                 _calcAlternativeFitScale();
                 _calcZoomStopTable();
-                return Stack(
-                  children: [
-                    iv.InteractiveViewer(
-                      transformationController: _txController,
-                      constrained: false,
-                      boundaryMargin: widget.params.boundaryMargin ??
-                          const EdgeInsets.all(double.infinity),
-                      maxScale: widget.params.maxScale,
-                      minScale: _alternativeFitScale != null
-                          ? _alternativeFitScale! / 2
-                          : 0.1,
-                      panAxis: widget.params.panAxis,
-                      panEnabled: widget.params.panEnabled,
-                      scaleEnabled: widget.params.scaleEnabled,
-                      onInteractionEnd: widget.params.onInteractionEnd,
-                      onInteractionStart: widget.params.onInteractionStart,
-                      onInteractionUpdate: widget.params.onInteractionUpdate,
-                      interactionEndFrictionCoefficient:
-                          widget.params.interactionEndFrictionCoefficient,
-                      onWheelDelta: widget.params.scrollByMouseWheel != null
-                          ? _onWheelDelta
-                          : null,
-                      // PDF pages
-                      child: CustomPaint(
-                        foregroundPainter:
-                            _CustomPainter.fromFunction(_customPaint),
-                        size: _layout!.documentSize,
-                      ),
-                    ),
-                    ..._buildPageOverlayWidgets(),
-                    if (_canvasLinkPainter.isEnabled)
-                      _canvasLinkPainter.linkHandlingOverlay(_viewSize!),
-                    if (widget.params.viewerOverlayBuilder != null)
-                      ...widget.params.viewerOverlayBuilder!(
-                        context,
-                        _viewSize!,
-                        _canvasLinkPainter._handleLinkTap,
-                      ),
-                  ],
+                return selectionAreaInjector(
+                  Builder(builder: (context) {
+                    return Stack(
+                      children: [
+                        iv.InteractiveViewer(
+                          transformationController: _txController,
+                          constrained: false,
+                          boundaryMargin: widget.params.boundaryMargin ??
+                              const EdgeInsets.all(double.infinity),
+                          maxScale: widget.params.maxScale,
+                          minScale: _alternativeFitScale != null
+                              ? _alternativeFitScale! / 2
+                              : 0.1,
+                          panAxis: widget.params.panAxis,
+                          panEnabled: widget.params.panEnabled,
+                          scaleEnabled: widget.params.scaleEnabled,
+                          onInteractionEnd: widget.params.onInteractionEnd,
+                          onInteractionStart: widget.params.onInteractionStart,
+                          onInteractionUpdate:
+                              widget.params.onInteractionUpdate,
+                          interactionEndFrictionCoefficient:
+                              widget.params.interactionEndFrictionCoefficient,
+                          onWheelDelta: widget.params.scrollByMouseWheel != null
+                              ? _onWheelDelta
+                              : null,
+                          // PDF pages
+                          child: CustomPaint(
+                            foregroundPainter:
+                                _CustomPainter.fromFunction(_customPaint),
+                            size: _layout!.documentSize,
+                          ),
+                        ),
+                        ..._buildPageOverlayWidgets(context),
+                        if (_canvasLinkPainter.isEnabled)
+                          _canvasLinkPainter.linkHandlingOverlay(_viewSize!),
+                        if (widget.params.viewerOverlayBuilder != null)
+                          ...widget.params.viewerOverlayBuilder!(
+                            context,
+                            _viewSize!,
+                            _canvasLinkPainter._handleLinkTap,
+                          ),
+                      ],
+                    );
+                  }),
                 );
               }),
         ),
@@ -715,7 +729,7 @@ class _PdfViewerState extends State<PdfViewer>
   static bool _areZoomsAlmostIdentical(double z1, double z2) =>
       (z1 - z2).abs() < 0.01;
 
-  List<Widget> _buildPageOverlayWidgets() {
+  List<Widget> _buildPageOverlayWidgets(BuildContext context) {
     final renderBox = context.findRenderObject();
     if (renderBox is! RenderBox) return [];
 
@@ -723,8 +737,7 @@ class _PdfViewerState extends State<PdfViewer>
     final textWidgets = <Widget>[];
     final overlayWidgets = <Widget>[];
     final targetRect = _getCacheExtentRect();
-    final selectionAreaInjector = widget.params.perPageSelectionAreaInjector ??
-        (page, child) => SelectionArea(child: child);
+    final selectionRegistrar = SelectionContainer.maybeOf(context);
 
     for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
@@ -755,7 +768,7 @@ class _PdfViewerState extends State<PdfViewer>
           );
         }
 
-        if (widget.params.enableTextSelection &&
+        if (selectionRegistrar != null &&
             _document!.permissions?.allowsCopying != false) {
           textWidgets.add(
             Positioned(
@@ -764,13 +777,12 @@ class _PdfViewerState extends State<PdfViewer>
               top: rectExternal.top,
               width: rectExternal.width,
               height: rectExternal.height,
-              child: selectionAreaInjector(
-                page,
-                PdfPageTextOverlay(
-                  page: page,
-                  pageRect: rectExternal,
-                  onTextSelectionChange: widget.params.onTextSelectionChange,
-                ),
+              child: PdfPageTextOverlay(
+                page: page,
+                pageRect: rectExternal,
+                onTextSelectionChange: _onSelectionChange,
+                selectionColor:
+                    DefaultSelectionStyle.of(context).selectionColor!,
               ),
             ),
           );
@@ -798,19 +810,30 @@ class _PdfViewerState extends State<PdfViewer>
     return [
       Listener(
         behavior: HitTestBehavior.translucent,
-        // FIXME: Workaround for Web; Web absorbs wheel events.
-        onPointerSignal: kIsWeb
-            ? (event) {
-                if (event is PointerScrollEvent) {
-                  _onWheelDelta(event.scrollDelta);
-                }
-              }
-            : null,
+        // FIXME: Selectable absorbs wheel events.
+        onPointerSignal: (event) {
+          if (event is PointerScrollEvent) {
+            _onWheelDelta(event.scrollDelta);
+          }
+        },
         child: Stack(children: textWidgets),
       ),
       ...linkWidgets,
       ...overlayWidgets,
     ];
+  }
+
+  void _onSelectionChange(PdfTextRanges selection) {
+    if (selection.isEmpty) {
+      if (!_textSelections.contains(selection)) return;
+      _textSelections.remove(selection);
+    } else {
+      if (_textSelections.contains(selection)) {
+        _textSelections.remove(selection);
+      }
+      _textSelections.add(selection);
+    }
+    widget.params.onTextSelectionChange?.call(_textSelections.toList());
   }
 
   Rect _getCacheExtentRect() {

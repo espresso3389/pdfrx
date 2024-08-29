@@ -61,7 +61,6 @@ class PdfViewerParams {
     this.pagePaintCallbacks,
     this.pageBackgroundPaintCallbacks,
     this.onTextSelectionChange,
-    this.perPageSelectionAreaInjector,
     this.forceReload = false,
   });
 
@@ -149,8 +148,14 @@ class PdfViewerParams {
   /// If you want more granular control for each page, use [getPageRenderingScale].
   final double onePassRenderingScaleThreshold;
 
-  /// Experimental: Enable text selection on pages.
+  /// Enable text selection on pages.
   ///
+  /// The default is false.
+  /// If it is true, the text selection is enabled by injecting [SelectionArea]
+  /// internally.
+  /// You can manually wrap [PdfViewer] with [SelectionArea] or [SelectableRegion]
+  /// for more customization, but in such situation, [enableTextSelection] must
+  /// be false to avoid double [SelectionArea]/[SelectableRegion] injection.
   final bool enableTextSelection;
 
   /// Color for text search match.
@@ -416,28 +421,6 @@ class PdfViewerParams {
   /// Function to be notified when the text selection is changed.
   final PdfViewerTextSelectionChangeCallback? onTextSelectionChange;
 
-  /// Function to inject customized [SelectionArea] for page text selection.
-  ///
-  /// You can of course disable page level [SelectionArea] by returning the passed `child` directly.
-  ///
-  /// The following fragment is an example to inject [SelectionArea] with
-  /// [AdaptiveTextSelectionToolbar.selectableRegion] for page text selection:
-  ///
-  /// ```dart
-  /// perPageSelectionAreaInjector: (page, child) {
-  ///   return SelectionArea(
-  ///     contextMenuBuilder: (context, selectableRegionState) {
-  ///       return AdaptiveTextSelectionToolbar.selectableRegion(
-  ///          selectableRegionState: selectableRegionState,
-  ///       );
-  ///     },
-  ///     child: child,
-  ///   );
-  /// },
-  /// ```
-  ///
-  final PerPageSelectionAreaInjector? perPageSelectionAreaInjector;
-
   /// Force reload the viewer.
   ///
   /// Normally whether to reload the viewer is determined by the changes of the parameters but
@@ -530,7 +513,6 @@ class PdfViewerParams {
         other.pagePaintCallbacks == pagePaintCallbacks &&
         other.pageBackgroundPaintCallbacks == pageBackgroundPaintCallbacks &&
         other.onTextSelectionChange == onTextSelectionChange &&
-        other.perPageSelectionAreaInjector == perPageSelectionAreaInjector &&
         other.forceReload == forceReload;
   }
 
@@ -578,7 +560,6 @@ class PdfViewerParams {
         pagePaintCallbacks.hashCode ^
         pageBackgroundPaintCallbacks.hashCode ^
         onTextSelectionChange.hashCode ^
-        perPageSelectionAreaInjector.hashCode ^
         forceReload.hashCode;
   }
 }
@@ -709,18 +690,9 @@ typedef PdfViewerPagePaintCallback = void Function(
 
 /// Function to be notified when the text selection is changed.
 ///
-/// [selection] is the selected text ranges.
-/// If page selection is cleared on page dispose (it means, the page is scrolled out of the view), [selection] is null.
-/// Otherwise, [selection] is the selected text ranges. If no selection is made, [selection] is an empty list.
+/// [selections] is the selected text ranges.
 typedef PdfViewerTextSelectionChangeCallback = void Function(
-    PdfTextRanges? selection);
-
-/// Function to inject customized [SelectionArea] for page text selection.
-///
-/// [page] is the page to inject the selection area.
-/// [child] is the child widget to apply the selection area.
-typedef PerPageSelectionAreaInjector = Widget Function(
-    PdfPage page, Widget child);
+     List<PdfTextRanges> selections);
 
 /// When [PdfViewerController.goToPage] is called, the page is aligned to the specified anchor.
 ///

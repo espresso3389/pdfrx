@@ -895,7 +895,30 @@ class PdfRect {
 /// Extension methods for List of [PdfRect].
 extension PdfRectsExt on Iterable<PdfRect> {
   /// Merge all rectangles to calculate bounding rectangle.
-  PdfRect boundingRect() => reduce((a, b) => a.merge(b));
+  PdfRect boundingRect() {
+    var left = double.infinity;
+    var top = double.negativeInfinity;
+    var right = double.negativeInfinity;
+    var bottom = double.infinity;
+    for (final r in this) {
+      if (r.left < left) {
+        left = r.left;
+      }
+      if (r.top > top) {
+        top = r.top;
+      }
+      if (r.right > right) {
+        right = r.right;
+      }
+      if (r.bottom < bottom) {
+        bottom = r.bottom;
+      }
+    }
+    if (left == double.infinity) { // no rects
+      throw StateError('No rects');
+    }
+    return PdfRect(left, top, right, bottom);
+  }
 }
 
 /// PDF [Explicit Destination](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=374) the page and inner-page location to jump to.
