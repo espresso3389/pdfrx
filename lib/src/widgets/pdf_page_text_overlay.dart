@@ -23,6 +23,7 @@ class PdfPageTextOverlay extends StatefulWidget {
     required this.pageRect,
     required this.selectionColor,
     required this.enabled,
+    this.textCursor = SystemMouseCursors.text,
     this.onTextSelectionChange,
     super.key,
   });
@@ -33,6 +34,7 @@ class PdfPageTextOverlay extends StatefulWidget {
   final Rect pageRect;
   final PdfViewerPageTextSelectionChangeCallback? onTextSelectionChange;
   final Color selectionColor;
+  final MouseCursor textCursor;
 
   @override
   State<PdfPageTextOverlay> createState() => _PdfPageTextOverlayState();
@@ -44,7 +46,7 @@ class PdfPageTextOverlay extends StatefulWidget {
 class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
   PdfPageText? _pageText;
   List<PdfPageTextFragment>? fragments;
-  SystemMouseCursor cursor = SystemMouseCursors.basic;
+  bool selectionShouldBeEnabled = false;
 
   @override
   void initState() {
@@ -113,21 +115,15 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
     final registrar = SelectionContainer.maybeOf(context);
     return MouseRegion(
       hitTestBehavior: HitTestBehavior.translucent,
-      cursor: cursor,
+      cursor: selectionShouldBeEnabled ? widget.textCursor : MouseCursor.defer,
       onHover: _onHover,
-      child: _ignorePointer(
+      child: IgnorePointer(
+        ignoring: !(selectionShouldBeEnabled || _anySelections),
         child: _PdfTextWidget(
           registrar,
           this,
         ),
       ),
-    );
-  }
-
-  Widget _ignorePointer({required Widget child}) {
-    return IgnorePointer(
-      ignoring: !_anySelections,
-      child: child,
     );
   }
 
@@ -140,16 +136,12 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
   void _onHover(PointerHoverEvent event) {
     final point = event.localPosition.toPdfPoint(widget.page, widget.pageRect);
 
-    _setCursor(isPointOnText(point)
-        ? SystemMouseCursors.text
-        : SystemMouseCursors.basic);
-  }
-
-  void _setCursor(SystemMouseCursor cursor) {
-    if (this.cursor == cursor) return;
-    this.cursor = cursor;
-    if (mounted) {
-      setState(() {});
+    final selectionShouldBeEnabled = isPointOnText(point);
+    if (this.selectionShouldBeEnabled != selectionShouldBeEnabled) {
+      this.selectionShouldBeEnabled = selectionShouldBeEnabled;
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 
