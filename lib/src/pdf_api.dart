@@ -625,7 +625,7 @@ class PdfTextRanges {
   bool get isEmpty => ranges.isEmpty;
 
   /// Determine whether the text ranges are *NOT* empty.
-  bool get isNotEmpty => !isEmpty;
+  bool get isNotEmpty => ranges.isNotEmpty;
 
   /// Page number of the text ranges.
   int get pageNumber => pageText.pageNumber;

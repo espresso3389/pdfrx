@@ -228,10 +228,11 @@ class _PdfViewerState extends State<PdfViewer>
   // Changes to the stream rebuilds the viewer
   final _updateStream = BehaviorSubject<Matrix4>();
 
-  final _selectionHandlers = <int, Selectable>{};
+  final _selectionHandlers = SplayTreeMap<int, PdfPageTextSelectable>();
+  Timer? _selectionChangedThrottleTimer;
 
-  final _textSelections = SplayTreeSet<PdfTextRanges>(
-      (a, b) => a.pageNumber.compareTo(b.pageNumber));
+  Timer? _interactionEndedTimer;
+  bool _isInteractionGoingOn = false;
 
   @override
   void initState() {
@@ -306,6 +307,7 @@ class _PdfViewerState extends State<PdfViewer>
   void _onDocumentChanged() async {
     _layout = null;
 
+    _selectionChangedThrottleTimer?.cancel();
     _stopInteraction();
     _releaseAllImages();
     _canvasLinkPainter.resetAll();
@@ -347,6 +349,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   void dispose() {
+    _selectionChangedThrottleTimer?.cancel();
     _stopInteraction();
     _cancelAllPendingRenderings();
     _animController.dispose();
@@ -483,9 +486,6 @@ class _PdfViewerState extends State<PdfViewer>
       );
     });
   }
-
-  Timer? _interactionEndedTimer;
-  bool _isInteractionGoingOn = false;
 
   void _startInteraction() {
     _interactionEndedTimer?.cancel();
@@ -866,16 +866,13 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _onSelectionChange(PdfTextRanges selection) {
-    if (selection.isEmpty) {
-      if (!_textSelections.contains(selection)) return;
-      _textSelections.remove(selection);
-    } else {
-      if (_textSelections.contains(selection)) {
-        _textSelections.remove(selection);
-      }
-      _textSelections.add(selection);
-    }
-    widget.params.onTextSelectionChange?.call(_textSelections.toList());
+    _selectionChangedThrottleTimer?.cancel();
+    _selectionChangedThrottleTimer = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted || !_selectionHandlers.containsKey(selection.pageNumber)) return;
+      widget.params.onTextSelectionChange?.call(
+        _selectionHandlers.values.map((s) => s.selectedRanges).where((s) => s.isNotEmpty).toList()
+      );
+    });
   }
 
   Rect _getCacheExtentRect() {

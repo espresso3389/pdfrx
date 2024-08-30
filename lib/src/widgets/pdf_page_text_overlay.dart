@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -28,7 +30,7 @@ class PdfPageTextOverlay extends StatefulWidget {
     super.key,
   });
 
-  final Map<int, Selectable> selectables;
+  final SplayTreeMap<int, PdfPageTextSelectable> selectables;
   final bool enabled;
   final PdfPage page;
   final Rect pageRect;
@@ -197,8 +199,12 @@ class _PdfTextWidget extends LeafRenderObjectWidget {
   }
 }
 
+mixin PdfPageTextSelectable implements Selectable {
+  PdfTextRanges get selectedRanges;
+}
+
 /// The code is based on the code on [Making a widget selectable](https://api.flutter.dev/flutter/widgets/SelectableRegion-class.html#widgets).SelectableRegion.2]
-class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
+class _PdfTextRenderBox extends RenderBox with PdfPageTextSelectable, Selectable, SelectionRegistrant {
   _PdfTextRenderBox(
     this._selectionColor,
     this._textWidget,
@@ -276,6 +282,9 @@ class _PdfTextRenderBox extends RenderBox with Selectable, SelectionRegistrant {
   Size? _sizeOnSelection;
   late PdfTextRanges _selectedRanges =
       PdfTextRanges.createEmpty(_textWidget._state._pageText!);
+
+  @override
+  PdfTextRanges get selectedRanges => _selectedRanges;
 
   void _notifySelectionChange() {
     _textWidget._state._notifySelectionChange(_selectedRanges);
