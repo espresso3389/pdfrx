@@ -817,7 +817,12 @@ class PdfPagePdfium extends PdfPage {
         final buffer = arena.allocate<Utf8>(size);
         pdfium.FPDFAction_GetURIPath(
             document, action, buffer.cast<Void>(), size);
-        return Uri.parse(buffer.toDartString());
+        try {
+          final String newBuffer = buffer.toDartString();
+          return Uri.parse(newBuffer);
+        } catch (e) {
+          return null;
+        }
       default:
         return null;
     }
