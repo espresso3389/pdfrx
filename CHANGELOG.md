@@ -1,3 +1,7 @@
+# 1.0.84
+
+- Merge PR #230 to add try-catch on UTF-8 decoding of URI path
+
 # 1.0.83
 
 - Web related improvements
