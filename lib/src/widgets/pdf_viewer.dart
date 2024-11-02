@@ -867,11 +867,14 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onSelectionChange(PdfTextRanges selection) {
     _selectionChangedThrottleTimer?.cancel();
-    _selectionChangedThrottleTimer = Timer(const Duration(milliseconds: 300), () {
-      if (!mounted || !_selectionHandlers.containsKey(selection.pageNumber)) return;
-      widget.params.onTextSelectionChange?.call(
-        _selectionHandlers.values.map((s) => s.selectedRanges).where((s) => s.isNotEmpty).toList()
-      );
+    _selectionChangedThrottleTimer =
+        Timer(const Duration(milliseconds: 300), () {
+      if (!mounted || !_selectionHandlers.containsKey(selection.pageNumber))
+        return;
+      widget.params.onTextSelectionChange?.call(_selectionHandlers.values
+          .map((s) => s.selectedRanges)
+          .where((s) => s.isNotEmpty)
+          .toList());
     });
   }
 
