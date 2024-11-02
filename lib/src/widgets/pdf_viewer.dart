@@ -985,16 +985,17 @@ class _PdfViewerState extends State<PdfViewer>
               ..style = PaintingStyle.fill);
       }
 
-      final scaleLimited = min(scale, scaleLimit);
-
-      if (realSize == null || realSize.scale != scaleLimited) {
-        _requestPageImageCached(page, scaleLimited);
+      if (realSize == null || realSize.scale != scaleLimit) {
+        _requestPageImageCached(page, scaleLimit);
       }
-      if (scale > scaleLimit) {
+
+      final pageScale =
+          scale * max(rect.width / page.width, rect.height / page.height);
+      if (pageScale > scaleLimit) {
         _requestPartialImage(page, scale);
       }
 
-      if (scale > scaleLimit && partial != null) {
+      if (pageScale > scaleLimit && partial != null) {
         canvas.drawImageRect(
           partial.image,
           Rect.fromLTWH(
