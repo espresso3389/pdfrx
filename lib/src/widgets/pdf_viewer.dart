@@ -1502,7 +1502,7 @@ class _PdfViewerState extends State<PdfViewer>
     final int targetPageNumber;
     if (pageNumber < 1) {
       targetPageNumber = 1;
-    } else if (pageNumber >= pageCount) {
+    } else if (pageNumber != 1 && pageNumber >= pageCount) {
       targetPageNumber = pageCount;
       anchor ??= widget.params.pageAnchorEnd;
     } else {
