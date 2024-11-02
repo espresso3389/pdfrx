@@ -1,3 +1,9 @@
+
+# 1.0.85
+
+- Fixes single-page layout issue on viewer start (#247)
+- Fixes blurry image issues (#245, #232)
+
 # 1.0.84
 
 - Merge PR #230 to add try-catch on UTF-8 decoding of URI path
