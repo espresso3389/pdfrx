@@ -14,6 +14,7 @@ class PdfViewerParams {
     this.margin = 8.0,
     this.backgroundColor = Colors.grey,
     this.layoutPages,
+    this.normalizeMatrix,
     this.maxScale = 8.0,
     this.minScale = 0.1,
     this.useAlternativeFitScaleAsMinScale = true,
@@ -99,6 +100,8 @@ class PdfViewerParams {
   /// ),
   /// ```
   final PdfPageLayoutFunction? layoutPages;
+
+  final PdfMatrixNormalizeFunction? normalizeMatrix;
 
   /// The maximum allowed scale.
   ///
@@ -625,6 +628,13 @@ typedef PdfPageLayoutFunction = PdfPageLayout Function(
   PdfViewerParams params,
 );
 
+/// Function to normalize the matrix.
+///
+/// The function is called when the matrix is changed and normally used to restrict the matrix to certain range.
+///
+/// Another use case is to do something when the matrix is changed.
+typedef PdfMatrixNormalizeFunction = Matrix4 Function(Matrix4 matrix);
+
 /// Function to build viewer overlays.
 ///
 /// [size] is the size of the viewer widget.
@@ -692,7 +702,7 @@ typedef PdfViewerPagePaintCallback = void Function(
 ///
 /// [selections] is the selected text ranges.
 typedef PdfViewerTextSelectionChangeCallback = void Function(
-     List<PdfTextRanges> selections);
+    List<PdfTextRanges> selections);
 
 /// When [PdfViewerController.goToPage] is called, the page is aligned to the specified anchor.
 ///

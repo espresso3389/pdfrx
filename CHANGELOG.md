@@ -1,3 +1,6 @@
+# 1.0.86
+
+- Add PdfViewerParams.normalizeMatrix to customize the transform matrix restriction; customizing existing logic on _PdfViewerState._makeMatrixInSafeRange; for issues like #239.
 
 # 1.0.85
 

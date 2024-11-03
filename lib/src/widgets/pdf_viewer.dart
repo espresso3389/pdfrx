@@ -1225,12 +1225,12 @@ class _PdfViewerState extends State<PdfViewer>
   /// Restrict matrix to the safe range.
   Matrix4 _makeMatrixInSafeRange(Matrix4 newValue) {
     _updateViewSizeAndCoverScale(_viewSize!);
+    return (widget.params.normalizeMatrix ?? _normalizeMatrix)(newValue);
+  }
 
+  Matrix4 _normalizeMatrix(Matrix4 newValue) {
     final position = newValue.calcPosition(_viewSize!);
-
-    final params = widget.params;
-
-    final newZoom = params.boundaryMargin != null
+    final newZoom = widget.params.boundaryMargin != null
         ? newValue.zoom
         : max(newValue.zoom, minScale);
     final hw = _viewSize!.width / 2 / newZoom;
