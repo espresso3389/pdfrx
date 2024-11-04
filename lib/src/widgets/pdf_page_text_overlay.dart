@@ -309,9 +309,6 @@ class _PdfTextRenderBox extends RenderBox
     selectionRect =
         !selectionRect.isEmpty ? selectionRect : _getSelectionHighlightRect();
 
-    final selectionRects = <Rect>[];
-    final sb = StringBuffer();
-
     int searchLineEnd(int start) {
       final lastIndex = _fragments.length - 1;
       var last = _fragments[start];
@@ -374,6 +371,8 @@ class _PdfTextRenderBox extends RenderBox
       return (rect: rect, text: sb.toString(), ranges: ranges);
     }
 
+    final selectionRects = <Rect>[];
+    final sb = StringBuffer();
     int? lastLineEnd;
     Rect? lastLineStartRect;
     for (int i = 0; i < _fragments.length;) {
