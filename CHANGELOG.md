@@ -1,6 +1,10 @@
+# 1.0.87
+
+- BREAKING CHANGE: add more parameters to PdfViewerParams.normalizeMatrix to make it easier to handle more complex situations (#239)
+
 # 1.0.86
 
-- Add PdfViewerParams.normalizeMatrix to customize the transform matrix restriction; customizing existing logic on _PdfViewerState._makeMatrixInSafeRange; for issues like #239.
+- Add PdfViewerParams.normalizeMatrix to customize the transform matrix restriction; customizing existing logic on _PdfViewerState._makeMatrixInSafeRange; for issues like #239
 
 # 1.0.85
 
