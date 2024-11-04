@@ -867,11 +867,12 @@ class PdfRect {
           left,
         );
       default:
-        throw ArgumentError.value(rotate, 'rotate');
+        throw ArgumentError.value(rotation, 'rotation');
     }
   }
 
-  PdfRect inflate(double dx, double dy) => PdfRect(left - dx, top + dy, right + dx, bottom - dy);
+  PdfRect inflate(double dx, double dy) =>
+      PdfRect(left - dx, top + dy, right + dx, bottom - dy);
 
   @override
   bool operator ==(Object other) {
@@ -916,11 +917,76 @@ extension PdfRectsExt on Iterable<PdfRect> {
         bottom = r.bottom;
       }
     }
-    if (left == double.infinity) { // no rects
+    if (left == double.infinity) {
+      // no rects
       throw StateError('No rects');
     }
     return PdfRect(left, top, right, bottom);
   }
+}
+
+/// Pdf point in PDF page coordinates.
+@immutable
+class PdfPoint {
+  const PdfPoint(this.x, this.y);
+
+  /// Create a [PdfPoint] from X and Y coordinates.
+  /// [page] is the page to convert the rectangle.
+  /// [scaledPageSize] is the scaled page size to scale the point. If not specified, no scaling is applied.
+  /// [rotation] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
+  factory PdfPoint.fromXy(double x, double y,
+      {required PdfPage page, Size? scaledPageSize, int? rotation}) {
+    if (scaledPageSize != null) {
+      x = x * page.width / scaledPageSize.width;
+      y = y * page.height / scaledPageSize.height;
+    }
+    rotation ??= page.rotation.index;
+    switch (rotation & 3) {
+      case 0:
+        return PdfPoint(x, page.height - y);
+      case 1:
+        return PdfPoint(y, x);
+      case 2:
+        return PdfPoint(page.width - x, y);
+      case 3:
+        return PdfPoint(page.height - y, page.width - x);
+      default:
+        throw ArgumentError.value(rotation, 'rotation');
+    }
+  }
+
+  /// X coordinate in PDF page.
+  final double x;
+
+  /// Y coordinate in PDF page.
+  final double y;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is PdfPoint && other.x == x && other.y == y;
+  }
+
+  @override
+  int get hashCode => x.hashCode ^ y.hashCode;
+}
+
+/// Extension methods for [Offset].
+extension OffsetExt on Offset {
+  /// Convert to [PdfPoint].
+  /// [page] is the page to convert the rectangle.
+  /// [scaledPageSize] is the scaled page size to scale the point. If not specified, no scaling is applied.
+  /// [rotation] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
+  PdfPoint toPdfPoint(
+          {required PdfPage page, Size? scaledPageSize, int? rotation}) =>
+      PdfPoint.fromXy(
+        dx,
+        dy,
+        page: page,
+        scaledPageSize: scaledPageSize,
+        rotation: rotation,
+      );
 }
 
 /// PDF [Explicit Destination](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=374) the page and inner-page location to jump to.

@@ -136,7 +136,8 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
   }
 
   void _onHover(PointerHoverEvent event) {
-    final point = event.localPosition.toPdfPoint(widget.page, widget.pageRect);
+    final point = event.localPosition
+        .toPdfPoint(page: widget.page, scaledPageSize: widget.pageRect.size);
 
     final selectionShouldBeEnabled = isPointOnText(point);
     if (this.selectionShouldBeEnabled != selectionShouldBeEnabled) {
@@ -147,7 +148,7 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
     }
   }
 
-  bool isPointOnText(Offset point, {double margin = 5}) {
+  bool isPointOnText(PdfPoint point, {double margin = 5}) {
     for (final fragment in fragments!) {
       if (pdfRectContains(fragment.bounds, point, margin)) {
         return true;
@@ -156,18 +157,11 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
     return false;
   }
 
-  static bool pdfRectContains(PdfRect rect, Offset point, double margin) {
-    return rect.left - margin <= point.dx &&
-        rect.right + margin >= point.dx &&
-        rect.bottom - margin <= point.dy &&
-        rect.top + margin >= point.dy;
-  }
-}
-
-extension _OffsetExt on Offset {
-  Offset toPdfPoint(PdfPage page, Rect pageRect) {
-    final scale = page.height / pageRect.height;
-    return Offset(dx * scale, page.height - dy * scale);
+  static bool pdfRectContains(PdfRect rect, PdfPoint point, double margin) {
+    return rect.left - margin <= point.x &&
+        rect.right + margin >= point.x &&
+        rect.bottom - margin <= point.y &&
+        rect.top + margin >= point.y;
   }
 }
 
@@ -204,7 +198,8 @@ mixin PdfPageTextSelectable implements Selectable {
 }
 
 /// The code is based on the code on [Making a widget selectable](https://api.flutter.dev/flutter/widgets/SelectableRegion-class.html#widgets).SelectableRegion.2]
-class _PdfTextRenderBox extends RenderBox with PdfPageTextSelectable, Selectable, SelectionRegistrant {
+class _PdfTextRenderBox extends RenderBox
+    with PdfPageTextSelectable, Selectable, SelectionRegistrant {
   _PdfTextRenderBox(
     this._selectionColor,
     this._textWidget,
@@ -245,7 +240,8 @@ class _PdfTextRenderBox extends RenderBox with PdfPageTextSelectable, Selectable
 
   @override
   bool hitTestSelf(Offset position) {
-    final point = position.toPdfPoint(_page, _pageRect);
+    final point =
+        position.toPdfPoint(page: _page, scaledPageSize: _pageRect.size);
     return _textWidget._state.isPointOnText(point);
   }
 
