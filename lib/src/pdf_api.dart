@@ -270,12 +270,18 @@ abstract class PdfPage {
   int get pageNumber;
 
   /// PDF page width in points (width in pixels at 72 dpi) (rotated).
+  ///
+  /// To get width considering the rotation, use [getSize].
   double get width;
 
   /// PDF page height in points (height in pixels at 72 dpi) (rotated).
+  ///
+  /// To get width considering the rotation, use [getSize].
   double get height;
 
   /// PDF page size in points (size in pixels at 72 dpi) (rotated).
+  ///
+  /// To get width considering the rotation, use [getSize].
   Size get size => Size(width, height);
 
   /// PDF page rotation.
@@ -288,7 +294,8 @@ abstract class PdfPage {
   /// - If [x], [y] are not specified, (0,0) is used.
   /// - If [width], [height] is not specified, [fullWidth], [fullHeight] is used.
   /// - If [fullWidth], [fullHeight] are not specified, [PdfPage.width] and [PdfPage.height] are used (it means rendered at 72-dpi).
-  /// [backgroundColor] is used to fill the background of the page. If no color is specified, [Colors.white] is used.
+  /// - [backgroundColor] is used to fill the background of the page. If no color is specified, [Colors.white] is used.
+  /// - [rotationOverride] is used to override the page rotation. If not specified, [PdfPage.rotation] is used.
   /// - [annotationRenderingMode] controls to render annotations or not. The default is [PdfAnnotationRenderingMode.annotationAndForms].
   /// - [cancellationToken] can be used to cancel the rendering process. It must be created by [createCancellationToken].
   ///
@@ -315,6 +322,7 @@ abstract class PdfPage {
     double? fullWidth,
     double? fullHeight,
     Color? backgroundColor,
+    PdfPageRotation? rotationOverride,
     PdfAnnotationRenderingMode annotationRenderingMode =
         PdfAnnotationRenderingMode.annotationAndForms,
     PdfPageRenderCancellationToken? cancellationToken,
@@ -331,6 +339,19 @@ abstract class PdfPage {
   /// if [compact] is true, it tries to reduce memory usage by compacting the link data.
   /// See [PdfLink.compact] for more info.
   Future<List<PdfLink>> loadLinks({bool compact = false});
+
+  /// Get size.
+  ///
+  /// The function returns the size identical to [PdfPage.size] unless [rotationOverride] is specified.
+  ///
+  /// If [rotationOverride] is specified, the function returns the size considering the rotation.
+  Size getSize({PdfPageRotation? rotationOverride}) {
+    if (rotationOverride == null ||
+        ((rotationOverride.index - rotation.index) & 1) == 0) {
+      return size;
+    }
+    return Size(height, width);
+  }
 }
 
 /// Page rotation.
@@ -813,13 +834,14 @@ class PdfRect {
   /// Convert to [Rect] in Flutter coordinate.
   /// [page] is the page to convert the rectangle.
   /// [scaledPageSize] is the scaled page size to scale the rectangle. If not specified, [PdfPage.size] is used.
-  /// [rotation] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
+  /// [rotationOverride] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
   Rect toRect({
     required PdfPage page,
     Size? scaledPageSize,
-    int? rotation,
+    PdfPageRotation? rotationOverride,
   }) {
-    final rotated = rotate(rotation ?? page.rotation.index, page);
+    final rotated =
+        rotate(page: page, rotation: rotationOverride ?? page.rotation);
     final scale =
         scaledPageSize == null ? 1.0 : scaledPageSize.height / page.height;
     return Rect.fromLTRB(
@@ -834,15 +856,19 @@ class PdfRect {
   Rect toRectInPageRect({
     required PdfPage page,
     required Rect pageRect,
+    PdfPageRotation? rotationOverride,
   }) =>
-      toRect(page: page, scaledPageSize: pageRect.size)
+      toRect(
+              page: page,
+              scaledPageSize: pageRect.size,
+              rotationOverride: rotationOverride)
           .translate(pageRect.left, pageRect.top);
 
-  PdfRect rotate(int rotation, PdfPage page) {
-    final swap = (page.rotation.index & 1) == 1;
+  PdfRect rotate({required PdfPage page, required PdfPageRotation rotation}) {
+    final swap = (rotation.index & 1) == 1;
     final width = swap ? page.height : page.width;
     final height = swap ? page.width : page.height;
-    switch (rotation & 3) {
+    switch (rotation.index & 3) {
       case 0:
         return this;
       case 1:
@@ -933,15 +959,20 @@ class PdfPoint {
   /// Create a [PdfPoint] from X and Y coordinates.
   /// [page] is the page to convert the rectangle.
   /// [scaledPageSize] is the scaled page size to scale the point. If not specified, no scaling is applied.
-  /// [rotation] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
-  factory PdfPoint.fromXy(double x, double y,
-      {required PdfPage page, Size? scaledPageSize, int? rotation}) {
+  /// [rotationOverride] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
+  factory PdfPoint.fromXy(
+    double x,
+    double y, {
+    required PdfPage page,
+    Size? scaledPageSize,
+    PdfPageRotation? rotationOverride,
+  }) {
     if (scaledPageSize != null) {
       x = x * page.width / scaledPageSize.width;
       y = y * page.height / scaledPageSize.height;
     }
-    rotation ??= page.rotation.index;
-    switch (rotation & 3) {
+    rotationOverride ??= page.rotation;
+    switch (rotationOverride.index & 3) {
       case 0:
         return PdfPoint(x, page.height - y);
       case 1:
@@ -951,7 +982,7 @@ class PdfPoint {
       case 3:
         return PdfPoint(page.height - y, page.width - x);
       default:
-        throw ArgumentError.value(rotation, 'rotation');
+        throw ArgumentError.value(rotationOverride, 'rotation');
     }
   }
 
@@ -977,15 +1008,18 @@ extension OffsetExt on Offset {
   /// Convert to [PdfPoint].
   /// [page] is the page to convert the rectangle.
   /// [scaledPageSize] is the scaled page size to scale the point. If not specified, no scaling is applied.
-  /// [rotation] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
-  PdfPoint toPdfPoint(
-          {required PdfPage page, Size? scaledPageSize, int? rotation}) =>
+  /// [rotationOverride] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
+  PdfPoint toPdfPoint({
+    required PdfPage page,
+    Size? scaledPageSize,
+    PdfPageRotation? rotationOverride,
+  }) =>
       PdfPoint.fromXy(
         dx,
         dy,
         page: page,
         scaledPageSize: scaledPageSize,
-        rotation: rotation,
+        rotationOverride: rotationOverride,
       );
 }
 

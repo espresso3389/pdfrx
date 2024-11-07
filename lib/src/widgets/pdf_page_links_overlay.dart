@@ -10,12 +10,14 @@ class PdfPageLinksOverlay extends StatefulWidget {
     required this.page,
     required this.pageRect,
     required this.params,
+    required this.rotationOverride,
     this.wrapperBuilder,
     super.key,
   });
 
   final PdfPage page;
   final Rect pageRect;
+  final PdfPageRotation? rotationOverride;
   final PdfViewerParams params;
 
   /// Currently, the handler is used to wrap the actual link widget with [Listener] not to absorb wheel-events.
@@ -57,7 +59,10 @@ class _PdfPageLinksOverlayState extends State<PdfPageLinksOverlay> {
     for (final link in links!) {
       for (final rect in link.rects) {
         final rectLink = rect.toRect(
-            page: widget.page, scaledPageSize: widget.pageRect.size);
+          page: widget.page,
+          scaledPageSize: widget.pageRect.size,
+          rotationOverride: widget.rotationOverride,
+        );
         final linkWidget =
             widget.params.linkWidgetBuilder!(context, link, rectLink.size);
         if (linkWidget != null) {

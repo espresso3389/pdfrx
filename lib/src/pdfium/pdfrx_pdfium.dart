@@ -522,6 +522,7 @@ class PdfPagePdfium extends PdfPage {
     double? fullWidth,
     double? fullHeight,
     Color? backgroundColor,
+    PdfPageRotation? rotationOverride,
     PdfAnnotationRenderingMode annotationRenderingMode =
         PdfAnnotationRenderingMode.annotationAndForms,
     PdfPageRenderCancellationToken? cancellationToken,
@@ -582,6 +583,9 @@ class PdfPagePdfium extends PdfPage {
                   params.height,
                   params.backgroundColor,
                 );
+                final rotate = rotationOverride == null
+                    ? 0
+                    : (rotationOverride.index - rotation.index + 4) & 3;
                 pdfium.FPDF_RenderPageBitmap(
                   bmp,
                   page,
@@ -589,7 +593,7 @@ class PdfPagePdfium extends PdfPage {
                   -params.y,
                   params.fullWidth,
                   params.fullHeight,
-                  0,
+                  rotate,
                   params.annotationRenderingMode !=
                           PdfAnnotationRenderingMode.none
                       ? pdfium_bindings.FPDF_ANNOT
@@ -608,7 +612,7 @@ class PdfPagePdfium extends PdfPage {
                     -params.y,
                     params.fullWidth,
                     params.fullHeight,
-                    0,
+                    rotate,
                     0,
                   );
                 }

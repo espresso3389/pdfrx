@@ -1,7 +1,7 @@
 // ignore_for_file: avoid_web_libraries_in_flutter
 
 @JS()
-library pdf.js;
+library;
 
 import 'dart:js_interop';
 import 'dart:typed_data';
@@ -141,22 +141,22 @@ extension type PdfjsAnnotation._(JSObject _) implements JSObject {
 extension type PdfjsViewportParams._(JSObject _) implements JSObject {
   external PdfjsViewportParams({
     double scale,
-    int rotation, // 0, 90, 180, 270
-    double offsetX,
-    double offsetY,
-    bool dontFlip,
+    int? rotation, // 0, 90, 180, 270
+    double? offsetX,
+    double? offsetY,
+    bool? dontFlip,
   });
 
   external double get scale;
   external set scale(double scale);
-  external int get rotation;
-  external set rotation(int rotation);
-  external double get offsetX;
-  external set offsetX(double offsetX);
-  external double get offsetY;
-  external set offsetY(double offsetY);
-  external bool get dontFlip;
-  external set dontFlip(bool dontFlip);
+  external int? get rotation;
+  external set rotation(int? rotation);
+  external double? get offsetX;
+  external set offsetX(double? offsetX);
+  external double? get offsetY;
+  external set offsetY(double? offsetY);
+  external bool? get dontFlip;
+  external set dontFlip(bool? dontFlip);
 }
 
 extension type PdfjsViewport(JSObject _) implements JSObject {
@@ -167,14 +167,14 @@ extension type PdfjsViewport(JSObject _) implements JSObject {
   external set scale(double scale);
 
   /// 0, 90, 180, 270
-  external int get rotation;
-  external set rotation(int rotation);
-  external double get offsetX;
-  external set offsetX(double offsetX);
-  external double get offsetY;
-  external set offsetY(double offsetY);
-  external bool get dontFlip;
-  external set dontFlip(bool dontFlip);
+  external int? get rotation;
+  external set rotation(int? rotation);
+  external double? get offsetX;
+  external set offsetX(double? offsetX);
+  external double? get offsetY;
+  external set offsetY(double? offsetY);
+  external bool? get dontFlip;
+  external set dontFlip(bool? dontFlip);
 
   external double get width;
   external set width(double w);
