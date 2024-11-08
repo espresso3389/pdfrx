@@ -171,8 +171,6 @@ PdfViewer.asset(
 
 There are still several limitations and issues on text selection feature:
 
-- Pan-to-scroll does not work on Desktop ([#8](https://github.com/espresso3389/pdfrx/issues/8))
-- Pan-to-scroll does not work on Flutter Web on mobile devices ([#180](https://github.com/espresso3389/pdfrx/issues/180))
 - Selecting text sometimes throws exception ([#185](https://github.com/espresso3389/pdfrx/issues/185))
   - Text selection suddenly gets cleared in certain situation
 
