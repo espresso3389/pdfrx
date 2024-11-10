@@ -1226,7 +1226,7 @@ class _PdfViewerState extends State<PdfViewer>
   Matrix4 _makeMatrixInSafeRange(Matrix4 newValue) {
     _updateViewSizeAndCoverScale(_viewSize!);
     if (widget.params.normalizeMatrix != null) {
-      widget.params.normalizeMatrix!(
+      return widget.params.normalizeMatrix!(
         newValue,
         _viewSize!,
         _layout!,
