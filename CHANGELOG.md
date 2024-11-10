@@ -1,3 +1,7 @@
+# 1.0.88
+
+- Merge pull request #251
+
 # 1.0.87
 
 - BREAKING CHANGE: add more parameters to PdfViewerParams.normalizeMatrix to make it easier to handle more complex situations (#239)
