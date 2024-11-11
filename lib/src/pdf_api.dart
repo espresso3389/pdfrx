@@ -5,11 +5,25 @@ import 'dart:ui' as ui;
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 // The trick to support Flutter Web is to use conditional import
 // Both of the files define PdfDocumentFactoryImpl class but only one of them is imported.
 import '../pdfrx.dart';
 import 'pdfium/pdfrx_pdfium.dart' if (dart.library.js) 'web/pdfrx_web.dart';
+
+/// Class to provide Pdfrx's configuration.
+abstract class Pdfrx {
+  /// Explicitly specify pdfium module path for special purpose.
+  ///
+  /// It is not supported on Flutter Web.
+  static String? pdfiumModulePath;
+
+  /// Overriding the default HTTP client for PDF download.
+  ///
+  /// It is not supported on Flutter Web.
+  static http.Client Function()? createHttpClient;
+}
 
 /// For platform abstraction purpose; use [PdfDocument] instead.
 abstract class PdfDocumentFactory {

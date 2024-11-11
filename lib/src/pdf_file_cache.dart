@@ -354,7 +354,8 @@ Future<PdfDocument> pdfDocumentFromUri(
 
   progressCallback?.call(0);
   cache ??= await PdfFileCache.fromUri(uri);
-  final httpClient = http.Client();
+  final httpClient = Pdfrx.createHttpClient?.call() ?? http.Client();
+
   try {
     if (!cache.isInitialized) {
       cache.setBlockSize(blockSize ?? PdfFileCache.defaultBlockSize);
