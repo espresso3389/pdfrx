@@ -4,6 +4,8 @@ import 'dart:isolate';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../pdfrx.dart';
+
 /// Background worker based on Dart [Isolate].
 class BackgroundWorker {
   BackgroundWorker._(this._receivePort, this._sendPort);
@@ -18,7 +20,18 @@ class BackgroundWorker {
       receivePort.sendPort,
       debugName: debugName,
     );
-    return BackgroundWorker._(receivePort, await receivePort.first as SendPort);
+    final worker =
+        BackgroundWorker._(receivePort, await receivePort.first as SendPort);
+
+    // propagate the pdfium module path to the worker
+    worker.compute(
+      (params) {
+        Pdfrx.pdfiumModulePath = params.modulePath;
+      },
+      (modulePath: Pdfrx.pdfiumModulePath),
+    );
+
+    return worker;
   }
 
   static void _workerEntry(SendPort sendPort) {
