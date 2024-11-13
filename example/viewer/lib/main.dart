@@ -17,6 +17,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    PdfPageTextOverlay.isDebug = true;
     return const MaterialApp(
       title: 'Pdfrx example',
       home: MainPage(),
@@ -33,7 +34,7 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   final documentRef = ValueNotifier<PdfDocumentRef?>(null);
-  final controller = PdfViewerController();
+  late final controller = PdfViewerController();
   final showLeftPane = ValueNotifier<bool>(false);
   final outline = ValueNotifier<List<PdfOutlineNode>?>(null);
   late final textSearcher = PdfTextSearcher(controller)..addListener(_update);
@@ -187,7 +188,7 @@ class _MainPageState extends State<MainPage> {
             child: Stack(
               children: [
                 PdfViewer.asset(
-                  'assets/hello.pdf',
+                  'assets/rotate-test.pdf',
                   // PdfViewer.file(
                   //   r"D:\pdfrx\example\assets\hello.pdf",
                   // PdfViewer.uri(
@@ -375,8 +376,11 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  void _paintMarkers(Canvas canvas, Rect pageRect, PdfPage page) {
-    final markers = _markers[page.pageNumber];
+  void _paintMarkers(
+    Canvas canvas,
+    PdfPageCoordsConverter converter,
+  ) {
+    final markers = _markers[converter.page.pageNumber];
     if (markers == null) {
       return;
     }
@@ -393,7 +397,7 @@ class _MainPageState extends State<MainPage> {
         );
         if (f != null) {
           canvas.drawRect(
-            f.bounds.toRectInPageRect(page: page, pageRect: pageRect),
+            converter.toRectWithPageOffset(f.bounds),
             paint,
           );
         }

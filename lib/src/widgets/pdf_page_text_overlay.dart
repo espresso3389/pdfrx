@@ -20,9 +20,8 @@ typedef PdfViewerPageTextSelectionChangeCallback = void Function(
 /// If [PdfDocument.permissions] does not allow copying, the widget does not show anything.
 class PdfPageTextOverlay extends StatefulWidget {
   const PdfPageTextOverlay({
+    required this.converter,
     required this.selectables,
-    required this.page,
-    required this.pageRect,
     required this.selectionColor,
     required this.enabled,
     this.textCursor = SystemMouseCursors.text,
@@ -30,13 +29,12 @@ class PdfPageTextOverlay extends StatefulWidget {
     super.key,
   });
 
+  final PdfPageCoordsConverter converter;
   final SplayTreeMap<int, PdfPageTextSelectable> selectables;
-  final bool enabled;
-  final PdfPage page;
-  final Rect pageRect;
-  final PdfViewerPageTextSelectionChangeCallback? onTextSelectionChange;
   final Color selectionColor;
+  final bool enabled;
   final MouseCursor textCursor;
+  final PdfViewerPageTextSelectionChangeCallback? onTextSelectionChange;
 
   @override
   State<PdfPageTextOverlay> createState() => _PdfPageTextOverlayState();
@@ -59,7 +57,7 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
   @override
   void didUpdateWidget(PdfPageTextOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.page != oldWidget.page) {
+    if (widget.converter.page != oldWidget.converter.page) {
       _initText();
     }
   }
@@ -83,7 +81,7 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
 
   Future<void> _initText() async {
     _release();
-    final pageText = _pageText = await widget.page.loadText();
+    final pageText = _pageText = await widget.converter.page.loadText();
     final fragments = <PdfPageTextFragment>[];
     if (pageText.fragments.isNotEmpty) {
       double y = pageText.fragments[0].bounds.bottom;
@@ -111,7 +109,7 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
   Widget build(BuildContext context) {
     if (fragments == null ||
         fragments!.isEmpty ||
-        widget.page.document.permissions?.allowsCopying == false) {
+        widget.converter.page.document.permissions?.allowsCopying == false) {
       return const SizedBox();
     }
     final registrar = SelectionContainer.maybeOf(context);
@@ -136,9 +134,8 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
   }
 
   void _onHover(PointerHoverEvent event) {
-    final point = event.localPosition
-        .toPdfPoint(page: widget.page, scaledPageSize: widget.pageRect.size);
-
+    final point = widget.converter
+        .fromOffset(event.localPosition.dx, event.localPosition.dy);
     final selectionShouldBeEnabled = isPointOnText(point);
     if (this.selectionShouldBeEnabled != selectionShouldBeEnabled) {
       this.selectionShouldBeEnabled = selectionShouldBeEnabled;
@@ -229,35 +226,40 @@ class _PdfTextRenderBox extends RenderBox
     super.dispose();
   }
 
-  Rect get _pageRect => _textWidget._state.widget.pageRect;
-  PdfPage get _page => _textWidget._state.widget.page;
+  PdfPageCoordsConverter get _converter {
+    return _textWidget._state.widget.converter;
+  }
+
   List<PdfPageTextFragment> get _fragments => _textWidget._state.fragments!;
 
   @override
   late final List<Rect> boundingBoxes = _fragments
-      .map((f) => f.bounds.toRect(page: _page, scaledPageSize: size))
+      .map((f) => _converter.toRect(f.bounds))
       .toList(growable: false);
 
   @override
   bool hitTestSelf(Offset position) {
-    final point =
-        position.toPdfPoint(page: _page, scaledPageSize: _pageRect.size);
+    final point = _converter.fromOffset(position.dx, position.dy);
     return _textWidget._state.isPointOnText(point);
   }
 
   @override
   bool get sizedByParent => true;
   @override
-  double computeMinIntrinsicWidth(double height) => _pageRect.size.width;
+  double computeMinIntrinsicWidth(double height) =>
+      _converter.pageRect.size.width;
   @override
-  double computeMaxIntrinsicWidth(double height) => _pageRect.size.width;
+  double computeMaxIntrinsicWidth(double height) =>
+      _converter.pageRect.size.width;
   @override
-  double computeMinIntrinsicHeight(double width) => _pageRect.size.height;
+  double computeMinIntrinsicHeight(double width) =>
+      _converter.pageRect.size.height;
   @override
-  double computeMaxIntrinsicHeight(double width) => _pageRect.size.height;
+  double computeMaxIntrinsicHeight(double width) =>
+      _converter.pageRect.size.height;
   @override
   Size computeDryLayout(BoxConstraints constraints) =>
-      constraints.constrain(_pageRect.size);
+      constraints.constrain(_converter.pageRect.size);
 
   @override
   void addListener(VoidCallback listener) => _geometry.addListener(listener);
@@ -278,6 +280,7 @@ class _PdfTextRenderBox extends RenderBox
   Size? _sizeOnSelection;
   late PdfTextRanges _selectedRanges =
       PdfTextRanges.createEmpty(_textWidget._state._pageText!);
+  late final converter = _textWidget._state.widget.converter;
 
   @override
   PdfTextRanges get selectedRanges => _selectedRanges;
@@ -308,7 +311,6 @@ class _PdfTextRenderBox extends RenderBox
     }
     selectionRect =
         !selectionRect.isEmpty ? selectionRect : _getSelectionHighlightRect();
-
     int searchLineEnd(int start) {
       final lastIndex = _fragments.length - 1;
       var last = _fragments[start];
@@ -328,7 +330,7 @@ class _PdfTextRenderBox extends RenderBox
         final fragment = _fragments[i];
         if (fragment.charRects == null) {
           yield (
-            rect: fragment.bounds.toRect(page: _page, scaledPageSize: size),
+            rect: converter.toRect(fragment.bounds),
             text: fragment.text,
             range: PdfTextRange(
               start: fragment.index,
@@ -338,8 +340,7 @@ class _PdfTextRenderBox extends RenderBox
         } else {
           for (int j = 0; j < fragment.charRects!.length; j++) {
             yield (
-              rect: fragment.charRects![j]
-                  .toRect(page: _page, scaledPageSize: size),
+              rect: converter.toRect(fragment.charRects![j]),
               text: fragment.text.substring(j, j + 1),
               range: PdfTextRange(
                 start: fragment.index + j,
@@ -375,9 +376,9 @@ class _PdfTextRenderBox extends RenderBox
     final sb = StringBuffer();
     int? lastLineEnd;
     Rect? lastLineStartRect;
+
     for (int i = 0; i < _fragments.length;) {
-      final bounds =
-          _fragments[i].bounds.toRect(page: _page, scaledPageSize: size);
+      final bounds = converter.toRect(_fragments[i].bounds);
       final intersects = !selectionRect.intersect(bounds).isEmpty;
       if (intersects) {
         final lineEnd = searchLineEnd(i);
@@ -450,7 +451,7 @@ class _PdfTextRenderBox extends RenderBox
   void _selectFragment(Offset point) {
     _selectedRanges = PdfTextRanges.createEmpty(_textWidget._state._pageText!);
     for (final fragment in _fragments) {
-      final bounds = fragment.bounds.toRect(page: _page, scaledPageSize: size);
+      final bounds = converter.toRect(fragment.bounds);
       if (bounds.contains(point)) {
         _start = bounds.topLeft;
         _end = bounds.bottomRight;
@@ -636,9 +637,10 @@ class _PdfTextRenderBox extends RenderBox
     final scale =
         _sizeOnSelection != null ? size.width / _sizeOnSelection!.width : 1.0;
     if (PdfPageTextOverlay.isDebug) {
+      final scaledConverter = converter.withPageRect(offset & (size * scale));
       for (int i = 0; i < _fragments.length; i++) {
         final f = _fragments[i];
-        final rect = f.bounds.toRect(page: _page, scaledPageSize: size);
+        final rect = scaledConverter.toRect(f.bounds);
         context.canvas.drawRect(
           rect.shift(offset),
           Paint()

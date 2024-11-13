@@ -7,17 +7,13 @@ typedef PdfPageLinkWrapperWidgetBuilder = Widget Function(Widget child);
 /// A widget that displays links on a page.
 class PdfPageLinksOverlay extends StatefulWidget {
   const PdfPageLinksOverlay({
-    required this.page,
-    required this.pageRect,
+    required this.converter,
     required this.params,
-    required this.rotationOverride,
     this.wrapperBuilder,
     super.key,
   });
 
-  final PdfPage page;
-  final Rect pageRect;
-  final PdfPageRotation? rotationOverride;
+  final PdfPageCoordsConverter converter;
   final PdfViewerParams params;
 
   /// Currently, the handler is used to wrap the actual link widget with [Listener] not to absorb wheel-events.
@@ -39,13 +35,13 @@ class _PdfPageLinksOverlayState extends State<PdfPageLinksOverlay> {
   @override
   void didUpdateWidget(covariant PdfPageLinksOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.page != oldWidget.page) {
+    if (widget.converter.page != oldWidget.converter.page) {
       _initLinks();
     }
   }
 
   Future<void> _initLinks() async {
-    links = await widget.page.loadLinks();
+    links = await widget.converter.page.loadLinks();
     if (mounted) {
       setState(() {});
     }
@@ -58,11 +54,7 @@ class _PdfPageLinksOverlayState extends State<PdfPageLinksOverlay> {
     final linkWidgets = <Widget>[];
     for (final link in links!) {
       for (final rect in link.rects) {
-        final rectLink = rect.toRect(
-          page: widget.page,
-          scaledPageSize: widget.pageRect.size,
-          rotationOverride: widget.rotationOverride,
-        );
+        final rectLink = widget.converter.toRect(rect);
         final linkWidget =
             widget.params.linkWidgetBuilder!(context, link, rectLink.size);
         if (linkWidget != null) {
@@ -80,10 +72,10 @@ class _PdfPageLinksOverlayState extends State<PdfPageLinksOverlay> {
     }
 
     return Positioned(
-      left: widget.pageRect.left,
-      top: widget.pageRect.top,
-      width: widget.pageRect.width,
-      height: widget.pageRect.height,
+      left: widget.converter.pageRect.left,
+      top: widget.converter.pageRect.top,
+      width: widget.converter.pageRect.width,
+      height: widget.converter.pageRect.height,
       child: Stack(children: linkWidgets),
     );
   }

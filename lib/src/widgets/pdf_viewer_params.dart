@@ -714,20 +714,21 @@ typedef PdfLinkWidgetBuilder = Widget? Function(
 /// Function to paint things on page.
 ///
 /// [canvas] is the canvas to paint on.
-/// [pageRect] is the rectangle of the page in the viewer.
-/// [page] is the page.
+/// [converter] is the converter to convert the coordinates between the page and the viewer.
 ///
 /// If you have some [PdfRect] that describes something on the page,
-/// you can use [PdfRect.toRect] to convert it to [Rect] and draw the rect on the canvas:
+/// you can use [converter] to convert it to [Rect] and draw the rect on the canvas:
 ///
 /// ```dart
 /// PdfRect pdfRect = ...;
 /// canvas.drawRect(
-///   pdfRect.toRectInPageRect(page: page, pageRect: pageRect),
+///   converter.toRectInPageRect(pdfRect),
 ///   Paint()..color = Colors.red);
 /// ```
 typedef PdfViewerPagePaintCallback = void Function(
-    ui.Canvas canvas, Rect pageRect, PdfPage page);
+  ui.Canvas canvas,
+  PdfPageCoordsConverter converter,
+);
 
 /// Function to be notified when the text selection is changed.
 ///

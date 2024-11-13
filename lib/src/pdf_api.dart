@@ -370,7 +370,7 @@ abstract class PdfPage {
 
 /// Page rotation.
 enum PdfPageRotation {
-  none,
+  clockwise0,
   clockwise90,
   clockwise180,
   clockwise270,
@@ -791,6 +791,96 @@ class PdfTextRangeWithFragments {
   }
 }
 
+class PdfPageCoordsConverter {
+  PdfPageCoordsConverter(this.page,
+      {required this.pageRect, PdfPageRotation? rotationOverride})
+      : rotationOverride = rotationOverride ?? page.rotation;
+
+  PdfPageCoordsConverter withPageRect(Rect pageRect) =>
+      PdfPageCoordsConverter(page,
+          pageRect: pageRect, rotationOverride: rotationOverride);
+
+  final PdfPage page;
+  final Rect pageRect;
+  final PdfPageRotation rotationOverride;
+  late final bool isWidthHeightSwapped =
+      ((page.rotation.index + 4 - rotationOverride.index) & 1) == 1;
+  late final width = isWidthHeightSwapped ? page.height : page.width;
+  late final height = isWidthHeightSwapped ? page.width : page.height;
+  late final scale = pageRect.height / height;
+
+  /// Create a [PdfPoint] from X and Y coordinates.
+  PdfPoint fromOffset(double x, double y) {
+    x = x * width / pageRect.width;
+    y = y * height / pageRect.height;
+    switch (rotationOverride) {
+      case PdfPageRotation.clockwise0:
+        return PdfPoint(x, height - y);
+      case PdfPageRotation.clockwise90:
+        return PdfPoint(y, x);
+      case PdfPageRotation.clockwise180:
+        return PdfPoint(width - x, y);
+      case PdfPageRotation.clockwise270:
+        return PdfPoint(height - y, width - x);
+    }
+  }
+
+  /// Convert to [Rect] in Flutter coordinate.
+  Rect toRect(PdfRect rect) {
+    switch (rotationOverride) {
+      case PdfPageRotation.clockwise0:
+        final scale = pageRect.height / height;
+        return Rect.fromLTRB(
+          rect.left * scale,
+          (height - rect.top) * scale,
+          rect.right * scale,
+          (height - rect.bottom) * scale,
+        );
+      case PdfPageRotation.clockwise90:
+        final scale = pageRect.height / height;
+        return Rect.fromLTRB(
+          rect.top * scale,
+          rect.right * scale,
+          rect.bottom * scale,
+          rect.left * scale,
+        );
+      case PdfPageRotation.clockwise180:
+        final scale = pageRect.height / height;
+        return Rect.fromLTRB(
+          pageRect.width - rect.right * scale,
+          rect.bottom * scale,
+          pageRect.width - rect.left * scale,
+          rect.top * scale,
+        );
+      case PdfPageRotation.clockwise270:
+        final scale = pageRect.height / height;
+        return Rect.fromLTRB(
+          (width - rect.top) * scale,
+          pageRect.height - rect.left * scale,
+          (width - rect.bottom) * scale,
+          pageRect.height - rect.right * scale,
+        );
+    }
+  }
+
+  ///  Convert to [Rect] in Flutter coordinate using [pageRect] as the page's bounding rectangle.
+  Rect toRectWithPageOffset(PdfRect rect) =>
+      toRect(rect).translate(pageRect.left, pageRect.top);
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is PdfPageCoordsConverter &&
+        other.page == page &&
+        other.pageRect == pageRect &&
+        other.rotationOverride == rotationOverride;
+  }
+
+  @override
+  int get hashCode =>
+      page.hashCode ^ pageRect.hashCode ^ rotationOverride.hashCode;
+}
+
 /// Rectangle in PDF page coordinates.
 ///
 /// Please note that PDF page coordinates is different from Flutter's coordinate.
@@ -844,72 +934,6 @@ class PdfRect {
 
   /// Empty rectangle.
   static const empty = PdfRect(0, 0, 0, 0);
-
-  /// Convert to [Rect] in Flutter coordinate.
-  /// [page] is the page to convert the rectangle.
-  /// [scaledPageSize] is the scaled page size to scale the rectangle. If not specified, [PdfPage.size] is used.
-  /// [rotationOverride] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
-  Rect toRect({
-    required PdfPage page,
-    Size? scaledPageSize,
-    PdfPageRotation? rotationOverride,
-  }) {
-    final rotated =
-        rotate(page: page, rotation: rotationOverride ?? page.rotation);
-    final scale =
-        scaledPageSize == null ? 1.0 : scaledPageSize.height / page.height;
-    return Rect.fromLTRB(
-      rotated.left * scale,
-      (page.height - rotated.top) * scale,
-      rotated.right * scale,
-      (page.height - rotated.bottom) * scale,
-    );
-  }
-
-  ///  Convert to [Rect] in Flutter coordinate using [pageRect] as the page's bounding rectangle.
-  Rect toRectInPageRect({
-    required PdfPage page,
-    required Rect pageRect,
-    PdfPageRotation? rotationOverride,
-  }) =>
-      toRect(
-              page: page,
-              scaledPageSize: pageRect.size,
-              rotationOverride: rotationOverride)
-          .translate(pageRect.left, pageRect.top);
-
-  PdfRect rotate({required PdfPage page, required PdfPageRotation rotation}) {
-    final swap = (rotation.index & 1) == 1;
-    final width = swap ? page.height : page.width;
-    final height = swap ? page.width : page.height;
-    switch (rotation.index & 3) {
-      case 0:
-        return this;
-      case 1:
-        return PdfRect(
-          bottom,
-          width - left,
-          top,
-          width - right,
-        );
-      case 2:
-        return PdfRect(
-          width - right,
-          height - bottom,
-          width - left,
-          height - top,
-        );
-      case 3:
-        return PdfRect(
-          height - top,
-          right,
-          height - bottom,
-          left,
-        );
-      default:
-        throw ArgumentError.value(rotation, 'rotation');
-    }
-  }
 
   PdfRect inflate(double dx, double dy) =>
       PdfRect(left - dx, top + dy, right + dx, bottom - dy);
@@ -1015,26 +1039,6 @@ class PdfPoint {
 
   @override
   int get hashCode => x.hashCode ^ y.hashCode;
-}
-
-/// Extension methods for [Offset].
-extension OffsetExt on Offset {
-  /// Convert to [PdfPoint].
-  /// [page] is the page to convert the rectangle.
-  /// [scaledPageSize] is the scaled page size to scale the point. If not specified, no scaling is applied.
-  /// [rotationOverride] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
-  PdfPoint toPdfPoint({
-    required PdfPage page,
-    Size? scaledPageSize,
-    PdfPageRotation? rotationOverride,
-  }) =>
-      PdfPoint.fromXy(
-        dx,
-        dy,
-        page: page,
-        scaledPageSize: scaledPageSize,
-        rotationOverride: rotationOverride,
-      );
 }
 
 /// PDF [Explicit Destination](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=374) the page and inner-page location to jump to.

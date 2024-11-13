@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:js_interop';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:web/web.dart' as web;
 
@@ -391,6 +392,9 @@ class PdfPageWeb extends PdfPage {
     final rotate = (rotationOverride ?? rotation).index * 90;
     final vp1 =
         page.getViewport(PdfjsViewportParams(scale: 1, rotation: rotate));
+    debugPrint(
+        'Page ${page.pageNumber}: ${vp1.width}x${vp1.height}, ${fullWidth}x$fullHeight');
+
     final pageWidth = vp1.width;
     if (width <= 0 || height <= 0) {
       throw PdfException(

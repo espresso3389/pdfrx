@@ -541,6 +541,7 @@ class PdfPagePdfium extends PdfPage {
     fullHeight ??= this.height;
     width ??= fullWidth.toInt();
     height ??= fullHeight.toInt();
+
     backgroundColor ??= Colors.white;
     const rgbaSize = 4;
     Pointer<Uint8> buffer = nullptr;

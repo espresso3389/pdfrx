@@ -252,8 +252,10 @@ class PdfTextSearcher extends Listenable {
   ///
   /// Use this with [PdfViewerParams.pagePaintCallback] to highlight the matches.
   void pageTextMatchPaintCallback(
-      ui.Canvas canvas, Rect pageRect, PdfPage page) {
-    final range = getMatchesRangeForPage(page.pageNumber);
+    ui.Canvas canvas,
+    PdfPageCoordsConverter converter,
+  ) {
+    final range = getMatchesRangeForPage(converter.page.pageNumber);
     if (range == null) return;
 
     final matchTextColor =
@@ -263,11 +265,8 @@ class PdfTextSearcher extends Listenable {
 
     for (int i = range.start; i < range.end; i++) {
       final m = _matches[i];
-      final rect = m.bounds
-          .toRect(page: page, scaledPageSize: pageRect.size)
-          .translate(pageRect.left, pageRect.top);
       canvas.drawRect(
-        rect,
+        converter.toRectWithPageOffset(m.bounds),
         Paint()
           ..color = m == _currentMatch ? activeMatchTextColor : matchTextColor,
       );
