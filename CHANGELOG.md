@@ -1,3 +1,7 @@
+# 1.0.89
+
+- web 1.1.0 support (#254)
+
 # 1.0.88
 
 - Merge pull request #251
