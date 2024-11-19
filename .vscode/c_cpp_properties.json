@@ -1,14 +1,13 @@
 {
   "env": {
-    "ndkVersion": "21.1.6352462"
+    "ndkVersion": "27.0.12077973"
   },
   "configurations": [
     {
       "name": "Win32",
       "includePath": [
-        "${workspaceFolder}/android/.lib/include",
-        "${workspaceFolder}/iOS/Classes/*",
-        "${env:LOCALAPPDATA}/Android/Sdk/ndk/${ndkVersion}/sysroot/usr/include/*"
+        "${workspaceFolder}/android/.lib/latest/include",
+        "${workspaceFolder}/darwin/Classes/*",
       ],
       "defines": [],
       "cStandard": "c17",
