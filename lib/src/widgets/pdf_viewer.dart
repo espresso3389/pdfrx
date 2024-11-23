@@ -420,6 +420,12 @@ class _PdfViewerState extends State<PdfViewer>
         });
       }
 
+      Widget selectableRegionInjector(Widget child) =>
+          widget.params.selectableRegionInjector?.call(context, child) ??
+          (widget.params.enableTextSelection
+              ? SelectionArea(child: child)
+              : child);
+
       return Container(
         color: widget.params.backgroundColor,
         child: Focus(
@@ -431,48 +437,58 @@ class _PdfViewerState extends State<PdfViewer>
                 _determineCurrentPage();
                 _calcAlternativeFitScale();
                 _calcZoomStopTable();
-                return Builder(builder: (context) {
-                  return Stack(
-                    children: [
-                      iv.InteractiveViewer(
-                        transformationController: _txController,
-                        constrained: false,
-                        boundaryMargin: widget.params.boundaryMargin ??
-                            const EdgeInsets.all(double.infinity),
-                        maxScale: widget.params.maxScale,
-                        minScale: _alternativeFitScale != null
-                            ? _alternativeFitScale! / 2
-                            : 0.1,
-                        panAxis: widget.params.panAxis,
-                        panEnabled: widget.params.panEnabled,
-                        scaleEnabled: widget.params.scaleEnabled,
-                        onInteractionEnd: _onInteractionEnd,
-                        onInteractionStart: _onInteractionStart,
-                        onInteractionUpdate: widget.params.onInteractionUpdate,
-                        interactionEndFrictionCoefficient:
-                            widget.params.interactionEndFrictionCoefficient,
-                        onWheelDelta: widget.params.scrollByMouseWheel != null
-                            ? _onWheelDelta
-                            : null,
-                        // PDF pages
-                        child: CustomPaint(
-                          foregroundPainter:
-                              _CustomPainter.fromFunction(_customPaint),
-                          size: _layout!.documentSize,
+                return selectableRegionInjector(
+                  Builder(builder: (context) {
+                    return Stack(
+                      children: [
+                        iv.InteractiveViewer(
+                          transformationController: _txController,
+                          constrained: false,
+                          boundaryMargin: widget.params.boundaryMargin ??
+                              const EdgeInsets.all(double.infinity),
+                          maxScale: widget.params.maxScale,
+                          minScale: _alternativeFitScale != null
+                              ? _alternativeFitScale! / 2
+                              : 0.1,
+                          panAxis: widget.params.panAxis,
+                          panEnabled: widget.params.panEnabled,
+                          scaleEnabled: widget.params.scaleEnabled,
+                          onInteractionEnd: _onInteractionEnd,
+                          onInteractionStart: _onInteractionStart,
+                          onInteractionUpdate:
+                              widget.params.onInteractionUpdate,
+                          interactionEndFrictionCoefficient:
+                              widget.params.interactionEndFrictionCoefficient,
+                          onWheelDelta: widget.params.scrollByMouseWheel != null
+                              ? _onWheelDelta
+                              : null,
+                          // PDF pages
+                          child: CustomPaint(
+                            foregroundPainter:
+                                _CustomPainter.fromFunction(_customPaint),
+                            size: _layout!.documentSize,
+                          ),
                         ),
-                      ),
-                      ..._buildPageOverlayWidgets(context),
-                      if (_canvasLinkPainter.isEnabled)
-                        _canvasLinkPainter.linkHandlingOverlay(_viewSize!),
-                      if (widget.params.viewerOverlayBuilder != null)
-                        ...widget.params.viewerOverlayBuilder!(
-                          context,
-                          _viewSize!,
-                          _canvasLinkPainter._handleLinkTap,
-                        ),
-                    ],
-                  );
-                });
+                        ..._buildPageOverlayWidgets(context),
+                        if (_canvasLinkPainter.isEnabled)
+                          SelectionContainer.disabled(
+                            child: _canvasLinkPainter
+                                .linkHandlingOverlay(_viewSize!),
+                          ),
+                        if (widget.params.viewerOverlayBuilder != null)
+                          ...widget
+                              .params
+                              .viewerOverlayBuilder!(
+                            context,
+                            _viewSize!,
+                            _canvasLinkPainter._handleLinkTap,
+                          )
+                              .map(
+                                  (e) => SelectionContainer.disabled(child: e)),
+                      ],
+                    );
+                  }),
+                );
               }),
         ),
       );
@@ -763,6 +779,10 @@ class _PdfViewerState extends State<PdfViewer>
     final textWidgets = <Widget>[];
     final overlayWidgets = <Widget>[];
     final targetRect = _getCacheExtentRect();
+    final isTextSelectionEnabled = (widget.params.enableTextSelection ||
+            widget.params.selectableRegionInjector != null ||
+            widget.params.perPageSelectableRegionInjector != null) &&
+        _document!.permissions?.allowsCopying != false;
 
     for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
@@ -775,28 +795,25 @@ class _PdfViewerState extends State<PdfViewer>
         if (widget.params.linkHandlerParams == null &&
             widget.params.linkWidgetBuilder != null) {
           linkWidgets.add(
-            PdfPageLinksOverlay(
-              key: Key('#__pageLinks__:${page.pageNumber}'),
-              page: page,
-              pageRect: rectExternal,
-              params: widget.params,
-              // FIXME: workaround for link widget eats wheel events.
-              wrapperBuilder: (child) => Listener(
-                child: child,
-                onPointerSignal: (event) {
-                  if (event is PointerScrollEvent) {
-                    _onWheelDelta(event.scrollDelta);
-                  }
-                },
+            SelectionContainer.disabled(
+              child: PdfPageLinksOverlay(
+                key: Key('#__pageLinks__:${page.pageNumber}'),
+                page: page,
+                pageRect: rectExternal,
+                params: widget.params,
+                // FIXME: workaround for link widget eats wheel events.
+                wrapperBuilder: (child) => Listener(
+                  child: child,
+                  onPointerSignal: (event) {
+                    if (event is PointerScrollEvent) {
+                      _onWheelDelta(event.scrollDelta);
+                    }
+                  },
+                ),
               ),
             ),
           );
         }
-
-        final isTextSelectionEnabled = (widget.params.enableTextSelection ||
-                widget.params.selectableRegionInjector != null ||
-                widget.params.perPageSelectableRegionInjector != null) &&
-            _document!.permissions?.allowsCopying != false;
 
         Widget perPageSelectableRegionInjector(Widget child) =>
             widget.params.perPageSelectableRegionInjector
@@ -840,20 +857,18 @@ class _PdfViewerState extends State<PdfViewer>
               top: rectExternal.top,
               width: rectExternal.width,
               height: rectExternal.height,
-              child: Stack(children: overlay),
+              child: SelectionContainer.disabled(
+                child: Stack(
+                  children: overlay,
+                ),
+              ),
             ),
           );
         }
       }
     }
 
-    Widget selectableRegionInjector(Widget child) =>
-        widget.params.selectableRegionInjector?.call(context, child) ??
-        (widget.params.enableTextSelection
-            ? SelectionArea(
-                child: child,
-              )
-            : child);
+    Widget selectableRegionInjector(Widget child) => child;
 
     return [
       if (textWidgets.isNotEmpty)

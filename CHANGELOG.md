@@ -1,3 +1,7 @@
+# 1.0.91
+
+- Fixes selection issues caused by the changes on 1.0.90
+
 # 1.0.90
 
 - Introduces selectableRegionInjector/perPageSelectableRegionInjector (#256)
