@@ -195,7 +195,6 @@ class _PdfTextWidget extends LeafRenderObjectWidget {
     renderObject
       ..selectionColor = _state.widget.selectionColor
       ..registrar = _registrar;
-    _state.widget.selectables[_state._pageText!.pageNumber] = renderObject;
   }
 }
 
@@ -204,7 +203,8 @@ mixin PdfPageTextSelectable implements Selectable {
 }
 
 /// The code is based on the code on [Making a widget selectable](https://api.flutter.dev/flutter/widgets/SelectableRegion-class.html#widgets).SelectableRegion.2]
-class _PdfTextRenderBox extends RenderBox with PdfPageTextSelectable, Selectable, SelectionRegistrant {
+class _PdfTextRenderBox extends RenderBox
+    with PdfPageTextSelectable, Selectable, SelectionRegistrant {
   _PdfTextRenderBox(
     this._selectionColor,
     this._textWidget,
