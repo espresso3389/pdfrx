@@ -1,3 +1,7 @@
+# 1.0.90
+
+- Introduces selectableRegionInjector/perPageSelectableRegionInjector (#256)
+
 # 1.0.89
 
 - web 1.1.0 support (#254)
