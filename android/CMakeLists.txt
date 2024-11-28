@@ -67,8 +67,6 @@ endif()
 file(REMOVE ${PDFIUM_LATEST_DIR})
 file(CREATE_LINK ${PDFIUM_LIBS_DIR} ${PDFIUM_LATEST_DIR} SYMBOLIC)
 
-find_library(libc++ libc++_static.a)
-
 set(pdfrx_bundled_libraries
   # Defined in ../src/CMakeLists.txt.
   # This can be changed to accommodate different builds.
@@ -78,4 +76,4 @@ set(pdfrx_bundled_libraries
 )
 
 target_include_directories(pdfrx PRIVATE ${PDFIUM_LATEST_DIR}/include)
-target_link_libraries(pdfrx PRIVATE ${PDFIUM_LASTEST_LIB_FILENAME} ${libc++})
+target_link_libraries(pdfrx PRIVATE ${PDFIUM_LASTEST_LIB_FILENAME})
