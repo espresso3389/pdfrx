@@ -1,3 +1,7 @@
+# 1.0.92
+
+- Merge PR #262; Remove redundant check that breaks building on some systems
+
 # 1.0.91
 
 - Fixes selection issues caused by the changes on 1.0.90
@@ -12,7 +16,7 @@
 
 # 1.0.88
 
-- Merge pull request #251
+- Merge PR #251
 
 # 1.0.87
 
