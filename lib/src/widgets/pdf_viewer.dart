@@ -350,7 +350,7 @@ class _PdfViewerState extends State<PdfViewer>
   @override
   void dispose() {
     _selectionChangedThrottleTimer?.cancel();
-    _stopInteraction();
+    _interactionEndedTimer?.cancel();
     _cancelAllPendingRenderings();
     _animController.dispose();
     widget.documentRef.resolveListenable().removeListener(_onDocumentChanged);
@@ -503,6 +503,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _stopInteraction() {
     _interactionEndedTimer?.cancel();
+    if (!mounted) return;
     _interactionEndedTimer = Timer(const Duration(milliseconds: 300), () {
       _isInteractionGoingOn = false;
       _invalidate();
@@ -1103,6 +1104,7 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     _pageImageRenderingTimers[page.pageNumber]?.cancel();
+    if (!mounted) return;
     _pageImageRenderingTimers[page.pageNumber] = Timer(
       const Duration(milliseconds: 50),
       () => _cachePageImage(page, width, height, scale),
