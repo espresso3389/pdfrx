@@ -1,3 +1,8 @@
+# 1.0.93
+
+- Merge PR #264; Check for non-existent zoom element in PdfDest.params in some PDFs
+- FIXED: Widget tests starts to fail when using PdfViewer widget #263
+
 # 1.0.92
 
 - Merge PR #262; Remove redundant check that breaks building on some systems
