@@ -338,8 +338,9 @@ class PdfPageWeb extends PdfPage {
         PdfAnnotationRenderingMode.annotationAndForms,
     PdfPageRenderCancellationToken? cancellationToken,
   }) async {
-    if (cancellationToken != null &&
-        cancellationToken is! PdfPageRenderCancellationTokenWeb) {
+    if (cancellationToken == null) {
+      cancellationToken = PdfPageRenderCancellationTokenWeb();
+    } else if (cancellationToken is! PdfPageRenderCancellationTokenWeb) {
       throw ArgumentError(
         'cancellationToken must be created by PdfPage.createCancellationToken().',
         'cancellationToken',

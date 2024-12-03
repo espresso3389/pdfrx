@@ -350,7 +350,7 @@ class _PdfViewerState extends State<PdfViewer>
   @override
   void dispose() {
     _selectionChangedThrottleTimer?.cancel();
-    _stopInteraction();
+    _interactionEndedTimer?.cancel();
     _cancelAllPendingRenderings();
     _animController.dispose();
     widget.documentRef.resolveListenable().removeListener(_onDocumentChanged);
@@ -420,10 +420,11 @@ class _PdfViewerState extends State<PdfViewer>
         });
       }
 
-      final Widget Function(Widget) selectionAreaInjector =
-          widget.params.enableTextSelection
-              ? (child) => SelectionArea(child: child)
-              : (child) => child;
+      Widget selectableRegionInjector(Widget child) =>
+          widget.params.selectableRegionInjector?.call(context, child) ??
+          (widget.params.enableTextSelection
+              ? SelectionArea(child: child)
+              : child);
 
       return Container(
         color: widget.params.backgroundColor,
@@ -436,7 +437,7 @@ class _PdfViewerState extends State<PdfViewer>
                 _determineCurrentPage();
                 _calcAlternativeFitScale();
                 _calcZoomStopTable();
-                return selectionAreaInjector(
+                return selectableRegionInjector(
                   Builder(builder: (context) {
                     return Stack(
                       children: [
@@ -470,13 +471,20 @@ class _PdfViewerState extends State<PdfViewer>
                         ),
                         ..._buildPageOverlayWidgets(context),
                         if (_canvasLinkPainter.isEnabled)
-                          _canvasLinkPainter.linkHandlingOverlay(_viewSize!),
+                          SelectionContainer.disabled(
+                            child: _canvasLinkPainter
+                                .linkHandlingOverlay(_viewSize!),
+                          ),
                         if (widget.params.viewerOverlayBuilder != null)
-                          ...widget.params.viewerOverlayBuilder!(
+                          ...widget
+                              .params
+                              .viewerOverlayBuilder!(
                             context,
                             _viewSize!,
                             _canvasLinkPainter._handleLinkTap,
-                          ),
+                          )
+                              .map(
+                                  (e) => SelectionContainer.disabled(child: e)),
                       ],
                     );
                   }),
@@ -495,6 +503,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _stopInteraction() {
     _interactionEndedTimer?.cancel();
+    if (!mounted) return;
     _interactionEndedTimer = Timer(const Duration(milliseconds: 300), () {
       _isInteractionGoingOn = false;
       _invalidate();
@@ -771,7 +780,10 @@ class _PdfViewerState extends State<PdfViewer>
     final textWidgets = <Widget>[];
     final overlayWidgets = <Widget>[];
     final targetRect = _getCacheExtentRect();
-    final selectionRegistrar = SelectionContainer.maybeOf(context);
+    final isTextSelectionEnabled = (widget.params.enableTextSelection ||
+            widget.params.selectableRegionInjector != null ||
+            widget.params.perPageSelectableRegionInjector != null) &&
+        _document!.permissions?.allowsCopying != false;
 
     for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
@@ -784,25 +796,32 @@ class _PdfViewerState extends State<PdfViewer>
         if (widget.params.linkHandlerParams == null &&
             widget.params.linkWidgetBuilder != null) {
           linkWidgets.add(
-            PdfPageLinksOverlay(
-              key: Key('#__pageLinks__:${page.pageNumber}'),
-              page: page,
-              pageRect: rectExternal,
-              params: widget.params,
-              // FIXME: workaround for link widget eats wheel events.
-              wrapperBuilder: (child) => Listener(
-                child: child,
-                onPointerSignal: (event) {
-                  if (event is PointerScrollEvent) {
-                    _onWheelDelta(event.scrollDelta);
-                  }
-                },
+            SelectionContainer.disabled(
+              child: PdfPageLinksOverlay(
+                key: Key('#__pageLinks__:${page.pageNumber}'),
+                page: page,
+                pageRect: rectExternal,
+                params: widget.params,
+                // FIXME: workaround for link widget eats wheel events.
+                wrapperBuilder: (child) => Listener(
+                  child: child,
+                  onPointerSignal: (event) {
+                    if (event is PointerScrollEvent) {
+                      _onWheelDelta(event.scrollDelta);
+                    }
+                  },
+                ),
               ),
             ),
           );
         }
 
-        if (selectionRegistrar != null &&
+        Widget perPageSelectableRegionInjector(Widget child) =>
+            widget.params.perPageSelectableRegionInjector
+                ?.call(context, child, page, rectExternal) ??
+            child;
+
+        if (isTextSelectionEnabled &&
             _document!.permissions?.allowsCopying != false) {
           textWidgets.add(
             Positioned(
@@ -811,14 +830,16 @@ class _PdfViewerState extends State<PdfViewer>
               top: rectExternal.top,
               width: rectExternal.width,
               height: rectExternal.height,
-              child: PdfPageTextOverlay(
-                selectables: _selectionHandlers,
-                enabled: !_isInteractionGoingOn,
-                page: page,
-                pageRect: rectExternal,
-                onTextSelectionChange: _onSelectionChange,
-                selectionColor:
-                    DefaultSelectionStyle.of(context).selectionColor!,
+              child: perPageSelectableRegionInjector(
+                PdfPageTextOverlay(
+                  selectables: _selectionHandlers,
+                  enabled: !_isInteractionGoingOn,
+                  page: page,
+                  pageRect: rectExternal,
+                  onTextSelectionChange: _onSelectionChange,
+                  selectionColor:
+                      DefaultSelectionStyle.of(context).selectionColor!,
+                ),
               ),
             ),
           );
@@ -837,23 +858,33 @@ class _PdfViewerState extends State<PdfViewer>
               top: rectExternal.top,
               width: rectExternal.width,
               height: rectExternal.height,
-              child: Stack(children: overlay),
+              child: SelectionContainer.disabled(
+                child: Stack(
+                  children: overlay,
+                ),
+              ),
             ),
           );
         }
       }
     }
+
+    Widget selectableRegionInjector(Widget child) => child;
+
     return [
-      Listener(
-        behavior: HitTestBehavior.translucent,
-        // FIXME: Selectable absorbs wheel events.
-        onPointerSignal: (event) {
-          if (event is PointerScrollEvent) {
-            _onWheelDelta(event.scrollDelta);
-          }
-        },
-        child: Stack(children: textWidgets),
-      ),
+      if (textWidgets.isNotEmpty)
+        selectableRegionInjector(
+          Listener(
+            behavior: HitTestBehavior.translucent,
+            // FIXME: Selectable absorbs wheel events.
+            onPointerSignal: (event) {
+              if (event is PointerScrollEvent) {
+                _onWheelDelta(event.scrollDelta);
+              }
+            },
+            child: Stack(children: textWidgets),
+          ),
+        ),
       ...linkWidgets,
       ...overlayWidgets,
     ];
@@ -1073,6 +1104,7 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     _pageImageRenderingTimers[page.pageNumber]?.cancel();
+    if (!mounted) return;
     _pageImageRenderingTimers[page.pageNumber] = Timer(
       const Duration(milliseconds: 50),
       () => _cachePageImage(page, width, height, scale),
@@ -1226,7 +1258,7 @@ class _PdfViewerState extends State<PdfViewer>
   Matrix4 _makeMatrixInSafeRange(Matrix4 newValue) {
     _updateViewSizeAndCoverScale(_viewSize!);
     if (widget.params.normalizeMatrix != null) {
-      widget.params.normalizeMatrix!(
+      return widget.params.normalizeMatrix!(
         newValue,
         _viewSize!,
         _layout!,
@@ -1363,8 +1395,9 @@ class _PdfViewerState extends State<PdfViewer>
     switch (dest.command) {
       case PdfDestCommand.xyz:
         if (params != null && params.length >= 2) {
-          final zoom =
-              params[2] != null && params[2] != 0.0 ? params[2]! : _currentZoom;
+          final zoom = params.length >= 3
+              ? params[2] != null && params[2] != 0.0 ? params[2]!
+              : _currentZoom : 1.0;
           final hw = _viewSize!.width / 2 / zoom;
           final hh = _viewSize!.height / 2 / zoom;
           return _calcMatrixFor(

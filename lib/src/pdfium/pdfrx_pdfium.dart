@@ -17,6 +17,7 @@ import 'worker.dart';
 
 /// Get the module file name for pdfium.
 String _getModuleFileName() {
+  if (Pdfrx.pdfiumModulePath != null) return Pdfrx.pdfiumModulePath!;
   if (Platform.isAndroid) return 'libpdfium.so';
   if (Platform.isIOS || Platform.isMacOS) return 'pdfrx.framework/pdfrx';
   if (Platform.isWindows) return 'pdfium.dll';

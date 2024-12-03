@@ -1,3 +1,28 @@
+# 1.0.93
+
+- Merge PR #264; Check for non-existent zoom element in PdfDest.params in some PDFs
+- FIXED: Widget tests starts to fail when using PdfViewer widget #263
+
+# 1.0.92
+
+- Merge PR #262; Remove redundant check that breaks building on some systems
+
+# 1.0.91
+
+- Fixes selection issues caused by the changes on 1.0.90
+
+# 1.0.90
+
+- Introduces selectableRegionInjector/perPageSelectableRegionInjector (#256)
+
+# 1.0.89
+
+- web 1.1.0 support (#254)
+
+# 1.0.88
+
+- Merge PR #251
+
 # 1.0.87
 
 - BREAKING CHANGE: add more parameters to PdfViewerParams.normalizeMatrix to make it easier to handle more complex situations (#239)
