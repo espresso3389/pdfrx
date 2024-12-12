@@ -1,3 +1,7 @@
+# 1.0.96
+
+- FIXED: #260 onTextSelectionChange callback cant be called
+
 # 1.0.95
 
 - FIXED: #273; apart from the ream WASM support, it fixes several compilation issues with --wasm option
