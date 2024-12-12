@@ -1,3 +1,7 @@
+# 1.0.94
+
+- Merge PR #272; Fix minScale is not used
+
 # 1.0.93
 
 - Merge PR #264; Check for non-existent zoom element in PdfDest.params in some PDFs
