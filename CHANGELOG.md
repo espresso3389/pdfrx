@@ -1,3 +1,7 @@
+# 1.0.95
+
+- FIXED: #273; apart from the ream WASM support, it fixes several compilation issues with --wasm option
+
 # 1.0.94
 
 - Merge PR #272; Fix minScale is not used

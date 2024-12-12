@@ -11,6 +11,8 @@ import 'package:web/web.dart' as web;
 import '../../pdfrx.dart';
 import 'pdf.js.dart';
 
+const _isRunningWithWasm = bool.fromEnvironment('dart.tool.dart2wasm');
+
 class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   @override
   Future<PdfDocument> openAsset(
@@ -261,9 +263,18 @@ class PdfDocumentWeb extends PdfDocument {
     final arr = destObj.toDart;
     final ref = arr[0] as PdfjsRef;
     final cmdStr = _getName(arr[1]);
-    final params = arr.length < 3
-        ? null
-        : List<double?>.unmodifiable(arr.sublist(2).cast<double?>());
+    final List<double?>? params;
+    if (arr.length < 3) {
+      params = null;
+    } else if (_isRunningWithWasm) {
+      params = List<double?>.unmodifiable(arr
+          .sublist(2)
+          .map((v) => (v as JSNumber?)?.toDartDouble)
+          .cast<double?>());
+    } else {
+      params = List<double?>.unmodifiable(arr.sublist(2).cast<double?>());
+    }
+
     return PdfDest(
       (await _document.getPageIndex(ref).toDart).toDartInt + 1,
       _parseCmdStr(cmdStr),
@@ -441,7 +452,15 @@ class PdfPageWeb extends PdfPage {
       if (annot.subtype != 'Link') {
         continue;
       }
-      final rect = annot.rect.toDart.cast<double>();
+      final List<double> rect;
+      if (_isRunningWithWasm) {
+        rect = annot.rect.toDart
+            .map((v) => (v).toDartDouble)
+            .cast<double>()
+            .toList();
+      } else {
+        rect = annot.rect.toDart.cast<double>();
+      }
       final rects = List<PdfRect>.unmodifiable(
           [PdfRect(rect[0], rect[3], rect[2], rect[1])]);
       if (annot.url != null) {
@@ -531,7 +550,12 @@ class PdfPageTextWeb extends PdfPageText {
     final sb = StringBuffer();
     final fragments = <PdfPageTextFragmentWeb>[];
     for (final item in content.items.toDart) {
-      final t = item.transform.toDart.cast<double>();
+      final List<double> t;
+      if (_isRunningWithWasm) {
+        t = item.transform.toDart.map((v) => v.toDartDouble).toList();
+      } else {
+        t = item.transform.toDart.cast<double>();
+      }
       final x = t[4];
       final y = t[5];
       final str = item.hasEOL ? '${item.str}\n' : item.str;
