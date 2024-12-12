@@ -449,7 +449,7 @@ class _PdfViewerState extends State<PdfViewer>
                           maxScale: widget.params.maxScale,
                           minScale: _alternativeFitScale != null
                               ? _alternativeFitScale! / 2
-                              : 0.1,
+                              : minScale,
                           panAxis: widget.params.panAxis,
                           panEnabled: widget.params.panEnabled,
                           scaleEnabled: widget.params.scaleEnabled,
