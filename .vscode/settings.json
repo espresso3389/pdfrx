@@ -255,5 +255,6 @@
     "xlocnum": "cpp",
     "xloctime": "cpp",
     "xstring": "cpp"
-  }
+  },
+  "cmake.ignoreCMakeListsMissing": true
 }

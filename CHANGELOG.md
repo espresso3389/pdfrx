@@ -1,3 +1,7 @@
+# 1.0.97
+
+- Document updates
+
 # 1.0.96
 
 - FIXED: #260 onTextSelectionChange callback cant be called

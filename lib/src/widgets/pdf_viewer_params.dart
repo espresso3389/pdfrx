@@ -782,7 +782,7 @@ typedef PdfViewerPagePaintCallback = void Function(
 
 /// Function to be notified when the text selection is changed.
 ///
-/// [selections] is the selected text ranges.
+/// [selections] contains the selected text ranges on each page.
 typedef PdfViewerTextSelectionChangeCallback = void Function(
     List<PdfTextRanges> selections);
 
