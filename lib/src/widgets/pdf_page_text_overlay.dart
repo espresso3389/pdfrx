@@ -195,6 +195,7 @@ class _PdfTextWidget extends LeafRenderObjectWidget {
     renderObject
       ..selectionColor = _state.widget.selectionColor
       ..registrar = _registrar;
+    _state.widget.selectables[_state._pageText!.pageNumber] = renderObject;
   }
 }
 

@@ -228,7 +228,7 @@ class _PdfViewerState extends State<PdfViewer>
   // Changes to the stream rebuilds the viewer
   final _updateStream = BehaviorSubject<Matrix4>();
 
-  final _selectionHandlers = SplayTreeMap<int, PdfPageTextSelectable>();
+  final _selectables = SplayTreeMap<int, PdfPageTextSelectable>();
   Timer? _selectionChangedThrottleTimer;
 
   Timer? _interactionEndedTimer;
@@ -771,7 +771,7 @@ class _PdfViewerState extends State<PdfViewer>
       (z1 - z2).abs() < 0.01;
 
   List<Widget> _buildPageOverlayWidgets(BuildContext context) {
-    _selectionHandlers.clear();
+    _selectables.clear();
 
     final renderBox = context.findRenderObject();
     if (renderBox is! RenderBox) return [];
@@ -832,7 +832,7 @@ class _PdfViewerState extends State<PdfViewer>
               height: rectExternal.height,
               child: perPageSelectableRegionInjector(
                 PdfPageTextOverlay(
-                  selectables: _selectionHandlers,
+                  selectables: _selectables,
                   enabled: !_isInteractionGoingOn,
                   page: page,
                   pageRect: rectExternal,
@@ -891,7 +891,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _clearAllTextSelections() {
-    for (final s in _selectionHandlers.values) {
+    for (final s in _selectables.values) {
       s.dispatchSelectionEvent(const ClearSelectionEvent());
     }
   }
@@ -900,9 +900,8 @@ class _PdfViewerState extends State<PdfViewer>
     _selectionChangedThrottleTimer?.cancel();
     _selectionChangedThrottleTimer =
         Timer(const Duration(milliseconds: 300), () {
-      if (!mounted || !_selectionHandlers.containsKey(selection.pageNumber))
-        return;
-      widget.params.onTextSelectionChange?.call(_selectionHandlers.values
+      if (!mounted || !_selectables.containsKey(selection.pageNumber)) return;
+      widget.params.onTextSelectionChange?.call(_selectables.values
           .map((s) => s.selectedRanges)
           .where((s) => s.isNotEmpty)
           .toList());
@@ -1396,8 +1395,10 @@ class _PdfViewerState extends State<PdfViewer>
       case PdfDestCommand.xyz:
         if (params != null && params.length >= 2) {
           final zoom = params.length >= 3
-              ? params[2] != null && params[2] != 0.0 ? params[2]!
-              : _currentZoom : 1.0;
+              ? params[2] != null && params[2] != 0.0
+                  ? params[2]!
+                  : _currentZoom
+              : 1.0;
           final hw = _viewSize!.width / 2 / zoom;
           final hh = _viewSize!.height / 2 / zoom;
           return _calcMatrixFor(

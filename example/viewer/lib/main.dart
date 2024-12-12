@@ -193,10 +193,6 @@ class _MainPageState extends State<MainPage> {
                   // PdfViewer.uri(
                   //   Uri.parse(
                   //       'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
-                  // PdfViewer.uri(
-                  //   Uri.parse(kIsWeb
-                  //       ? 'assets/assets/hello.pdf'
-                  //       : 'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
                   // Set password provider to show password dialog
                   passwordProvider: () => passwordDialog(context),
                   controller: controller,
