@@ -101,10 +101,15 @@ The following fragment enables text selection feature:
 ```dart
 PdfViewer.asset(
   'assets/test.pdf',
-  enableTextSelection: true,
+  params: PdfViewerParams(
+    enableTextSelection: true,
+    ...
+  ),
   ...
 ),
 ```
+
+For more text selection customization, see [Text Selection](https://github.com/espresso3389/pdfrx/wiki/Text-Selection).
 
 ### PDF Feature Support
 
