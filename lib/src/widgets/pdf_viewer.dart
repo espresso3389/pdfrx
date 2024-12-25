@@ -1966,6 +1966,68 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// [dest] specifies the destination.
   Matrix4? calcMatrixForDest(PdfDest? dest) => _state._calcMatrixForDest(dest);
 
+  /// Calculate the matrix to fit the page into the view.
+  ///
+  /// `/Fit` command on [PDF 32000-1:2008, 12.3.2.2 Explicit Destinations, Table 151](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=374)
+  Matrix4? calcMatrixForFit({required int pageNumber}) =>
+      calcMatrixForDest(PdfDest(pageNumber, PdfDestCommand.fit, null));
+
+  /// Calculate the matrix to fit the specified page width into the view.
+  ///
+  Matrix4? calcMatrixFitWidthForPage({required int pageNumber}) {
+    final page = layout.pageLayouts[pageNumber - 1];
+    final zoom = (viewSize.width - params.margin * 2) / page.width;
+    final y = (viewSize.height / 2 - params.margin) / zoom;
+    return calcMatrixFor(page.topCenter.translate(0, y),
+        zoom: zoom, viewSize: viewSize);
+  }
+
+  /// Calculate the matrix to fit the specified page height into the view.
+  ///
+  Matrix4? calcMatrixFitHeightForPage({required int pageNumber}) {
+    final page = layout.pageLayouts[pageNumber - 1];
+    final zoom = (viewSize.height - params.margin * 2) / page.height;
+    return calcMatrixFor(page.center, zoom: zoom, viewSize: viewSize);
+  }
+
+  /// Get list of possible matrices that fit some of the pages into the view.
+  ///
+  /// [sortInSuitableOrder] specifies whether the result is sorted in a suitable order.
+  ///
+  /// Because [PdfViewer] can show multiple pages at once, there are several possible
+  /// matrices to fit the pages into the view according to several criteria.
+  /// The method returns the list of such matrices.
+  ///
+  /// In theory, the method can be also used to determine the dominant pages in the view.
+  List<PdfPageFitInfo> calcFitZoomMatrices({bool sortInSuitableOrder = true}) {
+    final viewRect = visibleRect;
+    final result = <PdfPageFitInfo>[];
+    final pos = centerPosition;
+    for (int i = 0; i < layout.pageLayouts.length; i++) {
+      final page = layout.pageLayouts[i];
+      if (page.intersect(viewRect).isEmpty) continue;
+      final zoom = (viewSize.width - params.margin * 2) / page.width;
+      // NOTE: keep the y-position but center the x-position
+      final newMatrix =
+          calcMatrixFor(Offset(page.left + page.width / 2, pos.dy), zoom: zoom);
+
+      final intersection = newMatrix.calcVisibleRect(viewSize).intersect(page);
+      // if the page is not visible after changing the zoom, ignore it
+      if (intersection.isEmpty) continue;
+      final intersectionRatio =
+          intersection.width * intersection.height / (page.width * page.height);
+      result.add(PdfPageFitInfo(
+        pageNumber: i + 1,
+        matrix: newMatrix,
+        visibleAreaRatio: intersectionRatio,
+      ));
+    }
+    if (sortInSuitableOrder) {
+      result.sort((a, b) => b.visibleAreaRatio.compareTo(a.visibleAreaRatio));
+    }
+    return result;
+  }
+
   /// Calculate the matrix for the page.
   ///
   /// [pageNumber] specifies the page number.
@@ -2105,6 +2167,29 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   }
 
   void invalidate() => _state._invalidate();
+}
+
+/// [PdfViewerController.calcFitZoomMatrices] returns the list of this class.
+@immutable
+class PdfPageFitInfo {
+  const PdfPageFitInfo({
+    required this.pageNumber,
+    required this.matrix,
+    required this.visibleAreaRatio,
+  });
+
+  /// The page number of the target page.
+  final int pageNumber;
+
+  /// The matrix to fit the page horizontally into the view.
+  final Matrix4 matrix;
+
+  /// The ratio of the visible area of the page. 1 means the whole page is visible inside the view.
+  final double visibleAreaRatio;
+
+  @override
+  String toString() =>
+      'PdfPageFitInfo(pageNumber=$pageNumber, visibleAreaRatio=$visibleAreaRatio, matrix=$matrix)';
 }
 
 extension PdfMatrix4Ext on Matrix4 {
