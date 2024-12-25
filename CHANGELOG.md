@@ -1,3 +1,7 @@
+# 1.0.98
+
+- Introduces PdfViewerController.calcFitZoomMatrices to realize fit-to-width easier
+
 # 1.0.97
 
 - Document updates
