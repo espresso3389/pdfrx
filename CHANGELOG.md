@@ -1,3 +1,7 @@
+# 1.0.99
+
+- Introduces Pdfrx.fontPaths to set pdfium font loading path (#140)
+
 # 1.0.98
 
 - Introduces PdfViewerController.calcFitZoomMatrices to realize fit-to-width easier
