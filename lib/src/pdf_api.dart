@@ -13,11 +13,17 @@ import '../pdfrx.dart';
 import 'web/pdfrx_web.dart' if (dart.library.io) 'pdfium/pdfrx_pdfium.dart';
 
 /// Class to provide Pdfrx's configuration.
+/// The parameters should be set before calling any Pdfrx's functions.
 abstract class Pdfrx {
   /// Explicitly specify pdfium module path for special purpose.
   ///
   /// It is not supported on Flutter Web.
   static String? pdfiumModulePath;
+
+  /// Font paths scanned by pdfium if supported.
+  ///
+  /// It is not supported on Flutter Web.
+  static final fontPaths = <String>[];
 
   /// Overriding the default HTTP client for PDF download.
   ///

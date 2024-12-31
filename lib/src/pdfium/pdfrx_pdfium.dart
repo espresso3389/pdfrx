@@ -41,7 +41,19 @@ void _init() {
       final config = arena.allocate<pdfium_bindings.FPDF_LIBRARY_CONFIG>(
           sizeOf<pdfium_bindings.FPDF_LIBRARY_CONFIG>());
       config.ref.version = 2;
-      config.ref.m_pUserFontPaths = nullptr;
+
+      if (Pdfrx.fontPaths.isNotEmpty) {
+        final fontPathArray = arena.allocate<Pointer<Char>>(
+            sizeOf<Pointer<Char>>() * (Pdfrx.fontPaths.length + 1));
+        for (int i = 0; i < Pdfrx.fontPaths.length; i++) {
+          fontPathArray[i] = Pdfrx.fontPaths[i].toUtf8(arena);
+        }
+        fontPathArray[Pdfrx.fontPaths.length] = nullptr;
+        config.ref.m_pUserFontPaths = fontPathArray;
+      } else {
+        config.ref.m_pUserFontPaths = nullptr;
+      }
+
       config.ref.m_pIsolate = nullptr;
       config.ref.m_v8EmbedderSlot = 0;
       pdfium.FPDF_InitLibraryWithConfig(config);
