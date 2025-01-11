@@ -28,7 +28,7 @@ class PdfTextSearcher extends Listenable {
   int? _searchingPageNumber;
   int? _totalPageCount;
   bool _isSearching = false;
-  Map<int, PdfPageText>? _cachedText;
+  final _cachedText = <int, PdfPageText>{};
 
   /// The current match index in [matches] if available.
   int? get currentIndex => _currentIndex;
@@ -63,14 +63,6 @@ class PdfTextSearcher extends Listenable {
     for (final listener in _listeners) {
       listener();
     }
-  }
-
-  Future<PdfPageText> fetchText(PdfPage page) async {
-    _cachedText ??= {};
-    if (_cachedText![page.pageNumber] == null) {
-      _cachedText![page.pageNumber] = await page.loadText();
-    }
-    return _cachedText![page.pageNumber]!;
   }
 
   /// Start a new search.
@@ -129,7 +121,7 @@ class PdfTextSearcher extends Listenable {
 
   /// Almost identical to [resetTextSearch], but does not notify listeners.
   void dispose() {
-    _cachedText = null;
+    _cachedText.clear();
     _resetTextSearch(notify: false);
   }
 
@@ -168,7 +160,8 @@ class PdfTextSearcher extends Listenable {
         for (final page in document.pages) {
           _searchingPageNumber = page.pageNumber;
           if (searchSession != _searchSession) return;
-          final pageText = await fetchText(page);
+          final pageText = await loadText(pageNumber: page.pageNumber);
+          if (pageText == null) continue;
           textMatchesPageStartIndex.add(textMatches.length);
           await for (final f in pageText.allMatches(
             text,
@@ -198,8 +191,12 @@ class PdfTextSearcher extends Listenable {
 
   /// Just a helper function to load the text of a page.
   Future<PdfPageText?> loadText({required int pageNumber}) async {
-    return await controller
-        ?.useDocument((document) => document.pages[pageNumber - 1].loadText());
+    final cached = _cachedText[pageNumber];
+    if (cached != null) return cached;
+    return await controller?.useDocument((document) async {
+      return _cachedText[pageNumber] ??=
+          await document.pages[pageNumber - 1].loadText();
+    });
   }
 
   /// Go to the previous match.
