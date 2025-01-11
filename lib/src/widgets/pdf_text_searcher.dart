@@ -28,6 +28,7 @@ class PdfTextSearcher extends Listenable {
   int? _searchingPageNumber;
   int? _totalPageCount;
   bool _isSearching = false;
+  Map<int, PdfPageText>? _cachedText;
 
   /// The current match index in [matches] if available.
   int? get currentIndex => _currentIndex;
@@ -62,6 +63,14 @@ class PdfTextSearcher extends Listenable {
     for (final listener in _listeners) {
       listener();
     }
+  }
+
+  Future<PdfPageText> fetchText(PdfPage page) async {
+    _cachedText ??= {};
+    if (_cachedText![page.pageNumber] == null) {
+      _cachedText![page.pageNumber] = await page.loadText();
+    }
+    return _cachedText![page.pageNumber]!;
   }
 
   /// Start a new search.
@@ -119,7 +128,10 @@ class PdfTextSearcher extends Listenable {
   void resetTextSearch() => _resetTextSearch();
 
   /// Almost identical to [resetTextSearch], but does not notify listeners.
-  void dispose() => _resetTextSearch(notify: false);
+  void dispose() {
+    _cachedText = null;
+    _resetTextSearch(notify: false);
+  }
 
   void _resetTextSearch({bool notify = true}) {
     _cancelTextSearch();
@@ -156,7 +168,7 @@ class PdfTextSearcher extends Listenable {
         for (final page in document.pages) {
           _searchingPageNumber = page.pageNumber;
           if (searchSession != _searchSession) return;
-          final pageText = await page.loadText();
+          final pageText = await fetchText(page);
           textMatchesPageStartIndex.add(textMatches.length);
           await for (final f in pageText.allMatches(
             text,
