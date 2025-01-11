@@ -129,6 +129,7 @@ class PdfTextSearcher extends Listenable {
     _currentIndex = null;
     _currentMatch = null;
     _isSearching = false;
+    _lastSearchPattern = null;
     if (notify) {
       notifyListeners();
     }
