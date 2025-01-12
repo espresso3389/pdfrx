@@ -1,3 +1,9 @@
+# 1.0.100
+
+- PdfTextSearcher introduces text caches (#293)
+- PdfTextSearcher search reset issue (#291)
+- collection's version spec. reverted to pre-1.0.95
+
 # 1.0.99
 
 - Introduces Pdfrx.fontPaths to set pdfium font loading path (#140)
