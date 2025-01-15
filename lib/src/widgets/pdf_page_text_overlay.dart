@@ -297,6 +297,7 @@ class _PdfTextRenderBox extends RenderBox
   }
 
   void _updateGeometryInternal() {
+    _selectedText = null;
     _selectedRect = null;
     _selectedRanges = PdfTextRanges.createEmpty(_textWidget._state._pageText!);
 
@@ -617,6 +618,18 @@ class _PdfTextRenderBox extends RenderBox
       value.hasSelection && _selectedText != null
           ? SelectedContent(plainText: _selectedText!)
           : null;
+
+  @override
+  SelectedContentRange? getSelection() {
+    if (_selectedRanges.ranges.isEmpty) return null;
+    return SelectedContentRange(
+      startOffset: _selectedRanges.ranges.first.start,
+      endOffset: _selectedRanges.ranges.last.end,
+    );
+  }
+
+  @override
+  int get contentLength => _selectedRanges.pageText.fullText.length;
 
   LayerLink? _startHandle;
   LayerLink? _endHandle;
