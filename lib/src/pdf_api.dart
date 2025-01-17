@@ -182,8 +182,8 @@ abstract class PdfDocument {
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
   ///
-  /// [sourceName] can be any arbitrary string to identify the source of the PDF; [data] does not identify the source
-  /// if such name is explicitly specified.
+  /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
+  /// unique for each source, the viewer may not work correctly.
   static Future<PdfDocument> openData(
     Uint8List data, {
     PdfPasswordProvider? passwordProvider,
@@ -209,8 +209,8 @@ abstract class PdfDocument {
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
   ///
-  /// [sourceName] can be any arbitrary string to identify the source of the PDF; Neither of [read]/[fileSize]
-  /// identify the source if such name is explicitly specified.
+  /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
+  /// unique for each source, the viewer may not work correctly.
   static Future<PdfDocument> openCustom({
     required FutureOr<int> Function(Uint8List buffer, int position, int size)
         read,

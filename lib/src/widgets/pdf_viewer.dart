@@ -124,8 +124,8 @@ class PdfViewer extends StatefulWidget {
   /// Create [PdfViewer] from a byte data.
   ///
   /// [data] is the byte data.
-  /// [sourceName] can be any arbitrary string to identify the source of the PDF; [data] does not identify the source
-  /// if such name is explicitly specified.
+  /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
+  /// unique for each source, the viewer may not work correctly.
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
@@ -152,8 +152,8 @@ class PdfViewer extends StatefulWidget {
   ///
   /// [fileSize] is the size of the PDF file.
   /// [read] is the function to read the PDF file.
-  /// [sourceName] can be any arbitrary string to identify the source of the PDF; Neither of [read]/[fileSize]
-  /// identify the source if such name is explicitly specified.
+  /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
+  /// unique for each source, the viewer may not work correctly.
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
