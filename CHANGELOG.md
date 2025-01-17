@@ -1,3 +1,8 @@
+# 1.0.101
+
+- Revert commit d66fb3f that breaks consistency; Color.withValues -> Color.withOpacity
+- Update pdfium ffi bindings
+
 # 1.0.100
 
 - PdfTextSearcher introduces text caches (#293)
