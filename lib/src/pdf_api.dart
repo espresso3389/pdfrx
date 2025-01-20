@@ -671,6 +671,7 @@ class PdfTextRangeWithFragments {
     this.start,
     this.end,
     this.bounds,
+    this.surroundingText,
   );
 
   /// Page number of the page.
@@ -687,6 +688,68 @@ class PdfTextRangeWithFragments {
 
   /// Bounding rectangle of the text.
   final PdfRect bounds;
+
+  // Surrounding text.
+  final String surroundingText;
+
+  /// Extracts a portion of text from [fullText] around the range [start] to [end],
+  /// ensuring that the extracted text starts and ends at meaningful word boundaries.
+  ///
+  /// The method includes additional context (or "padding") around the specified range,
+  /// defined by [paddingLength]. By default, [paddingLength] is set to 20 characters.
+  ///
+  /// If [fullText] is empty, the method returns an empty string.
+  ///
+  /// Parameters:
+  /// - [fullText] : The full text from which to extract the surrounding text.
+  /// - [start] : The starting index of the range (inclusive).
+  /// - [end] : The ending index of the range (exclusive).
+  /// - [paddingLength] : The number of characters to include as context before and after
+  ///   the range. Defaults to 20.
+  ///
+  /// Returns:
+  /// - A string containing the extracted text, with newlines replaced by spaces and
+  ///   trimmed of leading/trailing whitespace.
+  static String _getSurroundingText(
+    String fullText,
+    int start,
+    int end, {
+    int paddingLength = 20,
+  }) {
+    // If the input text is empty, return an empty string
+    if (fullText.isEmpty) {
+      return '';
+    }
+
+    // Ensure start and end are within valid bounds
+    start = start.clamp(0, fullText.length);
+    end = end.clamp(0, fullText.length);
+
+    // Calculate the start and end positions for the surrounding text
+    int contextStart = (start - paddingLength).clamp(0, fullText.length);
+    int contextEnd = (end + paddingLength).clamp(0, fullText.length);
+
+    // Adjust contextStart to the nearest space or beginning of the text
+    // to avoid clipping words
+    while (contextStart > 0 && fullText[contextStart - 1].trim().isNotEmpty) {
+      contextStart--;
+    }
+
+    // Adjust contextEnd to the nearest space or end of the text
+    // to avoid clipping words
+    while (contextEnd < fullText.length &&
+        fullText[contextEnd].trim().isNotEmpty) {
+      contextEnd++;
+    }
+
+    // Extract the surrounding text, replace newlines with spaces, and trim whitespace
+    String surroundingText = fullText
+        .substring(contextStart, contextEnd)
+        .replaceAll('\n', ' ')
+        .trim();
+
+    return surroundingText;
+  }
 
   /// Create [PdfTextRangeWithFragments] from text range in [PdfPageText].
   ///
@@ -718,6 +781,7 @@ class PdfTextRangeWithFragments {
         start - sf.index,
         end - sf.index,
         sf.bounds,
+        _getSurroundingText(pageText.fullText, start, end),
       );
     }
 
@@ -730,6 +794,7 @@ class PdfTextRangeWithFragments {
           start - sf.index,
           end - sf.index,
           sf.bounds,
+          _getSurroundingText(pageText.fullText, start, end),
         );
       } else {
         return PdfTextRangeWithFragments(
@@ -738,6 +803,7 @@ class PdfTextRangeWithFragments {
           start - sf.index,
           end - sf.index,
           sf.charRects!.skip(start - sf.index).take(end - start).boundingRect(),
+          _getSurroundingText(pageText.fullText, start, end),
         );
       }
     }
@@ -759,6 +825,7 @@ class PdfTextRangeWithFragments {
       start - sf.index,
       end - lf.index,
       bounds,
+      _getSurroundingText(pageText.fullText, start, end),
     );
   }
 
