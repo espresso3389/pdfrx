@@ -398,15 +398,30 @@ class PdfViewerParams {
   /// Add overlays to each page.
   ///
   /// This function is used to decorate each page with overlay widgets.
+  ///
+  /// The return value of the function is a list of widgets to be laid out on the page;
+  /// they are actually laid out on the page using [Stack].
+  ///
+  /// There are many actual overlays on the page; the page overlays are;
+  /// - Page image
+  /// - Selectable page text
+  /// - Links (if [linkWidgetBuilder] is not null; otherwise links are handled by another logic)
+  /// - Overlay widgets returned by this function
+  ///
   /// The most typical use case is to add page number footer to each page.
   ///
   /// The following fragment illustrates how to add page number footer to each page:
   /// ```dart
   /// pageOverlaysBuilder: (context, pageRect, page) {
-  ///   return [Align(
-  ///      alignment: Alignment.bottomCenter,
-  ///      child: Text(page.pageNumber.toString(),
-  ///      style: const TextStyle(color: Colors.red)))];
+  ///   return [
+  ///     Align(
+  ///       alignment: Alignment.bottomCenter,
+  ///       child: Text(
+  ///         page.pageNumber.toString(),
+  ///         style: const TextStyle(color: Colors.red),
+  ///       ),
+  ///     ),
+  ///   ];
   /// },
   /// ```
   final PdfPageOverlaysBuilder? pageOverlaysBuilder;
@@ -436,6 +451,9 @@ class PdfViewerParams {
   /// Build link widget.
   ///
   /// If [linkHandlerParams] is specified, it is ignored.
+  ///
+  /// Basically, handling links with widgets are not recommended because it is not efficient.
+  /// [linkHandlerParams] is the recommended way to handle links.
   final PdfLinkWidgetBuilder? linkWidgetBuilder;
 
   /// Callback to paint over the rendered page.
@@ -820,7 +838,7 @@ enum PdfPageAnchor {
   all,
 }
 
-/// Parameters for the built-in link handler.
+/// Parameters to customize link handling/appearance.
 class PdfLinkHandlerParams {
   const PdfLinkHandlerParams({
     required this.onLinkTap,
@@ -834,6 +852,8 @@ class PdfLinkHandlerParams {
   final void Function(PdfLink link) onLinkTap;
 
   /// Color for the link. If null, the default color is `Colors.blue.withOpacity(0.2)`.
+  ///
+  /// To fully customize the link appearance, use [customPainter].
   final Color? linkColor;
 
   /// Custom link painter for the page.
@@ -869,5 +889,6 @@ class PdfLinkHandlerParams {
   }
 }
 
+/// Custom painter for the page links.
 typedef PdfLinkCustomPagePainter = void Function(
     ui.Canvas canvas, Rect pageRect, PdfPage page, List<PdfLink> links);
