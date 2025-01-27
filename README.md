@@ -57,9 +57,9 @@ dependencies:
 
 ### Note for Windows
 
-Ensure your Windows installation enables _Developer Mode_.
+**Ensure your Windows installation enables [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development#activate-developer-mode).**
 
-The build process internally uses symbolic link and it requires Developer Mode to be enabled.
+The build process internally uses *symbolic links* and it requires Developer Mode to be enabled.
 Without this, you may encounter errors [like this](https://github.com/espresso3389/pdfrx/issues/34).
 
 ## Open PDF File
@@ -92,7 +92,7 @@ For more customization and considerations, see [Deal with Password Protected PDF
 
 ## Customizations/Features
 
-You can customize the behaviour and the viewer look and feel by configuring [PdfViewerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams-class.html).
+You can customize the behaviors and the viewer look and feel by configuring [PdfViewerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams-class.html).
 
 ### Text Selection
 
