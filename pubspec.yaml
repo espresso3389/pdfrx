@@ -4,8 +4,8 @@ version: 1.0.101
 homepage: https://github.com/espresso3389/pdfrx
 
 environment:
-  sdk: ">=3.3.0 <4.0.0"
-  flutter: ">=3.19.0"
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
 
 dependencies:
   collection: '>=1.18.0 <1.20.0'
