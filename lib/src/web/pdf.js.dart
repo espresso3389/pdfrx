@@ -1,7 +1,7 @@
 // ignore_for_file: avoid_web_libraries_in_flutter
 
 @JS()
-library pdf.js;
+library;
 
 import 'dart:js_interop';
 import 'dart:typed_data';
@@ -12,7 +12,7 @@ import 'package:web/web.dart' as web;
 import '../../pdfrx.dart';
 
 /// Default pdf.js version
-const _pdfjsVersion = '4.5.136';
+const _pdfjsVersion = '4.10.38';
 
 /// Default pdf.js URL
 const _pdfjsUrl =
@@ -147,42 +147,28 @@ extension type PdfjsViewportParams._(JSObject _) implements JSObject {
     bool dontFlip,
   });
 
-  external double get scale;
-  external set scale(double scale);
-  external int get rotation;
-  external set rotation(int rotation);
-  external double get offsetX;
-  external set offsetX(double offsetX);
-  external double get offsetY;
-  external set offsetY(double offsetY);
-  external bool get dontFlip;
-  external set dontFlip(bool dontFlip);
+  external double scale;
+  external int rotation;
+  external double offsetX;
+  external double offsetY;
+  external bool dontFlip;
 }
 
 extension type PdfjsViewport(JSObject _) implements JSObject {
-  external JSArray<JSNumber> get viewBox;
-  external set viewBox(JSArray<JSNumber> viewBox);
+  external JSArray<JSNumber> viewBox;
 
-  external double get scale;
-  external set scale(double scale);
+  external double scale;
 
   /// 0, 90, 180, 270
-  external int get rotation;
-  external set rotation(int rotation);
-  external double get offsetX;
-  external set offsetX(double offsetX);
-  external double get offsetY;
-  external set offsetY(double offsetY);
-  external bool get dontFlip;
-  external set dontFlip(bool dontFlip);
+  external int rotation;
+  external double offsetX;
+  external double offsetY;
+  external bool dontFlip;
 
-  external double get width;
-  external set width(double w);
-  external double get height;
-  external set height(double h);
+  external double width;
+  external double height;
 
-  external JSArray<JSNumber>? get transform;
-  external set transform(JSArray<JSNumber>? m);
+  external JSArray<JSNumber>? transform;
 }
 
 extension type PdfjsRenderContext._(JSObject _) implements JSObject {
@@ -198,29 +184,19 @@ extension type PdfjsRenderContext._(JSObject _) implements JSObject {
     JSObject background,
   });
 
-  external web.CanvasRenderingContext2D get canvasContext;
-  external set canvasContext(web.CanvasRenderingContext2D ctx);
-  external PdfjsViewport get viewport;
-  external set viewport(PdfjsViewport viewport);
+  external web.CanvasRenderingContext2D canvasContext;
+  external PdfjsViewport viewport;
 
   /// `display` or `print`
-  external String get intent;
-
-  external set intent(String intent);
+  external String intent;
 
   /// DISABLE=0, ENABLE=1, ENABLE_FORMS=2, ENABLE_STORAGE=3
-  external int get annotationMode;
-  external set annotationMode(int annotationMode);
-  external bool get renderInteractiveForms;
-  external set renderInteractiveForms(bool renderInteractiveForms);
-  external JSArray<JSNumber>? get transform;
-  external set transform(JSArray<JSNumber>? transform);
-  external JSObject get imageLayer;
-  external set imageLayer(JSObject imageLayer);
-  external JSObject get canvasFactory;
-  external set canvasFactory(JSObject canvasFactory);
-  external JSObject get background;
-  external set background(JSObject background);
+  external int annotationMode;
+  external bool renderInteractiveForms;
+  external JSArray<JSNumber>? transform;
+  external JSObject imageLayer;
+  external JSObject canvasFactory;
+  external JSObject background;
 }
 
 extension type PdfjsRender._(JSObject _) implements JSObject {
@@ -249,15 +225,17 @@ extension type PdfjsTextItem._(JSObject _) implements JSObject {
   /// Text direction: `ttb`, `ltr` or `rtl`.
   external String get dir;
 
-  /// Matrix for transformation, in the form [a b c d e f], equivalent to:
+  /// Matrix for transformation, in the form `[a, b, c, d, e, f]`, equivalent to:
   /// ```
   /// | a  b  0 |
   /// | c  d  0 |
   /// | e  f  1 |
   /// ```
   ///
-  /// Translation is performed with `[1 0 0 1 tx ty]`.
-  /// Scaling is performed with `[sx 0 0 sy 0 0]`.
+  /// Translation is performed with `[1, 0, 0, 1, tx, ty]`.
+  ///
+  /// Scaling is performed with `[sx, 0, 0, sy, 0, 0]`.
+  ///
   /// See PDF Reference 1.7, 4.2.2 Common Transformations for more.
   external JSArray<JSNumber> get transform;
   external num get width;

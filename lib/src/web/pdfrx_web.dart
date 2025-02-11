@@ -3,6 +3,7 @@
 
 import 'dart:async';
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'dart:ui';
 
 import 'package:flutter/services.dart';
@@ -10,8 +11,6 @@ import 'package:web/web.dart' as web;
 
 import '../../pdfrx.dart';
 import 'pdf.js.dart';
-
-const _isRunningWithWasm = bool.fromEnvironment('dart.tool.dart2wasm');
 
 class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   @override
@@ -224,8 +223,9 @@ class PdfDocumentWeb extends PdfDocument {
 
   Future<JSObject?> _getDestObject(JSAny? dest) async {
     if (dest == null) return null;
-    if (dest is String) {
-      final destObj = await _document.getDestination(dest as String).toDart;
+    if (dest.isA<JSString>()) {
+      final destObj =
+          await _document.getDestination((dest as JSString).toDart).toDart;
       return destObj;
     } else {
       return dest as JSObject;
@@ -259,20 +259,16 @@ class PdfDocumentWeb extends PdfDocument {
   /// NOTE: The returned [PdfDest] is always compacted.
   Future<PdfDest?> _getDestination(JSAny? dest) async {
     final destObj = await _getDestObject(dest);
-    if (destObj is! JSArray) return null;
-    final arr = destObj.toDart;
+    if (!destObj.isA<JSArray>()) return null;
+    final arr = (destObj as JSArray).toDart;
     final ref = arr[0] as PdfjsRef;
     final cmdStr = _getName(arr[1]);
     final List<double?>? params;
     if (arr.length < 3) {
       params = null;
-    } else if (_isRunningWithWasm) {
-      params = List<double?>.unmodifiable(arr
-          .sublist(2)
-          .map((v) => (v as JSNumber?)?.toDartDouble)
-          .cast<double?>());
     } else {
-      params = List<double?>.unmodifiable(arr.sublist(2).cast<double?>());
+      params = List<double?>.unmodifiable(
+          arr.sublist(2).map((v) => (v as JSNumber?)?.toDartDouble));
     }
 
     return PdfDest(
@@ -306,12 +302,17 @@ class PdfDocumentWeb extends PdfDocument {
   }
 
   static String _getName(JSAny? name) {
-    final obj = name.dartify();
-    if (obj is Map) {
-      return obj['name'].toString();
-    } else {
-      return obj.toString();
+    if (name == null) {
+      throw ArgumentError.notNull('name');
     }
+    if (name.isA<JSString>()) {
+      return (name as JSString).toDart;
+    }
+    final nameValue = (name as JSObject).getProperty('name'.toJS)?.toString();
+    if (nameValue == null) {
+      throw ArgumentError.value(name, 'name', 'Invalid name object.');
+    }
+    return nameValue;
   }
 }
 
@@ -452,17 +453,15 @@ class PdfPageWeb extends PdfPage {
       if (annot.subtype != 'Link') {
         continue;
       }
-      final List<double> rect;
-      if (_isRunningWithWasm) {
-        rect = annot.rect.toDart
-            .map((v) => (v).toDartDouble)
-            .cast<double>()
-            .toList();
-      } else {
-        rect = annot.rect.toDart.cast<double>();
-      }
-      final rects = List<PdfRect>.unmodifiable(
-          [PdfRect(rect[0], rect[3], rect[2], rect[1])]);
+      final rects = List<PdfRect>.unmodifiable([
+        PdfRect(
+          // be careful with the order of the rect values
+          annot.rect[0].toDartDouble, // L
+          annot.rect[3].toDartDouble, // T
+          annot.rect[2].toDartDouble, // R
+          annot.rect[1].toDartDouble, // B
+        )
+      ]);
       if (annot.url != null) {
         links.add(
           PdfLink(rects, url: Uri.parse(annot.url!)),
@@ -550,14 +549,8 @@ class PdfPageTextWeb extends PdfPageText {
     final sb = StringBuffer();
     final fragments = <PdfPageTextFragmentWeb>[];
     for (final item in content.items.toDart) {
-      final List<double> t;
-      if (_isRunningWithWasm) {
-        t = item.transform.toDart.map((v) => v.toDartDouble).toList();
-      } else {
-        t = item.transform.toDart.cast<double>();
-      }
-      final x = t[4];
-      final y = t[5];
+      final x = item.transform[4].toDartDouble;
+      final y = item.transform[5].toDartDouble;
       final str = item.hasEOL ? '${item.str}\n' : item.str;
       if (str == '\n' && fragments.isNotEmpty) {
         final prev = fragments.last;
