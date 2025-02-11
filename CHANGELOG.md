@@ -1,3 +1,8 @@
+# 1.0.102
+
+- dart2wasm compatibility updates
+- Pdf.js 4.10.38
+
 # 1.0.101
 
 - Revert commit d66fb3f that breaks consistency; Color.withValues -> Color.withOpacity
