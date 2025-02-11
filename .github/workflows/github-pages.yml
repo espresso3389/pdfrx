@@ -1,0 +1,43 @@
+name: Build and Deploy Flutter Web to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    # NOTE: This workflow automatically update gh-pages branch and it requires write permissions
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Check Flutter SDK version
+        run: flutter --version
+      - name: Enable Flutter Web
+        run: flutter config --enable-web
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Build Flutter Web App (WASM)
+        run: |
+          cd example/viewer/
+          flutter build web --wasm --release
+          sed -i 's|<base href="/">|<base href="/pdfrx/">|' build/web/index.html
+      - name: Configure Git for deployment
+        run: |
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git remote set-url origin https://x-access-token:${{ secrets.TOKEN_FOR_GHPAGE_DEPLOYMENT }}@github.com/${{ github.repository }}.git
+      - name: Deploy to GitHub Pages using subtree push
+        run: |
+          git add -f example/viewer/build/web
+          git commit -m "$GITHUB_SHA"
+          git subtree split --prefix example/viewer/build/web -b tmp
+          git push -f origin tmp:gh-pages
