@@ -33,14 +33,14 @@ class MainPage extends StatefulWidget {
   State<MainPage> createState() => _MainPageState();
 }
 
-class _MainPageState extends State<MainPage> {
+class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   final documentRef = ValueNotifier<PdfDocumentRef?>(null);
   final controller = PdfViewerController();
   final showLeftPane = ValueNotifier<bool>(false);
   final outline = ValueNotifier<List<PdfOutlineNode>?>(null);
   final textSearcher = ValueNotifier<PdfTextSearcher?>(null);
   final _markers = <int, List<Marker>>{};
-  List<PdfTextRanges>? _textSelections;
+  List<PdfTextRanges>? textSelections;
 
   void _update() {
     if (mounted) {
@@ -51,17 +51,31 @@ class _MainPageState extends State<MainPage> {
   @override
   void initState() {
     super.initState();
-    //openDefaultAsset();
+    WidgetsBinding.instance.addObserver(this);
+    openDefaultAsset();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     textSearcher.value?.dispose();
     textSearcher.dispose();
     showLeftPane.dispose();
     outline.dispose();
     documentRef.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    if (mounted) setState(() {});
+  }
+
+  static bool determineWhetherMobileDeviceOrNot() {
+    final data = MediaQueryData.fromView(
+        WidgetsBinding.instance.platformDispatcher.views.single);
+    return data.size.shortestSide < 600;
   }
 
   @override
@@ -75,86 +89,100 @@ class _MainPageState extends State<MainPage> {
           },
         ),
         title: ValueListenableBuilder(
-            valueListenable: documentRef,
-            builder: (context, documentRef, child) {
-              return Row(
-                children: [
-                  Text(_fileName(documentRef?.sourceName) ??
-                      'No document loaded'),
-                  SizedBox(width: 20),
+          valueListenable: documentRef,
+          builder: (context, documentRef, child) {
+            final isMobileDevice = determineWhetherMobileDeviceOrNot();
+            final visualDensity = isMobileDevice ? VisualDensity.compact : null;
+            return Row(
+              children: [
+                if (!isMobileDevice) ...[
+                  Expanded(
+                    child: Text(_fileName(documentRef?.sourceName) ??
+                        'No document loaded'),
+                  ),
+                  SizedBox(width: 10),
                   FilledButton(
                       onPressed: () => openFile(), child: Text('Open File')),
                   SizedBox(width: 20),
                   FilledButton(
                       onPressed: () => openUri(), child: Text('Open URL')),
                   Spacer(),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.circle,
-                      color: Colors.red,
-                    ),
-                    onPressed: documentRef == null
-                        ? null
-                        : () => _addCurrentSelectionToMarkers(Colors.red),
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.circle,
-                      color: Colors.green,
-                    ),
-                    onPressed: documentRef == null
-                        ? null
-                        : () => _addCurrentSelectionToMarkers(Colors.green),
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.circle,
-                      color: Colors.orangeAccent,
-                    ),
-                    onPressed: documentRef == null
-                        ? null
-                        : () =>
-                            _addCurrentSelectionToMarkers(Colors.orangeAccent),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.zoom_in),
-                    onPressed: documentRef == null
-                        ? null
-                        : () {
-                            if (controller.isReady) controller.zoomUp();
-                          },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.zoom_out),
-                    onPressed: documentRef == null
-                        ? null
-                        : () {
-                            if (controller.isReady) controller.zoomDown();
-                          },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.first_page),
-                    onPressed: documentRef == null
-                        ? null
-                        : () {
-                            if (controller.isReady)
-                              controller.goToPage(pageNumber: 1);
-                          },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.last_page),
-                    onPressed: documentRef == null
-                        ? null
-                        : () {
-                            if (controller.isReady) {
-                              controller.goToPage(
-                                  pageNumber: controller.pageCount);
-                            }
-                          },
-                  ),
                 ],
-              );
-            }),
+                IconButton(
+                  visualDensity: visualDensity,
+                  icon: const Icon(
+                    Icons.circle,
+                    color: Colors.red,
+                  ),
+                  onPressed: documentRef == null
+                      ? null
+                      : () => _addCurrentSelectionToMarkers(Colors.red),
+                ),
+                IconButton(
+                  visualDensity: visualDensity,
+                  icon: const Icon(
+                    Icons.circle,
+                    color: Colors.green,
+                  ),
+                  onPressed: documentRef == null
+                      ? null
+                      : () => _addCurrentSelectionToMarkers(Colors.green),
+                ),
+                IconButton(
+                  visualDensity: visualDensity,
+                  icon: const Icon(
+                    Icons.circle,
+                    color: Colors.orangeAccent,
+                  ),
+                  onPressed: documentRef == null
+                      ? null
+                      : () =>
+                          _addCurrentSelectionToMarkers(Colors.orangeAccent),
+                ),
+                IconButton(
+                  visualDensity: visualDensity,
+                  icon: const Icon(Icons.zoom_in),
+                  onPressed: documentRef == null
+                      ? null
+                      : () {
+                          if (controller.isReady) controller.zoomUp();
+                        },
+                ),
+                IconButton(
+                  visualDensity: visualDensity,
+                  icon: const Icon(Icons.zoom_out),
+                  onPressed: documentRef == null
+                      ? null
+                      : () {
+                          if (controller.isReady) controller.zoomDown();
+                        },
+                ),
+                IconButton(
+                  visualDensity: visualDensity,
+                  icon: const Icon(Icons.first_page),
+                  onPressed: documentRef == null
+                      ? null
+                      : () {
+                          if (controller.isReady)
+                            controller.goToPage(pageNumber: 1);
+                        },
+                ),
+                IconButton(
+                  visualDensity: visualDensity,
+                  icon: const Icon(Icons.last_page),
+                  onPressed: documentRef == null
+                      ? null
+                      : () {
+                          if (controller.isReady) {
+                            controller.goToPage(
+                                pageNumber: controller.pageCount);
+                          }
+                        },
+                ),
+              ],
+            );
+          },
+        ),
       ),
       body: Row(
         children: [
@@ -162,75 +190,113 @@ class _MainPageState extends State<MainPage> {
             duration: const Duration(milliseconds: 300),
             child: ValueListenableBuilder(
               valueListenable: showLeftPane,
-              builder: (context, showLeftPane, child) => SizedBox(
-                width: showLeftPane ? 300 : 0,
-                child: child!,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(1, 0, 4, 0),
-                child: DefaultTabController(
-                  length: 4,
-                  child: Column(
-                    children: [
-                      ClipRect(
-                        // NOTE: without ClipRect, TabBar shown even if the width is 0
-                        child: const TabBar(tabs: [
-                          Tab(icon: Icon(Icons.search), text: 'Search'),
-                          Tab(icon: Icon(Icons.menu_book), text: 'TOC'),
-                          Tab(icon: Icon(Icons.image), text: 'Pages'),
-                          Tab(icon: Icon(Icons.bookmark), text: 'Markers'),
-                        ]),
-                      ),
-                      Expanded(
-                        child: TabBarView(
-                          children: [
-                            ValueListenableBuilder(
-                              valueListenable: textSearcher,
-                              builder: (context, textSearcher, child) {
-                                if (textSearcher == null) return SizedBox();
-                                return TextSearchView(
-                                    textSearcher: textSearcher);
-                              },
-                            ),
-                            ValueListenableBuilder(
-                              valueListenable: outline,
-                              builder: (context, outline, child) => OutlineView(
-                                outline: outline,
-                                controller: controller,
+              builder: (context, isLeftPaneShown, child) {
+                final isMobileDevice = determineWhetherMobileDeviceOrNot();
+                return SizedBox(
+                  width: isLeftPaneShown ? 300 : 0,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(1, 0, 4, 0),
+                    child: DefaultTabController(
+                      length: 4,
+                      child: Column(
+                        children: [
+                          if (isMobileDevice)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8.0),
+                              child: Row(
+                                children: [
+                                  ValueListenableBuilder(
+                                    valueListenable: documentRef,
+                                    builder: (context, documentRef, child) =>
+                                        Expanded(
+                                      child: Text(
+                                        _fileName(documentRef?.sourceName) ??
+                                            'No document loaded',
+                                        softWrap: false,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.file_open),
+                                    onPressed: () {
+                                      showLeftPane.value = false;
+                                      openFile();
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.http),
+                                    onPressed: () {
+                                      showLeftPane.value = false;
+                                      openUri();
+                                    },
+                                  ),
+                                ],
                               ),
                             ),
-                            ValueListenableBuilder(
-                              valueListenable: documentRef,
-                              builder: (context, documentRef, child) =>
-                                  ThumbnailsView(
-                                documentRef: documentRef,
-                                controller: controller,
-                              ),
+                          ClipRect(
+                            // NOTE: without ClipRect, TabBar shown even if the width is 0
+                            child: const TabBar(tabs: [
+                              Tab(icon: Icon(Icons.search), text: 'Search'),
+                              Tab(icon: Icon(Icons.menu_book), text: 'TOC'),
+                              Tab(icon: Icon(Icons.image), text: 'Pages'),
+                              Tab(icon: Icon(Icons.bookmark), text: 'Markers'),
+                            ]),
+                          ),
+                          Expanded(
+                            child: TabBarView(
+                              children: [
+                                ValueListenableBuilder(
+                                  valueListenable: textSearcher,
+                                  builder: (context, textSearcher, child) {
+                                    if (textSearcher == null) return SizedBox();
+                                    return TextSearchView(
+                                        textSearcher: textSearcher);
+                                  },
+                                ),
+                                ValueListenableBuilder(
+                                  valueListenable: outline,
+                                  builder: (context, outline, child) =>
+                                      OutlineView(
+                                    outline: outline,
+                                    controller: controller,
+                                  ),
+                                ),
+                                ValueListenableBuilder(
+                                  valueListenable: documentRef,
+                                  builder: (context, documentRef, child) =>
+                                      ThumbnailsView(
+                                    documentRef: documentRef,
+                                    controller: controller,
+                                  ),
+                                ),
+                                MarkersView(
+                                  markers:
+                                      _markers.values.expand((e) => e).toList(),
+                                  onTap: (marker) {
+                                    final rect =
+                                        controller.calcRectForRectInsidePage(
+                                      pageNumber:
+                                          marker.ranges.pageText.pageNumber,
+                                      rect: marker.ranges.bounds,
+                                    );
+                                    controller.ensureVisible(rect);
+                                  },
+                                  onDeleteTap: (marker) {
+                                    _markers[marker.ranges.pageNumber]!
+                                        .remove(marker);
+                                    setState(() {});
+                                  },
+                                ),
+                              ],
                             ),
-                            MarkersView(
-                              markers:
-                                  _markers.values.expand((e) => e).toList(),
-                              onTap: (marker) {
-                                final rect =
-                                    controller.calcRectForRectInsidePage(
-                                  pageNumber: marker.ranges.pageText.pageNumber,
-                                  rect: marker.ranges.bounds,
-                                );
-                                controller.ensureVisible(rect);
-                              },
-                              onDeleteTap: (marker) {
-                                _markers[marker.ranges.pageNumber]!
-                                    .remove(marker);
-                                setState(() {});
-                              },
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           ),
           Expanded(
@@ -417,7 +483,7 @@ class _MainPageState extends State<MainPage> {
                               textSearcher.value?.dispose();
                               textSearcher.value = null;
                               outline.value = null;
-                              _textSelections = null;
+                              textSelections = null;
                               _markers.clear();
                             }
                           },
@@ -427,7 +493,7 @@ class _MainPageState extends State<MainPage> {
                               ..addListener(_update);
                           },
                           onTextSelectionChange: (selections) {
-                            _textSelections = selections;
+                            textSelections = selections;
                           },
                         ),
                       );
@@ -467,8 +533,8 @@ class _MainPageState extends State<MainPage> {
   }
 
   void _addCurrentSelectionToMarkers(Color color) {
-    if (controller.isReady && _textSelections != null) {
-      for (final selectedText in _textSelections!) {
+    if (controller.isReady && textSelections != null) {
+      for (final selectedText in textSelections!) {
         _markers
             .putIfAbsent(selectedText.pageNumber, () => [])
             .add(Marker(color, selectedText));
@@ -530,6 +596,7 @@ class _MainPageState extends State<MainPage> {
       fs.XTypeGroup(
         label: 'PDF files',
         extensions: <String>['pdf'],
+        uniformTypeIdentifiers: ['com.adobe.pdf'],
       )
     ]);
     if (file == null) return;
