@@ -1,10 +1,12 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:pdfrx_example/password_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'markers_view.dart';
 import 'outline_view.dart';
-import 'password_dialog.dart';
 import 'search_view.dart';
 import 'thumbnails_view.dart';
 
@@ -36,7 +38,7 @@ class _MainPageState extends State<MainPage> {
   final controller = PdfViewerController();
   final showLeftPane = ValueNotifier<bool>(false);
   final outline = ValueNotifier<List<PdfOutlineNode>?>(null);
-  late final textSearcher = PdfTextSearcher(controller)..addListener(_update);
+  final textSearcher = ValueNotifier<PdfTextSearcher?>(null);
   final _markers = <int, List<Marker>>{};
   List<PdfTextRanges>? _textSelections;
 
@@ -47,8 +49,14 @@ class _MainPageState extends State<MainPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    openDefaultAsset();
+  }
+
+  @override
   void dispose() {
-    textSearcher.removeListener(_update);
+    textSearcher.value?.dispose();
     textSearcher.dispose();
     showLeftPane.dispose();
     outline.dispose();
@@ -66,47 +74,64 @@ class _MainPageState extends State<MainPage> {
             showLeftPane.value = !showLeftPane.value;
           },
         ),
-        title: const Text('Pdfrx example'),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.circle,
-              color: Colors.red,
+        title: Row(
+          children: [
+            const Text('Pdfrx example'),
+            SizedBox(width: 20),
+            FilledButton(onPressed: () => openFile(), child: Text('Open File')),
+            SizedBox(width: 20),
+            FilledButton(onPressed: () => openUri(), child: Text('Open URL')),
+            Spacer(),
+            IconButton(
+              icon: const Icon(
+                Icons.circle,
+                color: Colors.red,
+              ),
+              onPressed: () => _addCurrentSelectionToMarkers(Colors.red),
             ),
-            onPressed: () => _addCurrentSelectionToMarkers(Colors.red),
-          ),
-          IconButton(
-            icon: const Icon(
-              Icons.circle,
-              color: Colors.green,
+            IconButton(
+              icon: const Icon(
+                Icons.circle,
+                color: Colors.green,
+              ),
+              onPressed: () => _addCurrentSelectionToMarkers(Colors.green),
             ),
-            onPressed: () => _addCurrentSelectionToMarkers(Colors.green),
-          ),
-          IconButton(
-            icon: const Icon(
-              Icons.circle,
-              color: Colors.orangeAccent,
+            IconButton(
+              icon: const Icon(
+                Icons.circle,
+                color: Colors.orangeAccent,
+              ),
+              onPressed: () =>
+                  _addCurrentSelectionToMarkers(Colors.orangeAccent),
             ),
-            onPressed: () => _addCurrentSelectionToMarkers(Colors.orangeAccent),
-          ),
-          IconButton(
-            icon: const Icon(Icons.zoom_in),
-            onPressed: () => controller.zoomUp(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.zoom_out),
-            onPressed: () => controller.zoomDown(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.first_page),
-            onPressed: () => controller.goToPage(pageNumber: 1),
-          ),
-          IconButton(
-            icon: const Icon(Icons.last_page),
-            onPressed: () =>
-                controller.goToPage(pageNumber: controller.pageCount),
-          ),
-        ],
+            IconButton(
+              icon: const Icon(Icons.zoom_in),
+              onPressed: () {
+                if (controller.isReady) controller.zoomUp();
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.zoom_out),
+              onPressed: () {
+                if (controller.isReady) controller.zoomDown();
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.first_page),
+              onPressed: () {
+                if (controller.isReady) controller.goToPage(pageNumber: 1);
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.last_page),
+              onPressed: () {
+                if (controller.isReady) {
+                  controller.goToPage(pageNumber: controller.pageCount);
+                }
+              },
+            ),
+          ],
+        ),
       ),
       body: Row(
         children: [
@@ -124,23 +149,25 @@ class _MainPageState extends State<MainPage> {
                   length: 4,
                   child: Column(
                     children: [
-                      const TabBar(tabs: [
-                        Tab(icon: Icon(Icons.search), text: 'Search'),
-                        Tab(icon: Icon(Icons.menu_book), text: 'TOC'),
-                        Tab(icon: Icon(Icons.image), text: 'Pages'),
-                        Tab(icon: Icon(Icons.bookmark), text: 'Markers'),
-                      ]),
+                      ClipRect(
+                        // NOTE: without ClipRect, TabBar shown even if the width is 0
+                        child: const TabBar(tabs: [
+                          Tab(icon: Icon(Icons.search), text: 'Search'),
+                          Tab(icon: Icon(Icons.menu_book), text: 'TOC'),
+                          Tab(icon: Icon(Icons.image), text: 'Pages'),
+                          Tab(icon: Icon(Icons.bookmark), text: 'Markers'),
+                        ]),
+                      ),
                       Expanded(
                         child: TabBarView(
                           children: [
-                            // NOTE: documentRef is not explicitly used but it indicates that
-                            // the document is changed.
                             ValueListenableBuilder(
-                              valueListenable: documentRef,
-                              builder: (context, documentRef, child) =>
-                                  TextSearchView(
-                                textSearcher: textSearcher,
-                              ),
+                              valueListenable: textSearcher,
+                              builder: (context, textSearcher, child) {
+                                if (textSearcher == null) return SizedBox();
+                                return TextSearchView(
+                                    textSearcher: textSearcher);
+                              },
                             ),
                             ValueListenableBuilder(
                               valueListenable: outline,
@@ -186,183 +213,202 @@ class _MainPageState extends State<MainPage> {
           Expanded(
             child: Stack(
               children: [
-                PdfViewer.asset(
-                  'assets/hello.pdf',
-                  // PdfViewer.file(
-                  //   r"D:\pdfrx\example\assets\hello.pdf",
-                  // PdfViewer.uri(
-                  //   Uri.parse(
-                  //       'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
-                  // Set password provider to show password dialog
-                  passwordProvider: () => passwordDialog(context),
-                  controller: controller,
-                  params: PdfViewerParams(
-                    enableTextSelection: true,
-                    maxScale: 8,
-                    // facing pages algorithm
-                    // layoutPages: (pages, params) {
-                    //   // They should be moved outside function
-                    //   const isRightToLeftReadingOrder = false;
-                    //   const needCoverPage = true;
-                    //   final width = pages.fold(
-                    //       0.0, (prev, page) => max(prev, page.width));
-
-                    //   final pageLayouts = <Rect>[];
-                    //   double y = params.margin;
-                    //   for (int i = 0; i < pages.length; i++) {
-                    //     const offset = needCoverPage ? 1 : 0;
-                    //     final page = pages[i];
-                    //     final pos = i + offset;
-                    //     final isLeft = isRightToLeftReadingOrder
-                    //         ? (pos & 1) == 1
-                    //         : (pos & 1) == 0;
-
-                    //     final otherSide = (pos ^ 1) - offset;
-                    //     final h = 0 <= otherSide && otherSide < pages.length
-                    //         ? max(page.height, pages[otherSide].height)
-                    //         : page.height;
-
-                    //     pageLayouts.add(
-                    //       Rect.fromLTWH(
-                    //         isLeft
-                    //             ? width + params.margin - page.width
-                    //             : params.margin * 2 + width,
-                    //         y + (h - page.height) / 2,
-                    //         page.width,
-                    //         page.height,
-                    //       ),
-                    //     );
-                    //     if (pos & 1 == 1 || i + 1 == pages.length) {
-                    //       y += h + params.margin;
-                    //     }
-                    //   }
-                    //   return PdfPageLayout(
-                    //     pageLayouts: pageLayouts,
-                    //     documentSize: Size(
-                    //       (params.margin + width) * 2 + params.margin,
-                    //       y,
-                    //     ),
-                    //   );
-                    // },
-                    //
-                    onViewSizeChanged: (viewSize, oldViewSize, controller) {
-                      if (oldViewSize != null) {
-                        //
-                        // Calculate the matrix to keep the center position during device
-                        // screen rotation
-                        //
-                        // The most important thing here is that the transformation matrix
-                        // is not changed on the view change.
-                        final centerPosition =
-                            controller.value.calcPosition(oldViewSize);
-                        final newMatrix =
-                            controller.calcMatrixFor(centerPosition);
-                        // Don't change the matrix in sync; the callback might be called
-                        // during widget-tree's build process.
-                        Future.delayed(
-                          const Duration(milliseconds: 200),
-                          () => controller.goTo(newMatrix),
+                ValueListenableBuilder(
+                    valueListenable: documentRef,
+                    builder: (context, docRef, child) {
+                      if (docRef == null) {
+                        return const Center(
+                          child: Text(
+                            'No document loaded',
+                            style: TextStyle(fontSize: 20),
+                          ),
                         );
                       }
-                    },
-                    viewerOverlayBuilder: (context, size, handleLinkTap) => [
-                      //
-                      // Example use of GestureDetector to handle custom gestures
-                      //
-                      GestureDetector(
-                        behavior: HitTestBehavior.translucent,
-                        // If you use GestureDetector on viewerOverlayBuilder, it breaks link-tap handling
-                        // and you should manually handle it using onTapUp callback
-                        onTapUp: (details) {
-                          handleLinkTap(details.localPosition);
-                        },
-                        onDoubleTap: () {
-                          controller.zoomUp(loop: true);
-                        },
-                        // Make the GestureDetector covers all the viewer widget's area
-                        // but also make the event go through to the viewer.
-                        child: IgnorePointer(
-                          child:
-                              SizedBox(width: size.width, height: size.height),
-                        ),
-                      ),
-                      //
-                      // Scroll-thumbs example
-                      //
-                      // Show vertical scroll thumb on the right; it has page number on it
-                      PdfViewerScrollThumb(
+                      return PdfViewer(
+                        docRef,
+                        // PdfViewer.asset(
+                        //   'assets/hello.pdf',
+                        // PdfViewer.file(
+                        //   r"D:\pdfrx\example\assets\hello.pdf",
+                        // PdfViewer.uri(
+                        //   Uri.parse(
+                        //       'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf'),
+                        // Set password provider to show password dialog
+                        //passwordProvider: () => passwordDialog(context),
                         controller: controller,
-                        orientation: ScrollbarOrientation.right,
-                        thumbSize: const Size(40, 25),
-                        thumbBuilder:
-                            (context, thumbSize, pageNumber, controller) =>
-                                Container(
-                          color: Colors.black,
-                          child: Center(
-                            child: Text(
-                              pageNumber.toString(),
-                              style: const TextStyle(color: Colors.white),
+                        params: PdfViewerParams(
+                          enableTextSelection: true,
+                          maxScale: 8,
+                          // facing pages algorithm
+                          // layoutPages: (pages, params) {
+                          //   // They should be moved outside function
+                          //   const isRightToLeftReadingOrder = false;
+                          //   const needCoverPage = true;
+                          //   final width = pages.fold(
+                          //       0.0, (prev, page) => max(prev, page.width));
+
+                          //   final pageLayouts = <Rect>[];
+                          //   double y = params.margin;
+                          //   for (int i = 0; i < pages.length; i++) {
+                          //     const offset = needCoverPage ? 1 : 0;
+                          //     final page = pages[i];
+                          //     final pos = i + offset;
+                          //     final isLeft = isRightToLeftReadingOrder
+                          //         ? (pos & 1) == 1
+                          //         : (pos & 1) == 0;
+
+                          //     final otherSide = (pos ^ 1) - offset;
+                          //     final h = 0 <= otherSide && otherSide < pages.length
+                          //         ? max(page.height, pages[otherSide].height)
+                          //         : page.height;
+
+                          //     pageLayouts.add(
+                          //       Rect.fromLTWH(
+                          //         isLeft
+                          //             ? width + params.margin - page.width
+                          //             : params.margin * 2 + width,
+                          //         y + (h - page.height) / 2,
+                          //         page.width,
+                          //         page.height,
+                          //       ),
+                          //     );
+                          //     if (pos & 1 == 1 || i + 1 == pages.length) {
+                          //       y += h + params.margin;
+                          //     }
+                          //   }
+                          //   return PdfPageLayout(
+                          //     pageLayouts: pageLayouts,
+                          //     documentSize: Size(
+                          //       (params.margin + width) * 2 + params.margin,
+                          //       y,
+                          //     ),
+                          //   );
+                          // },
+                          //
+                          onViewSizeChanged:
+                              (viewSize, oldViewSize, controller) {
+                            if (oldViewSize != null) {
+                              //
+                              // Calculate the matrix to keep the center position during device
+                              // screen rotation
+                              //
+                              // The most important thing here is that the transformation matrix
+                              // is not changed on the view change.
+                              final centerPosition =
+                                  controller.value.calcPosition(oldViewSize);
+                              final newMatrix =
+                                  controller.calcMatrixFor(centerPosition);
+                              // Don't change the matrix in sync; the callback might be called
+                              // during widget-tree's build process.
+                              Future.delayed(
+                                const Duration(milliseconds: 200),
+                                () => controller.goTo(newMatrix),
+                              );
+                            }
+                          },
+                          viewerOverlayBuilder:
+                              (context, size, handleLinkTap) => [
+                            //
+                            // Example use of GestureDetector to handle custom gestures
+                            //
+                            // GestureDetector(
+                            //   behavior: HitTestBehavior.translucent,
+                            //   // If you use GestureDetector on viewerOverlayBuilder, it breaks link-tap handling
+                            //   // and you should manually handle it using onTapUp callback
+                            //   onTapUp: (details) {
+                            //     handleLinkTap(details.localPosition);
+                            //   },
+                            //   onDoubleTap: () {
+                            //     controller.zoomUp(loop: true);
+                            //   },
+                            //   // Make the GestureDetector covers all the viewer widget's area
+                            //   // but also make the event go through to the viewer.
+                            //   child: IgnorePointer(
+                            //     child:
+                            //         SizedBox(width: size.width, height: size.height),
+                            //   ),
+                            // ),
+                            //
+                            // Scroll-thumbs example
+                            //
+                            // Show vertical scroll thumb on the right; it has page number on it
+                            PdfViewerScrollThumb(
+                              controller: controller,
+                              orientation: ScrollbarOrientation.right,
+                              thumbSize: const Size(40, 25),
+                              thumbBuilder: (context, thumbSize, pageNumber,
+                                      controller) =>
+                                  Container(
+                                color: Colors.black,
+                                child: Center(
+                                  child: Text(
+                                    pageNumber.toString(),
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // Just a simple horizontal scroll thumb on the bottom
+                            PdfViewerScrollThumb(
+                              controller: controller,
+                              orientation: ScrollbarOrientation.bottom,
+                              thumbSize: const Size(80, 30),
+                              thumbBuilder: (context, thumbSize, pageNumber,
+                                      controller) =>
+                                  Container(
+                                color: Colors.red,
+                              ),
+                            ),
+                          ],
+                          //
+                          // Loading progress indicator example
+                          //
+                          loadingBannerBuilder:
+                              (context, bytesDownloaded, totalBytes) => Center(
+                            child: CircularProgressIndicator(
+                              value: totalBytes != null
+                                  ? bytesDownloaded / totalBytes
+                                  : null,
+                              backgroundColor: Colors.grey,
                             ),
                           ),
+                          //
+                          // Link handling example
+                          //
+                          linkHandlerParams: PdfLinkHandlerParams(
+                            onLinkTap: (link) {
+                              if (link.url != null) {
+                                navigateToUrl(link.url!);
+                              } else if (link.dest != null) {
+                                controller.goToDest(link.dest);
+                              }
+                            },
+                          ),
+                          pagePaintCallbacks: [
+                            if (textSearcher.value != null)
+                              textSearcher.value!.pageTextMatchPaintCallback,
+                            _paintMarkers,
+                          ],
+                          onDocumentChanged: (document) async {
+                            if (document == null) {
+                              textSearcher.value?.dispose();
+                              textSearcher.value = null;
+                              outline.value = null;
+                              _textSelections = null;
+                              _markers.clear();
+                            }
+                          },
+                          onViewerReady: (document, controller) async {
+                            outline.value = await document.loadOutline();
+                            textSearcher.value = PdfTextSearcher(controller)
+                              ..addListener(_update);
+                          },
+                          onTextSelectionChange: (selections) {
+                            _textSelections = selections;
+                          },
                         ),
-                      ),
-                      // Just a simple horizontal scroll thumb on the bottom
-                      PdfViewerScrollThumb(
-                        controller: controller,
-                        orientation: ScrollbarOrientation.bottom,
-                        thumbSize: const Size(80, 30),
-                        thumbBuilder:
-                            (context, thumbSize, pageNumber, controller) =>
-                                Container(
-                          color: Colors.red,
-                        ),
-                      ),
-                    ],
-                    //
-                    // Loading progress indicator example
-                    //
-                    loadingBannerBuilder:
-                        (context, bytesDownloaded, totalBytes) => Center(
-                      child: CircularProgressIndicator(
-                        value: totalBytes != null
-                            ? bytesDownloaded / totalBytes
-                            : null,
-                        backgroundColor: Colors.grey,
-                      ),
-                    ),
-                    //
-                    // Link handling example
-                    //
-                    linkHandlerParams: PdfLinkHandlerParams(
-                      onLinkTap: (link) {
-                        if (link.url != null) {
-                          navigateToUrl(link.url!);
-                        } else if (link.dest != null) {
-                          controller.goToDest(link.dest);
-                        }
-                      },
-                    ),
-                    pagePaintCallbacks: [
-                      textSearcher.pageTextMatchPaintCallback,
-                      _paintMarkers,
-                    ],
-                    onDocumentChanged: (document) async {
-                      if (document == null) {
-                        documentRef.value = null;
-                        outline.value = null;
-                        _textSelections = null;
-                        _markers.clear();
-                      }
-                    },
-                    onViewerReady: (document, controller) async {
-                      documentRef.value = controller.documentRef;
-                      outline.value = await document.loadOutline();
-                    },
-                    onTextSelectionChange: (selections) {
-                      _textSelections = selections;
-                    },
-                  ),
-                ),
+                      );
+                    }),
               ],
             ),
           ),
@@ -450,5 +496,73 @@ class _MainPageState extends State<MainPage> {
       },
     );
     return result ?? false;
+  }
+
+  Future<void> openDefaultAsset() async {
+    documentRef.value = PdfDocumentRefAsset('assets/hello.pdf');
+  }
+
+  Future<void> openFile() async {
+    final result = await FilePicker.platform
+        .pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+    if (result == null) return;
+    final file = result.files.single;
+    if (kIsWeb) {
+      final bytes = file.bytes;
+      if (bytes == null) return;
+      documentRef.value = PdfDocumentRefData(
+        bytes,
+        sourceName: file.name,
+        passwordProvider: () => passwordDialog(context),
+      );
+    } else {
+      documentRef.value = PdfDocumentRefFile(file.path!,
+          passwordProvider: () => passwordDialog(context));
+    }
+  }
+
+  Future<void> openUri() async {
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (context) {
+        final controller = TextEditingController();
+        controller.text =
+            'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf';
+        return AlertDialog(
+          title: const Text('Open URL'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (kIsWeb)
+                const Text(
+                  'Note: The URL must be CORS-enabled.',
+                  style: TextStyle(color: Colors.red),
+                ),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(hintText: 'URL'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(controller.text),
+              child: const Text('Open'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result == null) return;
+    final uri = Uri.parse(result);
+    documentRef.value = PdfDocumentRefUri(
+      uri,
+      passwordProvider: () => passwordDialog(context),
+    );
   }
 }

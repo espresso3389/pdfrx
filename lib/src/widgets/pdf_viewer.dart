@@ -465,7 +465,7 @@ class _PdfViewerState extends State<PdfViewer>
                           // PDF pages
                           child: CustomPaint(
                             foregroundPainter:
-                                _CustomPainter.fromFunction(_customPaint),
+                                _CustomPainter.fromFunctions(_customPaint),
                             size: _layout!.documentSize,
                           ),
                         ),
@@ -2272,13 +2272,22 @@ extension RectExt on Rect {
 /// Create a [CustomPainter] from a paint function.
 class _CustomPainter extends CustomPainter {
   /// Create a [CustomPainter] from a paint function.
-  const _CustomPainter.fromFunction(this.paintFunction);
+  const _CustomPainter.fromFunctions(
+    this.paintFunction, {
+    this.hitTestFunction,
+  });
   final void Function(ui.Canvas canvas, ui.Size size) paintFunction;
+  final bool Function(Offset position)? hitTestFunction;
   @override
   void paint(ui.Canvas canvas, ui.Size size) => paintFunction(canvas, size);
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+
+  @override
+  bool? hitTest(ui.Offset position) => hitTestFunction == null
+      ? super.hitTest(position)
+      : hitTestFunction!(position);
 }
 
 Widget _defaultErrorBannerBuilder(

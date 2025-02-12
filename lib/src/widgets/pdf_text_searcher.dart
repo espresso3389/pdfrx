@@ -121,6 +121,7 @@ class PdfTextSearcher extends Listenable {
 
   /// Almost identical to [resetTextSearch], but does not notify listeners.
   void dispose() {
+    _listeners.clear();
     _cachedText.clear();
     _resetTextSearch(notify: false);
   }

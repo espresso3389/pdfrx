@@ -2,6 +2,8 @@
 
 - dart2wasm compatibility updates
 - Pdf.js 4.10.38
+- PdfTextSearcher correctly releases its listeners on dispose
+- Example viewer code updates
 
 # 1.0.101
 
