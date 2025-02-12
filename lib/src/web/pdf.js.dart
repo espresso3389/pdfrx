@@ -16,15 +16,15 @@ const _pdfjsVersion = '4.10.38';
 
 /// Default pdf.js URL
 const _pdfjsUrl =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$_pdfjsVersion/pdf.min.mjs';
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@$_pdfjsVersion/build/pdf.min.mjs';
 
 /// Default pdf.worker.js URL
 const _pdfjsWorkerSrc =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$_pdfjsVersion/pdf.worker.min.mjs';
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@$_pdfjsVersion/build/pdf.worker.min.mjs';
 
 /// Default CMap URL
 const _pdfjsCMapUrl =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$_pdfjsVersion/cmaps/';
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@$_pdfjsVersion/cmaps/';
 
 @JS('pdfjsLib')
 external JSAny? get _pdfjsLib;
@@ -92,8 +92,8 @@ Future<PdfjsDocument> pdfjsGetDocumentFromData(ByteBuffer data,
       _PdfjsDocumentInitParameters(
         data: data.toJS,
         password: password,
-        cMapUrl: PdfJsConfiguration.configuration?.cMapUrl,
-        cMapPacked: PdfJsConfiguration.configuration?.cMapPacked,
+        cMapUrl: PdfJsConfiguration.configuration?.cMapUrl ?? _pdfjsCMapUrl,
+        cMapPacked: PdfJsConfiguration.configuration?.cMapPacked ?? true,
         useSystemFonts: PdfJsConfiguration.configuration?.useSystemFonts,
         standardFontDataUrl:
             PdfJsConfiguration.configuration?.standardFontDataUrl,
