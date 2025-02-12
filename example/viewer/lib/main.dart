@@ -1,4 +1,4 @@
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart' as fs;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -526,20 +526,22 @@ class _MainPageState extends State<MainPage> {
   }
 
   Future<void> openFile() async {
-    final result = await FilePicker.platform
-        .pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
-    if (result == null) return;
-    final file = result.files.single;
+    final file = await fs.openFile(acceptedTypeGroups: [
+      fs.XTypeGroup(
+        label: 'PDF files',
+        extensions: <String>['pdf'],
+      )
+    ]);
+    if (file == null) return;
     if (kIsWeb) {
-      final bytes = file.bytes;
-      if (bytes == null) return;
+      final bytes = await file.readAsBytes();
       documentRef.value = PdfDocumentRefData(
         bytes,
         sourceName: file.name,
         passwordProvider: () => passwordDialog(context),
       );
     } else {
-      documentRef.value = PdfDocumentRefFile(file.path!,
+      documentRef.value = PdfDocumentRefFile(file.path,
           passwordProvider: () => passwordDialog(context));
     }
   }
