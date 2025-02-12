@@ -51,7 +51,7 @@ class _MainPageState extends State<MainPage> {
   @override
   void initState() {
     super.initState();
-    openDefaultAsset();
+    //openDefaultAsset();
   }
 
   @override
@@ -74,64 +74,87 @@ class _MainPageState extends State<MainPage> {
             showLeftPane.value = !showLeftPane.value;
           },
         ),
-        title: Row(
-          children: [
-            const Text('Pdfrx example'),
-            SizedBox(width: 20),
-            FilledButton(onPressed: () => openFile(), child: Text('Open File')),
-            SizedBox(width: 20),
-            FilledButton(onPressed: () => openUri(), child: Text('Open URL')),
-            Spacer(),
-            IconButton(
-              icon: const Icon(
-                Icons.circle,
-                color: Colors.red,
-              ),
-              onPressed: () => _addCurrentSelectionToMarkers(Colors.red),
-            ),
-            IconButton(
-              icon: const Icon(
-                Icons.circle,
-                color: Colors.green,
-              ),
-              onPressed: () => _addCurrentSelectionToMarkers(Colors.green),
-            ),
-            IconButton(
-              icon: const Icon(
-                Icons.circle,
-                color: Colors.orangeAccent,
-              ),
-              onPressed: () =>
-                  _addCurrentSelectionToMarkers(Colors.orangeAccent),
-            ),
-            IconButton(
-              icon: const Icon(Icons.zoom_in),
-              onPressed: () {
-                if (controller.isReady) controller.zoomUp();
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.zoom_out),
-              onPressed: () {
-                if (controller.isReady) controller.zoomDown();
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.first_page),
-              onPressed: () {
-                if (controller.isReady) controller.goToPage(pageNumber: 1);
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.last_page),
-              onPressed: () {
-                if (controller.isReady) {
-                  controller.goToPage(pageNumber: controller.pageCount);
-                }
-              },
-            ),
-          ],
-        ),
+        title: ValueListenableBuilder(
+            valueListenable: documentRef,
+            builder: (context, documentRef, child) {
+              return Row(
+                children: [
+                  Text(_fileName(documentRef?.sourceName) ??
+                      'No document loaded'),
+                  SizedBox(width: 20),
+                  FilledButton(
+                      onPressed: () => openFile(), child: Text('Open File')),
+                  SizedBox(width: 20),
+                  FilledButton(
+                      onPressed: () => openUri(), child: Text('Open URL')),
+                  Spacer(),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.circle,
+                      color: Colors.red,
+                    ),
+                    onPressed: documentRef == null
+                        ? null
+                        : () => _addCurrentSelectionToMarkers(Colors.red),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.circle,
+                      color: Colors.green,
+                    ),
+                    onPressed: documentRef == null
+                        ? null
+                        : () => _addCurrentSelectionToMarkers(Colors.green),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.circle,
+                      color: Colors.orangeAccent,
+                    ),
+                    onPressed: documentRef == null
+                        ? null
+                        : () =>
+                            _addCurrentSelectionToMarkers(Colors.orangeAccent),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.zoom_in),
+                    onPressed: documentRef == null
+                        ? null
+                        : () {
+                            if (controller.isReady) controller.zoomUp();
+                          },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.zoom_out),
+                    onPressed: documentRef == null
+                        ? null
+                        : () {
+                            if (controller.isReady) controller.zoomDown();
+                          },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.first_page),
+                    onPressed: documentRef == null
+                        ? null
+                        : () {
+                            if (controller.isReady)
+                              controller.goToPage(pageNumber: 1);
+                          },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.last_page),
+                    onPressed: documentRef == null
+                        ? null
+                        : () {
+                            if (controller.isReady) {
+                              controller.goToPage(
+                                  pageNumber: controller.pageCount);
+                            }
+                          },
+                  ),
+                ],
+              );
+            }),
       ),
       body: Row(
         children: [
@@ -564,5 +587,11 @@ class _MainPageState extends State<MainPage> {
       uri,
       passwordProvider: () => passwordDialog(context),
     );
+  }
+
+  static String? _fileName(String? path) {
+    if (path == null) return null;
+    final parts = path.split(RegExp(r'[\\/]'));
+    return parts.isEmpty ? path : parts.last;
   }
 }
