@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.1.3
+
+- Further WASM compatibility updates
+- Demo page: CORS override for GitHub Pages using [gzuidhof/coi-serviceworker](https://github.com/gzuidhof/coi-serviceworker)
+
 ## 1.1.2
 
 - FIXED: if running with WASM enabled on Flutter Web, certain PDF file could not be loaded correctly
@@ -12,7 +17,7 @@
 
 ## 1.0.103
 
-- Change the default CDN for pdf.js to <https://cdn.jsdelivr.net/npm/pdfjs-dist@><VERSION>/build/pdf.js to deal with CORS error on loading CMAP files
+- Change the default CDN for pdf.js to `https://cdn.jsdelivr.net/npm/pdfjs-dist@<VERSION>/build/pdf.js` to deal with CORS error on loading CMAP files
 - FIXED: pdfjsGetDocumentFromData, which is used by various PdfDocument open functions, does not propagate cMapUrl/cMapPacked to the pdf.js
 
 ## 1.0.102
