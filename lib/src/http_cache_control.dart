@@ -14,16 +14,17 @@ class HttpCacheControl {
     bool staleIfError = false,
     this.maxAge,
     this.sMaxAge,
-  }) : directives = (noCache ? _bitNoCache : 0) |
-            (mustRevalidate ? _bitMustRevalidate : 0) |
-            (noStore ? _bitNoStore : 0) |
-            (private ? _bitPrivate : 0) |
-            (public ? _bitPublic : 0) |
-            (mustUnderstand ? _bitMustUnderstand : 0) |
-            (noTransform ? _bitNoTransform : 0) |
-            (immutable ? _bitImmutable : 0) |
-            (staleWhileRevalidate ? _bitStaleWhileRevalidate : 0) |
-            (staleIfError ? _bitStaleIfError : 0);
+  }) : directives =
+           (noCache ? _bitNoCache : 0) |
+           (mustRevalidate ? _bitMustRevalidate : 0) |
+           (noStore ? _bitNoStore : 0) |
+           (private ? _bitPrivate : 0) |
+           (public ? _bitPublic : 0) |
+           (mustUnderstand ? _bitMustUnderstand : 0) |
+           (noTransform ? _bitNoTransform : 0) |
+           (immutable ? _bitImmutable : 0) |
+           (staleWhileRevalidate ? _bitStaleWhileRevalidate : 0) |
+           (staleIfError ? _bitStaleIfError : 0);
 
   final int directives;
   final int? maxAge;
@@ -84,21 +85,12 @@ class HttpCacheControl {
 
 /// HTTP cache control states.
 class HttpCacheControlState {
-  const HttpCacheControlState(
-      {required this.cacheControl,
-      this.date,
-      this.expires,
-      this.etag,
-      this.lastModified});
+  const HttpCacheControlState({required this.cacheControl, this.date, this.expires, this.etag, this.lastModified});
 
-  static const empty =
-      HttpCacheControlState(cacheControl: HttpCacheControl(directives: 0));
+  static const empty = HttpCacheControlState(cacheControl: HttpCacheControl(directives: 0));
 
   /// [maxAgeForNoStore] to convert `no-store` directive to `no-cache` with `maxAge`.
-  static HttpCacheControlState fromHeaders(
-    Map<String, String> headers, {
-    Duration? maxAgeForNoStore,
-  }) {
+  static HttpCacheControlState fromHeaders(Map<String, String> headers, {Duration? maxAgeForNoStore}) {
     final cacheControl = headers['cache-control']?.split(',');
     final date = _parseHttpDateTime(headers['date']);
     final expires = _parseHttpDateTime(headers['expires']);
@@ -106,33 +98,31 @@ class HttpCacheControlState {
     final lastModified = _parseHttpDateTime(headers['last-modified']);
     var noCache = cacheControl?.contains('no-cache') == true;
     var noStore = cacheControl?.contains('no-store') == true;
-    var maxAge = int.tryParse(cacheControl
-            ?.firstWhere((e) => e.startsWith('max-age='),
-                orElse: () => '********')
-            .substring(8) ??
-        '');
+    var maxAge = int.tryParse(
+      cacheControl?.firstWhere((e) => e.startsWith('max-age='), orElse: () => '********').substring(8) ?? '',
+    );
     if (noStore && maxAgeForNoStore != null) {
       noCache = true;
       noStore = false;
       maxAge = maxAgeForNoStore.inSeconds;
     }
     return HttpCacheControlState(
-      cacheControl: cacheControl != null
-          ? HttpCacheControl.fromDirectives(
-              noCache: noCache,
-              mustRevalidate: cacheControl.contains('must-revalidate'),
-              noStore: noStore,
-              private: cacheControl.contains('private'),
-              public: cacheControl.contains('public'),
-              mustUnderstand: cacheControl.contains('must-understand'),
-              noTransform: cacheControl.contains('no-transform'),
-              immutable: cacheControl.contains('immutable'),
-              staleWhileRevalidate:
-                  cacheControl.contains('stale-while-revalidate'),
-              staleIfError: cacheControl.contains('stale-if-error'),
-              maxAge: maxAge,
-            )
-          : const HttpCacheControl(directives: 0),
+      cacheControl:
+          cacheControl != null
+              ? HttpCacheControl.fromDirectives(
+                noCache: noCache,
+                mustRevalidate: cacheControl.contains('must-revalidate'),
+                noStore: noStore,
+                private: cacheControl.contains('private'),
+                public: cacheControl.contains('public'),
+                mustUnderstand: cacheControl.contains('must-understand'),
+                noTransform: cacheControl.contains('no-transform'),
+                immutable: cacheControl.contains('immutable'),
+                staleWhileRevalidate: cacheControl.contains('stale-while-revalidate'),
+                staleIfError: cacheControl.contains('stale-if-error'),
+                maxAge: maxAge,
+              )
+              : const HttpCacheControl(directives: 0),
       date: date,
       expires: expires,
       etag: etag,
@@ -149,8 +139,7 @@ class HttpCacheControlState {
   Map<String, String> getHeadersForFetch() {
     return {
       if (etag != null) 'If-None-Match': etag!,
-      if (etag == null && lastModified != null)
-        'If-Modified-Since': lastModified!.toHttpDate(),
+      if (etag == null && lastModified != null) 'If-Modified-Since': lastModified!.toHttpDate(),
     };
   }
 
@@ -203,19 +192,12 @@ class HttpCacheControlState {
           lastModified == other.lastModified;
 
   @override
-  int get hashCode =>
-      cacheControl.hashCode ^
-      date.hashCode ^
-      expires.hashCode ^
-      etag.hashCode ^
-      lastModified.hashCode;
+  int get hashCode => cacheControl.hashCode ^ date.hashCode ^ expires.hashCode ^ etag.hashCode ^ lastModified.hashCode;
 }
 
 int _parseInt(String s) => s == 'null' ? 0 : int.parse(s);
 
-DateTime? _parseDateTime(String s) => s == 'null'
-    ? null
-    : DateTime.fromMillisecondsSinceEpoch(int.parse(s) * 1000);
+DateTime? _parseDateTime(String s) => s == 'null' ? null : DateTime.fromMillisecondsSinceEpoch(int.parse(s) * 1000);
 
 /// Parse HTTP date-time string.
 DateTime? _parseHttpDateTime(String? s) {
@@ -245,17 +227,4 @@ extension DateTimeHttpExtension on DateTime {
 }
 
 const _weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const _months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec'
-];
+const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

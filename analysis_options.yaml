@@ -42,3 +42,6 @@ linter:
 analyzer:
   exclude:
     - lib/src/pdfium/pdfium_bindings.dart
+
+formatter:
+  page_width: 120

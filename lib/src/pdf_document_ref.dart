@@ -9,21 +9,14 @@ import '../pdfrx.dart';
 ///
 /// [downloadedBytes] is the number of bytes downloaded so far.
 /// [totalBytes] is the total number of bytes to download. It may be null if the total size is unknown.
-typedef PdfDocumentLoaderProgressCallback = void Function(
-  int downloadedBytes, [
-  int? totalBytes,
-]);
+typedef PdfDocumentLoaderProgressCallback = void Function(int downloadedBytes, [int? totalBytes]);
 
 /// Callback function to report download status on completion.
 ///
 /// [downloaded] is the number of bytes downloaded.
 /// [total] is the total number of bytes downloaded.
 /// [elapsedTime] is the time taken to download the file.
-typedef PdfDocumentLoaderReportCallback = void Function(
-  int downloaded,
-  int total,
-  Duration elapsedTime,
-);
+typedef PdfDocumentLoaderReportCallback = void Function(int downloaded, int total, Duration elapsedTime);
 
 /// PdfDocumentRef controls loading of a [PdfDocument] and it also provide you with a way to use [PdfDocument]
 /// safely in your long running async operations.
@@ -49,9 +42,7 @@ typedef PdfDocumentLoaderReportCallback = void Function(
 /// ```
 ///
 abstract class PdfDocumentRef {
-  const PdfDocumentRef({
-    this.autoDispose = true,
-  });
+  const PdfDocumentRef({this.autoDispose = true});
 
   /// Whether to dispose the document on reference dispose or not.
   final bool autoDispose;
@@ -62,8 +53,7 @@ abstract class PdfDocumentRef {
   static final _listenables = <PdfDocumentRef, PdfDocumentListenable>{};
 
   /// Resolve the [PdfDocumentListenable] for this reference.
-  PdfDocumentListenable resolveListenable() =>
-      _listenables.putIfAbsent(this, () => PdfDocumentListenable._(this));
+  PdfDocumentListenable resolveListenable() => _listenables.putIfAbsent(this, () => PdfDocumentListenable._(this));
 
   /// Use [resolveListenable]/[PdfDocumentListenable.document] instead to load the shared [PdfDocument].
   ///
@@ -73,8 +63,9 @@ abstract class PdfDocumentRef {
   ///
   /// [progressCallback] should be called when the document is loaded from remote source to notify the progress.
   Future<PdfDocument> loadDocument(
-      PdfDocumentLoaderProgressCallback progressCallback,
-      PdfDocumentLoaderReportCallback reportCallback);
+    PdfDocumentLoaderProgressCallback progressCallback,
+    PdfDocumentLoaderReportCallback reportCallback,
+  );
 
   /// Classes that extends [PdfDocumentRef] should override this function to compare the equality by [sourceName]
   /// or such.
@@ -96,8 +87,7 @@ mixin PdfDocumentRefPasswordMixin on PdfDocumentRef {
 }
 
 /// A [PdfDocumentRef] that loads the document from asset.
-class PdfDocumentRefAsset extends PdfDocumentRef
-    with PdfDocumentRefPasswordMixin {
+class PdfDocumentRefAsset extends PdfDocumentRef with PdfDocumentRefPasswordMixin {
   const PdfDocumentRefAsset(
     this.name, {
     this.passwordProvider,
@@ -117,24 +107,21 @@ class PdfDocumentRefAsset extends PdfDocumentRef
   Future<PdfDocument> loadDocument(
     PdfDocumentLoaderProgressCallback progressCallback,
     PdfDocumentLoaderReportCallback reportCallback,
-  ) =>
-      PdfDocument.openAsset(
-        name,
-        passwordProvider: passwordProvider,
-        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-      );
+  ) => PdfDocument.openAsset(
+    name,
+    passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+  );
 
   @override
-  bool operator ==(Object other) =>
-      other is PdfDocumentRefAsset && name == other.name;
+  bool operator ==(Object other) => other is PdfDocumentRefAsset && name == other.name;
 
   @override
   int get hashCode => name.hashCode;
 }
 
 /// A [PdfDocumentRef] that loads the document from network.
-class PdfDocumentRefUri extends PdfDocumentRef
-    with PdfDocumentRefPasswordMixin {
+class PdfDocumentRefUri extends PdfDocumentRef with PdfDocumentRefPasswordMixin {
   const PdfDocumentRefUri(
     this.uri, {
     this.passwordProvider,
@@ -168,29 +155,26 @@ class PdfDocumentRefUri extends PdfDocumentRef
   Future<PdfDocument> loadDocument(
     PdfDocumentLoaderProgressCallback progressCallback,
     PdfDocumentLoaderReportCallback reportCallback,
-  ) =>
-      PdfDocument.openUri(
-        uri,
-        passwordProvider: passwordProvider,
-        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-        progressCallback: progressCallback,
-        reportCallback: reportCallback,
-        preferRangeAccess: preferRangeAccess,
-        headers: headers,
-        withCredentials: withCredentials,
-      );
+  ) => PdfDocument.openUri(
+    uri,
+    passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    progressCallback: progressCallback,
+    reportCallback: reportCallback,
+    preferRangeAccess: preferRangeAccess,
+    headers: headers,
+    withCredentials: withCredentials,
+  );
 
   @override
-  bool operator ==(Object other) =>
-      other is PdfDocumentRefUri && uri == other.uri;
+  bool operator ==(Object other) => other is PdfDocumentRefUri && uri == other.uri;
 
   @override
   int get hashCode => uri.hashCode;
 }
 
 /// A [PdfDocumentRef] that loads the document from file.
-class PdfDocumentRefFile extends PdfDocumentRef
-    with PdfDocumentRefPasswordMixin {
+class PdfDocumentRefFile extends PdfDocumentRef with PdfDocumentRefPasswordMixin {
   const PdfDocumentRefFile(
     this.file, {
     this.passwordProvider,
@@ -210,24 +194,21 @@ class PdfDocumentRefFile extends PdfDocumentRef
   Future<PdfDocument> loadDocument(
     PdfDocumentLoaderProgressCallback progressCallback,
     PdfDocumentLoaderReportCallback reportCallback,
-  ) =>
-      PdfDocument.openFile(
-        file,
-        passwordProvider: passwordProvider,
-        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-      );
+  ) => PdfDocument.openFile(
+    file,
+    passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+  );
 
   @override
-  bool operator ==(Object other) =>
-      other is PdfDocumentRefFile && file == other.file;
+  bool operator ==(Object other) => other is PdfDocumentRefFile && file == other.file;
 
   @override
   int get hashCode => file.hashCode;
 }
 
 /// A [PdfDocumentRef] that loads the document from data.
-class PdfDocumentRefData extends PdfDocumentRef
-    with PdfDocumentRefPasswordMixin {
+class PdfDocumentRefData extends PdfDocumentRef with PdfDocumentRefPasswordMixin {
   const PdfDocumentRefData(
     this.data, {
     required this.sourceName,
@@ -251,26 +232,23 @@ class PdfDocumentRefData extends PdfDocumentRef
   Future<PdfDocument> loadDocument(
     PdfDocumentLoaderProgressCallback progressCallback,
     PdfDocumentLoaderReportCallback reportCallback,
-  ) =>
-      PdfDocument.openData(
-        data,
-        passwordProvider: passwordProvider,
-        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-        sourceName: sourceName,
-        onDispose: onDispose,
-      );
+  ) => PdfDocument.openData(
+    data,
+    passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    sourceName: sourceName,
+    onDispose: onDispose,
+  );
 
   @override
-  bool operator ==(Object other) =>
-      other is PdfDocumentRefData && sourceName == other.sourceName;
+  bool operator ==(Object other) => other is PdfDocumentRefData && sourceName == other.sourceName;
 
   @override
   int get hashCode => sourceName.hashCode;
 }
 
 /// A [PdfDocumentRef] that loads the document from custom source.
-class PdfDocumentRefCustom extends PdfDocumentRef
-    with PdfDocumentRefPasswordMixin {
+class PdfDocumentRefCustom extends PdfDocumentRef with PdfDocumentRefPasswordMixin {
   const PdfDocumentRefCustom({
     required this.fileSize,
     required this.read,
@@ -298,20 +276,18 @@ class PdfDocumentRefCustom extends PdfDocumentRef
   Future<PdfDocument> loadDocument(
     PdfDocumentLoaderProgressCallback progressCallback,
     PdfDocumentLoaderReportCallback reportCallback,
-  ) =>
-      PdfDocument.openCustom(
-        read: read,
-        fileSize: fileSize,
-        sourceName: sourceName,
-        passwordProvider: passwordProvider,
-        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-        maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
-        onDispose: onDispose,
-      );
+  ) => PdfDocument.openCustom(
+    read: read,
+    fileSize: fileSize,
+    sourceName: sourceName,
+    passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
+    onDispose: onDispose,
+  );
 
   @override
-  bool operator ==(Object other) =>
-      other is PdfDocumentRefCustom && sourceName == other.sourceName;
+  bool operator ==(Object other) => other is PdfDocumentRefCustom && sourceName == other.sourceName;
 
   @override
   int get hashCode => sourceName.hashCode;
@@ -319,10 +295,7 @@ class PdfDocumentRefCustom extends PdfDocumentRef
 
 /// A [PdfDocumentRef] that directly contains [PdfDocument].
 class PdfDocumentRefDirect extends PdfDocumentRef {
-  const PdfDocumentRefDirect(
-    this.document, {
-    super.autoDispose = true,
-  });
+  const PdfDocumentRefDirect(this.document, {super.autoDispose = true});
 
   final PdfDocument document;
 
@@ -333,12 +306,10 @@ class PdfDocumentRefDirect extends PdfDocumentRef {
   Future<PdfDocument> loadDocument(
     PdfDocumentLoaderProgressCallback progressCallback,
     PdfDocumentLoaderReportCallback reportCallback,
-  ) =>
-      Future.value(document);
+  ) => Future.value(document);
 
   @override
-  bool operator ==(Object other) =>
-      other is PdfDocumentRefDirect && sourceName == other.sourceName;
+  bool operator ==(Object other) => other is PdfDocumentRefDirect && sourceName == other.sourceName;
 
   @override
   int get hashCode => sourceName.hashCode;
@@ -399,34 +370,27 @@ class PdfDocumentListenable extends Listenable {
   /// In that case, if the document requires password, the password is asked again.
   ///
   /// The function returns a [PdfDownloadReport] if the document is loaded from remote source.
-  Future<PdfDownloadReport?> load({
-    bool forceReload = false,
-  }) async {
+  Future<PdfDownloadReport?> load({bool forceReload = false}) async {
     if (!forceReload && loadAttempted) {
       return null;
     }
-    return await synchronized(
-      () async {
-        if (!forceReload && loadAttempted) return null;
-        final PdfDocument document;
-        PdfDownloadReport? report;
-        try {
-          document = await ref.loadDocument(
-            _progress,
-            (downloaded, totalBytes, elapsed) => report = PdfDownloadReport(
-              downloaded: downloaded,
-              total: totalBytes,
-              elapsedTime: elapsed,
-            ),
-          );
-        } catch (err, stackTrace) {
-          setError(err, stackTrace);
-          return report;
-        }
-        setDocument(document);
+    return await synchronized(() async {
+      if (!forceReload && loadAttempted) return null;
+      final PdfDocument document;
+      PdfDownloadReport? report;
+      try {
+        document = await ref.loadDocument(
+          _progress,
+          (downloaded, totalBytes, elapsed) =>
+              report = PdfDownloadReport(downloaded: downloaded, total: totalBytes, elapsedTime: elapsed),
+        );
+      } catch (err, stackTrace) {
+        setError(err, stackTrace);
         return report;
-      },
-    );
+      }
+      setDocument(document);
+      return report;
+    });
   }
 
   /// Register a listener to be notified when the document state is changed (such as loaded, or error).
@@ -493,12 +457,7 @@ class PdfDocumentListenable extends Listenable {
     try {
       _additionalRefs++;
       if (ensureLoaded) {
-        await Future.any(
-          [
-            load(),
-            if (cancelLoading != null) cancelLoading.future,
-          ],
-        );
+        await Future.any([load(), if (cancelLoading != null) cancelLoading.future]);
       }
       return _document != null ? await task(_document!) : null;
     } finally {
@@ -548,11 +507,7 @@ class PdfDocumentListenable extends Listenable {
 }
 
 class PdfDownloadReport {
-  const PdfDownloadReport({
-    required this.downloaded,
-    required this.total,
-    required this.elapsedTime,
-  });
+  const PdfDownloadReport({required this.downloaded, required this.total, required this.elapsedTime});
   final int downloaded;
   final int total;
   final Duration elapsedTime;

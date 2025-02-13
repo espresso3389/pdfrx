@@ -58,8 +58,7 @@ abstract class PdfDocumentFactory {
 
   /// See [PdfDocument.openCustom].
   Future<PdfDocument> openCustom({
-    required FutureOr<int> Function(Uint8List buffer, int position, int size)
-        read,
+    required FutureOr<int> Function(Uint8List buffer, int position, int size) read,
     required int fileSize,
     required String sourceName,
     PdfPasswordProvider? passwordProvider,
@@ -91,21 +90,14 @@ abstract class PdfDocumentFactory {
 ///
 /// [downloadedBytes] is the number of bytes downloaded so far.
 /// [totalBytes] is the total number of bytes to download. It may be null if the total size is unknown.
-typedef PdfDownloadProgressCallback = void Function(
-  int downloadedBytes, [
-  int? totalBytes,
-]);
+typedef PdfDownloadProgressCallback = void Function(int downloadedBytes, [int? totalBytes]);
 
 /// Callback function to report download status on completion.
 ///
 /// [downloaded] is the number of bytes downloaded.
 /// [total] is the total number of bytes downloaded.
 /// [elapsedTime] is the time taken to download the file.
-typedef PdfDownloadReportCallback = void Function(
-  int downloaded,
-  int total,
-  Duration elapsedTime,
-);
+typedef PdfDownloadReportCallback = void Function(int downloaded, int total, Duration elapsedTime);
 
 /// Function to provide password for encrypted PDF.
 ///
@@ -153,12 +145,11 @@ abstract class PdfDocument {
     String filePath, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
-  }) =>
-      PdfDocumentFactory.instance.openFile(
-        filePath,
-        passwordProvider: passwordProvider,
-        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-      );
+  }) => PdfDocumentFactory.instance.openFile(
+    filePath,
+    passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+  );
 
   /// Opening the specified asset.
   ///
@@ -169,12 +160,11 @@ abstract class PdfDocument {
     String name, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
-  }) =>
-      PdfDocumentFactory.instance.openAsset(
-        name,
-        passwordProvider: passwordProvider,
-        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-      );
+  }) => PdfDocumentFactory.instance.openAsset(
+    name,
+    passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+  );
 
   /// Opening the PDF on memory.
   ///
@@ -190,14 +180,13 @@ abstract class PdfDocument {
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
     void Function()? onDispose,
-  }) =>
-      PdfDocumentFactory.instance.openData(
-        data,
-        passwordProvider: passwordProvider,
-        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-        sourceName: sourceName,
-        onDispose: onDispose,
-      );
+  }) => PdfDocumentFactory.instance.openData(
+    data,
+    passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    sourceName: sourceName,
+    onDispose: onDispose,
+  );
 
   /// Opening the PDF from custom source.
   ///
@@ -212,24 +201,22 @@ abstract class PdfDocument {
   /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
   /// unique for each source, the viewer may not work correctly.
   static Future<PdfDocument> openCustom({
-    required FutureOr<int> Function(Uint8List buffer, int position, int size)
-        read,
+    required FutureOr<int> Function(Uint8List buffer, int position, int size) read,
     required int fileSize,
     required String sourceName,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
-  }) =>
-      PdfDocumentFactory.instance.openCustom(
-        read: read,
-        fileSize: fileSize,
-        sourceName: sourceName,
-        passwordProvider: passwordProvider,
-        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-        maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
-        onDispose: onDispose,
-      );
+  }) => PdfDocumentFactory.instance.openCustom(
+    read: read,
+    fileSize: fileSize,
+    sourceName: sourceName,
+    passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
+    onDispose: onDispose,
+  );
 
   /// Opening the PDF from URI.
   ///
@@ -255,17 +242,16 @@ abstract class PdfDocument {
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
-  }) =>
-      PdfDocumentFactory.instance.openUri(
-        uri,
-        passwordProvider: passwordProvider,
-        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-        progressCallback: progressCallback,
-        reportCallback: reportCallback,
-        preferRangeAccess: preferRangeAccess,
-        headers: headers,
-        withCredentials: withCredentials,
-      );
+  }) => PdfDocumentFactory.instance.openUri(
+    uri,
+    passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    progressCallback: progressCallback,
+    reportCallback: reportCallback,
+    preferRangeAccess: preferRangeAccess,
+    headers: headers,
+    withCredentials: withCredentials,
+  );
 
   /// Pages.
   List<PdfPage> get pages;
@@ -335,8 +321,7 @@ abstract class PdfPage {
     double? fullWidth,
     double? fullHeight,
     Color? backgroundColor,
-    PdfAnnotationRenderingMode annotationRenderingMode =
-        PdfAnnotationRenderingMode.annotationAndForms,
+    PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     PdfPageRenderCancellationToken? cancellationToken,
   });
 
@@ -354,22 +339,13 @@ abstract class PdfPage {
 }
 
 /// Page rotation.
-enum PdfPageRotation {
-  none,
-  clockwise90,
-  clockwise180,
-  clockwise270,
-}
+enum PdfPageRotation { none, clockwise90, clockwise180, clockwise270 }
 
 /// Annotation rendering mode.
 /// - [none]: Do not render annotations.
 /// - [annotation]: Render annotations.
 /// - [annotationAndForms]: Render annotations and forms.
-enum PdfAnnotationRenderingMode {
-  none,
-  annotation,
-  annotationAndForms,
-}
+enum PdfAnnotationRenderingMode { none, annotation, annotationAndForms }
 
 /// Token to try to cancel the rendering process.
 abstract class PdfPageRenderCancellationToken {
@@ -425,8 +401,7 @@ abstract class PdfImage {
   /// Create [ui.Image] from the rendered image.
   Future<ui.Image> createImage() {
     final comp = Completer<ui.Image>();
-    ui.decodeImageFromPixels(
-        pixels, width, height, format, (image) => comp.complete(image));
+    ui.decodeImageFromPixels(pixels, width, height, format, (image) => comp.complete(image));
     return comp.future;
   }
 }
@@ -451,8 +426,7 @@ abstract class PdfPageText {
   ///
   /// If the specified text index is out of range, it returns -1.
   int getFragmentIndexForTextIndex(int textIndex) {
-    final index = fragments.lowerBound(
-        _PdfPageTextFragmentForSearch(textIndex), (a, b) => a.index - b.index);
+    final index = fragments.lowerBound(_PdfPageTextFragmentForSearch(textIndex), (a, b) => a.index - b.index);
     if (index > fragments.length) {
       return -1; // range error
     }
@@ -475,10 +449,7 @@ abstract class PdfPageText {
   ///
   /// Just work like [Pattern.allMatches] but it returns stream of [PdfTextRangeWithFragments].
   /// [caseInsensitive] is used to specify case-insensitive search only if [pattern] is [String].
-  Stream<PdfTextRangeWithFragments> allMatches(
-    Pattern pattern, {
-    bool caseInsensitive = true,
-  }) async* {
+  Stream<PdfTextRangeWithFragments> allMatches(Pattern pattern, {bool caseInsensitive = true}) async* {
     final String text;
     if (pattern is RegExp) {
       caseInsensitive = pattern.isCaseSensitive;
@@ -492,8 +463,7 @@ abstract class PdfPageText {
     final matches = pattern.allMatches(text);
     for (final match in matches) {
       if (match.start == match.end) continue;
-      final m =
-          PdfTextRangeWithFragments.fromTextRange(this, match.start, match.end);
+      final m = PdfTextRangeWithFragments.fromTextRange(this, match.start, match.end);
       if (m != null) {
         yield m;
       }
@@ -541,18 +511,11 @@ abstract class PdfPageTextFragment {
     PdfRect bounds,
     String text, {
     List<PdfRect>? charRects,
-  }) =>
-      _PdfPageTextFragment(index, length, bounds, text, charRects: charRects);
+  }) => _PdfPageTextFragment(index, length, bounds, text, charRects: charRects);
 }
 
 class _PdfPageTextFragment extends PdfPageTextFragment {
-  _PdfPageTextFragment(
-    this.index,
-    this.length,
-    this.bounds,
-    this.text, {
-    this.charRects,
-  });
+  _PdfPageTextFragment(this.index, this.length, this.bounds, this.text, {this.charRects});
 
   @override
   final int index;
@@ -586,10 +549,7 @@ class _PdfPageTextFragmentForSearch extends PdfPageTextFragment {
 /// The text range is used to describe text selection in a page but it does not indicate the actual page text;
 /// [PdfTextRanges] contains multiple [PdfTextRange]s and the actual [PdfPageText] the ranges are associated with.
 class PdfTextRange {
-  const PdfTextRange({
-    required this.start,
-    required this.end,
-  });
+  const PdfTextRange({required this.start, required this.end});
 
   /// Text start index in [PdfPageText.fullText].
   final int start;
@@ -597,14 +557,7 @@ class PdfTextRange {
   /// Text end index in [PdfPageText.fullText].
   final int end;
 
-  PdfTextRange copyWith({
-    int? start,
-    int? end,
-  }) =>
-      PdfTextRange(
-        start: start ?? this.start,
-        end: end ?? this.end,
-      );
+  PdfTextRange copyWith({int? start, int? end}) => PdfTextRange(start: start ?? this.start, end: end ?? this.end);
 
   @override
   int get hashCode => start ^ end;
@@ -627,10 +580,7 @@ class PdfTextRange {
 /// Text ranges in a PDF page typically used to describe text selection.
 class PdfTextRanges {
   /// Create a [PdfTextRanges].
-  const PdfTextRanges({
-    required this.pageText,
-    required this.ranges,
-  });
+  const PdfTextRanges({required this.pageText, required this.ranges});
 
   /// Create a [PdfTextRanges] with empty ranges.
   PdfTextRanges.createEmpty(this.pageText) : ranges = <PdfTextRange>[];
@@ -651,13 +601,10 @@ class PdfTextRanges {
   int get pageNumber => pageText.pageNumber;
 
   /// Bounds of the text ranges.
-  PdfRect get bounds => ranges
-      .map((r) => r.toTextRangeWithFragments(pageText)!.bounds)
-      .boundingRect();
+  PdfRect get bounds => ranges.map((r) => r.toTextRangeWithFragments(pageText)!.bounds).boundingRect();
 
   /// The composed text of the text ranges.
-  String get text =>
-      ranges.map((r) => pageText.fullText.substring(r.start, r.end)).join();
+  String get text => ranges.map((r) => pageText.fullText.substring(r.start, r.end)).join();
 }
 
 /// For backward compatibility; [PdfTextRangeWithFragments] is previously named [PdfTextMatch].
@@ -665,13 +612,7 @@ typedef PdfTextMatch = PdfTextRangeWithFragments;
 
 /// Text range (start/end index) in PDF page and it's associated text and bounding rectangle.
 class PdfTextRangeWithFragments {
-  PdfTextRangeWithFragments(
-    this.pageNumber,
-    this.fragments,
-    this.start,
-    this.end,
-    this.bounds,
-  );
+  PdfTextRangeWithFragments(this.pageNumber, this.fragments, this.start, this.end, this.bounds);
 
   /// Page number of the page.
   final int pageNumber;
@@ -704,8 +645,7 @@ class PdfTextRangeWithFragments {
   /// ```
   ///
   /// To paint text highlights on PDF pages, see [PdfViewerParams.pagePaintCallbacks] and [PdfViewerPagePaintCallback].
-  static PdfTextRangeWithFragments? fromTextRange(
-      PdfPageText pageText, int start, int end) {
+  static PdfTextRangeWithFragments? fromTextRange(PdfPageText pageText, int start, int end) {
     if (start >= end) {
       return null;
     }
@@ -742,16 +682,12 @@ class PdfTextRangeWithFragments {
       }
     }
 
-    var bounds = sf.charRects != null
-        ? sf.charRects!.skip(start - sf.index).boundingRect()
-        : sf.bounds;
+    var bounds = sf.charRects != null ? sf.charRects!.skip(start - sf.index).boundingRect() : sf.bounds;
     for (int i = s + 1; i < l; i++) {
       bounds = bounds.merge(pageText.fragments[i].bounds);
     }
     final lf = pageText.fragments[l];
-    bounds = bounds.merge(lf.charRects != null
-        ? lf.charRects!.take(end - lf.index).boundingRect()
-        : lf.bounds);
+    bounds = bounds.merge(lf.charRects != null ? lf.charRects!.take(end - lf.index).boundingRect() : lf.bounds);
 
     return PdfTextRangeWithFragments(
       pageText.pageNumber,
@@ -821,8 +757,7 @@ class PdfRect {
   }
 
   /// Determine whether the rectangle contains the specified point (in the PDF page coordinates).
-  bool contains(double x, double y) =>
-      x >= left && x <= right && y >= bottom && y <= top;
+  bool contains(double x, double y) => x >= left && x <= right && y >= bottom && y <= top;
 
   /// Determine whether the rectangle contains the specified point (in the PDF page coordinates).
   bool containsOffset(Offset offset) => contains(offset.dx, offset.dy);
@@ -834,14 +769,9 @@ class PdfRect {
   /// [page] is the page to convert the rectangle.
   /// [scaledPageSize] is the scaled page size to scale the rectangle. If not specified, [PdfPage.size] is used.
   /// [rotation] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
-  Rect toRect({
-    required PdfPage page,
-    Size? scaledPageSize,
-    int? rotation,
-  }) {
+  Rect toRect({required PdfPage page, Size? scaledPageSize, int? rotation}) {
     final rotated = rotate(rotation ?? page.rotation.index, page);
-    final scale =
-        scaledPageSize == null ? 1.0 : scaledPageSize.height / page.height;
+    final scale = scaledPageSize == null ? 1.0 : scaledPageSize.height / page.height;
     return Rect.fromLTRB(
       rotated.left * scale,
       (page.height - rotated.top) * scale,
@@ -851,12 +781,8 @@ class PdfRect {
   }
 
   ///  Convert to [Rect] in Flutter coordinate using [pageRect] as the page's bounding rectangle.
-  Rect toRectInPageRect({
-    required PdfPage page,
-    required Rect pageRect,
-  }) =>
-      toRect(page: page, scaledPageSize: pageRect.size)
-          .translate(pageRect.left, pageRect.top);
+  Rect toRectInPageRect({required PdfPage page, required Rect pageRect}) =>
+      toRect(page: page, scaledPageSize: pageRect.size).translate(pageRect.left, pageRect.top);
 
   PdfRect rotate(int rotation, PdfPage page) {
     final swap = (page.rotation.index & 1) == 1;
@@ -866,48 +792,27 @@ class PdfRect {
       case 0:
         return this;
       case 1:
-        return PdfRect(
-          bottom,
-          width - left,
-          top,
-          width - right,
-        );
+        return PdfRect(bottom, width - left, top, width - right);
       case 2:
-        return PdfRect(
-          width - right,
-          height - bottom,
-          width - left,
-          height - top,
-        );
+        return PdfRect(width - right, height - bottom, width - left, height - top);
       case 3:
-        return PdfRect(
-          height - top,
-          right,
-          height - bottom,
-          left,
-        );
+        return PdfRect(height - top, right, height - bottom, left);
       default:
         throw ArgumentError.value(rotate, 'rotate');
     }
   }
 
-  PdfRect inflate(double dx, double dy) =>
-      PdfRect(left - dx, top + dy, right + dx, bottom - dy);
+  PdfRect inflate(double dx, double dy) => PdfRect(left - dx, top + dy, right + dx, bottom - dy);
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
 
-    return other is PdfRect &&
-        other.left == left &&
-        other.top == top &&
-        other.right == right &&
-        other.bottom == bottom;
+    return other is PdfRect && other.left == left && other.top == top && other.right == right && other.bottom == bottom;
   }
 
   @override
-  int get hashCode =>
-      left.hashCode ^ top.hashCode ^ right.hashCode ^ bottom.hashCode;
+  int get hashCode => left.hashCode ^ top.hashCode ^ right.hashCode ^ bottom.hashCode;
 
   @override
   String toString() {
@@ -960,32 +865,19 @@ class PdfDest {
   final List<double?>? params;
 
   @override
-  String toString() =>
-      'PdfDest{pageNumber: $pageNumber, command: $command, params: $params}';
+  String toString() => 'PdfDest{pageNumber: $pageNumber, command: $command, params: $params}';
 
   /// Compact the destination.
   ///
   /// The method is used to compact the destination to reduce memory usage.
   /// [params] is typically growable and also modifiable. The method ensures that [params] is unmodifiable.
   PdfDest compact() {
-    return params == null
-        ? this
-        : PdfDest(pageNumber, command, List.unmodifiable(params!));
+    return params == null ? this : PdfDest(pageNumber, command, List.unmodifiable(params!));
   }
 }
 
 /// [PDF 32000-1:2008, 12.3.2.2 Explicit Destinations, Table 151](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=374)
-enum PdfDestCommand {
-  unknown,
-  xyz,
-  fit,
-  fitH,
-  fitV,
-  fitR,
-  fitB,
-  fitBH,
-  fitBV,
-}
+enum PdfDestCommand { unknown, xyz, fit, fitH, fitV, fitR, fitB, fitBH, fitBV }
 
 /// Link in PDF page.
 ///
@@ -993,11 +885,7 @@ enum PdfDestCommand {
 /// See [PdfPage.loadLinks].
 @immutable
 class PdfLink {
-  const PdfLink(
-    this.rects, {
-    this.url,
-    this.dest,
-  });
+  const PdfLink(this.rects, {this.url, this.dest});
 
   /// Link URL.
   final Uri? url;
@@ -1016,11 +904,7 @@ class PdfLink {
   /// [rects] is typically growable and also modifiable. The method ensures that [rects] is unmodifiable.
   /// [dest] is also compacted by calling [PdfDest.compact].
   PdfLink compact() {
-    return PdfLink(
-      List.unmodifiable(rects),
-      url: url,
-      dest: dest?.compact(),
-    );
+    return PdfLink(List.unmodifiable(rects), url: url, dest: dest?.compact());
   }
 }
 
@@ -1029,11 +913,7 @@ class PdfLink {
 /// See [PdfDocument.loadOutline].
 @immutable
 class PdfOutlineNode {
-  const PdfOutlineNode({
-    required this.title,
-    required this.dest,
-    required this.children,
-  });
+  const PdfOutlineNode({required this.title, required this.dest, required this.children});
 
   /// Outline node title.
   final String title;

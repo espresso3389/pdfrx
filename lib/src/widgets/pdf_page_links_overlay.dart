@@ -56,10 +56,8 @@ class _PdfPageLinksOverlayState extends State<PdfPageLinksOverlay> {
     final linkWidgets = <Widget>[];
     for (final link in links!) {
       for (final rect in link.rects) {
-        final rectLink = rect.toRect(
-            page: widget.page, scaledPageSize: widget.pageRect.size);
-        final linkWidget =
-            widget.params.linkWidgetBuilder!(context, link, rectLink.size);
+        final rectLink = rect.toRect(page: widget.page, scaledPageSize: widget.pageRect.size);
+        final linkWidget = widget.params.linkWidgetBuilder!(context, link, rectLink.size);
         if (linkWidget != null) {
           linkWidgets.add(
             Positioned(

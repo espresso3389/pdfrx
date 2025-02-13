@@ -5,8 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 class ThumbnailsView extends StatelessWidget {
-  const ThumbnailsView(
-      {super.key, required this.documentRef, required this.controller});
+  const ThumbnailsView({required this.documentRef, required this.controller, super.key});
 
   final PdfDocumentRef? documentRef;
   final PdfViewerController? controller;

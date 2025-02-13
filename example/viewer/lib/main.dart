@@ -2,11 +2,11 @@ import 'package:file_selector/file_selector.dart' as fs;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
-import 'package:pdfrx_example/password_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'markers_view.dart';
 import 'outline_view.dart';
+import 'password_dialog.dart';
 import 'search_view.dart';
 import 'thumbnails_view.dart';
 
@@ -73,8 +73,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   }
 
   static bool determineWhetherMobileDeviceOrNot() {
-    final data = MediaQueryData.fromView(
-        WidgetsBinding.instance.platformDispatcher.views.single);
+    final data = MediaQueryData.fromView(WidgetsBinding.instance.platformDispatcher.views.single);
     return data.size.shortestSide < 600;
   }
 
@@ -97,15 +96,12 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
               children: [
                 if (!isMobileDevice) ...[
                   Expanded(
-                    child: Text(_fileName(documentRef?.sourceName) ??
-                        'No document loaded'),
+                    child: Text(_fileName(documentRef?.sourceName) ?? 'No document loaded'),
                   ),
                   SizedBox(width: 10),
-                  FilledButton(
-                      onPressed: () => openFile(), child: Text('Open File')),
+                  FilledButton(onPressed: () => openFile(), child: Text('Open File')),
                   SizedBox(width: 20),
-                  FilledButton(
-                      onPressed: () => openUri(), child: Text('Open URL')),
+                  FilledButton(onPressed: () => openUri(), child: Text('Open URL')),
                   Spacer(),
                 ],
                 IconButton(
@@ -114,9 +110,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                     Icons.circle,
                     color: Colors.red,
                   ),
-                  onPressed: documentRef == null
-                      ? null
-                      : () => _addCurrentSelectionToMarkers(Colors.red),
+                  onPressed: documentRef == null ? null : () => _addCurrentSelectionToMarkers(Colors.red),
                 ),
                 IconButton(
                   visualDensity: visualDensity,
@@ -124,9 +118,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                     Icons.circle,
                     color: Colors.green,
                   ),
-                  onPressed: documentRef == null
-                      ? null
-                      : () => _addCurrentSelectionToMarkers(Colors.green),
+                  onPressed: documentRef == null ? null : () => _addCurrentSelectionToMarkers(Colors.green),
                 ),
                 IconButton(
                   visualDensity: visualDensity,
@@ -134,10 +126,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                     Icons.circle,
                     color: Colors.orangeAccent,
                   ),
-                  onPressed: documentRef == null
-                      ? null
-                      : () =>
-                          _addCurrentSelectionToMarkers(Colors.orangeAccent),
+                  onPressed: documentRef == null ? null : () => _addCurrentSelectionToMarkers(Colors.orangeAccent),
                 ),
                 IconButton(
                   visualDensity: visualDensity,
@@ -163,8 +152,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                   onPressed: documentRef == null
                       ? null
                       : () {
-                          if (controller.isReady)
-                            controller.goToPage(pageNumber: 1);
+                          if (controller.isReady) controller.goToPage(pageNumber: 1);
                         },
                 ),
                 IconButton(
@@ -174,8 +162,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                       ? null
                       : () {
                           if (controller.isReady) {
-                            controller.goToPage(
-                                pageNumber: controller.pageCount);
+                            controller.goToPage(pageNumber: controller.pageCount);
                           }
                         },
                 ),
@@ -202,17 +189,14 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         children: [
                           if (isMobileDevice)
                             Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 8.0),
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
                               child: Row(
                                 children: [
                                   ValueListenableBuilder(
                                     valueListenable: documentRef,
-                                    builder: (context, documentRef, child) =>
-                                        Expanded(
+                                    builder: (context, documentRef, child) => Expanded(
                                       child: Text(
-                                        _fileName(documentRef?.sourceName) ??
-                                            'No document loaded',
+                                        _fileName(documentRef?.sourceName) ?? 'No document loaded',
                                         softWrap: false,
                                       ),
                                     ),
@@ -250,41 +234,34 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                                   valueListenable: textSearcher,
                                   builder: (context, textSearcher, child) {
                                     if (textSearcher == null) return SizedBox();
-                                    return TextSearchView(
-                                        textSearcher: textSearcher);
+                                    return TextSearchView(textSearcher: textSearcher);
                                   },
                                 ),
                                 ValueListenableBuilder(
                                   valueListenable: outline,
-                                  builder: (context, outline, child) =>
-                                      OutlineView(
+                                  builder: (context, outline, child) => OutlineView(
                                     outline: outline,
                                     controller: controller,
                                   ),
                                 ),
                                 ValueListenableBuilder(
                                   valueListenable: documentRef,
-                                  builder: (context, documentRef, child) =>
-                                      ThumbnailsView(
+                                  builder: (context, documentRef, child) => ThumbnailsView(
                                     documentRef: documentRef,
                                     controller: controller,
                                   ),
                                 ),
                                 MarkersView(
-                                  markers:
-                                      _markers.values.expand((e) => e).toList(),
+                                  markers: _markers.values.expand((e) => e).toList(),
                                   onTap: (marker) {
-                                    final rect =
-                                        controller.calcRectForRectInsidePage(
-                                      pageNumber:
-                                          marker.ranges.pageText.pageNumber,
+                                    final rect = controller.calcRectForRectInsidePage(
+                                      pageNumber: marker.ranges.pageText.pageNumber,
                                       rect: marker.ranges.bounds,
                                     );
                                     controller.ensureVisible(rect);
                                   },
                                   onDeleteTap: (marker) {
-                                    _markers[marker.ranges.pageNumber]!
-                                        .remove(marker);
+                                    _markers[marker.ranges.pageNumber]!.remove(marker);
                                     setState(() {});
                                   },
                                 ),
@@ -374,8 +351,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           //   );
                           // },
                           //
-                          onViewSizeChanged:
-                              (viewSize, oldViewSize, controller) {
+                          onViewSizeChanged: (viewSize, oldViewSize, controller) {
                             if (oldViewSize != null) {
                               //
                               // Calculate the matrix to keep the center position during device
@@ -383,10 +359,8 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                               //
                               // The most important thing here is that the transformation matrix
                               // is not changed on the view change.
-                              final centerPosition =
-                                  controller.value.calcPosition(oldViewSize);
-                              final newMatrix =
-                                  controller.calcMatrixFor(centerPosition);
+                              final centerPosition = controller.value.calcPosition(oldViewSize);
+                              final newMatrix = controller.calcMatrixFor(centerPosition);
                               // Don't change the matrix in sync; the callback might be called
                               // during widget-tree's build process.
                               Future.delayed(
@@ -395,8 +369,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                               );
                             }
                           },
-                          viewerOverlayBuilder:
-                              (context, size, handleLinkTap) => [
+                          viewerOverlayBuilder: (context, size, handleLinkTap) => [
                             //
                             // Example use of GestureDetector to handle custom gestures
                             //
@@ -425,9 +398,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                               controller: controller,
                               orientation: ScrollbarOrientation.right,
                               thumbSize: const Size(40, 25),
-                              thumbBuilder: (context, thumbSize, pageNumber,
-                                      controller) =>
-                                  Container(
+                              thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
                                 color: Colors.black,
                                 child: Center(
                                   child: Text(
@@ -442,9 +413,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                               controller: controller,
                               orientation: ScrollbarOrientation.bottom,
                               thumbSize: const Size(80, 30),
-                              thumbBuilder: (context, thumbSize, pageNumber,
-                                      controller) =>
-                                  Container(
+                              thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
                                 color: Colors.red,
                               ),
                             ),
@@ -452,12 +421,9 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           //
                           // Loading progress indicator example
                           //
-                          loadingBannerBuilder:
-                              (context, bytesDownloaded, totalBytes) => Center(
+                          loadingBannerBuilder: (context, bytesDownloaded, totalBytes) => Center(
                             child: CircularProgressIndicator(
-                              value: totalBytes != null
-                                  ? bytesDownloaded / totalBytes
-                                  : null,
+                              value: totalBytes != null ? bytesDownloaded / totalBytes : null,
                               backgroundColor: Colors.grey,
                             ),
                           ),
@@ -474,8 +440,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                             },
                           ),
                           pagePaintCallbacks: [
-                            if (textSearcher.value != null)
-                              textSearcher.value!.pageTextMatchPaintCallback,
+                            if (textSearcher.value != null) textSearcher.value!.pageTextMatchPaintCallback,
                             _paintMarkers,
                           ],
                           onDocumentChanged: (document) async {
@@ -489,8 +454,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           },
                           onViewerReady: (document, controller) async {
                             outline.value = await document.loadOutline();
-                            textSearcher.value = PdfTextSearcher(controller)
-                              ..addListener(_update);
+                            textSearcher.value = PdfTextSearcher(controller)..addListener(_update);
                           },
                           onTextSelectionChange: (selections) {
                             textSelections = selections;
@@ -535,9 +499,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   void _addCurrentSelectionToMarkers(Color color) {
     if (controller.isReady && textSelections != null) {
       for (final selectedText in textSelections!) {
-        _markers
-            .putIfAbsent(selectedText.pageNumber, () => [])
-            .add(Marker(color, selectedText));
+        _markers.putIfAbsent(selectedText.pageNumber, () => []).add(Marker(color, selectedText));
       }
       setState(() {});
     }
@@ -560,9 +522,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
             child: Text.rich(
               TextSpan(
                 children: [
-                  const TextSpan(
-                      text:
-                          'Do you want to navigate to the following location?\n'),
+                  const TextSpan(text: 'Do you want to navigate to the following location?\n'),
                   TextSpan(
                     text: url.toString(),
                     style: const TextStyle(color: Colors.blue),
@@ -608,8 +568,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
         passwordProvider: () => passwordDialog(context),
       );
     } else {
-      documentRef.value = PdfDocumentRefFile(file.path,
-          passwordProvider: () => passwordDialog(context));
+      documentRef.value = PdfDocumentRefFile(file.path, passwordProvider: () => passwordDialog(context));
     }
   }
 
@@ -618,8 +577,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       context: context,
       builder: (context) {
         final controller = TextEditingController();
-        controller.text =
-            'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf';
+        controller.text = 'https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf';
         return AlertDialog(
           title: const Text('Open URL'),
           content: Column(

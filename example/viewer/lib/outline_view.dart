@@ -6,9 +6,9 @@ import 'package:pdfrx/pdfrx.dart';
 
 class OutlineView extends StatelessWidget {
   const OutlineView({
-    super.key,
     required this.outline,
     required this.controller,
+    super.key,
   });
 
   final List<PdfOutlineNode>? outline;
@@ -43,8 +43,7 @@ class OutlineView extends StatelessWidget {
   }
 
   /// Recursively create outline indent structure
-  Iterable<({PdfOutlineNode node, int level})> _getOutlineList(
-      List<PdfOutlineNode>? outline, int level) sync* {
+  Iterable<({PdfOutlineNode node, int level})> _getOutlineList(List<PdfOutlineNode>? outline, int level) sync* {
     if (outline == null) return;
     for (var node in outline) {
       yield (node: node, level: level);

@@ -15,16 +15,13 @@ import '../../pdfrx.dart';
 const _pdfjsVersion = '4.10.38';
 
 /// Default pdf.js URL
-const _pdfjsUrl =
-    'https://cdn.jsdelivr.net/npm/pdfjs-dist@$_pdfjsVersion/build/pdf.min.mjs';
+const _pdfjsUrl = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@$_pdfjsVersion/build/pdf.min.mjs';
 
 /// Default pdf.worker.js URL
-const _pdfjsWorkerSrc =
-    'https://cdn.jsdelivr.net/npm/pdfjs-dist@$_pdfjsVersion/build/pdf.worker.min.mjs';
+const _pdfjsWorkerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@$_pdfjsVersion/build/pdf.worker.min.mjs';
 
 /// Default CMap URL
-const _pdfjsCMapUrl =
-    'https://cdn.jsdelivr.net/npm/pdfjs-dist@$_pdfjsVersion/cmaps/';
+const _pdfjsCMapUrl = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@$_pdfjsVersion/cmaps/';
 
 @JS('pdfjsLib')
 external JSAny? get _pdfjsLib;
@@ -32,8 +29,7 @@ external JSAny? get _pdfjsLib;
 bool get _isPdfjsLoaded => _pdfjsLib != null;
 
 @JS('pdfjsLib.getDocument')
-external _PDFDocumentLoadingTask _pdfjsGetDocument(
-    _PdfjsDocumentInitParameters data);
+external _PDFDocumentLoadingTask _pdfjsGetDocument(_PdfjsDocumentInitParameters data);
 
 extension type _PdfjsDocumentInitParameters._(JSObject _) implements JSObject {
   external _PdfjsDocumentInitParameters({
@@ -81,13 +77,11 @@ Future<PdfjsDocument> pdfjsGetDocument(
         cMapUrl: PdfJsConfiguration.configuration?.cMapUrl ?? _pdfjsCMapUrl,
         cMapPacked: PdfJsConfiguration.configuration?.cMapPacked ?? true,
         useSystemFonts: PdfJsConfiguration.configuration?.useSystemFonts,
-        standardFontDataUrl:
-            PdfJsConfiguration.configuration?.standardFontDataUrl,
+        standardFontDataUrl: PdfJsConfiguration.configuration?.standardFontDataUrl,
       ),
     ).promise.toDart;
 
-Future<PdfjsDocument> pdfjsGetDocumentFromData(ByteBuffer data,
-        {String? password}) =>
+Future<PdfjsDocument> pdfjsGetDocumentFromData(ByteBuffer data, {String? password}) =>
     _pdfjsGetDocument(
       _PdfjsDocumentInitParameters(
         data: data.toJS,
@@ -95,8 +89,7 @@ Future<PdfjsDocument> pdfjsGetDocumentFromData(ByteBuffer data,
         cMapUrl: PdfJsConfiguration.configuration?.cMapUrl ?? _pdfjsCMapUrl,
         cMapPacked: PdfJsConfiguration.configuration?.cMapPacked ?? true,
         useSystemFonts: PdfJsConfiguration.configuration?.useSystemFonts,
-        standardFontDataUrl:
-            PdfJsConfiguration.configuration?.standardFontDataUrl,
+        standardFontDataUrl: PdfJsConfiguration.configuration?.standardFontDataUrl,
       ),
     ).promise.toDart;
 
@@ -119,13 +112,10 @@ extension type PdfjsPage._(JSObject _) implements JSObject {
   external JSNumber get userUnit;
   external JSArray<JSNumber> get view;
 
-  external JSPromise<PdfjsTextContent> getTextContent(
-      PdfjsGetTextContentParameters params);
-  external ReadableStream streamTextContent(
-      PdfjsGetTextContentParameters params);
+  external JSPromise<PdfjsTextContent> getTextContent(PdfjsGetTextContentParameters params);
+  external ReadableStream streamTextContent(PdfjsGetTextContentParameters params);
 
-  external JSPromise<JSArray<PdfjsAnnotation>> getAnnotations(
-      PdfjsGetAnnotationsParameters params);
+  external JSPromise<JSArray<PdfjsAnnotation>> getAnnotations(PdfjsGetAnnotationsParameters params);
 }
 
 extension type PdfjsAnnotation._(JSObject _) implements JSObject {
@@ -204,10 +194,7 @@ extension type PdfjsRender._(JSObject _) implements JSObject {
 }
 
 extension type PdfjsGetTextContentParameters._(JSObject _) implements JSObject {
-  external PdfjsGetTextContentParameters({
-    bool includeMarkedContent,
-    bool disableNormalization,
-  });
+  external PdfjsGetTextContentParameters({bool includeMarkedContent, bool disableNormalization});
 
   external bool includeMarkedContent;
   external bool disableNormalization;
@@ -319,8 +306,8 @@ Future<void> ensurePdfjsInitialized() async {
             ..src = pdfJsSrc;
       web.document.querySelector('head')!.appendChild(script);
       await script.onLoad.first.timeout(
-          PdfJsConfiguration.configuration?.pdfJsDownloadTimeout ??
-              const Duration(seconds: 10));
+        PdfJsConfiguration.configuration?.pdfJsDownloadTimeout ?? const Duration(seconds: 10),
+      );
     } catch (e) {
       throw StateError('Failed to load pdf.js from $pdfJsSrc: $e');
     }
@@ -328,8 +315,7 @@ Future<void> ensurePdfjsInitialized() async {
     if (!_isPdfjsLoaded) {
       throw StateError('Failed to load pdfjs');
     }
-    _pdfjsWorkerSrc =
-        PdfJsConfiguration.configuration?.workerSrc ?? _pdfjsWorkerSrc;
+    _pdfjsWorkerSrc = PdfJsConfiguration.configuration?.workerSrc ?? _pdfjsWorkerSrc;
 
     _pdfjsInitialized = true;
   });

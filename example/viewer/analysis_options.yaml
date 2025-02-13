@@ -22,7 +22,24 @@ linter:
   # producing the lint.
   rules:
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    prefer_single_quotes: true
+    comment_references: true
+    prefer_relative_imports: true
+    use_key_in_widget_constructors: true
+    avoid_return_types_on_setters: true
+    avoid_types_on_closure_parameters: true
+    eol_at_end_of_file: true
+    sort_child_properties_last: true
+    sort_unnamed_constructors_first: true
+    sort_constructors_first: true
+    always_put_required_named_parameters_first: true
+    invalid_runtime_check_with_js_interop_types: true
+
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
+
+analyzer:
+
+formatter:
+  page_width: 120

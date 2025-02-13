@@ -20,20 +20,14 @@ class PdfViewerParams {
     this.useAlternativeFitScaleAsMinScale = true,
     this.panAxis = PanAxis.free,
     this.boundaryMargin,
-    this.annotationRenderingMode =
-        PdfAnnotationRenderingMode.annotationAndForms,
+    this.annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     this.pageAnchor = PdfPageAnchor.top,
     this.pageAnchorEnd = PdfPageAnchor.bottom,
     this.onePassRenderingScaleThreshold = 200 / 72,
     this.enableTextSelection = false,
     this.matchTextColor,
     this.activeMatchTextColor,
-    this.pageDropShadow = const BoxShadow(
-      color: Colors.black54,
-      blurRadius: 4,
-      spreadRadius: 2,
-      offset: Offset(2, 2),
-    ),
+    this.pageDropShadow = const BoxShadow(color: Colors.black54, blurRadius: 4, spreadRadius: 2, offset: Offset(2, 2)),
     this.panEnabled = true,
     this.scaleEnabled = true,
     this.onInteractionEnd,
@@ -514,23 +508,20 @@ class PdfViewerParams {
         other.backgroundColor != backgroundColor ||
         other.maxScale != maxScale ||
         other.minScale != minScale ||
-        other.useAlternativeFitScaleAsMinScale !=
-            useAlternativeFitScaleAsMinScale ||
+        other.useAlternativeFitScaleAsMinScale != useAlternativeFitScaleAsMinScale ||
         other.panAxis != panAxis ||
         other.boundaryMargin != boundaryMargin ||
         other.annotationRenderingMode != annotationRenderingMode ||
         other.pageAnchor != pageAnchor ||
         other.pageAnchorEnd != pageAnchorEnd ||
-        other.onePassRenderingScaleThreshold !=
-            onePassRenderingScaleThreshold ||
+        other.onePassRenderingScaleThreshold != onePassRenderingScaleThreshold ||
         other.enableTextSelection != enableTextSelection ||
         other.matchTextColor != matchTextColor ||
         other.activeMatchTextColor != activeMatchTextColor ||
         other.pageDropShadow != pageDropShadow ||
         other.panEnabled != panEnabled ||
         other.scaleEnabled != scaleEnabled ||
-        other.interactionEndFrictionCoefficient !=
-            interactionEndFrictionCoefficient ||
+        other.interactionEndFrictionCoefficient != interactionEndFrictionCoefficient ||
         other.scrollByMouseWheel != scrollByMouseWheel ||
         other.enableKeyboardNavigation != enableKeyboardNavigation ||
         other.scrollByArrowKey != scrollByArrowKey ||
@@ -547,15 +538,13 @@ class PdfViewerParams {
         other.backgroundColor == backgroundColor &&
         other.maxScale == maxScale &&
         other.minScale == minScale &&
-        other.useAlternativeFitScaleAsMinScale ==
-            useAlternativeFitScaleAsMinScale &&
+        other.useAlternativeFitScaleAsMinScale == useAlternativeFitScaleAsMinScale &&
         other.panAxis == panAxis &&
         other.boundaryMargin == boundaryMargin &&
         other.annotationRenderingMode == annotationRenderingMode &&
         other.pageAnchor == pageAnchor &&
         other.pageAnchorEnd == pageAnchorEnd &&
-        other.onePassRenderingScaleThreshold ==
-            onePassRenderingScaleThreshold &&
+        other.onePassRenderingScaleThreshold == onePassRenderingScaleThreshold &&
         other.enableTextSelection == enableTextSelection &&
         other.matchTextColor == matchTextColor &&
         other.activeMatchTextColor == activeMatchTextColor &&
@@ -565,8 +554,7 @@ class PdfViewerParams {
         other.onInteractionEnd == onInteractionEnd &&
         other.onInteractionStart == onInteractionStart &&
         other.onInteractionUpdate == onInteractionUpdate &&
-        other.interactionEndFrictionCoefficient ==
-            interactionEndFrictionCoefficient &&
+        other.interactionEndFrictionCoefficient == interactionEndFrictionCoefficient &&
         other.onDocumentChanged == onDocumentChanged &&
         other.calculateInitialPageNumber == calculateInitialPageNumber &&
         other.calculateCurrentPageNumber == calculateCurrentPageNumber &&
@@ -589,8 +577,7 @@ class PdfViewerParams {
         other.pageBackgroundPaintCallbacks == pageBackgroundPaintCallbacks &&
         other.onTextSelectionChange == onTextSelectionChange &&
         other.selectableRegionInjector == selectableRegionInjector &&
-        other.perPageSelectableRegionInjector ==
-            perPageSelectableRegionInjector &&
+        other.perPageSelectableRegionInjector == perPageSelectableRegionInjector &&
         other.forceReload == forceReload;
   }
 
@@ -650,34 +637,22 @@ typedef PdfViewerDocumentChangedCallback = void Function(PdfDocument? document);
 /// Function to calculate the initial page number.
 ///
 /// If the function returns null, the viewer will show the page of [PdfViewer.initialPageNumber].
-typedef PdfViewerCalculateInitialPageNumberFunction = int? Function(
-  PdfDocument document,
-  PdfViewerController controller,
-);
+typedef PdfViewerCalculateInitialPageNumberFunction =
+    int? Function(PdfDocument document, PdfViewerController controller);
 
 /// Function to guess the current page number based on the visible rectangle and page layouts.
-typedef PdfViewerCalculateCurrentPageNumberFunction = int? Function(
-  Rect visibleRect,
-  List<Rect> pageRects,
-  PdfViewerController controller,
-);
+typedef PdfViewerCalculateCurrentPageNumberFunction =
+    int? Function(Rect visibleRect, List<Rect> pageRects, PdfViewerController controller);
 
 /// Function called when the viewer is ready.
 ///
-typedef PdfViewerReadyCallback = void Function(
-  PdfDocument document,
-  PdfViewerController controller,
-);
+typedef PdfViewerReadyCallback = void Function(PdfDocument document, PdfViewerController controller);
 
 /// Function to be called when the viewer view size is changed.
 ///
 /// [viewSize] is the new view size.
 /// [oldViewSize] is the previous view size.
-typedef PdfViewerViewSizeChanged = void Function(
-  Size viewSize,
-  Size? oldViewSize,
-  PdfViewerController controller,
-);
+typedef PdfViewerViewSizeChanged = void Function(Size viewSize, Size? oldViewSize, PdfViewerController controller);
 
 /// Function called when the current page is changed.
 typedef PdfPageChangedCallback = void Function(int? pageNumber);
@@ -688,22 +663,15 @@ typedef PdfPageChangedCallback = void Function(int? pageNumber);
 /// - [page] can be used to determine the page dimensions
 /// - [controller] can be used to get the current zoom by [PdfViewerController.currentZoom]
 /// - [estimatedScale] is the precalculated scale for the page
-typedef PdfViewerGetPageRenderingScale = double? Function(
-  BuildContext context,
-  PdfPage page,
-  PdfViewerController controller,
-  double estimatedScale,
-);
+typedef PdfViewerGetPageRenderingScale =
+    double? Function(BuildContext context, PdfPage page, PdfViewerController controller, double estimatedScale);
 
 /// Function to customize the layout of the pages.
 ///
 /// - [pages] is the list of pages.
 ///   This is just a copy of the first loaded page of the document.
 /// - [params] is the viewer parameters.
-typedef PdfPageLayoutFunction = PdfPageLayout Function(
-  List<PdfPage> pages,
-  PdfViewerParams params,
-);
+typedef PdfPageLayoutFunction = PdfPageLayout Function(List<PdfPage> pages, PdfViewerParams params);
 
 /// Function to normalize the matrix.
 ///
@@ -712,22 +680,15 @@ typedef PdfPageLayoutFunction = PdfPageLayout Function(
 /// Another use case is to do something when the matrix is changed.
 ///
 /// If no actual matrix change is needed, just return the input matrix.
-typedef PdfMatrixNormalizeFunction = Matrix4 Function(
-  Matrix4 matrix,
-  Size viewSize,
-  PdfPageLayout layout,
-  PdfViewerController? controller,
-);
+typedef PdfMatrixNormalizeFunction =
+    Matrix4 Function(Matrix4 matrix, Size viewSize, PdfPageLayout layout, PdfViewerController? controller);
 
 /// Function to build viewer overlays.
 ///
 /// [size] is the size of the viewer widget.
 /// [handleLinkTap] is a function to handle link tap. For more details, see [PdfViewerParams.viewerOverlayBuilder].
-typedef PdfViewerOverlaysBuilder = List<Widget> Function(
-  BuildContext context,
-  Size size,
-  PdfViewerHandleLinkTap handleLinkTap,
-);
+typedef PdfViewerOverlaysBuilder =
+    List<Widget> Function(BuildContext context, Size size, PdfViewerHandleLinkTap handleLinkTap);
 
 /// Function to handle link tap.
 ///
@@ -740,45 +701,31 @@ typedef PdfViewerHandleLinkTap = bool Function(Offset position);
 ///
 /// [pageRect] is the rectangle of the page in the viewer.
 /// [page] is the page.
-typedef PdfPageOverlaysBuilder = List<Widget> Function(
-    BuildContext context, Rect pageRect, PdfPage page);
+typedef PdfPageOverlaysBuilder = List<Widget> Function(BuildContext context, Rect pageRect, PdfPage page);
 
 /// Function to build loading banner.
 ///
 /// [bytesDownloaded] is the number of bytes downloaded so far.
 /// [totalBytes] is the total number of bytes to be downloaded if available.
-typedef PdfViewerLoadingBannerBuilder = Widget Function(
-    BuildContext context, int bytesDownloaded, int? totalBytes);
+typedef PdfViewerLoadingBannerBuilder = Widget Function(BuildContext context, int bytesDownloaded, int? totalBytes);
 
 /// Function to build loading error banner.
-typedef PdfViewerErrorBannerBuilder = Widget Function(
-  BuildContext context,
-  Object error,
-  StackTrace? stackTrace,
-  PdfDocumentRef documentRef,
-);
+typedef PdfViewerErrorBannerBuilder =
+    Widget Function(BuildContext context, Object error, StackTrace? stackTrace, PdfDocumentRef documentRef);
 
 /// Function to build link widget for [PdfLink].
 ///
 /// [size] is the size of the link.
-typedef PdfLinkWidgetBuilder = Widget? Function(
-    BuildContext context, PdfLink link, Size size);
+typedef PdfLinkWidgetBuilder = Widget? Function(BuildContext context, PdfLink link, Size size);
 
 /// Function to inject [SelectionArea] or [SelectableRegion] to customize text selection.
-typedef PdfSelectableRegionInjector = Widget Function(
-  BuildContext context,
-  Widget child,
-);
+typedef PdfSelectableRegionInjector = Widget Function(BuildContext context, Widget child);
 
 /// Function to inject [SelectionArea] or [SelectableRegion] to customize text selection on each page.
 ///
 /// [pageRect] is the rectangle of the page in the viewer.
-typedef PdfPerPageSelectableRegionInjector = Widget Function(
-  BuildContext context,
-  Widget child,
-  PdfPage page,
-  Rect pageRect,
-);
+typedef PdfPerPageSelectableRegionInjector =
+    Widget Function(BuildContext context, Widget child, PdfPage page, Rect pageRect);
 
 /// Function to paint things on page.
 ///
@@ -795,14 +742,12 @@ typedef PdfPerPageSelectableRegionInjector = Widget Function(
 ///   pdfRect.toRectInPageRect(page: page, pageRect: pageRect),
 ///   Paint()..color = Colors.red);
 /// ```
-typedef PdfViewerPagePaintCallback = void Function(
-    ui.Canvas canvas, Rect pageRect, PdfPage page);
+typedef PdfViewerPagePaintCallback = void Function(ui.Canvas canvas, Rect pageRect, PdfPage page);
 
 /// Function to be notified when the text selection is changed.
 ///
 /// [selections] contains the selected text ranges on each page.
-typedef PdfViewerTextSelectionChangeCallback = void Function(
-    List<PdfTextRanges> selections);
+typedef PdfViewerTextSelectionChangeCallback = void Function(List<PdfTextRanges> selections);
 
 /// When [PdfViewerController.goToPage] is called, the page is aligned to the specified anchor.
 ///
@@ -840,11 +785,7 @@ enum PdfPageAnchor {
 
 /// Parameters to customize link handling/appearance.
 class PdfLinkHandlerParams {
-  const PdfLinkHandlerParams({
-    required this.onLinkTap,
-    this.linkColor,
-    this.customPainter,
-  });
+  const PdfLinkHandlerParams({required this.onLinkTap, this.linkColor, this.customPainter});
 
   /// Function to be called when the link is tapped.
   ///
@@ -878,9 +819,7 @@ class PdfLinkHandlerParams {
   bool operator ==(covariant PdfLinkHandlerParams other) {
     if (identical(this, other)) return true;
 
-    return other.onLinkTap == onLinkTap &&
-        other.linkColor == linkColor &&
-        other.customPainter == customPainter;
+    return other.onLinkTap == onLinkTap && other.linkColor == linkColor && other.customPainter == customPainter;
   }
 
   @override
@@ -890,5 +829,4 @@ class PdfLinkHandlerParams {
 }
 
 /// Custom painter for the page links.
-typedef PdfLinkCustomPagePainter = void Function(
-    ui.Canvas canvas, Rect pageRect, PdfPage page, List<PdfLink> links);
+typedef PdfLinkCustomPagePainter = void Function(ui.Canvas canvas, Rect pageRect, PdfPage page, List<PdfLink> links);

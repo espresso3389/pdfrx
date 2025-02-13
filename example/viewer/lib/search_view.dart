@@ -8,8 +8,8 @@ import 'package:synchronized/extension.dart';
 //
 class TextSearchView extends StatefulWidget {
   const TextSearchView({
-    super.key,
     required this.textSearcher,
+    super.key,
   });
 
   final PdfTextSearcher textSearcher;
@@ -21,8 +21,7 @@ class TextSearchView extends StatefulWidget {
 class _TextSearchViewState extends State<TextSearchView> {
   final focusNode = FocusNode();
   final searchTextController = TextEditingController();
-  late final pageTextStore =
-      PdfPageTextCache(textSearcher: widget.textSearcher);
+  late final pageTextStore = PdfPageTextCache(textSearcher: widget.textSearcher);
   final scrollController = ScrollController();
 
   @override
@@ -56,14 +55,10 @@ class _TextSearchViewState extends State<TextSearchView> {
       _matchIndexToListIndex.clear();
       _listIndexToMatchIndex.clear();
     }
-    for (int i = _matchIndexToListIndex.length;
-        i < widget.textSearcher.matches.length;
-        i++) {
-      if (i == 0 ||
-          widget.textSearcher.matches[i - 1].pageNumber !=
-              widget.textSearcher.matches[i].pageNumber) {
-        _listIndexToMatchIndex.add(-widget.textSearcher.matches[i]
-            .pageNumber); // negative index to indicate page header
+    for (int i = _matchIndexToListIndex.length; i < widget.textSearcher.matches.length; i++) {
+      if (i == 0 || widget.textSearcher.matches[i - 1].pageNumber != widget.textSearcher.matches[i].pageNumber) {
+        _listIndexToMatchIndex
+            .add(-widget.textSearcher.matches[i].pageNumber); // negative index to indicate page header
       }
       _matchIndexToListIndex.add(_listIndexToMatchIndex.length);
       _listIndexToMatchIndex.add(i);
@@ -120,8 +115,7 @@ class _TextSearchViewState extends State<TextSearchView> {
             ),
             const SizedBox(width: 4),
             IconButton(
-              onPressed: (widget.textSearcher.currentIndex ?? 0) <
-                      widget.textSearcher.matches.length
+              onPressed: (widget.textSearcher.currentIndex ?? 0) < widget.textSearcher.matches.length
                   ? () async {
                       await widget.textSearcher.goToNextMatch();
                       _conditionScrollPosition();
@@ -161,8 +155,7 @@ class _TextSearchViewState extends State<TextSearchView> {
             itemCount: _listIndexToMatchIndex.length,
             itemBuilder: (context, index) {
               final matchIndex = _listIndexToMatchIndex[index];
-              if (matchIndex >= 0 &&
-                  matchIndex < widget.textSearcher.matches.length) {
+              if (matchIndex >= 0 && matchIndex < widget.textSearcher.matches.length) {
                 final match = widget.textSearcher.matches[matchIndex];
                 return SearchResultTile(
                   key: ValueKey(index),
@@ -198,8 +191,7 @@ class _TextSearchViewState extends State<TextSearchView> {
 
   void _conditionScrollPosition() {
     final pos = scrollController.position;
-    final newPos =
-        itemHeight * _matchIndexToListIndex[widget.textSearcher.currentIndex!];
+    final newPos = itemHeight * _matchIndexToListIndex[widget.textSearcher.currentIndex!];
     if (newPos + itemHeight > pos.pixels + pos.viewportDimension) {
       scrollController.animateTo(
         newPos + itemHeight - pos.viewportDimension,
@@ -220,12 +212,12 @@ class _TextSearchViewState extends State<TextSearchView> {
 
 class SearchResultTile extends StatefulWidget {
   const SearchResultTile({
-    super.key,
     required this.match,
     required this.onTap,
     required this.pageTextStore,
     required this.height,
     required this.isCurrent,
+    super.key,
   });
 
   final PdfTextRangeWithFragments match;
@@ -274,9 +266,7 @@ class _SearchResultTileState extends State<SearchResultTile> {
     return SizedBox(
       height: widget.height,
       child: Material(
-        color: widget.isCurrent
-            ? DefaultSelectionStyle.of(context).selectionColor!
-            : null,
+        color: widget.isCurrent ? DefaultSelectionStyle.of(context).selectionColor! : null,
         child: InkWell(
           onTap: () => widget.onTap(),
           child: Container(
@@ -296,9 +286,7 @@ class _SearchResultTileState extends State<SearchResultTile> {
     );
   }
 
-  TextSpan createTextSpanForMatch(
-      PdfPageText? pageText, PdfTextRangeWithFragments match,
-      {TextStyle? style}) {
+  TextSpan createTextSpanForMatch(PdfPageText? pageText, PdfTextRangeWithFragments match, {TextStyle? style}) {
     style ??= const TextStyle(
       fontSize: 14,
     );
@@ -325,12 +313,9 @@ class _SearchResultTileState extends State<SearchResultTile> {
       }
     }
 
-    final header =
-        fullText.substring(first, match.fragments.first.index + match.start);
-    final body = fullText.substring(match.fragments.first.index + match.start,
-        match.fragments.last.index + match.end);
-    final footer =
-        fullText.substring(match.fragments.last.index + match.end, last);
+    final header = fullText.substring(first, match.fragments.first.index + match.start);
+    final body = fullText.substring(match.fragments.first.index + match.start, match.fragments.last.index + match.end);
+    final footer = fullText.substring(match.fragments.last.index + match.end, last);
 
     return TextSpan(
       children: [
