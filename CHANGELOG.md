@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.1.1
+
+- Supporting Flutter 3.29.0/Dart 3.7.0 (Stable) with workaround for breaking changes on Flutter 3.29.0 (#295)
+  - It breaks compatibility with older stable Flutter versions :(
+
 ## 1.0.103
 
 - Change the default CDN for pdf.js to <https://cdn.jsdelivr.net/npm/pdfjs-dist@><VERSION>/build/pdf.js to deal with CORS error on loading CMAP files
