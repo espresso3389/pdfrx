@@ -152,13 +152,12 @@ class PdfDocumentWeb extends PdfDocument {
     required String sourceName,
     void Function()? onDispose,
   }) async {
-    final perms = (await document.getPermissions().toDart)?.toDart.cast<int>();
-
+    final perms = (await document.getPermissions().toDart)?.toDart.map((v) => v.toDartInt).toList();
     final doc = PdfDocumentWeb._(
       document,
       sourceName: sourceName,
       isEncrypted: perms != null,
-      permissions: perms != null ? PdfPermissions(perms.fold<int>(0, (p, e) => p | e), 2) : null,
+      permissions: perms != null ? PdfPermissions(perms.fold(0, (p, e) => p | e), 2) : null,
       onDispose: onDispose,
     );
     final pageCount = document.numPages;
