@@ -1,4 +1,8 @@
-# CHANGELOG
+# CHANGE
+
+## 1.1.4
+
+- SDK constraint gets back to `>=3.7.0-323.0.dev`
 
 ## 1.1.3
 
