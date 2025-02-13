@@ -1,5 +1,10 @@
 # CHANGELOG
 
+# 1.1.2
+
+- FIXED: if running with WASM enabled on Flutter Web, certain PDF file could not be loaded correctly
+- Debug log to know WASM/SharedArrayBuffer status on Flutter Web
+
 ## 1.1.1
 
 - Supporting Flutter 3.29.0/Dart 3.7.0 (Stable) with workaround for breaking changes on Flutter 3.29.0 (#295)
