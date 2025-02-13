@@ -197,8 +197,7 @@ class PdfDocumentWeb extends PdfDocument {
   Future<JSObject?> _getDestObject(JSAny? dest) async {
     if (dest == null) return null;
     if (dest.isA<JSString>()) {
-      final destObj = await _document.getDestination((dest as JSString).toDart).toDart;
-      return destObj;
+      return await _document.getDestination((dest as JSString).toDart).toDart;
     } else {
       return dest as JSObject;
     }

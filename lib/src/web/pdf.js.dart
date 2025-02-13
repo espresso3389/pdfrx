@@ -102,7 +102,7 @@ extension type PdfjsDocument._(JSObject _) implements JSObject {
   external void destroy();
 
   external JSPromise<JSNumber> getPageIndex(PdfjsRef ref);
-  external JSPromise<JSObject> getDestination(String id);
+  external JSPromise<JSObject?> getDestination(String id);
   external JSPromise<JSArray<PdfjsOutlineNode>?> getOutline();
 }
 
