@@ -20,7 +20,14 @@ jobs:
         with:
           channel: stable
       - name: Check Flutter SDK version
-        run: flutter --version
+        run: |
+          flutter --version
+          FLUTTER_VERSION=$(flutter --version | head -n 1 | awk '{print $2}')
+          echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
+      - name: Check pdfrx version
+        run: |
+          PDFRX_VERSION=$(awk -F": " '/^version:/ {print $2}' pubspec.yaml)
+          echo "PDFRX_VERSION=$PDFRX_VERSION" >> $GITHUB_ENV
       - name: Enable Flutter Web
         run: flutter config --enable-web
       - name: Install dependencies
@@ -28,8 +35,11 @@ jobs:
       - name: Build Flutter Web App (WASM)
         run: |
           cd example/viewer/
-          cp -f extras/github-pages/* web/
-          flutter build web --wasm --release
+          flutter build web --wasm --release --dart-define=GITHUB_COMMIT=$GITHUB_SHA --dart-define=PDFRX_VERSION=$PDFRX_VERSION --dart-define=FLUTTER_VERSION=$FLUTTER_VERSION
+          sed -i \
+            -e 's|<base href="/">|<base href="/pdfrx/">|' \
+            -e "s/__CONFIGS__/pdfrx=${PDFRX_VERSION},commit=${GITHUB_SHA},flutter=${FLUTTER_VERSION}/g" \
+            build/web/index.html
       - name: Configure Git for deployment
         run: |
           git config user.email "action@github.com"
@@ -38,6 +48,6 @@ jobs:
       - name: Deploy to GitHub Pages using subtree push
         run: |
           git add -f example/viewer/build/web
-          git commit -m "$GITHUB_SHA"
+          git commit -m "$PDFRX_VERSION $GITHUB_SHA"
           git subtree split --prefix example/viewer/build/web -b tmp
           git push -f origin tmp:gh-pages
