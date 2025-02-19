@@ -158,8 +158,8 @@ abstract class PdfDocument {
   /// For Web, [filePath] can be relative path from `index.html` or any arbitrary URL but it may be restricted by CORS.
   ///
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
-  /// or not. For more info, see [PdfPasswordProvider].
+  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
+  /// password or not. For more info, see [PdfPasswordProvider].
   static Future<PdfDocument> openFile(
     String filePath, {
     PdfPasswordProvider? passwordProvider,
@@ -173,8 +173,8 @@ abstract class PdfDocument {
   /// Opening the specified asset.
   ///
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
-  /// or not. For more info, see [PdfPasswordProvider].
+  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
+  /// password or not. For more info, see [PdfPasswordProvider].
   static Future<PdfDocument> openAsset(
     String name, {
     PdfPasswordProvider? passwordProvider,
@@ -219,8 +219,8 @@ abstract class PdfDocument {
   /// The default size is 1MB.
   ///
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
-  /// or not. For more info, see [PdfPasswordProvider].
+  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
+  /// password or not. For more info, see [PdfPasswordProvider].
   ///
   /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
   /// unique for each source, the viewer may not work correctly.
@@ -249,8 +249,8 @@ abstract class PdfDocument {
   /// For other platforms, it uses [pdfDocumentFromUri] that uses HTTP's range request to download the file.
   ///
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
-  /// or not. For more info, see [PdfPasswordProvider].
+  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
+  /// password or not. For more info, see [PdfPasswordProvider].
   ///
   /// [progressCallback] is called when the download progress is updated (Not supported on Web).
   /// [reportCallback] is called when the download is completed (Not supported on Web).

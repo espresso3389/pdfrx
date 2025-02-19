@@ -493,12 +493,12 @@ function loadDocumentFromData(params) {
 
   const sizeThreshold = 1024 * 1024; // 1MB
   if (data.byteLength < sizeThreshold) {
-    const passwordPtr = StringUtils.allocateUTF8(password);
     const buffer = Pdfium.wasmExports.malloc(data.byteLength);
     if (buffer === 0) {
       throw new Error("Failed to allocate memory for PDF data (${data.byteLength} bytes)");
     }
     new Uint8Array(Pdfium.memory.buffer, buffer, data.byteLength).set(data);
+    const passwordPtr = StringUtils.allocateUTF8(password);
     const docHandle = Pdfium.wasmExports.FPDF_LoadMemDocument(
       buffer,
       data.byteLength,
@@ -514,23 +514,32 @@ function loadDocumentFromData(params) {
   const fileNamePtr = StringUtils.allocateUTF8(tempFileName);
   const passwordPtr = StringUtils.allocateUTF8(password);
   const docHandle = Pdfium.wasmExports.FPDF_LoadDocument(fileNamePtr, passwordPtr);
-  StringUtils.freeUTF8(fileNamePtr);
   StringUtils.freeUTF8(passwordPtr);
+  StringUtils.freeUTF8(fileNamePtr);
   return _loadDocument(docHandle, () => fileSystem.unregisterFile(tempFileName));
+
 }
 
 /** @type {Object<number, function():void>} */
 const disposers = {};
 
 /**
+ * @typedef {{docHandle: number,permissions: number, securityHandlerRevision: number, pages: PdfPage[], formHandle: number, formInfo: number}} PdfDocument
+ * @typedef {{pageIndex: number, width: number, height: number, rotation: number}} PdfPage
+ * @typedef {{errorCode: number, errorCodeStr: string|undefined, message: string}} PdfError
+ */
+
+/**
  * @param {number} docHandle 
  * @param {function():void} onDispose
+ * @returns {PdfDocument|PdfError}
  */
 function _loadDocument(docHandle, onDispose) {
   try {
     if (!docHandle) {
       const error = Pdfium.wasmExports.FPDF_GetLastError();
-      throw new Error(`Failed to load document from data (${_getErrorMessage(error)})`);
+      const errorStr = _errorMappings[error];
+      return { errorCode: error, errorCodeStr: _errorMappings[error], message: `Failed to load document` };
     }
   
     const pageCount = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
@@ -543,7 +552,6 @@ function _loadDocument(docHandle, onDispose) {
     uint32[0] = 1; // version
     const formHandle = Pdfium.wasmExports.FPDFDOC_InitFormFillEnvironment(docHandle, formInfo);
     if (formHandle === 0) {
-      Pdfium.wasmExports.free(formInfo);
       formInfo = 0;
     }
   
@@ -574,6 +582,7 @@ function _loadDocument(docHandle, onDispose) {
       formInfo: formInfo,
     };
   } catch (e) {
+    Pdfium.wasmExports.free(formInfo);
     delete disposers[docHandle];
     onDispose();
     throw e;

@@ -316,6 +316,13 @@ packages:
       relative: true
     source: path
     version: "1.1.11"
+  pdfrx_wasm:
+    dependency: "direct main"
+    description:
+      path: "../../wasm/pdfrx_wasm"
+      relative: true
+    source: path
+    version: "1.1.6"
   platform:
     dependency: transitive
     description:

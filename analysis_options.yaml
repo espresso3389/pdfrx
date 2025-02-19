@@ -23,7 +23,7 @@ linter:
   rules:
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
     prefer_single_quotes: true
-    comment_references: true
+    # comment_references: true
     prefer_relative_imports: true
     use_key_in_widget_constructors: true
     avoid_return_types_on_setters: true

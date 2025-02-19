@@ -17,13 +17,16 @@ Future<void> setup() async {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   const channel = MethodChannel('plugins.flutter.io/path_provider');
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(channel, (methodCall) async {
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+    methodCall,
+  ) async {
     return cacheRoot.path;
   });
   try {
     await cacheRoot.delete(recursive: true);
-  } catch (e) {/**/}
+  } catch (e) {
+    /**/
+  }
 }
 
 /// Downloads the pdfium module for the current platform and architecture.
@@ -50,8 +53,7 @@ Future<String> downloadAndGetPdfiumModulePath() async {
 }
 
 /// Downloads the pdfium module for the given platform and architecture.
-Future<String> _downloadPdfium(
-    String platform, String arch, String modulePath) async {
+Future<String> _downloadPdfium(String platform, String arch, String modulePath) async {
   final tmpDir = Directory('${tmpRoot.path}/$platform-$arch');
   final targetPath = '${tmpDir.path}/$modulePath';
   if (await File(targetPath).exists()) return targetPath;
@@ -62,8 +64,7 @@ Future<String> _downloadPdfium(
   if (tgz.statusCode != 200) {
     throw Exception('Failed to download pdfium: $uri');
   }
-  final archive =
-      TarDecoder().decodeBytes(GZipDecoder().decodeBytes(tgz.bodyBytes));
+  final archive = TarDecoder().decodeBytes(GZipDecoder().decodeBytes(tgz.bodyBytes));
   try {
     await tmpDir.delete(recursive: true);
   } catch (_) {}

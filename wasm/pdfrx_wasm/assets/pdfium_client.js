@@ -16,7 +16,7 @@ globalThis.pdfiumWasmSendCommand = function() {
           if (data.status === "success") {
             callback.resolve(data.result);
           } else {
-            callback.reject(new Error(data.error));
+            callback.reject(new Error(data.error, data.cause != null ? { cause: data.cause } : undefined));
           }
           callbacks.delete(data.id);
         }

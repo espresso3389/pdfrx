@@ -181,24 +181,23 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactoryImpl {
           throw const PdfPasswordException('No password supplied by PasswordProvider.');
         }
       }
-      try {
-        await _init();
 
-        return PdfDocumentWasm._(
-          await openDocument(password),
-          sourceName: sourceName,
-          disposeCallback: onDispose,
-          factory: factory,
-        );
-      } catch (e) {
-        if (!_isPasswordError(e)) {
-          rethrow;
+      await _init();
+
+      final result = await openDocument(password);
+
+      const fpdfErrPassword = 4;
+      final errorCode = (result['errorCode'] as num?)?.toInt();
+      if (errorCode != null) {
+        if (errorCode == fpdfErrPassword) {
+          continue;
         }
+        throw StateError('Failed to open document: ${result['errorCodeStr']} ($errorCode)');
       }
+
+      return PdfDocumentWasm._(result, sourceName: sourceName, disposeCallback: onDispose, factory: factory);
     }
   }
-
-  static bool _isPasswordError(dynamic e) => e.toString().startsWith('PasswordException:');
 }
 
 class PdfDocumentWasm extends PdfDocument {

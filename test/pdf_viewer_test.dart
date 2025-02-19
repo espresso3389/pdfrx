@@ -13,30 +13,22 @@ final binding = TestWidgetsFlutterBinding.ensureInitialized();
 
 void main() {
   setUp(() => setup());
-  Pdfrx.createHttpClient = () => MockClient(
-        (request) async {
-          return http.Response.bytes(await testPdfFile.readAsBytes(), 200);
-        },
-      );
+  Pdfrx.createHttpClient =
+      () => MockClient((request) async {
+        return http.Response.bytes(await testPdfFile.readAsBytes(), 200);
+      });
 
-  testWidgets(
-    'PdfViewer.uri',
-    (tester) async {
-      await binding.setSurfaceSize(Size(1080, 1920));
-      await tester.pumpWidget(
-        MaterialApp(
-          // FIXME: Just a workaround for "A RenderFlex overflowed..."
-          home: SingleChildScrollView(
-            child: PdfViewer.uri(
-              Uri.parse('https://example.com/hello.pdf'),
-            ),
-          ),
-        ),
-      );
+  testWidgets('PdfViewer.uri', (tester) async {
+    await binding.setSurfaceSize(Size(1080, 1920));
+    await tester.pumpWidget(
+      MaterialApp(
+        // FIXME: Just a workaround for "A RenderFlex overflowed..."
+        home: SingleChildScrollView(child: PdfViewer.uri(Uri.parse('https://example.com/hello.pdf'))),
+      ),
+    );
 
-      await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
 
-      expect(find.byType(PdfViewer), findsOneWidget);
-    },
-  );
+    expect(find.byType(PdfViewer), findsOneWidget);
+  });
 }

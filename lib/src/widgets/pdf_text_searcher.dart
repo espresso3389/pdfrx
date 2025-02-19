@@ -272,7 +272,7 @@ class PdfTextSearcher extends Listenable {
   void removeListener(VoidCallback listener) => _listeners.remove(listener);
 }
 
-extension PatternExts on Pattern {
+extension _PatternExts on Pattern {
   bool get isEmpty {
     switch (this) {
       case String s:
