@@ -1979,17 +1979,13 @@ extension RectExt on Rect {
 /// Create a [CustomPainter] from a paint function.
 class _CustomPainter extends CustomPainter {
   /// Create a [CustomPainter] from a paint function.
-  const _CustomPainter.fromFunctions(this.paintFunction, {this.hitTestFunction});
+  const _CustomPainter.fromFunctions(this.paintFunction);
   final void Function(ui.Canvas canvas, ui.Size size) paintFunction;
-  final bool Function(Offset position)? hitTestFunction;
   @override
   void paint(ui.Canvas canvas, ui.Size size) => paintFunction(canvas, size);
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-
-  @override
-  bool? hitTest(ui.Offset position) => hitTestFunction == null ? super.hitTest(position) : hitTestFunction!(position);
 }
 
 Widget _defaultErrorBannerBuilder(
@@ -2112,7 +2108,7 @@ class _CanvasLinkPainter {
 
     final paint =
         Paint()
-          ..color = _state.widget.params.linkHandlerParams?.linkColor ?? Colors.blue.withOpacity(0.2)
+          ..color = _state.widget.params.linkHandlerParams?.linkColor ?? Colors.blue.withAlpha(50)
           ..style = PaintingStyle.fill;
     for (final link in links) {
       for (final rect in link.rects) {

@@ -252,8 +252,8 @@ class PdfTextSearcher extends Listenable {
     final range = getMatchesRangeForPage(page.pageNumber);
     if (range == null) return;
 
-    final matchTextColor = controller?.params.matchTextColor ?? Colors.yellow.withOpacity(0.5);
-    final activeMatchTextColor = controller?.params.activeMatchTextColor ?? Colors.orange.withOpacity(0.5);
+    final matchTextColor = controller?.params.matchTextColor ?? Colors.yellow.withAlpha(127);
+    final activeMatchTextColor = controller?.params.activeMatchTextColor ?? Colors.orange.withAlpha(127);
 
     for (int i = range.start; i < range.end; i++) {
       final m = _matches[i];

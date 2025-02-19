@@ -1,3 +1,7 @@
+# 1.1.11
+
+- Color.withOpacity -> Color.withValues, Color.value -> Color.toARGB32()
+
 # 1.1.10
 
 - Update project structure to conform to [Package layout conventions](https://dart.dev/tools/pub/package-layout)

@@ -567,7 +567,7 @@ class PdfPagePdfium extends PdfPage {
             height: height!,
             fullWidth: fullWidth!.toInt(),
             fullHeight: fullHeight!.toInt(),
-            backgroundColor: backgroundColor!.value,
+            backgroundColor: backgroundColor!.toARGB32(),
             annotationRenderingMode: annotationRenderingMode,
             formHandle: document.formHandle.address,
             formInfo: document.formInfo.address,

@@ -358,7 +358,7 @@ class PdfPageJs extends PdfPage {
     canvas.height = height;
 
     if (backgroundColor != null) {
-      canvas.context2D.fillStyle = '#${backgroundColor.value.toRadixString(16).padLeft(8, '0')}'.toJS;
+      canvas.context2D.fillStyle = '#${backgroundColor.toARGB32().toRadixString(16).padLeft(8, '0')}'.toJS;
       canvas.context2D.fillRect(0, 0, width, height);
     }
 

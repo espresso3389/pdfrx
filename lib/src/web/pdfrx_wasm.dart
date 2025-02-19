@@ -391,7 +391,7 @@ class PdfPageWasm extends PdfPage {
         'height': height,
         'fullWidth': fullWidth,
         'fullHeight': fullHeight,
-        'backgroundColor': backgroundColor.value,
+        'backgroundColor': backgroundColor.toARGB32(),
         'annotationRenderingMode': annotationRenderingMode.index,
         'formHandle': document.document['formHandle'],
       },
