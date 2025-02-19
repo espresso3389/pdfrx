@@ -16,7 +16,7 @@ A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web
 - Windows
 - macOS
 - Linux (even on Raspberry PI)
-- Web (\*using [PDF.js](https://mozilla.github.io/pdf.js/))
+- Web (\*using [PDF.js](https://mozilla.github.io/pdf.js/)) or Pdfium WASM (\*experimental)
 
 ## Example Code
 
@@ -73,7 +73,7 @@ dependencies:
   pdfrx_wasm: ^1.1.6
 ```
 
-And then, enable Pdfium WASM by adding the following line to somewhere that runs before calling any pdfrx functions:
+And then, enable Pdfium WASM by adding the following line to somewhere that runs before calling any pdfrx functions (typically `main` function):
 
 ```dart
 Pdfrx.webRuntimeType = PdfrxWebRuntimeType.pdfiumWasm;

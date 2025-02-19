@@ -1,7 +1,6 @@
 // ignore_for_file: public_member_api_docs
 import 'dart:async';
 import 'dart:collection';
-import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
 
@@ -15,6 +14,7 @@ import 'package:synchronized/extension.dart';
 import 'package:vector_math/vector_math_64.dart' as vec;
 
 import '../../pdfrx.dart';
+import '../utils/platform.dart';
 import 'interactive_viewer.dart' as iv;
 import 'pdf_error_widget.dart';
 import 'pdf_page_links_overlay.dart';
@@ -496,12 +496,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   /// Last page number that is explicitly requested to go to.
   int? _gotoTargetPageNumber;
 
-  /// Key pressing state of ⌘ or Control depending on the platform.
-  static bool get _isCommandKeyPressed =>
-      Platform.isMacOS || Platform.isIOS
-          ? HardwareKeyboard.instance.isMetaPressed
-          : HardwareKeyboard.instance.isControlPressed;
-
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     final isDown = event is KeyDownEvent;
     switch (event.logicalKey) {
@@ -526,12 +520,12 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.equal:
-        if (isDown && _isCommandKeyPressed) {
+        if (isDown && isCommandKeyPressed) {
           _zoomUp();
         }
         return KeyEventResult.handled;
       case LogicalKeyboardKey.minus:
-        if (isDown && _isCommandKeyPressed) {
+        if (isDown && isCommandKeyPressed) {
           _zoomDown();
         }
         return KeyEventResult.handled;
