@@ -64,6 +64,7 @@ abstract class PdfDocumentFactory {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
+    bool allowDataOwnershipTransfer = false,
     void Function()? onDispose,
   });
 
@@ -192,17 +193,22 @@ abstract class PdfDocument {
   ///
   /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
   /// unique for each source, the viewer may not work correctly.
+  ///
+  /// Web only: [allowDataOwnershipTransfer] is used to determine if the data buffer can be transferred to
+  /// the worker thread.
   static Future<PdfDocument> openData(
     Uint8List data, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
+    bool allowDataOwnershipTransfer = false,
     void Function()? onDispose,
   }) => PdfDocumentFactory.instance.openData(
     data,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     sourceName: sourceName,
+    allowDataOwnershipTransfer: allowDataOwnershipTransfer,
     onDispose: onDispose,
   );
 

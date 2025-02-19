@@ -11,9 +11,23 @@ import '../pdf_api.dart';
 import 'pdfrx_js.dart';
 import 'pdfrx_web.dart';
 
+/// Calls PDFium WASM worker with the given command and parameters.
+@JS()
+external JSPromise<JSAny?> pdfiumWasmSendCommand([String command, JSAny? parameters, JSArray<JSAny>? transfer]);
+
+/// The URL of the PDFium WASM worker script; pdfium_client.js tries to load worker script from this URL.'
+///
+/// [PdfDocumentFactoryWasmImpl._init] will initializes its value.
+@JS()
+external String pdfiumWasmWorkerUrl;
+
+/// [PdfDocumentFactory] for PDFium WASM implementation.
 class PdfDocumentFactoryWasmImpl extends PdfDocumentFactoryImpl {
   PdfDocumentFactoryWasmImpl() : super.callMeIfYouWantToExtendMe();
 
+  /// Default path to the WASM modules
+  ///
+  /// Normally, the WASM modules are provided by pdfrx_wasm package and this is the path to its assets.
   static const defaultWasmModulePath = 'assets/packages/pdfrx_wasm/assets/';
 
   Future<void> _init() async {
@@ -27,14 +41,23 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactoryImpl {
           ..type = 'module'
           ..src = '${moduleUrl}pdfium_client.js';
     web.document.querySelector('head')!.appendChild(script);
-    await script.onLoad.first.timeout(const Duration(seconds: 10));
+    final completer = Completer();
+    final sub1 = script.onLoad.listen((_) => completer.complete());
+    final sub2 = script.onError.listen((event) => completer.completeError(event));
+    try {
+      await completer.future;
+    } catch (e) {
+      throw StateError('Failed to load pdfium_client.js from $moduleUrl: $e');
+    } finally {
+      await sub1.cancel();
+      await sub2.cancel();
+    }
   }
 
   /// Ugly workaround for Cross-Origin-Embedder-Policy restriction on WASM enabled environments
   String _getWorkerUrl() {
-    final curUrl = web.window.location.href;
     final moduleUrl =
-        Pdfrx.pdfiumWasmModulesUrl ?? '${curUrl.substring(0, curUrl.lastIndexOf('/') + 1)}$defaultWasmModulePath';
+        Pdfrx.pdfiumWasmModulesUrl ?? '${_removeLastComponent(web.window.location.href)}$defaultWasmModulePath';
     final workerJsUrl = '${moduleUrl}pdfium_worker.js';
     final pdfiumWasmUrl = '${moduleUrl}pdfium.wasm';
     final content = 'const pdfiumWasmUrl="$pdfiumWasmUrl";importScripts("$workerJsUrl");';
@@ -43,6 +66,21 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactoryImpl {
       web.BlobPropertyBag(type: 'application/javascript'),
     );
     return web.URL.createObjectURL(blob);
+  }
+
+  /// Removes the last component from the URL (e.g. the file name) and adds a trailing slash if necessary.
+  ///
+  /// This is necessary to ensure that the URL points to a directory, which is required by the WASM loader.
+  /// - `https://example.com/path/to/file.pdf` -> `https://example.com/path/to/`
+  /// - `https://example.com/path/to/` -> `https://example.com/path/to/`
+  /// - `https://example.com/` -> `https://example.com/`
+  /// - `https://example.com` -> `https://example.com/`
+  static String _removeLastComponent(String url) {
+    final lastSlash = url.lastIndexOf('/');
+    if (lastSlash == -1) {
+      return '$url/';
+    }
+    return url.substring(0, lastSlash + 1);
   }
 
   Future<Map<Object?, dynamic>> sendCommand(String command, {Map<Object?, dynamic>? parameters}) async {
@@ -57,12 +95,13 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactoryImpl {
     bool firstAttemptByEmptyPassword = true,
   }) async {
     final asset = await rootBundle.load(name);
-    return await _openByFunc(
-      (password) =>
-          sendCommand('loadDocumentFromData', parameters: {'data': asset.buffer.asUint8List(), 'password': password}),
-      sourceName: name,
-      factory: this,
+    final data = asset.buffer.asUint8List();
+    return await openData(
+      data,
       passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      sourceName: name,
+      allowDataOwnershipTransfer: true,
     );
   }
 
@@ -85,6 +124,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactoryImpl {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
+    bool allowDataOwnershipTransfer = false,
     void Function()? onDispose,
   }) => _openByFunc(
     (password) => sendCommand('loadDocumentFromData', parameters: {'data': data, 'password': password}),
@@ -160,12 +200,6 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactoryImpl {
 
   static bool _isPasswordError(dynamic e) => e.toString().startsWith('PasswordException:');
 }
-
-@JS()
-external JSPromise<JSAny?> pdfiumWasmSendCommand(String command, JSAny? parameters);
-
-@JS()
-external String pdfiumWasmWorkerUrl;
 
 class PdfDocumentWasm extends PdfDocument {
   PdfDocumentWasm._(this.document, {required super.sourceName, required this.factory, this.disposeCallback})

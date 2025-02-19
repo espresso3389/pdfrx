@@ -81,6 +81,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
+    bool allowDataOwnershipTransfer = false, // just ignored
     void Function()? onDispose,
   }) => _openData(
     data,

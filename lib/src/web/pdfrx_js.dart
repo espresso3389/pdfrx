@@ -23,7 +23,7 @@ class PdfDocumentFactoryJsImpl extends PdfDocumentFactoryImpl {
       // NOTE: Moving the asset load outside the loop may cause:
       // Uncaught TypeError: Cannot perform Construct on a detached ArrayBuffer
       final bytes = await rootBundle.load(name);
-      return await pdfjsGetDocumentFromData(bytes.buffer, password: password);
+      return await pdfjsGetDocumentFromData(bytes.buffer, password: password, allowDataOwnershipTransfer: true);
     },
     sourceName: 'asset:$name',
     passwordProvider: passwordProvider,
@@ -57,10 +57,15 @@ class PdfDocumentFactoryJsImpl extends PdfDocumentFactoryImpl {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
+    bool allowDataOwnershipTransfer = false,
     void Function()? onDispose,
   }) async {
     return _openByFunc(
-      (password) => pdfjsGetDocumentFromData(data.buffer, password: password),
+      (password) => pdfjsGetDocumentFromData(
+        data.buffer,
+        password: password,
+        allowDataOwnershipTransfer: allowDataOwnershipTransfer,
+      ),
       sourceName: sourceName ?? 'memory-${data.hashCode}',
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,

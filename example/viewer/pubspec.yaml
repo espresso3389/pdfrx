@@ -14,8 +14,8 @@ dependencies:
 
   pdfrx:
     path: ../../
-  # pdfrx_wasm:
-  #   path: ../../wasm/pdfrx_wasm/
+  pdfrx_wasm:
+    path: ../../wasm/pdfrx_wasm/
 
   cupertino_icons: ^1.0.8
   rxdart: ^0.28.0

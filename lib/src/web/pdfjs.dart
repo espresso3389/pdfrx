@@ -3,10 +3,11 @@
 @JS()
 library;
 
+import 'dart:async';
 import 'dart:js_interop';
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:synchronized/extension.dart';
 import 'package:web/web.dart' as web;
 
@@ -83,17 +84,44 @@ Future<PdfjsDocument> pdfjsGetDocument(
       ),
     ).promise.toDart;
 
-Future<PdfjsDocument> pdfjsGetDocumentFromData(ByteBuffer data, {String? password}) =>
-    _pdfjsGetDocument(
-      _PdfjsDocumentInitParameters(
-        data: data.toJS,
-        password: password,
-        cMapUrl: PdfJsConfiguration.configuration?.cMapUrl ?? _pdfjsCMapUrl,
-        cMapPacked: PdfJsConfiguration.configuration?.cMapPacked ?? true,
-        useSystemFonts: PdfJsConfiguration.configuration?.useSystemFonts,
-        standardFontDataUrl: PdfJsConfiguration.configuration?.standardFontDataUrl,
-      ),
-    ).promise.toDart;
+/// [allowDataOwnershipTransfer] is used to determine if the data buffer can be transferred to the worker thread.
+Future<PdfjsDocument> pdfjsGetDocumentFromData(
+  ByteBuffer data, {
+  String? password,
+  bool allowDataOwnershipTransfer = false,
+}) async {
+  if (!allowDataOwnershipTransfer) {
+    // We may need to duplicate the buffer if it is "technically transferrable".
+    if (data.isTechnicallyTransferrable) {
+      data = data.duplicate();
+    }
+  }
+
+  final result =
+      await _pdfjsGetDocument(
+        _PdfjsDocumentInitParameters(
+          data: data.toJS,
+          password: password,
+          cMapUrl: PdfJsConfiguration.configuration?.cMapUrl ?? _pdfjsCMapUrl,
+          cMapPacked: PdfJsConfiguration.configuration?.cMapPacked ?? true,
+          useSystemFonts: PdfJsConfiguration.configuration?.useSystemFonts,
+          standardFontDataUrl: PdfJsConfiguration.configuration?.standardFontDataUrl,
+        ),
+      ).promise.toDart;
+  return result;
+}
+
+extension _ByteBufferExtensions on ByteBuffer {
+  bool get isTechnicallyTransferrable {
+    if (!kIsWeb) throw UnsupportedError('This method is only available on web');
+    // if NOT running with Flutter WASM runtime, every ByteBuffer can be transferrable
+    if (!kIsWasm) return true;
+    // if running with Flutter WASM runtime, only JSArrayBufferImpl can be transferrable (I believe)
+    return runtimeType.toString() == 'JSArrayBufferImpl';
+  }
+
+  ByteBuffer duplicate() => Uint8List.fromList(asUint8List()).buffer;
+}
 
 extension type PdfjsDocument._(JSObject _) implements JSObject {
   external JSPromise<PdfjsPage> getPage(int pageNumber);
@@ -297,13 +325,12 @@ Future<void> ensurePdfjsInitialized() async {
       return;
     }
 
-    const isRunningWithWasm = bool.fromEnvironment('dart.tool.dart2wasm');
     debugPrint(
       'pdfrx Web status:\n'
-      '- Running WASM:      $isRunningWithWasm\n'
+      '- Running WASM:      $kIsWasm\n'
       '- SharedArrayBuffer: $isSharedArrayBufferSupported',
     );
-    if (isRunningWithWasm && !isSharedArrayBufferSupported) {
+    if (kIsWasm && !isSharedArrayBufferSupported) {
       debugPrint(
         'WARNING: SharedArrayBuffer is not enabled and WASM is running in single thread mode. Enable SharedArrayBuffer by setting the following HTTP header on your server:\n'
         '  Cross-Origin-Embedder-Policy: require-corp|credentialless\n'
@@ -312,20 +339,25 @@ Future<void> ensurePdfjsInitialized() async {
     }
 
     final pdfJsSrc = PdfJsConfiguration.configuration?.pdfJsSrc ?? _pdfjsUrl;
+
+    final script =
+        web.document.createElement('script') as web.HTMLScriptElement
+          ..type = 'text/javascript'
+          ..charset = 'utf-8'
+          ..async = true
+          ..type = 'module'
+          ..src = pdfJsSrc;
+    web.document.querySelector('head')!.appendChild(script);
+    final completer = Completer();
+    final sub1 = script.onLoad.listen((_) => completer.complete());
+    final sub2 = script.onError.listen((event) => completer.completeError(event));
     try {
-      final script =
-          web.document.createElement('script') as web.HTMLScriptElement
-            ..type = 'text/javascript'
-            ..charset = 'utf-8'
-            ..async = true
-            ..type = 'module'
-            ..src = pdfJsSrc;
-      web.document.querySelector('head')!.appendChild(script);
-      await script.onLoad.first.timeout(
-        PdfJsConfiguration.configuration?.pdfJsDownloadTimeout ?? const Duration(seconds: 10),
-      );
+      await completer.future;
     } catch (e) {
       throw StateError('Failed to load pdf.js from $pdfJsSrc: $e');
+    } finally {
+      await sub1.cancel();
+      await sub2.cancel();
     }
 
     if (!_isPdfjsLoaded) {

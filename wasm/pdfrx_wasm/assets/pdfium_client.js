@@ -27,10 +27,10 @@ globalThis.pdfiumWasmSendCommand = function() {
       console.error("Worker error:", err);
     };
 
-  return function(command, parameters = {}) {
+  return function(command, parameters = {}, transfer = []) {
     return new Promise((resolve, reject) => {
       const id = ++requestId;
       callbacks.set(id, { resolve, reject });
-      worker.postMessage({ id, command, parameters });
+      worker.postMessage({ id, command, parameters }, transfer);
     });};
 }();

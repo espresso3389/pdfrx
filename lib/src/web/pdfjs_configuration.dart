@@ -9,7 +9,6 @@ class PdfJsConfiguration {
     required this.cMapPacked,
     this.useSystemFonts = true,
     this.standardFontDataUrl,
-    this.pdfJsDownloadTimeout = const Duration(seconds: 10),
   });
 
   /// `psf.js` file URL such as https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.mjs
@@ -31,12 +30,9 @@ class PdfJsConfiguration {
   /// The URL where the standard font files are located. Include the trailing slash.
   final String? standardFontDataUrl;
 
-  /// The timeout for downloading the PDF.js library. The default is 10 seconds.
-  final Duration pdfJsDownloadTimeout;
-
   /// The current configuration. null to use the default.
   ///
-  /// To customze the pdf.js download URLs, set this before using any APIs.:
+  /// To customize the pdf.js download URLs, set this before using any APIs.:
   ///
   /// ```dart
   /// PdfJsConfiguration.configuration = const PdfJsConfiguration(

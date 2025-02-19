@@ -16,4 +16,5 @@ bool _determineWhetherSharedArrayBufferSupportedOrNot() {
   }
 }
 
+/// Whether SharedArrayBuffer is supported or not.
 final bool isSharedArrayBufferSupported = _determineWhetherSharedArrayBufferSupportedOrNot();
