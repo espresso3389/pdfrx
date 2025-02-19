@@ -4,7 +4,6 @@
 library;
 
 import 'dart:js_interop';
-import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -12,6 +11,7 @@ import 'package:synchronized/extension.dart';
 import 'package:web/web.dart' as web;
 
 import '../../pdfrx.dart';
+import 'js_utils.dart';
 
 /// Default pdf.js version
 const _pdfjsVersion = '4.10.38';
@@ -288,21 +288,6 @@ final _dummyJsSyncContext = {};
 
 bool _pdfjsInitialized = false;
 
-/// Whether SharedArrayBuffer is supported.
-///
-/// It actually means whether Flutter Web can take advantage of multiple threads or not.
-///
-/// See [Support for WebAssembly (Wasm) - Serve the built output with an HTTP server](https://docs.flutter.dev/platform-integration/web/wasm#serve-the-built-output-with-an-http-server)
-bool _determineWhetherSharedArrayBufferSupportedOrNot() {
-  try {
-    return web.window.hasProperty('SharedArrayBuffer'.toJS).toDart;
-  } catch (e) {
-    return false;
-  }
-}
-
-final bool _isSharedArrayBufferSupported = _determineWhetherSharedArrayBufferSupportedOrNot();
-
 Future<void> ensurePdfjsInitialized() async {
   if (_pdfjsInitialized) return;
   await _dummyJsSyncContext.synchronized(() async {
@@ -316,9 +301,9 @@ Future<void> ensurePdfjsInitialized() async {
     debugPrint(
       'pdfrx Web status:\n'
       '- Running WASM:      $isRunningWithWasm\n'
-      '- SharedArrayBuffer: $_isSharedArrayBufferSupported',
+      '- SharedArrayBuffer: $isSharedArrayBufferSupported',
     );
-    if (isRunningWithWasm && !_isSharedArrayBufferSupported) {
+    if (isRunningWithWasm && !isSharedArrayBufferSupported) {
       debugPrint(
         'WARNING: SharedArrayBuffer is not enabled and WASM is running in single thread mode. Enable SharedArrayBuffer by setting the following HTTP header on your server:\n'
         '  Cross-Origin-Embedder-Policy: require-corp|credentialless\n'

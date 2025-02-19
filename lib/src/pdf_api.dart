@@ -29,6 +29,24 @@ abstract class Pdfrx {
   ///
   /// It is not supported on Flutter Web.
   static http.Client Function()? createHttpClient;
+
+  /// Select the Web runtime type.
+  static PdfrxWebRuntimeType webRuntimeType = PdfrxWebRuntimeType.pdfjs;
+
+  /// To override the default pdfium WASM modules URL.
+  ///
+  /// It should be full
+  /// It is used only when on Flutter Web with [Pdfrx.webRuntimeType] is [PdfrxWebRuntimeType.pdfiumWasm].
+  static String? pdfiumWasmModulesUrl;
+}
+
+/// Web runtime type.
+enum PdfrxWebRuntimeType {
+  /// Use PDF.js.
+  pdfjs,
+
+  /// Use PDFium (WASM).
+  pdfiumWasm,
 }
 
 /// For platform abstraction purpose; use [PdfDocument] instead.
@@ -877,7 +895,26 @@ class PdfDest {
 }
 
 /// [PDF 32000-1:2008, 12.3.2.2 Explicit Destinations, Table 151](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=374)
-enum PdfDestCommand { unknown, xyz, fit, fitH, fitV, fitR, fitB, fitBH, fitBV }
+enum PdfDestCommand {
+  unknown('unknown'),
+  xyz('xyz'),
+  fit('fit'),
+  fitH('fith'),
+  fitV('fitv'),
+  fitR('fitr'),
+  fitB('fitb'),
+  fitBH('fitbh'),
+  fitBV('fitbv');
+
+  const PdfDestCommand(this.name);
+
+  final String name;
+
+  factory PdfDestCommand.parse(String name) {
+    final nameLow = name.toLowerCase();
+    return PdfDestCommand.values.firstWhere((e) => e.name == nameLow, orElse: () => PdfDestCommand.unknown);
+  }
+}
 
 /// Link in PDF page.
 ///

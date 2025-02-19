@@ -1,5 +1,3 @@
-# CHANGE
-
 ## 1.1.5
 
 - Explicitly specify web support on pubspec.yaml
