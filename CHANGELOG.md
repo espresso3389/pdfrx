@@ -1,3 +1,7 @@
+## 1.1.6
+
+- "Bleeding edge" Pdfium WASM support (disabled by default)
+
 ## 1.1.5
 
 - Explicitly specify web support on pubspec.yaml

@@ -52,7 +52,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^1.1.5
+  pdfrx: ^1.1.6
 ```
 
 ### Note for Windows
@@ -61,6 +61,25 @@ dependencies:
 
 The build process internally uses *symbolic links* and it requires Developer Mode to be enabled.
 Without this, you may encounter errors [like this](https://github.com/espresso3389/pdfrx/issues/34).
+
+### "Bleeding Edge" Pdfium WASM support on Web
+
+pdfrx now supports "bleeding edge" Pdfium WASM support on Web.
+This is still not production-ready, but you can try it by adding additional [pdfrx_wasm](https://pub.dartlang.org/packages/pdfrx_wasm) to your dependencies:
+
+```yaml
+dependencies:
+  pdfrx: ^1.1.6
+  pdfrx_wasm: ^1.1.6
+```
+
+And then, enable Pdfium WASM by adding the following line to somewhere that runs before calling any pdfrx functions:
+
+```dart
+Pdfrx.webRuntimeType = PdfrxWebRuntimeType.pdfiumWasm;
+```
+
+The plugin, `pdfrx_wasm`, is a satellite plugin for `pdfrx` that contains files required to run Pdfium WASM. Because the WASM binary/support files are relatively large (about 4MB), it is not included in the main `pdfrx` package and you need to add `pdfrx_wasm` to your dependencies.
 
 ## Open PDF File
 
