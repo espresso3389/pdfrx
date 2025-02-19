@@ -1,3 +1,7 @@
+## 1.1.8
+
+- Internal refactoring to improve the code integrity
+
 ## 1.1.7
 
 - Introducing allowDataOwnershipTransfer on PdfDocument.openData to allow transfer data ownership of the passed data; it is false by default to keep consistency with the previous behavior

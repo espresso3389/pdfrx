@@ -52,7 +52,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^1.1.7
+  pdfrx: ^1.1.8
 ```
 
 ### Note for Windows
@@ -69,7 +69,7 @@ This is still not production-ready, but you can try it by adding additional [pdf
 
 ```yaml
 dependencies:
-  pdfrx: ^1.1.7
+  pdfrx: ^1.1.8
   pdfrx_wasm: ^1.1.6
 ```
 

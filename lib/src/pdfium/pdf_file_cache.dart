@@ -13,7 +13,6 @@ import 'http_cache_control.dart';
 
 /// PDF file cache backed by a file.
 ///
-/// Because the code internally uses `dart:io`'s [File], it is not available on the web.
 class PdfFileCache {
   PdfFileCache(this.file);
 
