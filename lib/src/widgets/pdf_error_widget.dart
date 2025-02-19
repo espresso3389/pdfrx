@@ -1,11 +1,9 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 import '../../pdfrx.dart';
+import '../utils/platform.dart';
 
 /// Show error widget when pdf viewer failed to load pdf.
 Widget pdfErrorWidget(BuildContext context, Object error, {StackTrace? stackTrace, bool bannerWarning = true}) {
@@ -28,7 +26,7 @@ Widget pdfErrorWidget(BuildContext context, Object error, {StackTrace? stackTrac
                       TextSpan(text: ' $error\n\n', style: const TextStyle(color: Colors.white)),
                       if (stackTrace != null)
                         TextSpan(text: stackTrace.toString(), style: const TextStyle(fontSize: 14)),
-                      if (error is PdfPasswordException && !kIsWeb && Platform.isWindows)
+                      if (error is PdfPasswordException && isWindows)
                         const TextSpan(
                           text:
                               '\n***On Windows, PDFium could not report errors correctly and every error is recognized as password error.',
