@@ -11,6 +11,10 @@ import 'search_view.dart';
 import 'thumbnails_view.dart';
 
 void main() {
+  // NOTE: To enable bleeding-edge Pdfium WASM support on Flutter Web;
+  // 1. add pdfrx_wasm to your pubspec.yaml's dependencies.
+  // 2. uncomment the following line.
+  // Pdfrx.webRuntimeType = PdfrxWebRuntimeType.pdfiumWasm;
   runApp(const MyApp());
 }
 
