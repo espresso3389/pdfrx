@@ -208,6 +208,8 @@ class PdfDocumentRefFile extends PdfDocumentRef with PdfDocumentRefPasswordMixin
 }
 
 /// A [PdfDocumentRef] that loads the document from data.
+///
+/// For [allowDataOwnershipTransfer], see [PdfDocument.openData].
 class PdfDocumentRefData extends PdfDocumentRef with PdfDocumentRefPasswordMixin {
   const PdfDocumentRefData(
     this.data, {
@@ -215,6 +217,7 @@ class PdfDocumentRefData extends PdfDocumentRef with PdfDocumentRefPasswordMixin
     this.passwordProvider,
     this.firstAttemptByEmptyPassword = true,
     super.autoDispose = true,
+    this.allowDataOwnershipTransfer = false,
     this.onDispose,
   });
 
@@ -223,6 +226,7 @@ class PdfDocumentRefData extends PdfDocumentRef with PdfDocumentRefPasswordMixin
   final PdfPasswordProvider? passwordProvider;
   @override
   final bool firstAttemptByEmptyPassword;
+  final bool allowDataOwnershipTransfer;
   final void Function()? onDispose;
 
   @override
@@ -237,6 +241,7 @@ class PdfDocumentRefData extends PdfDocumentRef with PdfDocumentRefPasswordMixin
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     sourceName: sourceName,
+    allowDataOwnershipTransfer: allowDataOwnershipTransfer,
     onDispose: onDispose,
   );
 

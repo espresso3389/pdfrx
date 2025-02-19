@@ -1,3 +1,8 @@
+## 1.1.7
+
+- Introducing allowDataOwnershipTransfer on PdfDocument.openData to allow transfer data ownership of the passed data; it is false by default to keep consistency with the previous behavior
+  - This actually fixes #303 but the drawback is that extra memory may be consumed on Flutter Web...
+
 ## 1.1.6
 
 - "Bleeding edge" Pdfium WASM support (disabled by default)
