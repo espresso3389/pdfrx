@@ -32,3 +32,5 @@ migrate_working_dir/
 build/
 
 /test/.tmp
+
+CLAUDE.md
