@@ -1,3 +1,7 @@
+# 1.1.12
+
+- FIXED: WASM: could not open PDF files smaller than 1MB (#326)
+
 # 1.1.11
 
 - Color.withOpacity -> Color.withValues, Color.value -> Color.toARGB32()
