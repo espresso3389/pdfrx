@@ -398,19 +398,20 @@ const emEnv = {
   _tzset_js: function() { },
   emscripten_date_now: function() { return Date.now(); },
   emscripten_errn: function() { _notImplemented('emscripten_errn'); },
-  emscripten_resize_heap: function(requestedSize) {
-    const oldSize = Pdfium.memory.buffer.byteLength;
-    const maxHeapSize = 2 * 1024 * 1024 * 1024; // 2GB
-    const pageSize = 65536;
-    if (requestedSize > maxHeapSize) {
-      console.error(`emscripten_resize_heap: Cannot enlarge memory, asked for ${requestedSize} bytes but limit is ${maxHeapSize}`);
+  emscripten_resize_heap: function(requestedSizeInBytes) {
+    const maxHeapSizeInBytes = 2 * 1024 * 1024 * 1024; // 2GB
+    if (requestedSizeInBytes > maxHeapSizeInBytes) {
+      console.error(`emscripten_resize_heap: Cannot enlarge memory, asked for ${requestedPageCount} bytes but limit is ${maxHeapSizeInBytes}`);
       return false;
     }
-    let newSize = Math.max(oldSize * 1.5, requestedSize);
-    newSize = (newSize + pageSize - 1) & ~pageSize;
+
+    const pageSize = 65536;
+    const oldPageCount = ((Pdfium.memory.buffer.byteLength + pageSize - 1) / pageSize)|0;
+    const requestedPageCount = ((requestedSizeInBytes + pageSize - 1) / pageSize)|0;
+    const newPageCount = Math.max(oldPageCount * 1.5, requestedPageCount) | 0;
     try {
-      Pdfium.memory.grow((newSize - oldSize) / pageSize);
-      console.log(`emscripten_resize_heap: ${oldSize} => ${newSize}`);
+      Pdfium.memory.grow(newPageCount - oldPageCount);
+      console.log(`emscripten_resize_heap: ${oldPageCount} => ${newPageCount}`);
       return true;
     } catch (e) {
       console.error(`emscripten_resize_heap: Failed to resize heap: ${_error(e)}`);
@@ -709,7 +710,6 @@ function renderPage(params) {
       bufferPtr,
       width * 4
     );
-  
     if (!bitmap) {
       throw new Error("Failed to create bitmap for rendering");
     }
