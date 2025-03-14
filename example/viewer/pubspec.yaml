@@ -20,7 +20,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   rxdart: ^0.28.0
   url_launcher: ^6.3.1
-  synchronized: ^3.3.0
+  synchronized: ^3.3.1
   file_selector: ^1.0.3
 
 dev_dependencies:

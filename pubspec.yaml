@@ -8,19 +8,19 @@ environment:
   flutter: ">=3.29.0"
 
 dependencies:
-  collection: '>=1.18.0 <1.20.0'
+  collection:
   crypto: ^3.0.6
-  ffi: ^2.1.3
+  ffi:
   flutter:
     sdk: flutter
-  http: ^1.2.2
-  path: ^1.9.0
+  http:
+  path:
   path_provider: ^2.1.5
-  rxdart: '>=0.27.0 <0.29.0'
-  synchronized: ^3.3.0
+  rxdart:
+  synchronized: ^3.3.1
   url_launcher: ^6.3.1
   vector_math: ^2.1.4
-  web: ^1.1.0
+  web: ^1.1.1
 
 dev_dependencies:
   ffigen: ^16.1.0
