@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -7,6 +8,7 @@ import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:synchronized/extension.dart';
 
 import '../../pdfrx.dart';
 import 'http_cache_control.dart';
@@ -98,7 +100,7 @@ class PdfFileCache {
   }
 
   static const header1Size = 16;
-  static const headerMagic = 23456;
+  static const headerMagic = 34567;
   static const dataStrSizeMax = 128;
 
   Future<void> _saveCacheState() => _write(_cacheStatePosition!, _cacheState);
@@ -235,6 +237,19 @@ class PdfFileCache {
   static Future<Directory> Function() getCacheDirectory = getApplicationCacheDirectory;
 }
 
+class _HttpClientWrapper {
+  _HttpClientWrapper(this.createHttpClient);
+  final http.Client Function() createHttpClient;
+
+  http.Client? _client;
+  http.Client get client => _client ??= createHttpClient();
+
+  void reset() {
+    _client?.close();
+    _client = null;
+  }
+}
+
 /// Open PDF file from [uri].
 ///
 /// On web, unlike [PdfDocument.openUri], this function uses HTTP's range request to download the file and uses [PdfFileCache].
@@ -258,13 +273,13 @@ Future<PdfDocument> pdfDocumentFromUri(
 
   progressCallback?.call(0);
   cache ??= await PdfFileCache.fromUri(uri);
-  final httpClient = Pdfrx.createHttpClient?.call() ?? http.Client();
+  final httpClientWrapper = _HttpClientWrapper(Pdfrx.createHttpClient ?? () => http.Client());
 
   try {
     if (!cache.isInitialized) {
       cache.setBlockSize(blockSize ?? PdfFileCache.defaultBlockSize);
       final result = await _downloadBlock(
-        httpClient,
+        httpClientWrapper,
         uri,
         cache,
         progressCallback,
@@ -285,7 +300,7 @@ Future<PdfDocument> pdfDocumentFromUri(
         // cache is valid; no need to download.
       } else {
         final result = await _downloadBlock(
-          httpClient,
+          httpClientWrapper,
           uri,
           cache,
           progressCallback,
@@ -296,7 +311,7 @@ Future<PdfDocument> pdfDocumentFromUri(
         );
         if (result.isFullDownload) {
           cache.close(); // close the cache file before opening it.
-          httpClient.close();
+          httpClientWrapper.reset();
           return await PdfDocument.openFile(
             cache.filePath,
             passwordProvider: passwordProvider,
@@ -315,7 +330,7 @@ Future<PdfDocument> pdfDocumentFromUri(
           final blockId = p ~/ cache!.blockSize;
           final isAvailable = cache.isCached(blockId);
           if (!isAvailable) {
-            await _downloadBlock(httpClient, uri, cache, progressCallback, blockId, headers: headers);
+            await _downloadBlock(httpClientWrapper, uri, cache, progressCallback, blockId, headers: headers);
           }
           final readEnd = min(p + size, (blockId + 1) * cache.blockSize);
           final sizeToRead = readEnd - p;
@@ -332,12 +347,12 @@ Future<PdfDocument> pdfDocumentFromUri(
       sourceName: uri.toString(),
       onDispose: () {
         cache!.close();
-        httpClient.close();
+        httpClientWrapper.reset();
       },
     );
   } catch (e) {
     cache.close();
-    httpClient.close();
+    httpClientWrapper.reset();
     rethrow;
   } finally {
     report();
@@ -363,7 +378,7 @@ class _DownloadResult {
 
 // Download blocks of the file and cache the data to file.
 Future<_DownloadResult> _downloadBlock(
-  http.Client httpClient,
+  _HttpClientWrapper httpClientWrapper,
   Uri uri,
   PdfFileCache cache,
   PdfDownloadProgressCallback? progressCallback,
@@ -372,18 +387,26 @@ Future<_DownloadResult> _downloadBlock(
   bool addCacheControlHeaders = false,
   bool useRangeAccess = true,
   Map<String, String>? headers,
-}) async {
+}) => httpClientWrapper.synchronized(() async {
   int? fileSize;
   final blockOffset = blockId * cache.blockSize;
   final end = blockOffset + cache.blockSize * blockCount;
-
   final request = http.Request('GET', uri)
     ..headers.addAll({
       if (useRangeAccess) 'Range': 'bytes=$blockOffset-${end - 1}',
       if (addCacheControlHeaders) ...cache.cacheControlState.getHeadersForFetch(),
       if (headers != null) ...headers,
     });
-  final response = await httpClient.send(request);
+  late final http.StreamedResponse response;
+  try {
+    response = await httpClientWrapper.client.send(request).timeout(Duration(seconds: 5));
+  } on TimeoutException {
+    httpClientWrapper.reset();
+    rethrow;
+  } catch (e) {
+    httpClientWrapper.reset();
+    throw PdfException('Failed to download PDF file: $e');
+  }
   if (response.statusCode == 304) {
     return _DownloadResult(cache.fileSize, false, true);
   }
@@ -422,10 +445,11 @@ Future<_DownloadResult> _downloadBlock(
 
   if (isFullDownload) {
     fileSize ??= cachedBytesSoFar;
+    await cache.initializeWithFileSize(fileSize, truncateExistingContent: false);
     await cache.setCached(0, lastBlock: cache.totalBlocks - 1);
   } else {
     await cache.setCached(blockId, lastBlock: blockId + blockCount - 1);
   }
 
   return _DownloadResult(fileSize!, isFullDownload, false);
-}
+});
