@@ -1,3 +1,8 @@
+# 1.1.13
+
+- Fix indefinite stack on loading PDF files from certain server; now it immediately return error (not actually fixed) (#311)
+- FIXED: 2nd time loading of certain URL fails due to some cache error (#330)
+
 # 1.1.12
 
 - FIXED: WASM: could not open PDF files smaller than 1MB (#326)
