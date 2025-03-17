@@ -14,7 +14,9 @@ import 'web/pdfrx_web.dart' if (dart.library.io) 'pdfium/pdfrx_pdfium.dart';
 
 /// Class to provide Pdfrx's configuration.
 /// The parameters should be set before calling any Pdfrx's functions.
-abstract class Pdfrx {
+class Pdfrx {
+  Pdfrx._();
+
   /// Explicitly specify pdfium module path for special purpose.
   ///
   /// It is not supported on Flutter Web.
@@ -31,6 +33,11 @@ abstract class Pdfrx {
   static http.Client Function()? createHttpClient;
 
   /// Select the Web runtime type.
+  ///
+  /// To use PDFium (WASM) runtime, set this value to [PdfrxWebRuntimeType.pdfiumWasm] and you must add
+  /// [pdfrx_wasm](https://pub.dartlang.org/packages/pdfrx_wasm) to your `pubspec.yaml`'s `dependencies`.
+  ///
+  /// It is used only when on Flutter Web.
   static PdfrxWebRuntimeType webRuntimeType = PdfrxWebRuntimeType.pdfjs;
 
   /// To override the default pdfium WASM modules URL.
