@@ -56,10 +56,9 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactoryImpl {
 
   /// Ugly workaround for Cross-Origin-Embedder-Policy restriction on WASM enabled environments
   String _getWorkerUrl() {
-    final moduleUrl =
-        Pdfrx.pdfiumWasmModulesUrl ?? '${_removeLastComponent(web.window.location.href)}$defaultWasmModulePath';
-    final workerJsUrl = '${moduleUrl}pdfium_worker.js';
-    final pdfiumWasmUrl = '${moduleUrl}pdfium.wasm';
+    final moduleUrl = Pdfrx.pdfiumWasmModulesUrl ?? _appendComponents(web.window.location.href, defaultWasmModulePath);
+    final workerJsUrl = _appendComponents(moduleUrl, 'pdfium_worker.js');
+    final pdfiumWasmUrl = _appendComponents(moduleUrl, 'pdfium.wasm');
     final content = 'const pdfiumWasmUrl="$pdfiumWasmUrl";importScripts("$workerJsUrl");';
     final blob = web.Blob(
       [content].jsify() as JSArray<web.BlobPart>,
@@ -68,19 +67,15 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactoryImpl {
     return web.URL.createObjectURL(blob);
   }
 
-  /// Removes the last component from the URL (e.g. the file name) and adds a trailing slash if necessary.
-  ///
-  /// This is necessary to ensure that the URL points to a directory, which is required by the WASM loader.
-  /// - `https://example.com/path/to/file.pdf` -> `https://example.com/path/to/`
-  /// - `https://example.com/path/to/` -> `https://example.com/path/to/`
-  /// - `https://example.com/` -> `https://example.com/`
-  /// - `https://example.com` -> `https://example.com/`
-  static String _removeLastComponent(String url) {
-    final lastSlash = url.lastIndexOf('/');
+  static String _appendComponents(String url, String additionalPath) {
+    var uri = Uri.parse(url);
+    final lastSlash = uri.path.lastIndexOf('/');
     if (lastSlash == -1) {
-      return '$url/';
+      uri = uri.replace(path: '${uri.path}/$additionalPath');
+    } else {
+      uri = uri.replace(path: uri.path.substring(0, lastSlash + 1) + additionalPath);
     }
-    return url.substring(0, lastSlash + 1);
+    return uri.toString();
   }
 
   Future<Map<Object?, dynamic>> sendCommand(String command, {Map<Object?, dynamic>? parameters}) async {

@@ -40,9 +40,8 @@ class Pdfrx {
   /// It is used only when on Flutter Web.
   static PdfrxWebRuntimeType webRuntimeType = PdfrxWebRuntimeType.pdfjs;
 
-  /// To override the default pdfium WASM modules URL.
+  /// To override the default pdfium WASM modules directory URL. It must be terminated by '/'.
   ///
-  /// It should be full
   /// It is used only when on Flutter Web with [Pdfrx.webRuntimeType] is [PdfrxWebRuntimeType.pdfiumWasm].
   static String? pdfiumWasmModulesUrl;
 }
