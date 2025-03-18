@@ -1,3 +1,7 @@
+# 1.1.14
+
+- Improve pdfium_worker.js/pdfium.wasm loading path resolution logic (#331)
+
 # 1.1.13
 
 - Fix indefinite stack on loading PDF files from certain server; now it immediately return error (not actually fixed) (#311)
