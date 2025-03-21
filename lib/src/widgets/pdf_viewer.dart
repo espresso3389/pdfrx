@@ -1157,14 +1157,17 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   }
 
   Matrix4 _normalizeMatrix(Matrix4 newValue) {
-    final position = newValue.calcPosition(_viewSize!);
+    final layout = _layout;
+    final viewSize = _viewSize;
+    if (layout == null || viewSize == null) return newValue;
+    final position = newValue.calcPosition(viewSize);
     final newZoom = widget.params.boundaryMargin != null ? newValue.zoom : max(newValue.zoom, minScale);
-    final hw = _viewSize!.width / 2 / newZoom;
-    final hh = _viewSize!.height / 2 / newZoom;
-    final x = position.dx.range(hw, _layout!.documentSize.width - hw);
-    final y = position.dy.range(hh, _layout!.documentSize.height - hh);
+    final hw = viewSize.width / 2 / newZoom;
+    final hh = viewSize.height / 2 / newZoom;
+    final x = position.dx.range(hw, layout.documentSize.width - hw);
+    final y = position.dy.range(hh, layout.documentSize.height - hh);
 
-    return _calcMatrixFor(Offset(x, y), zoom: newZoom, viewSize: _viewSize!);
+    return _calcMatrixFor(Offset(x, y), zoom: newZoom, viewSize: viewSize);
   }
 
   /// Calculate matrix to center the specified position.
