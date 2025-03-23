@@ -1,3 +1,8 @@
+# Minimum Example
+
+The following code is a minimum example usage of pdfrx:
+
+```dart
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -32,3 +37,6 @@ class MainPage extends StatelessWidget {
     );
   }
 }
+```
+
+For more advanced usage, see [[viewer/lib/main.dart]].

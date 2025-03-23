@@ -1,3 +1,7 @@
+# 1.1.17
+
+- FIXED: example is not shown on pub.dev
+
 # 1.1.14
 
 - Improve pdfium_worker.js/pdfium.wasm loading path resolution logic (#331)
