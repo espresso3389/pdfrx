@@ -309,7 +309,9 @@ Future<PdfDocument> pdfDocumentFromUri(
           useRangeAccess: useRangeAccess,
           headers: headers,
         );
-        if (result.isFullDownload) {
+        // cached file has expired
+        // if the file has fully downloaded again or has not been modified
+        if (result.isFullDownload || result.notModified) {
           cache.close(); // close the cache file before opening it.
           httpClientWrapper.reset();
           return await PdfDocument.openFile(
