@@ -1,3 +1,7 @@
+# 1.1.18
+
+- Merge PR #338 from mtallenca/cache_expired_not_modified_fix
+
 # 1.1.17
 
 - FIXED: example is not shown on pub.dev

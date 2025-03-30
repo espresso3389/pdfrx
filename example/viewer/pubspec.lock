@@ -315,7 +315,7 @@ packages:
       path: "../.."
       relative: true
     source: path
-    version: "1.1.17"
+    version: "1.1.18"
   pdfrx_wasm:
     dependency: "direct main"
     description:
