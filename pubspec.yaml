@@ -23,7 +23,7 @@ dependencies:
   web: ^1.1.1
 
 dev_dependencies:
-  ffigen: ^16.1.0
+  ffigen: ^18.0.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0

@@ -6308,7 +6308,7 @@ enum FPDF_TEXT_RENDERMODE {
         6 => FPDF_TEXTRENDERMODE_FILL_STROKE_CLIP,
         7 => FPDF_TEXTRENDERMODE_CLIP,
         _ =>
-          throw ArgumentError("Unknown value for FPDF_TEXT_RENDERMODE: $value"),
+          throw ArgumentError('Unknown value for FPDF_TEXT_RENDERMODE: $value'),
       };
 
   @override
@@ -6459,7 +6459,7 @@ enum _FPDF_DUPLEXTYPE_ {
         1 => Simplex,
         2 => DuplexFlipShortEdge,
         3 => DuplexFlipLongEdge,
-        _ => throw ArgumentError("Unknown value for _FPDF_DUPLEXTYPE_: $value"),
+        _ => throw ArgumentError('Unknown value for _FPDF_DUPLEXTYPE_: $value'),
       };
 }
 
@@ -6587,7 +6587,7 @@ enum FPDF_RENDERER_TYPE {
         0 => FPDF_RENDERERTYPE_AGG,
         1 => FPDF_RENDERERTYPE_SKIA,
         _ =>
-          throw ArgumentError("Unknown value for FPDF_RENDERER_TYPE: $value"),
+          throw ArgumentError('Unknown value for FPDF_RENDERER_TYPE: $value'),
       };
 }
 
@@ -7054,7 +7054,7 @@ enum FPDFANNOT_COLORTYPE {
         0 => FPDFANNOT_COLORTYPE_Color,
         1 => FPDFANNOT_COLORTYPE_InteriorColor,
         _ =>
-          throw ArgumentError("Unknown value for FPDFANNOT_COLORTYPE: $value"),
+          throw ArgumentError('Unknown value for FPDFANNOT_COLORTYPE: $value'),
       };
 }
 
@@ -7068,7 +7068,7 @@ enum FPDF_FILEIDTYPE {
   static FPDF_FILEIDTYPE fromValue(int value) => switch (value) {
         0 => FILEIDTYPE_PERMANENT,
         1 => FILEIDTYPE_CHANGING,
-        _ => throw ArgumentError("Unknown value for FPDF_FILEIDTYPE: $value"),
+        _ => throw ArgumentError('Unknown value for FPDF_FILEIDTYPE: $value'),
       };
 }
 
