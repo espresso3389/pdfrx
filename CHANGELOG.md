@@ -1,3 +1,7 @@
+# 1.1.19
+
+- `lib/src/pdfium/pdfium_bindings.dart` now keep Pdfium's original comments
+
 # 1.1.18
 
 - Merge PR #338 from mtallenca/cache_expired_not_modified_fix
