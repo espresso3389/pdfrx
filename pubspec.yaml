@@ -62,4 +62,6 @@ ffigen:
       - "example/viewer/build/windows/x64/.lib/latest/include/**"
   preamble: |
     // ignore_for_file: unused_field
+    // dart format off
   name: "pdfium"
+

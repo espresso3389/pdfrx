@@ -1,4 +1,5 @@
 // ignore_for_file: unused_field
+// dart format off
 
 // AUTO GENERATED FILE, DO NOT EDIT.
 //
