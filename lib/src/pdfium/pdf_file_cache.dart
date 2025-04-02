@@ -13,12 +13,24 @@ import 'package:synchronized/extension.dart';
 import '../../pdfrx.dart';
 import 'http_cache_control.dart';
 
+final _rafFinalizer = Finalizer<RandomAccessFile>((raf) {
+  // Attempt to close the file if it hasn't been closed explicitly.
+  // Use try-catch as close might fail or already be closed.
+  try {
+    raf.close();
+    // Consider adding logging here if needed for debugging finalization.
+    // print('PdfFileCache: Finalizer closed RandomAccessFile.');
+  } catch (_) {
+    // Ignore errors during finalization.
+  }
+});
+
 /// PDF file cache backed by a file.
 ///
 class PdfFileCache {
   PdfFileCache(this.file);
 
-  /// Default cache block size is 32KB.
+  /// Default cache block size is 1MB.
   static const defaultBlockSize = 1024 * 1024;
 
   /// Cache file.
@@ -59,12 +71,20 @@ class PdfFileCache {
   bool get isInitialized => _initialized;
 
   Future<void> close() async {
-    await _raf?.close();
-    _raf = null;
+    final raf = _raf;
+    if (raf != null) {
+      _rafFinalizer.detach(this); // Detach from finalizer since we are closing explicitly
+      _raf = null;
+      await raf.close();
+    }
   }
 
   Future<void> _ensureFileOpen() async {
-    _raf ??= await file.open(mode: FileMode.append);
+    if (_raf == null) {
+      _raf = await file.open(mode: FileMode.append);
+      // Attach the file handle to the finalizer, associated with 'this' cache instance.
+      _rafFinalizer.attach(this, _raf!, detach: this);
+    }
   }
 
   Future<void> _read(List<int> buffer, int bufferPosition, int position, int size) async {
@@ -148,7 +168,7 @@ class PdfFileCache {
         _fileSize = await _getSize() - _headerSize!;
       }
       _initialized = true;
-    } catch (e) {
+    } catch (_) {
       _initialized = false;
     }
   }
