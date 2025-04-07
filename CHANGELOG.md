@@ -1,3 +1,7 @@
+# 1.1.21
+
+- FIXED: loadOutline is not implemented on Pdfium WASM
+
 # 1.1.20
 
 - Add HTML meta tags (`pdfrx-pdfium-wasm`/`pdfium-wasm-module-url`) to enable Pdfium WASM support
