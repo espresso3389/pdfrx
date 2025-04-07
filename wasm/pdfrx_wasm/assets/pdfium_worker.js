@@ -607,17 +607,27 @@ function closeDocument(params) {
 }
 
 /**
+ * @typedef {{pageIndex: number, command: string, params: number[]}} PdfDest
+ * @typedef {{title: string, dest: PdfDest, children: OutlineNode[]}} OutlineNode
+ */
+
+/**
  * @param {{docHandle: number}} params 
+ * @return {OutlineNode[]}
  */
 function loadOutline(params) {
-  return _getOutlineNodeSiblings(Pdfium.wasmExports.FPDFBookmark_GetFirstChild(params.docHandle, null), params.docHandle);
+  return {
+    outline: _getOutlineNodeSiblings(Pdfium.wasmExports.FPDFBookmark_GetFirstChild(params.docHandle, null), params.docHandle),
+  };
 }
 
 /**
  * @param {number} bookmark 
  * @param {number} docHandle 
+ * @return {OutlineNode[]}
  */
 function _getOutlineNodeSiblings(bookmark, docHandle) {
+  /** @type {OutlineNode[]} */
   const siblings = [];
   while (bookmark) {
     const titleBufSize = Pdfium.wasmExports.FPDFBookmark_GetTitle(bookmark, null, 0);
@@ -627,7 +637,7 @@ function _getOutlineNodeSiblings(bookmark, docHandle) {
     Pdfium.wasmExports.free(titleBuf);
     siblings.push({
       title: title,
-      dest: Pdfium.wasmExports.FPDFBookmark_GetDest(docHandle, bookmark),
+      dest: _pdfDestFromDest(Pdfium.wasmExports.FPDFBookmark_GetDest(docHandle, bookmark), docHandle),
       children: _getOutlineNodeSiblings(Pdfium.wasmExports.FPDFBookmark_GetFirstChild(docHandle, bookmark), docHandle),
     });
     bookmark = Pdfium.wasmExports.FPDFBookmark_GetNextSibling(docHandle, bookmark);
@@ -917,7 +927,6 @@ function _getText(textPage, from, length) {
 
 
 /**
- * @typedef {{pageIndex: number, command: string, params: number[]}} PdfDest
  * @typedef {{rects: number[][], dest: url: string}} PdfUrlLink
  * @typedef {{rects: number[][], dest: PdfDest}} PdfDestLink
  */
@@ -1073,7 +1082,7 @@ const pdfDestCommands = ['unknown', 'xyz', 'fit', 'fitH', 'fitV', 'fitR', 'fitB'
  * @returns {PdfDest|null}
  */
 function _pdfDestFromDest(dest, docHandle) {
-  if (dest == null) return null;
+  if (dest === 0) return null;
   const buf = Pdfium.wasmExports.malloc(40);
   const pageIndex = Pdfium.wasmExports.FPDFDest_GetDestPageIndex(docHandle, dest);
   const type = Pdfium.wasmExports.FPDFDest_GetView(dest, buf, buf + 4);

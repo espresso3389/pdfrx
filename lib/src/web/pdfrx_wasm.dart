@@ -228,7 +228,17 @@ class PdfDocumentWasm extends PdfDocument {
 
   @override
   Future<List<PdfOutlineNode>> loadOutline() async {
-    return [];
+    final result = await factory.sendCommand('loadOutline', parameters: {'docHandle': document['docHandle']});
+    final outlineList = result['outline'] as List<dynamic>;
+    return outlineList.map((node) => _nodeFromMap(node)).toList();
+  }
+
+  static PdfOutlineNode _nodeFromMap(dynamic node) {
+    return PdfOutlineNode(
+      title: node['title'],
+      dest: _pdfDestFromMap(node['dest']),
+      children: (node['children'] as List<dynamic>).map((child) => _nodeFromMap(child)).toList(),
+    );
   }
 
   @override
@@ -310,13 +320,7 @@ class PdfPageWasm extends PdfPage {
       if (dest is! Map<Object?, dynamic>) {
         throw FormatException('Unexpected link destination structure: $dest');
       }
-      final params = dest['params'] as List;
-      final pdfDest = PdfDest(
-        (dest['pageIndex'] as num).toInt() + 1,
-        PdfDestCommand.parse(dest['command'] as String),
-        params.map((p) => p as double).toList(),
-      );
-      return PdfLink(rects, dest: pdfDest);
+      return PdfLink(rects, dest: _pdfDestFromMap(dest));
     }).toList();
   }
 
@@ -414,4 +418,14 @@ class PdfPageTextFragmentPdfium implements PdfPageTextFragment {
   final List<PdfRect>? charRects;
   @override
   String get text => pageText.fullText.substring(index, index + length);
+}
+
+PdfDest? _pdfDestFromMap(dynamic dest) {
+  if (dest == null) return null;
+  final params = dest['params'] as List;
+  return PdfDest(
+    (dest['pageIndex'] as num).toInt() + 1,
+    PdfDestCommand.parse(dest['command'] as String),
+    params.map((p) => p as double).toList(),
+  );
 }
