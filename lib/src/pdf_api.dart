@@ -108,7 +108,17 @@ abstract class PdfDocumentFactory {
   ///
   /// It is used to switch PDFium/web implementation based on the running platform and of course, you can
   /// override it to use your own implementation.
-  static PdfDocumentFactory instance = PdfDocumentFactoryImpl();
+  static PdfDocumentFactory instance = getDocumentFactory();
+
+  /// Get [PdfDocumentFactory] that uses PDFium implementation.
+  ///
+  /// For Flutter Web, it uses PDFium (WASM) implementation.
+  static PdfDocumentFactory get pdfium => getPdfiumDocumentFactory();
+
+  /// Get [PdfDocumentFactory] that uses PDF.js implementation.
+  ///
+  /// It is only supported on Flutter Web.
+  static PdfDocumentFactory get pdfjs => getPdfjsDocumentFactory();
 }
 
 /// Callback function to notify download progress.

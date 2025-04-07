@@ -9,7 +9,6 @@ import 'package:web/web.dart' as web;
 
 import '../pdf_api.dart';
 import 'pdfrx_js.dart';
-import 'pdfrx_web.dart';
 
 /// Calls PDFium WASM worker with the given command and parameters.
 @JS()
@@ -22,8 +21,8 @@ external JSPromise<JSAny?> pdfiumWasmSendCommand([String command, JSAny? paramet
 external String pdfiumWasmWorkerUrl;
 
 /// [PdfDocumentFactory] for PDFium WASM implementation.
-class PdfDocumentFactoryWasmImpl extends PdfDocumentFactoryImpl {
-  PdfDocumentFactoryWasmImpl() : super.callMeIfYouWantToExtendMe();
+class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
+  PdfDocumentFactoryWasmImpl();
 
   /// Default path to the WASM modules
   ///

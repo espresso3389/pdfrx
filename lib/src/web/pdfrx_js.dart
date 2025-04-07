@@ -8,10 +8,9 @@ import 'package:web/web.dart' as web;
 
 import '../../pdfrx.dart';
 import 'pdfjs.dart';
-import 'pdfrx_web.dart';
 
-class PdfDocumentFactoryJsImpl extends PdfDocumentFactoryImpl {
-  PdfDocumentFactoryJsImpl() : super.callMeIfYouWantToExtendMe();
+class PdfDocumentFactoryJsImpl extends PdfDocumentFactory {
+  PdfDocumentFactoryJsImpl();
 
   @override
   Future<PdfDocument> openAsset(

@@ -15,6 +15,12 @@ import 'pdfium_bindings.dart' as pdfium_bindings;
 import 'pdfium_interop.dart';
 import 'worker.dart';
 
+PdfDocumentFactory getPdfiumDocumentFactory() => PdfDocumentFactoryImpl();
+
+PdfDocumentFactory getPdfjsDocumentFactory() => throw UnsupportedError('Pdf.js is only supported on Web');
+
+PdfDocumentFactory getDocumentFactory() => getPdfiumDocumentFactory();
+
 /// Get the module file name for pdfium.
 String _getModuleFileName() {
   if (Pdfrx.pdfiumModulePath != null) return Pdfrx.pdfiumModulePath!;
