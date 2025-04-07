@@ -1,3 +1,7 @@
+# 1.1.20
+
+- Add HTML meta tags (`pdfrx-pdfium-wasm`/`pdfium-wasm-module-url`) to enable Pdfium WASM support
+
 # 1.1.19
 
 - `lib/src/pdfium/pdfium_bindings.dart` now keep Pdfium's original comments
