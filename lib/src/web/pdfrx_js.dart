@@ -24,7 +24,7 @@ class PdfDocumentFactoryJsImpl extends PdfDocumentFactory {
       final bytes = await rootBundle.load(name);
       return await pdfjsGetDocumentFromData(bytes.buffer, password: password, allowDataOwnershipTransfer: true);
     },
-    sourceName: 'asset:$name',
+    sourceName: 'asset_js:$name',
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
   );
@@ -65,7 +65,7 @@ class PdfDocumentFactoryJsImpl extends PdfDocumentFactory {
         password: password,
         allowDataOwnershipTransfer: allowDataOwnershipTransfer,
       ),
-      sourceName: sourceName ?? 'memory-${data.hashCode}',
+      sourceName: sourceName ?? 'memory_js:${data.hashCode}',
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       onDispose: onDispose,
@@ -97,7 +97,7 @@ class PdfDocumentFactoryJsImpl extends PdfDocumentFactory {
   }) => _openByFunc(
     (password) =>
         pdfjsGetDocument(uri.toString(), password: password, headers: headers, withCredentials: withCredentials),
-    sourceName: uri.toString(),
+    sourceName: 'uri_js:$uri',
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
   );

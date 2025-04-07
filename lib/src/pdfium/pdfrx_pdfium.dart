@@ -15,10 +15,18 @@ import 'pdfium_bindings.dart' as pdfium_bindings;
 import 'pdfium_interop.dart';
 import 'worker.dart';
 
+/// Get [PdfDocumentFactory] backed by Pdfium.
+///
+/// For Flutter Web, you must set up Pdfium WASM module.
+/// For more information, see [Enable Pdfium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-Pdfium-WASM-support).
 PdfDocumentFactory getPdfiumDocumentFactory() => PdfDocumentFactoryImpl();
 
+/// Get [PdfDocumentFactory] backed by PDF.js.
+///
+/// Only supported on Flutter Web.
 PdfDocumentFactory getPdfjsDocumentFactory() => throw UnsupportedError('Pdf.js is only supported on Web');
 
+/// Get the default [PdfDocumentFactory].
 PdfDocumentFactory getDocumentFactory() => getPdfiumDocumentFactory();
 
 /// Get the module file name for pdfium.
