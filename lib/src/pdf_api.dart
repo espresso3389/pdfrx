@@ -965,6 +965,11 @@ class PdfLink {
   PdfLink compact() {
     return PdfLink(List.unmodifiable(rects), url: url, dest: dest?.compact());
   }
+
+  @override
+  String toString() {
+    return 'PdfLink{${url?.toString() ?? dest?.toString()}, rects: $rects}';
+  }
 }
 
 /// Outline (a.k.a. Bookmark) node in PDF document.
