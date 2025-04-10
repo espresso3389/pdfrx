@@ -413,8 +413,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
         return Container(
           color: widget.params.backgroundColor,
-          child: Focus(
-            onKeyEvent: _onKeyEvent,
+          child: _FocusWithKeyRepeat(
+            onKeyRepeat: _onKeyEvent,
             child: StreamBuilder(
               stream: _updateStream,
               builder: (context, snapshot) {
@@ -496,61 +496,33 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   /// Last page number that is explicitly requested to go to.
   int? _gotoTargetPageNumber;
 
-  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    final isDown = event is KeyDownEvent;
-    switch (event.logicalKey) {
+  void _onKeyEvent(FocusNode node, LogicalKeyboardKey key) {
+    switch (key) {
       case LogicalKeyboardKey.pageUp:
-        if (isDown) {
-          _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) - 1);
-        }
-        return KeyEventResult.handled;
+        _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) - 1);
       case LogicalKeyboardKey.pageDown:
-        if (isDown) {
-          _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) + 1);
-        }
-        return KeyEventResult.handled;
+        _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) + 1);
       case LogicalKeyboardKey.home:
-        if (isDown) {
-          _goToPage(pageNumber: 1);
-        }
-        return KeyEventResult.handled;
+        _goToPage(pageNumber: 1);
       case LogicalKeyboardKey.end:
-        if (isDown) {
-          _goToPage(pageNumber: _document!.pages.length, anchor: widget.params.pageAnchorEnd);
-        }
-        return KeyEventResult.handled;
+        _goToPage(pageNumber: _document!.pages.length, anchor: widget.params.pageAnchorEnd);
       case LogicalKeyboardKey.equal:
-        if (isDown && isCommandKeyPressed) {
+        if (isCommandKeyPressed) {
           _zoomUp();
         }
-        return KeyEventResult.handled;
       case LogicalKeyboardKey.minus:
-        if (isDown && isCommandKeyPressed) {
+        if (isCommandKeyPressed) {
           _zoomDown();
         }
-        return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowDown:
-        if (isDown) {
-          _goToManipulated((m) => m.translate(0.0, -widget.params.scrollByArrowKey));
-        }
-        return KeyEventResult.handled;
+        _goToManipulated((m) => m.translate(0.0, -widget.params.scrollByArrowKey));
       case LogicalKeyboardKey.arrowUp:
-        if (isDown) {
-          _goToManipulated((m) => m.translate(0.0, widget.params.scrollByArrowKey));
-        }
-        return KeyEventResult.handled;
+        _goToManipulated((m) => m.translate(0.0, widget.params.scrollByArrowKey));
       case LogicalKeyboardKey.arrowLeft:
-        if (isDown) {
-          _goToManipulated((m) => m.translate(widget.params.scrollByArrowKey, 0.0));
-        }
-        return KeyEventResult.handled;
+        _goToManipulated((m) => m.translate(widget.params.scrollByArrowKey, 0.0));
       case LogicalKeyboardKey.arrowRight:
-        if (isDown) {
-          _goToManipulated((m) => m.translate(-widget.params.scrollByArrowKey, 0.0));
-        }
-        return KeyEventResult.handled;
+        _goToManipulated((m) => m.translate(-widget.params.scrollByArrowKey, 0.0));
     }
-    return KeyEventResult.ignored;
   }
 
   Future<void> _goToManipulated(void Function(Matrix4 m) manipulate) async {
@@ -2119,5 +2091,91 @@ class _CanvasLinkPainter {
         canvas.drawRect(rectLink, paint);
       }
     }
+  }
+}
+
+class _FocusWithKeyRepeat extends StatefulWidget {
+  const _FocusWithKeyRepeat({
+    required this.child,
+    required this.onKeyRepeat,
+    super.key,
+    this.focusNode,
+    this.parentNode,
+    this.initialDelay = const Duration(milliseconds: 500),
+    this.repeatInterval = const Duration(milliseconds: 100),
+  });
+  final Widget child;
+  final Function(FocusNode, LogicalKeyboardKey) onKeyRepeat;
+  final Duration initialDelay;
+  final Duration repeatInterval;
+  final FocusNode? focusNode;
+  final FocusNode? parentNode;
+
+  @override
+  _FocusWithKeyRepeatState createState() => _FocusWithKeyRepeatState();
+}
+
+class _FocusWithKeyRepeatState extends State<_FocusWithKeyRepeat> {
+  Timer? _timer;
+  LogicalKeyboardKey? _currentKey;
+
+  void _startRepeating(FocusNode node, LogicalKeyboardKey key) {
+    _currentKey = key;
+
+    // Initial delay before starting to repeat
+    _timer = Timer(widget.initialDelay, () {
+      // Start repeating at the specified interval
+      _timer = Timer.periodic(widget.repeatInterval, (_) {
+        widget.onKeyRepeat(node, _currentKey!);
+      });
+    });
+  }
+
+  void _stopRepeating() {
+    _timer?.cancel();
+    _timer = null;
+    _currentKey = null;
+  }
+
+  @override
+  void dispose() {
+    _stopRepeating();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      focusNode: widget.focusNode,
+      parentNode: widget.parentNode,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent) {
+          // Key pressed down
+          if (_currentKey == null) {
+            _startRepeating(node, event.logicalKey);
+            widget.onKeyRepeat(node, event.logicalKey); // Immediate first response
+          }
+          return KeyEventResult.handled;
+        } else if (event is KeyUpEvent) {
+          // Key released
+          if (_currentKey == event.logicalKey) {
+            _stopRepeating();
+          }
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Builder(
+        builder: (context) {
+          final focusNode = Focus.of(context);
+          return ListenableBuilder(
+            listenable: focusNode,
+            builder: (context, _) {
+              return widget.child;
+            },
+          );
+        },
+      ),
+    );
   }
 }
