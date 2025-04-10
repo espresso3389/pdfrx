@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../pdfrx.dart';
 
@@ -58,6 +59,7 @@ class PdfViewerParams {
     this.onTextSelectionChange,
     this.selectableRegionInjector,
     this.perPageSelectableRegionInjector,
+    this.onKey,
     this.forceReload = false,
   });
 
@@ -490,6 +492,14 @@ class PdfViewerParams {
   /// You can even enable both of [selectableRegionInjector] and [perPageSelectableRegionInjector] at the same time.
   final PdfPerPageSelectableRegionInjector? perPageSelectableRegionInjector;
 
+  /// Function to handle key events.
+  ///
+  /// The function should return true if it processes the key event; otherwise, it returns false.
+  ///
+  /// By default, [PdfViewer] handles key events such as arrow keys and page up/down keys. You can even override the
+  /// default behavior by returning true from this function.
+  final PdfViewerOnKeyCallback? onKey;
+
   /// Force reload the viewer.
   ///
   /// Normally whether to reload the viewer is determined by the changes of the parameters but
@@ -578,6 +588,7 @@ class PdfViewerParams {
         other.onTextSelectionChange == onTextSelectionChange &&
         other.selectableRegionInjector == selectableRegionInjector &&
         other.perPageSelectableRegionInjector == perPageSelectableRegionInjector &&
+        other.onKey == onKey &&
         other.forceReload == forceReload;
   }
 
@@ -627,6 +638,7 @@ class PdfViewerParams {
         onTextSelectionChange.hashCode ^
         selectableRegionInjector.hashCode ^
         perPageSelectableRegionInjector.hashCode ^
+        onKey.hashCode ^
         forceReload.hashCode;
   }
 }
@@ -748,6 +760,16 @@ typedef PdfViewerPagePaintCallback = void Function(ui.Canvas canvas, Rect pageRe
 ///
 /// [selections] contains the selected text ranges on each page.
 typedef PdfViewerTextSelectionChangeCallback = void Function(List<PdfTextRanges> selections);
+
+/// Function to handle key events.
+///
+/// The function should return true if it processes the key event; otherwise, it returns false.
+///
+/// [node] is the focus node of the viewer.
+/// [key] is the key event.
+/// [isRealKeyPress] is true if the key event is the actual key press event. It is false if the key event is generated
+/// by key repeat feature.
+typedef PdfViewerOnKeyCallback = bool Function(FocusNode node, LogicalKeyboardKey key, bool isRealKeyPress);
 
 /// When [PdfViewerController.goToPage] is called, the page is aligned to the specified anchor.
 ///

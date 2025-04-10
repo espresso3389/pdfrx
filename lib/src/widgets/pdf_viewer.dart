@@ -414,7 +414,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         return Container(
           color: widget.params.backgroundColor,
           child: _FocusWithKeyRepeat(
-            onKeyRepeat: _onKeyEvent,
+            onKeyRepeat: _onKey,
             child: StreamBuilder(
               stream: _updateStream,
               builder: (context, snapshot) {
@@ -496,11 +496,14 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   /// Last page number that is explicitly requested to go to.
   int? _gotoTargetPageNumber;
 
-  void _onKeyEvent(FocusNode node, LogicalKeyboardKey key) {
+  void _onKey(FocusNode node, LogicalKeyboardKey key, bool isRealKeyPress) {
+    if (widget.params.onKey?.call(node, key, isRealKeyPress) == true) return;
+
     switch (key) {
       case LogicalKeyboardKey.pageUp:
         _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) - 1);
       case LogicalKeyboardKey.pageDown:
+      case LogicalKeyboardKey.space:
         _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) + 1);
       case LogicalKeyboardKey.home:
         _goToPage(pageNumber: 1);
@@ -2105,7 +2108,7 @@ class _FocusWithKeyRepeat extends StatefulWidget {
     this.repeatInterval = const Duration(milliseconds: 100),
   });
   final Widget child;
-  final Function(FocusNode, LogicalKeyboardKey) onKeyRepeat;
+  final Function(FocusNode, LogicalKeyboardKey, bool) onKeyRepeat;
   final Duration initialDelay;
   final Duration repeatInterval;
   final FocusNode? focusNode;
@@ -2126,7 +2129,7 @@ class _FocusWithKeyRepeatState extends State<_FocusWithKeyRepeat> {
     _timer = Timer(widget.initialDelay, () {
       // Start repeating at the specified interval
       _timer = Timer.periodic(widget.repeatInterval, (_) {
-        widget.onKeyRepeat(node, _currentKey!);
+        widget.onKeyRepeat(node, _currentKey!, false);
       });
     });
   }
@@ -2153,7 +2156,7 @@ class _FocusWithKeyRepeatState extends State<_FocusWithKeyRepeat> {
           // Key pressed down
           if (_currentKey == null) {
             _startRepeating(node, event.logicalKey);
-            widget.onKeyRepeat(node, event.logicalKey); // Immediate first response
+            widget.onKeyRepeat(node, event.logicalKey, true); // Immediate first response
           }
           return KeyEventResult.handled;
         } else if (event is KeyUpEvent) {
