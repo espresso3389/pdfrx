@@ -413,8 +413,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
         return Container(
           color: widget.params.backgroundColor,
-          child: _FocusWithKeyRepeat(
+          child: _PdfViewerKeyHandler(
             onKeyRepeat: _onKey,
+            params: widget.params.keyHandlerParams,
             child: StreamBuilder(
               stream: _updateStream,
               builder: (context, snapshot) {
@@ -496,8 +497,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   /// Last page number that is explicitly requested to go to.
   int? _gotoTargetPageNumber;
 
-  void _onKey(FocusNode node, LogicalKeyboardKey key, bool isRealKeyPress) {
-    if (widget.params.onKey?.call(node, key, isRealKeyPress) == true) return;
+  void _onKey(PdfViewerKeyHandlerParams params, LogicalKeyboardKey key, bool isRealKeyPress) {
+    if (widget.params.onKey?.call(params, key, isRealKeyPress) == true) return;
 
     switch (key) {
       case LogicalKeyboardKey.pageUp:
@@ -2097,28 +2098,25 @@ class _CanvasLinkPainter {
   }
 }
 
-class _FocusWithKeyRepeat extends StatefulWidget {
-  const _FocusWithKeyRepeat({
+class _PdfViewerKeyHandler extends StatefulWidget {
+  const _PdfViewerKeyHandler({
     required this.child,
     required this.onKeyRepeat,
+    required this.params,
+    this.onFocusChange,
     super.key,
-    this.focusNode,
-    this.parentNode,
-    this.initialDelay = const Duration(milliseconds: 500),
-    this.repeatInterval = const Duration(milliseconds: 100),
   });
+
+  final void Function(PdfViewerKeyHandlerParams, LogicalKeyboardKey, bool) onKeyRepeat;
+  final void Function(PdfViewerKeyHandlerParams, bool)? onFocusChange;
+  final PdfViewerKeyHandlerParams params;
   final Widget child;
-  final Function(FocusNode, LogicalKeyboardKey, bool) onKeyRepeat;
-  final Duration initialDelay;
-  final Duration repeatInterval;
-  final FocusNode? focusNode;
-  final FocusNode? parentNode;
 
   @override
-  _FocusWithKeyRepeatState createState() => _FocusWithKeyRepeatState();
+  _PdfViewerKeyHandlerState createState() => _PdfViewerKeyHandlerState();
 }
 
-class _FocusWithKeyRepeatState extends State<_FocusWithKeyRepeat> {
+class _PdfViewerKeyHandlerState extends State<_PdfViewerKeyHandler> {
   Timer? _timer;
   LogicalKeyboardKey? _currentKey;
 
@@ -2126,10 +2124,10 @@ class _FocusWithKeyRepeatState extends State<_FocusWithKeyRepeat> {
     _currentKey = key;
 
     // Initial delay before starting to repeat
-    _timer = Timer(widget.initialDelay, () {
+    _timer = Timer(widget.params.initialDelay, () {
       // Start repeating at the specified interval
-      _timer = Timer.periodic(widget.repeatInterval, (_) {
-        widget.onKeyRepeat(node, _currentKey!, false);
+      _timer = Timer.periodic(widget.params.repeatInterval, (_) {
+        widget.onKeyRepeat(widget.params, _currentKey!, false);
       });
     });
   }
@@ -2149,14 +2147,17 @@ class _FocusWithKeyRepeatState extends State<_FocusWithKeyRepeat> {
   @override
   Widget build(BuildContext context) {
     return Focus(
-      focusNode: widget.focusNode,
-      parentNode: widget.parentNode,
+      focusNode: widget.params.focusNode,
+      parentNode: widget.params.parentNode,
+      autofocus: widget.params.autofocus,
+      canRequestFocus: widget.params.canRequestFocus,
+      onFocusChange: widget.onFocusChange != null ? (value) => widget.onFocusChange!(widget.params, value) : null,
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent) {
           // Key pressed down
           if (_currentKey == null) {
             _startRepeating(node, event.logicalKey);
-            widget.onKeyRepeat(node, event.logicalKey, true); // Immediate first response
+            widget.onKeyRepeat(widget.params, event.logicalKey, true); // Immediate first response
           }
           return KeyEventResult.handled;
         } else if (event is KeyUpEvent) {

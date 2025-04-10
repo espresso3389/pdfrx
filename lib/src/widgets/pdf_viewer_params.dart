@@ -60,6 +60,7 @@ class PdfViewerParams {
     this.selectableRegionInjector,
     this.perPageSelectableRegionInjector,
     this.onKey,
+    this.keyHandlerParams = const PdfViewerKeyHandlerParams(),
     this.forceReload = false,
   });
 
@@ -500,6 +501,9 @@ class PdfViewerParams {
   /// default behavior by returning true from this function.
   final PdfViewerOnKeyCallback? onKey;
 
+  /// Parameters to customize key handling.
+  final PdfViewerKeyHandlerParams keyHandlerParams;
+
   /// Force reload the viewer.
   ///
   /// Normally whether to reload the viewer is determined by the changes of the parameters but
@@ -589,6 +593,7 @@ class PdfViewerParams {
         other.selectableRegionInjector == selectableRegionInjector &&
         other.perPageSelectableRegionInjector == perPageSelectableRegionInjector &&
         other.onKey == onKey &&
+        other.keyHandlerParams == keyHandlerParams &&
         other.forceReload == forceReload;
   }
 
@@ -639,6 +644,7 @@ class PdfViewerParams {
         selectableRegionInjector.hashCode ^
         perPageSelectableRegionInjector.hashCode ^
         onKey.hashCode ^
+        keyHandlerParams.hashCode ^
         forceReload.hashCode;
   }
 }
@@ -761,16 +767,6 @@ typedef PdfViewerPagePaintCallback = void Function(ui.Canvas canvas, Rect pageRe
 /// [selections] contains the selected text ranges on each page.
 typedef PdfViewerTextSelectionChangeCallback = void Function(List<PdfTextRanges> selections);
 
-/// Function to handle key events.
-///
-/// The function should return true if it processes the key event; otherwise, it returns false.
-///
-/// [node] is the focus node of the viewer.
-/// [key] is the key event.
-/// [isRealKeyPress] is true if the key event is the actual key press event. It is false if the key event is generated
-/// by key repeat feature.
-typedef PdfViewerOnKeyCallback = bool Function(FocusNode node, LogicalKeyboardKey key, bool isRealKeyPress);
-
 /// When [PdfViewerController.goToPage] is called, the page is aligned to the specified anchor.
 ///
 /// If the viewer area is smaller than the page, only some part of the page is shown in the viewer.
@@ -852,3 +848,60 @@ class PdfLinkHandlerParams {
 
 /// Custom painter for the page links.
 typedef PdfLinkCustomPagePainter = void Function(ui.Canvas canvas, Rect pageRect, PdfPage page, List<PdfLink> links);
+
+/// Function to handle key events.
+///
+/// The function should return true if it processes the key event; otherwise, it returns false.
+///
+/// [params] is the key handler parameters.
+/// [key] is the key event.
+/// [isRealKeyPress] is true if the key event is the actual key press event. It is false if the key event is generated
+/// by key repeat feature.
+typedef PdfViewerOnKeyCallback =
+    bool Function(PdfViewerKeyHandlerParams params, LogicalKeyboardKey key, bool isRealKeyPress);
+
+/// Parameters for the built-in key handler.
+///
+/// [initialDelay] is the initial delay before the key repeat starts.
+/// [repeatInterval] is the interval between key repeats.
+///
+/// For [autofocus], [canRequestFocus], [focusNode], and [parentNode],
+/// please refer to the documentation of [Focus] widget.
+class PdfViewerKeyHandlerParams {
+  const PdfViewerKeyHandlerParams({
+    this.initialDelay = const Duration(milliseconds: 500),
+    this.repeatInterval = const Duration(milliseconds: 100),
+    this.autofocus = false,
+    this.canRequestFocus = true,
+    this.focusNode,
+    this.parentNode,
+  });
+
+  final Duration initialDelay;
+  final Duration repeatInterval;
+  final bool autofocus;
+  final bool canRequestFocus;
+  final FocusNode? focusNode;
+  final FocusNode? parentNode;
+
+  @override
+  operator ==(covariant PdfViewerKeyHandlerParams other) {
+    if (identical(this, other)) return true;
+
+    return other.initialDelay == initialDelay &&
+        other.repeatInterval == repeatInterval &&
+        other.autofocus == autofocus &&
+        other.canRequestFocus == canRequestFocus &&
+        other.focusNode == focusNode &&
+        other.parentNode == parentNode;
+  }
+
+  @override
+  int get hashCode =>
+      initialDelay.hashCode ^
+      repeatInterval.hashCode ^
+      autofocus.hashCode ^
+      canRequestFocus.hashCode ^
+      focusNode.hashCode ^
+      parentNode.hashCode;
+}
