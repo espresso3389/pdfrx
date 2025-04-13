@@ -1,3 +1,7 @@
+# 1.1.23
+
+- Minor internal change
+
 # 1.1.22
 
 - PdfDocumentFactory refactoring to improve the code integrity

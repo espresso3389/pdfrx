@@ -2099,16 +2099,9 @@ class _CanvasLinkPainter {
 }
 
 class _PdfViewerKeyHandler extends StatefulWidget {
-  const _PdfViewerKeyHandler({
-    required this.child,
-    required this.onKeyRepeat,
-    required this.params,
-    this.onFocusChange,
-    super.key,
-  });
+  const _PdfViewerKeyHandler({required this.child, required this.onKeyRepeat, required this.params});
 
   final void Function(PdfViewerKeyHandlerParams, LogicalKeyboardKey, bool) onKeyRepeat;
-  final void Function(PdfViewerKeyHandlerParams, bool)? onFocusChange;
   final PdfViewerKeyHandlerParams params;
   final Widget child;
 
@@ -2151,7 +2144,6 @@ class _PdfViewerKeyHandlerState extends State<_PdfViewerKeyHandler> {
       parentNode: widget.params.parentNode,
       autofocus: widget.params.autofocus,
       canRequestFocus: widget.params.canRequestFocus,
-      onFocusChange: widget.onFocusChange != null ? (value) => widget.onFocusChange!(widget.params, value) : null,
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent) {
           // Key pressed down
