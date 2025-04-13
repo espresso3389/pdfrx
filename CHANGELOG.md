@@ -1,3 +1,9 @@
+# 1.1.22
+
+- PdfDocumentFactory refactoring to improve the code integrity
+  - Introduces getDocumentFactory/getPdfjsDocumentFactory/getPdffiumDocumentFactory to get the direct/internal document factory
+- Introduces PdfViewerParams.onKey/PdfViewerKeyHandlerParams to handle key events on PdfViewer
+
 # 1.1.21
 
 - FIXED: loadOutline is not implemented on Pdfium WASM
