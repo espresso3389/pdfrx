@@ -18,7 +18,7 @@ PdfDocumentFactory getPdfiumDocumentFactory() {
 
 /// Get [PdfDocumentFactory] backed by PDF.js.
 ///
-/// Only supported on Flutter Web.
+/// It throws [UnsupportedError] on non-Web platforms.
 PdfDocumentFactory getPdfjsDocumentFactory() {
   _init();
   return _pdfjsDocumentFactory ??= PdfDocumentFactoryJsImpl();

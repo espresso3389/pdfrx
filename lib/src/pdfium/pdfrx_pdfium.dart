@@ -25,7 +25,7 @@ PdfDocumentFactory getPdfiumDocumentFactory() => _pdfiumDocumentFactory ??= PdfD
 
 /// Get [PdfDocumentFactory] backed by PDF.js.
 ///
-/// Only supported on Flutter Web.
+/// It throws [UnsupportedError] on non-Web platforms.
 PdfDocumentFactory getPdfjsDocumentFactory() => throw UnsupportedError('Pdf.js is only supported on Web');
 
 /// Get the default [PdfDocumentFactory].
