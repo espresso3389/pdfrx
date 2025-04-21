@@ -502,29 +502,29 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     if (result != null) {
       return result;
     }
-
+    final duration = widget.params.keyHandlerParams.repeatInterval;
     switch (key) {
       case LogicalKeyboardKey.pageUp:
-        _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) - 1);
+        _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) - 1, duration: duration);
         return true;
       case LogicalKeyboardKey.pageDown:
       case LogicalKeyboardKey.space:
-        _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) + 1);
+        _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) + 1, duration: duration);
         return true;
       case LogicalKeyboardKey.home:
-        _goToPage(pageNumber: 1);
+        _goToPage(pageNumber: 1, duration: duration);
         return true;
       case LogicalKeyboardKey.end:
-        _goToPage(pageNumber: _document!.pages.length, anchor: widget.params.pageAnchorEnd);
+        _goToPage(pageNumber: _document!.pages.length, anchor: widget.params.pageAnchorEnd, duration: duration);
         return true;
       case LogicalKeyboardKey.equal:
         if (isCommandKeyPressed) {
-          _zoomUp();
+          _zoomUp(duration: duration);
           return true;
         }
       case LogicalKeyboardKey.minus:
         if (isCommandKeyPressed) {
-          _zoomDown();
+          _zoomDown(duration: duration);
           return true;
         }
       case LogicalKeyboardKey.arrowDown:
@@ -543,7 +543,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     return false;
   }
 
-  Future<void> _goToManipulated(void Function(Matrix4 m) manipulate) async {
+  void _goToManipulated(void Function(Matrix4 m) manipulate) {
     final m = _txController.value.clone();
     manipulate(m);
     _txController.value = m;
@@ -1132,7 +1132,13 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   void _onWheelDelta(Offset delta) {
     _startInteraction();
     final m = _txController.value.clone();
-    m.translate(-delta.dx * widget.params.scrollByMouseWheel!, -delta.dy * widget.params.scrollByMouseWheel!);
+    final dx = -delta.dx * widget.params.scrollByMouseWheel!;
+    final dy = -delta.dy * widget.params.scrollByMouseWheel!;
+    if (widget.params.scrollHorizontallyByMouseWheel) {
+      m.translate(dy, dx);
+    } else {
+      m.translate(dx, dy);
+    }
     _txController.value = m;
     _stopInteraction();
   }
@@ -1428,16 +1434,23 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   double _getNextZoom({bool loop = true}) => _findNextZoomStop(_currentZoom, zoomUp: true, loop: loop);
   double _getPreviousZoom({bool loop = true}) => _findNextZoomStop(_currentZoom, zoomUp: false, loop: loop);
 
-  Future<void> _setZoom(Offset position, double zoom) =>
-      _goTo(_calcMatrixFor(position, zoom: zoom, viewSize: _viewSize!));
+  Future<void> _setZoom(Offset position, double zoom, {Duration duration = const Duration(milliseconds: 200)}) =>
+      _goTo(_calcMatrixFor(position, zoom: zoom, viewSize: _viewSize!), duration: duration);
 
   Offset get _centerPosition => _txController.value.calcPosition(_viewSize!);
 
-  Future<void> _zoomUp({bool loop = false, Offset? zoomCenter}) =>
-      _setZoom(zoomCenter ?? _centerPosition, _getNextZoom(loop: loop));
+  Future<void> _zoomUp({
+    bool loop = false,
+    Offset? zoomCenter,
+    Duration duration = const Duration(milliseconds: 200),
+  }) => _setZoom(zoomCenter ?? _centerPosition, _getNextZoom(loop: loop), duration: duration);
 
-  Future<void> _zoomDown({bool loop = false, Offset? zoomCenter}) async {
-    await _setZoom(zoomCenter ?? _centerPosition, _getPreviousZoom(loop: loop));
+  Future<void> _zoomDown({
+    bool loop = false,
+    Offset? zoomCenter,
+    Duration duration = const Duration(milliseconds: 200),
+  }) async {
+    await _setZoom(zoomCenter ?? _centerPosition, _getPreviousZoom(loop: loop), duration: duration);
   }
 
   RenderBox? get _renderBox {
@@ -1852,12 +1865,17 @@ class PdfViewerController extends ValueListenable<Matrix4> {
 
   double get currentZoom => value.zoom;
 
-  Future<void> setZoom(Offset position, double zoom) => _state._setZoom(position, zoom);
+  Future<void> setZoom(Offset position, double zoom, {Duration duration = const Duration(milliseconds: 200)}) =>
+      _state._setZoom(position, zoom, duration: duration);
 
-  Future<void> zoomUp({bool loop = false, Offset? zoomCenter}) => _state._zoomUp(loop: loop, zoomCenter: zoomCenter);
+  Future<void> zoomUp({bool loop = false, Offset? zoomCenter, Duration duration = const Duration(milliseconds: 200)}) =>
+      _state._zoomUp(loop: loop, zoomCenter: zoomCenter, duration: duration);
 
-  Future<void> zoomDown({bool loop = false, Offset? zoomCenter}) =>
-      _state._zoomDown(loop: loop, zoomCenter: zoomCenter);
+  Future<void> zoomDown({
+    bool loop = false,
+    Offset? zoomCenter,
+    Duration duration = const Duration(milliseconds: 200),
+  }) => _state._zoomDown(loop: loop, zoomCenter: zoomCenter, duration: duration);
 
   RenderBox? get renderBox => _state._renderBox;
 

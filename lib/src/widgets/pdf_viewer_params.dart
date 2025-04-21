@@ -43,6 +43,7 @@ class PdfViewerParams {
     this.onPageChanged,
     this.getPageRenderingScale,
     this.scrollByMouseWheel = 0.2,
+    this.scrollHorizontallyByMouseWheel = false,
     this.enableKeyboardNavigation = true,
     this.scrollByArrowKey = 25.0,
     this.maxImageBytesCachedOnMemory = 100 * 1024 * 1024,
@@ -324,6 +325,9 @@ class PdfViewerParams {
   /// null to disable scroll-by-mouse-wheel.
   final double? scrollByMouseWheel;
 
+  /// If true, the scroll direction is horizontal when the mouse wheel is scrolled in primary direction.
+  final bool scrollHorizontallyByMouseWheel;
+
   /// Enable keyboard navigation. The default is true.
   final bool enableKeyboardNavigation;
 
@@ -534,6 +538,7 @@ class PdfViewerParams {
         other.scaleEnabled != scaleEnabled ||
         other.interactionEndFrictionCoefficient != interactionEndFrictionCoefficient ||
         other.scrollByMouseWheel != scrollByMouseWheel ||
+        other.scrollHorizontallyByMouseWheel != scrollHorizontallyByMouseWheel ||
         other.enableKeyboardNavigation != enableKeyboardNavigation ||
         other.scrollByArrowKey != scrollByArrowKey ||
         other.horizontalCacheExtent != horizontalCacheExtent ||
@@ -574,6 +579,7 @@ class PdfViewerParams {
         other.onPageChanged == onPageChanged &&
         other.getPageRenderingScale == getPageRenderingScale &&
         other.scrollByMouseWheel == scrollByMouseWheel &&
+        other.scrollHorizontallyByMouseWheel == scrollHorizontallyByMouseWheel &&
         other.enableKeyboardNavigation == enableKeyboardNavigation &&
         other.scrollByArrowKey == scrollByArrowKey &&
         other.horizontalCacheExtent == horizontalCacheExtent &&
@@ -625,6 +631,7 @@ class PdfViewerParams {
         onPageChanged.hashCode ^
         getPageRenderingScale.hashCode ^
         scrollByMouseWheel.hashCode ^
+        scrollHorizontallyByMouseWheel.hashCode ^
         enableKeyboardNavigation.hashCode ^
         scrollByArrowKey.hashCode ^
         horizontalCacheExtent.hashCode ^
