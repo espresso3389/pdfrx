@@ -495,10 +495,7 @@ class PdfViewerParams {
 
   /// Function to handle key events.
   ///
-  /// The function should return true if it processes the key event; otherwise, it returns false.
-  ///
-  /// By default, [PdfViewer] handles key events such as arrow keys and page up/down keys. You can even override the
-  /// default behavior by returning true from this function.
+  /// See [PdfViewerOnKeyCallback] for the details.
   final PdfViewerOnKeyCallback? onKey;
 
   /// Parameters to customize key handling.
@@ -851,14 +848,19 @@ typedef PdfLinkCustomPagePainter = void Function(ui.Canvas canvas, Rect pageRect
 
 /// Function to handle key events.
 ///
-/// The function should return true if it processes the key event; otherwise, it returns false.
+/// The function can return one of the following values:
+/// Returned value | Description
+/// -------------- | -----------
+/// true           | The key event is not handled by any other handlers.
+/// false          | The key event is ignored and propagated to other handlers.
+/// null           | The key event is handled by the default handler which handles several key events such as arrow keys and page up/down keys. The other keys are just ignored and propagated to other handlers.
 ///
 /// [params] is the key handler parameters.
 /// [key] is the key event.
 /// [isRealKeyPress] is true if the key event is the actual key press event. It is false if the key event is generated
 /// by key repeat feature.
 typedef PdfViewerOnKeyCallback =
-    bool Function(PdfViewerKeyHandlerParams params, LogicalKeyboardKey key, bool isRealKeyPress);
+    bool? Function(PdfViewerKeyHandlerParams params, LogicalKeyboardKey key, bool isRealKeyPress);
 
 /// Parameters for the built-in key handler.
 ///

@@ -497,36 +497,50 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   /// Last page number that is explicitly requested to go to.
   int? _gotoTargetPageNumber;
 
-  void _onKey(PdfViewerKeyHandlerParams params, LogicalKeyboardKey key, bool isRealKeyPress) {
-    if (widget.params.onKey?.call(params, key, isRealKeyPress) == true) return;
+  bool _onKey(PdfViewerKeyHandlerParams params, LogicalKeyboardKey key, bool isRealKeyPress) {
+    final result = widget.params.onKey?.call(params, key, isRealKeyPress);
+    if (result != null) {
+      return result;
+    }
 
     switch (key) {
       case LogicalKeyboardKey.pageUp:
         _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) - 1);
+        return true;
       case LogicalKeyboardKey.pageDown:
       case LogicalKeyboardKey.space:
         _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) + 1);
+        return true;
       case LogicalKeyboardKey.home:
         _goToPage(pageNumber: 1);
+        return true;
       case LogicalKeyboardKey.end:
         _goToPage(pageNumber: _document!.pages.length, anchor: widget.params.pageAnchorEnd);
+        return true;
       case LogicalKeyboardKey.equal:
         if (isCommandKeyPressed) {
           _zoomUp();
+          return true;
         }
       case LogicalKeyboardKey.minus:
         if (isCommandKeyPressed) {
           _zoomDown();
+          return true;
         }
       case LogicalKeyboardKey.arrowDown:
         _goToManipulated((m) => m.translate(0.0, -widget.params.scrollByArrowKey));
+        return true;
       case LogicalKeyboardKey.arrowUp:
         _goToManipulated((m) => m.translate(0.0, widget.params.scrollByArrowKey));
+        return true;
       case LogicalKeyboardKey.arrowLeft:
         _goToManipulated((m) => m.translate(widget.params.scrollByArrowKey, 0.0));
+        return true;
       case LogicalKeyboardKey.arrowRight:
         _goToManipulated((m) => m.translate(-widget.params.scrollByArrowKey, 0.0));
+        return true;
     }
+    return false;
   }
 
   Future<void> _goToManipulated(void Function(Matrix4 m) manipulate) async {
@@ -2101,7 +2115,10 @@ class _CanvasLinkPainter {
 class _PdfViewerKeyHandler extends StatefulWidget {
   const _PdfViewerKeyHandler({required this.child, required this.onKeyRepeat, required this.params});
 
-  final void Function(PdfViewerKeyHandlerParams, LogicalKeyboardKey, bool) onKeyRepeat;
+  /// Called on every key repeat.
+  ///
+  /// See [PdfViewerOnKeyCallback] for the parameters.
+  final bool Function(PdfViewerKeyHandlerParams, LogicalKeyboardKey, bool) onKeyRepeat;
   final PdfViewerKeyHandlerParams params;
   final Widget child;
 
@@ -2148,16 +2165,17 @@ class _PdfViewerKeyHandlerState extends State<_PdfViewerKeyHandler> {
         if (event is KeyDownEvent) {
           // Key pressed down
           if (_currentKey == null) {
-            _startRepeating(node, event.logicalKey);
-            widget.onKeyRepeat(widget.params, event.logicalKey, true); // Immediate first response
+            if (widget.onKeyRepeat(widget.params, event.logicalKey, true)) {
+              _startRepeating(node, event.logicalKey);
+              return KeyEventResult.handled;
+            }
           }
-          return KeyEventResult.handled;
         } else if (event is KeyUpEvent) {
           // Key released
           if (_currentKey == event.logicalKey) {
             _stopRepeating();
+            return KeyEventResult.handled;
           }
-          return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
       },
