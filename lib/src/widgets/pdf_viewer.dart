@@ -253,11 +253,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         if (widget.params.annotationRenderingMode != oldWidget?.params.annotationRenderingMode) {
           _releaseAllImages();
         }
-        _relayoutPages();
-
-        if (mounted) {
-          setState(() {});
-        }
+        _updateLayout(_viewSize!);
       }
       return;
     } else {
@@ -290,14 +286,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _pageImagesPartial.clear();
   }
 
-  void _relayout() {
-    _relayoutPages();
-    _releaseAllImages();
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
   void _onDocumentChanged() async {
     _layout = null;
 
@@ -321,8 +309,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     }
 
     _document = document;
-
-    _relayoutPages();
 
     _controller ??= widget.controller ?? PdfViewerController();
     _controller!._attach(this);
@@ -380,93 +366,105 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         child: widget.params.loadingBannerBuilder?.call(context, listenable.bytesDownloaded, listenable.totalBytes),
       );
     }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (_updateViewSizeAndCoverScale(Size(constraints.maxWidth, constraints.maxHeight))) {
-          if (_initialized) {
-            Future.microtask(() {
-              if (_initialized && mounted) {
-                _goTo(_makeMatrixInSafeRange(_txController.value));
-              }
-            });
-          }
-        }
+    Widget selectableRegionInjector(Widget child) =>
+        widget.params.selectableRegionInjector?.call(context, child) ??
+        (widget.params.enableTextSelection ? SelectionArea(child: child) : child);
 
-        if (!_initialized && _layout != null) {
-          _initialized = true;
-          Future.microtask(() async {
-            if (mounted) {
-              final initialPageNumber =
-                  widget.params.calculateInitialPageNumber?.call(_document!, _controller!) ?? widget.initialPageNumber;
-              await _goToPage(pageNumber: initialPageNumber, duration: Duration.zero);
-
-              if (mounted && _document != null && _controller != null) {
-                widget.params.onViewerReady?.call(_document!, _controller!);
-              }
-            }
-          });
-        }
-
-        Widget selectableRegionInjector(Widget child) =>
-            widget.params.selectableRegionInjector?.call(context, child) ??
-            (widget.params.enableTextSelection ? SelectionArea(child: child) : child);
-
-        return Container(
-          color: widget.params.backgroundColor,
-          child: _PdfViewerKeyHandler(
-            onKeyRepeat: _onKey,
-            params: widget.params.keyHandlerParams,
-            child: StreamBuilder(
-              stream: _updateStream,
-              builder: (context, snapshot) {
-                _relayoutPages();
-                _determineCurrentPage();
-                _calcAlternativeFitScale();
-                _calcZoomStopTable();
-                return selectableRegionInjector(
-                  Builder(
-                    builder: (context) {
-                      return Stack(
-                        children: [
-                          iv.InteractiveViewer(
-                            transformationController: _txController,
-                            constrained: false,
-                            boundaryMargin: widget.params.boundaryMargin ?? const EdgeInsets.all(double.infinity),
-                            maxScale: widget.params.maxScale,
-                            minScale: _alternativeFitScale != null ? _alternativeFitScale! / 2 : minScale,
-                            panAxis: widget.params.panAxis,
-                            panEnabled: widget.params.panEnabled,
-                            scaleEnabled: widget.params.scaleEnabled,
-                            onInteractionEnd: _onInteractionEnd,
-                            onInteractionStart: _onInteractionStart,
-                            onInteractionUpdate: widget.params.onInteractionUpdate,
-                            interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
-                            onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
-                            // PDF pages
-                            child: CustomPaint(
-                              foregroundPainter: _CustomPainter.fromFunctions(_customPaint),
-                              size: _layout!.documentSize,
-                            ),
-                          ),
-                          ..._buildPageOverlayWidgets(context),
-                          if (_canvasLinkPainter.isEnabled)
-                            SelectionContainer.disabled(child: _canvasLinkPainter.linkHandlingOverlay(_viewSize!)),
-                          if (widget.params.viewerOverlayBuilder != null)
-                            ...widget
-                                .params
-                                .viewerOverlayBuilder!(context, _viewSize!, _canvasLinkPainter._handleLinkTap)
-                                .map((e) => SelectionContainer.disabled(child: e)),
-                        ],
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-        );
-      },
+    return Container(
+      color: widget.params.backgroundColor,
+      child: _PdfViewerKeyHandler(
+        onKeyRepeat: _onKey,
+        params: widget.params.keyHandlerParams,
+        child: StreamBuilder(
+          stream: _updateStream,
+          builder: (context, snapshot) {
+            return selectableRegionInjector(
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  _updateLayout(Size(constraints.maxWidth, constraints.maxHeight));
+                  return Stack(
+                    children: [
+                      iv.InteractiveViewer(
+                        transformationController: _txController,
+                        constrained: false,
+                        boundaryMargin: widget.params.boundaryMargin ?? const EdgeInsets.all(double.infinity),
+                        maxScale: widget.params.maxScale,
+                        minScale: _alternativeFitScale != null ? _alternativeFitScale! / 2 : minScale,
+                        panAxis: widget.params.panAxis,
+                        panEnabled: widget.params.panEnabled,
+                        scaleEnabled: widget.params.scaleEnabled,
+                        onInteractionEnd: _onInteractionEnd,
+                        onInteractionStart: _onInteractionStart,
+                        onInteractionUpdate: widget.params.onInteractionUpdate,
+                        interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
+                        onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
+                        // PDF pages
+                        child: CustomPaint(
+                          foregroundPainter: _CustomPainter.fromFunctions(_customPaint),
+                          size: _layout!.documentSize,
+                        ),
+                      ),
+                      ..._buildPageOverlayWidgets(context),
+                      if (_canvasLinkPainter.isEnabled)
+                        SelectionContainer.disabled(child: _canvasLinkPainter.linkHandlingOverlay(_viewSize!)),
+                      if (widget.params.viewerOverlayBuilder != null)
+                        ...widget.params.viewerOverlayBuilder!(context, _viewSize!, _canvasLinkPainter._handleLinkTap)
+                            .map((e) => SelectionContainer.disabled(child: e)),
+                    ],
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ),
     );
+  }
+
+  void _updateLayout(Size viewSize) {
+    final currentPageNumber = _guessCurrentPageNumber();
+    final oldSize = _viewSize;
+    final isViewSizeChanged = oldSize != viewSize;
+    _viewSize = viewSize;
+    final isLayoutChanged = _relayoutPages();
+
+    _calcCoverScale();
+    _calcAlternativeFitScale();
+    _calcZoomStopTable();
+
+    void callOnViewerSizeChanged() {
+      if (isViewSizeChanged) {
+        if (_controller != null && widget.params.onViewSizeChanged != null) {
+          widget.params.onViewSizeChanged!(viewSize, oldSize, _controller!);
+        }
+      }
+    }
+
+    if (!_initialized && _layout != null) {
+      _initialized = true;
+      Future.microtask(() async {
+        if (mounted) {
+          await _goToPage(pageNumber: _calcInitialPageNumber(), duration: Duration.zero);
+
+          if (mounted && _document != null && _controller != null) {
+            widget.params.onViewerReady?.call(_document!, _controller!);
+          }
+
+          callOnViewerSizeChanged();
+        }
+      });
+    } else if (isLayoutChanged || isViewSizeChanged) {
+      Future.microtask(() async {
+        if (mounted) {
+          await _goToPage(pageNumber: currentPageNumber ?? _calcInitialPageNumber(), duration: Duration.zero);
+          callOnViewerSizeChanged();
+        }
+      });
+    }
+  }
+
+  int _calcInitialPageNumber() {
+    return widget.params.calculateInitialPageNumber?.call(_document!, _controller!) ?? widget.initialPageNumber;
   }
 
   void _startInteraction() {
@@ -549,21 +547,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _txController.value = m;
   }
 
-  bool _updateViewSizeAndCoverScale(Size viewSize) {
-    if (_viewSize != viewSize) {
-      final oldSize = _viewSize;
-      _viewSize = viewSize;
-      final s1 = viewSize.width / _layout!.documentSize.width;
-      final s2 = viewSize.height / _layout!.documentSize.height;
-      _coverScale = max(s1, s2);
-      if (_controller != null && widget.params.onViewSizeChanged != null) {
-        widget.params.onViewSizeChanged!(viewSize, oldSize, _controller!);
-      }
-      return true;
-    }
-    return false;
-  }
-
   Rect get _visibleRect => _txController.value.calcVisibleRect(_viewSize!);
 
   /// Set the current page number.
@@ -575,7 +558,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   }
 
   void _determineCurrentPage() {
-    _setCurrentPageNumberInternal(_guessCurrentPage());
+    _setCurrentPageNumberInternal(_guessCurrentPageNumber());
   }
 
   void _setCurrentPageNumberInternal(int? pageNumber, {bool doSetState = false}) {
@@ -590,7 +573,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     }
   }
 
-  int? _guessCurrentPage() {
+  int? _guessCurrentPageNumber() {
     if (widget.params.calculateCurrentPageNumber != null) {
       return widget.params.calculateCurrentPageNumber!(_visibleRect, _layout!.pageLayouts, _controller!);
     }
@@ -622,6 +605,29 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       }
     }
     return pageNumber;
+  }
+
+  /// Returns true if page layouts are changed.
+  bool _relayoutPages() {
+    if (_document == null) {
+      _layout = null;
+      return false;
+    }
+    final newLayout = (widget.params.layoutPages ?? _layoutPages)(_document!.pages, widget.params);
+    if (_layout == newLayout) {
+      return false;
+    }
+
+    _layout = newLayout;
+    return true;
+  }
+
+  void _calcCoverScale() {
+    if (_viewSize != null) {
+      final s1 = _viewSize!.width / _layout!.documentSize.width;
+      final s2 = _viewSize!.height / _layout!.documentSize.height;
+      _coverScale = max(s1, s2);
+    }
   }
 
   bool _calcAlternativeFitScale() {
@@ -974,11 +980,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     }
   }
 
-  void _relayoutPages() {
-    if (_document == null) return;
-    _layout = (widget.params.layoutPages ?? _layoutPages)(_document!.pages, widget.params);
-  }
-
   PdfPageLayout _layoutPages(List<PdfPage> pages, PdfViewerParams params) {
     final width = pages.fold(0.0, (w, p) => max(w, p.width)) + params.margin * 2;
 
@@ -1145,7 +1146,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   /// Restrict matrix to the safe range.
   Matrix4 _makeMatrixInSafeRange(Matrix4 newValue) {
-    _updateViewSizeAndCoverScale(_viewSize!);
     if (widget.params.normalizeMatrix != null) {
       return widget.params.normalizeMatrix!(newValue, _viewSize!, _layout!, _controller);
     }
@@ -1537,6 +1537,16 @@ class PdfPageLayout {
   PdfPageLayout({required this.pageLayouts, required this.documentSize});
   final List<Rect> pageLayouts;
   final Size documentSize;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! PdfPageLayout) return false;
+    return listEquals(pageLayouts, other.pageLayouts) && documentSize == other.documentSize;
+  }
+
+  @override
+  int get hashCode => pageLayouts.hashCode ^ documentSize.hashCode;
 }
 
 /// Represents the result of the hit test on the page.
@@ -1680,9 +1690,6 @@ class PdfViewerController extends ValueListenable<Matrix4> {
 
     addListener(handler);
   }
-
-  /// Forcibly relayout the pages.
-  void relayout() => _state._relayout();
 
   /// Go to the specified area.
   ///
