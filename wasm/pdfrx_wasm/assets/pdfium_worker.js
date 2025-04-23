@@ -812,9 +812,9 @@ function _loadTextInternal(textPage, from, length, charRects, fragments) {
   let lineStart = 0, wordStart = 0;
   let lastChar;
   for (let i = 0; i < length; i++) {
-    const char = fullText.charCodeAt(from + i);
+    const char = fullText.charCodeAt(i);
     if (char == CR) {
-      if (i + 1 < length && fullText.codePointAt(from + i + 1) == LF) {
+      if (i + 1 < length && fullText.codePointAt(i + 1) == LF) {
         lastChar = char;
         continue;
       }
@@ -918,11 +918,18 @@ function _boundingRect(rects, start, end) {
 }
 
 function _getText(textPage, from, length) {
-  const textBuffer = Pdfium.wasmExports.malloc(length * 2 + 2);
-  const count = Pdfium.wasmExports.FPDFText_GetText(textPage, from, length, textBuffer);
-  const text = StringUtils.utf16BytesToString(new Uint8Array(Pdfium.memory.buffer, textBuffer, count * 2));
-  Pdfium.wasmExports.free(textBuffer);
-  return text;
+  const count = Pdfium.wasmExports.FPDFText_CountChars(textPage);
+  let sb = '';
+  for (let i = 0; i < count; i++) {
+    sb += String.fromCodePoint(Pdfium.wasmExports.FPDFText_GetUnicode(textPage, i));
+  }
+  return sb;
+
+  // const textBuffer = Pdfium.wasmExports.malloc(length * 2 + 2);
+  // const count = Pdfium.wasmExports.FPDFText_GetText(textPage, from, length, textBuffer);
+  // const text = StringUtils.utf16BytesToString(new Uint8Array(Pdfium.memory.buffer, textBuffer, count * 2));
+  // Pdfium.wasmExports.free(textBuffer);
+  // return text;
 }
 
 

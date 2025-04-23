@@ -890,9 +890,9 @@ class PdfPageTextPdfium extends PdfPageText {
     int lineStart = 0, wordStart = 0;
     int? lastChar;
     for (int i = 0; i < length; i++) {
-      final char = fullText.codeUnitAt(from + i);
+      final char = fullText.codeUnitAt(i);
       if (char == _charCR) {
-        if (i + 1 < length && fullText.codeUnitAt(from + i + 1) == _charLF) {
+        if (i + 1 < length && fullText.codeUnitAt(i + 1) == _charLF) {
           lastChar = char;
           continue;
         }
@@ -957,19 +957,6 @@ class PdfPageTextPdfium extends PdfPageText {
     return sb.toString();
   }
 
-  static String escapeString(String s) {
-    final sb = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      final char = s.codeUnitAt(i);
-      if (char >= 0x20 && char < 0x7f) {
-        sb.writeCharCode(char);
-      } else {
-        sb.write('\\u{${char.toRadixString(16).padLeft(4, '0')}}');
-      }
-    }
-    return sb.toString();
-  }
-
   /// return true if any meaningful characters in the line (start -> end)
   static bool _makeLineFlat(List<PdfRect> rects, int start, int end, StringBuffer sb) {
     if (start >= end) return false;
@@ -992,9 +979,15 @@ class PdfPageTextPdfium extends PdfPageText {
   }
 
   static String _getText(pdfium_bindings.FPDF_TEXTPAGE textPage, int from, int length, Arena arena) {
-    final buffer = arena.allocate<Uint16>((length + 1) * sizeOf<Uint16>());
-    pdfium.FPDFText_GetText(textPage, from, length, buffer.cast<UnsignedShort>());
-    return String.fromCharCodes(buffer.asTypedList(length));
+    final count = pdfium.FPDFText_CountChars(textPage);
+    final sb = StringBuffer();
+    for (int i = 0; i < count; i++) {
+      sb.writeCharCode(pdfium.FPDFText_GetUnicode(textPage, i));
+    }
+    return sb.toString();
+    // final buffer = arena.allocate<Uint16>((length + 1) * sizeOf<Uint16>());
+    // pdfium.FPDFText_GetText(textPage, from, length, buffer.cast<UnsignedShort>());
+    // return String.fromCharCodes(buffer.asTypedList(length));
   }
 }
 
