@@ -211,6 +211,7 @@ class _PdfPageViewState extends State<PdfPageView> {
 
   @override
   void dispose() {
+    _image?.dispose();
     _cancellationToken?.cancel();
     super.dispose();
   }
