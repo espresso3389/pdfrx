@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
@@ -60,7 +61,7 @@ class BackgroundWorker {
       _sendPort.send(null);
       _receivePort.close();
     } catch (e) {
-      debugPrint('Failed to dispose worker (possible double-dispose?): $e');
+      developer.log('Failed to dispose worker (possible double-dispose?): $e');
     }
   }
 }

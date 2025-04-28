@@ -4,6 +4,7 @@
 library;
 
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:js_interop';
 import 'dart:typed_data';
 
@@ -325,13 +326,13 @@ Future<void> ensurePdfjsInitialized() async {
       return;
     }
 
-    debugPrint(
+    developer.log(
       'pdfrx Web status:\n'
       '- Running WASM:      $kIsWasm\n'
       '- SharedArrayBuffer: $isSharedArrayBufferSupported',
     );
     if (kIsWasm && !isSharedArrayBufferSupported) {
-      debugPrint(
+      developer.log(
         'WARNING: SharedArrayBuffer is not enabled and WASM is running in single thread mode. Enable SharedArrayBuffer by setting the following HTTP header on your server:\n'
         '  Cross-Origin-Embedder-Policy: require-corp|credentialless\n'
         '  Cross-Origin-Opener-Policy: same-origin\n',

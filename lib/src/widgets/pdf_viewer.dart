@@ -428,8 +428,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _viewSize = viewSize;
     final isLayoutChanged = _relayoutPages();
 
-    _calcCoverScale();
-    _calcAlternativeFitScale();
+    _calcCoverFitScale();
     _calcZoomStopTable();
 
     void callOnViewerSizeChanged() {
@@ -557,10 +556,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _setCurrentPageNumberInternal(_gotoTargetPageNumber, doSetState: true);
   }
 
-  void _determineCurrentPage() {
-    _setCurrentPageNumberInternal(_guessCurrentPageNumber());
-  }
-
   void _setCurrentPageNumberInternal(int? pageNumber, {bool doSetState = false}) {
     if (pageNumber != null && _pageNumber != pageNumber) {
       _pageNumber = pageNumber;
@@ -622,15 +617,12 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     return true;
   }
 
-  void _calcCoverScale() {
+  void _calcCoverFitScale() {
     if (_viewSize != null) {
       final s1 = _viewSize!.width / _layout!.documentSize.width;
       final s2 = _viewSize!.height / _layout!.documentSize.height;
       _coverScale = max(s1, s2);
     }
-  }
-
-  bool _calcAlternativeFitScale() {
     if (_pageNumber != null) {
       final params = widget.params;
       final rect = _layout!.pageLayouts[_pageNumber! - 1];
@@ -641,16 +633,14 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     }
     if (_coverScale == null) {
       _minScale = _defaultMinScale;
-      return false;
+      return;
     }
-
     _minScale =
         !widget.params.useAlternativeFitScaleAsMinScale
             ? widget.params.minScale
             : _alternativeFitScale == null
             ? _coverScale!
             : min(_coverScale!, _alternativeFitScale!);
-    return _alternativeFitScale != null;
   }
 
   void _calcZoomStopTable() {
@@ -1149,7 +1139,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     if (widget.params.normalizeMatrix != null) {
       return widget.params.normalizeMatrix!(newValue, _viewSize!, _layout!, _controller);
     }
-    return _normalizeMatrix(newValue);
+    return newValue;
+    //return _normalizeMatrix(newValue);
   }
 
   Matrix4 _normalizeMatrix(Matrix4 newValue) {
@@ -1188,40 +1179,49 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     return _calcMatrixFor(rect.center, zoom: zoom, viewSize: _viewSize!);
   }
 
-  Matrix4 _calcMatrixForArea({required Rect rect, PdfPageAnchor? anchor}) {
-    anchor ??= widget.params.pageAnchor;
-    final visibleRect = _visibleRect;
-    final w = min(rect.width, visibleRect.width);
-    final h = min(rect.height, visibleRect.height);
+  Matrix4 _calcMatrixForArea({required Rect rect, double? zoomMax, double? margin, PdfPageAnchor? anchor}) =>
+      _calcMatrixForRect(
+        _calcRectForArea(rect: rect, anchor: anchor ?? widget.params.pageAnchor),
+        zoomMax: zoomMax,
+        margin: margin,
+      );
+
+  // The function calculate the rectangle which should be shown in the view.
+  //
+  // If the rect is smaller than the view size, it will
+  Rect _calcRectForArea({required Rect rect, required PdfPageAnchor anchor}) {
+    final viewSize = _visibleRect.size;
+    final w = min(rect.width, viewSize.width);
+    final h = min(rect.height, viewSize.height);
     switch (anchor) {
       case PdfPageAnchor.top:
-        return _calcMatrixForRect((rect.topLeft) & Size(rect.width, h));
+        return Rect.fromLTWH(rect.left, rect.top, rect.width, h);
       case PdfPageAnchor.left:
-        return _calcMatrixForRect((rect.topLeft) & Size(w, rect.height));
+        return Rect.fromLTWH(rect.left, rect.top, w, rect.height);
       case PdfPageAnchor.right:
-        return _calcMatrixForRect(Rect.fromLTWH(rect.right - w, rect.top, w, rect.height));
+        return Rect.fromLTWH(rect.right - w, rect.top, w, rect.height);
       case PdfPageAnchor.bottom:
-        return _calcMatrixForRect(Rect.fromLTWH(rect.left, rect.bottom - h, rect.width, h));
+        return Rect.fromLTWH(rect.left, rect.bottom - h, rect.width, h);
       case PdfPageAnchor.topLeft:
-        return _calcMatrixForRect((rect.topLeft) & visibleRect.size);
+        return Rect.fromLTWH(rect.left, rect.top, viewSize.width, viewSize.height);
       case PdfPageAnchor.topCenter:
-        return _calcMatrixForRect(rect.topCenter & visibleRect.size);
+        return Rect.fromLTWH(rect.topCenter.dx - w / 2, rect.top, viewSize.width, viewSize.height);
       case PdfPageAnchor.topRight:
-        return _calcMatrixForRect((rect.topRight) & visibleRect.size);
+        return Rect.fromLTWH(rect.topRight.dx - w, rect.top, viewSize.width, viewSize.height);
       case PdfPageAnchor.centerLeft:
-        return _calcMatrixForRect(rect.centerLeft & visibleRect.size);
+        return Rect.fromLTWH(rect.left, rect.center.dy - h / 2, viewSize.width, viewSize.height);
       case PdfPageAnchor.center:
-        return _calcMatrixForRect(rect.center & visibleRect.size);
+        return Rect.fromLTWH(rect.center.dx - w / 2, rect.center.dy - h / 2, viewSize.width, viewSize.height);
       case PdfPageAnchor.centerRight:
-        return _calcMatrixForRect(rect.centerRight & visibleRect.size);
+        return Rect.fromLTWH(rect.right - w, rect.center.dy - h / 2, viewSize.width, viewSize.height);
       case PdfPageAnchor.bottomLeft:
-        return _calcMatrixForRect((rect.bottomLeft) & visibleRect.size);
+        return Rect.fromLTWH(rect.left, rect.bottom - h, viewSize.width, viewSize.height);
       case PdfPageAnchor.bottomCenter:
-        return _calcMatrixForRect(rect.bottomCenter & visibleRect.size);
+        return Rect.fromLTWH(rect.center.dx - w / 2, rect.bottom - h, viewSize.width, viewSize.height);
       case PdfPageAnchor.bottomRight:
-        return _calcMatrixForRect((rect.bottomRight) & visibleRect.size);
+        return Rect.fromLTWH(rect.right - w, rect.bottom - h, viewSize.width, viewSize.height);
       case PdfPageAnchor.all:
-        return _calcMatrixForRect(rect);
+        return rect;
     }
   }
 

@@ -38,12 +38,12 @@ bool _initialized = false;
 
 void _init() {
   if (_initialized) return;
-  Pdfrx.webRuntimeType = _isWasmEnabled() ? PdfrxWebRuntimeType.pdfiumWasm : PdfrxWebRuntimeType.pdfjs;
+  if (_isWasmShouldBeEnabled()) Pdfrx.webRuntimeType = PdfrxWebRuntimeType.pdfiumWasm;
   Pdfrx.pdfiumWasmModulesUrl = _pdfiumWasmModulesUrlFromMetaTag();
   _initialized = true;
 }
 
-bool _isWasmEnabled() {
+bool _isWasmShouldBeEnabled() {
   final meta = web.document.querySelector('meta[name="pdfrx-pdfium-wasm"]') as web.HTMLMetaElement?;
   return meta?.content == 'enabled';
 }
