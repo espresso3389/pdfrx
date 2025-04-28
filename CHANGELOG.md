@@ -1,3 +1,12 @@
+# 1.1.24
+
+- FIXED: #336 zoom out does not cover entire page after changing layout
+  - Updates to viewer example to support page layout switching
+  - Minor goToPage and other goTo functions behavior changes (normalizeMatrix and other)
+- MERGED: PR #349 that fixes resource leaks on PdfPageView
+- FIXED: #215 Wrong link highlight position on searching a word
+- FIXED: #344 New "key event handling" feature in version 1.1.22 prevents TextFormField in page overlay from receiving key events
+
 # 1.1.23
 
 - Minor internal change
