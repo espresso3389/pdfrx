@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:math';
 import 'dart:ui' as ui;
 
@@ -292,13 +293,16 @@ class _PdfPageViewState extends State<PdfPageView> {
       cancellationToken: _cancellationToken,
     );
     if (pageImage == null) return;
-    final newImage = await pageImage.createImage();
-    pageImage.dispose();
-    final oldImage = _image;
-    _image = newImage;
-    oldImage?.dispose();
-    if (mounted) {
-      setState(() {});
+    try {
+      final newImage = await pageImage.createImage();
+      pageImage.dispose();
+      _image = newImage;
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      developer.log('Error creating image: $e');
+      pageImage.dispose();
     }
   }
 }
