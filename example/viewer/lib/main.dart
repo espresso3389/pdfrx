@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:file_selector/file_selector.dart' as fs;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -112,6 +114,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                   FilledButton(onPressed: () => openUri(), child: Text('Open URL')),
                   Spacer(),
                 ],
+                IconButton(
+                    visualDensity: visualDensity,
+                    onPressed: documentRef == null ? null : () => _changeLayoutType(),
+                    icon: Icon(Icons.pages)),
                 IconButton(
                   visualDensity: visualDensity,
                   icon: const Icon(
@@ -311,6 +317,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         //passwordProvider: () => passwordDialog(context),
                         controller: controller,
                         params: PdfViewerParams(
+                          layoutPages: _layoutPages[_layoutTypeIndex],
+                          scrollHorizontallyByMouseWheel: _layoutTypeIndex == 1,
+                          pageAnchor: _layoutTypeIndex == 1 ? PdfPageAnchor.left : PdfPageAnchor.top,
+                          pageAnchorEnd: _layoutTypeIndex == 1 ? PdfPageAnchor.right : PdfPageAnchor.bottom,
                           enableTextSelection: true,
                           maxScale: 8,
                           // facing pages algorithm
@@ -503,6 +513,82 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       }
     }
   }
+
+  int _layoutTypeIndex = 0;
+
+  /// Change the layout logic; see [_layoutPages] for the logics
+  void _changeLayoutType() {
+    setState(() {
+      _layoutTypeIndex = (_layoutTypeIndex + 1) % _layoutPages.length;
+    });
+  }
+
+  /// Page reading order; true to L-to-R that is commonly used by books like manga or such
+  var isRightToLeftReadingOrder = false;
+
+  /// Use the first page as cover page
+  var needCoverPage = true;
+
+  late final List<PdfPageLayoutFunction?> _layoutPages = [
+    // The default layout
+    null,
+    // Horizontal layout
+    (pages, params) {
+      final height = pages.fold(0.0, (prev, page) => max(prev, page.height)) + params.margin * 2;
+      final pageLayouts = <Rect>[];
+      double x = params.margin;
+      for (var page in pages) {
+        pageLayouts.add(
+          Rect.fromLTWH(
+            x,
+            (height - page.height) / 2, // center vertically
+            page.width,
+            page.height,
+          ),
+        );
+        x += page.width + params.margin;
+      }
+      return PdfPageLayout(
+        pageLayouts: pageLayouts,
+        documentSize: Size(x, height),
+      );
+    },
+    // Facing pages layout
+    (pages, params) {
+      final width = pages.fold(0.0, (prev, page) => max(prev, page.width));
+
+      final pageLayouts = <Rect>[];
+      final offset = needCoverPage ? 1 : 0;
+      double y = params.margin;
+      for (int i = 0; i < pages.length; i++) {
+        final page = pages[i];
+        final pos = i + offset;
+        final isLeft = isRightToLeftReadingOrder ? (pos & 1) == 1 : (pos & 1) == 0;
+
+        final otherSide = (pos ^ 1) - offset;
+        final h = 0 <= otherSide && otherSide < pages.length ? max(page.height, pages[otherSide].height) : page.height;
+
+        pageLayouts.add(
+          Rect.fromLTWH(
+            isLeft ? width + params.margin - page.width : params.margin * 2 + width,
+            y + (h - page.height) / 2,
+            page.width,
+            page.height,
+          ),
+        );
+        if (pos & 1 == 1 || i + 1 == pages.length) {
+          y += h + params.margin;
+        }
+      }
+      return PdfPageLayout(
+        pageLayouts: pageLayouts,
+        documentSize: Size(
+          (params.margin + width) * 2 + params.margin,
+          y,
+        ),
+      );
+    },
+  ];
 
   void _addCurrentSelectionToMarkers(Color color) {
     if (controller.isReady && textSelections != null) {
