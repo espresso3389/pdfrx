@@ -1139,8 +1139,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     if (widget.params.normalizeMatrix != null) {
       return widget.params.normalizeMatrix!(newValue, _viewSize!, _layout!, _controller);
     }
-    return newValue;
-    //return _normalizeMatrix(newValue);
+    return _normalizeMatrix(newValue);
   }
 
   Matrix4 _normalizeMatrix(Matrix4 newValue) {
@@ -1148,7 +1147,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     final viewSize = _viewSize;
     if (layout == null || viewSize == null) return newValue;
     final position = newValue.calcPosition(viewSize);
-    final newZoom = widget.params.boundaryMargin != null ? newValue.zoom : max(newValue.zoom, minScale);
+    final newZoom = max(newValue.zoom, minScale);
     final hw = viewSize.width / 2 / newZoom;
     final hh = viewSize.height / 2 / newZoom;
     final x = position.dx.range(hw, layout.documentSize.width - hw);
