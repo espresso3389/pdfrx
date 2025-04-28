@@ -253,7 +253,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         if (widget.params.annotationRenderingMode != oldWidget?.params.annotationRenderingMode) {
           _releaseAllImages();
         }
-        _updateLayout(_viewSize!);
       }
       return;
     } else {
