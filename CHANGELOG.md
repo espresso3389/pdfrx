@@ -1,3 +1,7 @@
+# 1.1.25
+
+- FIXED: #350 callback onPageChanged no longer called?
+
 # 1.1.24
 
 - FIXED: #336 zoom out does not cover entire page after changing layout
