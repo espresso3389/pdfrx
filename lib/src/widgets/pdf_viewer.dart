@@ -458,6 +458,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
           callOnViewerSizeChanged();
         }
       });
+    } else if (currentPageNumber != null && _pageNumber != currentPageNumber) {
+      _setCurrentPageNumber(currentPageNumber);
     }
   }
 
