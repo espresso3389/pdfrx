@@ -157,6 +157,7 @@ PdfPasswordProvider createSimplePasswordProvider(String? password) {
 
 /// Handles PDF document loaded on memory.
 abstract class PdfDocument {
+  /// Constructor to force initialization of sourceName.
   PdfDocument({required this.sourceName});
 
   /// File path, `asset:[ASSET_PATH]` or `memory:` depending on the content opened.
@@ -168,6 +169,7 @@ abstract class PdfDocument {
   /// Determine whether the PDF file is encrypted or not.
   bool get isEncrypted;
 
+  /// PdfDocument must have [dispose] function.
   Future<void> dispose();
 
   /// Opening the specified file.
@@ -930,8 +932,10 @@ enum PdfDestCommand {
 
   const PdfDestCommand(this.name);
 
+  /// Command name.
   final String name;
 
+  /// Parse the command name to [PdfDestCommand].
   factory PdfDestCommand.parse(String name) {
     final nameLow = name.toLowerCase();
     return PdfDestCommand.values.firstWhere((e) => e.name == nameLow, orElse: () => PdfDestCommand.unknown);
