@@ -827,6 +827,7 @@ class PdfRect {
   Rect toRectInPageRect({required PdfPage page, required Rect pageRect}) =>
       toRect(page: page, scaledPageSize: pageRect.size).translate(pageRect.left, pageRect.top);
 
+  /// Rotate the rectangle.
   PdfRect rotate(int rotation, PdfPage page) {
     final swap = (page.rotation.index & 1) == 1;
     final width = swap ? page.height : page.width;
@@ -845,6 +846,7 @@ class PdfRect {
     }
   }
 
+  /// Rotate the rectangle in reverse direction.
   PdfRect rotateReverse(int rotation, PdfPage page) {
     final swap = (page.rotation.index & 1) == 1;
     final width = swap ? page.height : page.width;
@@ -882,6 +884,7 @@ class PdfRect {
 }
 
 extension RectPdfRectExt on Rect {
+  /// Convert to [PdfRect] in PDF page coordinates.
   PdfRect toPdfRect({required PdfPage page, Size? scaledPageSize, int? rotation}) {
     final scale = scaledPageSize == null ? 1.0 : scaledPageSize.height / page.height;
     return PdfRect(
@@ -1073,6 +1076,7 @@ class PdfPoint {
     return Offset(rotated.x * scale, (page.height - rotated.y) * scale);
   }
 
+  /// Rotate the point.
   PdfPoint rotate(int rotation, PdfPage page) {
     final swap = (page.rotation.index & 1) == 1;
     final width = swap ? page.height : page.width;
@@ -1091,6 +1095,7 @@ class PdfPoint {
     }
   }
 
+  /// Rotate the point in reverse direction.
   PdfPoint rotateReverse(int rotation, PdfPage page) {
     final swap = (page.rotation.index & 1) == 1;
     final width = swap ? page.height : page.width;
