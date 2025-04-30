@@ -1,3 +1,8 @@
+# 1.1.26
+
+- Introduces PdfPoint, which work with Offset for conversion between PDF page coordinates and Flutter coordinates
+- FIXED: #352 Link click/text selection are completely broken if PDF page is rotated
+
 # 1.1.25
 
 - FIXED: #350 callback onPageChanged no longer called?
