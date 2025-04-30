@@ -845,6 +845,24 @@ class PdfRect {
     }
   }
 
+  PdfRect rotateReverse(int rotation, PdfPage page) {
+    final swap = (page.rotation.index & 1) == 1;
+    final width = swap ? page.height : page.width;
+    final height = swap ? page.width : page.height;
+    switch (rotation & 3) {
+      case 0:
+        return this;
+      case 1:
+        return PdfRect(width - top, right, width - bottom, left);
+      case 2:
+        return PdfRect(width - right, height - bottom, width - left, height - top);
+      case 3:
+        return PdfRect(bottom, height - left, top, height - right);
+      default:
+        throw ArgumentError.value(rotate, 'rotate');
+    }
+  }
+
   PdfRect inflate(double dx, double dy) => PdfRect(left - dx, top + dy, right + dx, bottom - dy);
 
   @override
@@ -860,6 +878,18 @@ class PdfRect {
   @override
   String toString() {
     return 'PdfRect(left: $left, top: $top, right: $right, bottom: $bottom)';
+  }
+}
+
+extension RectPdfRectExt on Rect {
+  PdfRect toPdfRect({required PdfPage page, Size? scaledPageSize, int? rotation}) {
+    final scale = scaledPageSize == null ? 1.0 : scaledPageSize.height / page.height;
+    return PdfRect(
+      left / scale,
+      page.height - top / scale,
+      right / scale,
+      page.height - bottom / scale,
+    ).rotateReverse(rotation ?? page.rotation.index, page);
   }
 }
 
