@@ -129,7 +129,7 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
   }
 
   void _onHover(PointerHoverEvent event) {
-    final point = event.localPosition.toPdfPoint(widget.page, widget.pageRect);
+    final point = event.localPosition.toPdfPoint(page: widget.page, scaledPageSize: widget.pageRect.size);
 
     final selectionShouldBeEnabled = isPointOnText(point);
     if (this.selectionShouldBeEnabled != selectionShouldBeEnabled) {
@@ -140,27 +140,13 @@ class _PdfPageTextOverlayState extends State<PdfPageTextOverlay> {
     }
   }
 
-  bool isPointOnText(Offset point, {double margin = 5}) {
+  bool isPointOnText(PdfPoint point, {double margin = 5}) {
     for (final fragment in fragments!) {
-      if (pdfRectContains(fragment.bounds, point, margin)) {
+      if (fragment.bounds.containsPoint(point, margin: margin)) {
         return true;
       }
     }
     return false;
-  }
-
-  static bool pdfRectContains(PdfRect rect, Offset point, double margin) {
-    return rect.left - margin <= point.dx &&
-        rect.right + margin >= point.dx &&
-        rect.bottom - margin <= point.dy &&
-        rect.top + margin >= point.dy;
-  }
-}
-
-extension _OffsetExt on Offset {
-  Offset toPdfPoint(PdfPage page, Rect pageRect) {
-    final scale = page.height / pageRect.height;
-    return Offset(dx * scale, page.height - dy * scale);
   }
 }
 
@@ -231,7 +217,7 @@ class _PdfTextRenderBox extends RenderBox with PdfPageTextSelectable, Selectable
 
   @override
   bool hitTestSelf(Offset position) {
-    final point = position.toPdfPoint(_page, _pageRect);
+    final point = position.toPdfPoint(page: _page, scaledPageSize: _pageRect.size);
     return _textWidget._state.isPointOnText(point);
   }
 

@@ -1424,7 +1424,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       if (pageRect.contains(offset)) {
         return PdfPageHitTestResult(
           page: page,
-          offset: Offset(offset.dx - pageRect.left, pageRect.bottom - offset.dy) * page.height / pageRect.height,
+          offset: offset.translate(-pageRect.left, -pageRect.top).toPdfPoint(page: page, scaledPageSize: pageRect.size),
         );
       }
     }
@@ -1557,7 +1557,7 @@ class PdfPageHitTestResult {
   final PdfPage page;
 
   /// The offset in the PDF page coordinates; the origin is at the bottom-left corner.
-  final Offset offset;
+  final PdfPoint offset;
 }
 
 /// Controls associated [PdfViewer].
@@ -2058,7 +2058,7 @@ class _CanvasLinkPainter {
     if (links == null) return null;
     for (final link in links) {
       for (final rect in link.rects) {
-        if (rect.containsOffset(hitResult.offset)) {
+        if (rect.containsPoint(hitResult.offset)) {
           return link;
         }
       }
