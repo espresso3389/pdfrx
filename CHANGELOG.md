@@ -1,3 +1,7 @@
+# 1.1.27
+
+- Apply a proposed fix for #134; but I' not sure if it works well or not. Personally, I don't feel any difference...
+
 # 1.1.26
 
 - Introduces PdfPoint, which work with Offset for conversion between PDF page coordinates and Flutter coordinates
