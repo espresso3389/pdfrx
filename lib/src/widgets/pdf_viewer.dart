@@ -1154,7 +1154,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     final x = position.dx.range(hw, layout.documentSize.width - hw);
     final y = position.dy.range(hh, layout.documentSize.height - hh);
 
-    return _calcMatrixFor(Offset(x, y), zoom: newZoom, viewSize: viewSize);
+    return _calcMatrixFor(Offset(x, y), zoom: newZoom, viewSize: viewSize).scaled(1.0, 1.0, newZoom);
   }
 
   /// Calculate matrix to center the specified position.
@@ -1330,7 +1330,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     } on TickerCanceled {
       // expected
     } finally {
-      _animGoTo!.removeListener(update);
+      _animGoTo?.removeListener(update);
     }
   }
 
