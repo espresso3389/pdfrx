@@ -552,12 +552,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   /// Set the current page number.
   ///
   /// Please note that the function does not scroll/zoom to the specified page but changes the current page number.
-  void _setCurrentPageNumber(int pageNumber) {
+  void _setCurrentPageNumber(int? pageNumber, {bool doSetState = false}) {
     _gotoTargetPageNumber = pageNumber;
-    _setCurrentPageNumberInternal(_gotoTargetPageNumber, doSetState: true);
-  }
-
-  void _setCurrentPageNumberInternal(int? pageNumber, {bool doSetState = false}) {
     if (pageNumber != null && _pageNumber != pageNumber) {
       _pageNumber = pageNumber;
       if (doSetState) {
@@ -624,9 +620,10 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       final s2 = _viewSize!.height / _layout!.documentSize.height;
       _coverScale = max(s1, s2);
     }
-    if (_pageNumber != null) {
+    final pageNumber = _pageNumber ?? _gotoTargetPageNumber;
+    if (pageNumber != null) {
       final params = widget.params;
-      final rect = _layout!.pageLayouts[_pageNumber! - 1];
+      final rect = _layout!.pageLayouts[pageNumber - 1];
       final m2 = params.margin * 2;
       _alternativeFitScale = min((_viewSize!.width - m2) / rect.width, (_viewSize!.height - m2) / rect.height);
     } else {
@@ -637,11 +634,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       return;
     }
     _minScale =
-        !widget.params.useAlternativeFitScaleAsMinScale
+        !widget.params.useAlternativeFitScaleAsMinScale || _alternativeFitScale == null
             ? widget.params.minScale
-            : _alternativeFitScale == null
-            ? _coverScale!
-            : min(_coverScale!, _alternativeFitScale!);
+            : _alternativeFitScale!;
   }
 
   void _calcZoomStopTable() {
@@ -1379,11 +1374,13 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     if (pageNumber < 1) {
       targetPageNumber = 1;
     } else if (pageNumber != 1 && pageNumber >= pageCount) {
-      targetPageNumber = pageCount;
+      targetPageNumber = pageNumber = pageCount;
       anchor ??= widget.params.pageAnchorEnd;
     } else {
       targetPageNumber = pageNumber;
     }
+    _gotoTargetPageNumber = pageNumber;
+
     await _goTo(_calcMatrixForPage(pageNumber: targetPageNumber, anchor: anchor), duration: duration);
     _setCurrentPageNumber(targetPageNumber);
   }
@@ -1394,6 +1391,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     PdfPageAnchor? anchor,
     Duration duration = const Duration(milliseconds: 200),
   }) async {
+    _gotoTargetPageNumber = pageNumber;
     await _goTo(_calcMatrixForRectInsidePage(pageNumber: pageNumber, rect: rect, anchor: anchor), duration: duration);
     _setCurrentPageNumber(pageNumber);
   }
@@ -1401,6 +1399,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   Future<bool> _goToDest(PdfDest? dest, {Duration duration = const Duration(milliseconds: 200)}) async {
     final m = _calcMatrixForDest(dest);
     if (m == null) return false;
+    if (dest != null) {
+      _gotoTargetPageNumber = dest.pageNumber;
+    }
     await _goTo(m, duration: duration);
     if (dest != null) {
       _setCurrentPageNumber(dest.pageNumber);
