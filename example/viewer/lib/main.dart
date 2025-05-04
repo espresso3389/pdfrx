@@ -318,57 +318,12 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         controller: controller,
                         params: PdfViewerParams(
                           layoutPages: _layoutPages[_layoutTypeIndex],
-                          scrollHorizontallyByMouseWheel: _layoutTypeIndex == 1,
-                          pageAnchor: _layoutTypeIndex == 1 ? PdfPageAnchor.left : PdfPageAnchor.top,
-                          pageAnchorEnd: _layoutTypeIndex == 1 ? PdfPageAnchor.right : PdfPageAnchor.bottom,
+                          scrollHorizontallyByMouseWheel: isHorizontalLayout,
+                          pageAnchor: isHorizontalLayout ? PdfPageAnchor.left : PdfPageAnchor.top,
+                          pageAnchorEnd: isHorizontalLayout ? PdfPageAnchor.right : PdfPageAnchor.bottom,
                           enableTextSelection: true,
+                          useAlternativeFitScaleAsMinScale: false,
                           maxScale: 8,
-                          // facing pages algorithm
-                          // layoutPages: (pages, params) {
-                          //   // They should be moved outside function
-                          //   const isRightToLeftReadingOrder = false;
-                          //   const needCoverPage = true;
-                          //   final width = pages.fold(
-                          //       0.0, (prev, page) => max(prev, page.width));
-
-                          //   final pageLayouts = <Rect>[];
-                          //   double y = params.margin;
-                          //   for (int i = 0; i < pages.length; i++) {
-                          //     const offset = needCoverPage ? 1 : 0;
-                          //     final page = pages[i];
-                          //     final pos = i + offset;
-                          //     final isLeft = isRightToLeftReadingOrder
-                          //         ? (pos & 1) == 1
-                          //         : (pos & 1) == 0;
-
-                          //     final otherSide = (pos ^ 1) - offset;
-                          //     final h = 0 <= otherSide && otherSide < pages.length
-                          //         ? max(page.height, pages[otherSide].height)
-                          //         : page.height;
-
-                          //     pageLayouts.add(
-                          //       Rect.fromLTWH(
-                          //         isLeft
-                          //             ? width + params.margin - page.width
-                          //             : params.margin * 2 + width,
-                          //         y + (h - page.height) / 2,
-                          //         page.width,
-                          //         page.height,
-                          //       ),
-                          //     );
-                          //     if (pos & 1 == 1 || i + 1 == pages.length) {
-                          //       y += h + params.margin;
-                          //     }
-                          //   }
-                          //   return PdfPageLayout(
-                          //     pageLayouts: pageLayouts,
-                          //     documentSize: Size(
-                          //       (params.margin + width) * 2 + params.margin,
-                          //       y,
-                          //     ),
-                          //   );
-                          // },
-                          //
                           onViewSizeChanged: (viewSize, oldViewSize, controller) {
                             if (oldViewSize != null) {
                               //
@@ -418,21 +373,31 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                               thumbSize: const Size(40, 25),
                               thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
                                 color: Colors.black,
-                                child: Center(
-                                  child: Text(
-                                    pageNumber.toString(),
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                ),
+                                child: isHorizontalLayout
+                                    ? null
+                                    : Center(
+                                        child: Text(
+                                          pageNumber.toString(),
+                                          style: const TextStyle(color: Colors.white),
+                                        ),
+                                      ),
                               ),
                             ),
                             // Just a simple horizontal scroll thumb on the bottom
                             PdfViewerScrollThumb(
                               controller: controller,
                               orientation: ScrollbarOrientation.bottom,
-                              thumbSize: const Size(80, 30),
+                              thumbSize: const Size(40, 25),
                               thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
-                                color: Colors.red,
+                                color: Colors.black,
+                                child: !isHorizontalLayout
+                                    ? null
+                                    : Center(
+                                        child: Text(
+                                          pageNumber.toString(),
+                                          style: const TextStyle(color: Colors.white),
+                                        ),
+                                      ),
                               ),
                             ),
                           ],
@@ -522,6 +487,8 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       _layoutTypeIndex = (_layoutTypeIndex + 1) % _layoutPages.length;
     });
   }
+
+  bool get isHorizontalLayout => _layoutTypeIndex == 1;
 
   /// Page reading order; true to L-to-R that is commonly used by books like manga or such
   var isRightToLeftReadingOrder = false;

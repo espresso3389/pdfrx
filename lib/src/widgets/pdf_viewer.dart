@@ -580,7 +580,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       return area / (rect.width * rect.height);
     }
 
-    if (_gotoTargetPageNumber != null) {
+    if (_gotoTargetPageNumber != null &&
+        _gotoTargetPageNumber! > 0 &&
+        _gotoTargetPageNumber! <= _document!.pages.length) {
       final ratio = calcIntersectionArea(_gotoTargetPageNumber!);
       if (ratio > .2) return _gotoTargetPageNumber;
     }
