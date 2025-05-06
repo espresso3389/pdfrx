@@ -1,3 +1,7 @@
+## 1.1.10
+
+* PDFium WASM 138.0.7162.0
+
 ## 1.1.8
 
 * FIXED: loadOutline is not implemented on Pdfium WASM
