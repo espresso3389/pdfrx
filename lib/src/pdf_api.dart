@@ -1070,8 +1070,6 @@ class PdfPoint {
   /// [rotation] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
   Offset toOffset({required PdfPage page, Size? scaledPageSize, int? rotation}) {
     final rotated = rotate(rotation ?? page.rotation.index, page);
-    final orig = rotated.rotateReverse(rotation ?? page.rotation.index, page);
-    print('this=$this, rotated=$rotated, orig=$orig');
     final scale = scaledPageSize == null ? 1.0 : scaledPageSize.height / page.height;
     return Offset(rotated.x * scale, (page.height - rotated.y) * scale);
   }
