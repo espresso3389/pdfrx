@@ -1,3 +1,10 @@
+# 1.1.28
+
+- WIP: zoom ratio calculation updates
+- goToPage throws array index out of bounds error if the page number is out of range
+- PDFium WASM 138.0.7162.0
+- Remove debug print
+
 # 1.1.27
 
 - Apply a proposed fix for #134; but I' not sure if it works well or not. Personally, I don't feel any difference...
