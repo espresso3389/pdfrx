@@ -54,20 +54,20 @@ class HttpCacheControl {
 
   @override
   String toString() {
-    final sb = StringBuffer();
-    if (noCache) sb.write('no-cache,');
-    if (mustRevalidate) sb.write('must-revalidate,');
-    if (noStore) sb.write('no-store,');
-    if (private) sb.write('private,');
-    if (public) sb.write('public,');
-    if (mustUnderstand) sb.write('must-understand,');
-    if (noTransform) sb.write('no-transform,');
-    if (immutable) sb.write('immutable,');
-    if (staleWhileRevalidate) sb.write('stale-while-revalidate,');
-    if (staleIfError) sb.write('stale-if-error,');
-    if (maxAge != null) sb.write('max-age=$maxAge,');
-    if (sMaxAge != null) sb.write('s-maxage=$sMaxAge,');
-    return sb.toString();
+    final sb = <String>[];
+    if (noCache) sb.add('no-cache');
+    if (mustRevalidate) sb.add('must-revalidate');
+    if (noStore) sb.add('no-store');
+    if (private) sb.add('private');
+    if (public) sb.add('public');
+    if (mustUnderstand) sb.add('must-understand');
+    if (noTransform) sb.add('no-transform');
+    if (immutable) sb.add('immutable');
+    if (staleWhileRevalidate) sb.add('stale-while-revalidate');
+    if (staleIfError) sb.add('stale-if-error');
+    if (maxAge != null) sb.add('max-age=$maxAge');
+    if (sMaxAge != null) sb.add('s-maxage=$sMaxAge');
+    return sb.join(',');
   }
 
   @override
@@ -96,8 +96,8 @@ class HttpCacheControlState {
     final expires = _parseHttpDateTime(headers['expires']);
     final etag = headers['etag'];
     final lastModified = _parseHttpDateTime(headers['last-modified']);
-    var noCache = cacheControl?.contains('no-cache') == true;
-    var noStore = cacheControl?.contains('no-store') == true;
+    var noCache = cacheControl?.contains('no-cache') ?? false;
+    var noStore = cacheControl?.contains('no-store') ?? false;
     var maxAge = int.tryParse(
       cacheControl?.firstWhere((e) => e.startsWith('max-age='), orElse: () => '********').substring(8) ?? '',
     );
