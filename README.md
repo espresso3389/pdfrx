@@ -64,7 +64,7 @@ Without this, you may encounter errors [like this](https://github.com/espresso33
 
 ### Pdfium WASM support on Web
 
-pdfrx now supports Pdfium WASM on Web, for more informatin, see [Enable Pdfium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-Pdfium-WASM-support).
+pdfrx now supports Pdfium WASM on Web, for more information, see [Enable Pdfium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-Pdfium-WASM-support).
 
 ### Deal with Password Protected PDF Files
 
