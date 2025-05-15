@@ -388,7 +388,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                         constrained: false,
                         boundaryMargin: widget.params.boundaryMargin ?? const EdgeInsets.all(double.infinity),
                         maxScale: widget.params.maxScale,
-                        minScale: _alternativeFitScale != null ? _alternativeFitScale! / 2 : minScale,
+                        minScale: minScale,
                         panAxis: widget.params.panAxis,
                         panEnabled: widget.params.panEnabled,
                         scaleEnabled: widget.params.scaleEnabled,
@@ -421,6 +421,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   }
 
   void _updateLayout(Size viewSize) {
+    if (viewSize.height <= 0) return; // For fix blank pdf when restore window from minimize on Windows
     final currentPageNumber = _guessCurrentPageNumber();
     final oldSize = _viewSize;
     final isViewSizeChanged = oldSize != viewSize;
