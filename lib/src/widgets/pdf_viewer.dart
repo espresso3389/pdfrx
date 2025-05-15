@@ -629,6 +629,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       final rect = _layout!.pageLayouts[pageNumber - 1];
       final m2 = params.margin * 2;
       _alternativeFitScale = min((_viewSize!.width - m2) / rect.width, (_viewSize!.height - m2) / rect.height);
+      if (_alternativeFitScale! <= 0) {
+        _alternativeFitScale = null;
+      }
     } else {
       _alternativeFitScale = null;
     }
