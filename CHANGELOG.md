@@ -1,3 +1,9 @@
+# 1.1.29
+
+- FIXED: [#363](https://github.com/espresso3389/pdfrx/issues/363)
+  - FIXED: pdfium-wasm-module-url on HTML meta tag overrides value explicitly set to Pdfrx.pdfiumWasmModulesUrl
+  - Improves pdfium_worker.js/pdfium.wasm loading path resolution logic to allow relative paths
+
 # 1.1.28
 
 - WIP: zoom ratio calculation updates
