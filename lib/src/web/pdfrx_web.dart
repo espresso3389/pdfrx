@@ -39,7 +39,7 @@ bool _initialized = false;
 void _init() {
   if (_initialized) return;
   if (_isWasmShouldBeEnabled()) Pdfrx.webRuntimeType = PdfrxWebRuntimeType.pdfiumWasm;
-  Pdfrx.pdfiumWasmModulesUrl = _pdfiumWasmModulesUrlFromMetaTag();
+  Pdfrx.pdfiumWasmModulesUrl ??= _pdfiumWasmModulesUrlFromMetaTag();
   _initialized = true;
 }
 

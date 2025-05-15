@@ -31,14 +31,14 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
 
   Future<void> _init() async {
     pdfiumWasmWorkerUrl = _getWorkerUrl();
-    final moduleUrl = Pdfrx.pdfiumWasmModulesUrl ?? defaultWasmModulePath;
+    final moduleUrl = _resolveUrl(Pdfrx.pdfiumWasmModulesUrl ?? defaultWasmModulePath);
     final script =
         web.document.createElement('script') as web.HTMLScriptElement
           ..type = 'text/javascript'
           ..charset = 'utf-8'
           ..async = true
           ..type = 'module'
-          ..src = '${moduleUrl}pdfium_client.js';
+          ..src = _resolveUrl('pdfium_client.js', baseUrl: moduleUrl);
     web.document.querySelector('head')!.appendChild(script);
     final completer = Completer();
     final sub1 = script.onLoad.listen((_) => completer.complete());
@@ -53,11 +53,11 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     }
   }
 
-  /// Ugly workaround for Cross-Origin-Embedder-Policy restriction on WASM enabled environments
+  /// Workaround for Cross-Origin-Embedder-Policy restriction on WASM enabled environments
   String _getWorkerUrl() {
-    final moduleUrl = Pdfrx.pdfiumWasmModulesUrl ?? _appendComponents(web.window.location.href, defaultWasmModulePath);
-    final workerJsUrl = _appendComponents(moduleUrl, 'pdfium_worker.js');
-    final pdfiumWasmUrl = _appendComponents(moduleUrl, 'pdfium.wasm');
+    final moduleUrl = _resolveUrl(Pdfrx.pdfiumWasmModulesUrl ?? defaultWasmModulePath);
+    final workerJsUrl = _resolveUrl('pdfium_worker.js', baseUrl: moduleUrl);
+    final pdfiumWasmUrl = _resolveUrl('pdfium.wasm', baseUrl: moduleUrl);
     final content = 'const pdfiumWasmUrl="$pdfiumWasmUrl";importScripts("$workerJsUrl");';
     final blob = web.Blob(
       [content].jsify() as JSArray<web.BlobPart>,
@@ -66,15 +66,10 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     return web.URL.createObjectURL(blob);
   }
 
-  static String _appendComponents(String url, String additionalPath) {
-    var uri = Uri.parse(url);
-    final lastSlash = uri.path.lastIndexOf('/');
-    if (lastSlash == -1) {
-      uri = uri.replace(path: '${uri.path}/$additionalPath');
-    } else {
-      uri = uri.replace(path: uri.path.substring(0, lastSlash + 1) + additionalPath);
-    }
-    return uri.toString();
+  /// Resolves the given [relativeUrl] against the [baseUrl].
+  /// If [baseUrl] is null, it uses the current page URL.
+  static String _resolveUrl(String relativeUrl, {String? baseUrl}) {
+    return Uri.parse(baseUrl ?? web.window.location.href).resolveUri(Uri.parse(relativeUrl)).toString();
   }
 
   Future<Map<Object?, dynamic>> sendCommand(String command, {Map<Object?, dynamic>? parameters}) async {
