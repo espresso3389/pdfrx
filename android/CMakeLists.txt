@@ -36,7 +36,7 @@ set(PDFIUM_DEST_LIB_FILENAME ${PDFIUM_LIBS_ARCH_DIR}/${PDFIUM_LIB_FILENAME})
 
 set(PDFIUM_LATEST_DIR ${CMAKE_SOURCE_DIR}/.lib/latest)
 set(PDFIUM_LATEST_LIBS_ARCH_DIR ${PDFIUM_LATEST_DIR}/${ANDROID_ABI})
-set(PDFIUM_LASTEST_LIB_FILENAME ${PDFIUM_LATEST_LIBS_ARCH_DIR}/${PDFIUM_LIB_FILENAME})
+set(PDFIUM_LATEST_LIB_FILENAME ${PDFIUM_LATEST_LIBS_ARCH_DIR}/${PDFIUM_LIB_FILENAME})
 
 if(NOT EXISTS ${PDFIUM_SRC_LIB_FILENAME})
     message(STATUS "Download precompiled PDFium...")
@@ -71,9 +71,9 @@ set(pdfrx_bundled_libraries
   # Defined in ../src/CMakeLists.txt.
   # This can be changed to accommodate different builds.
   $<TARGET_FILE:pdfrx>
-  ${PDFIUM_LASTEST_LIB_FILENAME}
+  ${PDFIUM_LATEST_LIB_FILENAME}
   PARENT_SCOPE
 )
 
 target_include_directories(pdfrx PRIVATE ${PDFIUM_LATEST_DIR}/include)
-target_link_libraries(pdfrx PRIVATE ${PDFIUM_LASTEST_LIB_FILENAME})
+target_link_libraries(pdfrx PRIVATE ${PDFIUM_LATEST_LIB_FILENAME})
