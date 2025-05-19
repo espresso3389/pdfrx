@@ -1,3 +1,8 @@
+# 1.1.30
+
+- MERGED: PR #364 fix: blank pdf on Windows when restore window from minimize
+- Update example's app/build.gradle to support Android's 16KB page size
+
 # 1.1.29
 
 - FIXED: [#363](https://github.com/espresso3389/pdfrx/issues/363)
