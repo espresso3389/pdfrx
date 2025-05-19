@@ -8,7 +8,9 @@ plugins {
 android {
     namespace "jp.espresso3389.pdfrx_example"
     compileSdkVersion flutter.compileSdkVersion
-    ndkVersion "27.0.12077973"
+    
+    // To support 16 KB pages, we need to set the NDK version to 28 or higher.
+    ndkVersion = "28.1.13356709"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_18
