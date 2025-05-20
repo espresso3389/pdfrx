@@ -403,7 +403,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                                 : EdgeInsets.zero),
                         maxScale: widget.params.maxScale,
                         minScale: _minScale,
-                        panAxis: _calcPanAxis(),
+                        panAxis: widget.params.panAxis,
                         panEnabled: widget.params.panEnabled,
                         scaleEnabled: widget.params.scaleEnabled,
                         onInteractionEnd: _onInteractionEnd,
@@ -435,38 +435,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         ),
       ),
     );
-  }
-
-  // lock scrolling on the axis that content doesn't overflow
-  PanAxis _calcPanAxis() {
-    if (widget.params.panAxis != PanAxis.free || widget.params.scrollPhysics == null) {
-      return widget.params.panAxis;
-    }
-
-    // Compute scaled content size cat (including margins)
-    final Size docSize = _layout!.documentSize;
-    final EdgeInsets margin = widget.params.boundaryMargin ?? EdgeInsets.zero;
-    final double zoom = _currentZoom;
-    final double scaledWidth = (docSize.width + margin.horizontal) * zoom;
-    final double scaledHeight = (docSize.height + margin.vertical) * zoom;
-
-    // See which axis actually overflows the viewport
-    final bool overflowX = scaledWidth > _viewSize!.width + 0.01;
-    final bool overflowY = scaledHeight > _viewSize!.height + 0.01;
-
-    // Restrict panning to the overflowing axis
-    if (overflowX && !overflowY) {
-      // only horizontal content to scroll
-      return PanAxis.horizontal;
-    } else if (!overflowX && overflowY) {
-      // only vertical content to scroll
-      return PanAxis.vertical;
-    } else if (!overflowX && !overflowY) {
-      return PanAxis.vertical;
-    } else {
-      // both overflow, free panning
-      return PanAxis.free;
-    }
   }
 
   /// Shift any overshoot back to the nearest content boundary
