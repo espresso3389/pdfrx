@@ -63,6 +63,8 @@ class PdfViewerParams {
     this.onKey,
     this.keyHandlerParams = const PdfViewerKeyHandlerParams(),
     this.forceReload = false,
+    this.scrollPhysics,
+    this.pageFit = PdfPageFit.none,
   });
 
   /// Margin around the page.
@@ -514,6 +516,12 @@ class PdfViewerParams {
   /// sometimes it is useful to force reload the viewer by setting this to true.
   final bool forceReload;
 
+  /// Scroll physics for the viewer.
+  final ScrollPhysics? scrollPhysics;
+
+  /// Page fit
+  final PdfPageFit pageFit;
+
   /// Determine whether the viewer needs to be reloaded or not.
   ///
   bool doChangesRequireReload(PdfViewerParams? other) {
@@ -543,7 +551,9 @@ class PdfViewerParams {
         other.scrollByArrowKey != scrollByArrowKey ||
         other.horizontalCacheExtent != horizontalCacheExtent ||
         other.verticalCacheExtent != verticalCacheExtent ||
-        other.linkHandlerParams != linkHandlerParams;
+        other.linkHandlerParams != linkHandlerParams ||
+        other.scrollPhysics != scrollPhysics ||
+        other.pageFit != pageFit;
   }
 
   @override
@@ -597,7 +607,9 @@ class PdfViewerParams {
         other.perPageSelectableRegionInjector == perPageSelectableRegionInjector &&
         other.onKey == onKey &&
         other.keyHandlerParams == keyHandlerParams &&
-        other.forceReload == forceReload;
+        other.forceReload == forceReload &&
+        other.scrollPhysics == scrollPhysics &&
+        other.pageFit == pageFit;
   }
 
   @override
@@ -649,7 +661,9 @@ class PdfViewerParams {
         perPageSelectableRegionInjector.hashCode ^
         onKey.hashCode ^
         keyHandlerParams.hashCode ^
-        forceReload.hashCode;
+        forceReload.hashCode ^
+        scrollPhysics.hashCode ^
+        pageFit.hashCode;
   }
 }
 
@@ -803,6 +817,20 @@ enum PdfPageAnchor {
   bottomCenter,
   bottomRight,
   all,
+}
+
+enum PdfPageFit {
+  /// Ensure all pages can fully fit in the view
+  fit,
+
+  /// Ensure that a page will fill the view
+  fill,
+
+  /// Let the viewer decide the best fit
+  auto,
+
+  /// No fit: minScale will be used
+  none,
 }
 
 /// Parameters to customize link handling/appearance.

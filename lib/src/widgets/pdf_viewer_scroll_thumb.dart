@@ -57,10 +57,15 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
     final y = -widget.controller.value.y / (all.height - view.height);
     final vh = view.height * widget.controller.currentZoom - thumbSize.height;
     final top = y * vh;
+    final boundaryMargin =
+        widget.controller.params.boundaryMargin == null ||
+                widget.controller.params.boundaryMargin!.left == double.infinity
+            ? EdgeInsets.zero
+            : widget.controller.params.boundaryMargin! * widget.controller.currentZoom;
     return Positioned(
       left: widget.orientation == ScrollbarOrientation.left ? widget.margin : null,
       right: widget.orientation == ScrollbarOrientation.right ? widget.margin : null,
-      top: top,
+      top: top + boundaryMargin.top,
       width: thumbSize.width,
       height: thumbSize.height,
       child: GestureDetector(
