@@ -872,7 +872,10 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   // Auto-adjust boundaries when content is smaller than the view, centering
   // the content and ensuring InteractiveViewer's scrollPhysics works when specified
   void _adjustBoundaryMargins(Size viewSize, double zoom) {
-    if (widget.params.scrollPhysics == null) return;
+    if (widget.params.scrollPhysics == null) {
+      _adjustedBoundaryMargins = null;
+      return;
+    }
 
     final boundaryMargin =
         widget.params.boundaryMargin == null || widget.params.boundaryMargin!.horizontal.isInfinite
