@@ -737,7 +737,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
         final double deltaX = desiredContentWidth - contentWidth;
         final double deltaY = desiredContentHeight - contentHeight;
 
-        // Apply scroll physics half the delta to simulate exeeding a boundary
+        // Apply scroll physics half the delta to simulate exceeding a boundary
         // on one side
         final double adjustedX = widget.scrollPhysics!.applyPhysicsToUserOffset(metricsX, deltaX / 2) * 2;
         final double adjustedY = widget.scrollPhysics!.applyPhysicsToUserOffset(metricsY, deltaY / 2) * 2;
@@ -759,9 +759,6 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       // Don't allow a scale that results in an overall scale beyond min/max
       // scale.
       final double currentScale = _transformer.value.getMaxScaleOnAxis();
-      print(
-        'currentScale: $currentScale widget.minScale: ${widget.minScale} widget.maxScale: ${widget.maxScale} _boundaryRect.width: ${_boundaryRect.width}',
-      );
       final double totalScale = math.max(
         currentScale * scale,
         // Ensure that the scale cannot make the child so big that it can't fit

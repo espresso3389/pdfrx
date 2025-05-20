@@ -470,7 +470,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   }
 
   /// Shift any overshoot back to the nearest content boundary
-  _clampToNearestBoundary(Matrix4 candidate, {required Size viewSize}) {
+  void _clampToNearestBoundary(Matrix4 candidate, {required Size viewSize}) {
     _stopInteractiveViewerAnimation();
     _txController.value = _calcMatrixForClampedToNearestBoundary(candidate, viewSize: viewSize);
   }
@@ -554,15 +554,15 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
               // The top-left position of the screen (oldVisibleRect.topLeft) may be
               // in the boundary margin, or a margin between pages, and it could be
               // the current page or one of the neighboring pages
-              final PdfPageHitTestResult? hit = _getClosestPageHit(currentPageNumber, oldLayout, oldVisibleRect);
+              final hit = _getClosestPageHit(currentPageNumber, oldLayout, oldVisibleRect);
               final pageNumber = hit?.page.pageNumber ?? currentPageNumber;
 
               // Compute relative position within the old pageRect
-              final Rect oldPageRect = oldLayout.pageLayouts[pageNumber - 1];
-              final Rect newPageRect = _layout!.pageLayouts[pageNumber - 1];
-              final Offset oldOffset = oldVisibleRect.topLeft - oldPageRect.topLeft;
-              final double fracX = oldOffset.dx / oldPageRect.width;
-              final double fracY = oldOffset.dy / oldPageRect.height;
+              final oldPageRect = oldLayout.pageLayouts[pageNumber - 1];
+              final newPageRect = _layout!.pageLayouts[pageNumber - 1];
+              final oldOffset = oldVisibleRect.topLeft - oldPageRect.topLeft;
+              final fracX = oldOffset.dx / oldPageRect.width;
+              final fracY = oldOffset.dy / oldPageRect.height;
 
               // Map into new layoutRect
               final Offset newOffset = Offset(
@@ -570,25 +570,25 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                 newPageRect.top + fracY * newPageRect.height,
               );
 
-              // preseve the position after a layout change
+              // preserve the position after a layout change
               await _goToPosition(documentOffset: newOffset, zoom: zoomTo);
             }
           } else {
             if (zoomTo != _currentZoom) {
               // layout hasn't changed, but size and zoom has
-              final double zoomChange = zoomTo / _currentZoom;
-              final vec.Vector3 pivot = vec.Vector3(_txController.value.x, _txController.value.y, 0);
+              final zoomChange = zoomTo / _currentZoom;
+              final pivot = vec.Vector3(_txController.value.x, _txController.value.y, 0);
 
-              final Matrix4 pivotScale =
+              final pivotScale =
                   Matrix4.identity()
                     ..translate(pivot)
                     ..scale(zoomChange, zoomChange)
                     ..translate(-pivot / zoomChange);
 
-              final Matrix4 zoomPivoted = pivotScale * _txController.value;
+              final zoomPivoted = pivotScale * _txController.value;
               _clampToNearestBoundary(zoomPivoted, viewSize: viewSize);
             } else {
-              // size changes (e.g. rotation) can still cause out-of-bounds matricies
+              // size changes (e.g. rotation) can still cause out-of-bounds matrices
               // so clamp here
               _clampToNearestBoundary(_txController.value, viewSize: viewSize);
             }
@@ -717,7 +717,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   int? _guessCurrentPageNumber() {
     if (_layout == null || _viewSize == null) return null;
-    
+
     if (widget.params.calculateCurrentPageNumber != null) {
       return widget.params.calculateCurrentPageNumber!(_visibleRect, _layout!.pageLayouts, _controller!);
     }
@@ -873,7 +873,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   static bool _areZoomsAlmostIdentical(double z1, double z2) => (z1 - z2).abs() < 0.01;
 
-  _calcPageFit() {
+  void _calcPageFit() {
     if (widget.params.pageFit == PdfPageFit.auto) {
       final deviceOrientation = MediaQuery.of(context).orientation;
       switch (deviceOrientation) {
@@ -888,7 +888,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
           break;
         case Orientation.portrait:
           if (widget.params.pageAnchor == PdfPageAnchor.left) {
-            // horizonal page layout in portrait mode typically calls
+            // horizontal page layout in portrait mode typically calls
             // for a fill (cover) scale
             _pageFit = PdfPageFit.fill;
           } else {
@@ -903,7 +903,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   // Auto-adjust boundaries when content is smaller than the view, centering
   // the content and ensuring InteractiveViewer's scrollPhysics works when specified
-  _adjustBoundaryMargins(Size viewSize, double zoom) {
+  void _adjustBoundaryMargins(Size viewSize, double zoom) {
     if (widget.params.scrollPhysics == null) return;
 
     final boundaryMargin =
@@ -913,12 +913,12 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
     final currentDocumentSize = boundaryMargin.inflateSize(_layout!.documentSize);
 
-    final double effectiveWidth = currentDocumentSize.width * zoom;
-    final double effectiveHeight = currentDocumentSize.height * zoom;
-    final double extraWidth = effectiveWidth - viewSize.width;
-    final double extraBoundaryHorizontal = extraWidth < 0 ? (-extraWidth / 2) / zoom : 0.0;
-    final double extraHeight = effectiveHeight - viewSize.height;
-    final double extraBoundaryVertical = extraHeight < 0 ? (-extraHeight / 2) / zoom : 0.0;
+    final effectiveWidth = currentDocumentSize.width * zoom;
+    final effectiveHeight = currentDocumentSize.height * zoom;
+    final extraWidth = effectiveWidth - viewSize.width;
+    final extraBoundaryHorizontal = extraWidth < 0 ? (-extraWidth / 2) / zoom : 0.0;
+    final extraHeight = effectiveHeight - viewSize.height;
+    final extraBoundaryVertical = extraHeight < 0 ? (-extraHeight / 2) / zoom : 0.0;
 
     _adjustedBoundaryMargins =
         boundaryMargin +
@@ -1072,7 +1072,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   }
 
   void _addCancellationToken(int pageNumber, PdfPageRenderCancellationToken token) {
-    var tokens = _cancellationTokens.putIfAbsent(pageNumber, () => []);
+    final tokens = _cancellationTokens.putIfAbsent(pageNumber, () => []);
     tokens.add(token);
   }
 

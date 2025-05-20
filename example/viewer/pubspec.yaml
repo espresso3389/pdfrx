@@ -22,7 +22,6 @@ dependencies:
   url_launcher: ^6.3.1
   synchronized: ^3.3.1
   file_selector: ^1.0.3
-  flutter_platform_widgets: ^8.0.0
 
 dev_dependencies:
   flutter_test:
