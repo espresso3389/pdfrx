@@ -20,7 +20,6 @@ void main() {
   if (isWasmEnabled) {
     Pdfrx.webRuntimeType = PdfrxWebRuntimeType.pdfiumWasm;
   }
-
   runApp(const MyApp());
 }
 
@@ -166,7 +165,12 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                   onPressed: documentRef == null
                       ? null
                       : () {
-                          if (controller.isReady) controller.goToPage(pageNumber: 1);
+                          if (controller.isReady) {
+                            controller.goToPage(
+                              pageNumber: 1,
+                              anchor: isHorizontalLayout ? PdfPageAnchor.topLeft : PdfPageAnchor.topLeft,
+                            );
+                          }
                         },
                 ),
                 IconButton(
@@ -176,7 +180,9 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                       ? null
                       : () {
                           if (controller.isReady) {
-                            controller.goToPage(pageNumber: controller.pageCount);
+                            controller.goToPage(
+                                pageNumber: controller.pageCount,
+                                anchor: isHorizontalLayout ? PdfPageAnchor.topLeft : PdfPageAnchor.topLeft);
                           }
                         },
                 ),
@@ -306,8 +312,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                       }
                       return PdfViewer(
                         docRef,
-                        // PdfViewer.asset(
-                        //   'assets/hello.pdf',
                         // PdfViewer.file(
                         //   r"D:\pdfrx\example\assets\hello.pdf",
                         // PdfViewer.uri(
@@ -317,31 +321,17 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         //passwordProvider: () => passwordDialog(context),
                         controller: controller,
                         params: PdfViewerParams(
+                          pageFit: PdfPageFit.auto,
+                          margin: 10,
+                          scrollPhysics: BouncingScrollPhysics(),
+                          enableTextSelection: true,
+                          maxScale: 8,
+                          minScale: 0.2,
+                          boundaryMargin: EdgeInsets.all(10),
                           layoutPages: _layoutPages[_layoutTypeIndex],
                           scrollHorizontallyByMouseWheel: isHorizontalLayout,
                           pageAnchor: isHorizontalLayout ? PdfPageAnchor.left : PdfPageAnchor.top,
                           pageAnchorEnd: isHorizontalLayout ? PdfPageAnchor.right : PdfPageAnchor.bottom,
-                          enableTextSelection: true,
-                          useAlternativeFitScaleAsMinScale: false,
-                          maxScale: 8,
-                          onViewSizeChanged: (viewSize, oldViewSize, controller) {
-                            if (oldViewSize != null) {
-                              //
-                              // Calculate the matrix to keep the center position during device
-                              // screen rotation
-                              //
-                              // The most important thing here is that the transformation matrix
-                              // is not changed on the view change.
-                              final centerPosition = controller.value.calcPosition(oldViewSize);
-                              final newMatrix = controller.calcMatrixFor(centerPosition);
-                              // Don't change the matrix in sync; the callback might be called
-                              // during widget-tree's build process.
-                              Future.delayed(
-                                const Duration(milliseconds: 200),
-                                () => controller.goTo(newMatrix),
-                              );
-                            }
-                          },
                           viewerOverlayBuilder: (context, size, handleLinkTap) => [
                             //
                             // Example use of GestureDetector to handle custom gestures
@@ -497,29 +487,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   var needCoverPage = true;
 
   late final List<PdfPageLayoutFunction?> _layoutPages = [
-    // The default layout
+    // The default vertical layout
     null,
-    // Horizontal layout
-    (pages, params) {
-      final height = pages.fold(0.0, (prev, page) => max(prev, page.height)) + params.margin * 2;
-      final pageLayouts = <Rect>[];
-      double x = params.margin;
-      for (var page in pages) {
-        pageLayouts.add(
-          Rect.fromLTWH(
-            x,
-            (height - page.height) / 2, // center vertically
-            page.width,
-            page.height,
-          ),
-        );
-        x += page.width + params.margin;
-      }
-      return PdfPageLayout(
-        pageLayouts: pageLayouts,
-        documentSize: Size(x, height),
-      );
-    },
+    // The default horizontal layout
+    null,
     // Facing pages layout
     (pages, params) {
       final width = pages.fold(0.0, (prev, page) => max(prev, page.width));
