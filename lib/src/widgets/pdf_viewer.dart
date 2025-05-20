@@ -567,10 +567,11 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   }
 
   int? _guessCurrentPageNumber() {
+    if (_layout == null || _size == null) return null;
+    
     if (widget.params.calculateCurrentPageNumber != null) {
       return widget.params.calculateCurrentPageNumber!(_visibleRect, _layout!.pageLayouts, _controller!);
     }
-    if (_layout == null) return null;
 
     final visibleRect = _visibleRect;
     double calcIntersectionArea(int pageNumber) {
