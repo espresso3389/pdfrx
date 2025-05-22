@@ -64,7 +64,7 @@ Future<String> _downloadPdfium(String platform, String arch, String modulePath) 
   if (tgz.statusCode != 200) {
     throw Exception('Failed to download pdfium: $uri');
   }
-  final archive = TarDecoder().decodeBytes(GZipDecoder().decodeBytes(tgz.bodyBytes));
+  final archive = TarDecoder().decodeBytes(const GZipDecoder().decodeBytes(tgz.bodyBytes));
   try {
     await tmpDir.delete(recursive: true);
   } catch (_) {}

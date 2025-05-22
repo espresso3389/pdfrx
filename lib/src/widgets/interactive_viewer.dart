@@ -744,7 +744,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
         final double deltaX = desiredContentWidth - contentWidth;
         final double deltaY = desiredContentHeight - contentHeight;
 
-        // Apply scroll physics half the delta to simulate exeeding a boundary
+        // Apply scroll physics half the delta to simulate exceeding a boundary
         // on one side
         final double adjustedX = widget.scrollPhysics!.applyPhysicsToUserOffset(metricsX, deltaX / 2) * 2;
         final double adjustedY = widget.scrollPhysics!.applyPhysicsToUserOffset(metricsY, deltaY / 2) * 2;

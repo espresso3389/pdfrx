@@ -19,7 +19,7 @@ void main() {
       });
 
   testWidgets('PdfViewer.uri', (tester) async {
-    await binding.setSurfaceSize(Size(1080, 1920));
+    await binding.setSurfaceSize(const Size(1080, 1920));
     await tester.pumpWidget(
       MaterialApp(
         // FIXME: Just a workaround for "A RenderFlex overflowed..."

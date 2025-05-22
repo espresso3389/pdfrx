@@ -421,7 +421,7 @@ Future<_DownloadResult> _downloadBlock(
     });
   late final http.StreamedResponse response;
   try {
-    response = await httpClientWrapper.client.send(request).timeout(Duration(seconds: 5));
+    response = await httpClientWrapper.client.send(request).timeout(const Duration(seconds: 5));
   } on TimeoutException {
     httpClientWrapper.reset();
     rethrow;
