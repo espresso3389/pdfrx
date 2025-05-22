@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
@@ -397,13 +398,14 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                         transformationController: _txController,
                         constrained: false,
                         boundaryMargin:
+                            widget.params.boundaryMargin ??
                             _adjustedBoundaryMargins ??
                             (widget.params.scrollPhysics == null
                                 ? const EdgeInsets.all(double.infinity)
                                 : EdgeInsets.zero),
                         maxScale: widget.params.maxScale,
                         minScale: _minScale,
-                        panAxis: _calcPanAxis(),
+                        panAxis: widget.params.panAxis,
                         panEnabled: widget.params.panEnabled,
                         scaleEnabled: widget.params.scaleEnabled,
                         onInteractionEnd: _onInteractionEnd,
@@ -412,7 +414,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                         interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
                         onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
                         scrollPhysics: widget.params.scrollPhysics,
-                        // handled in _updateBoundaryMargins so that we have access to these
+                        // handled in _adjustBoundaryMargins() so that we have access
+                        // for boundary clamping
                         scrollPhysicsAutoAdjustBoundaries: false,
                         // PDF pages
                         child: CustomPaint(
@@ -435,38 +438,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         ),
       ),
     );
-  }
-
-  // lock scrolling on the axis that content doesn't overflow
-  PanAxis _calcPanAxis() {
-    if (widget.params.panAxis != PanAxis.free || widget.params.scrollPhysics == null) {
-      return widget.params.panAxis;
-    }
-
-    // Compute scaled content size cat (including margins)
-    final Size docSize = _layout!.documentSize;
-    final EdgeInsets margin = widget.params.boundaryMargin ?? EdgeInsets.zero;
-    final double zoom = _currentZoom;
-    final double scaledWidth = (docSize.width + margin.horizontal) * zoom;
-    final double scaledHeight = (docSize.height + margin.vertical) * zoom;
-
-    // See which axis actually overflows the viewport
-    final bool overflowX = scaledWidth > _viewSize!.width + 0.01;
-    final bool overflowY = scaledHeight > _viewSize!.height + 0.01;
-
-    // Restrict panning to the overflowing axis
-    if (overflowX && !overflowY) {
-      // only horizontal content to scroll
-      return PanAxis.horizontal;
-    } else if (!overflowX && overflowY) {
-      // only vertical content to scroll
-      return PanAxis.vertical;
-    } else if (!overflowX && !overflowY) {
-      return PanAxis.vertical;
-    } else {
-      // both overflow, free panning
-      return PanAxis.free;
-    }
   }
 
   /// Shift any overshoot back to the nearest content boundary
@@ -910,7 +881,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
             ? EdgeInsets.zero
             : widget.params.boundaryMargin!;
 
-    final currentDocumentSize = boundaryMargin.inflateSize(_layout!.documentSize);
+    final currentDocumentSize = _layout!.documentSize;
 
     final double effectiveWidth = currentDocumentSize.width * zoom;
     final double effectiveHeight = currentDocumentSize.height * zoom;
@@ -922,11 +893,15 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _adjustedBoundaryMargins =
         boundaryMargin +
         EdgeInsets.fromLTRB(
-          extraBoundaryHorizontal,
-          extraBoundaryVertical,
-          extraBoundaryHorizontal,
-          extraBoundaryVertical,
+          _roundDouble(extraBoundaryHorizontal),
+          _roundDouble(extraBoundaryVertical),
+          _roundDouble(extraBoundaryHorizontal),
+          _roundDouble(extraBoundaryVertical),
         );
+  }
+
+  double _roundDouble(double value, {int places = 9}) {
+    return double.parse(value.toStringAsFixed(places));
   }
 
   List<Widget> _buildPageOverlayWidgets(BuildContext context) {
@@ -1653,8 +1628,10 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     if (_isInteractionGoingOn) return;
     // stop any ongoing animation in InteractiveViewer by sending a PointerDownEvent
     final centerOffset = _viewSize!.center(Offset.zero);
-    GestureBinding.instance.handlePointerEvent(PointerDownEvent(position: centerOffset));
-    GestureBinding.instance.handlePointerEvent(PointerUpEvent(position: widget.controller!.centerPosition));
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      GestureBinding.instance.handlePointerEvent(PointerDownEvent(position: centerOffset));
+      GestureBinding.instance.handlePointerEvent(PointerUpEvent(position: widget.controller!.centerPosition));
+    });
   }
 
   Matrix4 _calcMatrixToEnsureRectVisible(Rect rect, {double margin = 0}) {

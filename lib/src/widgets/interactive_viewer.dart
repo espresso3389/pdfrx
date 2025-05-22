@@ -480,6 +480,8 @@ class InteractiveViewer extends StatefulWidget {
 }
 
 class _InteractiveViewerState extends State<InteractiveViewer> with TickerProviderStateMixin {
+  // Preserve the originally provided boundaryMargin for recalculation overrides.
+  late final EdgeInsets _originalBoundaryMargin = widget.boundaryMargin;
   late TransformationController _transformer = widget.transformationController ?? TransformationController();
 
   final GlobalKey _childKey = GlobalKey();
@@ -578,18 +580,6 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       return nextMatrix;
     }
 
-    // Expand the boundaries with rotation. This prevents the problem where a
-    // mismatch in orientation between the viewport and boundaries effectively
-    // limits translation. With this approach, all points that are visible with
-    // no rotation are visible after rotation.
-    final Quad boundariesAabbQuad = _getAxisAlignedBoundingBoxWithRotation(_boundaryRect, _currentRotation);
-
-    // If the given translation fits completely within the boundaries, allow it.
-    final Offset offendingDistance = _exceedsBy(boundariesAabbQuad, nextViewport);
-    if (offendingDistance == Offset.zero) {
-      return nextMatrix;
-    }
-
     /// ScrollPhysics
     /// If the ScrollPhysics is defined we apply physics (bouncing or clamping) during pan.
     if (widget.scrollPhysics != null) {
@@ -618,15 +608,32 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
           // such as when zooming out at the bottom of a document
           return nextMatrix;
         }
-        final double dx =
-            alignedTranslation.dx == 0 ? 0 : physics.applyPhysicsToUserOffset(metricsX, alignedTranslation.dx);
-        final double dy =
-            alignedTranslation.dy == 0 ? 0 : physics.applyPhysicsToUserOffset(metricsY, alignedTranslation.dy);
+        // Check if the offset is accepted by the ScrollPhysics, and so apply it.
+        double dx = 0.0;
+        if (alignedTranslation.dx != 0 && physics.shouldAcceptUserOffset(_normalizeScrollMetrics(metricsX))) {
+          dx = physics.applyPhysicsToUserOffset(metricsX, alignedTranslation.dx);
+        }
+        double dy = 0.0;
+        if (alignedTranslation.dy != 0 && physics.shouldAcceptUserOffset(_normalizeScrollMetrics(metricsY))) {
+          dy = physics.applyPhysicsToUserOffset(metricsY, alignedTranslation.dy);
+        }
         return matrix.clone()..translate(dx, dy);
       } else {
         // correct any overscroll
         return matrix.clone()..translate(alignedTranslation.dx + overscrollX, alignedTranslation.dy + overscrollY);
       }
+    }
+
+    // Expand the boundaries with rotation. This prevents the problem where a
+    // mismatch in orientation between the viewport and boundaries effectively
+    // limits translation. With this approach, all points that are visible with
+    // no rotation are visible after rotation.
+    final Quad boundariesAabbQuad = _getAxisAlignedBoundingBoxWithRotation(_boundaryRect, _currentRotation);
+
+    // If the given translation fits completely within the boundaries, allow it.
+    final Offset offendingDistance = _exceedsBy(boundariesAabbQuad, nextViewport);
+    if (offendingDistance == Offset.zero) {
+      return nextMatrix;
     }
 
     // Desired translation goes out of bounds, so translate to the nearest
@@ -759,9 +766,6 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       // Don't allow a scale that results in an overall scale beyond min/max
       // scale.
       final double currentScale = _transformer.value.getMaxScaleOnAxis();
-      print(
-        'currentScale: $currentScale widget.minScale: ${widget.minScale} widget.maxScale: ${widget.maxScale} _boundaryRect.width: ${_boundaryRect.width}',
-      );
       final double totalScale = math.max(
         currentScale * scale,
         // Ensure that the scale cannot make the child so big that it can't fit
@@ -1150,10 +1154,10 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       if (widget.scrollPhysics != null) {
         _controller.removeListener(_handleInertiaAnimation);
       } else {
-        _currentAxis = null;
         _animation?.removeListener(_handleInertiaAnimation);
         _animation = null;
       }
+      _currentAxis = null;
       _controller.reset();
       return;
     }
@@ -1191,30 +1195,59 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
   Rect _computePanBoundaries({
     required Size viewportSize,
     required double scale,
-    EdgeInsets boundaryMargin = EdgeInsets.zero,
+    EdgeInsets? boundaryMargin,
+    bool overrideAutoAdjustBoundaries = false,
   }) {
+    // Use original boundaryMargin unless a specific one is passed for override.
+    final EdgeInsets baseMargin =
+        ((overrideAutoAdjustBoundaries == true && !widget.scrollPhysicsAutoAdjustBoundaries) || boundaryMargin == null)
+            ? _originalBoundaryMargin
+            : boundaryMargin;
+
     // If boundaries are infinite, provide very large finite extents to disable clamping
     if (_boundaryRect.isInfinite) {
       return Rect.fromLTRB(-double.maxFinite, -double.maxFinite, double.maxFinite, double.maxFinite);
     }
-    // Effective (scaled) size (includes boundaryMargins)
-    final double effectiveWidth = _boundaryRect.width * scale;
-    final double effectiveHeight = _boundaryRect.height * scale;
+    // Compute the raw boundary rect using the baseMargin, then scale it
+    final Rect baseBoundaryRect = baseMargin.inflateRect(Offset.zero & _childSize());
+    final double effectiveWidth = baseBoundaryRect.width * scale;
+    final double effectiveHeight = baseBoundaryRect.height * scale;
 
-    // Compute the full extra size.
-    final double extraWidth = effectiveWidth - viewportSize.width;
-    final extraBoundaryHorizontal =
-        extraWidth < 1 && widget.scrollPhysicsAutoAdjustBoundaries ? (extraWidth / 2).abs() : 0;
+    final extraWidth = effectiveWidth - viewportSize.width;
+    final extraHeight = effectiveHeight - viewportSize.height;
 
-    final double extraHeight = effectiveHeight - viewportSize.height;
-    final extraBoundaryVertical =
-        extraHeight < 1 && widget.scrollPhysicsAutoAdjustBoundaries ? (extraHeight / 2).abs() : 0;
+    // Always center when content is smaller than viewport, using a small tolerance for floating imprecision.
+    const double kOverflowTolerance = 0.1; // logical pixels
+    final extraBoundaryHorizontal = extraWidth < -kOverflowTolerance ? (extraWidth.abs() / 2) : 0.0;
+    final extraBoundaryVertical = extraHeight < -kOverflowTolerance ? (extraHeight.abs() / 2) : 0.0;
 
-    final double minX = -((boundaryMargin.left * scale + extraBoundaryHorizontal));
-    final double maxX = -((boundaryMargin.left * scale + extraBoundaryHorizontal)) + math.max(extraWidth, 0);
-    final double minY = -((boundaryMargin.top * scale + extraBoundaryVertical));
-    final double maxY = -((boundaryMargin.top * scale + extraBoundaryVertical)) + math.max(extraHeight, 0);
-    return Rect.fromLTRB(minX, minY, maxX, maxY);
+    final minX = -((baseMargin.left * scale + extraBoundaryHorizontal));
+    final maxX = -((baseMargin.left * scale + extraBoundaryHorizontal)) + math.max(extraWidth, 0);
+    final minY = -((baseMargin.top * scale + extraBoundaryVertical));
+    final maxY = -((baseMargin.bottom * scale + extraBoundaryVertical)) + math.max(extraHeight, 0);
+    return Rect.fromLTRB(_roundDouble(minX), _roundDouble(minY), _roundDouble(maxX), _roundDouble(maxY));
+  }
+
+  // Normalize ScrollMetris such that minScrollExtent = 0 and pixels shift accordingly.
+  // ScrollPhysics.shouldAcceptUserOffset() does not work where minScrollExtent and pixels
+  // are both the same value but not 0.0.
+  ScrollMetrics _normalizeScrollMetrics(ScrollMetrics scrollMetrics) {
+    double range = scrollMetrics.maxScrollExtent - scrollMetrics.minScrollExtent;
+    double pixels = scrollMetrics.pixels - scrollMetrics.minScrollExtent;
+
+    // Define a small tolerance around zero to ignore tiny drifts
+    const double kTolerance = 0.01;
+    range = range.abs() < kTolerance ? 0.0 : range;
+    pixels = pixels.abs() < kTolerance ? 0.0 : pixels;
+
+    return FixedScrollMetrics(
+      pixels: pixels,
+      minScrollExtent: 0.0,
+      maxScrollExtent: range < 0.0 ? 0.0 : range,
+      viewportDimension: scrollMetrics.viewportDimension,
+      axisDirection: scrollMetrics.axisDirection,
+      devicePixelRatio: scrollMetrics.devicePixelRatio,
+    );
   }
 
   /// Creates a synthetic ScrollMetrics objects for the
@@ -1260,6 +1293,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       viewportSize: viewSize,
       scale: scale,
       boundaryMargin: widget.boundaryMargin,
+      overrideAutoAdjustBoundaries: true,
     );
 
     // Ensure bounds are ordered correctly for clamp.
@@ -1580,6 +1614,10 @@ Offset _exceedsBy(Quad boundary, Quad viewport) {
 // values that should have been zero were given as within 10^-10 of zero.
 Offset _round(Offset offset) {
   return Offset(double.parse(offset.dx.toStringAsFixed(9)), double.parse(offset.dy.toStringAsFixed(9)));
+}
+
+double _roundDouble(double value) {
+  return double.parse(value.toStringAsFixed(9));
 }
 
 // Align the given offset to the given axis by allowing movement only in the
