@@ -1931,8 +1931,8 @@ class PdfPageLayout {
   @override
   int get hashCode => pageLayouts.hashCode ^ documentSize.hashCode;
 
-  double get maxPageWidth => pageLayouts.map((p) => p.width).reduce(max);
-  double get maxPageHeight => pageLayouts.map((p) => p.height).reduce(max);
+  late double maxPageWidth = pageLayouts.map((p) => p.width).reduce(max);
+  late double maxPageHeight = pageLayouts.map((p) => p.height).reduce(max);
 }
 
 /// Represents the result of the hit test on the page.
