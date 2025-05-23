@@ -729,7 +729,14 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       _layout = null;
       return false;
     }
-    final newLayout = (widget.params.layoutPages ?? _layoutPages)(_document!.pages, widget.params);
+    final (pageFitWidths, pageFitHeights) = _calcPageSizes(_document!.pages, widget.params);
+
+    final newLayout = (widget.params.layoutPages ?? _layoutPages)(
+      _document!.pages,
+      widget.params,
+      pageFitWidths,
+      pageFitHeights,
+    );
     if (_layout == newLayout) {
       return false;
     }
@@ -745,15 +752,25 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     final m2 = params.margin * 2;
 
     if (_viewSize != null) {
-      final s1 = _viewSize!.width / (_layout!.maxPageWidth + m2 + bmh);
-      final s2 = _viewSize!.height / (_layout!.maxPageHeight + m2 + bmv);
+      final s1 = _viewSize!.width / (_layout!.documentSize.width + m2 + bmh);
+      final s2 = _viewSize!.height / (_layout!.documentSize.height + m2 + bmv);
       _coverScale = max(s1, s2);
     }
 
-    _alternativeFitScale = min(
-      _viewSize!.width / (_layout!.maxPageWidth + m2 + bmh),
-      _viewSize!.height / (_layout!.maxPageHeight + m2 + bmv),
-    );
+    _alternativeFitScale =
+        widget.params.pageAnchor == PdfPageAnchor.top
+            ? min(
+              _viewSize!.width / (_layout!.documentSize.width + m2 + bmh),
+              _viewSize!.height / (_layout!.maxPageHeight + m2 + bmh),
+            )
+            : min(
+              _viewSize!.height / (_layout!.documentSize.height + m2 + bmv),
+              _viewSize!.width / (_layout!.maxPageWidth + m2 + bmh),
+            );
+    /* _alternativeFitScale = min(
+      _viewSize!.width / (_layout!.documentSize.width + m2 + bmh),
+      _viewSize!.height / (_layout!.documentSize.height + m2 + bmv),
+    ); */
     if (_alternativeFitScale! <= 0) {
       _alternativeFitScale = null;
     }
@@ -767,7 +784,13 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         _minScale = _alternativeFitScale ?? _minScale;
         break;
       case PdfPageFit.fill:
-        _minScale = _coverScale ?? _minScale;
+        final maxScale =
+            widget.params.pageAnchor == PdfPageAnchor.top
+                ? _viewSize!.width / (_layout!.documentSize.width + m2 + bmh)
+                : _viewSize!.height / (_layout!.documentSize.height + m2 + bmv);
+        // ensure document still fits the view horizontally (for a vertical document)
+        // and vertically (for a horizontal document)
+        _minScale = min(_coverScale ?? _minScale, maxScale);
         break;
       case PdfPageFit.auto:
       case PdfPageFit.none:
@@ -1171,22 +1194,23 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     }
   }
 
-  PdfPageLayout _layoutPages(List<PdfPage> pages, PdfViewerParams params) {
+  (List<double>, List<double>) _calcPageSizes(List<PdfPage> pages, PdfViewerParams params) {
     final Size viewSize = _viewSize!;
     final double horizontalExtra = params.margin * 2;
     final double verticalExtra = params.margin * 2;
 
+    late final List<double> pageFitWidths;
+    late final List<double> pageFitHeights;
     // Compute page widths/heights depending on fitMode
-    late final List<double> pageWidths;
-    late final List<double> pageHeights;
+
     if (widget.params.pageFit == PdfPageFit.none) {
       // No scaling: raw page sizes
-      pageWidths = pages.map((p) => p.width).toList();
-      pageHeights = pages.map((p) => p.height).toList();
+      pageFitWidths = pages.map((p) => p.width).toList();
+      pageFitHeights = pages.map((p) => p.height).toList();
     } else {
       // Existing scaling logic:
-      pageWidths = [];
-      pageHeights = [];
+      pageFitWidths = [];
+      pageFitHeights = [];
       for (final PdfPage page in pages) {
         double scale;
         if (_pageFit == PdfPageFit.fit) {
@@ -1231,20 +1255,28 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         }
         // Never go below the user-specified minimum scale
         scale = max(scale, params.minScale);
-        pageWidths.add(page.width * scale);
-        pageHeights.add(page.height * scale);
+        pageFitWidths.add(page.width * scale);
+        pageFitHeights.add(page.height * scale);
       }
     }
+    return (pageFitWidths, pageFitHeights);
+  }
 
+  PdfPageLayout _layoutPages(
+    List<PdfPage> pages,
+    PdfViewerParams params,
+    List<double> pageFitWidths,
+    List<double> pageFitHeights,
+  ) {
     // Layout pages either vertically or horizontally based on pageAnchor
     if (params.pageAnchor == PdfPageAnchor.left) {
       // Horizontal layout: pages side-by-side, centered vertically
-      final double layoutContentHeight = pageHeights.reduce(max);
+      final double layoutContentHeight = pageFitHeights.reduce(max);
       final List<Rect> pageLayouts = <Rect>[];
       double xOffset = params.margin;
       for (int i = 0; i < pages.length; i++) {
-        final double w = pageWidths[i];
-        final double h = pageHeights[i];
+        final double w = pageFitWidths[i];
+        final double h = pageFitHeights[i];
         final double yOffset = params.margin + (layoutContentHeight - h) / 2;
         pageLayouts.add(Rect.fromLTWH(xOffset, yOffset, w, h));
         xOffset += w + params.margin;
@@ -1253,12 +1285,12 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       return PdfPageLayout(pageLayouts: pageLayouts, documentSize: Size(xOffset, layoutHeight));
     } else {
       // Vertical layout: pages stacked, centered horizontally
-      final double layoutContentWidth = pageWidths.reduce(max);
+      final double layoutContentWidth = pageFitWidths.reduce(max);
       final List<Rect> pageLayouts = <Rect>[];
       double yOffset = params.margin;
       for (int i = 0; i < pages.length; i++) {
-        final double w = pageWidths[i];
-        final double h = pageHeights[i];
+        final double w = pageFitWidths[i];
+        final double h = pageFitHeights[i];
         final double xOffset = params.margin + (layoutContentWidth - w) / 2;
         pageLayouts.add(Rect.fromLTWH(xOffset, yOffset, w, h));
         yOffset += h + params.margin;

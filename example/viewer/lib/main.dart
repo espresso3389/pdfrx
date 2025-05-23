@@ -499,20 +499,23 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     // The default vertical layout
     null,
     // Horizontal layout
-    (pages, params) {
-      final height = pages.fold(0.0, (prev, page) => max(prev, page.height)) + params.margin * 2;
+    (pages, params, pageFitWidths, pageFitHeights) {
+      final height = pageFitHeights.reduce(max) + params.margin * 2;
+
       final pageLayouts = <Rect>[];
       double x = params.margin;
       for (var page in pages) {
+        final pageHeight = pageFitHeights[page.pageNumber - 1];
+        final pageWidth = pageFitWidths[page.pageNumber - 1];
         pageLayouts.add(
           Rect.fromLTWH(
             x,
-            (height - page.height) / 2, // center vertically
-            page.width,
-            page.height,
+            (height - pageHeight) / 2, // center vertically
+            pageWidth,
+            pageHeight,
           ),
         );
-        x += page.width + params.margin;
+        x += pageWidth + params.margin;
       }
       return PdfPageLayout(
         pageLayouts: pageLayouts,
@@ -520,26 +523,27 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       );
     },
     // Facing pages layout
-    (pages, params) {
-      final width = pages.fold(0.0, (prev, page) => max(prev, page.width));
+    (pages, params, pageFitWidths, pageFitHeights) {
+      final width = pageFitWidths.reduce(min);
 
       final pageLayouts = <Rect>[];
       final offset = needCoverPage ? 1 : 0;
       double y = params.margin;
       for (int i = 0; i < pages.length; i++) {
-        final page = pages[i];
+        final pageWidth = pageFitWidths[i];
+        final pageHeight = pageFitHeights[i];
         final pos = i + offset;
         final isLeft = isRightToLeftReadingOrder ? (pos & 1) == 1 : (pos & 1) == 0;
 
         final otherSide = (pos ^ 1) - offset;
-        final h = 0 <= otherSide && otherSide < pages.length ? max(page.height, pages[otherSide].height) : page.height;
+        final h = 0 <= otherSide && otherSide < pages.length ? max(pageHeight, pageFitHeights[otherSide]) : pageHeight;
 
         pageLayouts.add(
           Rect.fromLTWH(
-            isLeft ? width + params.margin - page.width : params.margin * 2 + width,
-            y + (h - page.height) / 2,
-            page.width,
-            page.height,
+            isLeft ? width + params.margin - pageWidth : params.margin * 2 + width,
+            y + (h - pageHeight) / 2,
+            pageWidth,
+            pageHeight,
           ),
         );
         if (pos & 1 == 1 || i + 1 == pages.length) {

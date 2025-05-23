@@ -707,7 +707,13 @@ typedef PdfViewerGetPageRenderingScale =
 /// - [pages] is the list of pages.
 ///   This is just a copy of the first loaded page of the document.
 /// - [params] is the viewer parameters.
-typedef PdfPageLayoutFunction = PdfPageLayout Function(List<PdfPage> pages, PdfViewerParams params);
+typedef PdfPageLayoutFunction =
+    PdfPageLayout Function(
+      List<PdfPage> pages,
+      PdfViewerParams params,
+      List<double> pageFitWidths,
+      List<double> pageFitHeights,
+    );
 
 /// Function to normalize the matrix.
 ///
