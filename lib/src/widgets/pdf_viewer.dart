@@ -927,8 +927,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         );
   }
 
-  double _roundDouble(double value, {int places = 9}) {
-    return double.parse(value.toStringAsFixed(places));
+  double _roundDouble(double value) {
+    return (value * 1000).round() / 1000.00;
   }
 
   List<Widget> _buildPageOverlayWidgets(BuildContext context) {

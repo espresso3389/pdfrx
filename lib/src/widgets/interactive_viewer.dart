@@ -1206,7 +1206,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
 
     // If boundaries are infinite, provide very large finite extents to disable clamping
     if (_boundaryRect.isInfinite) {
-      return Rect.fromLTRB(-double.maxFinite, -double.maxFinite, double.maxFinite, double.maxFinite);
+      return const Rect.fromLTRB(-double.maxFinite, -double.maxFinite, double.maxFinite, double.maxFinite);
     }
     // Compute the raw boundary rect using the baseMargin, then scale it
     final Rect baseBoundaryRect = baseMargin.inflateRect(Offset.zero & _childSize());
@@ -1617,7 +1617,7 @@ Offset _round(Offset offset) {
 }
 
 double _roundDouble(double value) {
-  return double.parse(value.toStringAsFixed(9));
+  return (value * 1000).round() / 1000.00;
 }
 
 // Align the given offset to the given axis by allowing movement only in the
