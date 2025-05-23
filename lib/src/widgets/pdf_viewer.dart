@@ -198,7 +198,7 @@ class PdfViewer extends StatefulWidget {
 
 class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMixin {
   PdfViewerController? _controller;
-  late final TransformationController _txController = _PdfViewerTransformationController(this);
+  late final TransformationController _txController = TransformationController();
   late final AnimationController _animController;
   Animation<Matrix4>? _animGoTo;
   int _animationResettingGuard = 0;
@@ -667,7 +667,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     final m = _txController.value.clone();
     manipulate(m);
     _clampToNearestBoundary(m, viewSize: _viewSize!);
-    _txController.value = m;
   }
 
   Rect get _visibleRect => _txController.value.calcVisibleRect(_viewSize!);
@@ -1436,23 +1435,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     } else {
       m.translate(dx, dy);
     }
-    _txController.value = m;
+    _clampToNearestBoundary(m, viewSize: _viewSize!);
     _stopInteraction();
-  }
-
-  /// Restrict matrix to the safe range.
-  Matrix4 _makeMatrixInSafeRange(Matrix4 newValue) {
-    final layout = _layout;
-    final viewSize = _viewSize;
-    if (layout == null || viewSize == null || widget.params.scrollPhysics != null) return newValue;
-    final position = newValue.calcPosition(viewSize);
-    final newZoom = max(newValue.zoom, minScale);
-    final hw = viewSize.width / 2 / newZoom;
-    final hh = viewSize.height / 2 / newZoom;
-    final x = position.dx.range(hw, layout.documentSize.width - hw);
-    final y = position.dy.range(hh, layout.documentSize.height - hh);
-
-    return _calcMatrixFor(Offset(x, y), zoom: newZoom, viewSize: viewSize); // see note in _calcMatrixFor
   }
 
   /// Calculate matrix to center the specified position.
@@ -1631,10 +1615,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       _animationResettingGuard++;
       _animController.reset();
       _animationResettingGuard--;
-      _animGoTo = Matrix4Tween(
-        begin: _txController.value,
-        end: _makeMatrixInSafeRange(destination),
-      ).animate(_animController);
+      _animGoTo = Matrix4Tween(begin: _txController.value, end: destination).animate(_animController);
       _animGoTo!.addListener(update);
       await _animController.animateTo(1.0, duration: duration, curve: Curves.easeInOut).orCancel;
     } on TickerCanceled {
@@ -1918,17 +1899,6 @@ class _PdfImageWithScaleAndRect extends _PdfImageWithScale {
   final Rect rect;
 }
 
-class _PdfViewerTransformationController extends TransformationController {
-  _PdfViewerTransformationController(this._state);
-
-  final _PdfViewerState _state;
-
-  @override
-  set value(Matrix4 newValue) {
-    super.value = _state._makeMatrixInSafeRange(newValue);
-  }
-}
-
 /// Defines page layout.
 class PdfPageLayout {
   PdfPageLayout({required this.pageLayouts, required this.documentSize});
@@ -2067,16 +2037,13 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   @override
   Matrix4 get value => _state._txController.value;
 
-  set value(Matrix4 newValue) => _state._txController.value = makeMatrixInSafeRange(newValue);
+  set value(Matrix4 newValue) => _state._txController.value = newValue;
 
   @override
   void addListener(ui.VoidCallback listener) => _listeners.add(listener);
 
   @override
   void removeListener(ui.VoidCallback listener) => _listeners.remove(listener);
-
-  /// Restrict matrix to the safe range.
-  Matrix4 makeMatrixInSafeRange(Matrix4 newValue) => _state._makeMatrixInSafeRange(newValue);
 
   double getNextZoom({bool loop = true}) => _state._findNextZoomStop(currentZoom, zoomUp: true, loop: loop);
 
