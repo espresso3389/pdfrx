@@ -1442,13 +1442,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   /// Restrict matrix to the safe range.
   Matrix4 _makeMatrixInSafeRange(Matrix4 newValue) {
-    if (widget.params.normalizeMatrix != null) {
-      return widget.params.normalizeMatrix!(newValue, _viewSize!, _layout!, _controller);
-    }
-    return _normalizeMatrix(newValue);
-  }
-
-  Matrix4 _normalizeMatrix(Matrix4 newValue) {
     final layout = _layout;
     final viewSize = _viewSize;
     if (layout == null || viewSize == null || widget.params.scrollPhysics != null) return newValue;
