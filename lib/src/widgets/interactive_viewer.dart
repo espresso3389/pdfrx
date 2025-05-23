@@ -14,6 +14,8 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:vector_math/vector_math_64.dart' show Matrix4, Quad, Vector3;
 
+import '../utils/double_extensions.dart';
+
 // Examples can assume:
 // late BuildContext context;
 // late Offset? _childWasTappedAt;
@@ -888,7 +890,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
         // _referenceFocalPoint so subsequent updates happen in relation to
         // the new effective focal point.
         final Offset focalPointSceneCheck = _transformer.toScene(details.localFocalPoint);
-        if (_round(_referenceFocalPoint!) != _round(focalPointSceneCheck)) {
+        if (_referenceFocalPoint!.round10BitFrac() != focalPointSceneCheck.round10BitFrac()) {
           _referenceFocalPoint = focalPointSceneCheck;
         }
 
@@ -1200,7 +1202,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
   }) {
     // Use original boundaryMargin unless a specific one is passed for override.
     final EdgeInsets baseMargin =
-        ((overrideAutoAdjustBoundaries == true && !widget.scrollPhysicsAutoAdjustBoundaries) || boundaryMargin == null)
+        (overrideAutoAdjustBoundaries && !widget.scrollPhysicsAutoAdjustBoundaries) || boundaryMargin == null
             ? _originalBoundaryMargin
             : boundaryMargin;
 
@@ -1225,10 +1227,10 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
     final maxX = -((baseMargin.left * scale + extraBoundaryHorizontal)) + math.max(extraWidth, 0);
     final minY = -((baseMargin.top * scale + extraBoundaryVertical));
     final maxY = -((baseMargin.bottom * scale + extraBoundaryVertical)) + math.max(extraHeight, 0);
-    return Rect.fromLTRB(_roundDouble(minX), _roundDouble(minY), _roundDouble(maxX), _roundDouble(maxY));
+    return Rect.fromLTRB(minX, minY, maxX, maxY).round10BitFrac();
   }
 
-  // Normalize ScrollMetris such that minScrollExtent = 0 and pixels shift accordingly.
+  // Normalize ScrollMetrics such that minScrollExtent = 0 and pixels shift accordingly.
   // ScrollPhysics.shouldAcceptUserOffset() does not work where minScrollExtent and pixels
   // are both the same value but not 0.0.
   ScrollMetrics _normalizeScrollMetrics(ScrollMetrics scrollMetrics) {
@@ -1286,9 +1288,9 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
   /// Clamp the given full transform matrix to the content boundaries by
   /// directly clamping its translation component.
   Matrix4 _matrixClamp(Matrix4 matrix) {
-    final Offset totalTranslation = _getMatrixTranslation(matrix);
-    final double scale = matrix.getMaxScaleOnAxis();
-    final Size viewSize = _viewport.size;
+    final totalTranslation = _getMatrixTranslation(matrix);
+    final scale = matrix.getMaxScaleOnAxis();
+    final viewSize = _viewport.size;
     final panBoundaries = _computePanBoundaries(
       viewportSize: viewSize,
       scale: scale,
@@ -1297,12 +1299,12 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
     );
 
     // Ensure bounds are ordered correctly for clamp.
-    final double minX = math.min(-panBoundaries.left, -panBoundaries.right);
-    final double maxX = math.max(-panBoundaries.left, -panBoundaries.right);
-    final double minY = math.min(-panBoundaries.top, -panBoundaries.bottom);
-    final double maxY = math.max(-panBoundaries.top, -panBoundaries.bottom);
-    final double clampedX = totalTranslation.dx.clamp(minX, maxX);
-    final double clampedY = totalTranslation.dy.clamp(minY, maxY);
+    final minX = math.min(-panBoundaries.left, -panBoundaries.right);
+    final maxX = math.max(-panBoundaries.left, -panBoundaries.right);
+    final minY = math.min(-panBoundaries.top, -panBoundaries.bottom);
+    final maxY = math.max(-panBoundaries.top, -panBoundaries.bottom);
+    final clampedX = totalTranslation.dx.clamp(minX, maxX);
+    final clampedY = totalTranslation.dy.clamp(minY, maxY);
 
     return matrix.clone()..setTranslation(Vector3(clampedX, clampedY, 0.0));
   }
@@ -1607,17 +1609,7 @@ Offset _exceedsBy(Quad boundary, Quad viewport) {
     }
   }
 
-  return _round(largestExcess);
-}
-
-// Round the output values. This works around a precision problem where
-// values that should have been zero were given as within 10^-10 of zero.
-Offset _round(Offset offset) {
-  return Offset(double.parse(offset.dx.toStringAsFixed(9)), double.parse(offset.dy.toStringAsFixed(9)));
-}
-
-double _roundDouble(double value) {
-  return (value * 1000).round() / 1000.00;
+  return largestExcess.round10BitFrac();
 }
 
 // Align the given offset to the given axis by allowing movement only in the
@@ -1635,8 +1627,8 @@ Axis? _getPanAxis(Offset point1, Offset point2) {
   if (point1 == point2) {
     return null;
   }
-  final double x = point2.dx - point1.dx;
-  final double y = point2.dy - point1.dy;
+  final x = point2.dx - point1.dx;
+  final y = point2.dy - point1.dy;
   return x.abs() > y.abs() ? Axis.horizontal : Axis.vertical;
 }
 
@@ -1664,4 +1656,15 @@ class CombinedSimulation extends Simulation {
   bool isDone(double time) {
     return simulationX.isDone(time) && simulationY.isDone(time);
   }
+}
+
+extension _OffsetRounder on Offset {
+  /// Round the double to keep 10-bits of precision under the binary point.
+  Offset round10BitFrac() => Offset(dx.round10BitFrac(), dy.round10BitFrac());
+}
+
+extension _RectRounder on Rect {
+  /// Round the double to keep 10-bits of precision under the binary point.
+  Rect round10BitFrac() =>
+      Rect.fromLTRB(left.round10BitFrac(), top.round10BitFrac(), right.round10BitFrac(), bottom.round10BitFrac());
 }
