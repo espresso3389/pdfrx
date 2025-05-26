@@ -15,7 +15,7 @@ Pod::Spec.new do |s|
   s.license          = { :type => 'BSD', :file => '../LICENSE' }
   s.author           = { 'Takashi Kawasaki' => 'espresso3389@gmail.com' }
   s.source           = { :path => '.' }
-  s.source_files     = 'Classes/**/*'
+  s.source_files     = 'Classes/**/*', 'pdfrx/Sources/pdfrx/**/*'
 
   s.ios.deployment_target = '12.0'
   s.ios.dependency 'Flutter'
