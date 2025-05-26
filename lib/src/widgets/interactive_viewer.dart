@@ -82,6 +82,7 @@ class InteractiveViewer extends StatefulWidget {
     this.trackpadScrollCausesScale = false,
     this.onWheelDelta,
     this.scrollPhysics,
+    this.scrollPhysicsScale,
     this.scrollPhysicsAutoAdjustBoundaries = true,
   }) : assert(minScale > 0),
        assert(interactionEndFrictionCoefficient > 0),
@@ -129,6 +130,7 @@ class InteractiveViewer extends StatefulWidget {
     this.trackpadScrollCausesScale = false,
     this.onWheelDelta,
     this.scrollPhysics,
+    this.scrollPhysicsScale,
     this.scrollPhysicsAutoAdjustBoundaries = true,
   }) : assert(minScale > 0),
        assert(interactionEndFrictionCoefficient > 0),
@@ -394,8 +396,11 @@ class InteractiveViewer extends StatefulWidget {
   // This value was eyeballed to give a feel similar to Google Photos.
   static const double _kDrag = 0.0000135;
 
-  /// ScrollPhysics to use for panning and scaling
+  /// ScrollPhysics to use for panning
   final ScrollPhysics? scrollPhysics;
+
+  /// ScrollPhysic to use for scaling
+  final ScrollPhysics? scrollPhysicsScale;
 
   /// Whether to automatically increase the ScrollPhysics boundaries when the
   /// child size is smaller than the viewport size.
@@ -583,7 +588,10 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
     /// ScrollPhysics
     /// If the ScrollPhysics is defined we apply physics (bouncing or clamping) during pan.
     if (widget.scrollPhysics != null) {
-      final ScrollPhysics physics = widget.scrollPhysics!;
+      final physics =
+          (_gestureType == _GestureType.scale)
+              ? (widget.scrollPhysicsScale ?? widget.scrollPhysics!)
+              : widget.scrollPhysics!;
       // current translation in scene coordinates (negative because controller stores inverse)
       final Offset currentOffset = _getMatrixTranslation(_transformer.value) * -1;
       // build scroll metrics
@@ -686,7 +694,10 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
     }
     assert(scale != 0.0);
 
-    if (widget.scrollPhysics != null) {
+    // fallback to widget.scrollPhysics if widgry.scrollPhysicsScale not specified
+    final scrollPhysics = widget.scrollPhysicsScale ?? widget.scrollPhysics;
+
+    if (scrollPhysics != null) {
       // Compute current and desired scales
       final double currentScale = _transformer.value.getMaxScaleOnAxis();
       // scale provided is a desired change in scale between the current scale
@@ -695,11 +706,16 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
 
       // desired but not necessarily achieved if physics is applied
       final double desiredScale = currentScale * scale;
+
+      final allowedScale = _getAllowedScale(desiredScale);
       // Early return if not allowed to zoom outside bounds
-      if (!_shouldAllowScale(desiredScale)) {
+      if (allowedScale != desiredScale) {
+        print('allowedScale: $allowedScale, desiredScale: $desiredScale, currentScale: $currentScale');
+        return matrix.clone()..scale(allowedScale);
         // Clamp the overall scale
         final double clampedTotalScale = clampDouble(desiredScale, widget.minScale, widget.maxScale);
         final double clampedScale = clampedTotalScale / currentScale;
+        return matrix.clone();
         return matrix.clone()..scale(clampedScale);
       }
 
@@ -746,8 +762,8 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
 
         // Apply scroll physics half the delta to simulate exceeding a boundary
         // on one side
-        final double adjustedX = widget.scrollPhysics!.applyPhysicsToUserOffset(metricsX, deltaX / 2) * 2;
-        final double adjustedY = widget.scrollPhysics!.applyPhysicsToUserOffset(metricsY, deltaY / 2) * 2;
+        final double adjustedX = scrollPhysics.applyPhysicsToUserOffset(metricsX, deltaX / 2) * 2;
+        final double adjustedY = scrollPhysics.applyPhysicsToUserOffset(metricsY, deltaY / 2) * 2;
 
         // Convert back to scale factors
         final double newScaleX = (contentWidth + adjustedX) / contentWidth;
@@ -1319,9 +1335,10 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
 
   /// Determines whether [proposedScale] can be applied without clamping,
   /// by probing the widget.scrollPhysics.
-  bool _shouldAllowScale(double proposedScale) {
-    if (widget.scrollPhysics == null) {
-      return proposedScale >= widget.minScale && proposedScale <= widget.maxScale;
+  double _getAllowedScale(double proposedScale) {
+    final scrollPhysics = widget.scrollPhysicsScale ?? widget.scrollPhysics;
+    if (scrollPhysics == null) {
+      return proposedScale.clamp(widget.minScale, widget.maxScale);
     }
 
     final Size contentSize = _boundaryRect.isInfinite ? _childSize() : _boundaryRect.size;
@@ -1349,10 +1366,22 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       devicePixelRatio: 1.0,
     );
 
-    final double adjustmentX = widget.scrollPhysics!.applyBoundaryConditions(metricsX, desiredContentWidth);
-    final double adjustmentY = widget.scrollPhysics!.applyBoundaryConditions(metricsY, desiredContentHeight);
+    final double adjustmentX = scrollPhysics.applyBoundaryConditions(metricsX, desiredContentWidth);
+    final double adjustmentY = scrollPhysics.applyBoundaryConditions(metricsY, desiredContentHeight);
 
-    return adjustmentX == 0.0 && adjustmentY == 0.0;
+    if (adjustmentX == 0.0 && adjustmentY == 0.0) {
+      // No adjustment needed, so the proposed scale is allowed.
+      return proposedScale;
+    } else {
+      final allowedContentWidth = desiredContentWidth - adjustmentX;
+      final allowedContentHeight = desiredContentHeight - adjustmentY;
+
+      if (proposedScale > widget.maxScale) {
+        return math.max(allowedContentWidth / contentWidth, allowedContentHeight / contentHeight);
+      } else {
+        return math.max(allowedContentWidth / contentWidth, allowedContentHeight / contentHeight);
+      }
+    }
   }
 
   void _stopAnimation() {

@@ -321,7 +321,8 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           pageAnchorEnd: isHorizontalLayout ? PdfPageAnchor.right : PdfPageAnchor.bottom,
                           enableTextSelection: true,
                           //useAlternativeFitScaleAsMinScale: false,
-                          scrollPhysics: ScrollConfiguration.of(context).getScrollPhysics(context),
+                          scrollPhysics: PdfViewerParams.getScrollPhysics(context),
+                          //scrollPhysicsScale: ClampingScrollPhysics(), // don't allow over/under zooming
                           pageFit: PdfPageFit.fit,
                           // onViewSizeChanged: (viewSize, oldViewSize, controller) {
                           //   if (oldViewSize != null) {

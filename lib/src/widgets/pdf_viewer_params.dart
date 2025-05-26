@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../pdfrx.dart';
+import '../utils/fixed_overscroll_physics.dart';
 
 /// Viewer customization parameters.
 ///
@@ -64,6 +66,7 @@ class PdfViewerParams {
     this.keyHandlerParams = const PdfViewerKeyHandlerParams(),
     this.forceReload = false,
     this.scrollPhysics,
+    this.scrollPhysicsScale,
     this.pageFit = PdfPageFit.none,
   });
 
@@ -519,8 +522,19 @@ class PdfViewerParams {
   /// Scroll physics for the viewer.
   final ScrollPhysics? scrollPhysics;
 
+  /// Scroll physics for scaling within the viewer.
+  final ScrollPhysics? scrollPhysicsScale;
+
   /// Page fit
   final PdfPageFit pageFit;
+
+  static ScrollPhysics getScrollPhysics(BuildContext context) {
+    if (Platform.isAndroid) {
+      return const FixedOverscrollPhysics();
+    } else {
+      return ScrollConfiguration.of(context).getScrollPhysics(context);
+    }
+  }
 
   /// Determine whether the viewer needs to be reloaded or not.
   ///
@@ -553,6 +567,7 @@ class PdfViewerParams {
         other.verticalCacheExtent != verticalCacheExtent ||
         other.linkHandlerParams != linkHandlerParams ||
         other.scrollPhysics != scrollPhysics ||
+        other.scrollPhysicsScale != scrollPhysicsScale ||
         other.pageFit != pageFit;
   }
 
@@ -609,6 +624,7 @@ class PdfViewerParams {
         other.keyHandlerParams == keyHandlerParams &&
         other.forceReload == forceReload &&
         other.scrollPhysics == scrollPhysics &&
+        other.scrollPhysicsScale == scrollPhysicsScale &&
         other.pageFit == pageFit;
   }
 
@@ -663,6 +679,7 @@ class PdfViewerParams {
         keyHandlerParams.hashCode ^
         forceReload.hashCode ^
         scrollPhysics.hashCode ^
+        scrollPhysicsScale.hashCode ^
         pageFit.hashCode;
   }
 }

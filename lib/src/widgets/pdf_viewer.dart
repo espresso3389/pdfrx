@@ -414,6 +414,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                         interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
                         onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
                         scrollPhysics: widget.params.scrollPhysics,
+                        scrollPhysicsScale: widget.params.scrollPhysicsScale,
                         // handled in _adjustBoundaryMargins() so that we have access
                         // for boundary clamping
                         scrollPhysicsAutoAdjustBoundaries: false,
