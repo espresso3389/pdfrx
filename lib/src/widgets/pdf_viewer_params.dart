@@ -17,7 +17,6 @@ class PdfViewerParams {
     this.margin = 8.0,
     this.backgroundColor = Colors.grey,
     this.layoutPages,
-    this.normalizeMatrix,
     this.maxScale = 8.0,
     this.minScale = 0.1,
     this.useAlternativeFitScaleAsMinScale = true,
@@ -105,32 +104,6 @@ class PdfViewerParams {
   /// ),
   /// ```
   final PdfPageLayoutFunction? layoutPages;
-
-  /// Function to normalize the matrix.
-  ///
-  /// The function is called when the matrix is changed and normally used to restrict the matrix to certain range.
-  ///
-  /// The following fragment is an example to restrict the matrix to the document size, which is almost identical to
-  /// the default behavior:
-  ///
-  /// ```dart
-  /// PdfViewerParams(
-  ///  normalizeMatrix: (matrix, viewSize, layout, controller) {
-  ///     // If the controller is not ready, just return the input matrix.
-  ///     if (controller == null || !controller.isReady) return matrix;
-  ///     final position = newValue.calcPosition(viewSize);
-  ///     final newZoom = controller.params.boundaryMargin != null
-  ///       ? newValue.zoom
-  ///       : max(newValue.zoom, controller.minScale);
-  ///     final hw = viewSize.width / 2 / newZoom;
-  ///     final hh = viewSize.height / 2 / newZoom;
-  ///     final x = position.dx.range(hw, layout.documentSize.width - hw);
-  ///     final y = position.dy.range(hh, layout.documentSize.height - hh);
-  ///     return controller.calcMatrixFor(Offset(x, y), zoom: newZoom, viewSize: viewSize);
-  ///   },
-  /// ),
-  /// ```
-  final PdfMatrixNormalizeFunction? normalizeMatrix;
 
   /// The maximum allowed scale.
   ///
@@ -731,16 +704,6 @@ typedef PdfPageLayoutFunction =
       List<double> pageFitWidths,
       List<double> pageFitHeights,
     );
-
-/// Function to normalize the matrix.
-///
-/// The function is called when the matrix is changed and normally used to restrict the matrix to certain range.
-///
-/// Another use case is to do something when the matrix is changed.
-///
-/// If no actual matrix change is needed, just return the input matrix.
-typedef PdfMatrixNormalizeFunction =
-    Matrix4 Function(Matrix4 matrix, Size viewSize, PdfPageLayout layout, PdfViewerController? controller);
 
 /// Function to build viewer overlays.
 ///
