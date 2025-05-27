@@ -20,5 +20,5 @@ jobs:
           prerelease: false
           body: iOS/macOS PDFium prebuilt binary distribution for pdfrx (${{ github.ref_name }}).
           files: |
-            ./darwin/pdfium/pdfium-ios.zip
-            ./darwin/pdfium/pdfium-macos.zip
+            ./darwin/pdfium/pdfium-ios.tgz
+            ./darwin/pdfium/pdfium-macos.tgz

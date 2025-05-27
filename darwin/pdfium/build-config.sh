@@ -5,12 +5,8 @@ if [ "$2" = "" ]; then
   exit 1
 fi
 
-echo "**************************************************************"
-echo " Building PDFium for $1/$2"
-echo "**************************************************************"
-
 # https://pdfium.googlesource.com/pdfium/+/refs/heads/chromium/6555
-#LAST_KNOWN_GOOD_COMMIT=5a6a8741b0e111a6b5bd9ab4e1036377c98885dc
+LAST_KNOWN_GOOD_COMMIT=5a6a8741b0e111a6b5bd9ab4e1036377c98885dc
 
 SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 
@@ -62,7 +58,7 @@ else
   DEBUG_DIR_SUFFIX=/debug
 fi
 
-if [[ "$TARGET_OS" == "mac" || "$TARGET_OS" == "ios" || "$TARGET_OS" == "android" ]]; then
+if [[ "$TARGET_OS" == "macos" || "$TARGET_OS" == "ios" || "$TARGET_OS" == "android" ]]; then
   IS_CLANG=true
 else
   IS_CLANG=false
@@ -77,17 +73,16 @@ PDFIUM_SRCDIR=$WORK_DIR/pdfium
 BUILDDIR=$PDFIUM_SRCDIR/out/$TARGET_OS_ORIG-$TARGET_ARCH-$REL_OR_DBG
 mkdir -p $BUILDDIR
 
-pushd $PDFIUM_SRCDIR
-git reset --hard
 if [[ "$LAST_KNOWN_GOOD_COMMIT" != "" ]]; then
+  pushd $PDFIUM_SRCDIR
+  git reset --hard
   git checkout $LAST_KNOWN_GOOD_COMMIT
+  cd $PDFIUM_SRCDIR/build
+  git reset --hard
+  cd $PDFIUM_SRCDIR/third_party/libjpeg_turbo
+  git reset --hard
+  popd
 fi
-
-cd $PDFIUM_SRCDIR/build
-git reset --hard
-cd $PDFIUM_SRCDIR/third_party/libjpeg_turbo
-git reset --hard
-popd
 
 INCLUDE_DIR=$DIST_DIR/include
 if [[ ! -d $INCLUDE_DIR ]]; then

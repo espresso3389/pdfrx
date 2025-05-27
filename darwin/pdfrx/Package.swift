@@ -1,4 +1,5 @@
 
+// swift-tools-version:5.3
 import PackageDescription
 
 let package = Package(
@@ -14,24 +15,10 @@ let package = Package(
     targets: [
         .target(
             name: "pdfrx",
-            dependencies: [
-                .target(name: "PDFium", condition: .when(platforms: [.iOS])),
-                .target(name: "PDFiumMacOS", condition: .when(platforms: [.macOS]))
-            ],
-            publicHeadersPath: "include",
-            cxxSettings: [
-                .define("__APPLE__")
+            dependencies: [],
+            cSettings: [
+                .headerSearchPath("include/pdfrx")
             ]
-        ),
-        .binaryTarget(
-            name: "PDFium",
-            url: "https://github.com/espresso3389/pdfrx/releases/download/pdfium-apple-v10-exp2/pdfium-ios.zip",
-            checksum: "PLACEHOLDER_IOS_ZIP_CHECKSUM"
-        ),
-        .binaryTarget(
-            name: "PDFiumMacOS",
-            url: "https://github.com/espresso3389/pdfrx/releases/download/pdfium-apple-v10-exp2/pdfium-macos.zip",
-            checksum: "PLACEHOLDER_MACOS_ZIP_CHECKSUM"
         )
     ]
 )
