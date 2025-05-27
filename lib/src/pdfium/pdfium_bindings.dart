@@ -537,6 +537,8 @@ class pdfium {
   /// Return value:
   /// Page width (excluding non-displayable area) measured in points.
   /// One point is 1/72 inch (around 0.3528 mm).
+  /// Comments:
+  /// Changing the rotation of |page| affects the return value.
   double FPDF_GetPageWidthF(
     FPDF_PAGE page,
   ) {
@@ -561,6 +563,8 @@ class pdfium {
   /// Note:
   /// Prefer FPDF_GetPageWidthF() above. This will be deprecated in the
   /// future.
+  /// Comments:
+  /// Changing the rotation of |page| affects the return value.
   double FPDF_GetPageWidth(
     FPDF_PAGE page,
   ) {
@@ -583,6 +587,8 @@ class pdfium {
   /// Return value:
   /// Page height (excluding non-displayable area) measured in points.
   /// One point is 1/72 inch (around 0.3528 mm)
+  /// Comments:
+  /// Changing the rotation of |page| affects the return value.
   double FPDF_GetPageHeightF(
     FPDF_PAGE page,
   ) {
@@ -607,6 +613,8 @@ class pdfium {
   /// Note:
   /// Prefer FPDF_GetPageHeightF() above. This will be deprecated in the
   /// future.
+  /// Comments:
+  /// Changing the rotation of |page| affects the return value.
   double FPDF_GetPageHeight(
     FPDF_PAGE page,
   ) {
@@ -733,8 +741,8 @@ class pdfium {
   /// flags       -   0 for normal display, or combination of flags
   /// defined above.
   /// Return value:
-  /// None.
-  void FPDF_RenderPage(
+  /// Returns true if the page is rendered successfully, false otherwise.
+  int FPDF_RenderPage(
     HDC dc,
     FPDF_PAGE page,
     int start_x,
@@ -758,10 +766,10 @@ class pdfium {
 
   late final _FPDF_RenderPagePtr = _lookup<
       ffi.NativeFunction<
-          ffi.Void Function(HDC, FPDF_PAGE, ffi.Int, ffi.Int, ffi.Int, ffi.Int,
+          FPDF_BOOL Function(HDC, FPDF_PAGE, ffi.Int, ffi.Int, ffi.Int, ffi.Int,
               ffi.Int, ffi.Int)>>('FPDF_RenderPage');
   late final _FPDF_RenderPage = _FPDF_RenderPagePtr.asFunction<
-      void Function(HDC, FPDF_PAGE, int, int, int, int, int, int)>();
+      int Function(HDC, FPDF_PAGE, int, int, int, int, int, int)>();
 
   /// Function: FPDF_RenderPageBitmap
   /// Render contents of a page to a device independent bitmap.
@@ -1200,7 +1208,7 @@ class pdfium {
   /// color       -   A 32-bit value specifing the color, in 8888 ARGB
   /// format.
   /// Return value:
-  /// None.
+  /// Returns whether the operation succeeded or not.
   /// Comments:
   /// This function sets the color and (optionally) alpha value in the
   /// specified region of the bitmap.
@@ -1210,7 +1218,7 @@ class pdfium {
   /// background will be replaced by the source color and the alpha.
   ///
   /// If the alpha channel is not used, the alpha parameter is ignored.
-  void FPDFBitmap_FillRect(
+  int FPDFBitmap_FillRect(
     FPDF_BITMAP bitmap,
     int left,
     int top,
@@ -1230,10 +1238,10 @@ class pdfium {
 
   late final _FPDFBitmap_FillRectPtr = _lookup<
       ffi.NativeFunction<
-          ffi.Void Function(FPDF_BITMAP, ffi.Int, ffi.Int, ffi.Int, ffi.Int,
+          FPDF_BOOL Function(FPDF_BITMAP, ffi.Int, ffi.Int, ffi.Int, ffi.Int,
               FPDF_DWORD)>>('FPDFBitmap_FillRect');
   late final _FPDFBitmap_FillRect = _FPDFBitmap_FillRectPtr.asFunction<
-      void Function(FPDF_BITMAP, int, int, int, int, int)>();
+      int Function(FPDF_BITMAP, int, int, int, int, int)>();
 
   /// Function: FPDFBitmap_GetBuffer
   /// Get data buffer of a bitmap.
@@ -3434,7 +3442,7 @@ class pdfium {
   /// Experimental API.
   /// Set the color of an annotation. Fails when called on annotations with
   /// appearance streams already defined; instead use
-  /// FPDFPath_Set{Stroke|Fill}Color().
+  /// FPDFPageObj_Set{Stroke|Fill}Color().
   ///
   /// annot    - handle to an annotation.
   /// type     - type of the color to be set.
@@ -3476,7 +3484,7 @@ class pdfium {
   /// Get the color of an annotation. If no color is specified, default to yellow
   /// for highlight annotation, black for all else. Fails when called on
   /// annotations with appearance streams already defined; instead use
-  /// FPDFPath_Get{Stroke|Fill}Color().
+  /// FPDFPageObj_Get{Stroke|Fill}Color().
   ///
   /// annot    - handle to an annotation.
   /// type     - type of the color requested.
@@ -4253,6 +4261,34 @@ class pdfium {
       .asFunction<int Function(FPDF_FORMHANDLE, FPDF_ANNOTATION)>();
 
   /// Experimental API.
+  /// Sets the form field flags for an interactive form annotation.
+  ///
+  /// handle       -   the handle to the form fill module, returned by
+  /// FPDFDOC_InitFormFillEnvironment().
+  /// annot        -   handle to an interactive form annotation.
+  /// flags        -   the form field flags to be set.
+  ///
+  /// Returns true if successful.
+  int FPDFAnnot_SetFormFieldFlags(
+    FPDF_FORMHANDLE handle,
+    FPDF_ANNOTATION annot,
+    int flags,
+  ) {
+    return _FPDFAnnot_SetFormFieldFlags(
+      handle,
+      annot,
+      flags,
+    );
+  }
+
+  late final _FPDFAnnot_SetFormFieldFlagsPtr = _lookup<
+      ffi.NativeFunction<
+          FPDF_BOOL Function(FPDF_FORMHANDLE, FPDF_ANNOTATION,
+              ffi.Int)>>('FPDFAnnot_SetFormFieldFlags');
+  late final _FPDFAnnot_SetFormFieldFlags = _FPDFAnnot_SetFormFieldFlagsPtr
+      .asFunction<int Function(FPDF_FORMHANDLE, FPDF_ANNOTATION, int)>();
+
+  /// Experimental API.
   /// Retrieves an interactive form annotation whose rectangle contains a given
   /// point on a page. Must call FPDFPage_CloseAnnot() when the annotation returned
   /// is no longer needed.
@@ -4565,6 +4601,43 @@ class pdfium {
               ffi.Pointer<ffi.Float>)>>('FPDFAnnot_GetFontSize');
   late final _FPDFAnnot_GetFontSize = _FPDFAnnot_GetFontSizePtr.asFunction<
       int Function(FPDF_FORMHANDLE, FPDF_ANNOTATION, ffi.Pointer<ffi.Float>)>();
+
+  /// Experimental API.
+  /// Set the text color of an annotation.
+  ///
+  /// handle   - handle to the form fill module, returned by
+  /// FPDFDOC_InitFormFillEnvironment.
+  /// annot    - handle to an annotation.
+  /// R        - the red component for the text color.
+  /// G        - the green component for the text color.
+  /// B        - the blue component for the text color.
+  ///
+  /// Returns true if successful.
+  ///
+  /// Currently supported subtypes: freetext.
+  /// The range for the color components is 0 to 255.
+  int FPDFAnnot_SetFontColor(
+    FPDF_FORMHANDLE handle,
+    FPDF_ANNOTATION annot,
+    int R,
+    int G,
+    int B,
+  ) {
+    return _FPDFAnnot_SetFontColor(
+      handle,
+      annot,
+      R,
+      G,
+      B,
+    );
+  }
+
+  late final _FPDFAnnot_SetFontColorPtr = _lookup<
+      ffi.NativeFunction<
+          FPDF_BOOL Function(FPDF_FORMHANDLE, FPDF_ANNOTATION, ffi.UnsignedInt,
+              ffi.UnsignedInt, ffi.UnsignedInt)>>('FPDFAnnot_SetFontColor');
+  late final _FPDFAnnot_SetFontColor = _FPDFAnnot_SetFontColorPtr.asFunction<
+      int Function(FPDF_FORMHANDLE, FPDF_ANNOTATION, int, int, int)>();
 
   /// Experimental API.
   /// Get the RGB value of the font color for an |annot| with variable text.
@@ -5016,6 +5089,33 @@ class pdfium {
       _FPDFText_GetUnicodePtr.asFunction<int Function(FPDF_TEXTPAGE, int)>();
 
   /// Experimental API.
+  /// Function: FPDFText_GetTextObject
+  /// Get the FPDF_PAGEOBJECT associated with a given character.
+  /// Parameters:
+  /// text_page   -   Handle to a text page information structure.
+  /// Returned by FPDFText_LoadPage function.
+  /// index       -   Zero-based index of the character.
+  /// Return value:
+  /// The associated text object for the character at |index|, or NULL on
+  /// error. The returned text object, if non-null, is of type
+  /// |FPDF_PAGEOBJ_TEXT|. The caller does not own the returned object.
+  FPDF_PAGEOBJECT FPDFText_GetTextObject(
+    FPDF_TEXTPAGE text_page,
+    int index,
+  ) {
+    return _FPDFText_GetTextObject(
+      text_page,
+      index,
+    );
+  }
+
+  late final _FPDFText_GetTextObjectPtr = _lookup<
+          ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_TEXTPAGE, ffi.Int)>>(
+      'FPDFText_GetTextObject');
+  late final _FPDFText_GetTextObject = _FPDFText_GetTextObjectPtr.asFunction<
+      FPDF_PAGEOBJECT Function(FPDF_TEXTPAGE, int)>();
+
+  /// Experimental API.
   /// Function: FPDFText_IsGenerated
   /// Get if a character in a page is generated by PDFium.
   /// Parameters:
@@ -5194,34 +5294,6 @@ class pdfium {
           'FPDFText_GetFontWeight');
   late final _FPDFText_GetFontWeight =
       _FPDFText_GetFontWeightPtr.asFunction<int Function(FPDF_TEXTPAGE, int)>();
-
-  /// Experimental API.
-  /// Function: FPDFText_GetTextRenderMode
-  /// Get text rendering mode of character.
-  /// Parameters:
-  /// text_page   -   Handle to a text page information structure.
-  /// Returned by FPDFText_LoadPage function.
-  /// index       -   Zero-based index of the character.
-  /// Return Value:
-  /// On success, return the render mode value. A valid value is of type
-  /// FPDF_TEXT_RENDERMODE. If |text_page| is invalid, if |index| is out
-  /// of bounds, or if the text object is undefined, then return
-  /// FPDF_TEXTRENDERMODE_UNKNOWN.
-  FPDF_TEXT_RENDERMODE FPDFText_GetTextRenderMode(
-    FPDF_TEXTPAGE text_page,
-    int index,
-  ) {
-    return FPDF_TEXT_RENDERMODE.fromValue(_FPDFText_GetTextRenderMode(
-      text_page,
-      index,
-    ));
-  }
-
-  late final _FPDFText_GetTextRenderModePtr =
-      _lookup<ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE, ffi.Int)>>(
-          'FPDFText_GetTextRenderMode');
-  late final _FPDFText_GetTextRenderMode = _FPDFText_GetTextRenderModePtr
-      .asFunction<int Function(FPDF_TEXTPAGE, int)>();
 
   /// Experimental API.
   /// Function: FPDFText_GetFillColor
@@ -7249,6 +7321,65 @@ class pdfium {
   late final _FPDFPageObj_GetType =
       _FPDFPageObj_GetTypePtr.asFunction<int Function(FPDF_PAGEOBJECT)>();
 
+  /// Experimental API.
+  /// Gets active state for |page_object| within page.
+  ///
+  /// page_object - handle to a page object.
+  /// active      - pointer to variable that will receive if the page object is
+  /// active. This is a required parameter. Not filled if FALSE
+  /// is returned.
+  ///
+  /// For page objects where |active| is filled with FALSE, the |page_object| is
+  /// treated as if it wasn't in the document even though it is still held
+  /// internally.
+  ///
+  /// Returns TRUE if the operation succeeded, FALSE if it failed.
+  int FPDFPageObj_GetIsActive(
+    FPDF_PAGEOBJECT page_object,
+    ffi.Pointer<FPDF_BOOL> active,
+  ) {
+    return _FPDFPageObj_GetIsActive(
+      page_object,
+      active,
+    );
+  }
+
+  late final _FPDFPageObj_GetIsActivePtr = _lookup<
+      ffi.NativeFunction<
+          FPDF_BOOL Function(FPDF_PAGEOBJECT,
+              ffi.Pointer<FPDF_BOOL>)>>('FPDFPageObj_GetIsActive');
+  late final _FPDFPageObj_GetIsActive = _FPDFPageObj_GetIsActivePtr.asFunction<
+      int Function(FPDF_PAGEOBJECT, ffi.Pointer<FPDF_BOOL>)>();
+
+  /// Experimental API.
+  /// Sets if |page_object| is active within page.
+  ///
+  /// page_object - handle to a page object.
+  /// active      - a boolean specifying if the object is active.
+  ///
+  /// Returns TRUE on success.
+  ///
+  /// Page objects all start in the active state by default, and remain in that
+  /// state unless this function is called.
+  ///
+  /// When |active| is false, this makes the |page_object| be treated as if it
+  /// wasn't in the document even though it is still held internally.
+  int FPDFPageObj_SetIsActive(
+    FPDF_PAGEOBJECT page_object,
+    int active,
+  ) {
+    return _FPDFPageObj_SetIsActive(
+      page_object,
+      active,
+    );
+  }
+
+  late final _FPDFPageObj_SetIsActivePtr = _lookup<
+          ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT, FPDF_BOOL)>>(
+      'FPDFPageObj_SetIsActive');
+  late final _FPDFPageObj_SetIsActive = _FPDFPageObj_SetIsActivePtr.asFunction<
+      int Function(FPDF_PAGEOBJECT, int)>();
+
   /// Transform |page_object| by the given matrix.
   ///
   /// page_object - handle to a page object.
@@ -7290,6 +7421,35 @@ class pdfium {
   late final _FPDFPageObj_Transform = _FPDFPageObj_TransformPtr.asFunction<
       void Function(
           FPDF_PAGEOBJECT, double, double, double, double, double, double)>();
+
+  /// Experimental API.
+  /// Transform |page_object| by the given matrix.
+  ///
+  /// page_object - handle to a page object.
+  /// matrix      - the transform matrix.
+  ///
+  /// Returns TRUE on success.
+  ///
+  /// This can be used to scale, rotate, shear and translate the |page_object|.
+  /// It is an improved version of FPDFPageObj_Transform() that does not do
+  /// unnecessary double to float conversions, and only uses 1 parameter for the
+  /// matrix. It also returns whether the operation succeeded or not.
+  int FPDFPageObj_TransformF(
+    FPDF_PAGEOBJECT page_object,
+    ffi.Pointer<FS_MATRIX> matrix,
+  ) {
+    return _FPDFPageObj_TransformF(
+      page_object,
+      matrix,
+    );
+  }
+
+  late final _FPDFPageObj_TransformFPtr = _lookup<
+      ffi.NativeFunction<
+          FPDF_BOOL Function(FPDF_PAGEOBJECT,
+              ffi.Pointer<FS_MATRIX>)>>('FPDFPageObj_TransformF');
+  late final _FPDFPageObj_TransformF = _FPDFPageObj_TransformFPtr.asFunction<
+      int Function(FPDF_PAGEOBJECT, ffi.Pointer<FS_MATRIX>)>();
 
   /// Experimental API.
   /// Get the transform matrix of a page object.
@@ -7417,6 +7577,27 @@ class pdfium {
       FPDF_PAGEOBJECT Function(FPDF_DOCUMENT)>();
 
   /// Experimental API.
+  /// Get the marked content ID for the object.
+  ///
+  /// page_object - handle to a page object.
+  ///
+  /// Returns the page object's marked content ID, or -1 on error.
+  int FPDFPageObj_GetMarkedContentID(
+    FPDF_PAGEOBJECT page_object,
+  ) {
+    return _FPDFPageObj_GetMarkedContentID(
+      page_object,
+    );
+  }
+
+  late final _FPDFPageObj_GetMarkedContentIDPtr =
+      _lookup<ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT)>>(
+          'FPDFPageObj_GetMarkedContentID');
+  late final _FPDFPageObj_GetMarkedContentID =
+      _FPDFPageObj_GetMarkedContentIDPtr.asFunction<
+          int Function(FPDF_PAGEOBJECT)>();
+
+  /// Experimental API.
   /// Get number of content marks in |page_object|.
   ///
   /// page_object - handle to a page object.
@@ -7521,17 +7702,18 @@ class pdfium {
   ///
   /// mark       - handle to a content mark.
   /// buffer     - buffer for holding the returned name in UTF-16LE. This is only
-  /// modified if |buflen| is longer than the length of the name.
+  /// modified if |buflen| is large enough to store the name.
   /// Optional, pass null to just retrieve the size of the buffer
   /// needed.
-  /// buflen     - length of the buffer.
+  /// buflen     - length of the buffer in bytes.
   /// out_buflen - pointer to variable that will receive the minimum buffer size
-  /// to contain the name. Not filled if FALSE is returned.
+  /// in bytes to contain the name. This is a required parameter.
+  /// Not filled if FALSE is returned.
   ///
   /// Returns TRUE if the operation succeeded, FALSE if it failed.
   int FPDFPageObjMark_GetName(
     FPDF_PAGEOBJECTMARK mark,
-    ffi.Pointer<ffi.Void> buffer,
+    ffi.Pointer<FPDF_WCHAR> buffer,
     int buflen,
     ffi.Pointer<ffi.UnsignedLong> out_buflen,
   ) {
@@ -7547,11 +7729,11 @@ class pdfium {
       ffi.NativeFunction<
           FPDF_BOOL Function(
               FPDF_PAGEOBJECTMARK,
-              ffi.Pointer<ffi.Void>,
+              ffi.Pointer<FPDF_WCHAR>,
               ffi.UnsignedLong,
               ffi.Pointer<ffi.UnsignedLong>)>>('FPDFPageObjMark_GetName');
   late final _FPDFPageObjMark_GetName = _FPDFPageObjMark_GetNamePtr.asFunction<
-      int Function(FPDF_PAGEOBJECTMARK, ffi.Pointer<ffi.Void>, int,
+      int Function(FPDF_PAGEOBJECTMARK, ffi.Pointer<FPDF_WCHAR>, int,
           ffi.Pointer<ffi.UnsignedLong>)>();
 
   /// Experimental API.
@@ -7581,18 +7763,19 @@ class pdfium {
   /// mark       - handle to a content mark.
   /// index      - index of the property.
   /// buffer     - buffer for holding the returned key in UTF-16LE. This is only
-  /// modified if |buflen| is longer than the length of the key.
+  /// modified if |buflen| is large enough to store the key.
   /// Optional, pass null to just retrieve the size of the buffer
   /// needed.
-  /// buflen     - length of the buffer.
+  /// buflen     - length of the buffer in bytes.
   /// out_buflen - pointer to variable that will receive the minimum buffer size
-  /// to contain the key. Not filled if FALSE is returned.
+  /// in bytes to contain the name. This is a required parameter.
+  /// Not filled if FALSE is returned.
   ///
   /// Returns TRUE if the operation was successful, FALSE otherwise.
   int FPDFPageObjMark_GetParamKey(
     FPDF_PAGEOBJECTMARK mark,
     int index,
-    ffi.Pointer<ffi.Void> buffer,
+    ffi.Pointer<FPDF_WCHAR> buffer,
     int buflen,
     ffi.Pointer<ffi.UnsignedLong> out_buflen,
   ) {
@@ -7610,12 +7793,12 @@ class pdfium {
           FPDF_BOOL Function(
               FPDF_PAGEOBJECTMARK,
               ffi.UnsignedLong,
-              ffi.Pointer<ffi.Void>,
+              ffi.Pointer<FPDF_WCHAR>,
               ffi.UnsignedLong,
               ffi.Pointer<ffi.UnsignedLong>)>>('FPDFPageObjMark_GetParamKey');
   late final _FPDFPageObjMark_GetParamKey =
       _FPDFPageObjMark_GetParamKeyPtr.asFunction<
-          int Function(FPDF_PAGEOBJECTMARK, int, ffi.Pointer<ffi.Void>, int,
+          int Function(FPDF_PAGEOBJECTMARK, int, ffi.Pointer<FPDF_WCHAR>, int,
               ffi.Pointer<ffi.UnsignedLong>)>();
 
   /// Experimental API.
@@ -7681,19 +7864,19 @@ class pdfium {
   /// mark       - handle to a content mark.
   /// key        - string key of the property.
   /// buffer     - buffer for holding the returned value in UTF-16LE. This is
-  /// only modified if |buflen| is longer than the length of the
-  /// value.
+  /// only modified if |buflen| is large enough to store the value.
   /// Optional, pass null to just retrieve the size of the buffer
   /// needed.
-  /// buflen     - length of the buffer.
+  /// buflen     - length of the buffer in bytes.
   /// out_buflen - pointer to variable that will receive the minimum buffer size
-  /// to contain the value. Not filled if FALSE is returned.
+  /// in bytes to contain the name. This is a required parameter.
+  /// Not filled if FALSE is returned.
   ///
   /// Returns TRUE if the key maps to a string/blob value, FALSE otherwise.
   int FPDFPageObjMark_GetParamStringValue(
     FPDF_PAGEOBJECTMARK mark,
     FPDF_BYTESTRING key,
-    ffi.Pointer<ffi.Void> buffer,
+    ffi.Pointer<FPDF_WCHAR> buffer,
     int buflen,
     ffi.Pointer<ffi.UnsignedLong> out_buflen,
   ) {
@@ -7711,14 +7894,14 @@ class pdfium {
               FPDF_BOOL Function(
                   FPDF_PAGEOBJECTMARK,
                   FPDF_BYTESTRING,
-                  ffi.Pointer<ffi.Void>,
+                  ffi.Pointer<FPDF_WCHAR>,
                   ffi.UnsignedLong,
                   ffi.Pointer<ffi.UnsignedLong>)>>(
       'FPDFPageObjMark_GetParamStringValue');
   late final _FPDFPageObjMark_GetParamStringValue =
       _FPDFPageObjMark_GetParamStringValuePtr.asFunction<
           int Function(FPDF_PAGEOBJECTMARK, FPDF_BYTESTRING,
-              ffi.Pointer<ffi.Void>, int, ffi.Pointer<ffi.UnsignedLong>)>();
+              ffi.Pointer<FPDF_WCHAR>, int, ffi.Pointer<ffi.UnsignedLong>)>();
 
   /// Experimental API.
   /// Get the value of a blob property in a content mark by key.
@@ -7726,18 +7909,19 @@ class pdfium {
   /// mark       - handle to a content mark.
   /// key        - string key of the property.
   /// buffer     - buffer for holding the returned value. This is only modified
-  /// if |buflen| is at least as long as the length of the value.
+  /// if |buflen| is large enough to store the value.
   /// Optional, pass null to just retrieve the size of the buffer
   /// needed.
-  /// buflen     - length of the buffer.
+  /// buflen     - length of the buffer in bytes.
   /// out_buflen - pointer to variable that will receive the minimum buffer size
-  /// to contain the value. Not filled if FALSE is returned.
+  /// in bytes to contain the name. This is a required parameter.
+  /// Not filled if FALSE is returned.
   ///
   /// Returns TRUE if the key maps to a string/blob value, FALSE otherwise.
   int FPDFPageObjMark_GetParamBlobValue(
     FPDF_PAGEOBJECTMARK mark,
     FPDF_BYTESTRING key,
-    ffi.Pointer<ffi.Void> buffer,
+    ffi.Pointer<ffi.UnsignedChar> buffer,
     int buflen,
     ffi.Pointer<ffi.UnsignedLong> out_buflen,
   ) {
@@ -7755,14 +7939,18 @@ class pdfium {
               FPDF_BOOL Function(
                   FPDF_PAGEOBJECTMARK,
                   FPDF_BYTESTRING,
-                  ffi.Pointer<ffi.Void>,
+                  ffi.Pointer<ffi.UnsignedChar>,
                   ffi.UnsignedLong,
                   ffi.Pointer<ffi.UnsignedLong>)>>(
       'FPDFPageObjMark_GetParamBlobValue');
   late final _FPDFPageObjMark_GetParamBlobValue =
       _FPDFPageObjMark_GetParamBlobValuePtr.asFunction<
-          int Function(FPDF_PAGEOBJECTMARK, FPDF_BYTESTRING,
-              ffi.Pointer<ffi.Void>, int, ffi.Pointer<ffi.UnsignedLong>)>();
+          int Function(
+              FPDF_PAGEOBJECTMARK,
+              FPDF_BYTESTRING,
+              ffi.Pointer<ffi.UnsignedChar>,
+              int,
+              ffi.Pointer<ffi.UnsignedLong>)>();
 
   /// Experimental API.
   /// Set the value of an int property in a content mark by key. If a parameter
@@ -7864,7 +8052,7 @@ class pdfium {
     FPDF_PAGEOBJECT page_object,
     FPDF_PAGEOBJECTMARK mark,
     FPDF_BYTESTRING key,
-    ffi.Pointer<ffi.Void> value,
+    ffi.Pointer<ffi.UnsignedChar> value,
     int value_len,
   ) {
     return _FPDFPageObjMark_SetBlobParam(
@@ -7884,12 +8072,12 @@ class pdfium {
               FPDF_PAGEOBJECT,
               FPDF_PAGEOBJECTMARK,
               FPDF_BYTESTRING,
-              ffi.Pointer<ffi.Void>,
+              ffi.Pointer<ffi.UnsignedChar>,
               ffi.UnsignedLong)>>('FPDFPageObjMark_SetBlobParam');
   late final _FPDFPageObjMark_SetBlobParam =
       _FPDFPageObjMark_SetBlobParamPtr.asFunction<
           int Function(FPDF_DOCUMENT, FPDF_PAGEOBJECT, FPDF_PAGEOBJECTMARK,
-              FPDF_BYTESTRING, ffi.Pointer<ffi.Void>, int)>();
+              FPDF_BYTESTRING, ffi.Pointer<ffi.UnsignedChar>, int)>();
 
   /// Experimental API.
   /// Removes a property from a content mark by key.
@@ -8310,6 +8498,53 @@ class pdfium {
       _FPDFImageObj_GetImagePixelSizePtr.asFunction<
           int Function(FPDF_PAGEOBJECT, ffi.Pointer<ffi.UnsignedInt>,
               ffi.Pointer<ffi.UnsignedInt>)>();
+
+  /// Experimental API.
+  /// Get ICC profile decoded data of |image_object|. If the |image_object| is not
+  /// an image object or if it does not have an image, then the return value will
+  /// be false. It also returns false if the |image_object| has no ICC profile.
+  /// |buffer| is only modified if ICC profile exists and |buflen| is longer than
+  /// the length of the ICC profile decoded data.
+  ///
+  /// image_object - handle to an image object; must not be NULL.
+  /// page         - handle to the page containing |image_object|; must not be
+  /// NULL. Required for retrieving the image's colorspace.
+  /// buffer       - Buffer to receive ICC profile data; may be NULL if querying
+  /// required size via |out_buflen|.
+  /// buflen       - Length of the buffer in bytes. Ignored if |buffer| is NULL.
+  /// out_buflen   - Pointer to receive the ICC profile data size in bytes; must
+  /// not be NULL. Will be set if this API returns true.
+  ///
+  /// Returns true if |out_buflen| is not null and an ICC profile exists for the
+  /// given |image_object|.
+  int FPDFImageObj_GetIccProfileDataDecoded(
+    FPDF_PAGEOBJECT image_object,
+    FPDF_PAGE page,
+    ffi.Pointer<ffi.Uint8> buffer,
+    int buflen,
+    ffi.Pointer<ffi.Size> out_buflen,
+  ) {
+    return _FPDFImageObj_GetIccProfileDataDecoded(
+      image_object,
+      page,
+      buffer,
+      buflen,
+      out_buflen,
+    );
+  }
+
+  late final _FPDFImageObj_GetIccProfileDataDecodedPtr = _lookup<
+      ffi.NativeFunction<
+          FPDF_BOOL Function(
+              FPDF_PAGEOBJECT,
+              FPDF_PAGE,
+              ffi.Pointer<ffi.Uint8>,
+              ffi.Size,
+              ffi.Pointer<ffi.Size>)>>('FPDFImageObj_GetIccProfileDataDecoded');
+  late final _FPDFImageObj_GetIccProfileDataDecoded =
+      _FPDFImageObj_GetIccProfileDataDecodedPtr.asFunction<
+          int Function(FPDF_PAGEOBJECT, FPDF_PAGE, ffi.Pointer<ffi.Uint8>, int,
+              ffi.Pointer<ffi.Size>)>();
 
   /// Create a new path object at an initial position.
   ///
@@ -9545,35 +9780,68 @@ class pdfium {
       _FPDFTextObj_GetFontPtr.asFunction<FPDF_FONT Function(FPDF_PAGEOBJECT)>();
 
   /// Experimental API.
-  /// Get the font name of a font.
+  /// Get the base name of a font.
   ///
   /// font   - the handle to the font object.
-  /// buffer - the address of a buffer that receives the font name.
+  /// buffer - the address of a buffer that receives the base font name.
   /// length - the size, in bytes, of |buffer|.
   ///
-  /// Returns the number of bytes in the font name (including the trailing NUL
-  /// character) on success, 0 on error.
+  /// Returns the number of bytes in the base name (including the trailing NUL
+  /// character) on success, 0 on error. The base name is typically the font's
+  /// PostScript name. See descriptions of "BaseFont" in ISO 32000-1:2008 spec.
   ///
   /// Regardless of the platform, the |buffer| is always in UTF-8 encoding.
   /// If |length| is less than the returned length, or |buffer| is NULL, |buffer|
   /// will not be modified.
-  int FPDFFont_GetFontName(
+  int FPDFFont_GetBaseFontName(
     FPDF_FONT font,
     ffi.Pointer<ffi.Char> buffer,
     int length,
   ) {
-    return _FPDFFont_GetFontName(
+    return _FPDFFont_GetBaseFontName(
       font,
       buffer,
       length,
     );
   }
 
-  late final _FPDFFont_GetFontNamePtr = _lookup<
+  late final _FPDFFont_GetBaseFontNamePtr = _lookup<
       ffi.NativeFunction<
-          ffi.UnsignedLong Function(FPDF_FONT, ffi.Pointer<ffi.Char>,
-              ffi.UnsignedLong)>>('FPDFFont_GetFontName');
-  late final _FPDFFont_GetFontName = _FPDFFont_GetFontNamePtr.asFunction<
+          ffi.Size Function(FPDF_FONT, ffi.Pointer<ffi.Char>,
+              ffi.Size)>>('FPDFFont_GetBaseFontName');
+  late final _FPDFFont_GetBaseFontName = _FPDFFont_GetBaseFontNamePtr
+      .asFunction<int Function(FPDF_FONT, ffi.Pointer<ffi.Char>, int)>();
+
+  /// Experimental API.
+  /// Get the family name of a font.
+  ///
+  /// font   - the handle to the font object.
+  /// buffer - the address of a buffer that receives the font name.
+  /// length - the size, in bytes, of |buffer|.
+  ///
+  /// Returns the number of bytes in the family name (including the trailing NUL
+  /// character) on success, 0 on error.
+  ///
+  /// Regardless of the platform, the |buffer| is always in UTF-8 encoding.
+  /// If |length| is less than the returned length, or |buffer| is NULL, |buffer|
+  /// will not be modified.
+  int FPDFFont_GetFamilyName(
+    FPDF_FONT font,
+    ffi.Pointer<ffi.Char> buffer,
+    int length,
+  ) {
+    return _FPDFFont_GetFamilyName(
+      font,
+      buffer,
+      length,
+    );
+  }
+
+  late final _FPDFFont_GetFamilyNamePtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Size Function(FPDF_FONT, ffi.Pointer<ffi.Char>,
+              ffi.Size)>>('FPDFFont_GetFamilyName');
+  late final _FPDFFont_GetFamilyName = _FPDFFont_GetFamilyNamePtr.asFunction<
       int Function(FPDF_FONT, ffi.Pointer<ffi.Char>, int)>();
 
   /// Experimental API.
@@ -9913,6 +10181,34 @@ class pdfium {
               FPDF_PAGEOBJECT, ffi.UnsignedLong)>>('FPDFFormObj_GetObject');
   late final _FPDFFormObj_GetObject = _FPDFFormObj_GetObjectPtr.asFunction<
       FPDF_PAGEOBJECT Function(FPDF_PAGEOBJECT, int)>();
+
+  /// Experimental API.
+  ///
+  /// Remove |page_object| from |form_object|.
+  ///
+  /// form_object - handle to a form object.
+  /// page_object - handle to a page object to be removed from the form.
+  ///
+  /// Returns TRUE on success.
+  ///
+  /// Ownership of the removed |page_object| is transferred to the caller.
+  /// Call FPDFPageObj_Destroy() on the removed page_object to free it.
+  int FPDFFormObj_RemoveObject(
+    FPDF_PAGEOBJECT form_object,
+    FPDF_PAGEOBJECT page_object,
+  ) {
+    return _FPDFFormObj_RemoveObject(
+      form_object,
+      page_object,
+    );
+  }
+
+  late final _FPDFFormObj_RemoveObjectPtr = _lookup<
+      ffi.NativeFunction<
+          FPDF_BOOL Function(
+              FPDF_PAGEOBJECT, FPDF_PAGEOBJECT)>>('FPDFFormObj_RemoveObject');
+  late final _FPDFFormObj_RemoveObject = _FPDFFormObj_RemoveObjectPtr
+      .asFunction<int Function(FPDF_PAGEOBJECT, FPDF_PAGEOBJECT)>();
 }
 
 /// PDF text rendering modes
@@ -11724,6 +12020,8 @@ const int FPDFBitmap_BGR = 2;
 const int FPDFBitmap_BGRx = 3;
 
 const int FPDFBitmap_BGRA = 4;
+
+const int FPDFBitmap_BGRA_Premul = 5;
 
 const int FORMTYPE_NONE = 0;
 

@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 /// The release of pdfium to download.
-const pdfiumRelease = 'chromium%2F6555';
+const pdfiumRelease = 'chromium%2F7202';
 
 /// Temporary directory for testing.
 final tmpRoot = Directory('${Directory.current.path}/test/.tmp');
