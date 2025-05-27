@@ -9,8 +9,7 @@ echo "**************************************************************"
 echo " Building PDFium for $1/$2"
 echo "**************************************************************"
 
-# https://pdfium.googlesource.com/pdfium/+/refs/heads/chromium/6555
-#LAST_KNOWN_GOOD_COMMIT=5a6a8741b0e111a6b5bd9ab4e1036377c98885dc
+LAST_KNOWN_GOOD_COMMIT=chromium/7202
 
 SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 
@@ -80,7 +79,7 @@ mkdir -p $BUILDDIR
 pushd $PDFIUM_SRCDIR
 git reset --hard
 if [[ "$LAST_KNOWN_GOOD_COMMIT" != "" ]]; then
-  git checkout $LAST_KNOWN_GOOD_COMMIT
+  git checkout "$LAST_KNOWN_GOOD_COMMIT"
 fi
 
 cd $PDFIUM_SRCDIR/build
