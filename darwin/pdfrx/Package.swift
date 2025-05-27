@@ -18,8 +18,9 @@ let package = Package(
                 .target(name: "PDFium", condition: .when(platforms: [.iOS])),
                 .target(name: "PDFiumMacOS", condition: .when(platforms: [.macOS]))
             ],
-            cSettings: [
-                .headerSearchPath("include/pdfrx")
+            publicHeadersPath: "include",
+            cxxSettings: [
+                .define("__APPLE__")
             ]
         ),
         .binaryTarget(

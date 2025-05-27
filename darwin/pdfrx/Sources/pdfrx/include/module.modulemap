@@ -1,0 +1,4 @@
+module pdfrx {
+    header "pdfrx.h"
+    export *
+}
