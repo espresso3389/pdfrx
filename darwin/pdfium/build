@@ -15,7 +15,7 @@ if [[ ! -d ios/pdfium.xcframework ]]; then
   mkdir -p ios/
   xcodebuild -create-xcframework -library .tmp/out/lib/ios-arm64-release/libpdfium.a -headers .tmp/out/include -library .tmp/out/lib/iossim-release/libpdfium.a -headers .tmp/out/include -output ios/pdfium.xcframework
 
-  tar -czvf pdfium-ios.tgz ios
+  zip -r pdfium-ios.zip ios
 fi
 
 # for macOS
@@ -30,5 +30,5 @@ if [[ ! -d macos/pdfium.xcframework ]]; then
   rm -rf macos/pdfium.xcframework
   xcodebuild -create-xcframework -library .tmp/out/lib/macos-release/libpdfium.a -headers .tmp/out/include -output macos/pdfium.xcframework
 
-  tar -czvf pdfium-macos.tgz macos
+  zip -r pdfium-macos.zip macos
 fi

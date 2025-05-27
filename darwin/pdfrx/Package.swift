@@ -24,13 +24,13 @@ let package = Package(
         ),
         .binaryTarget(
             name: "PDFium",
-            url: "https://github.com/espresso3389/pdfrx/releases/download/pdfium-apple-v9/pdfium-ios.tgz",
-            checksum: "7cea37346faeaafed72bfc1a0ac989eab9fe3a0693c6f9adda6deb6f6f93661d"
+            url: "https://github.com/espresso3389/pdfrx/releases/download/pdfium-apple-v9/pdfium-ios.zip",
+            checksum: "PLACEHOLDER_IOS_ZIP_CHECKSUM"
         ),
         .binaryTarget(
             name: "PDFiumMacOS",
-            url: "https://github.com/espresso3389/pdfrx/releases/download/pdfium-apple-v9/pdfium-macos.tgz",
-            checksum: "449ef5772721aea739a678da56130071bbd7d663132299240e812931fd7ddb7b"
+            url: "https://github.com/espresso3389/pdfrx/releases/download/pdfium-apple-v9/pdfium-macos.zip",
+            checksum: "PLACEHOLDER_MACOS_ZIP_CHECKSUM"
         )
     ]
 )
