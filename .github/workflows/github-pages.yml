@@ -35,7 +35,7 @@ jobs:
       - name: Build Flutter Web App (WASM)
         run: |
           cd example/viewer/
-          flutter build web --wasm --release --dart-define=GITHUB_COMMIT=$GITHUB_SHA --dart-define=PDFRX_VERSION=$PDFRX_VERSION --dart-define=FLUTTER_VERSION=$FLUTTER_VERSION
+          flutter build web --wasm --release --dart-define=GITHUB_COMMIT=$GITHUB_SHA --dart-define=PDFRX_VERSION=$PDFRX_VERSION
           sed -i \
             -e 's|<base href="/">|<base href="/pdfrx/">|' \
             -e "s/__CONFIGS__/pdfrx=${PDFRX_VERSION},commit=${GITHUB_SHA},flutter=${FLUTTER_VERSION}/g" \
