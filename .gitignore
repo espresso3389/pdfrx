@@ -21,6 +21,7 @@ migrate_working_dir/
 
 # For pdfium builds on macOS
 darwin/pdfrx/.build/
+darwin/pdfium/**.zip
 
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
