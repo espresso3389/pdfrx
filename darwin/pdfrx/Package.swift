@@ -15,10 +15,20 @@ let package = Package(
     targets: [
         .target(
             name: "pdfrx",
-            dependencies: [],
-            cSettings: [
-                .headerSearchPath("include/pdfrx")
+            dependencies: [
+                .target(name: "PDFium", condition: .when(platforms: [.iOS])),
+                .target(name: "PDFiumMacOS", condition: .when(platforms: [.macOS]))
             ]
+        ),
+        .binaryTarget(
+            name: "PDFium",
+            url: "https://github.com/espresso3389/pdfrx/releases/download/pdfium-apple-v10-exp2/pdfium-ios.zip",
+            checksum: "PLACEHOLDER_IOS_ZIP_CHECKSUM"
+        ),
+        .binaryTarget(
+            name: "PDFiumMacOS",
+            url: "https://github.com/espresso3389/pdfrx/releases/download/pdfium-apple-v10-exp2/pdfium-macos.zip",
+            checksum: "PLACEHOLDER_MACOS_ZIP_CHECKSUM"
         )
     ]
 )
