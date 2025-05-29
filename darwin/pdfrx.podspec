@@ -2,7 +2,7 @@
 # To learn more about a Podspec see http://guides.cocoapods.org/syntax/podspec.html.
 # Run `pod lib lint pdfrx.podspec` to validate before publishing.
 #
-lib_tag = 'pdfium-apple-v10-exp5'
+lib_tag = 'pdfium-apple-v10'
 
 Pod::Spec.new do |s|
   s.name             = 'pdfrx'
