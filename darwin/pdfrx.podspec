@@ -2,11 +2,11 @@
 # To learn more about a Podspec see http://guides.cocoapods.org/syntax/podspec.html.
 # Run `pod lib lint pdfrx.podspec` to validate before publishing.
 #
-lib_tag = 'pdfium-apple-v10-exp4'
+lib_tag = 'pdfium-apple-v10-exp5'
 
 Pod::Spec.new do |s|
   s.name             = 'pdfrx'
-  s.version          = '0.0.4'
+  s.version          = '0.0.5'
   s.summary          = 'Yet another PDF renderer for Flutter using PDFium.'
   s.description      = <<-DESC
   Yet another PDF renderer for Flutter using PDFium.
