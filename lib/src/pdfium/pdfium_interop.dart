@@ -3,7 +3,8 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import 'pdfium_bindings.dart';
 
@@ -17,7 +18,16 @@ String _getModuleFileName() {
   throw UnsupportedError('Unsupported platform');
 }
 
-final interopLib = DynamicLibrary.open(_getModuleFileName());
+DynamicLibrary _getModule() {
+  try {
+    return DynamicLibrary.open(_getModuleFileName());
+  } catch (e) {
+    // NOTE: with SwiftPM, the library is embedded in the app bundle (iOS/macOS)
+    return DynamicLibrary.process();
+  }
+}
+
+final interopLib = _getModule();
 
 final _pdfrx_file_access_create = interopLib
     .lookupFunction<IntPtr Function(UnsignedLong, IntPtr, IntPtr), int Function(int, int, int)>(

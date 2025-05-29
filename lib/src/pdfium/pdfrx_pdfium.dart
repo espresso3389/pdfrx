@@ -43,8 +43,17 @@ String _getModuleFileName() {
   throw UnsupportedError('Unsupported platform');
 }
 
+DynamicLibrary _getModule() {
+  try {
+    return DynamicLibrary.open(_getModuleFileName());
+  } catch (e) {
+    // NOTE: with SwiftPM, the library is embedded in the app bundle (iOS/macOS)
+    return DynamicLibrary.process();
+  }
+}
+
 /// Loaded PDFium module.
-final pdfium = pdfium_bindings.pdfium(DynamicLibrary.open(_getModuleFileName()));
+final pdfium = pdfium_bindings.pdfium(_getModule());
 
 bool _initialized = false;
 

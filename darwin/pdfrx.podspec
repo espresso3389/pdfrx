@@ -6,7 +6,7 @@ lib_tag = 'pdfium-apple-v10'
 
 Pod::Spec.new do |s|
   s.name             = 'pdfrx'
-  s.version          = '0.0.5'
+  s.version          = '0.0.6'
   s.summary          = 'Yet another PDF renderer for Flutter using PDFium.'
   s.description      = <<-DESC
   Yet another PDF renderer for Flutter using PDFium.
@@ -15,7 +15,7 @@ Pod::Spec.new do |s|
   s.license          = { :type => 'BSD', :file => '../LICENSE' }
   s.author           = { 'Takashi Kawasaki' => 'espresso3389@gmail.com' }
   s.source           = { :path => '.' }
-  s.source_files     = 'Classes/**/*'
+  s.source_files     = 'pdfrx/Sources/pdfrx/**/*'
 
   s.ios.deployment_target = '12.0'
   s.ios.dependency 'Flutter'
@@ -27,7 +27,7 @@ Pod::Spec.new do |s|
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
   }
 
-  s.osx.deployment_target = '10.11'
+  s.osx.deployment_target = '10.13'
   s.osx.dependency 'FlutterMacOS'
   s.osx.private_header_files = "pdfium/.lib/#{lib_tag}/macos/pdfium.xcframework/macos-arm64_x86_64/Headers/*.h"
   s.osx.vendored_frameworks = "pdfium/.lib/#{lib_tag}/macos/pdfium.xcframework"
