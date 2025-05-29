@@ -15,7 +15,7 @@ jobs:
       - name: Build PDFium ${{ matrix.target }}
         run: ./darwin/pdfium/build ${{ matrix.target }}
       - name: Upload PDFium artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pdfium-${{ matrix.target }}
           path: ./darwin/pdfium/pdfium-${{ matrix.target }}.zip
@@ -25,12 +25,12 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Download iOS artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: pdfium-ios
           path: ./darwin/pdfium/
       - name: Download macOS artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: pdfium-macos
           path: ./darwin/pdfium/
