@@ -1,3 +1,9 @@
+# 1.1.31
+
+- SwiftPM support for iOS/macOS
+- PDFium 138.0.7202.0
+- FIXED: null assertion exception when laying out view and calculateCurrentPageNumber is overridden (#367)
+
 # 1.1.30
 
 - MERGED: PR #364 fix: blank pdf on Windows when restore window from minimize
