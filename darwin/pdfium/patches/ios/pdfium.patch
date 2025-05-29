@@ -1,5 +1,5 @@
 diff --git a/core/fxge/BUILD.gn b/core/fxge/BUILD.gn
-index 215a63b14..357d96735 100644
+index a07bcd089..3d1d197d2 100644
 --- a/core/fxge/BUILD.gn
 +++ b/core/fxge/BUILD.gn
 @@ -164,7 +164,7 @@ source_set("fxge") {
@@ -12,18 +12,18 @@ index 215a63b14..357d96735 100644
        "apple/fx_apple_impl.cpp",
        "apple/fx_apple_platform.cpp",
 diff --git a/public/fpdfview.h b/public/fpdfview.h
-index b374088b4..b1c896e26 100644
+index d96556b47..79b6f3ebb 100644
 --- a/public/fpdfview.h
 +++ b/public/fpdfview.h
-@@ -214,7 +214,7 @@ typedef int FPDF_OBJECT_TYPE;
+@@ -220,7 +220,7 @@ typedef int FPDF_OBJECT_TYPE;
  #endif  // defined(FPDF_IMPLEMENTATION)
+ #endif  // defined(WIN32)
  #else
- #if defined(FPDF_IMPLEMENTATION)
--#define FPDF_EXPORT __attribute__((visibility("default")))
+-#define FPDF_EXPORT
 +#define FPDF_EXPORT __attribute__((visibility("default"))) __attribute__((used))
- #else
- #define FPDF_EXPORT
- #endif  // defined(FPDF_IMPLEMENTATION)
+ #endif  // defined(COMPONENT_BUILD)
+ 
+ #if defined(WIN32) && defined(FPDFSDK_EXPORTS)
 diff --git a/testing/test.gni b/testing/test.gni
 index 6ad2c2d4a..bae5117d8 100644
 --- a/testing/test.gni
