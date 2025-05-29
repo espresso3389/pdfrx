@@ -275,9 +275,9 @@ class PdfTextSearcher extends Listenable {
 extension _PatternExts on Pattern {
   bool get isEmpty {
     switch (this) {
-      case String s:
+      case final String s:
         return s.isEmpty;
-      case RegExp r:
+      case final RegExp r:
         return r.pattern.isEmpty;
       default:
         throw UnsupportedError('Pattern type not supported: $this');
