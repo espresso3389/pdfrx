@@ -1,3 +1,7 @@
+# 1.1.33
+
+- Explicitly specify 16KB page size on Android rather than specifying specific NDK version
+
 # 1.1.32
 
 - Minor fixes
