@@ -1,3 +1,7 @@
+# 1.1.32
+
+- Minor fixes
+
 # 1.1.31
 
 - SwiftPM support for iOS/macOS

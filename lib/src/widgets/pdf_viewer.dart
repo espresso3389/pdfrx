@@ -568,7 +568,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   int? _guessCurrentPageNumber() {
     if (_layout == null || _viewSize == null) return null;
-    
     if (widget.params.calculateCurrentPageNumber != null) {
       return widget.params.calculateCurrentPageNumber!(_visibleRect, _layout!.pageLayouts, _controller!);
     }
