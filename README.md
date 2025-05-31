@@ -16,7 +16,8 @@ A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web
 - Windows
 - macOS
 - Linux (even on Raspberry PI)
-- Web (\*using [PDF.js](https://mozilla.github.io/pdf.js/)) or Pdfium WASM (\*experimental)
+- Web
+  - By default, pdfrx uses [PDF.js](https://mozilla.github.io/pdf.js/) but you can enable [Pdfium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-Pdfium-WASM-support)
 
 ## Example Code
 
@@ -62,11 +63,11 @@ dependencies:
 The build process internally uses *symbolic links* and it requires Developer Mode to be enabled.
 Without this, you may encounter errors [like this](https://github.com/espresso3389/pdfrx/issues/34).
 
-### Pdfium WASM support on Web
+## Customizations/Features
 
-pdfrx now supports Pdfium WASM on Web, for more information, see [Enable Pdfium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-Pdfium-WASM-support).
+You can customize the behaviors and the viewer look and feel by configuring [PdfViewerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams-class.html).
 
-### Deal with Password Protected PDF Files
+## Deal with Password Protected PDF Files
 
 ```dart
 PdfViewer.asset(
@@ -78,11 +79,7 @@ PdfViewer.asset(
 ),
 ```
 
-For more customization and considerations, see [Deal with Password Protected PDF Files using PasswordProvider](https://github.com/espresso3389/pdfrx/wiki/Deal-with-Password-Protected-PDF-Files-using-PasswordProvider).
-
-## Customizations/Features
-
-You can customize the behaviors and the viewer look and feel by configuring [PdfViewerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams-class.html).
+See [Deal with Password Protected PDF Files using PasswordProvider](https://github.com/espresso3389/pdfrx/wiki/Deal-with-Password-Protected-PDF-Files-using-PasswordProvider) for more information.
 
 ### Text Selection
 
