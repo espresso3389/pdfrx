@@ -619,6 +619,22 @@ class PdfTextRange {
       PdfTextRangeWithFragments.fromTextRange(pageText, start, end);
 }
 
+extension PdfTextRangeListExt on List<PdfTextRange> {
+  void appendRange(PdfTextRange range) {
+    if (isNotEmpty && range.start >= last.start && range.start <= last.end) {
+      last = last.copyWith(end: range.end);
+    } else {
+      add(range);
+    }
+  }
+
+  void appendAllRanges(Iterable<PdfTextRange> ranges) {
+    for (final r in ranges) {
+      appendRange(r);
+    }
+  }
+}
+
 /// Text ranges in a PDF page typically used to describe text selection.
 class PdfTextRanges {
   /// Create a [PdfTextRanges].
@@ -787,6 +803,21 @@ class PdfRect {
 
   /// Height of the rectangle.
   double get height => top - bottom;
+
+  /// Top-left point of the rectangle.
+  PdfPoint get topLeft => PdfPoint(left, top);
+
+  /// Top-right point of the rectangle.
+  PdfPoint get topRight => PdfPoint(right, top);
+
+  /// Bottom-left point of the rectangle.
+  PdfPoint get bottomLeft => PdfPoint(left, bottom);
+
+  /// Bottom-right point of the rectangle.
+  PdfPoint get bottomRight => PdfPoint(right, bottom);
+
+  /// Center point of the rectangle.
+  PdfPoint get center => PdfPoint((left + right) / 2, (top + bottom) / 2);
 
   /// Merge two rectangles.
   PdfRect merge(PdfRect other) {
@@ -1063,6 +1094,12 @@ class PdfPoint {
 
   @override
   int get hashCode => x.hashCode ^ y.hashCode;
+
+  double distanceSquaredTo(PdfPoint other) {
+    final dx = x - other.x;
+    final dy = y - other.y;
+    return dx * dx + dy * dy;
+  }
 
   /// Convert to [Offset] in Flutter coordinate.
   /// [page] is the page to convert the rectangle.

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../pdfrx.dart';
-import 'pdf_document_text_selection.dart';
 
 /// Viewer customization parameters.
 ///
@@ -27,7 +26,6 @@ class PdfViewerParams {
     this.pageAnchorEnd = PdfPageAnchor.bottom,
     this.onePassRenderingScaleThreshold = 200 / 72,
     this.enableTextSelection = false,
-    this.textSelectionMode = PdfTextSelectionMode.legacy,
     this.matchTextColor,
     this.activeMatchTextColor,
     this.pageDropShadow = const BoxShadow(color: Colors.black54, blurRadius: 4, spreadRadius: 2, offset: Offset(2, 2)),
@@ -188,11 +186,6 @@ class PdfViewerParams {
   /// - [selectableRegionInjector] to inject your own [SelectableRegion] on the viewer
   /// - [perPageSelectableRegionInjector] to inject your own [SelectableRegion] on each page
   final bool enableTextSelection;
-
-  /// Text selection mode to use when enableTextSelection is true.
-  /// - legacy: Uses SelectableRegion-based implementation (default for backward compatibility)
-  /// - enhanced: Uses new enhanced text selection system with cross-page support and better performance
-  final PdfTextSelectionMode textSelectionMode;
 
   /// Color for text search match.
   ///
@@ -538,7 +531,6 @@ class PdfViewerParams {
         other.pageAnchorEnd != pageAnchorEnd ||
         other.onePassRenderingScaleThreshold != onePassRenderingScaleThreshold ||
         other.enableTextSelection != enableTextSelection ||
-        other.textSelectionMode != textSelectionMode ||
         other.matchTextColor != matchTextColor ||
         other.activeMatchTextColor != activeMatchTextColor ||
         other.pageDropShadow != pageDropShadow ||
@@ -570,7 +562,6 @@ class PdfViewerParams {
         other.pageAnchorEnd == pageAnchorEnd &&
         other.onePassRenderingScaleThreshold == onePassRenderingScaleThreshold &&
         other.enableTextSelection == enableTextSelection &&
-        other.textSelectionMode == textSelectionMode &&
         other.matchTextColor == matchTextColor &&
         other.activeMatchTextColor == activeMatchTextColor &&
         other.pageDropShadow == pageDropShadow &&
@@ -623,7 +614,6 @@ class PdfViewerParams {
         pageAnchorEnd.hashCode ^
         onePassRenderingScaleThreshold.hashCode ^
         enableTextSelection.hashCode ^
-        textSelectionMode.hashCode ^
         matchTextColor.hashCode ^
         activeMatchTextColor.hashCode ^
         pageDropShadow.hashCode ^
