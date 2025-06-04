@@ -222,17 +222,9 @@ class _PdfTextRenderBox extends RenderBox with PdfPageTextSelectable, Selectable
   }
 
   @override
-  bool get sizedByParent => true;
-  @override
-  double computeMinIntrinsicWidth(double height) => _pageRect.size.width;
-  @override
-  double computeMaxIntrinsicWidth(double height) => _pageRect.size.width;
-  @override
-  double computeMinIntrinsicHeight(double width) => _pageRect.size.height;
-  @override
-  double computeMaxIntrinsicHeight(double width) => _pageRect.size.height;
-  @override
-  Size computeDryLayout(BoxConstraints constraints) => constraints.constrain(_pageRect.size);
+  void performLayout() {
+    size = _textWidget._state.widget.pageRect.size;
+  }
 
   @override
   void addListener(VoidCallback listener) => _geometry.addListener(listener);
