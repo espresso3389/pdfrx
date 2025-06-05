@@ -72,7 +72,7 @@ You can customize the behaviors and the viewer look and feel by configuring [Pdf
 ```dart
 PdfViewer.asset(
   'assets/test.pdf',
-  // Most easiest way to return some password
+  // The easiest way to supply a password
   passwordProvider: () => 'password',
 
   ...
