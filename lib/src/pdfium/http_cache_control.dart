@@ -195,7 +195,7 @@ class HttpCacheControlState {
   int get hashCode => cacheControl.hashCode ^ date.hashCode ^ expires.hashCode ^ etag.hashCode ^ lastModified.hashCode;
 }
 
-int _parseInt(String s) => s == 'null' ? 0 : int.parse(s);
+int? _parseInt(String s) => s == 'null' ? null : int.parse(s);
 
 DateTime? _parseDateTime(String s) => s == 'null' ? null : DateTime.fromMillisecondsSinceEpoch(int.parse(s) * 1000);
 
