@@ -1,3 +1,5 @@
+// Tests can skip PDFium download by setting the `PDFIUM_PATH` environment
+// variable to an existing module file.
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
@@ -12,7 +14,12 @@ final cacheRoot = Directory('${tmpRoot.path}/cache');
 
 /// Sets up the test environment.
 Future<void> setup() async {
-  Pdfrx.pdfiumModulePath = await downloadAndGetPdfiumModulePath();
+  final envPath = Platform.environment['PDFIUM_PATH'];
+  if (envPath != null && await File(envPath).exists()) {
+    Pdfrx.pdfiumModulePath = envPath;
+  } else {
+    Pdfrx.pdfiumModulePath = await downloadAndGetPdfiumModulePath();
+  }
 
   TestWidgetsFlutterBinding.ensureInitialized();
 
