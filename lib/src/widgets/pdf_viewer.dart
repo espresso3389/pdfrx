@@ -223,8 +223,14 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   // Changes to the stream rebuilds the viewer
   final _updateStream = BehaviorSubject<Matrix4>();
 
-  final _selectables = SplayTreeMap<int, PdfTextRanges>();
-  Timer? _selectionChangedThrottleTimer;
+  final _textCache = <int, PdfPageText?>{};
+  final _textSelection = SplayTreeMap<int, PdfTextRanges>();
+  Timer? _textSelectionChangedThrottleTimer;
+  final double _textSelectionThumbSize = 20.0;
+  final double _hitTestMargin = 3.0;
+  Offset? _textSelectFrom, _textSelectTo, _textSelectAnchor;
+  Rect? _selectionRect;
+  bool _selectingOnProgress = false;
 
   Timer? _interactionEndedTimer;
   bool _isInteractionGoingOn = false;
@@ -287,7 +293,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   void _onDocumentChanged() async {
     _layout = null;
 
-    _selectionChangedThrottleTimer?.cancel();
+    _textSelectionChangedThrottleTimer?.cancel();
     _stopInteraction();
     _releaseAllImages();
     _canvasLinkPainter.resetAll();
@@ -329,7 +335,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   @override
   void dispose() {
-    _selectionChangedThrottleTimer?.cancel();
+    _textSelectionChangedThrottleTimer?.cancel();
     _interactionEndedTimer?.cancel();
     _cancelAllPendingRenderings();
     _animController.dispose();
@@ -780,18 +786,18 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   }
 
   void _clearAllTextSelections({bool invalidate = true}) {
-    _selectables.clear();
+    _textSelection.clear();
     _selectionRect = null;
     if (invalidate) {
       _invalidate();
     }
   }
 
-  void _onSelectionChange(PdfTextRanges selection) {
-    _selectionChangedThrottleTimer?.cancel();
-    _selectionChangedThrottleTimer = Timer(const Duration(milliseconds: 300), () {
-      if (!mounted || !_selectables.containsKey(selection.pageNumber)) return;
-      widget.params.onTextSelectionChange?.call(_selectables.values.toList());
+  void _onSelectionChange() {
+    _textSelectionChangedThrottleTimer?.cancel();
+    _textSelectionChangedThrottleTimer = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      widget.params.onTextSelectionChange?.call(_textSelection.values.toList());
     });
   }
 
@@ -916,10 +922,10 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       final selectionColor =
           Theme.of(context).textSelectionTheme.selectionColor ?? DefaultSelectionStyle.of(context).selectionColor!;
       final selectionColorSolid = selectionColor.withAlpha(255);
-      if (_panFrom != null && _panTo != null) {
+      if (_textSelectFrom != null && _textSelectTo != null) {
         if (_selectingOnProgress) {
           canvas.drawRect(
-            Rect.fromPoints(_panFrom!, _panTo!),
+            Rect.fromPoints(_textSelectFrom!, _textSelectTo!),
             Paint()
               ..color = selectionColorSolid
               ..style = PaintingStyle.stroke,
@@ -960,7 +966,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       }
       final text = _loadText(page.pageNumber);
       if (text != null) {
-        final selectionInPage = _selectables[page.pageNumber];
+        final selectionInPage = _textSelection[page.pageNumber];
         if (selectionInPage != null && selectionInPage.isNotEmpty) {
           for (final range in selectionInPage.ranges) {
             final f = range.toTextRangeWithFragments(text);
@@ -1002,13 +1008,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         ..lineTo(-1, 0)
         ..addArc(Rect.fromLTRB(-2, -2, 0, 0), pi / 2, pi * 3 / 2)
         ..lineTo(0, 0);
-
-  final _textCache = <int, PdfPageText?>{};
-  final double _textSelectionThumbSize = 20.0;
-  final double _hitTestMargin = 3.0;
-  Offset? _panFrom, _panTo, _panAnchor;
-  Rect? _selectionRect;
-  bool _selectingOnProgress = false;
 
   /// Loads text for the specified page number.
   ///
@@ -1216,10 +1215,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       m.translate(dx, dy);
     }
     _txController.value = m;
-    if (_selectingOnProgress) {
-      print('_onWheelDelta: ${event.localPosition}, ${event.position}');
-      _updatePanTo(panTo: event.position);
-    }
     _stopInteraction();
   }
 
@@ -1599,32 +1594,32 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   void _onTextPanStart(DragStartDetails details) {
     if (_isInteractionGoingOn) return;
     _selectingOnProgress = true;
-    _panFrom = details.localPosition;
-    _panAnchor = Offset(_txController.value.x, _txController.value.y);
-    _panTo = null;
+    _textSelectFrom = details.localPosition;
+    _textSelectAnchor = Offset(_txController.value.x, _txController.value.y);
+    _textSelectTo = null;
     _updateTextSelection();
   }
 
-  void _updatePanTo({Offset? panTo}) {
-    debugPrint('panTo: $panTo');
+  void _updateTextSelectRectTo({Offset? panTo}) {
     if (!_selectingOnProgress) return;
-    _panTo = (panTo ?? _panTo!) + _panAnchor! - Offset(_txController.value.x, _txController.value.y);
+    _textSelectTo =
+        (panTo ?? _textSelectTo!) + _textSelectAnchor! - Offset(_txController.value.x, _txController.value.y);
     _updateTextSelection();
   }
 
   void _onTextPanUpdate(DragUpdateDetails details) {
-    _updatePanTo(panTo: details.localPosition);
+    _updateTextSelectRectTo(panTo: details.localPosition);
   }
 
   void _onTextPanEnd(DragEndDetails details) {
-    _updatePanTo(panTo: details.localPosition);
+    _updateTextSelectRectTo(panTo: details.localPosition);
     _selectingOnProgress = false;
   }
 
   void _updateTextSelection() {
-    _selectables.clear();
-    if (_panFrom != null && _panTo != null) {
-      final selectionRect = Rect.fromPoints(_panFrom!, _panTo!);
+    _textSelection.clear();
+    if (_textSelectFrom != null && _textSelectTo != null) {
+      final selectionRect = Rect.fromPoints(_textSelectFrom!, _textSelectTo!);
       _selectionRect = null;
       for (int i = 0; i < _document!.pages.length; i++) {
         final pageRect = _layout!.pageLayouts[i];
@@ -1637,9 +1632,10 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         final selection = _selectPageTextOfRect(selectionRect, pageRect, _document!.pages[i], text);
         if (selection == null) continue;
         _selectionRect = _selectionRect?.expandToInclude(selection.boundsRect) ?? selection.boundsRect;
-        _selectables[i + 1] = selection.ranges;
+        _textSelection[i + 1] = selection.ranges;
       }
     }
+    _onSelectionChange();
     _invalidate();
   }
 
