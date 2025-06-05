@@ -366,9 +366,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         child: widget.params.loadingBannerBuilder?.call(context, listenable.bytesDownloaded, listenable.totalBytes),
       );
     }
-    Widget selectableRegionInjector(Widget child) =>
-        widget.params.selectableRegionInjector?.call(context, child) ??
-        (widget.params.enableTextSelection ? SelectionArea(child: child) : child);
 
     return Container(
       color: widget.params.backgroundColor,
@@ -378,57 +375,55 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         child: StreamBuilder(
           stream: _updateStream,
           builder: (context, snapshot) {
-            return selectableRegionInjector(
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  _updateLayout(Size(constraints.maxWidth, constraints.maxHeight));
-                  return Stack(
-                    children: [
-                      iv.InteractiveViewer(
-                        transformationController: _txController,
-                        constrained: false,
-                        boundaryMargin: widget.params.boundaryMargin ?? const EdgeInsets.all(double.infinity),
-                        maxScale: widget.params.maxScale,
-                        minScale: minScale,
-                        panAxis: widget.params.panAxis,
-                        panEnabled: widget.params.panEnabled,
-                        scaleEnabled: widget.params.scaleEnabled,
-                        onInteractionEnd: _onInteractionEnd,
-                        onInteractionStart: _onInteractionStart,
-                        onInteractionUpdate: widget.params.onInteractionUpdate,
-                        interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
-                        onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
-                        // PDF pages
-                        child: MouseRegion(
-                          cursor: SystemMouseCursors.text,
-                          hitTestBehavior: HitTestBehavior.deferToChild,
-                          child: GestureDetector(
-                            onTapDown: _textTap,
-                            onDoubleTapDown: _textDoubleTap,
-                            onLongPressStart: _textLongPress,
-                            onPanStart: _onTextPanStart,
-                            onPanUpdate: _onTextPanUpdate,
-                            onPanEnd: _onTextPanEnd,
-                            child: CustomPaint(
-                              foregroundPainter: _CustomPainter.fromFunctions(
-                                _paintPages,
-                                hitTestFunction: _hitTestForTextSelection,
-                              ),
-                              size: _layout!.documentSize,
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                _updateLayout(Size(constraints.maxWidth, constraints.maxHeight));
+                return Stack(
+                  children: [
+                    iv.InteractiveViewer(
+                      transformationController: _txController,
+                      constrained: false,
+                      boundaryMargin: widget.params.boundaryMargin ?? const EdgeInsets.all(double.infinity),
+                      maxScale: widget.params.maxScale,
+                      minScale: minScale,
+                      panAxis: widget.params.panAxis,
+                      panEnabled: widget.params.panEnabled,
+                      scaleEnabled: widget.params.scaleEnabled,
+                      onInteractionEnd: _onInteractionEnd,
+                      onInteractionStart: _onInteractionStart,
+                      onInteractionUpdate: widget.params.onInteractionUpdate,
+                      interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
+                      onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
+                      // PDF pages
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.text,
+                        hitTestBehavior: HitTestBehavior.deferToChild,
+                        child: GestureDetector(
+                          onTapDown: _textTap,
+                          onDoubleTapDown: _textDoubleTap,
+                          onLongPressStart: _textLongPress,
+                          onPanStart: _onTextPanStart,
+                          onPanUpdate: _onTextPanUpdate,
+                          onPanEnd: _onTextPanEnd,
+                          child: CustomPaint(
+                            foregroundPainter: _CustomPainter.fromFunctions(
+                              _paintPages,
+                              hitTestFunction: _hitTestForTextSelection,
                             ),
+                            size: _layout!.documentSize,
                           ),
                         ),
                       ),
-                      ..._buildPageOverlayWidgets(context),
-                      if (_canvasLinkPainter.isEnabled)
-                        SelectionContainer.disabled(child: _canvasLinkPainter.linkHandlingOverlay(_viewSize!)),
-                      if (widget.params.viewerOverlayBuilder != null)
-                        ...widget.params.viewerOverlayBuilder!(context, _viewSize!, _canvasLinkPainter._handleLinkTap)
-                            .map((e) => SelectionContainer.disabled(child: e)),
-                    ],
-                  );
-                },
-              ),
+                    ),
+                    ..._buildPageOverlayWidgets(context),
+                    if (_canvasLinkPainter.isEnabled)
+                      SelectionContainer.disabled(child: _canvasLinkPainter.linkHandlingOverlay(_viewSize!)),
+                    if (widget.params.viewerOverlayBuilder != null)
+                      ...widget.params.viewerOverlayBuilder!(context, _viewSize!, _canvasLinkPainter._handleLinkTap)
+                          .map((e) => SelectionContainer.disabled(child: e)),
+                  ],
+                );
+              },
             );
           },
         ),
@@ -730,14 +725,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     if (renderBox is! RenderBox) return [];
 
     final linkWidgets = <Widget>[];
-    final textWidgets = <Widget>[];
     final overlayWidgets = <Widget>[];
     final targetRect = _getCacheExtentRect();
-    final isTextSelectionEnabled =
-        (widget.params.enableTextSelection ||
-            widget.params.selectableRegionInjector != null ||
-            widget.params.perPageSelectableRegionInjector != null) &&
-        _document!.permissions?.allowsCopying != false;
+    final isTextSelectionEnabled = widget.params.enableTextSelection && _document!.permissions?.allowsCopying != false;
 
     for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
@@ -761,7 +751,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                       child: child,
                       onPointerSignal: (event) {
                         if (event is PointerScrollEvent) {
-                          _onWheelDelta(event.scrollDelta);
+                          _onWheelDelta(event);
                         }
                       },
                     ),
@@ -769,31 +759,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
             ),
           );
         }
-
-        // Widget perPageSelectableRegionInjector(Widget child) =>
-        //     widget.params.perPageSelectableRegionInjector?.call(context, child, page, rectExternal) ?? child;
-
-        // if (isTextSelectionEnabled && _document!.permissions?.allowsCopying != false) {
-        //   textWidgets.add(
-        //     Positioned(
-        //       key: Key('#__pageTextOverlay__:${page.pageNumber}'),
-        //       left: rectExternal.left,
-        //       top: rectExternal.top,
-        //       width: rectExternal.width,
-        //       height: rectExternal.height,
-        //       child: perPageSelectableRegionInjector(
-        //         PdfPageTextOverlay(
-        //           selectables: _selectables,
-        //           enabled: !_isInteractionGoingOn,
-        //           page: page,
-        //           pageRect: rectExternal,
-        //           onTextSelectionChange: _onSelectionChange,
-        //           selectionColor: DefaultSelectionStyle.of(context).selectionColor!,
-        //         ),
-        //       ),
-        //     ),
-        //   );
-        // }
 
         final overlay = widget.params.pageOverlaysBuilder?.call(context, rectExternal, page);
         if (overlay != null && overlay.isNotEmpty) {
@@ -811,25 +776,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       }
     }
 
-    Widget selectableRegionInjector(Widget child) => child;
-
-    return [
-      if (textWidgets.isNotEmpty)
-        selectableRegionInjector(
-          Listener(
-            behavior: HitTestBehavior.translucent,
-            // FIXME: Selectable absorbs wheel events.
-            onPointerSignal: (event) {
-              if (event is PointerScrollEvent) {
-                _onWheelDelta(event.scrollDelta);
-              }
-            },
-            child: Stack(children: textWidgets),
-          ),
-        ),
-      ...linkWidgets,
-      ...overlayWidgets,
-    ];
+    return [...linkWidgets, ...overlayWidgets];
   }
 
   void _clearAllTextSelections({bool invalidate = true}) {
@@ -1059,7 +1006,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   final _textCache = <int, PdfPageText?>{};
   final double _textSelectionThumbSize = 20.0;
   final double _hitTestMargin = 3.0;
-  Offset? _panFrom, _panTo;
+  Offset? _panFrom, _panTo, _panAnchor;
   Rect? _selectionRect;
   bool _selectingOnProgress = false;
 
@@ -1258,17 +1205,21 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     }
   }
 
-  void _onWheelDelta(Offset delta) {
+  void _onWheelDelta(PointerScrollEvent event) {
     _startInteraction();
     final m = _txController.value.clone();
-    final dx = -delta.dx * widget.params.scrollByMouseWheel!;
-    final dy = -delta.dy * widget.params.scrollByMouseWheel!;
+    final dx = -event.scrollDelta.dx * widget.params.scrollByMouseWheel!;
+    final dy = -event.scrollDelta.dy * widget.params.scrollByMouseWheel!;
     if (widget.params.scrollHorizontallyByMouseWheel) {
       m.translate(dy, dx);
     } else {
       m.translate(dx, dy);
     }
     _txController.value = m;
+    if (_selectingOnProgress) {
+      print('_onWheelDelta: ${event.localPosition}, ${event.position}');
+      _updatePanTo(panTo: event.position);
+    }
     _stopInteraction();
   }
 
@@ -1649,21 +1600,25 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     if (_isInteractionGoingOn) return;
     _selectingOnProgress = true;
     _panFrom = details.localPosition;
+    _panAnchor = Offset(_txController.value.x, _txController.value.y);
     _panTo = null;
     _updateTextSelection();
   }
 
-  void _onTextPanUpdate(DragUpdateDetails details) {
-    if (_isInteractionGoingOn) return;
-    _panTo = details.localPosition;
+  void _updatePanTo({Offset? panTo}) {
+    debugPrint('panTo: $panTo');
+    if (!_selectingOnProgress) return;
+    _panTo = (panTo ?? _panTo!) + _panAnchor! - Offset(_txController.value.x, _txController.value.y);
     _updateTextSelection();
   }
 
+  void _onTextPanUpdate(DragUpdateDetails details) {
+    _updatePanTo(panTo: details.localPosition);
+  }
+
   void _onTextPanEnd(DragEndDetails details) {
-    if (_isInteractionGoingOn) return;
+    _updatePanTo(panTo: details.localPosition);
     _selectingOnProgress = false;
-    _panTo ??= details.localPosition;
-    _updateTextSelection();
   }
 
   void _updateTextSelection() {
@@ -1685,9 +1640,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         _selectables[i + 1] = selection.ranges;
       }
     }
-    if (mounted) {
-      setState(() {});
-    }
+    _invalidate();
   }
 
   ({PdfTextRanges ranges, Rect boundsRect})? _selectPageTextOfRect(
@@ -2189,7 +2142,7 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// Provided to workaround certain widgets eating wheel events. Use with [Listener.onPointerSignal].
   void handlePointerSignalEvent(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
-      _state._onWheelDelta(event.scrollDelta);
+      _state._onWheelDelta(event);
     }
   }
 

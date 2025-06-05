@@ -58,8 +58,6 @@ class PdfViewerParams {
     this.pagePaintCallbacks,
     this.pageBackgroundPaintCallbacks,
     this.onTextSelectionChange,
-    this.selectableRegionInjector,
-    this.perPageSelectableRegionInjector,
     this.onKey,
     this.keyHandlerParams = const PdfViewerKeyHandlerParams(),
     this.forceReload = false,
@@ -180,11 +178,6 @@ class PdfViewerParams {
   /// The default is false.
   /// If it is true, the text selection is enabled by injecting [SelectionArea]
   /// internally.
-  ///
-  /// Basically, you can enable text selection by setting one (or more) of the following parameters:
-  /// - [enableTextSelection] to enable [SelectionArea] on the viewer
-  /// - [selectableRegionInjector] to inject your own [SelectableRegion] on the viewer
-  /// - [perPageSelectableRegionInjector] to inject your own [SelectableRegion] on each page
   final bool enableTextSelection;
 
   /// Color for text search match.
@@ -471,32 +464,6 @@ class PdfViewerParams {
   /// Function to be notified when the text selection is changed.
   final PdfViewerTextSelectionChangeCallback? onTextSelectionChange;
 
-  /// Function to inject [SelectionArea] or [SelectableRegion] to customize text selection.
-  ///
-  /// It can be also used to "remove" the text selection feature by returning the child widget as it is.
-  /// Furthermore, it can be used to customize the text selection feature by returning a custom widget.
-  ///
-  /// Basically, you can enable text selection by setting one (or more) of the following parameters:
-  /// - [enableTextSelection] to enable [SelectionArea] on the viewer
-  /// - [selectableRegionInjector] to inject your own [SelectableRegion] on the viewer
-  /// - [perPageSelectableRegionInjector] to inject your own [SelectableRegion] on each page
-  ///
-  /// You can even enable both of [selectableRegionInjector] and [perPageSelectableRegionInjector] at the same time.
-  final PdfSelectableRegionInjector? selectableRegionInjector;
-
-  /// Function to inject [SelectionArea] or [SelectableRegion] to customize text selection on each page.
-  ///
-  /// It can be also used to "remove" the text selection feature by returning the child widget as it is.
-  /// Furthermore, it can be used to customize the text selection feature by returning a custom widget.
-  ///
-  /// Basically, you can enable text selection by setting one (or more) of the following parameters:
-  /// - [enableTextSelection] to enable [SelectionArea] on the viewer
-  /// - [selectableRegionInjector] to inject your own [SelectableRegion] on the viewer
-  /// - [perPageSelectableRegionInjector] to inject your own [SelectableRegion] on each page
-  ///
-  /// You can even enable both of [selectableRegionInjector] and [perPageSelectableRegionInjector] at the same time.
-  final PdfPerPageSelectableRegionInjector? perPageSelectableRegionInjector;
-
   /// Function to handle key events.
   ///
   /// See [PdfViewerOnKeyCallback] for the details.
@@ -593,8 +560,6 @@ class PdfViewerParams {
         other.pagePaintCallbacks == pagePaintCallbacks &&
         other.pageBackgroundPaintCallbacks == pageBackgroundPaintCallbacks &&
         other.onTextSelectionChange == onTextSelectionChange &&
-        other.selectableRegionInjector == selectableRegionInjector &&
-        other.perPageSelectableRegionInjector == perPageSelectableRegionInjector &&
         other.onKey == onKey &&
         other.keyHandlerParams == keyHandlerParams &&
         other.forceReload == forceReload;
@@ -645,8 +610,6 @@ class PdfViewerParams {
         pagePaintCallbacks.hashCode ^
         pageBackgroundPaintCallbacks.hashCode ^
         onTextSelectionChange.hashCode ^
-        selectableRegionInjector.hashCode ^
-        perPageSelectableRegionInjector.hashCode ^
         onKey.hashCode ^
         keyHandlerParams.hashCode ^
         forceReload.hashCode;
@@ -739,15 +702,6 @@ typedef PdfViewerErrorBannerBuilder =
 ///
 /// [size] is the size of the link.
 typedef PdfLinkWidgetBuilder = Widget? Function(BuildContext context, PdfLink link, Size size);
-
-/// Function to inject [SelectionArea] or [SelectableRegion] to customize text selection.
-typedef PdfSelectableRegionInjector = Widget Function(BuildContext context, Widget child);
-
-/// Function to inject [SelectionArea] or [SelectableRegion] to customize text selection on each page.
-///
-/// [pageRect] is the rectangle of the page in the viewer.
-typedef PdfPerPageSelectableRegionInjector =
-    Widget Function(BuildContext context, Widget child, PdfPage page, Rect pageRect);
 
 /// Function to paint things on page.
 ///

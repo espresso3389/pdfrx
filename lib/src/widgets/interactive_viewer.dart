@@ -383,7 +383,7 @@ class InteractiveViewer extends StatefulWidget {
 
   /// To override the default mouse wheel behavior.
   ///
-  final void Function(Offset scrollDelta)? onWheelDelta;
+  final void Function(PointerScrollEvent)? onWheelDelta;
 
   // Used as the coefficient of friction in the inertial translation animation.
   // This value was eyeballed to give a feel similar to Google Photos.
@@ -893,7 +893,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
 
       // We can handle mouse-wheel event here for our own purposes
       if (widget.onWheelDelta != null) {
-        widget.onWheelDelta!(event.scrollDelta);
+        widget.onWheelDelta!(event);
         return;
       }
 
