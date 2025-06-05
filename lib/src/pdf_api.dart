@@ -842,7 +842,7 @@ class PdfRect {
       case 3:
         return PdfRect(height - top, right, height - bottom, left);
       default:
-        throw ArgumentError.value(rotate, 'rotate');
+        throw ArgumentError.value(rotation, 'rotation');
     }
   }
 
@@ -861,7 +861,7 @@ class PdfRect {
       case 3:
         return PdfRect(bottom, height - left, top, height - right);
       default:
-        throw ArgumentError.value(rotate, 'rotate');
+        throw ArgumentError.value(rotation, 'rotation');
     }
   }
 
