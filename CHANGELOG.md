@@ -3,6 +3,7 @@
 - Add `CLAUDE.md` for Claude Code integration
 - FIXED: preserve null `max-age` in cache control ([#387](https://github.com/espresso3389/pdfrx/pull/387))
 - FIXED: `ArgumentError` parameter name in `PdfRect` ([#385](https://github.com/espresso3389/pdfrx/pull/385))
+- Windows ARM64 support ([#388](https://github.com/espresso3389/pdfrx/issues/388))
 - Documentation updates and improvements
 
 # 1.1.33
