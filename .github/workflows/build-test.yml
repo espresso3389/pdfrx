@@ -66,6 +66,7 @@ jobs:
         run: |
           git clone https://github.com/flutter/flutter.git --depth 1 --branch stable ~/flutter
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
+          ~/flutter/bin/flutter config --no-enable-linux-desktop
           ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
       
@@ -88,7 +89,7 @@ jobs:
         run: |
           git clone https://github.com/flutter/flutter.git --depth 1 --branch stable ~/flutter
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
-          ~/flutter/bin/flutter config --no-enable-android
+          ~/flutter/bin/flutter config --no-enable-android --no-enable-macos-desktop
           ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
       
@@ -111,7 +112,7 @@ jobs:
         run: |
           git clone https://github.com/flutter/flutter.git --depth 1 --branch stable ~/flutter
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
-          ~/flutter/bin/flutter config --no-enable-android
+          ~/flutter/bin/flutter config --no-enable-android --no-enable-ios
           ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
       
@@ -239,7 +240,7 @@ jobs:
         run: |
           git clone https://github.com/flutter/flutter.git --depth 1 --branch stable ~/flutter
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
-          ~/flutter/bin/flutter config --no-enable-android
+          ~/flutter/bin/flutter config --no-enable-android --no-enable-linux-desktop
           ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
       
