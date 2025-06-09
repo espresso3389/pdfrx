@@ -112,45 +112,6 @@ class pdfium {
   late final _FPDF_SetSandBoxPolicy =
       _FPDF_SetSandBoxPolicyPtr.asFunction<void Function(int, int)>();
 
-  /// Experimental API.
-  /// Function: FPDF_SetPrintMode
-  /// Set printing mode when printing on Windows.
-  /// Parameters:
-  /// mode - FPDF_PRINTMODE_EMF to output EMF (default)
-  /// FPDF_PRINTMODE_TEXTONLY to output text only (for charstream
-  /// devices)
-  /// FPDF_PRINTMODE_POSTSCRIPT2 to output level 2 PostScript into
-  /// EMF as a series of GDI comments.
-  /// FPDF_PRINTMODE_POSTSCRIPT3 to output level 3 PostScript into
-  /// EMF as a series of GDI comments.
-  /// FPDF_PRINTMODE_POSTSCRIPT2_PASSTHROUGH to output level 2
-  /// PostScript via ExtEscape() in PASSTHROUGH mode.
-  /// FPDF_PRINTMODE_POSTSCRIPT3_PASSTHROUGH to output level 3
-  /// PostScript via ExtEscape() in PASSTHROUGH mode.
-  /// FPDF_PRINTMODE_EMF_IMAGE_MASKS to output EMF, with more
-  /// efficient processing of documents containing image masks.
-  /// FPDF_PRINTMODE_POSTSCRIPT3_TYPE42 to output level 3
-  /// PostScript with embedded Type 42 fonts, when applicable, into
-  /// EMF as a series of GDI comments.
-  /// FPDF_PRINTMODE_POSTSCRIPT3_TYPE42_PASSTHROUGH to output level
-  /// 3 PostScript with embedded Type 42 fonts, when applicable,
-  /// via ExtEscape() in PASSTHROUGH mode.
-  /// Return value:
-  /// True if successful, false if unsuccessful (typically invalid input).
-  int FPDF_SetPrintMode(
-    int mode,
-  ) {
-    return _FPDF_SetPrintMode(
-      mode,
-    );
-  }
-
-  late final _FPDF_SetPrintModePtr =
-      _lookup<ffi.NativeFunction<FPDF_BOOL Function(ffi.Int)>>(
-          'FPDF_SetPrintMode');
-  late final _FPDF_SetPrintMode =
-      _FPDF_SetPrintModePtr.asFunction<int Function(int)>();
-
   /// Function: FPDF_LoadDocument
   /// Open and load a PDF document.
   /// Parameters:
@@ -720,56 +681,6 @@ class pdfium {
   late final _FPDF_GetPageSizeByIndex = _FPDF_GetPageSizeByIndexPtr.asFunction<
       int Function(FPDF_DOCUMENT, int, ffi.Pointer<ffi.Double>,
           ffi.Pointer<ffi.Double>)>();
-
-  /// Function: FPDF_RenderPage
-  /// Render contents of a page to a device (screen, bitmap, or printer).
-  /// This function is only supported on Windows.
-  /// Parameters:
-  /// dc          -   Handle to the device context.
-  /// page        -   Handle to the page. Returned by FPDF_LoadPage.
-  /// start_x     -   Left pixel position of the display area in
-  /// device coordinates.
-  /// start_y     -   Top pixel position of the display area in device
-  /// coordinates.
-  /// size_x      -   Horizontal size (in pixels) for displaying the page.
-  /// size_y      -   Vertical size (in pixels) for displaying the page.
-  /// rotate      -   Page orientation:
-  /// 0 (normal)
-  /// 1 (rotated 90 degrees clockwise)
-  /// 2 (rotated 180 degrees)
-  /// 3 (rotated 90 degrees counter-clockwise)
-  /// flags       -   0 for normal display, or combination of flags
-  /// defined above.
-  /// Return value:
-  /// Returns true if the page is rendered successfully, false otherwise.
-  int FPDF_RenderPage(
-    HDC dc,
-    FPDF_PAGE page,
-    int start_x,
-    int start_y,
-    int size_x,
-    int size_y,
-    int rotate,
-    int flags,
-  ) {
-    return _FPDF_RenderPage(
-      dc,
-      page,
-      start_x,
-      start_y,
-      size_x,
-      size_y,
-      rotate,
-      flags,
-    );
-  }
-
-  late final _FPDF_RenderPagePtr = _lookup<
-      ffi.NativeFunction<
-          FPDF_BOOL Function(HDC, FPDF_PAGE, ffi.Int, ffi.Int, ffi.Int, ffi.Int,
-              ffi.Int, ffi.Int)>>('FPDF_RenderPage');
-  late final _FPDF_RenderPage = _FPDF_RenderPagePtr.asFunction<
-      int Function(HDC, FPDF_PAGE, int, int, int, int, int, int)>();
 
   /// Function: FPDF_RenderPageBitmap
   /// Render contents of a page to a device independent bitmap.
@@ -10779,13 +10690,6 @@ final class FPDF_COLORSCHEME_ extends ffi.Struct {
 /// Struct for color scheme.
 /// Each should be a 32-bit value specifying the color, in 8888 ARGB format.
 typedef FPDF_COLORSCHEME = FPDF_COLORSCHEME_;
-
-final class HDC__ extends ffi.Struct {
-  @ffi.Int()
-  external int unused;
-}
-
-typedef HDC = ffi.Pointer<HDC__>;
 
 final class _IPDF_JsPlatform extends ffi.Struct {
   /// Version number of the interface. Currently must be 2.
