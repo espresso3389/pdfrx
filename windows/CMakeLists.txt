@@ -23,12 +23,12 @@ set(PDFIUM_RELEASE_DIR ${PDFIUM_DIR}/${PDFIUM_RELEASE})
 file(MAKE_DIRECTORY ${PDFIUM_RELEASE_DIR})
 
 # Determine target processor name for Windows
-IF(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x64|x86_64|AMD64)")
+IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
     SET(CPU_NAME "x64")
-ELSEIF(CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|aarch64|ARM64EC|arm64ec|ARM64E|arm64e)")
+ELSEIF(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
     SET(CPU_NAME "arm64")
 ELSE()
-    MESSAGE(FATAL_ERROR "Unsupported Windows architecture \"${CMAKE_SYSTEM_PROCESSOR}\". Only x64 (AMD64) and arm64 (ARM64) are supported.")
+    MESSAGE(FATAL_ERROR "Unsupported Windows architecture \"${CMAKE_SYSTEM_PROCESSOR}\". Only AMD64 and ARM64 are supported.")
 ENDIF()
 message( STATUS "Target Windows CPU Name: ${CPU_NAME}" )
 
