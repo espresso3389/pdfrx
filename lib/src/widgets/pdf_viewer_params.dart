@@ -22,6 +22,7 @@ class PdfViewerParams {
     this.panAxis = PanAxis.free,
     this.boundaryMargin,
     this.annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
+    this.limitRenderingCache = true,
     this.pageAnchor = PdfPageAnchor.top,
     this.pageAnchorEnd = PdfPageAnchor.bottom,
     this.onePassRenderingScaleThreshold = 200 / 72,
@@ -157,6 +158,12 @@ class PdfViewerParams {
 
   /// Annotation rendering mode.
   final PdfAnnotationRenderingMode annotationRenderingMode;
+
+  /// If true, the viewer limits the rendering cache to reduce memory consumption.
+  ///
+  /// For Pdfium, it internally enables `FPDF_RENDER_LIMITEDIMAGECACHE` flag on rendering
+  /// to reduce the memory consumption by image caching.
+  final bool limitRenderingCache;
 
   /// Anchor to position the page.
   final PdfPageAnchor pageAnchor;
@@ -527,6 +534,7 @@ class PdfViewerParams {
         other.panAxis != panAxis ||
         other.boundaryMargin != boundaryMargin ||
         other.annotationRenderingMode != annotationRenderingMode ||
+        other.limitRenderingCache != limitRenderingCache ||
         other.pageAnchor != pageAnchor ||
         other.pageAnchorEnd != pageAnchorEnd ||
         other.onePassRenderingScaleThreshold != onePassRenderingScaleThreshold ||
@@ -558,6 +566,7 @@ class PdfViewerParams {
         other.panAxis == panAxis &&
         other.boundaryMargin == boundaryMargin &&
         other.annotationRenderingMode == annotationRenderingMode &&
+        other.limitRenderingCache == limitRenderingCache &&
         other.pageAnchor == pageAnchor &&
         other.pageAnchorEnd == pageAnchorEnd &&
         other.onePassRenderingScaleThreshold == onePassRenderingScaleThreshold &&
@@ -610,6 +619,7 @@ class PdfViewerParams {
         panAxis.hashCode ^
         boundaryMargin.hashCode ^
         annotationRenderingMode.hashCode ^
+        limitRenderingCache.hashCode ^
         pageAnchor.hashCode ^
         pageAnchorEnd.hashCode ^
         onePassRenderingScaleThreshold.hashCode ^

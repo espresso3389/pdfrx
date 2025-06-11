@@ -1021,6 +1021,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         fullHeight: height,
         backgroundColor: Colors.white,
         annotationRenderingMode: widget.params.annotationRenderingMode,
+        flags: widget.params.limitRenderingCache ? PdfPageRenderFlags.limitedImageCache : PdfPageRenderFlags.none,
         cancellationToken: cancellationToken,
       );
       if (img == null) return;
@@ -1082,6 +1083,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       fullHeight: pageRect.height * scale,
       backgroundColor: Colors.white,
       annotationRenderingMode: widget.params.annotationRenderingMode,
+      flags: widget.params.limitRenderingCache ? PdfPageRenderFlags.limitedImageCache : PdfPageRenderFlags.none,
       cancellationToken: cancellationToken,
     );
     if (img == null) return null;
