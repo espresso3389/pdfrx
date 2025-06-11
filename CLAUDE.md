@@ -21,9 +21,12 @@ flutter format .         # Format code (120 char line width)
 # Example app
 cd example/viewer
 flutter run              # Run on connected device/emulator
-flutter build apk        # Build Android APK
+flutter build appbundle  # Build Android App Bundle
 flutter build ios        # Build iOS (requires macOS)
-flutter build web        # Build for web
+flutter build web --wasm # Build for web
+flutter build linux      # Build for Linux
+flutter build windows     # Build for Windows
+flutter build macos      # Build for macOS
 ```
 
 ### FFI Bindings Generation
@@ -36,6 +39,28 @@ flutter build web        # Build for web
 cd example/viewer && flutter build linux
 dart run ffigen          # Regenerate PDFium FFI bindings
 ```
+
+## Release Process
+
+1. Update version in `pubspec.yaml`
+   - Basically, if the changes are not breaking (or relatively small breaking changes), increment the patch version (X.Y.Z -> X.Y.Z+1)
+   - If there are breaking changes, increment the minor version (X.Y.Z -> X.Y+1.0)
+   - If there are major changes, increment the major version (X.Y.Z -> X+1.0.0)
+2. Update `CHANGELOG.md` with changes
+3. Update `README.md` with new version information
+   - Changes version in example fragments
+   - Consider to add notes for new features or breaking changes
+   - Notify the owner if you find any issues with the example app or documentation
+4. Do the same for `wasm/pdfrx_wasm/` if applicable
+   - `wasm/pdfrx_wasm/assets/` may contain changes critical to the web version, so ensure to update the version in `wasm/pdfrx_wasm/pubspec.yaml` as well
+5. Run `flutter pub get` on all affected directories
+   - This includes the main package, example app, and wasm package if applicable
+   - Ensure all dependencies are resolved and up-to-date
+6. Run tests to ensure everything works
+7. Commit changes with message "Release vX.Y.Z"
+8. Tag the commit with `git tag vX.Y.Z`
+9. Push changes and tags to remote
+10. Do `flutter pub publish` to publish the package
 
 ## Architecture Overview
 
@@ -105,25 +130,3 @@ flutter test test/pdf_document_test.dart  # Run specific test file
 - 120 character line width
 - Relative imports within lib/
 - Follow flutter_lints with custom rules in analysis_options.yaml
-
-## Release Process
-
-1. Update version in `pubspec.yaml`
-   - Basically, if the changes are not breaking (or relatively small breaking changes), increment the patch version (X.Y.Z -> X.Y.Z+1)
-   - If there are breaking changes, increment the minor version (X.Y.Z -> X.Y+1.0)
-   - If there are major changes, increment the major version (X.Y.Z -> X+1.0.0)
-2. Update `CHANGELOG.md` with changes
-3. Update `README.md` with new version information
-   - Changes version in example fragments
-   - Consider to add notes for new features or breaking changes
-   - Notify the owner if you find any issues with the example app or documentation
-4. Do the same for `wasm/pdfrx_wasm/` if applicable
-   - `wasm/pdfrx_wasm/assets/` may contain changes critical to the web version, so ensure to update the version in `wasm/pdfrx_wasm/pubspec.yaml` as well
-5. Run `flutter pub get` on all affected directories
-   - This includes the main package, example app, and wasm package if applicable
-   - Ensure all dependencies are resolved and up-to-date
-6. Run tests to ensure everything works
-7. Commit changes with message "Release vX.Y.Z"
-8. Tag the commit with `git tag vX.Y.Z`
-9. Push changes and tags to remote
-10. Do `flutter pub publish` to publish the package
