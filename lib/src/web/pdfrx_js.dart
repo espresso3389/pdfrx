@@ -189,6 +189,19 @@ class PdfDocumentJs extends PdfDocument {
       width: vp1.width,
       height: vp1.height,
       rotation: PdfPageRotation.values[page.rotate ~/ 90],
+      isLoaded: true,
+    );
+  }
+
+  @override
+  Future<void> loadPagesProgressively<T>(
+    FutureOr<bool> Function(T? context, int currentPageNumber, int totalPageCount)? onPageLoaded, {
+    T? context,
+    Duration loadUnitDuration = const Duration(seconds: 1),
+  }) async {
+    throw UnimplementedError(
+      'PdfDocumentJs.loadPagesAsync is not implemented. '
+      'Use PdfDocumentJs.fromDocument to load all pages at once.',
     );
   }
 
@@ -266,6 +279,7 @@ class PdfPageJs extends PdfPage {
     required this.width,
     required this.height,
     required this.rotation,
+    required this.isLoaded,
   });
   @override
   final PdfDocumentJs document;
@@ -278,6 +292,8 @@ class PdfPageJs extends PdfPage {
   final double height;
   @override
   final PdfPageRotation rotation;
+  @override
+  final bool isLoaded;
 
   @override
   Future<PdfImage?> render({
@@ -397,7 +413,7 @@ class PdfPageJs extends PdfPage {
         ),
       ]);
       if (annot.url != null) {
-        links.add(PdfLink(rects, url: Uri.parse(annot.url!)));
+        links.add(PdfLink(rects, url: Uri.tryParse(annot.url!)));
         continue;
       }
       final dest = await document._getDestination(annot.dest);

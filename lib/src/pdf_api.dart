@@ -295,6 +295,12 @@ abstract class PdfDocument {
     withCredentials: withCredentials,
   );
 
+  Future<void> loadPagesProgressively<T>(
+    FutureOr<bool> Function(T? context, int currentPageNumber, int totalPageCount)? onPageLoaded, {
+    T? context,
+    Duration loadUnitDuration = const Duration(seconds: 1),
+  });
+
   /// Pages.
   List<PdfPage> get pages;
 
@@ -328,6 +334,12 @@ abstract class PdfPage {
 
   /// PDF page rotation.
   PdfPageRotation get rotation;
+
+  /// Whether the page is really loaded or not.
+  ///
+  /// If the value is false, the page's [width], [height], [size], and [rotation] are just guessed values and
+  /// will be updated when the page is really loaded.
+  bool get isLoaded;
 
   /// Render a sub-area or full image of specified PDF file.
   /// Returned image should be disposed after use.

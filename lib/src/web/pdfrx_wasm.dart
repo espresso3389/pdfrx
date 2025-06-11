@@ -236,6 +236,18 @@ class PdfDocumentWasm extends PdfDocument {
   }
 
   @override
+  Future<void> loadPagesProgressively<T>(
+    FutureOr<bool> Function(T? context, int currentPageNumber, int totalPageCount)? onPageLoaded, {
+    T? context,
+    Duration loadUnitDuration = const Duration(seconds: 1),
+  }) async {
+    throw UnimplementedError(
+      'PdfDocumentWasm.loadPagesAsync is not implemented. '
+      'Use PdfDocumentJs.fromDocument to load all pages at once.',
+    );
+  }
+
+  @override
   late final List<PdfPage> pages;
 
   static PdfPermissions? parsePermissions(Map<Object?, dynamic> document) {
@@ -258,6 +270,7 @@ class PdfDocumentWasm extends PdfDocument {
             page['width'],
             page['height'],
             (page['rotation'] as num).toInt(),
+            (page['isLoaded'] as bool?) ?? false,
           ),
         )
         .toList();
@@ -279,7 +292,7 @@ class PdfPageRenderCancellationTokenWasm extends PdfPageRenderCancellationToken 
 }
 
 class PdfPageWasm extends PdfPage {
-  PdfPageWasm(this.document, int pageIndex, this.width, this.height, int rotation)
+  PdfPageWasm(this.document, int pageIndex, this.width, this.height, int rotation, this.isLoaded)
     : pageNumber = pageIndex + 1,
       rotation = PdfPageRotation.values[rotation];
 
@@ -308,7 +321,7 @@ class PdfPageWasm extends PdfPage {
           }).toList();
       final url = link['url'];
       if (url is String) {
-        return PdfLink(rects, url: Uri.parse(url));
+        return PdfLink(rects, url: Uri.tryParse(url));
       }
       final dest = link['dest'];
       if (dest is! Map<Object?, dynamic>) {
@@ -346,13 +359,16 @@ class PdfPageWasm extends PdfPage {
   final int pageNumber;
 
   @override
-  final PdfPageRotation rotation;
-
-  @override
   final double width;
 
   @override
   final double height;
+
+  @override
+  final PdfPageRotation rotation;
+
+  @override
+  final bool isLoaded;
 
   @override
   Future<PdfImage?> render({

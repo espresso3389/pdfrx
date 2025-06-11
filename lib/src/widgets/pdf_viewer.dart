@@ -318,6 +318,14 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     }
 
     _notifyOnDocumentChanged();
+
+    _document?.loadPagesProgressively((document, pageNumber, totalPageCount) {
+      if (document == _document && mounted) {
+        _invalidate();
+        return true;
+      }
+      return false;
+    }, context: _document);
   }
 
   void _notifyOnDocumentChanged() {

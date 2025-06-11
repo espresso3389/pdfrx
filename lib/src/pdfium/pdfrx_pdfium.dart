@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:ffi/ffi.dart';
@@ -343,32 +344,15 @@ class PdfDocumentPdfium extends PdfDocument {
           Pointer<pdfium_bindings.FPDF_FORMFILLINFO> formInfo = nullptr;
           pdfium_bindings.FPDF_FORMHANDLE formHandle = nullptr;
           try {
-            final pageCount = pdfium.FPDF_GetPageCount(doc);
             final permissions = pdfium.FPDF_GetDocPermissions(doc);
             final securityHandlerRevision = pdfium.FPDF_GetSecurityHandlerRevision(doc);
 
             formInfo = calloc.allocate<pdfium_bindings.FPDF_FORMFILLINFO>(sizeOf<pdfium_bindings.FPDF_FORMFILLINFO>());
             formInfo.ref.version = 1;
             formHandle = pdfium.FPDFDOC_InitFormFillEnvironment(doc, formInfo);
-
-            final pages = <({double width, double height, int rotation})>[];
-            for (int i = 0; i < pageCount; i++) {
-              final page = pdfium.FPDF_LoadPage(doc, i);
-              try {
-                pages.add((
-                  width: pdfium.FPDF_GetPageWidthF(page),
-                  height: pdfium.FPDF_GetPageHeightF(page),
-                  rotation: pdfium.FPDFPage_GetRotation(page),
-                ));
-              } finally {
-                pdfium.FPDF_ClosePage(page);
-              }
-            }
-
             return (
               permissions: permissions,
               securityHandlerRevision: securityHandlerRevision,
-              pages: pages,
               formHandle: formHandle.address,
               formInfo: formInfo.address,
             );
@@ -393,20 +377,8 @@ class PdfDocumentPdfium extends PdfDocument {
         disposeCallback: disposeCallback,
       );
 
-      final pages = <PdfPagePdfium>[];
-      for (int i = 0; i < result.pages.length; i++) {
-        final pageData = result.pages[i];
-        pages.add(
-          PdfPagePdfium._(
-            document: pdfDoc,
-            pageNumber: i + 1,
-            width: pageData.width,
-            height: pageData.height,
-            rotation: PdfPageRotation.values[pageData.rotation],
-          ),
-        );
-      }
-      pdfDoc.pages = List.unmodifiable(pages);
+      final pages = await pdfDoc._loadPagesInTime(maxPageCountToLoadAdditionally: 1);
+      pdfDoc._pages = List.unmodifiable(pages.pages);
       return pdfDoc;
     } catch (e) {
       pdfDoc?.dispose();
@@ -415,7 +387,123 @@ class PdfDocumentPdfium extends PdfDocument {
   }
 
   @override
-  late final List<PdfPagePdfium> pages;
+  Future<void> loadPagesProgressively<T>(
+    FutureOr<bool> Function(T? context, int currentPageNumber, int totalPageCount)? onPageLoaded, {
+    T? context,
+    Duration loadUnitDuration = const Duration(seconds: 1),
+  }) async {
+    for (;;) {
+      if (isDisposed) return;
+
+      final loaded = await _loadPagesInTime(
+        pagesLoadedSoFar: _pages.takeWhile((p) => p.isLoaded).toList(),
+        timeout: loadUnitDuration,
+      );
+      if (isDisposed) return;
+      _pages = List.unmodifiable(loaded.pages);
+      if (onPageLoaded != null) {
+        final result = await onPageLoaded(context, loaded.pageCountLoaded, loaded.pages.length);
+        if (result == false) {
+          // If the callback returns false, stop loading pages
+          return;
+        }
+      }
+      if (loaded.pageCountLoaded == loaded.pages.length || isDisposed) return;
+    }
+  }
+
+  /// Loads pages in the document in a time-limited manner.
+  Future<({List<PdfPagePdfium> pages, int pageCountLoaded})> _loadPagesInTime({
+    List<PdfPagePdfium> pagesLoadedSoFar = const [],
+    int? maxPageCountToLoadAdditionally,
+    Duration? timeout,
+  }) async {
+    try {
+      final results = await (await backgroundWorker).compute(
+        (params) {
+          final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docAddress);
+          return using((arena) {
+            try {
+              final pageCount = pdfium.FPDF_GetPageCount(doc);
+              final end =
+                  maxPageCountToLoadAdditionally == null
+                      ? pageCount
+                      : min(pageCount, params.pagesCountLoadesSoFar + params.maxPageCountToLoadAdditionally!);
+              final t = params.timeoutUs != null ? DateTime.now().add(Duration(microseconds: params.timeoutUs!)) : null;
+              final start = DateTime.now();
+              final pages = <({double width, double height, int rotation})>[];
+              for (int i = params.pagesCountLoadesSoFar; i < end; i++) {
+                final page = pdfium.FPDF_LoadPage(doc, i);
+                try {
+                  pages.add((
+                    width: pdfium.FPDF_GetPageWidthF(page),
+                    height: pdfium.FPDF_GetPageHeightF(page),
+                    rotation: pdfium.FPDFPage_GetRotation(page),
+                  ));
+                } finally {
+                  pdfium.FPDF_ClosePage(page);
+                }
+                if (t != null && DateTime.now().isAfter(t)) {
+                  break;
+                }
+              }
+
+              return (pages: pages, totalPageCount: pageCount);
+            } catch (e) {
+              pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
+              calloc.free(formInfo);
+              rethrow;
+            }
+          });
+        },
+        (
+          docAddress: document.address,
+          pagesCountLoadesSoFar: pagesLoadedSoFar.length,
+          maxPageCountToLoadAdditionally: maxPageCountToLoadAdditionally,
+          timeoutUs: timeout?.inMicroseconds,
+        ),
+      );
+
+      final pages = [...pagesLoadedSoFar];
+      for (int i = 0; i < results.pages.length; i++) {
+        final pageData = results.pages[i];
+        pages.add(
+          PdfPagePdfium._(
+            document: this,
+            pageNumber: pages.length + 1,
+            width: pageData.width,
+            height: pageData.height,
+            rotation: PdfPageRotation.values[pageData.rotation],
+            isLoaded: true,
+          ),
+        );
+      }
+      final pageCountLoaded = pages.length;
+      if (pageCountLoaded > 0) {
+        final last = pages.last;
+        for (int i = pages.length; i < results.totalPageCount; i++) {
+          pages.add(
+            PdfPagePdfium._(
+              document: this,
+              pageNumber: pages.length + 1,
+              width: last.width,
+              height: last.height,
+              rotation: last.rotation,
+              isLoaded: false,
+            ),
+          );
+        }
+      }
+      return (pages: pages, pageCountLoaded: pageCountLoaded);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  List<PdfPagePdfium> get pages => _pages;
+
+  List<PdfPagePdfium> _pages = [];
 
   @override
   bool isIdenticalDocumentHandle(Object? other) =>
@@ -487,12 +575,16 @@ class PdfPagePdfium extends PdfPage {
   @override
   final PdfPageRotation rotation;
 
+  @override
+  final bool isLoaded;
+
   PdfPagePdfium._({
     required this.document,
     required this.pageNumber,
     required this.width,
     required this.height,
     required this.rotation,
+    required this.isLoaded,
   });
 
   @override
@@ -669,7 +761,7 @@ class PdfPagePdfium extends PdfPage {
                     );
                     return _rectFromLTRBBuffer(rectBuffer);
                   });
-                  return PdfLink(rects, url: Uri.parse(_getLinkUrl(linkPage, index, arena)));
+                  return PdfLink(rects, url: Uri.tryParse(_getLinkUrl(linkPage, index, arena)));
                 });
               });
             } finally {
@@ -762,7 +854,7 @@ class PdfPagePdfium extends PdfPage {
         pdfium.FPDFAction_GetURIPath(document, action, buffer.cast<Void>(), size);
         try {
           final String newBuffer = buffer.toDartString();
-          return Uri.parse(newBuffer);
+          return Uri.tryParse(newBuffer);
         } catch (e) {
           return null;
         }
