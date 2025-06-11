@@ -678,6 +678,7 @@ function closePage(params) {
  * fullHeight: number,
  * backgroundColor: number,
  * annotationRenderingMode: number,
+ * flags: number,
  * formHandle: number
  * }} params 
  * @returns 
@@ -694,6 +695,7 @@ function renderPage(params) {
     fullHeight = height,
     backgroundColor,
     annotationRenderingMode = 0,
+    flags = 0,
     formHandle,
   } = params;
 
@@ -727,8 +729,12 @@ function renderPage(params) {
     Pdfium.wasmExports.FPDFBitmap_FillRect(bitmap, 0, 0, width, height, backgroundColor);
   
     const FPDF_ANNOT = 1;
+    const FPDF_RENDER_NO_SMOOTHTEXT = 0x1000;
+    const FPDF_RENDER_NO_SMOOTHIMAGE = 0x2000;
+    const FPDF_RENDER_NO_SMOOTHPATH = 0x4000;
     const PdfAnnotationRenderingMode_none = 0;
     const PdfAnnotationRenderingMode_annotationAndForms = 2;
+
     Pdfium.wasmExports.FPDF_RenderPageBitmap(
       bitmap,
       pageHandle,
@@ -737,11 +743,11 @@ function renderPage(params) {
       fullWidth,
       fullHeight,
       0,
-      annotationRenderingMode !== PdfAnnotationRenderingMode_none ? FPDF_ANNOT : 0,
+      flags | (annotationRenderingMode !== PdfAnnotationRenderingMode_none ? FPDF_ANNOT : 0),
     );
   
     if (formHandle && annotationRenderingMode == PdfAnnotationRenderingMode_annotationAndForms) {
-      Pdfium.wasmExports.FPDF_FFLDraw(formHandle, bitmap, pageHandle, -x, -y, fullWidth, fullHeight, 0, 0);
+      Pdfium.wasmExports.FPDF_FFLDraw(formHandle, bitmap, pageHandle, -x, -y, fullWidth, fullHeight, 0, flags);
     }
 
     let copiedBuffer = new ArrayBuffer(bufferSize);

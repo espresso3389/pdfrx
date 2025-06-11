@@ -505,6 +505,7 @@ class PdfPagePdfium extends PdfPage {
     double? fullHeight,
     Color? backgroundColor,
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
+    int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
   }) async {
     if (cancellationToken != null && cancellationToken is! PdfPageRenderCancellationTokenPdfium) {
@@ -551,6 +552,7 @@ class PdfPagePdfium extends PdfPage {
                 throw PdfException('FPDF_LoadPage(${params.pageNumber}) failed.');
               }
               pdfium.FPDFBitmap_FillRect(bmp, 0, 0, params.width, params.height, params.backgroundColor);
+
               pdfium.FPDF_RenderPageBitmap(
                 bmp,
                 page,
@@ -559,7 +561,10 @@ class PdfPagePdfium extends PdfPage {
                 params.fullWidth,
                 params.fullHeight,
                 0,
-                params.annotationRenderingMode != PdfAnnotationRenderingMode.none ? pdfium_bindings.FPDF_ANNOT : 0,
+                flags |
+                    (params.annotationRenderingMode != PdfAnnotationRenderingMode.none
+                        ? pdfium_bindings.FPDF_ANNOT
+                        : 0),
               );
 
               if (params.formHandle != 0 &&
@@ -573,7 +578,7 @@ class PdfPagePdfium extends PdfPage {
                   params.fullWidth,
                   params.fullHeight,
                   0,
-                  0,
+                  flags,
                 );
               }
               return true;

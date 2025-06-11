@@ -364,6 +364,7 @@ class PdfPageWasm extends PdfPage {
     double? fullHeight,
     Color? backgroundColor,
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
+    int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
   }) async {
     fullWidth ??= this.width;
@@ -385,6 +386,7 @@ class PdfPageWasm extends PdfPage {
         'fullHeight': fullHeight,
         'backgroundColor': backgroundColor.toARGB32(),
         'annotationRenderingMode': annotationRenderingMode.index,
+        'flags': flags,
         'formHandle': document.document['formHandle'],
       },
     );

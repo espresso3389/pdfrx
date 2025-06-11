@@ -338,6 +338,7 @@ abstract class PdfPage {
   /// - If [fullWidth], [fullHeight] are not specified, [PdfPage.width] and [PdfPage.height] are used (it means rendered at 72-dpi).
   /// [backgroundColor] is used to fill the background of the page. If no color is specified, [Colors.white] is used.
   /// - [annotationRenderingMode] controls to render annotations or not. The default is [PdfAnnotationRenderingMode.annotationAndForms].
+  /// - [flags] is used to specify additional rendering flags. The default is [PdfPageRenderingFlags.none].
   /// - [cancellationToken] can be used to cancel the rendering process. It must be created by [createCancellationToken].
   ///
   /// The following figure illustrates what each parameter means:
@@ -364,6 +365,7 @@ abstract class PdfPage {
     double? fullHeight,
     Color? backgroundColor,
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
+    int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
   });
 
@@ -388,6 +390,38 @@ enum PdfPageRotation { none, clockwise90, clockwise180, clockwise270 }
 /// - [annotation]: Render annotations.
 /// - [annotationAndForms]: Render annotations and forms.
 enum PdfAnnotationRenderingMode { none, annotation, annotationAndForms }
+
+/// Flags for [PdfPage.render].
+///
+/// Basically, they are Pdfium's `FPDF_RENDER_*` flags and not supported on Pdf.js.
+abstract class PdfPageRenderFlags {
+  /// None.
+  static const none = 0;
+
+  /// `FPDF_LCD_TEXT` flag.
+  static const lcdText = 0x0002;
+
+  /// `FPDF_GRAYSCALE` flag.
+  static const grayscale = 0x0008;
+
+  /// `FPDF_RENDER_LIMITEDIMAGECACHE` flag.
+  static const limitedImageCache = 0x0200;
+
+  /// `FPDF_RENDER_FORCEHALFTONE` flag.
+  static const forceHalftone = 0x0400;
+
+  /// `FPDF_PRINTING` flag.
+  static const printing = 0x0800;
+
+  /// `FPDF_RENDER_NO_SMOOTHTEXT` flag.
+  static const noSmoothText = 0x1000;
+
+  /// `FPDF_RENDER_NO_SMOOTHIMAGE` flag.
+  static const noSmoothImage = 0x2000;
+
+  /// `FPDF_RENDER_NO_SMOOTHPATH` flag.
+  static const noSmoothPath = 0x4000;
+}
 
 /// Token to try to cancel the rendering process.
 abstract class PdfPageRenderCancellationToken {

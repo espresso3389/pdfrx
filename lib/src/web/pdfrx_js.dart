@@ -289,6 +289,7 @@ class PdfPageJs extends PdfPage {
     double? fullHeight,
     Color? backgroundColor,
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
+    int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
   }) async {
     if (cancellationToken == null) {
