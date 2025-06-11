@@ -109,9 +109,9 @@ flutter test test/pdf_document_test.dart  # Run specific test file
 ## Release Process
 
 1. Update version in `pubspec.yaml`
-  - Basically, if the changes are not breaking (or relatively small breaking changes), increment the patch version (X.Y.Z -> X.Y.Z+1)
-  - If there are breaking changes, increment the minor version (X.Y.Z -> X.Y+1.0)
-  - If there are major changes, increment the major version (X.Y.Z -> X+1.0.0)
+   - Basically, if the changes are not breaking (or relatively small breaking changes), increment the patch version (X.Y.Z -> X.Y.Z+1)
+   - If there are breaking changes, increment the minor version (X.Y.Z -> X.Y+1.0)
+   - If there are major changes, increment the major version (X.Y.Z -> X+1.0.0)
 2. Update CHANGELOG.md with changes
 3. Update README.md with new version information (changes version in example fragments)
 4. Do the same for wasm/pdfrx_wasm/ if applicable
