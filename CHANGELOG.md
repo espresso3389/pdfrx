@@ -1,3 +1,8 @@
+# 1.1.35
+
+- Add `limitRenderingCache` parameter to `PdfViewerParams` to control rendering cache behavior ([#394](https://github.com/espresso3389/pdfrx/pull/394))
+- Add rendering flags support to `PdfPage.render` method
+
 # 1.1.34
 
 - Add `CLAUDE.md` for Claude Code integration

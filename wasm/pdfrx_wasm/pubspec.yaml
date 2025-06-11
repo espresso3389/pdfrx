@@ -1,6 +1,6 @@
 name: pdfrx_wasm
 description: This is a satellite plugin for pdfrx that allows you to use WASM version of Pdfium.
-version: 1.1.10
+version: 1.1.11
 homepage: https://github.com/espresso3389/pdfrx
 
 environment:

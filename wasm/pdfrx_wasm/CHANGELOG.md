@@ -1,3 +1,7 @@
+## 1.1.11
+
+* Add rendering flags support to PdfPage.render method
+
 ## 1.1.10
 
 * PDFium WASM 138.0.7162.0
