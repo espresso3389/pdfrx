@@ -16,8 +16,7 @@ A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web
 - Windows
 - macOS
 - Linux (even on Raspberry PI)
-- Web
-  - By default, pdfrx uses [PDF.js](https://mozilla.github.io/pdf.js/) but you can enable [Pdfium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-Pdfium-WASM-support)
+- Web (WASM)
 
 ## Example Code
 

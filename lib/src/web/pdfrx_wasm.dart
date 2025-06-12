@@ -8,7 +8,12 @@ import 'package:flutter/services.dart';
 import 'package:web/web.dart' as web;
 
 import '../pdf_api.dart';
-import 'pdfrx_js.dart';
+
+/// Get [PdfDocumentFactory] backed by Pdfium.
+///
+/// For Flutter Web, you must set up Pdfium WASM module.
+/// For more information, see [Enable Pdfium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-Pdfium-WASM-support).
+PdfDocumentFactory getPdfiumDocumentFactory() => PdfDocumentFactoryWasmImpl.singleton;
 
 /// Calls PDFium WASM worker with the given command and parameters.
 @JS()
@@ -22,15 +27,19 @@ external String pdfiumWasmWorkerUrl;
 
 /// [PdfDocumentFactory] for PDFium WASM implementation.
 class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
-  PdfDocumentFactoryWasmImpl();
+  PdfDocumentFactoryWasmImpl._();
+
+  static final singleton = PdfDocumentFactoryWasmImpl._();
 
   /// Default path to the WASM modules
   ///
   /// Normally, the WASM modules are provided by pdfrx_wasm package and this is the path to its assets.
-  static const defaultWasmModulePath = 'assets/packages/pdfrx_wasm/assets/';
+  static const defaultWasmModulePath = 'assets/packages/pdfrx/assets/';
 
   Future<void> _init() async {
+    _globalInit();
     pdfiumWasmWorkerUrl = _getWorkerUrl();
+    Pdfrx.pdfiumWasmModulesUrl ??= _pdfiumWasmModulesUrlFromMetaTag();
     final moduleUrl = _resolveUrl(Pdfrx.pdfiumWasmModulesUrl ?? defaultWasmModulePath);
     final script =
         web.document.createElement('script') as web.HTMLScriptElement
@@ -51,6 +60,19 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
       await sub1.cancel();
       await sub2.cancel();
     }
+  }
+
+  static bool _globalInitialized = false;
+
+  static void _globalInit() {
+    if (_globalInitialized) return;
+    Pdfrx.pdfiumWasmModulesUrl ??= _pdfiumWasmModulesUrlFromMetaTag();
+    _globalInitialized = true;
+  }
+
+  static String? _pdfiumWasmModulesUrlFromMetaTag() {
+    final meta = web.document.querySelector('meta[name="pdfium-wasm-module-url"]') as web.HTMLMetaElement?;
+    return meta?.content;
   }
 
   /// Workaround for Cross-Origin-Embedder-Policy restriction on WASM enabled environments
@@ -259,7 +281,7 @@ class PdfDocumentWasm extends PdfDocument {
   Future<void> loadPagesProgressively<T>(
     PdfPageLoadingCallback<T>? onPageLoadProgress, {
     T? data,
-    Duration loadUnitDuration = const Duration(seconds: 1),
+    Duration loadUnitDuration = const Duration(milliseconds: 250),
   }) async {
     if (isDisposed) return;
     int firstPageIndex = pages.indexWhere((page) => !page.isLoaded);
@@ -452,6 +474,21 @@ class PdfPageWasm extends PdfPage {
   }
 }
 
+class PdfImageWeb extends PdfImage {
+  PdfImageWeb({required this.width, required this.height, required this.pixels, this.format = ui.PixelFormat.rgba8888});
+
+  @override
+  final int width;
+  @override
+  final int height;
+  @override
+  final Uint8List pixels;
+  @override
+  final ui.PixelFormat format;
+  @override
+  void dispose() {}
+}
+
 @immutable
 class PdfPageTextFragmentPdfium implements PdfPageTextFragment {
   const PdfPageTextFragmentPdfium(this.pageText, this.index, this.length, this.bounds, this.charRects);
@@ -480,4 +517,33 @@ PdfDest? _pdfDestFromMap(dynamic dest) {
     PdfDestCommand.parse(dest['command'] as String),
     params.map((p) => p as double).toList(),
   );
+}
+
+class PdfPageTextFragmentWeb implements PdfPageTextFragment {
+  PdfPageTextFragmentWeb(this.index, this.bounds, this.text);
+
+  @override
+  final int index;
+  @override
+  int get length => text.length;
+  @override
+  int get end => index + length;
+  @override
+  final PdfRect bounds;
+  @override
+  List<PdfRect>? get charRects => null;
+  @override
+  final String text;
+}
+
+class PdfPageTextJs extends PdfPageText {
+  PdfPageTextJs({required this.pageNumber, required this.fullText, required this.fragments});
+
+  @override
+  final int pageNumber;
+
+  @override
+  final String fullText;
+  @override
+  final List<PdfPageTextFragment> fragments;
 }

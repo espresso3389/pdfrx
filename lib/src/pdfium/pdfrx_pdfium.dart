@@ -24,14 +24,6 @@ PdfDocumentFactory? _pdfiumDocumentFactory;
 /// For more information, see [Enable Pdfium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-Pdfium-WASM-support).
 PdfDocumentFactory getPdfiumDocumentFactory() => _pdfiumDocumentFactory ??= PdfDocumentFactoryImpl();
 
-/// Get [PdfDocumentFactory] backed by PDF.js.
-///
-/// It throws [UnsupportedError] on non-Web platforms.
-PdfDocumentFactory getPdfjsDocumentFactory() => throw UnsupportedError('Pdf.js is only supported on Web');
-
-/// Get the default [PdfDocumentFactory].
-PdfDocumentFactory getDocumentFactory() => getPdfiumDocumentFactory();
-
 /// Get the module file name for pdfium.
 String _getModuleFileName() {
   if (Pdfrx.pdfiumModulePath != null) return Pdfrx.pdfiumModulePath!;
@@ -410,7 +402,7 @@ class PdfDocumentPdfium extends PdfDocument {
   Future<void> loadPagesProgressively<T>(
     PdfPageLoadingCallback<T>? onPageLoadProgress, {
     T? data,
-    Duration loadUnitDuration = const Duration(seconds: 1),
+    Duration loadUnitDuration = const Duration(milliseconds: 250),
   }) async {
     for (;;) {
       if (isDisposed) return;

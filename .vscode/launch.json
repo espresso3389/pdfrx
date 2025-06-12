@@ -15,7 +15,7 @@
       "request": "launch",
       "type": "dart",
       "program": "example/viewer/lib/main.dart",
-      "args": ["-d", "chrome", "--wasm", "--dart-define=pdfrx.enablePdfiumWasm=true"]
+      "args": ["-d", "chrome", "--wasm"]
     }
   ]
 }

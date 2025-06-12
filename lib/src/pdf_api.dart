@@ -10,7 +10,7 @@ import 'package:http/http.dart' as http;
 // The trick to support Flutter Web is to use conditional import
 // Both of the files define PdfDocumentFactoryImpl class but only one of them is imported.
 import '../pdfrx.dart';
-import 'web/pdfrx_web.dart' if (dart.library.io) 'pdfium/pdfrx_pdfium.dart';
+import 'web/pdfrx_wasm.dart' if (dart.library.io) 'pdfium/pdfrx_pdfium.dart';
 
 /// Class to provide Pdfrx's configuration.
 /// The parameters should be set before calling any Pdfrx's functions.
@@ -32,27 +32,22 @@ class Pdfrx {
   /// It is not supported on Flutter Web.
   static http.Client Function()? createHttpClient;
 
-  /// Select the Web runtime type.
-  ///
-  /// To use PDFium (WASM) runtime, set this value to [PdfrxWebRuntimeType.pdfiumWasm] and you must add
-  /// [pdfrx_wasm](https://pub.dartlang.org/packages/pdfrx_wasm) to your `pubspec.yaml`'s `dependencies`.
-  ///
-  /// It is used only when on Flutter Web.
-  static PdfrxWebRuntimeType webRuntimeType = PdfrxWebRuntimeType.pdfjs;
+  /// pdfrx always uses PDFium (WASM) on Flutter Web and the runtime type is not used now.
+  @Deprecated('PdfrxWebRuntimeType is not used now. pdfrx always uses PDFium (WASM) on Flutter Web.')
+  static PdfrxWebRuntimeType webRuntimeType = PdfrxWebRuntimeType.pdfiumWasm;
 
   /// To override the default pdfium WASM modules directory URL. It must be terminated by '/'.
-  ///
-  /// It is used only when on Flutter Web with [Pdfrx.webRuntimeType] is [PdfrxWebRuntimeType.pdfiumWasm].
   static String? pdfiumWasmModulesUrl;
 }
 
 /// Web runtime type.
+@Deprecated('PdfrxWebRuntimeType is not working now. pdfrx always uses PDFium (WASM) on Flutter Web.')
 enum PdfrxWebRuntimeType {
-  /// Use PDF.js.
-  pdfjs,
-
   /// Use PDFium (WASM).
   pdfiumWasm,
+
+  /// Pdf.js is no longer supported.
+  pdfjs,
 }
 
 /// For platform abstraction purpose; use [PdfDocument] instead.
@@ -120,11 +115,21 @@ abstract class PdfDocumentFactory {
   /// For Flutter Web, it uses PDFium (WASM) implementation.
   static PdfDocumentFactory get pdfium => getPdfiumDocumentFactory();
 
-  /// Get [PdfDocumentFactory] that uses PDF.js implementation.
-  ///
-  /// It is only supported on Flutter Web.
+  /// Pdf.js is no longer supported.
+  /// This function is deprecated and will throw an error if called.
+  @Deprecated('PdfDocumentFactory backed by PDF.js is no longer supported.')
   static PdfDocumentFactory get pdfjs => getPdfjsDocumentFactory();
 }
+
+/// Pdf.js is no longer supported.
+/// This function is deprecated and will throw an error if called.
+@Deprecated('PdfDocumentFactory backed by PDF.js is no longer supported.')
+PdfDocumentFactory getPdfjsDocumentFactory() {
+  throw UnsupportedError('PdfDocumentFactory backed by PDF.js is no longer supported.');
+}
+
+/// Get the default [PdfDocumentFactory].
+PdfDocumentFactory getDocumentFactory() => getPdfiumDocumentFactory();
 
 /// Callback function to notify download progress.
 ///

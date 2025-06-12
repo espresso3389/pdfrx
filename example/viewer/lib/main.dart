@@ -12,15 +12,7 @@ import 'password_dialog.dart';
 import 'search_view.dart';
 import 'thumbnails_view.dart';
 
-const isWasmEnabled = bool.fromEnvironment('pdfrx.enablePdfiumWasm');
-
 void main() {
-  // NOTE:
-  // For Pdfium WASM support, see https://github.com/espresso3389/pdfrx/wiki/Enable-Pdfium-WASM-support
-  if (isWasmEnabled) {
-    Pdfrx.webRuntimeType = PdfrxWebRuntimeType.pdfiumWasm;
-  }
-
   runApp(const MyApp());
 }
 
