@@ -62,6 +62,21 @@ dependencies:
 The build process internally uses *symbolic links* and it requires Developer Mode to be enabled.
 Without this, you may encounter errors [like this](https://github.com/espresso3389/pdfrx/issues/34).
 
+## Note for Building Release Builds
+
+*Please note that the section is not applicable to Web.*
+
+Because the plugin contains WASM binaries as it's assets and they increase the size of the app regardless of the platform.
+This is normally OK for development or debugging but you may want to remove them when building release builds.
+
+To do this, do `dart run pdfrx:remove_wasm_modules` between `flutter pub get` and `flutter build ...` on your app project's root directory:
+
+```bash
+flutter pub get
+dart run pdfrx:remove_wasm_modules
+flutter build ...
+```
+
 ## Customizations/Features
 
 You can customize the behaviors and the viewer look and feel by configuring [PdfViewerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams-class.html).

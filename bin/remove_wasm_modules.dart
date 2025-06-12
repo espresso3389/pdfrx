@@ -25,11 +25,11 @@ Future<int> main(List<String> args) async {
     for (final file in modulesDir.listSync()) {
       if (file is File) {
         print('Deleting: ${file.path}');
-        // try {
-        //   file.deleteSync();
-        // } catch (e) {
-        //   print('Error deleting file: ${file.path}, error: $e');
-        // }
+        try {
+          file.deleteSync();
+        } catch (e) {
+          print('Error deleting file: ${file.path}, error: $e');
+        }
       }
     }
     return 0;
