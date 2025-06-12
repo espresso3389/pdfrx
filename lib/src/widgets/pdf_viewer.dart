@@ -293,6 +293,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _releaseAllImages();
     _canvasLinkPainter.resetAll();
     _pageNumber = null;
+    _gotoTargetPageNumber = null;
     _initialized = false;
     _txController.removeListener(_onMatrixChanged);
     _controller?._attach(null);
@@ -318,14 +319,31 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     }
 
     _notifyOnDocumentChanged();
+    _loadDelayed();
+  }
 
-    _document?.loadPagesProgressively((document, pageNumber, totalPageCount) {
+  /// How long to wait before loading the trailing pages after the initial page load.
+  ///
+  /// This is to ensure that the initial page is displayed quickly, and the trailing pages are loaded in the background.
+  static const _trailingPageLoadingDelay = Duration(milliseconds: kIsWeb ? 200 : 100);
+
+  /// How long to wait before loading the page image.
+  static const _pageImageCachingDelay = Duration(milliseconds: kIsWeb ? 100 : 20);
+  static const _partialImageLoadingDelay = Duration(milliseconds: kIsWeb ? 200 : 50);
+
+  Future<void> _loadDelayed() async {
+    // To make the page image loading more smooth, delay the loading of pages
+    await Future.delayed(_trailingPageLoadingDelay);
+
+    final stopwatch = Stopwatch()..start();
+    await _document?.loadPagesProgressively((pageNumber, totalPageCount, document) {
       if (document == _document && mounted) {
+        debugPrint('PdfViewer: Loaded page $pageNumber of $totalPageCount in ${stopwatch.elapsedMilliseconds} ms');
         _invalidate();
         return true;
       }
       return false;
-    }, context: _document);
+    }, data: _document);
   }
 
   void _notifyOnDocumentChanged() {
@@ -1011,7 +1029,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _pageImageRenderingTimers[page.pageNumber]?.cancel();
     if (!mounted) return;
     _pageImageRenderingTimers[page.pageNumber] = Timer(
-      const Duration(milliseconds: 50),
+      _pageImageCachingDelay,
       () => _cachePageImage(page, width, height, scale),
     );
   }
@@ -1054,7 +1072,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _pageImagePartialRenderingRequests[page.pageNumber]?.cancel();
     final cancellationToken = page.createCancellationToken();
     _pageImagePartialRenderingRequests[page.pageNumber] = _PdfPartialImageRenderingRequest(
-      Timer(const Duration(milliseconds: 300), () async {
+      Timer(_partialImageLoadingDelay, () async {
         if (!mounted || cancellationToken.isCanceled) return;
         final newImage = await _createPartialImage(page, scale, cancellationToken);
         if (_pageImagesPartial[page.pageNumber] == newImage) return;

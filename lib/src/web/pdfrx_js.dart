@@ -17,6 +17,7 @@ class PdfDocumentFactoryJsImpl extends PdfDocumentFactory {
     String name, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   }) => _openByFunc(
     (password) async {
       // NOTE: Moving the asset load outside the loop may cause:
@@ -27,6 +28,8 @@ class PdfDocumentFactoryJsImpl extends PdfDocumentFactory {
     sourceName: 'asset_js:$name',
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
+    onDispose: null,
   );
 
   @override
@@ -36,6 +39,7 @@ class PdfDocumentFactoryJsImpl extends PdfDocumentFactory {
     required String sourceName,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
@@ -46,6 +50,7 @@ class PdfDocumentFactoryJsImpl extends PdfDocumentFactory {
       sourceName: sourceName,
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      useProgressiveLoading: useProgressiveLoading,
       onDispose: onDispose,
     );
   }
@@ -55,6 +60,7 @@ class PdfDocumentFactoryJsImpl extends PdfDocumentFactory {
     Uint8List data, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     String? sourceName,
     bool allowDataOwnershipTransfer = false,
     void Function()? onDispose,
@@ -68,6 +74,7 @@ class PdfDocumentFactoryJsImpl extends PdfDocumentFactory {
       sourceName: sourceName ?? 'memory_js:${data.hashCode}',
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      useProgressiveLoading: useProgressiveLoading,
       onDispose: onDispose,
     );
   }
@@ -77,11 +84,14 @@ class PdfDocumentFactoryJsImpl extends PdfDocumentFactory {
     String filePath, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   }) => _openByFunc(
     (password) => pdfjsGetDocument(filePath, password: password),
     sourceName: filePath,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
+    onDispose: null,
   );
 
   @override
@@ -89,6 +99,7 @@ class PdfDocumentFactoryJsImpl extends PdfDocumentFactory {
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
@@ -100,14 +111,17 @@ class PdfDocumentFactoryJsImpl extends PdfDocumentFactory {
     sourceName: 'uri_js:$uri',
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
+    onDispose: null,
   );
 
   Future<PdfDocument> _openByFunc(
     Future<PdfjsDocument> Function(String? password) openDocument, {
     required String sourceName,
-    PdfPasswordProvider? passwordProvider,
-    bool firstAttemptByEmptyPassword = true,
-    void Function()? onDispose,
+    required PdfPasswordProvider? passwordProvider,
+    required bool firstAttemptByEmptyPassword,
+    required bool useProgressiveLoading,
+    required void Function()? onDispose,
   }) async {
     for (int i = 0; ; i++) {
       final String? password;
@@ -195,14 +209,11 @@ class PdfDocumentJs extends PdfDocument {
 
   @override
   Future<void> loadPagesProgressively<T>(
-    FutureOr<bool> Function(T? context, int currentPageNumber, int totalPageCount)? onPageLoaded, {
-    T? context,
+    FutureOr<bool> Function(int currentPageNumber, int totalPageCount, T? data)? onPageLoadProgress, {
+    T? data,
     Duration loadUnitDuration = const Duration(seconds: 1),
   }) async {
-    throw UnimplementedError(
-      'PdfDocumentJs.loadPagesAsync is not implemented. '
-      'Use PdfDocumentJs.fromDocument to load all pages at once.',
-    );
+    throw UnimplementedError('PdfDocumentJs.loadPagesProgressively is not implemented.');
   }
 
   @override

@@ -62,6 +62,7 @@ abstract class PdfDocumentFactory {
     String name, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   });
 
   /// See [PdfDocument.openData].
@@ -69,6 +70,7 @@ abstract class PdfDocumentFactory {
     Uint8List data, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     String? sourceName,
     bool allowDataOwnershipTransfer = false,
     void Function()? onDispose,
@@ -79,6 +81,7 @@ abstract class PdfDocumentFactory {
     String filePath, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   });
 
   /// See [PdfDocument.openCustom].
@@ -88,6 +91,7 @@ abstract class PdfDocumentFactory {
     required String sourceName,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   });
@@ -97,6 +101,7 @@ abstract class PdfDocumentFactory {
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
@@ -178,14 +183,19 @@ abstract class PdfDocument {
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
   /// password or not. For more info, see [PdfPasswordProvider].
+  ///
+  /// If [useProgressiveLoading] is true, only the first page is loaded initially and the rest of the pages
+  /// are loaded progressively when [PdfDocument.loadPagesProgressively] is called explicitly.
   static Future<PdfDocument> openFile(
     String filePath, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   }) => PdfDocumentFactory.instance.openFile(
     filePath,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
   );
 
   /// Opening the specified asset.
@@ -193,14 +203,19 @@ abstract class PdfDocument {
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
   /// password or not. For more info, see [PdfPasswordProvider].
+  ///
+  /// If [useProgressiveLoading] is true, only the first page is loaded initially and the rest of the pages
+  /// are loaded progressively when [PdfDocument.loadPagesProgressively] is called explicitly.
   static Future<PdfDocument> openAsset(
     String name, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   }) => PdfDocumentFactory.instance.openAsset(
     name,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
   );
 
   /// Opening the PDF on memory.
@@ -208,6 +223,9 @@ abstract class PdfDocument {
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
+  ///
+  /// If [useProgressiveLoading] is true, only the first page is loaded initially and the rest of the pages
+  /// are loaded progressively when [PdfDocument.loadPagesProgressively] is called explicitly.
   ///
   /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
   /// unique for each source, the viewer may not work correctly.
@@ -218,6 +236,7 @@ abstract class PdfDocument {
     Uint8List data, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     String? sourceName,
     bool allowDataOwnershipTransfer = false,
     void Function()? onDispose,
@@ -225,6 +244,7 @@ abstract class PdfDocument {
     data,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
     sourceName: sourceName,
     allowDataOwnershipTransfer: allowDataOwnershipTransfer,
     onDispose: onDispose,
@@ -240,6 +260,9 @@ abstract class PdfDocument {
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
   /// password or not. For more info, see [PdfPasswordProvider].
   ///
+  /// If [useProgressiveLoading] is true, only the first page is loaded initially and the rest of the pages
+  /// are loaded progressively when [PdfDocument.loadPagesProgressively] is called explicitly.
+  ///
   /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
   /// unique for each source, the viewer may not work correctly.
   static Future<PdfDocument> openCustom({
@@ -248,6 +271,7 @@ abstract class PdfDocument {
     required String sourceName,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) => PdfDocumentFactory.instance.openCustom(
@@ -256,6 +280,7 @@ abstract class PdfDocument {
     sourceName: sourceName,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
     maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
     onDispose: onDispose,
   );
@@ -270,6 +295,9 @@ abstract class PdfDocument {
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
   /// password or not. For more info, see [PdfPasswordProvider].
   ///
+  /// If [useProgressiveLoading] is true, only the first page is loaded initially and the rest of the pages
+  /// are loaded progressively when [PdfDocument.loadPagesProgressively] is called explicitly.
+  ///
   /// [progressCallback] is called when the download progress is updated (Not supported on Web).
   /// [reportCallback] is called when the download is completed (Not supported on Web).
   /// [preferRangeAccess] to prefer range access to download the PDF (Not supported on Web).
@@ -279,6 +307,7 @@ abstract class PdfDocument {
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
@@ -288,6 +317,7 @@ abstract class PdfDocument {
     uri,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
     progressCallback: progressCallback,
     reportCallback: reportCallback,
     preferRangeAccess: preferRangeAccess,
@@ -295,10 +325,19 @@ abstract class PdfDocument {
     withCredentials: withCredentials,
   );
 
+  /// Load pages progressively.
+  ///
+  /// This function loads pages progressively if the pages are not loaded yet.
+  /// It calls [onPageLoadProgress] for each [loadUnitDuration] duration until all pages are loaded or the loading
+  /// is cancelled.
+  /// When [onPageLoadProgress] is called, it should return true to continue loading process or false to stop loading.
+  /// [data] is an optional data that can be used to pass additional information to the callback.
+  ///
+  /// It's always safe to call this function even if the pages are already loaded.
   Future<void> loadPagesProgressively<T>(
-    FutureOr<bool> Function(T? context, int currentPageNumber, int totalPageCount)? onPageLoaded, {
-    T? context,
-    Duration loadUnitDuration = const Duration(seconds: 1),
+    PdfPageLoadingCallback<T>? onPageLoadProgress, {
+    T? data,
+    Duration loadUnitDuration = const Duration(milliseconds: 250),
   });
 
   /// Pages.
@@ -312,6 +351,8 @@ abstract class PdfDocument {
   /// It does not mean the document contents (or the document files) are identical.
   bool isIdenticalDocumentHandle(Object? other);
 }
+
+typedef PdfPageLoadingCallback<T> = FutureOr<bool> Function(int currentPageNumber, int totalPageCount, T? data);
 
 /// Handles a PDF page in [PdfDocument].
 ///

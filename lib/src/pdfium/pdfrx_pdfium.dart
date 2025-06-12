@@ -91,6 +91,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     String name, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   }) async {
     final data = await rootBundle.load(name);
     return await _openData(
@@ -98,6 +99,9 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       'asset:$name',
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      useProgressiveLoading: useProgressiveLoading,
+      maxSizeToCacheOnMemory: null,
+      onDispose: null,
     );
   }
 
@@ -108,12 +112,15 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
     bool allowDataOwnershipTransfer = false, // just ignored
+    bool useProgressiveLoading = false,
     void Function()? onDispose,
   }) => _openData(
     data,
     sourceName ?? 'memory-${data.hashCode}',
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
+    maxSizeToCacheOnMemory: null,
     onDispose: onDispose,
   );
 
@@ -122,6 +129,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     String filePath, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   }) {
     _init();
     return _openByFunc(
@@ -132,16 +140,18 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       sourceName: filePath,
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      useProgressiveLoading: useProgressiveLoading,
     );
   }
 
   Future<PdfDocument> _openData(
     Uint8List data,
     String sourceName, {
-    PdfPasswordProvider? passwordProvider,
-    bool firstAttemptByEmptyPassword = true,
-    int? maxSizeToCacheOnMemory,
-    void Function()? onDispose,
+    required PdfPasswordProvider? passwordProvider,
+    required bool firstAttemptByEmptyPassword,
+    required bool useProgressiveLoading,
+    required int? maxSizeToCacheOnMemory,
+    required void Function()? onDispose,
   }) {
     return openCustom(
       read: (buffer, position, size) {
@@ -158,6 +168,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       sourceName: sourceName,
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      useProgressiveLoading: useProgressiveLoading,
       maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
       onDispose: onDispose,
     );
@@ -170,6 +181,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     required String sourceName,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
@@ -195,6 +207,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
           sourceName: sourceName,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+          useProgressiveLoading: useProgressiveLoading,
           disposeCallback: () {
             try {
               onDispose?.call();
@@ -224,6 +237,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         sourceName: sourceName,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+        useProgressiveLoading: useProgressiveLoading,
         disposeCallback: () {
           try {
             onDispose?.call();
@@ -243,6 +257,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
@@ -252,6 +267,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     uri,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
     progressCallback: progressCallback,
     reportCallback: reportCallback,
     useRangeAccess: preferRangeAccess,
@@ -273,6 +289,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     required String sourceName,
     required PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     void Function()? disposeCallback,
   }) async {
     for (int i = 0; ; i++) {
@@ -290,6 +307,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         return PdfDocumentPdfium.fromPdfDocument(
           pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
           sourceName: sourceName,
+          useProgressiveLoading: useProgressiveLoading,
           disposeCallback: disposeCallback,
         );
       }
@@ -331,7 +349,8 @@ class PdfDocumentPdfium extends PdfDocument {
   static Future<PdfDocument> fromPdfDocument(
     pdfium_bindings.FPDF_DOCUMENT doc, {
     required String sourceName,
-    void Function()? disposeCallback,
+    required bool useProgressiveLoading,
+    required void Function()? disposeCallback,
   }) async {
     if (doc == nullptr) {
       throw const PdfException('Failed to load PDF document.');
@@ -376,8 +395,9 @@ class PdfDocumentPdfium extends PdfDocument {
         formInfo: Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(result.formInfo),
         disposeCallback: disposeCallback,
       );
-
-      final pages = await pdfDoc._loadPagesInTime(maxPageCountToLoadAdditionally: 1);
+      final pages = await pdfDoc._loadPagesInLimitedTime(
+        maxPageCountToLoadAdditionally: useProgressiveLoading ? 1 : null,
+      );
       pdfDoc._pages = List.unmodifiable(pages.pages);
       return pdfDoc;
     } catch (e) {
@@ -388,32 +408,38 @@ class PdfDocumentPdfium extends PdfDocument {
 
   @override
   Future<void> loadPagesProgressively<T>(
-    FutureOr<bool> Function(T? context, int currentPageNumber, int totalPageCount)? onPageLoaded, {
-    T? context,
+    PdfPageLoadingCallback<T>? onPageLoadProgress, {
+    T? data,
     Duration loadUnitDuration = const Duration(seconds: 1),
   }) async {
     for (;;) {
       if (isDisposed) return;
 
-      final loaded = await _loadPagesInTime(
-        pagesLoadedSoFar: _pages.takeWhile((p) => p.isLoaded).toList(),
+      final firstUnloadedPageIndex = _pages.indexWhere((p) => !p.isLoaded);
+      if (firstUnloadedPageIndex == -1) {
+        // All pages are already loaded
+        return;
+      }
+
+      final loaded = await _loadPagesInLimitedTime(
+        pagesLoadedSoFar: _pages.sublist(0, firstUnloadedPageIndex).toList(),
         timeout: loadUnitDuration,
       );
       if (isDisposed) return;
       _pages = List.unmodifiable(loaded.pages);
-      if (onPageLoaded != null) {
-        final result = await onPageLoaded(context, loaded.pageCountLoaded, loaded.pages.length);
+      if (onPageLoadProgress != null) {
+        final result = await onPageLoadProgress(loaded.pageCountLoadedTotal, loaded.pages.length, data);
         if (result == false) {
           // If the callback returns false, stop loading pages
           return;
         }
       }
-      if (loaded.pageCountLoaded == loaded.pages.length || isDisposed) return;
+      if (loaded.pageCountLoadedTotal == loaded.pages.length || isDisposed) return;
     }
   }
 
   /// Loads pages in the document in a time-limited manner.
-  Future<({List<PdfPagePdfium> pages, int pageCountLoaded})> _loadPagesInTime({
+  Future<({List<PdfPagePdfium> pages, int pageCountLoadedTotal})> _loadPagesInLimitedTime({
     List<PdfPagePdfium> pagesLoadedSoFar = const [],
     int? maxPageCountToLoadAdditionally,
     Duration? timeout,
@@ -423,42 +449,34 @@ class PdfDocumentPdfium extends PdfDocument {
         (params) {
           final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docAddress);
           return using((arena) {
-            try {
-              final pageCount = pdfium.FPDF_GetPageCount(doc);
-              final end =
-                  maxPageCountToLoadAdditionally == null
-                      ? pageCount
-                      : min(pageCount, params.pagesCountLoadesSoFar + params.maxPageCountToLoadAdditionally!);
-              final t = params.timeoutUs != null ? DateTime.now().add(Duration(microseconds: params.timeoutUs!)) : null;
-              final start = DateTime.now();
-              final pages = <({double width, double height, int rotation})>[];
-              for (int i = params.pagesCountLoadesSoFar; i < end; i++) {
-                final page = pdfium.FPDF_LoadPage(doc, i);
-                try {
-                  pages.add((
-                    width: pdfium.FPDF_GetPageWidthF(page),
-                    height: pdfium.FPDF_GetPageHeightF(page),
-                    rotation: pdfium.FPDFPage_GetRotation(page),
-                  ));
-                } finally {
-                  pdfium.FPDF_ClosePage(page);
-                }
-                if (t != null && DateTime.now().isAfter(t)) {
-                  break;
-                }
+            final pageCount = pdfium.FPDF_GetPageCount(doc);
+            final end =
+                maxPageCountToLoadAdditionally == null
+                    ? pageCount
+                    : min(pageCount, params.pagesCountLoadedSoFar + params.maxPageCountToLoadAdditionally!);
+            final t = params.timeoutUs != null ? DateTime.now().add(Duration(microseconds: params.timeoutUs!)) : null;
+            final pages = <({double width, double height, int rotation})>[];
+            for (int i = params.pagesCountLoadedSoFar; i < end; i++) {
+              final page = pdfium.FPDF_LoadPage(doc, i);
+              try {
+                pages.add((
+                  width: pdfium.FPDF_GetPageWidthF(page),
+                  height: pdfium.FPDF_GetPageHeightF(page),
+                  rotation: pdfium.FPDFPage_GetRotation(page),
+                ));
+              } finally {
+                pdfium.FPDF_ClosePage(page);
               }
-
-              return (pages: pages, totalPageCount: pageCount);
-            } catch (e) {
-              pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
-              calloc.free(formInfo);
-              rethrow;
+              if (t != null && DateTime.now().isAfter(t)) {
+                break;
+              }
             }
+            return (pages: pages, totalPageCount: pageCount);
           });
         },
         (
           docAddress: document.address,
-          pagesCountLoadesSoFar: pagesLoadedSoFar.length,
+          pagesCountLoadedSoFar: pagesLoadedSoFar.length,
           maxPageCountToLoadAdditionally: maxPageCountToLoadAdditionally,
           timeoutUs: timeout?.inMicroseconds,
         ),
@@ -478,8 +496,8 @@ class PdfDocumentPdfium extends PdfDocument {
           ),
         );
       }
-      final pageCountLoaded = pages.length;
-      if (pageCountLoaded > 0) {
+      final pageCountLoadedTotal = pages.length;
+      if (pageCountLoadedTotal > 0) {
         final last = pages.last;
         for (int i = pages.length; i < results.totalPageCount; i++) {
           pages.add(
@@ -494,7 +512,7 @@ class PdfDocumentPdfium extends PdfDocument {
           );
         }
       }
-      return (pages: pages, pageCountLoaded: pageCountLoaded);
+      return (pages: pages, pageCountLoadedTotal: pageCountLoadedTotal);
     } catch (e) {
       rethrow;
     }

@@ -82,6 +82,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     String name, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   }) async {
     final asset = await rootBundle.load(name);
     final data = asset.buffer.asUint8List();
@@ -89,6 +90,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
       data,
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      useProgressiveLoading: useProgressiveLoading,
       sourceName: name,
       allowDataOwnershipTransfer: true,
     );
@@ -101,10 +103,11 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     required String sourceName,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
-    throw UnimplementedError();
+    throw UnimplementedError('PdfDocumentFactoryWasmImpl.openCustom is not implemented.');
   }
 
   @override
@@ -112,14 +115,19 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     Uint8List data, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     String? sourceName,
     bool allowDataOwnershipTransfer = false,
     void Function()? onDispose,
   }) => _openByFunc(
-    (password) => sendCommand('loadDocumentFromData', parameters: {'data': data, 'password': password}),
+    (password) => sendCommand(
+      'loadDocumentFromData',
+      parameters: {'data': data, 'password': password, 'useProgressiveLoading': useProgressiveLoading},
+    ),
     sourceName: sourceName ?? 'data',
     factory: this,
     passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     onDispose: onDispose,
   );
 
@@ -128,11 +136,17 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     String filePath, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   }) => _openByFunc(
-    (password) => sendCommand('loadDocumentFromUrl', parameters: {'url': filePath, 'password': password}),
+    (password) => sendCommand(
+      'loadDocumentFromUrl',
+      parameters: {'url': filePath, 'password': password, 'useProgressiveLoading': useProgressiveLoading},
+    ),
     sourceName: filePath,
     factory: this,
     passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    onDispose: null,
   );
 
   @override
@@ -140,25 +154,31 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
   }) => _openByFunc(
-    (password) => sendCommand('loadDocumentFromUrl', parameters: {'url': uri.toString(), 'password': password}),
+    (password) => sendCommand(
+      'loadDocumentFromUrl',
+      parameters: {'url': uri.toString(), 'password': password, 'useProgressiveLoading': useProgressiveLoading},
+    ),
     sourceName: uri.toString(),
     factory: this,
     passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    onDispose: null,
   );
 
   Future<PdfDocument> _openByFunc(
     Future<Map<Object?, dynamic>> Function(String? password) openDocument, {
     required String sourceName,
     required PdfDocumentFactoryWasmImpl factory,
-    PdfPasswordProvider? passwordProvider,
-    bool firstAttemptByEmptyPassword = true,
-    void Function()? onDispose,
+    required PdfPasswordProvider? passwordProvider,
+    required bool firstAttemptByEmptyPassword,
+    required void Function()? onDispose,
   }) async {
     for (int i = 0; ; i++) {
       final String? password;
@@ -192,7 +212,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
 class PdfDocumentWasm extends PdfDocument {
   PdfDocumentWasm._(this.document, {required super.sourceName, required this.factory, this.disposeCallback})
     : permissions = parsePermissions(document) {
-    pages = parsePages(this, document);
+    pages = parsePages(this, document['pages'] as List<dynamic>);
   }
 
   final Map<Object?, dynamic> document;
@@ -237,14 +257,35 @@ class PdfDocumentWasm extends PdfDocument {
 
   @override
   Future<void> loadPagesProgressively<T>(
-    FutureOr<bool> Function(T? context, int currentPageNumber, int totalPageCount)? onPageLoaded, {
-    T? context,
+    PdfPageLoadingCallback<T>? onPageLoadProgress, {
+    T? data,
     Duration loadUnitDuration = const Duration(seconds: 1),
   }) async {
-    throw UnimplementedError(
-      'PdfDocumentWasm.loadPagesAsync is not implemented. '
-      'Use PdfDocumentJs.fromDocument to load all pages at once.',
-    );
+    if (isDisposed) return;
+    int firstPageIndex = pages.indexWhere((page) => !page.isLoaded);
+    if (firstPageIndex < 0) return; // All pages are already loaded
+
+    for (; firstPageIndex < pages.length;) {
+      final result = await factory.sendCommand(
+        'loadPagesProgressively',
+        parameters: {
+          'docHandle': document['docHandle'],
+          'firstPageIndex': firstPageIndex,
+          'loadUnitDuration': loadUnitDuration.inMilliseconds,
+        },
+      );
+      final pagesLoaded = parsePages(this, result['pages'] as List<dynamic>);
+      firstPageIndex += pagesLoaded.length;
+      for (final page in pagesLoaded) {
+        pages[page.pageNumber - 1] = page; // Update the existing page
+      }
+      if (onPageLoadProgress != null) {
+        if (!await onPageLoadProgress(firstPageIndex, pages.length, data)) {
+          // If the callback returns false, stop loading more pages
+          break;
+        }
+      }
+    }
   }
 
   @override
@@ -260,8 +301,7 @@ class PdfDocumentWasm extends PdfDocument {
     }
   }
 
-  static List<PdfPage> parsePages(PdfDocumentWasm doc, Map<Object?, dynamic> document) {
-    final pageList = document['pages'] as List<dynamic>;
+  static List<PdfPage> parsePages(PdfDocumentWasm doc, List<dynamic> pageList) {
     return pageList
         .map(
           (page) => PdfPageWasm(
