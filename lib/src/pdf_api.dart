@@ -10,7 +10,7 @@ import 'package:http/http.dart' as http;
 // The trick to support Flutter Web is to use conditional import
 // Both of the files define PdfDocumentFactoryImpl class but only one of them is imported.
 import '../pdfrx.dart';
-import 'web/pdfrx_web.dart' if (dart.library.io) 'pdfium/pdfrx_pdfium.dart';
+import 'web/pdfrx_wasm.dart' if (dart.library.io) 'pdfium/pdfrx_pdfium.dart';
 
 /// Class to provide Pdfrx's configuration.
 /// The parameters should be set before calling any Pdfrx's functions.
@@ -32,27 +32,22 @@ class Pdfrx {
   /// It is not supported on Flutter Web.
   static http.Client Function()? createHttpClient;
 
-  /// Select the Web runtime type.
-  ///
-  /// To use PDFium (WASM) runtime, set this value to [PdfrxWebRuntimeType.pdfiumWasm] and you must add
-  /// [pdfrx_wasm](https://pub.dartlang.org/packages/pdfrx_wasm) to your `pubspec.yaml`'s `dependencies`.
-  ///
-  /// It is used only when on Flutter Web.
-  static PdfrxWebRuntimeType webRuntimeType = PdfrxWebRuntimeType.pdfjs;
+  /// pdfrx always uses PDFium (WASM) on Flutter Web and the runtime type is not used now.
+  @Deprecated('PdfrxWebRuntimeType is not used now. pdfrx always uses PDFium (WASM) on Flutter Web.')
+  static PdfrxWebRuntimeType webRuntimeType = PdfrxWebRuntimeType.pdfiumWasm;
 
   /// To override the default pdfium WASM modules directory URL. It must be terminated by '/'.
-  ///
-  /// It is used only when on Flutter Web with [Pdfrx.webRuntimeType] is [PdfrxWebRuntimeType.pdfiumWasm].
   static String? pdfiumWasmModulesUrl;
 }
 
 /// Web runtime type.
+@Deprecated('PdfrxWebRuntimeType is not working now. pdfrx always uses PDFium (WASM) on Flutter Web.')
 enum PdfrxWebRuntimeType {
-  /// Use PDF.js.
-  pdfjs,
-
   /// Use PDFium (WASM).
   pdfiumWasm,
+
+  /// Pdf.js is no longer supported.
+  pdfjs,
 }
 
 /// For platform abstraction purpose; use [PdfDocument] instead.
@@ -62,6 +57,7 @@ abstract class PdfDocumentFactory {
     String name, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   });
 
   /// See [PdfDocument.openData].
@@ -69,6 +65,7 @@ abstract class PdfDocumentFactory {
     Uint8List data, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     String? sourceName,
     bool allowDataOwnershipTransfer = false,
     void Function()? onDispose,
@@ -79,6 +76,7 @@ abstract class PdfDocumentFactory {
     String filePath, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   });
 
   /// See [PdfDocument.openCustom].
@@ -88,6 +86,7 @@ abstract class PdfDocumentFactory {
     required String sourceName,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   });
@@ -97,6 +96,7 @@ abstract class PdfDocumentFactory {
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
@@ -115,11 +115,21 @@ abstract class PdfDocumentFactory {
   /// For Flutter Web, it uses PDFium (WASM) implementation.
   static PdfDocumentFactory get pdfium => getPdfiumDocumentFactory();
 
-  /// Get [PdfDocumentFactory] that uses PDF.js implementation.
-  ///
-  /// It is only supported on Flutter Web.
+  /// Pdf.js is no longer supported.
+  /// This function is deprecated and will throw an error if called.
+  @Deprecated('PdfDocumentFactory backed by PDF.js is no longer supported.')
   static PdfDocumentFactory get pdfjs => getPdfjsDocumentFactory();
 }
+
+/// Pdf.js is no longer supported.
+/// This function is deprecated and will throw an error if called.
+@Deprecated('PdfDocumentFactory backed by PDF.js is no longer supported.')
+PdfDocumentFactory getPdfjsDocumentFactory() {
+  throw UnsupportedError('PdfDocumentFactory backed by PDF.js is no longer supported.');
+}
+
+/// Get the default [PdfDocumentFactory].
+PdfDocumentFactory getDocumentFactory() => getPdfiumDocumentFactory();
 
 /// Callback function to notify download progress.
 ///
@@ -178,14 +188,19 @@ abstract class PdfDocument {
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
   /// password or not. For more info, see [PdfPasswordProvider].
+  ///
+  /// If [useProgressiveLoading] is true, only the first page is loaded initially and the rest of the pages
+  /// are loaded progressively when [PdfDocument.loadPagesProgressively] is called explicitly.
   static Future<PdfDocument> openFile(
     String filePath, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   }) => PdfDocumentFactory.instance.openFile(
     filePath,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
   );
 
   /// Opening the specified asset.
@@ -193,14 +208,19 @@ abstract class PdfDocument {
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
   /// password or not. For more info, see [PdfPasswordProvider].
+  ///
+  /// If [useProgressiveLoading] is true, only the first page is loaded initially and the rest of the pages
+  /// are loaded progressively when [PdfDocument.loadPagesProgressively] is called explicitly.
   static Future<PdfDocument> openAsset(
     String name, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   }) => PdfDocumentFactory.instance.openAsset(
     name,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
   );
 
   /// Opening the PDF on memory.
@@ -208,6 +228,9 @@ abstract class PdfDocument {
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
+  ///
+  /// If [useProgressiveLoading] is true, only the first page is loaded initially and the rest of the pages
+  /// are loaded progressively when [PdfDocument.loadPagesProgressively] is called explicitly.
   ///
   /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
   /// unique for each source, the viewer may not work correctly.
@@ -218,6 +241,7 @@ abstract class PdfDocument {
     Uint8List data, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     String? sourceName,
     bool allowDataOwnershipTransfer = false,
     void Function()? onDispose,
@@ -225,6 +249,7 @@ abstract class PdfDocument {
     data,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
     sourceName: sourceName,
     allowDataOwnershipTransfer: allowDataOwnershipTransfer,
     onDispose: onDispose,
@@ -240,6 +265,9 @@ abstract class PdfDocument {
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
   /// password or not. For more info, see [PdfPasswordProvider].
   ///
+  /// If [useProgressiveLoading] is true, only the first page is loaded initially and the rest of the pages
+  /// are loaded progressively when [PdfDocument.loadPagesProgressively] is called explicitly.
+  ///
   /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
   /// unique for each source, the viewer may not work correctly.
   static Future<PdfDocument> openCustom({
@@ -248,6 +276,7 @@ abstract class PdfDocument {
     required String sourceName,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) => PdfDocumentFactory.instance.openCustom(
@@ -256,6 +285,7 @@ abstract class PdfDocument {
     sourceName: sourceName,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
     maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
     onDispose: onDispose,
   );
@@ -270,6 +300,9 @@ abstract class PdfDocument {
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
   /// password or not. For more info, see [PdfPasswordProvider].
   ///
+  /// If [useProgressiveLoading] is true, only the first page is loaded initially and the rest of the pages
+  /// are loaded progressively when [PdfDocument.loadPagesProgressively] is called explicitly.
+  ///
   /// [progressCallback] is called when the download progress is updated (Not supported on Web).
   /// [reportCallback] is called when the download is completed (Not supported on Web).
   /// [preferRangeAccess] to prefer range access to download the PDF (Not supported on Web).
@@ -279,6 +312,7 @@ abstract class PdfDocument {
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
@@ -288,12 +322,28 @@ abstract class PdfDocument {
     uri,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
     progressCallback: progressCallback,
     reportCallback: reportCallback,
     preferRangeAccess: preferRangeAccess,
     headers: headers,
     withCredentials: withCredentials,
   );
+
+  /// Load pages progressively.
+  ///
+  /// This function loads pages progressively if the pages are not loaded yet.
+  /// It calls [onPageLoadProgress] for each [loadUnitDuration] duration until all pages are loaded or the loading
+  /// is cancelled.
+  /// When [onPageLoadProgress] is called, it should return true to continue loading process or false to stop loading.
+  /// [data] is an optional data that can be used to pass additional information to the callback.
+  ///
+  /// It's always safe to call this function even if the pages are already loaded.
+  Future<void> loadPagesProgressively<T>(
+    PdfPageLoadingCallback<T>? onPageLoadProgress, {
+    T? data,
+    Duration loadUnitDuration = const Duration(milliseconds: 250),
+  });
 
   /// Pages.
   List<PdfPage> get pages;
@@ -306,6 +356,8 @@ abstract class PdfDocument {
   /// It does not mean the document contents (or the document files) are identical.
   bool isIdenticalDocumentHandle(Object? other);
 }
+
+typedef PdfPageLoadingCallback<T> = FutureOr<bool> Function(int currentPageNumber, int totalPageCount, T? data);
 
 /// Handles a PDF page in [PdfDocument].
 ///
@@ -328,6 +380,12 @@ abstract class PdfPage {
 
   /// PDF page rotation.
   PdfPageRotation get rotation;
+
+  /// Whether the page is really loaded or not.
+  ///
+  /// If the value is false, the page's [width], [height], [size], and [rotation] are just guessed values and
+  /// will be updated when the page is really loaded.
+  bool get isLoaded;
 
   /// Render a sub-area or full image of specified PDF file.
   /// Returned image should be disposed after use.

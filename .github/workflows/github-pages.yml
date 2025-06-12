@@ -39,7 +39,6 @@ jobs:
           sed -i \
             -e 's|<base href="/">|<base href="/pdfrx/">|' \
             -e "s/__CONFIGS__/pdfrx=${PDFRX_VERSION},commit=${GITHUB_SHA},flutter=${FLUTTER_VERSION}/g" \
-            -e "s/__PDFIUM_WASM_DISABLED__/enabled/g" \
             build/web/index.html
       - name: Configure Git for deployment
         run: |

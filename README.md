@@ -16,8 +16,7 @@ A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web
 - Windows
 - macOS
 - Linux (even on Raspberry PI)
-- Web
-  - By default, pdfrx uses [PDF.js](https://mozilla.github.io/pdf.js/) but you can enable [Pdfium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-Pdfium-WASM-support)
+- Web (WASM)
 
 ## Example Code
 
@@ -62,6 +61,21 @@ dependencies:
 
 The build process internally uses *symbolic links* and it requires Developer Mode to be enabled.
 Without this, you may encounter errors [like this](https://github.com/espresso3389/pdfrx/issues/34).
+
+## Note for Building Release Builds
+
+*Please note that the section is not applicable to Web.*
+
+Because the plugin contains WASM binaries as it's assets and they increase the size of the app regardless of the platform.
+This is normally OK for development or debugging but you may want to remove them when building release builds.
+
+To do this, do `dart run pdfrx:remove_wasm_modules` between `flutter pub get` and `flutter build ...` on your app project's root directory:
+
+```bash
+flutter pub get
+dart run pdfrx:remove_wasm_modules
+flutter build ...
+```
 
 ## Customizations/Features
 

@@ -26,6 +26,7 @@ dependencies:
   url_launcher: ^6.3.1
   vector_math: ^2.1.4
   web: ^1.1.1
+  dart_pubspec_licenses: ^3.0.4
 
 dev_dependencies:
   ffigen: ^18.0.0
@@ -50,6 +51,9 @@ flutter:
       windows:
         ffiPlugin: true
       web:
+
+  assets:
+    - assets/
 
 # To generate the bindings, firstly you must build example/viewer on x64 linux and
 # then run the following command:

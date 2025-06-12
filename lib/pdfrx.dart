@@ -1,6 +1,5 @@
 export 'src/pdf_api.dart';
 export 'src/pdf_document_ref.dart';
-export 'src/web/pdfjs_configuration.dart';
 export 'src/widgets/pdf_page_text_overlay.dart';
 export 'src/widgets/pdf_text_searcher.dart';
 export 'src/widgets/pdf_viewer.dart';

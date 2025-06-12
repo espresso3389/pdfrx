@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:ffi/ffi.dart';
@@ -22,14 +23,6 @@ PdfDocumentFactory? _pdfiumDocumentFactory;
 /// For Flutter Web, you must set up Pdfium WASM module.
 /// For more information, see [Enable Pdfium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-Pdfium-WASM-support).
 PdfDocumentFactory getPdfiumDocumentFactory() => _pdfiumDocumentFactory ??= PdfDocumentFactoryImpl();
-
-/// Get [PdfDocumentFactory] backed by PDF.js.
-///
-/// It throws [UnsupportedError] on non-Web platforms.
-PdfDocumentFactory getPdfjsDocumentFactory() => throw UnsupportedError('Pdf.js is only supported on Web');
-
-/// Get the default [PdfDocumentFactory].
-PdfDocumentFactory getDocumentFactory() => getPdfiumDocumentFactory();
 
 /// Get the module file name for pdfium.
 String _getModuleFileName() {
@@ -90,6 +83,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     String name, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   }) async {
     final data = await rootBundle.load(name);
     return await _openData(
@@ -97,6 +91,9 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       'asset:$name',
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      useProgressiveLoading: useProgressiveLoading,
+      maxSizeToCacheOnMemory: null,
+      onDispose: null,
     );
   }
 
@@ -107,12 +104,15 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     bool firstAttemptByEmptyPassword = true,
     String? sourceName,
     bool allowDataOwnershipTransfer = false, // just ignored
+    bool useProgressiveLoading = false,
     void Function()? onDispose,
   }) => _openData(
     data,
     sourceName ?? 'memory-${data.hashCode}',
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
+    maxSizeToCacheOnMemory: null,
     onDispose: onDispose,
   );
 
@@ -121,6 +121,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     String filePath, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
   }) {
     _init();
     return _openByFunc(
@@ -131,16 +132,18 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       sourceName: filePath,
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      useProgressiveLoading: useProgressiveLoading,
     );
   }
 
   Future<PdfDocument> _openData(
     Uint8List data,
     String sourceName, {
-    PdfPasswordProvider? passwordProvider,
-    bool firstAttemptByEmptyPassword = true,
-    int? maxSizeToCacheOnMemory,
-    void Function()? onDispose,
+    required PdfPasswordProvider? passwordProvider,
+    required bool firstAttemptByEmptyPassword,
+    required bool useProgressiveLoading,
+    required int? maxSizeToCacheOnMemory,
+    required void Function()? onDispose,
   }) {
     return openCustom(
       read: (buffer, position, size) {
@@ -157,6 +160,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       sourceName: sourceName,
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      useProgressiveLoading: useProgressiveLoading,
       maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
       onDispose: onDispose,
     );
@@ -169,6 +173,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     required String sourceName,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
@@ -194,6 +199,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
           sourceName: sourceName,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+          useProgressiveLoading: useProgressiveLoading,
           disposeCallback: () {
             try {
               onDispose?.call();
@@ -223,6 +229,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         sourceName: sourceName,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+        useProgressiveLoading: useProgressiveLoading,
         disposeCallback: () {
           try {
             onDispose?.call();
@@ -242,6 +249,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
     PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
@@ -251,6 +259,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     uri,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
     progressCallback: progressCallback,
     reportCallback: reportCallback,
     useRangeAccess: preferRangeAccess,
@@ -272,6 +281,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     required String sourceName,
     required PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     void Function()? disposeCallback,
   }) async {
     for (int i = 0; ; i++) {
@@ -289,6 +299,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
         return PdfDocumentPdfium.fromPdfDocument(
           pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
           sourceName: sourceName,
+          useProgressiveLoading: useProgressiveLoading,
           disposeCallback: disposeCallback,
         );
       }
@@ -330,7 +341,8 @@ class PdfDocumentPdfium extends PdfDocument {
   static Future<PdfDocument> fromPdfDocument(
     pdfium_bindings.FPDF_DOCUMENT doc, {
     required String sourceName,
-    void Function()? disposeCallback,
+    required bool useProgressiveLoading,
+    required void Function()? disposeCallback,
   }) async {
     if (doc == nullptr) {
       throw const PdfException('Failed to load PDF document.');
@@ -343,32 +355,15 @@ class PdfDocumentPdfium extends PdfDocument {
           Pointer<pdfium_bindings.FPDF_FORMFILLINFO> formInfo = nullptr;
           pdfium_bindings.FPDF_FORMHANDLE formHandle = nullptr;
           try {
-            final pageCount = pdfium.FPDF_GetPageCount(doc);
             final permissions = pdfium.FPDF_GetDocPermissions(doc);
             final securityHandlerRevision = pdfium.FPDF_GetSecurityHandlerRevision(doc);
 
             formInfo = calloc.allocate<pdfium_bindings.FPDF_FORMFILLINFO>(sizeOf<pdfium_bindings.FPDF_FORMFILLINFO>());
             formInfo.ref.version = 1;
             formHandle = pdfium.FPDFDOC_InitFormFillEnvironment(doc, formInfo);
-
-            final pages = <({double width, double height, int rotation})>[];
-            for (int i = 0; i < pageCount; i++) {
-              final page = pdfium.FPDF_LoadPage(doc, i);
-              try {
-                pages.add((
-                  width: pdfium.FPDF_GetPageWidthF(page),
-                  height: pdfium.FPDF_GetPageHeightF(page),
-                  rotation: pdfium.FPDFPage_GetRotation(page),
-                ));
-              } finally {
-                pdfium.FPDF_ClosePage(page);
-              }
-            }
-
             return (
               permissions: permissions,
               securityHandlerRevision: securityHandlerRevision,
-              pages: pages,
               formHandle: formHandle.address,
               formInfo: formInfo.address,
             );
@@ -392,21 +387,10 @@ class PdfDocumentPdfium extends PdfDocument {
         formInfo: Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(result.formInfo),
         disposeCallback: disposeCallback,
       );
-
-      final pages = <PdfPagePdfium>[];
-      for (int i = 0; i < result.pages.length; i++) {
-        final pageData = result.pages[i];
-        pages.add(
-          PdfPagePdfium._(
-            document: pdfDoc,
-            pageNumber: i + 1,
-            width: pageData.width,
-            height: pageData.height,
-            rotation: PdfPageRotation.values[pageData.rotation],
-          ),
-        );
-      }
-      pdfDoc.pages = List.unmodifiable(pages);
+      final pages = await pdfDoc._loadPagesInLimitedTime(
+        maxPageCountToLoadAdditionally: useProgressiveLoading ? 1 : null,
+      );
+      pdfDoc._pages = List.unmodifiable(pages.pages);
       return pdfDoc;
     } catch (e) {
       pdfDoc?.dispose();
@@ -415,7 +399,121 @@ class PdfDocumentPdfium extends PdfDocument {
   }
 
   @override
-  late final List<PdfPagePdfium> pages;
+  Future<void> loadPagesProgressively<T>(
+    PdfPageLoadingCallback<T>? onPageLoadProgress, {
+    T? data,
+    Duration loadUnitDuration = const Duration(milliseconds: 250),
+  }) async {
+    for (;;) {
+      if (isDisposed) return;
+
+      final firstUnloadedPageIndex = _pages.indexWhere((p) => !p.isLoaded);
+      if (firstUnloadedPageIndex == -1) {
+        // All pages are already loaded
+        return;
+      }
+
+      final loaded = await _loadPagesInLimitedTime(
+        pagesLoadedSoFar: _pages.sublist(0, firstUnloadedPageIndex).toList(),
+        timeout: loadUnitDuration,
+      );
+      if (isDisposed) return;
+      _pages = List.unmodifiable(loaded.pages);
+      if (onPageLoadProgress != null) {
+        final result = await onPageLoadProgress(loaded.pageCountLoadedTotal, loaded.pages.length, data);
+        if (result == false) {
+          // If the callback returns false, stop loading pages
+          return;
+        }
+      }
+      if (loaded.pageCountLoadedTotal == loaded.pages.length || isDisposed) return;
+    }
+  }
+
+  /// Loads pages in the document in a time-limited manner.
+  Future<({List<PdfPagePdfium> pages, int pageCountLoadedTotal})> _loadPagesInLimitedTime({
+    List<PdfPagePdfium> pagesLoadedSoFar = const [],
+    int? maxPageCountToLoadAdditionally,
+    Duration? timeout,
+  }) async {
+    try {
+      final results = await (await backgroundWorker).compute(
+        (params) {
+          final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docAddress);
+          return using((arena) {
+            final pageCount = pdfium.FPDF_GetPageCount(doc);
+            final end =
+                maxPageCountToLoadAdditionally == null
+                    ? pageCount
+                    : min(pageCount, params.pagesCountLoadedSoFar + params.maxPageCountToLoadAdditionally!);
+            final t = params.timeoutUs != null ? DateTime.now().add(Duration(microseconds: params.timeoutUs!)) : null;
+            final pages = <({double width, double height, int rotation})>[];
+            for (int i = params.pagesCountLoadedSoFar; i < end; i++) {
+              final page = pdfium.FPDF_LoadPage(doc, i);
+              try {
+                pages.add((
+                  width: pdfium.FPDF_GetPageWidthF(page),
+                  height: pdfium.FPDF_GetPageHeightF(page),
+                  rotation: pdfium.FPDFPage_GetRotation(page),
+                ));
+              } finally {
+                pdfium.FPDF_ClosePage(page);
+              }
+              if (t != null && DateTime.now().isAfter(t)) {
+                break;
+              }
+            }
+            return (pages: pages, totalPageCount: pageCount);
+          });
+        },
+        (
+          docAddress: document.address,
+          pagesCountLoadedSoFar: pagesLoadedSoFar.length,
+          maxPageCountToLoadAdditionally: maxPageCountToLoadAdditionally,
+          timeoutUs: timeout?.inMicroseconds,
+        ),
+      );
+
+      final pages = [...pagesLoadedSoFar];
+      for (int i = 0; i < results.pages.length; i++) {
+        final pageData = results.pages[i];
+        pages.add(
+          PdfPagePdfium._(
+            document: this,
+            pageNumber: pages.length + 1,
+            width: pageData.width,
+            height: pageData.height,
+            rotation: PdfPageRotation.values[pageData.rotation],
+            isLoaded: true,
+          ),
+        );
+      }
+      final pageCountLoadedTotal = pages.length;
+      if (pageCountLoadedTotal > 0) {
+        final last = pages.last;
+        for (int i = pages.length; i < results.totalPageCount; i++) {
+          pages.add(
+            PdfPagePdfium._(
+              document: this,
+              pageNumber: pages.length + 1,
+              width: last.width,
+              height: last.height,
+              rotation: last.rotation,
+              isLoaded: false,
+            ),
+          );
+        }
+      }
+      return (pages: pages, pageCountLoadedTotal: pageCountLoadedTotal);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  List<PdfPagePdfium> get pages => _pages;
+
+  List<PdfPagePdfium> _pages = [];
 
   @override
   bool isIdenticalDocumentHandle(Object? other) =>
@@ -487,12 +585,16 @@ class PdfPagePdfium extends PdfPage {
   @override
   final PdfPageRotation rotation;
 
+  @override
+  final bool isLoaded;
+
   PdfPagePdfium._({
     required this.document,
     required this.pageNumber,
     required this.width,
     required this.height,
     required this.rotation,
+    required this.isLoaded,
   });
 
   @override
@@ -669,7 +771,7 @@ class PdfPagePdfium extends PdfPage {
                     );
                     return _rectFromLTRBBuffer(rectBuffer);
                   });
-                  return PdfLink(rects, url: Uri.parse(_getLinkUrl(linkPage, index, arena)));
+                  return PdfLink(rects, url: Uri.tryParse(_getLinkUrl(linkPage, index, arena)));
                 });
               });
             } finally {
@@ -762,7 +864,7 @@ class PdfPagePdfium extends PdfPage {
         pdfium.FPDFAction_GetURIPath(document, action, buffer.cast<Void>(), size);
         try {
           final String newBuffer = buffer.toDartString();
-          return Uri.parse(newBuffer);
+          return Uri.tryParse(newBuffer);
         } catch (e) {
           return null;
         }

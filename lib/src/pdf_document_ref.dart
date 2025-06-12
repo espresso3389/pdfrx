@@ -111,6 +111,7 @@ class PdfDocumentRefAsset extends PdfDocumentRef with PdfDocumentRefPasswordMixi
     name,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: true,
   );
 
   @override
@@ -159,6 +160,7 @@ class PdfDocumentRefUri extends PdfDocumentRef with PdfDocumentRefPasswordMixin 
     uri,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: true,
     progressCallback: progressCallback,
     reportCallback: reportCallback,
     preferRangeAccess: preferRangeAccess,
@@ -198,6 +200,7 @@ class PdfDocumentRefFile extends PdfDocumentRef with PdfDocumentRefPasswordMixin
     file,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: true,
   );
 
   @override
@@ -240,6 +243,7 @@ class PdfDocumentRefData extends PdfDocumentRef with PdfDocumentRefPasswordMixin
     data,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: true,
     sourceName: sourceName,
     allowDataOwnershipTransfer: allowDataOwnershipTransfer,
     onDispose: onDispose,
@@ -287,6 +291,7 @@ class PdfDocumentRefCustom extends PdfDocumentRef with PdfDocumentRefPasswordMix
     sourceName: sourceName,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: true,
     maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
     onDispose: onDispose,
   );
@@ -384,11 +389,13 @@ class PdfDocumentListenable extends Listenable {
       final PdfDocument document;
       PdfDownloadReport? report;
       try {
+        final stopwatch = Stopwatch()..start();
         document = await ref.loadDocument(
           _progress,
           (downloaded, totalBytes, elapsed) =>
               report = PdfDownloadReport(downloaded: downloaded, total: totalBytes, elapsedTime: elapsed),
         );
+        debugPrint('PdfDocument initial load: ${ref.sourceName} (${stopwatch.elapsedMilliseconds} ms)');
       } catch (err, stackTrace) {
         setError(err, stackTrace);
         return report;

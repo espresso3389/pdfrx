@@ -9,6 +9,7 @@ pdfrx is a cross-platform PDF viewer plugin for Flutter that supports iOS, Andro
 ## Development Commands
 
 ### Basic Flutter Commands
+
 ```bash
 flutter pub get          # Install dependencies
 flutter analyze          # Run static analysis
@@ -17,6 +18,7 @@ flutter format .         # Format code (120 char line width)
 ```
 
 ### Platform-Specific Builds
+
 ```bash
 # Example app
 cd example/viewer
@@ -51,23 +53,23 @@ dart run ffigen          # Regenerate PDFium FFI bindings
    - Changes version in example fragments
    - Consider to add notes for new features or breaking changes
    - Notify the owner if you find any issues with the example app or documentation
-4. Do the same for `wasm/pdfrx_wasm/` if applicable
-   - `wasm/pdfrx_wasm/assets/` may contain changes critical to the web version, so ensure to update the version in `wasm/pdfrx_wasm/pubspec.yaml` as well
-5. Run `flutter pub get` on all affected directories
+4. Run `flutter pub get` on all affected directories
    - This includes the main package, example app, and wasm package if applicable
    - Ensure all dependencies are resolved and up-to-date
-6. Run tests to ensure everything works
-7. Commit changes with message "Release vX.Y.Z"
-8. Tag the commit with `git tag vX.Y.Z`
-9. Push changes and tags to remote
-10. Do `flutter pub publish` to publish the package
+5. Run tests to ensure everything works
+6. Commit changes with message "Release vX.Y.Z"
+7. Tag the commit with `git tag vX.Y.Z`
+8. Push changes and tags to remote
+9. Do `flutter pub publish` to publish the package
 
 ## Architecture Overview
 
 ### Platform Abstraction
+
 The plugin uses conditional imports to support different platforms:
+
 - `lib/src/pdfium/` - Native platform implementation using PDFium via FFI
-- `lib/src/web/` - Web implementation supporting PDF.js (default) and PDFium WASM
+- `lib/src/web/` - Web implementation by PDFium WASM
 - Platform-specific code determined at import time based on `dart:library.io` availability
 
 ### Core Components
@@ -99,6 +101,7 @@ The plugin uses conditional imports to support different platforms:
 ## Testing
 
 Tests download PDFium binaries automatically for supported platforms. Run tests with:
+
 ```bash
 flutter test
 flutter test test/pdf_document_test.dart  # Run specific test file
@@ -107,20 +110,24 @@ flutter test test/pdf_document_test.dart  # Run specific test file
 ## Platform-Specific Notes
 
 ### iOS/macOS
+
 - Uses pre-built PDFium binaries from [GitHub releases](https://github.com/espresso3389/pdfrx/releases)
 - CocoaPods integration via `darwin/pdfrx.podspec`
 - Binaries downloaded during pod install (Or you can use Swift Package Manager if you like)
 
 ### Android
+
 - Uses CMake for native build
 - Requires Android NDK
 - Downloads PDFium binaries during build
 
 ### Web
-- Default: PDF.js for better compatibility
-- Optional: PDFium WASM for better performance/compatibility
+
+- Prebuilt PDFium WASM included in the plugin
+- Pdf.js backend is removed
 
 ### Windows/Linux
+
 - CMake-based build
 - Downloads PDFium binaries during build
 
