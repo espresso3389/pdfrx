@@ -37,3 +37,4 @@ build/
 
 /test/.tmp
 
+.claude/

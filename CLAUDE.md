@@ -130,6 +130,7 @@ flutter test test/pdf_document_test.dart  # Run specific test file
 
 - CMake-based build
 - Downloads PDFium binaries during build
+- If PATH contains `/mnt/.../flutter/bin`, remove it before running `flutter` or `dart` commands to avoid conflicts with WSL paths
 
 ## Code Style
 

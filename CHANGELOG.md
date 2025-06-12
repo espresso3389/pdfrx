@@ -1,3 +1,15 @@
+# 1.2.0
+
+**BREAKING CHANGES:**
+
+- Removed PDF.js support - PDFium WASM is now the only web implementation
+- The separate `pdfrx_wasm` package is no longer needed; WASM assets are now included directly in the main `pdfrx` package
+
+**New Features:**
+
+- Implemented progressive/lazy page loading for PDFium WASM for better performance with large PDF files ([#319](https://github.com/espresso3389/pdfrx/issues/319))
+- Simplified web architecture by consolidating WASM assets into the main package
+
 # 1.1.35
 
 - Add `limitRenderingCache` parameter to `PdfViewerParams` to control rendering cache behavior ([#394](https://github.com/espresso3389/pdfrx/pull/394))
