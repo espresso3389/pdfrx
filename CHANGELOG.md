@@ -1,3 +1,8 @@
+# 1.2.1
+
+- Temporarily disable Windows ARM64 architecture detection to maintain compatibility with Flutter stable ([#395](https://github.com/espresso3389/pdfrx/issues/395), [#388](https://github.com/espresso3389/pdfrx/issues/388))
+  - Flutter stable doesn't support Windows ARM64 yet, so the build always targets x64
+
 # 1.2.0
 
 **BREAKING CHANGES:**
