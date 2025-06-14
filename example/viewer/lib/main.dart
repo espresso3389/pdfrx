@@ -12,24 +12,30 @@ import 'password_dialog.dart';
 import 'search_view.dart';
 import 'thumbnails_view.dart';
 
-void main() {
-  runApp(const MyApp());
+List<String> _args = [];
+
+void main(List<String> args) {
+  runApp(MyApp(fileOrUri: args.isNotEmpty ? args[0] : null));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({this.fileOrUri, super.key});
+
+  final String? fileOrUri;
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       title: 'Pdfrx example',
-      home: MainPage(),
+      home: MainPage(fileOrUri: fileOrUri),
     );
   }
 }
 
 class MainPage extends StatefulWidget {
-  const MainPage({super.key});
+  const MainPage({this.fileOrUri, super.key});
+
+  final String? fileOrUri;
 
   @override
   State<MainPage> createState() => _MainPageState();
@@ -54,7 +60,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    openDefaultAsset();
+    openInitialFile();
   }
 
   @override
@@ -600,7 +606,20 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     return result ?? false;
   }
 
-  Future<void> openDefaultAsset() async {
+  Future<void> openInitialFile() async {
+    if (widget.fileOrUri != null) {
+      final fileOrUri = widget.fileOrUri!;
+      if (fileOrUri.startsWith('https://') || fileOrUri.startsWith('http://')) {
+        documentRef.value = PdfDocumentRefUri(
+          Uri.parse(fileOrUri),
+          passwordProvider: () => passwordDialog(context),
+        );
+        return;
+      } else {
+        documentRef.value = PdfDocumentRefFile(fileOrUri, passwordProvider: () => passwordDialog(context));
+        return;
+      }
+    }
     documentRef.value = PdfDocumentRefAsset('assets/hello.pdf');
   }
 
