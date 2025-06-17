@@ -380,7 +380,7 @@ const emEnv = {
   __syscall_unlinkat: function(dirfd, pathnamePtr, flags) { _notImplemented('__syscall_unlinkat'); },
   __syscall_rmdir: function(pathnamePtr) { _notImplemented('__syscall_rmdir'); },
   _abort_js: function(what) { throw new Error(what); },
-  _emscripten_throw_longjmp: function() { _notImplemented('longjmp'); },
+  _emscripten_throw_longjmp: function() { throw Infinity; },
   _gmtime_js: function(time, tmPtr) {
     const date = new Date(time * 1000);
     const tm = new Int32Array(Pdfium.memory.buffer, tmPtr, 9);
