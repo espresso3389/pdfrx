@@ -1,3 +1,9 @@
+# 1.2.2
+
+- FIXED: `_emscripten_throw_longjmp` error in PDFium WASM ([#354](https://github.com/espresso3389/pdfrx/issues/354))
+- Enhanced example viewer to support PDF file path/URL as a parameter
+- Enabled build-test workflow on master commits and pull requests for better CI/CD
+
 # 1.2.1
 
 - Temporarily disable Windows ARM64 architecture detection to maintain compatibility with Flutter stable ([#395](https://github.com/espresso3389/pdfrx/issues/395), [#388](https://github.com/espresso3389/pdfrx/issues/388))
