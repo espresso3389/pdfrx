@@ -76,7 +76,7 @@ jobs:
       
       - name: Build App Bundle
         working-directory: example/viewer
-        run: flutter build appbundle --debug --verbose
+        run: flutter build apk --debug --verbose
 
   # iOS build
   ios:
