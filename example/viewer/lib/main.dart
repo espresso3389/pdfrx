@@ -606,24 +606,26 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     return result ?? false;
   }
 
-  Future<void> openInitialFile() async {
+  Future<void> openInitialFile({bool useProgressiveLoading = true}) async {
     if (widget.fileOrUri != null) {
       final fileOrUri = widget.fileOrUri!;
       if (fileOrUri.startsWith('https://') || fileOrUri.startsWith('http://')) {
         documentRef.value = PdfDocumentRefUri(
           Uri.parse(fileOrUri),
           passwordProvider: () => passwordDialog(context),
+          useProgressiveLoading: useProgressiveLoading,
         );
         return;
       } else {
-        documentRef.value = PdfDocumentRefFile(fileOrUri, passwordProvider: () => passwordDialog(context));
+        documentRef.value = PdfDocumentRefFile(fileOrUri,
+            passwordProvider: () => passwordDialog(context), useProgressiveLoading: useProgressiveLoading);
         return;
       }
     }
-    documentRef.value = PdfDocumentRefAsset('assets/hello.pdf');
+    documentRef.value = PdfDocumentRefAsset('assets/hello.pdf', useProgressiveLoading: useProgressiveLoading);
   }
 
-  Future<void> openFile() async {
+  Future<void> openFile({bool useProgressiveLoading = true}) async {
     final file = await fs.openFile(acceptedTypeGroups: [
       fs.XTypeGroup(
         label: 'PDF files',
@@ -638,13 +640,18 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
         bytes,
         sourceName: file.name,
         passwordProvider: () => passwordDialog(context),
+        useProgressiveLoading: useProgressiveLoading,
       );
     } else {
-      documentRef.value = PdfDocumentRefFile(file.path, passwordProvider: () => passwordDialog(context));
+      documentRef.value = PdfDocumentRefFile(
+        file.path,
+        passwordProvider: () => passwordDialog(context),
+        useProgressiveLoading: useProgressiveLoading,
+      );
     }
   }
 
-  Future<void> openUri() async {
+  Future<void> openUri({bool useProgressiveLoading = true}) async {
     final result = await showDialog<String?>(
       context: context,
       builder: (context) {
@@ -685,6 +692,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     documentRef.value = PdfDocumentRefUri(
       uri,
       passwordProvider: () => passwordDialog(context),
+      useProgressiveLoading: useProgressiveLoading,
     );
   }
 

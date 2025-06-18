@@ -93,6 +93,7 @@ class PdfDocumentRefAsset extends PdfDocumentRef with PdfDocumentRefPasswordMixi
     this.passwordProvider,
     this.firstAttemptByEmptyPassword = true,
     super.autoDispose = true,
+    this.useProgressiveLoading = true,
   });
 
   final String name;
@@ -103,6 +104,9 @@ class PdfDocumentRefAsset extends PdfDocumentRef with PdfDocumentRefPasswordMixi
   @override
   String get sourceName => name;
 
+  /// Whether to use progressive loading or not.
+  final bool useProgressiveLoading;
+
   @override
   Future<PdfDocument> loadDocument(
     PdfDocumentLoaderProgressCallback progressCallback,
@@ -111,7 +115,7 @@ class PdfDocumentRefAsset extends PdfDocumentRef with PdfDocumentRefPasswordMixi
     name,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-    useProgressiveLoading: true,
+    useProgressiveLoading: useProgressiveLoading,
   );
 
   @override
@@ -131,6 +135,7 @@ class PdfDocumentRefUri extends PdfDocumentRef with PdfDocumentRefPasswordMixin 
     this.preferRangeAccess = false,
     this.headers,
     this.withCredentials = false,
+    this.useProgressiveLoading = true,
   });
 
   /// The URI to load the document.
@@ -149,6 +154,9 @@ class PdfDocumentRefUri extends PdfDocumentRef with PdfDocumentRefPasswordMixin 
   /// Whether to include credentials in the request (Only supported on Web).
   final bool withCredentials;
 
+  /// Whether to use progressive loading or not.
+  final bool useProgressiveLoading;
+
   @override
   String get sourceName => uri.toString();
 
@@ -160,7 +168,7 @@ class PdfDocumentRefUri extends PdfDocumentRef with PdfDocumentRefPasswordMixin 
     uri,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-    useProgressiveLoading: true,
+    useProgressiveLoading: useProgressiveLoading,
     progressCallback: progressCallback,
     reportCallback: reportCallback,
     preferRangeAccess: preferRangeAccess,
@@ -182,6 +190,7 @@ class PdfDocumentRefFile extends PdfDocumentRef with PdfDocumentRefPasswordMixin
     this.passwordProvider,
     this.firstAttemptByEmptyPassword = true,
     super.autoDispose = true,
+    this.useProgressiveLoading = true,
   });
 
   final String file;
@@ -192,6 +201,9 @@ class PdfDocumentRefFile extends PdfDocumentRef with PdfDocumentRefPasswordMixin
   @override
   String get sourceName => file;
 
+  /// Whether to use progressive loading or not.
+  final bool useProgressiveLoading;
+
   @override
   Future<PdfDocument> loadDocument(
     PdfDocumentLoaderProgressCallback progressCallback,
@@ -200,7 +212,7 @@ class PdfDocumentRefFile extends PdfDocumentRef with PdfDocumentRefPasswordMixin
     file,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-    useProgressiveLoading: true,
+    useProgressiveLoading: useProgressiveLoading,
   );
 
   @override
@@ -222,6 +234,7 @@ class PdfDocumentRefData extends PdfDocumentRef with PdfDocumentRefPasswordMixin
     super.autoDispose = true,
     this.allowDataOwnershipTransfer = false,
     this.onDispose,
+    this.useProgressiveLoading = true,
   });
 
   final Uint8List data;
@@ -235,6 +248,9 @@ class PdfDocumentRefData extends PdfDocumentRef with PdfDocumentRefPasswordMixin
   @override
   final String sourceName;
 
+  /// Whether to use progressive loading or not.
+  final bool useProgressiveLoading;
+
   @override
   Future<PdfDocument> loadDocument(
     PdfDocumentLoaderProgressCallback progressCallback,
@@ -243,7 +259,7 @@ class PdfDocumentRefData extends PdfDocumentRef with PdfDocumentRefPasswordMixin
     data,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-    useProgressiveLoading: true,
+    useProgressiveLoading: useProgressiveLoading,
     sourceName: sourceName,
     allowDataOwnershipTransfer: allowDataOwnershipTransfer,
     onDispose: onDispose,
@@ -267,6 +283,7 @@ class PdfDocumentRefCustom extends PdfDocumentRef with PdfDocumentRefPasswordMix
     super.autoDispose = true,
     this.maxSizeToCacheOnMemory,
     this.onDispose,
+    this.useProgressiveLoading = true,
   });
 
   final int fileSize;
@@ -281,6 +298,9 @@ class PdfDocumentRefCustom extends PdfDocumentRef with PdfDocumentRefPasswordMix
   @override
   final String sourceName;
 
+  /// Whether to use progressive loading or not.
+  final bool useProgressiveLoading;
+
   @override
   Future<PdfDocument> loadDocument(
     PdfDocumentLoaderProgressCallback progressCallback,
@@ -291,7 +311,7 @@ class PdfDocumentRefCustom extends PdfDocumentRef with PdfDocumentRefPasswordMix
     sourceName: sourceName,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-    useProgressiveLoading: true,
+    useProgressiveLoading: useProgressiveLoading,
     maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
     onDispose: onDispose,
   );

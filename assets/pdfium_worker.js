@@ -471,7 +471,7 @@ async function registerFontFromUrl(params) {
 }
 
 /**
- * @param {{url: string, password: string|undefined, useProgressiveLoading: boolean}} params 
+ * @param {{url: string, password: string|undefined, useProgressiveLoading: boolean|undefined}} params 
  */
 async function loadDocumentFromUrl(params) {
   const url = params.url;
@@ -487,7 +487,7 @@ async function loadDocumentFromUrl(params) {
 }
 
 /**
- * @param {{data: ArrayBuffer, password: string|undefined, useProgressiveLoading: boolean}} params 
+ * @param {{data: ArrayBuffer, password: string|undefined, useProgressiveLoading: boolean|undefined}} params 
  */
 function loadDocumentFromData(params) {
   const data = params.data;
@@ -558,7 +558,7 @@ function _loadDocument(docHandle, useProgressiveLoading, onDispose) {
     uint32[0] = 1; // version
     formHandle = Pdfium.wasmExports.FPDFDOC_InitFormFillEnvironment(docHandle, formInfo);
   
-    const pages = _loadPagesInLimitedTime(docHandle, 0, useProgressiveLoading ? 1 : unknown);
+    const pages = _loadPagesInLimitedTime(docHandle, 0, useProgressiveLoading ? 1 : null);
     if (useProgressiveLoading) {
       const firstPage = pages[0];
       for (let i = 1; i < pageCount; i++) {
@@ -594,7 +594,7 @@ function _loadDocument(docHandle, useProgressiveLoading, onDispose) {
 /**
  * @param {number} docHandle
  * @param {number} pagesLoadedCountSoFar
- * @param {number|null|unknown} maxPageCountToLoadAdditionally
+ * @param {number|null} maxPageCountToLoadAdditionally
  * @param {number} timeoutMs
  * @returns {PdfPage[]}
  */
