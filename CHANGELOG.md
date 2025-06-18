@@ -1,3 +1,9 @@
+# 1.2.3
+
+- FIXED: Progressive loading support for PDF document references ([#397](https://github.com/espresso3389/pdfrx/issues/397))
+- Enhanced PDF document loading functions with better error handling
+- Improved PDFium WASM worker implementation
+
 # 1.2.2
 
 - FIXED: `_emscripten_throw_longjmp` error in PDFium WASM ([#354](https://github.com/espresso3389/pdfrx/issues/354))
