@@ -123,14 +123,14 @@ flutter test test/pdf_document_test.dart  # Run specific test file
 
 ### Web
 
-- Prebuilt PDFium WASM included in the plugin
-- Pdf.js backend is removed
+- `assets/pdfium.wasm` is prebuilt PDFium WASM binary
+- `assets/pdfium_worker.js` is the worker script that contains Pdfium WASM's shim
+- `assets/pdfium_client.js` is the code that launches the worker and provides the API, which is used by `lib/src/web/pdfrx_wasm.dart`
 
 ### Windows/Linux
 
 - CMake-based build
 - Downloads PDFium binaries during build
-- If PATH contains `/mnt/.../flutter/bin`, remove it before running `flutter` or `dart` commands to avoid conflicts with WSL paths
 
 ## Code Style
 
