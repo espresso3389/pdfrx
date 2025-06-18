@@ -63,7 +63,8 @@ dart run ffigen          # Regenerate PDFium FFI bindings
 9. Do `flutter pub publish` to publish the package
 10. If the changes reference GitHub issues or PRs, add comments on them notifying about the new release
     - Use `gh issue comment` or `gh pr comment` to notify that the issue/PR has been addressed in the new release
-    - Include the version number and a link to the pub.dev release page
+    - Focus on the release notes and what was fixed/changed rather than upgrade instructions
+    - Include a link to the changelog for the specific version
 
 ## Architecture Overview
 
