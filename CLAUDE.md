@@ -49,6 +49,7 @@ dart run ffigen          # Regenerate PDFium FFI bindings
    - If there are breaking changes, increment the minor version (X.Y.Z -> X.Y+1.0)
    - If there are major changes, increment the major version (X.Y.Z -> X+1.0.0)
 2. Update `CHANGELOG.md` with changes
+   - Don't mention CI/CD changes and `CLAUDE.md` related changes (unless they are significant)
 3. Update `README.md` with new version information
    - Changes version in example fragments
    - Consider to add notes for new features or breaking changes
@@ -146,8 +147,36 @@ flutter test test/pdf_document_test.dart  # Run specific test file
 ## Dependency Version Policy
 
 This package intentionally does NOT specify version constraints for core Flutter-managed packages (collection, ffi, http, path, rxdart). This design decision allows:
+
 - Flutter SDK to manage these dependencies based on the user's Flutter version
 - Broader compatibility across different Flutter stable versions
 - Avoiding version conflicts for users on older Flutter stable releases
 
 When running `flutter pub publish`, warnings about missing version constraints for these packages can be safely ignored. Only packages that are not managed by Flutter SDK should have explicit version constraints.
+
+## Documentation Guidelines
+
+The following guidelines should be followed when writing documentation including comments, `README.md`, and other markdown files:
+
+- Use proper grammar and spelling
+- Use clear and concise language
+- Use consistent terminology
+- Use proper headings for sections
+- Use code blocks for code snippets
+- Use bullet points for lists
+- Use link to relevant issues/PRs when applicable
+- Use backticks (`` ` ``) for code references and file/directory/path names in documentation
+
+### Commenting Guidelines
+
+- Use reference links for classes, enums, and functions in documentation
+- Use `///` (dartdoc comments) for public API comments (and even for important private APIs)
+
+### Markdown Documentation Guidelines
+
+- Include links to issues/PRs when relevant
+- Use link to [API reference](https://pub.dev/documentation/pdfrx/latest/pdfrx/) for public APIs if possible
+- `README.md` should provide an overview of the project, how to use it, and any important notes
+- `CHANGELOG.md` should follow the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) principles
+  - Use sections for different versions
+  - Use bullet points for changes
