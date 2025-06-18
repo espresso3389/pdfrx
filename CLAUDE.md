@@ -141,3 +141,12 @@ flutter test test/pdf_document_test.dart  # Run specific test file
 - 120 character line width
 - Relative imports within lib/
 - Follow flutter_lints with custom rules in analysis_options.yaml
+
+## Dependency Version Policy
+
+This package intentionally does NOT specify version constraints for core Flutter-managed packages (collection, ffi, http, path, rxdart). This design decision allows:
+- Flutter SDK to manage these dependencies based on the user's Flutter version
+- Broader compatibility across different Flutter stable versions
+- Avoiding version conflicts for users on older Flutter stable releases
+
+When running `flutter pub publish`, warnings about missing version constraints for these packages can be safely ignored. Only packages that are not managed by Flutter SDK should have explicit version constraints.
