@@ -59,10 +59,14 @@ dependencies:
 
 ### Note for Windows
 
-**Ensure your Windows installation enables [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development#activate-developer-mode).**
+**REQUIRED: You must enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development#activate-developer-mode) to build pdfrx on Windows.**
 
-The build process internally uses *symbolic links* and it requires Developer Mode to be enabled.
-Without this, you may encounter errors [like this](https://github.com/espresso3389/pdfrx/issues/34).
+The build process uses *symbolic links* which requires Developer Mode to be enabled. If Developer Mode is not enabled:
+- The build will fail with an error message
+- You will see a link to Microsoft's official instructions
+- You must enable Developer Mode and restart your computer before building
+
+Please follow Microsoft's official guide to enable Developer Mode as the exact steps may vary depending on your Windows version.
 
 ## Note for Building Release Builds
 
