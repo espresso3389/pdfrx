@@ -663,7 +663,7 @@ class PdfPagePdfium extends PdfPage {
                 params.fullWidth,
                 params.fullHeight,
                 0,
-                flags |
+                params.flags |
                     (params.annotationRenderingMode != PdfAnnotationRenderingMode.none
                         ? pdfium_bindings.FPDF_ANNOT
                         : 0),
@@ -680,7 +680,7 @@ class PdfPagePdfium extends PdfPage {
                   params.fullWidth,
                   params.fullHeight,
                   0,
-                  flags,
+                  params.flags,
                 );
               }
               return true;
@@ -701,6 +701,7 @@ class PdfPagePdfium extends PdfPage {
             fullHeight: fullHeight!.toInt(),
             backgroundColor: backgroundColor!.toARGB32(),
             annotationRenderingMode: annotationRenderingMode,
+            flags: flags,
             formHandle: document.formHandle.address,
             formInfo: document.formInfo.address,
             cancelFlag: cancelFlag.address,
