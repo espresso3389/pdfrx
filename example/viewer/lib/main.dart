@@ -12,8 +12,6 @@ import 'password_dialog.dart';
 import 'search_view.dart';
 import 'thumbnails_view.dart';
 
-List<String> _args = [];
-
 void main(List<String> args) {
   runApp(MyApp(fileOrUri: args.isNotEmpty ? args[0] : null));
 }

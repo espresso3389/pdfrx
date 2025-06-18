@@ -1,3 +1,8 @@
+# 1.2.5
+
+- FIXED: Flag handling in PdfPagePdfium for improved rendering ([#398](https://github.com/espresso3389/pdfrx/issues/398))
+- Updated CLAUDE.md with dependency version policy documentation
+
 # 1.2.4
 
 - FIXED: Reverted zoom ratio calculation change from 1.1.28 that was affecting pinch-to-zoom behavior ([#391](https://github.com/espresso3389/pdfrx/issues/391))
