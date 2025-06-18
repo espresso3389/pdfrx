@@ -161,7 +161,7 @@ class PdfViewerParams {
 
   /// If true, the viewer limits the rendering cache to reduce memory consumption.
   ///
-  /// For Pdfium, it internally enables `FPDF_RENDER_LIMITEDIMAGECACHE` flag on rendering
+  /// For PDFium, it internally enables `FPDF_RENDER_LIMITEDIMAGECACHE` flag on rendering
   /// to reduce the memory consumption by image caching.
   final bool limitRenderingCache;
 

@@ -46,7 +46,7 @@ enum PdfrxWebRuntimeType {
   /// Use PDFium (WASM).
   pdfiumWasm,
 
-  /// Pdf.js is no longer supported.
+  /// PDF.js is no longer supported.
   pdfjs,
 }
 
@@ -115,13 +115,13 @@ abstract class PdfDocumentFactory {
   /// For Flutter Web, it uses PDFium (WASM) implementation.
   static PdfDocumentFactory get pdfium => getPdfiumDocumentFactory();
 
-  /// Pdf.js is no longer supported.
+  /// PDF.js is no longer supported.
   /// This function is deprecated and will throw an error if called.
   @Deprecated('PdfDocumentFactory backed by PDF.js is no longer supported.')
   static PdfDocumentFactory get pdfjs => getPdfjsDocumentFactory();
 }
 
-/// Pdf.js is no longer supported.
+/// PDF.js is no longer supported.
 /// This function is deprecated and will throw an error if called.
 @Deprecated('PdfDocumentFactory backed by PDF.js is no longer supported.')
 PdfDocumentFactory getPdfjsDocumentFactory() {
@@ -451,7 +451,7 @@ enum PdfAnnotationRenderingMode { none, annotation, annotationAndForms }
 
 /// Flags for [PdfPage.render].
 ///
-/// Basically, they are Pdfium's `FPDF_RENDER_*` flags and not supported on Pdf.js.
+/// Basically, they are PDFium's `FPDF_RENDER_*` flags and not supported on PDF.js.
 abstract class PdfPageRenderFlags {
   /// None.
   static const none = 0;

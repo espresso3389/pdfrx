@@ -18,10 +18,9 @@ import 'worker.dart';
 
 PdfDocumentFactory? _pdfiumDocumentFactory;
 
-/// Get [PdfDocumentFactory] backed by Pdfium.
+/// Get [PdfDocumentFactory] backed by PDFium.
 ///
-/// For Flutter Web, you must set up Pdfium WASM module.
-/// For more information, see [Enable Pdfium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-Pdfium-WASM-support).
+/// For Flutter Web, you must set up PDFium WASM module.
 PdfDocumentFactory getPdfiumDocumentFactory() => _pdfiumDocumentFactory ??= PdfDocumentFactoryImpl();
 
 /// Get the module file name for pdfium.

@@ -26,14 +26,9 @@
 
 # 1.2.0
 
-**BREAKING CHANGES:**
-
-- Removed PDF.js support - PDFium WASM is now the only web implementation
-- The separate `pdfrx_wasm` package is no longer needed; WASM assets are now included directly in the main `pdfrx` package
-
-**New Features:**
-
-- Implemented progressive/lazy page loading for PDFium WASM for better performance with large PDF files ([#319](https://github.com/espresso3389/pdfrx/issues/319))
+- BREAKING CHANGE: Removed PDF.js support - PDFium WASM is now the only web implementation
+- BREAKING CHANGE: The separate `pdfrx_wasm` package is no longer needed; WASM assets are now included directly in the main `pdfrx` package
+- NEW FEATURE: Implemented progressive/lazy page loading for PDFium WASM for better performance with large PDF files ([#319](https://github.com/espresso3389/pdfrx/issues/319))
 - Simplified web architecture by consolidating WASM assets into the main package
 
 # 1.1.35
@@ -115,11 +110,11 @@
 
 # 1.1.21
 
-- FIXED: `loadOutline` is not implemented on Pdfium WASM
+- FIXED: `loadOutline` is not implemented on PDFium WASM
 
 # 1.1.20
 
-- Add HTML meta tags (`pdfrx-pdfium-wasm`/`pdfium-wasm-module-url`) to enable Pdfium WASM support
+- Add HTML meta tags (`pdfrx-pdfium-wasm`/`pdfium-wasm-module-url`) to enable PDFium WASM support
 
 # 1.1.19
 
@@ -170,7 +165,7 @@
 
 # 1.1.6
 
-- "Bleeding edge" Pdfium WASM support (disabled by default)
+- "Bleeding edge" PDFium WASM support (disabled by default)
 
 # 1.1.5
 

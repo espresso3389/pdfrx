@@ -9,10 +9,10 @@ import 'package:web/web.dart' as web;
 
 import '../pdf_api.dart';
 
-/// Get [PdfDocumentFactory] backed by Pdfium.
+/// Get [PdfDocumentFactory] backed by PDFium.
 ///
-/// For Flutter Web, you must set up Pdfium WASM module.
-/// For more information, see [Enable Pdfium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-Pdfium-WASM-support).
+/// For Flutter Web, you must set up PDFium WASM module.
+/// For more information, see [Enable PDFium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-PDFium-WASM-support).
 PdfDocumentFactory getPdfiumDocumentFactory() => PdfDocumentFactoryWasmImpl.singleton;
 
 /// Calls PDFium WASM worker with the given command and parameters.
