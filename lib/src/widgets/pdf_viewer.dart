@@ -666,9 +666,11 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       return;
     }
     _minScale =
-        !widget.params.useAlternativeFitScaleAsMinScale || _alternativeFitScale == null
+        !widget.params.useAlternativeFitScaleAsMinScale
             ? widget.params.minScale
-            : _alternativeFitScale!;
+            : _alternativeFitScale == null
+            ? _coverScale!
+            : min(_coverScale!, _alternativeFitScale!);
   }
 
   void _calcZoomStopTable() {
