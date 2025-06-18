@@ -1,3 +1,9 @@
+# 1.2.4
+
+- FIXED: Reverted zoom ratio calculation change from 1.1.28 that was affecting pinch-to-zoom behavior ([#391](https://github.com/espresso3389/pdfrx/issues/391))
+- Added Windows Developer Mode requirement check in CMake build configuration
+- Updated CLAUDE.md with GitHub notification step in release process
+
 # 1.2.3
 
 - FIXED: Progressive loading support for PDF document references ([#397](https://github.com/espresso3389/pdfrx/issues/397))
