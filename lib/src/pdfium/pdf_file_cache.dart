@@ -281,17 +281,9 @@ Future<PdfDocument> pdfDocumentFromUri(
   int? blockSize,
   PdfFileCache? cache,
   PdfDownloadProgressCallback? progressCallback,
-  PdfDownloadReportCallback? reportCallback,
   bool useRangeAccess = true,
   Map<String, String>? headers,
 }) async {
-  final startTime = reportCallback != null ? DateTime.now() : null;
-  void report() {
-    if (reportCallback != null && cache?.isInitialized == true) {
-      reportCallback(cache?.cachedBytes ?? 0, cache?.fileSize ?? 0, DateTime.now().difference(startTime!));
-    }
-  }
-
   progressCallback?.call(0);
   cache ??= await PdfFileCache.fromUri(uri);
   final httpClientWrapper = _HttpClientWrapper(Pdfrx.createHttpClient ?? () => http.Client());
@@ -379,8 +371,6 @@ Future<PdfDocument> pdfDocumentFromUri(
     cache.close();
     httpClientWrapper.reset();
     rethrow;
-  } finally {
-    report();
   }
 }
 

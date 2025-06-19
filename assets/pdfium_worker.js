@@ -517,7 +517,7 @@ const wasi = {
 };
 
 /**
- * @param {{url: string, password: string|undefined, useProgressiveLoading: boolean|undefined, headers: Object.<string, string>|undefined, withCredentials: boolean|undefined}} params
+ * @param {{url: string, password: string|undefined, useProgressiveLoading: boolean|undefined, headers: Object.<string, string>|undefined, withCredentials: boolean|undefined, progressCallbackId: number|undefined}} params
  */
 async function loadDocumentFromUrl(params) {
   const url = params.url;
@@ -525,6 +525,7 @@ async function loadDocumentFromUrl(params) {
   const useProgressiveLoading = params.useProgressiveLoading || false;
   const headers = params.headers || {};
   const withCredentials = params.withCredentials || false;
+  const progressCallbackId = params.progressCallbackId;
 
   const response = await fetch(url, {
     headers: headers,
@@ -532,15 +533,49 @@ async function loadDocumentFromUrl(params) {
     credentials: withCredentials ? 'include' : 'same-origin',
     redirect: "follow",
   });
-  if (!response.ok) {
-    throw new Error('Failed to fetch PDF from URL: ' + url);
-  }
 
-  return loadDocumentFromData({
-    data: await response.arrayBuffer(),
-    password,
-    useProgressiveLoading,
-  });
+  // Get the content length for progress reporting
+  const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
+  let receivedLength = 0;
+
+  // If we have progress callback and a valid content length, use streaming
+  if (progressCallbackId && contentLength > 0 && response.body) {
+    const reader = response.body.getReader();
+    const chunks = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (done) break;
+      
+      chunks.push(value);
+      receivedLength += value.length;
+
+      // Send progress callback
+      invokeCallback(progressCallbackId, receivedLength, contentLength);
+    }
+
+    // Combine chunks into single ArrayBuffer
+    const data = new Uint8Array(receivedLength);
+    let position = 0;
+    for (const chunk of chunks) {
+      data.set(chunk, position);
+      position += chunk.length;
+    }
+
+    return loadDocumentFromData({
+      data: data.buffer,
+      password,
+      useProgressiveLoading,
+    });
+  } else {
+    // No progress callback or content-length, just get the data directly
+    return loadDocumentFromData({
+      data: await response.arrayBuffer(),
+      password,
+      useProgressiveLoading,
+    });
+  }
 }
 
 /**
@@ -1233,6 +1268,21 @@ const functions = {
   loadText,
   loadLinks,
 };
+
+/**
+ * Send a callback invocation message back to the client
+ * @param {number} callbackId The callback ID to invoke
+ * @param {*} args Arguments to pass to the callback
+ */
+function invokeCallback(callbackId, ...args) {
+  if (callbackId) {
+    postMessage({
+      type: 'callback',
+      callbackId: callbackId,
+      args: args
+    });
+  }
+}
 
 function handleRequest(data) {
   const { id, command, parameters = {} } = data;

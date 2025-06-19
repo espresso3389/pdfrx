@@ -98,7 +98,6 @@ abstract class PdfDocumentFactory {
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
-    PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
@@ -136,13 +135,6 @@ PdfDocumentFactory getDocumentFactory() => getPdfiumDocumentFactory();
 /// [downloadedBytes] is the number of bytes downloaded so far.
 /// [totalBytes] is the total number of bytes to download. It may be null if the total size is unknown.
 typedef PdfDownloadProgressCallback = void Function(int downloadedBytes, [int? totalBytes]);
-
-/// Callback function to report download status on completion.
-///
-/// [downloaded] is the number of bytes downloaded.
-/// [total] is the total number of bytes downloaded.
-/// [elapsedTime] is the time taken to download the file.
-typedef PdfDownloadReportCallback = void Function(int downloaded, int total, Duration elapsedTime);
 
 /// Function to provide password for encrypted PDF.
 ///
@@ -314,7 +306,6 @@ abstract class PdfDocument {
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
-    PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
@@ -324,7 +315,6 @@ abstract class PdfDocument {
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     useProgressiveLoading: useProgressiveLoading,
     progressCallback: progressCallback,
-    reportCallback: reportCallback,
     preferRangeAccess: preferRangeAccess,
     headers: headers,
     withCredentials: withCredentials,

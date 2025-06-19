@@ -11,13 +11,6 @@ import '../pdfrx.dart';
 /// [totalBytes] is the total number of bytes to download. It may be null if the total size is unknown.
 typedef PdfDocumentLoaderProgressCallback = void Function(int downloadedBytes, [int? totalBytes]);
 
-/// Callback function to report download status on completion.
-///
-/// [downloaded] is the number of bytes downloaded.
-/// [total] is the total number of bytes downloaded.
-/// [elapsedTime] is the time taken to download the file.
-typedef PdfDocumentLoaderReportCallback = void Function(int downloaded, int total, Duration elapsedTime);
-
 /// PdfDocumentRef controls loading of a [PdfDocument] and it also provide you with a way to use [PdfDocument]
 /// safely in your long running async operations.
 ///
@@ -62,10 +55,7 @@ abstract class PdfDocumentRef {
   /// Classes that extends [PdfDocumentRef] should override this function to load the document.
   ///
   /// [progressCallback] should be called when the document is loaded from remote source to notify the progress.
-  Future<PdfDocument> loadDocument(
-    PdfDocumentLoaderProgressCallback progressCallback,
-    PdfDocumentLoaderReportCallback reportCallback,
-  );
+  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback);
 
   /// Classes that extends [PdfDocumentRef] should override this function to compare the equality by [sourceName]
   /// or such.
@@ -108,10 +98,7 @@ class PdfDocumentRefAsset extends PdfDocumentRef with PdfDocumentRefPasswordMixi
   final bool useProgressiveLoading;
 
   @override
-  Future<PdfDocument> loadDocument(
-    PdfDocumentLoaderProgressCallback progressCallback,
-    PdfDocumentLoaderReportCallback reportCallback,
-  ) => PdfDocument.openAsset(
+  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) => PdfDocument.openAsset(
     name,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -161,16 +148,12 @@ class PdfDocumentRefUri extends PdfDocumentRef with PdfDocumentRefPasswordMixin 
   String get sourceName => uri.toString();
 
   @override
-  Future<PdfDocument> loadDocument(
-    PdfDocumentLoaderProgressCallback progressCallback,
-    PdfDocumentLoaderReportCallback reportCallback,
-  ) => PdfDocument.openUri(
+  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) => PdfDocument.openUri(
     uri,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     useProgressiveLoading: useProgressiveLoading,
     progressCallback: progressCallback,
-    reportCallback: reportCallback,
     preferRangeAccess: preferRangeAccess,
     headers: headers,
     withCredentials: withCredentials,
@@ -205,10 +188,7 @@ class PdfDocumentRefFile extends PdfDocumentRef with PdfDocumentRefPasswordMixin
   final bool useProgressiveLoading;
 
   @override
-  Future<PdfDocument> loadDocument(
-    PdfDocumentLoaderProgressCallback progressCallback,
-    PdfDocumentLoaderReportCallback reportCallback,
-  ) => PdfDocument.openFile(
+  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) => PdfDocument.openFile(
     file,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -252,10 +232,7 @@ class PdfDocumentRefData extends PdfDocumentRef with PdfDocumentRefPasswordMixin
   final bool useProgressiveLoading;
 
   @override
-  Future<PdfDocument> loadDocument(
-    PdfDocumentLoaderProgressCallback progressCallback,
-    PdfDocumentLoaderReportCallback reportCallback,
-  ) => PdfDocument.openData(
+  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) => PdfDocument.openData(
     data,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -302,10 +279,7 @@ class PdfDocumentRefCustom extends PdfDocumentRef with PdfDocumentRefPasswordMix
   final bool useProgressiveLoading;
 
   @override
-  Future<PdfDocument> loadDocument(
-    PdfDocumentLoaderProgressCallback progressCallback,
-    PdfDocumentLoaderReportCallback reportCallback,
-  ) => PdfDocument.openCustom(
+  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) => PdfDocument.openCustom(
     read: read,
     fileSize: fileSize,
     sourceName: sourceName,
@@ -333,10 +307,7 @@ class PdfDocumentRefDirect extends PdfDocumentRef {
   String get sourceName => document.sourceName;
 
   @override
-  Future<PdfDocument> loadDocument(
-    PdfDocumentLoaderProgressCallback progressCallback,
-    PdfDocumentLoaderReportCallback reportCallback,
-  ) => Future.value(document);
+  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) => Future.value(document);
 
   @override
   bool operator ==(Object other) => other is PdfDocumentRefDirect && sourceName == other.sourceName;
@@ -410,11 +381,7 @@ class PdfDocumentListenable extends Listenable {
       PdfDownloadReport? report;
       try {
         final stopwatch = Stopwatch()..start();
-        document = await ref.loadDocument(
-          _progress,
-          (downloaded, totalBytes, elapsed) =>
-              report = PdfDownloadReport(downloaded: downloaded, total: totalBytes, elapsedTime: elapsed),
-        );
+        document = await ref.loadDocument(_progress);
         debugPrint('PdfDocument initial load: ${ref.sourceName} (${stopwatch.elapsedMilliseconds} ms)');
       } catch (err, stackTrace) {
         setError(err, stackTrace);

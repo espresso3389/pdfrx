@@ -250,7 +250,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
-    PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
@@ -260,7 +259,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     useProgressiveLoading: useProgressiveLoading,
     progressCallback: progressCallback,
-    reportCallback: reportCallback,
     useRangeAccess: preferRangeAccess,
     headers: headers,
   );

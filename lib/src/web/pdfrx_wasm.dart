@@ -15,9 +15,39 @@ import '../pdf_api.dart';
 /// For more information, see [Enable PDFium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-PDFium-WASM-support).
 PdfDocumentFactory getPdfiumDocumentFactory() => PdfDocumentFactoryWasmImpl.singleton;
 
-/// Calls PDFium WASM worker with the given command and parameters.
-@JS()
-external JSPromise<JSAny?> pdfiumWasmSendCommand([String command, JSAny? parameters, JSArray<JSAny>? transfer]);
+/// The PDFium WASM communicator object
+@JS('PdfiumWasmCommunicator')
+extension type PdfiumWasmCommunicator(JSObject _) implements JSObject {
+  /// Sends a command to the worker and returns a promise
+  @JS('sendCommand')
+  external JSPromise<JSAny?> sendCommand([String command, JSAny? parameters, JSArray<JSAny>? transfer]);
+
+  /// Registers a callback function and returns its ID
+  @JS('registerCallback')
+  external int _registerCallback(JSFunction callback);
+
+  /// Unregisters a callback by its ID
+  @JS('unregisterCallback')
+  external void _unregisterCallback(int callbackId);
+}
+
+/// Get the global PdfiumWasmCommunicator instance
+@JS('PdfiumWasmCommunicator')
+external PdfiumWasmCommunicator get pdfiumWasmCommunicator;
+
+/// A handle to a registered callback that can be unregistered
+class PdfiumWasmCallback {
+  PdfiumWasmCallback.register(JSFunction callback)
+    : id = pdfiumWasmCommunicator._registerCallback(callback),
+      _communicator = pdfiumWasmCommunicator;
+
+  final int id;
+  final PdfiumWasmCommunicator _communicator;
+
+  void unregister() {
+    _communicator._unregisterCallback(id);
+  }
+}
 
 /// The URL of the PDFium WASM worker script; pdfium_client.js tries to load worker script from this URL.'
 ///
@@ -95,7 +125,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
   }
 
   Future<Map<Object?, dynamic>> sendCommand(String command, {Map<Object?, dynamic>? parameters}) async {
-    final result = await pdfiumWasmSendCommand(command, parameters?.jsify()).toDart;
+    final result = await pdfiumWasmCommunicator.sendCommand(command, parameters?.jsify()).toDart;
     return (result.dartify()) as Map<Object?, dynamic>;
   }
 
@@ -178,30 +208,44 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
-    PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
-  }) => _openByFunc(
-    (password) => sendCommand(
-      'loadDocumentFromUrl',
-      parameters: {
-        'url': uri.toString(),
-        'password': password,
-        'useProgressiveLoading': useProgressiveLoading,
-        // if (progressCallback != null) 'progressCallback': progressCallback,
-        // if (reportCallback != null) 'reportCallback': reportCallback,
-        // 'preferRangeAccess': preferRangeAccess,
-        if (headers != null) 'headers': headers,
-        'withCredentials': withCredentials,
-      },
-    ),
-    sourceName: uri.toString(),
-    factory: this,
-    passwordProvider: passwordProvider,
-    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-    onDispose: null,
-  );
+  }) {
+    PdfiumWasmCallback? progressCallbackReg;
+    void cleanupCallbacks() => progressCallbackReg?.unregister();
+
+    try {
+      if (progressCallback != null) {
+        progressCallbackReg = PdfiumWasmCallback.register(
+          ((int bytesReceived, int bytesTotal) => progressCallback(bytesReceived, bytesTotal)).toJS,
+        );
+      }
+
+      return _openByFunc(
+        (password) => sendCommand(
+          'loadDocumentFromUrl',
+          parameters: {
+            'url': uri.toString(),
+            'password': password,
+            'useProgressiveLoading': useProgressiveLoading,
+            if (progressCallbackReg != null) 'progressCallbackId': progressCallbackReg.id,
+            // 'preferRangeAccess': preferRangeAccess,
+            if (headers != null) 'headers': headers,
+            'withCredentials': withCredentials,
+          },
+        ),
+        sourceName: uri.toString(),
+        factory: this,
+        passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+        onDispose: cleanupCallbacks,
+      );
+    } catch (e) {
+      cleanupCallbacks();
+      rethrow;
+    }
+  }
 
   Future<PdfDocument> _openByFunc(
     Future<Map<Object?, dynamic>> Function(String? password) openDocument, {
