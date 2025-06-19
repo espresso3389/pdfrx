@@ -1,6 +1,6 @@
 # 1.2.5
 
-- FIXED: Flag handling in PdfPagePdfium for improved rendering ([#398](https://github.com/espresso3389/pdfrx/issues/398))
+- FIXED: Flag handling in `PdfPagePdfium` for improved rendering ([#398](https://github.com/espresso3389/pdfrx/issues/398))
 
 # 1.2.4
 
