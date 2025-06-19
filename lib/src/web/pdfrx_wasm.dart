@@ -185,7 +185,16 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
   }) => _openByFunc(
     (password) => sendCommand(
       'loadDocumentFromUrl',
-      parameters: {'url': uri.toString(), 'password': password, 'useProgressiveLoading': useProgressiveLoading},
+      parameters: {
+        'url': uri.toString(),
+        'password': password,
+        'useProgressiveLoading': useProgressiveLoading,
+        // if (progressCallback != null) 'progressCallback': progressCallback,
+        // if (reportCallback != null) 'reportCallback': reportCallback,
+        // 'preferRangeAccess': preferRangeAccess,
+        if (headers != null) 'headers': headers,
+        'withCredentials': withCredentials,
+      },
     ),
     sourceName: uri.toString(),
     factory: this,

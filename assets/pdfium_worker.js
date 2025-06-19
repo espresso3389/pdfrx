@@ -516,43 +516,22 @@ const wasi = {
   fd_sync: fileSystem.sync.bind(fileSystem),
 };
 
-/** @type {string[]} */
-const fontNames = [];
-
 /**
- * @param {{data: ArrayBuffer, name: string}} params
- */
-function registerFont(params) {
-  const { name, data } = params;
-  const fileDir = '/usr/share/fonts';
-  fontNames.push(fileDir + name);
-  fileSystem.registerDirectoryWithEntries(fileDir, name);
-
-  fileSystem.registerFileWithData(name, data);
-}
-
-/**
- * @param {{url: string, name: string}} params
- */
-async function registerFontFromUrl(params) {
-  const { name, url } = params;
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error('Failed to fetch font from URL: ' + fontUrl);
-  }
-  const data = await response.arrayBuffer();
-  registerFont({ name, data });
-}
-
-/**
- * @param {{url: string, password: string|undefined, useProgressiveLoading: boolean|undefined}} params
+ * @param {{url: string, password: string|undefined, useProgressiveLoading: boolean|undefined, headers: Object.<string, string>|undefined, withCredentials: boolean|undefined}} params
  */
 async function loadDocumentFromUrl(params) {
   const url = params.url;
   const password = params.password || '';
   const useProgressiveLoading = params.useProgressiveLoading || false;
+  const headers = params.headers || {};
+  const withCredentials = params.withCredentials || false;
 
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    headers: headers,
+    mode: 'cors',
+    credentials: withCredentials ? 'include' : 'same-origin',
+    redirect: "follow",
+  });
   if (!response.ok) {
     throw new Error('Failed to fetch PDF from URL: ' + url);
   }
@@ -1243,8 +1222,6 @@ function _pdfDestFromDest(dest, docHandle) {
  * Functions that can be called from the main thread
  */
 const functions = {
-  registerFont,
-  registerFontFromUrl,
   loadDocumentFromUrl,
   loadDocumentFromData,
   loadPagesProgressively,
