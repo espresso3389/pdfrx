@@ -178,5 +178,11 @@ The following guidelines should be followed when writing documentation including
 - Use link to [API reference](https://pub.dev/documentation/pdfrx/latest/pdfrx/) for public APIs if possible
 - `README.md` should provide an overview of the project, how to use it, and any important notes
 - `CHANGELOG.md` should follow the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) principles
+  - Be careful not to include implementation details in the changelog
+  - Focus on user-facing changes, new features, bug fixes, and breaking changes
   - Use sections for different versions
   - Use bullet points for changes
+
+## Special Notes
+
+- `CHANGELOG.md` is not an implementation node. So it should be updated only on releasing a new version
