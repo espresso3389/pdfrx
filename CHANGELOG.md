@@ -1,3 +1,9 @@
+# 1.2.6
+
+- NEW FEATURE: Added `headers` and `withCredentials` support for PDFium WASM implementation ([#399](https://github.com/espresso3389/pdfrx/issues/399))
+- NEW FEATURE: Implemented progress callback support for PDFium WASM using a general callback mechanism
+- Improved PDFium WASM worker-client communication architecture with `PdfiumWasmCommunicator`
+
 # 1.2.5
 
 - FIXED: Flag handling in `PdfPagePdfium` for improved rendering ([#398](https://github.com/espresso3389/pdfrx/issues/398))
