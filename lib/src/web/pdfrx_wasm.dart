@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart' show Colors, immutable;
 import 'package:flutter/services.dart';
+import 'package:synchronized/extension.dart';
 import 'package:web/web.dart' as web;
 
 import '../pdf_api.dart';
@@ -66,38 +67,45 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
   /// Normally, the WASM modules are provided by pdfrx_wasm package and this is the path to its assets.
   static const defaultWasmModulePath = 'assets/packages/pdfrx/assets/';
 
+  bool _initialized = false;
+
   Future<void> _init() async {
-    _globalInit();
-    pdfiumWasmWorkerUrl = _getWorkerUrl();
-    Pdfrx.pdfiumWasmModulesUrl ??= _pdfiumWasmModulesUrlFromMetaTag();
-    final moduleUrl = _resolveUrl(Pdfrx.pdfiumWasmModulesUrl ?? defaultWasmModulePath);
-    final script =
-        web.document.createElement('script') as web.HTMLScriptElement
-          ..type = 'text/javascript'
-          ..charset = 'utf-8'
-          ..async = true
-          ..type = 'module'
-          ..src = _resolveUrl('pdfium_client.js', baseUrl: moduleUrl);
-    web.document.querySelector('head')!.appendChild(script);
-    final completer = Completer();
-    final sub1 = script.onLoad.listen((_) => completer.complete());
-    final sub2 = script.onError.listen((event) => completer.completeError(event));
-    try {
-      await completer.future;
-    } catch (e) {
-      throw StateError('Failed to load pdfium_client.js from $moduleUrl: $e');
-    } finally {
-      await sub1.cancel();
-      await sub2.cancel();
-    }
-  }
+    if (_initialized) return;
+    await synchronized(() async {
+      if (_initialized) return;
+      Pdfrx.pdfiumWasmModulesUrl ??= _pdfiumWasmModulesUrlFromMetaTag();
+      pdfiumWasmWorkerUrl = _getWorkerUrl();
+      final moduleUrl = _resolveUrl(Pdfrx.pdfiumWasmModulesUrl ?? defaultWasmModulePath);
+      final script =
+          web.document.createElement('script') as web.HTMLScriptElement
+            ..type = 'text/javascript'
+            ..charset = 'utf-8'
+            ..async = true
+            ..type = 'module'
+            ..src = _resolveUrl('pdfium_client.js', baseUrl: moduleUrl);
+      web.document.querySelector('head')!.appendChild(script);
+      final completer = Completer();
+      final sub1 = script.onLoad.listen((_) => completer.complete());
+      final sub2 = script.onError.listen((event) => completer.completeError(event));
+      try {
+        await completer.future;
+      } catch (e) {
+        throw StateError('Failed to load pdfium_client.js from $moduleUrl: $e');
+      } finally {
+        await sub1.cancel();
+        await sub2.cancel();
+      }
 
-  static bool _globalInitialized = false;
-
-  static void _globalInit() {
-    if (_globalInitialized) return;
-    Pdfrx.pdfiumWasmModulesUrl ??= _pdfiumWasmModulesUrlFromMetaTag();
-    _globalInitialized = true;
+      // Send init command to worker with authentication options
+      await sendCommand(
+        'init',
+        parameters: {
+          if (Pdfrx.pdfiumWasmHeaders != null) 'headers': Pdfrx.pdfiumWasmHeaders,
+          'withCredentials': Pdfrx.pdfiumWasmWithCredentials,
+        },
+      );
+      _initialized = true;
+    });
   }
 
   static String? _pdfiumWasmModulesUrlFromMetaTag() {

@@ -38,6 +38,16 @@ class Pdfrx {
 
   /// To override the default pdfium WASM modules directory URL. It must be terminated by '/'.
   static String? pdfiumWasmModulesUrl;
+
+  /// HTTP headers to use when fetching the PDFium WASM module.
+  /// This is useful for authentication on protected servers.
+  /// Only supported on Flutter Web.
+  static Map<String, String>? pdfiumWasmHeaders;
+
+  /// Whether to include credentials (cookies) when fetching the PDFium WASM module.
+  /// This is useful for authentication on protected servers.
+  /// Only supported on Flutter Web.
+  static bool pdfiumWasmWithCredentials = false;
 }
 
 /// Web runtime type.

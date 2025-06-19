@@ -1322,35 +1322,69 @@ function handleRequest(data) {
 }
 
 let messagesBeforeInitialized = [];
+let pdfiumInitialized = false;
 
 console.log(`PDFium worker initialized: ${self.location.href}`);
 
 /**
- * Entrypoint
+ * Initialize PDFium with optional authentication parameters
+ * @param {Object} params - Initialization parameters
+ * @param {boolean} params.withCredentials - Whether to include credentials in the fetch
+ * @param {Object} params.headers - Additional headers for the fetch request
  */
-console.log(`Loading PDFium WASM module from ${pdfiumWasmUrl}`);
-WebAssembly.instantiateStreaming(fetch(pdfiumWasmUrl), {
-  env: emEnv,
-  wasi_snapshot_preview1: wasi,
-})
-  .then((result) => {
+async function initializePdfium(params = {}) {
+  try {
+    console.log(`Loading PDFium WASM module from ${pdfiumWasmUrl}`);
+    
+    const fetchOptions = {
+      credentials: params.withCredentials ? 'include' : 'same-origin',
+    };
+    
+    if (params.headers) {
+      fetchOptions.headers = params.headers;
+    }
+    
+    const result = await WebAssembly.instantiateStreaming(
+      fetch(pdfiumWasmUrl, fetchOptions),
+      {
+        env: emEnv,
+        wasi_snapshot_preview1: wasi,
+      }
+    );
+    
     Pdfium.initWith(result.instance.exports);
-
     Pdfium.wasmExports.FPDF_InitLibrary();
+    pdfiumInitialized = true;
+    
     postMessage({ type: 'ready' });
-
+    
+    // Process queued messages
     messagesBeforeInitialized.forEach((event) => handleRequest(event.data));
     messagesBeforeInitialized = null;
-  })
-  .catch((err) => {
+  } catch (err) {
     console.error('Failed to load WASM module:', err);
     postMessage({ type: 'error', error: _error(err) });
-  });
+    throw err;
+  }
+}
 
 onmessage = function (e) {
   const data = e.data;
+  
+  // Handle init command
+  if (data && data.command === 'init') {
+    initializePdfium(data.parameters || {})
+      .then(() => {
+        postMessage({ id: data.id, status: 'success', result: {} });
+      })
+      .catch((err) => {
+        postMessage({ id: data.id, status: 'error', error: _error(err) });
+      });
+    return;
+  }
+  
   if (data && data.id && data.command) {
-    if (messagesBeforeInitialized) {
+    if (!pdfiumInitialized && messagesBeforeInitialized) {
       messagesBeforeInitialized.push(e);
       return;
     }
