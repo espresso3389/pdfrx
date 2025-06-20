@@ -1,3 +1,7 @@
+# 1.2.7
+
+- Enhanced PDFium initialization with optional authentication parameters for WASM
+
 # 1.2.6
 
 - NEW FEATURE: Added `headers` and `withCredentials` support for PDFium WASM implementation ([#399](https://github.com/espresso3389/pdfrx/issues/399))
