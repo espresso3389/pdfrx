@@ -517,7 +517,12 @@ const wasi = {
 };
 
 /**
- * @param {{url: string, password: string|undefined, useProgressiveLoading: boolean|undefined, headers: Object.<string, string>|undefined, withCredentials: boolean|undefined, progressCallbackId: number|undefined}} params
+ * Check if SharedArrayBuffer is available
+ */
+const canUseSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
+
+/**
+ * @param {{url: string, password: string|undefined, useProgressiveLoading: boolean|undefined, headers: Object.<string, string>|undefined, withCredentials: boolean|undefined, progressCallbackId: number|undefined, preferRangeAccess: boolean|undefined}} params
  */
 async function loadDocumentFromUrl(params) {
   const url = params.url;
@@ -526,28 +531,86 @@ async function loadDocumentFromUrl(params) {
   const headers = params.headers || {};
   const withCredentials = params.withCredentials || false;
   const progressCallbackId = params.progressCallbackId;
+  const preferRangeAccess = params.preferRangeAccess || false;
 
+  if (canUseSharedArrayBuffer && preferRangeAccess) {
+    try {
+      // Send initial range request to check if server supports it
+      const testRangeSize = 16 * 1024; // 16KB
+      const rangeResponse = await fetch(url, {
+        headers: {
+          ...headers,
+          Range: `bytes=0-${testRangeSize - 1}`,
+        },
+        mode: 'cors',
+        credentials: withCredentials ? 'include' : 'same-origin',
+        redirect: 'follow',
+      });
+
+      // Check if we got a partial content response
+      if (rangeResponse.status === 206) {
+        // Parse content-range header to get total file size
+        const contentRange = rangeResponse.headers.get('Content-Range');
+        if (contentRange) {
+          const match = contentRange.match(/bytes \d+-\d+\/(\d+)/);
+          if (match) {
+            const contentLength = parseInt(match[1], 10);
+
+            // Server supports range requests!
+            return loadDocumentFromUrlWithRangeAccess({
+              url,
+              password,
+              useProgressiveLoading,
+              headers,
+              withCredentials,
+              progressCallbackId,
+              contentLength,
+              initialData: new Uint8Array(await rangeResponse.arrayBuffer()),
+            });
+          }
+        }
+      } else if (rangeResponse.status === 200) {
+        // Server doesn't support range requests, returned full file
+        // Use the common download handler
+        return _handleFullDownload(rangeResponse, password, useProgressiveLoading, progressCallbackId);
+      }
+    } catch (e) {
+      // If range request fails, fall back to regular loading
+      console.warn('Range request failed, falling back to regular loading:', e);
+    }
+  }
+
+  // Regular loading without range access
   const response = await fetch(url, {
     headers: headers,
     mode: 'cors',
     credentials: withCredentials ? 'include' : 'same-origin',
-    redirect: "follow",
+    redirect: 'follow',
   });
 
+  return _handleFullDownload(response, password, useProgressiveLoading, progressCallbackId);
+}
+
+/**
+ * Common handler for full file downloads (both regular and when range is not supported)
+ * @param {Response} response - The fetch response
+ * @param {string} password - Password for the PDF
+ * @param {boolean} useProgressiveLoading - Whether to use progressive loading
+ * @param {number|undefined} progressCallbackId - Progress callback ID
+ */
+async function _handleFullDownload(response, password, useProgressiveLoading, progressCallbackId) {
   // Get the content length for progress reporting
   const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
-  let receivedLength = 0;
 
   // If we have progress callback and a valid content length, use streaming
   if (progressCallbackId && contentLength > 0 && response.body) {
     const reader = response.body.getReader();
     const chunks = [];
+    let receivedLength = 0;
 
     while (true) {
       const { done, value } = await reader.read();
-      
       if (done) break;
-      
       chunks.push(value);
       receivedLength += value.length;
 
@@ -575,6 +638,236 @@ async function loadDocumentFromUrl(params) {
       password,
       useProgressiveLoading,
     });
+  }
+}
+
+/**
+ * A global shared buffer for read synchronization
+ * @type {Int32Array|null}
+ */
+const _readWait32 = canUseSharedArrayBuffer ? new Int32Array(new SharedArrayBuffer(4)) : null;
+
+/**
+ * Load document using range requests
+ * @param {{url: string, password: string|undefined, useProgressiveLoading: boolean|undefined, headers: Object.<string, string>|undefined, withCredentials: boolean|undefined, progressCallbackId: number|undefined, contentLength: number, initialData: Uint8Array}} params
+ */
+async function loadDocumentFromUrlWithRangeAccess(params) {
+  if (_readWait32 == null) {
+    throw new Error('SharedArrayBuffer is required for range-based loading');
+  }
+  const url = params.url;
+  const password = params.password || '';
+  const useProgressiveLoading = params.useProgressiveLoading;
+  const headers = params.headers || {};
+  const withCredentials = params.withCredentials || false;
+  const progressCallbackId = params.progressCallbackId;
+  const contentLength = params.contentLength;
+  const initialData = params.initialData;
+
+  try {
+    // We already have the initial data from the range test request
+    const headerData = initialData;
+    const headerSize = headerData.length;
+
+    // For PDFs, we need to fetch critical parts:
+    // 1. Header (already have it)
+    // 2. Cross-reference table (usually at the end)
+    // 3. Linearization dictionary (if linearized, near the beginning)
+
+    // Fetch the end of the file where xref table usually is
+    const trailerSize = Math.min(64 * 1024, contentLength - headerSize); // Last 64KB
+    const trailerStart = Math.max(headerSize, contentLength - trailerSize);
+
+    let trailerData = null;
+    if (trailerStart > headerSize) {
+      try {
+        const trailerResponse = await fetch(url, {
+          headers: {
+            ...headers,
+            Range: `bytes=${trailerStart}-${contentLength - 1}`,
+          },
+          mode: 'cors',
+          credentials: withCredentials ? 'include' : 'same-origin',
+          redirect: 'follow',
+        });
+
+        if (trailerResponse.status === 206) {
+          trailerData = new Uint8Array(await trailerResponse.arrayBuffer());
+        }
+      } catch (e) {
+        console.warn('Failed to fetch PDF trailer:', e);
+      }
+    }
+
+    const sharedBuffer = new SharedArrayBuffer(contentLength);
+    let pdfData = new Uint8Array(sharedBuffer);
+
+    // Create a single wait buffer for synchronization
+    const blockSize = 64 * 1024;
+    const blockCount = Math.ceil(contentLength / blockSize);
+    // Track which blocks are fetched in a regular array
+    let blockStatus = new Int8Array(blockCount); // 0=not fetched, 1=fetched, -1=failed
+
+    async function readAsync(context, buffer) {
+      const position = context.position;
+      const length = buffer.length;
+      const endPosition = Math.min(position + length, contentLength);
+      const blockSize = 64 * 1024;
+
+      // Check which blocks we need
+      const startBlock = Math.floor(position / blockSize);
+      const endBlock = Math.floor((endPosition - 1) / blockSize);
+
+      // Find ranges of sequential blocks that need to be fetched
+      let rangeStart = -1;
+      for (let blockIndex = startBlock; blockIndex <= endBlock; blockIndex++) {
+        if (blockStatus[blockIndex] === -1) {
+          // Block already failed
+          console.error(`Block ${blockIndex} was already marked as failed`);
+          return 0; // Read failed
+        }
+
+        if (blockStatus[blockIndex] === 0) {
+          if (rangeStart === -1) {
+            rangeStart = blockIndex;
+          }
+        } else if (rangeStart !== -1) {
+          // End of unfetched range, fetch it
+          const rangeEnd = blockIndex - 1;
+          const success = await fetchBlockRange(rangeStart, rangeEnd);
+          if (!success) {
+            return 0; // Read failed
+          }
+          rangeStart = -1;
+        }
+      }
+
+      // Fetch any remaining range
+      if (rangeStart !== -1) {
+        const success = await fetchBlockRange(rangeStart, endBlock);
+        if (!success) {
+          return 0; // Read failed
+        }
+      }
+
+      // Helper function to fetch a range of blocks
+      async function fetchBlockRange(firstBlock, lastBlock) {
+        const start = firstBlock * blockSize;
+        const end = Math.min((lastBlock + 1) * blockSize, contentLength);
+
+        console.log(`Fetching blocks ${firstBlock}-${lastBlock} (bytes ${start}-${end - 1})`);
+
+        try {
+          const response = await fetch(url, {
+            headers: {
+              ...headers,
+              Range: `bytes=${start}-${end - 1}`,
+            },
+            mode: 'cors',
+            credentials: withCredentials ? 'include' : 'same-origin',
+            redirect: 'follow',
+          });
+
+          if (response.status === 206) {
+            const data = new Uint8Array(await response.arrayBuffer());
+            pdfData.set(data, start);
+
+            // Update progress
+            totalFetched += data.length;
+            if (progressCallbackId) {
+              invokeCallback(progressCallbackId, Math.min(totalFetched, contentLength), contentLength);
+            }
+
+            // Mark all blocks in range as fetched
+            for (let i = firstBlock; i <= lastBlock; i++) {
+              blockStatus[i] = 1;
+            }
+            return true;
+          } else {
+            throw new Error(`Unexpected status: ${response.status}`);
+          }
+        } catch (e) {
+          console.error(`Failed to fetch blocks ${firstBlock}-${lastBlock}:`, e);
+          // Mark all blocks in range as failed
+          for (let i = firstBlock; i <= lastBlock; i++) {
+            blockStatus[i] = -1;
+          }
+          return false;
+        }
+      }
+
+      // All blocks are ready, copy from our data array
+      const bytesToRead = endPosition - position;
+      buffer.set(pdfData.subarray(position, endPosition));
+      context.position += bytesToRead;
+      return bytesToRead;
+    }
+
+    // Copy initial data
+    pdfData.set(headerData, 0);
+    if (trailerData) {
+      pdfData.set(trailerData, trailerStart);
+    }
+
+    // Mark header blocks as fetched
+    for (let i = 0; i < Math.ceil(headerSize / blockSize); i++) {
+      blockStatus[i] = 1;
+    }
+    // Mark trailer blocks as fetched
+    if (trailerData) {
+      for (let i = Math.floor(trailerStart / blockSize); i < blockCount; i++) {
+        blockStatus[i] = 1;
+      }
+    }
+
+    let totalFetched = headerSize + (trailerData ? trailerData.length : 0);
+    if (progressCallbackId) {
+      invokeCallback(progressCallbackId, totalFetched, contentLength);
+    }
+
+    // Register the file with custom read handler
+    const tempFileName = url.replace(/[^a-zA-Z0-9]/g, '_') + '_' + Date.now() + '.pdf';
+    const fullPath = '/tmp/' + tempFileName;
+
+    fileSystem.registerFile(fullPath, {
+      size: contentLength,
+      read: function (context, buffer) {
+        let result = -1;
+        let resultReady = false;
+        readAsync(context, buffer).then((bytesRead) => {
+          result = bytesRead;
+          resultReady = true;
+          // Wake up the waiting sync function
+          Atomics.store(_readWait32, 0, 1);
+          Atomics.notify(_readWait32, 0);
+        });
+        // Wait for the async read to complete
+        while (!resultReady) {
+          Atomics.wait(_readWait32, 0, 0, 1000); // Wait up to 1 second
+          Atomics.store(_readWait32, 0, 0); // Reset for next wait
+        }
+        return result;
+      },
+      close: function () {
+        // Clean up - nothing to do
+      },
+    });
+
+    // Load the document using the virtual file
+    const fileNamePtr = StringUtils.allocateUTF8(fullPath);
+    const passwordPtr = StringUtils.allocateUTF8(password);
+    const docHandle = Pdfium.wasmExports.FPDF_LoadDocument(fileNamePtr, passwordPtr);
+    StringUtils.freeUTF8(passwordPtr);
+    StringUtils.freeUTF8(fileNamePtr);
+
+    const doc = _loadDocument(docHandle, useProgressiveLoading, () => {
+      fileSystem.unregisterFile(fullPath);
+    });
+
+    return doc;
+  } catch (e) {
+    console.error('Range-based loading failed:', e);
+    throw e;
   }
 }
 
@@ -1279,7 +1572,7 @@ function invokeCallback(callbackId, ...args) {
     postMessage({
       type: 'callback',
       callbackId: callbackId,
-      args: args
+      args: args,
     });
   }
 }
@@ -1335,29 +1628,26 @@ console.log(`PDFium worker initialized: ${self.location.href}`);
 async function initializePdfium(params = {}) {
   try {
     console.log(`Loading PDFium WASM module from ${pdfiumWasmUrl}`);
-    
+
     const fetchOptions = {
       credentials: params.withCredentials ? 'include' : 'same-origin',
     };
-    
+
     if (params.headers) {
       fetchOptions.headers = params.headers;
     }
-    
-    const result = await WebAssembly.instantiateStreaming(
-      fetch(pdfiumWasmUrl, fetchOptions),
-      {
-        env: emEnv,
-        wasi_snapshot_preview1: wasi,
-      }
-    );
-    
+
+    const result = await WebAssembly.instantiateStreaming(fetch(pdfiumWasmUrl, fetchOptions), {
+      env: emEnv,
+      wasi_snapshot_preview1: wasi,
+    });
+
     Pdfium.initWith(result.instance.exports);
     Pdfium.wasmExports.FPDF_InitLibrary();
     pdfiumInitialized = true;
-    
+
     postMessage({ type: 'ready' });
-    
+
     // Process queued messages
     messagesBeforeInitialized.forEach((event) => handleRequest(event.data));
     messagesBeforeInitialized = null;
@@ -1370,7 +1660,7 @@ async function initializePdfium(params = {}) {
 
 onmessage = function (e) {
   const data = e.data;
-  
+
   // Handle init command
   if (data && data.command === 'init') {
     initializePdfium(data.parameters || {})
@@ -1382,7 +1672,7 @@ onmessage = function (e) {
       });
     return;
   }
-  
+
   if (data && data.id && data.command) {
     if (!pdfiumInitialized && messagesBeforeInitialized) {
       messagesBeforeInitialized.push(e);

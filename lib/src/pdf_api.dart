@@ -307,7 +307,7 @@ abstract class PdfDocument {
   ///
   /// [progressCallback] is called when the download progress is updated (Not supported on Web).
   /// [reportCallback] is called when the download is completed (Not supported on Web).
-  /// [preferRangeAccess] to prefer range access to download the PDF (Not supported on Web).
+  /// [preferRangeAccess] to prefer range access to download the PDF.
   /// [headers] is used to specify additional HTTP headers especially for authentication/authorization.
   /// [withCredentials] is used to specify whether to include credentials in the request (Only supported on Web).
   static Future<PdfDocument> openUri(

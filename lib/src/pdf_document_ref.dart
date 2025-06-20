@@ -132,7 +132,7 @@ class PdfDocumentRefUri extends PdfDocumentRef with PdfDocumentRefPasswordMixin 
   @override
   final bool firstAttemptByEmptyPassword;
 
-  /// Whether to prefer range access or not (Not supported on Web).
+  /// Whether to prefer range access or not.
   final bool preferRangeAccess;
 
   /// Additional HTTP headers especially for authentication/authorization.

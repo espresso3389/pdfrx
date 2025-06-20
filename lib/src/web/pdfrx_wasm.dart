@@ -238,7 +238,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
             'password': password,
             'useProgressiveLoading': useProgressiveLoading,
             if (progressCallbackReg != null) 'progressCallbackId': progressCallbackReg.id,
-            // 'preferRangeAccess': preferRangeAccess,
+            'preferRangeAccess': preferRangeAccess,
             if (headers != null) 'headers': headers,
             'withCredentials': withCredentials,
           },
