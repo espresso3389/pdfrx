@@ -219,12 +219,13 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
-  }) {
+  }) async {
     PdfiumWasmCallback? progressCallbackReg;
     void cleanupCallbacks() => progressCallbackReg?.unregister();
 
     try {
       if (progressCallback != null) {
+        await _init();
         progressCallbackReg = PdfiumWasmCallback.register(
           ((int bytesReceived, int bytesTotal) => progressCallback(bytesReceived, bytesTotal)).toJS,
         );
@@ -263,6 +264,8 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     required bool firstAttemptByEmptyPassword,
     required void Function()? onDispose,
   }) async {
+    await _init();
+
     for (int i = 0; ; i++) {
       final String? password;
       if (firstAttemptByEmptyPassword && i == 0) {
@@ -273,8 +276,6 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
           throw const PdfPasswordException('No password supplied by PasswordProvider.');
         }
       }
-
-      await _init();
 
       final result = await openDocument(password);
 
