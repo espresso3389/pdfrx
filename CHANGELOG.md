@@ -1,3 +1,7 @@
+# 1.2.8
+
+- FIXED: Ensure PDFium WASM is initialized before registering callbacks ([#399](https://github.com/espresso3389/pdfrx/issues/399))
+
 # 1.2.7
 
 - Enhanced PDFium initialization with optional authentication parameters for WASM
