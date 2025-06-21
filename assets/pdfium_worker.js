@@ -678,17 +678,21 @@ async function loadDocumentFromUrlWithRangeAccess(params) {
     const trailerSize = Math.min(64 * 1024, contentLength - headerSize); // Last 64KB
     const trailerStart = Math.max(headerSize, contentLength - trailerSize);
 
+    const corsParams = {
+      mode: 'cors',
+      credentials: withCredentials ? 'include' : 'same-origin',
+      redirect: 'follow',
+    };
+
     let trailerData = null;
     if (trailerStart > headerSize) {
       try {
         const trailerResponse = await fetch(url, {
+          ...corsParams,
           headers: {
             ...headers,
             Range: `bytes=${trailerStart}-${contentLength - 1}`,
           },
-          mode: 'cors',
-          credentials: withCredentials ? 'include' : 'same-origin',
-          redirect: 'follow',
         });
 
         if (trailerResponse.status === 206) {
@@ -706,7 +710,7 @@ async function loadDocumentFromUrlWithRangeAccess(params) {
     const blockSize = 64 * 1024;
     const blockCount = Math.ceil(contentLength / blockSize);
     // Track which blocks are fetched in a regular array
-    let blockStatus = new Int8Array(blockCount); // 0=not fetched, 1=fetched, -1=failed
+    const blockStatus = new Int8Array(blockCount); // 0=not fetched, 1=fetched, -1=failed
 
     async function readAsync(context, buffer) {
       const position = context.position;
@@ -759,13 +763,11 @@ async function loadDocumentFromUrlWithRangeAccess(params) {
 
         try {
           const response = await fetch(url, {
+            ...corsParams,
             headers: {
               ...headers,
               Range: `bytes=${start}-${end - 1}`,
             },
-            mode: 'cors',
-            credentials: withCredentials ? 'include' : 'same-origin',
-            redirect: 'follow',
           });
 
           if (response.status === 206) {
