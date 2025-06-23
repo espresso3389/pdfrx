@@ -305,9 +305,8 @@ abstract class PdfDocument {
   /// If [useProgressiveLoading] is true, only the first page is loaded initially and the rest of the pages
   /// are loaded progressively when [PdfDocument.loadPagesProgressively] is called explicitly.
   ///
-  /// [progressCallback] is called when the download progress is updated (Not supported on Web).
-  /// [reportCallback] is called when the download is completed (Not supported on Web).
-  /// [preferRangeAccess] to prefer range access to download the PDF.
+  /// [progressCallback] is called when the download progress is updated.
+  /// [preferRangeAccess] to prefer range access to download the PDF. The default is false (Not supported on Web).
   /// [headers] is used to specify additional HTTP headers especially for authentication/authorization.
   /// [withCredentials] is used to specify whether to include credentials in the request (Only supported on Web).
   static Future<PdfDocument> openUri(
