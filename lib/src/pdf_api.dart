@@ -769,14 +769,38 @@ class PdfTextRangeWithFragments {
   /// Fragments that contains the text.
   final List<PdfPageTextFragment> fragments;
 
-  /// In-fragment text start index on the first fragment.
+  /// In-fragment text start index on the first fragment ([fragments.first]).
   final int start;
 
-  /// In-fragment text end index on the last fragment.
+  /// In-fragment text end index on the last fragment ([fragments.last]).
   final int end;
 
   /// Bounding rectangle of the text.
   final PdfRect bounds;
+
+  /// The first character's bounding rectangle.
+  ///
+  /// If the first fragment does not have character level bounding rectangles,
+  /// it returns the bounds of the first fragment.
+  PdfRect get startCharRect {
+    final firstFragment = fragments.first;
+    if (firstFragment.charRects == null || firstFragment.charRects!.isEmpty) {
+      return firstFragment.bounds;
+    }
+    return firstFragment.charRects![start];
+  }
+
+  /// The last character's bounding rectangle.
+  ///
+  /// If the last fragment does not have character level bounding rectangles,
+  /// it returns the bounds of the last fragment.
+  PdfRect get endCharRect {
+    final lastFragment = fragments.last;
+    if (lastFragment.charRects == null || lastFragment.charRects!.isEmpty) {
+      return lastFragment.bounds;
+    }
+    return lastFragment.charRects![end - 1];
+  }
 
   /// Create [PdfTextRangeWithFragments] from text range in [PdfPageText].
   ///
@@ -806,11 +830,11 @@ class PdfTextRangeWithFragments {
         [pageText.fragments[s]],
         start - sf.index,
         end - sf.index,
-        sf.bounds,
+        sf.charRects?.skip(start - sf.index).take(end - start).boundingRect() ?? sf.bounds,
       );
     }
 
-    final l = pageText.getFragmentIndexForTextIndex(end - 1);
+    final l = pageText.getFragmentIndexForTextIndex(end);
     if (s == l) {
       if (sf.charRects == null) {
         return PdfTextRangeWithFragments(
@@ -836,13 +860,16 @@ class PdfTextRangeWithFragments {
       bounds = bounds.merge(pageText.fragments[i].bounds);
     }
     final lf = pageText.fragments[l];
-    bounds = bounds.merge(lf.charRects != null ? lf.charRects!.take(end - lf.index).boundingRect() : lf.bounds);
+    final containLastFragment = end > lf.index;
+    if (containLastFragment) {
+      bounds = bounds.merge(lf.charRects != null ? lf.charRects!.take(end - lf.index).boundingRect() : lf.bounds);
+    }
 
     return PdfTextRangeWithFragments(
       pageText.pageNumber,
-      pageText.fragments.sublist(s, l + 1),
+      pageText.fragments.sublist(s, containLastFragment ? l + 1 : l),
       start - sf.index,
-      end - lf.index,
+      containLastFragment ? end - lf.index : end - pageText.fragments[l - 1].index,
       bounds,
     );
   }

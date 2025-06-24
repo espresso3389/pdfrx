@@ -8,6 +8,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
@@ -227,10 +228,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   final _textCache = <int, PdfPageText?>{};
   final _textSelection = SplayTreeMap<int, PdfTextRanges>();
   Timer? _textSelectionChangedThrottleTimer;
-  final double _textSelectionThumbSize = 20.0;
   final double _hitTestMargin = 3.0;
   Offset? _textSelectFrom, _textSelectTo, _textSelectAnchor;
-  Rect? _selectionRect;
+  Rect? _textSelectA, _textSelectB;
   _SelectionHandle _selectingOnProgress = _SelectionHandle.none;
 
   Timer? _interactionEndedTimer;
@@ -431,33 +431,22 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                       child: MouseRegion(
                         cursor: SystemMouseCursors.move,
                         hitTestBehavior: HitTestBehavior.deferToChild,
-                        child: GestureDetector(
-                          onPanStart: _onSelectionHandlesPanStart,
-                          onPanUpdate: _onSelectionHandlesPanUpdate,
-                          onPanEnd: _onSelectionHandlesPanEnd,
-                          child: CustomPaint(
-                            foregroundPainter: _CustomPainter.fromFunctions(
-                              _paintSelectionHandles,
-                              hitTestFunction: (p) => _hitTestForSelectionHandles(p) != _SelectionHandle.none,
-                            ),
-                            child: MouseRegion(
-                              cursor: SystemMouseCursors.text,
-                              hitTestBehavior: HitTestBehavior.deferToChild,
-                              child: GestureDetector(
-                                onTapDown: _textTap,
-                                onDoubleTapDown: _textDoubleTap,
-                                onLongPressStart: _textLongPress,
-                                onPanStart: _onTextPanStart,
-                                onPanUpdate: _onTextPanUpdate,
-                                onPanEnd: _onTextPanEnd,
-                                child: CustomPaint(
-                                  foregroundPainter: _CustomPainter.fromFunctions(
-                                    _paintPages,
-                                    hitTestFunction: _hitTestForTextSelection,
-                                  ),
-                                  size: _layout!.documentSize,
-                                ),
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.text,
+                          hitTestBehavior: HitTestBehavior.deferToChild,
+                          child: GestureDetector(
+                            onTapDown: _textTap,
+                            onDoubleTapDown: _textDoubleTap,
+                            onLongPressStart: _textLongPress,
+                            onPanStart: _onTextPanStart,
+                            onPanUpdate: _onTextPanUpdate,
+                            onPanEnd: _onTextPanEnd,
+                            child: CustomPaint(
+                              foregroundPainter: _CustomPainter.fromFunctions(
+                                _paintPages,
+                                hitTestFunction: _hitTestForTextSelection,
                               ),
+                              size: _layout!.documentSize,
                             ),
                           ),
                         ),
@@ -469,6 +458,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                     if (widget.params.viewerOverlayBuilder != null)
                       ...widget.params.viewerOverlayBuilder!(context, _viewSize!, _canvasLinkPainter._handleLinkTap)
                           .map((e) => SelectionContainer.disabled(child: e)),
+
+                    ..._placeAdaptiveTextSelectionToolbar(context),
                   ],
                 );
               },
@@ -831,6 +822,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   void _clearAllTextSelections({bool invalidate = true}) {
     _textSelectFrom = _textSelectTo = null;
+    _textSelectA = _textSelectB = null;
     _updateTextSelection(invalidate: invalidate);
   }
 
@@ -1052,113 +1044,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       }
     }
     return false;
-  }
-
-  void _paintSelectionHandles(ui.Canvas canvas, ui.Size size) {
-    final selectionColor =
-        Theme.of(context).textSelectionTheme.selectionColor ?? DefaultSelectionStyle.of(context).selectionColor!;
-    final selectionColorSolid = selectionColor.withAlpha(255);
-    if (_textSelectFrom != null && _textSelectTo != null) {
-      if (_selectingOnProgress == _SelectionHandle.free) {
-        canvas.drawRect(
-          Rect.fromPoints(_textSelectFrom!, _textSelectTo!),
-          Paint()
-            ..color = selectionColorSolid
-            ..style = PaintingStyle.stroke,
-        );
-      } else {
-        if (_selectionRect != null) {
-          final r = _textSelectionThumbSize / _controller!.currentZoom;
-          canvas.drawRect(
-            _selectionRect!,
-            Paint()
-              ..color = selectionColorSolid
-              ..style = PaintingStyle.stroke,
-          );
-
-          canvas.save();
-          canvas.translate(_selectionRect!.left, _selectionRect!.top);
-          canvas.scale(r, r);
-          canvas.drawPath(
-            _selectionHandlePath,
-            Paint()
-              ..color = selectionColorSolid
-              ..style = PaintingStyle.fill,
-          );
-          canvas.restore();
-
-          canvas.save();
-          canvas.translate(_selectionRect!.right, _selectionRect!.bottom);
-          canvas.scale(-r, -r);
-          canvas.drawPath(
-            _selectionHandlePath,
-            Paint()
-              ..color = selectionColorSolid
-              ..style = PaintingStyle.fill,
-          );
-          canvas.restore();
-        }
-      }
-    }
-  }
-
-  _SelectionHandle _hitTestForSelectionHandles(ui.Offset position) {
-    if (_textSelectFrom != null && _textSelectTo != null) {
-      final sr = _selectionRect;
-      if (sr != null) {
-        final diam = _textSelectionThumbSize * 2 / _controller!.currentZoom;
-        final rect1 = Rect.fromLTRB(sr.left - diam, sr.top - diam, sr.left, sr.top);
-        if (rect1.contains(position)) return _SelectionHandle.topLeft;
-        final rect2 = Rect.fromLTRB(sr.right, sr.bottom, sr.right + diam, sr.bottom + diam);
-        if (rect2.contains(position)) return _SelectionHandle.bottomRight;
-      }
-    }
-    return _SelectionHandle.none;
-  }
-
-  static final _selectionHandlePath =
-      Path()
-        ..moveTo(0, 0)
-        ..lineTo(-1, 0)
-        ..addArc(Rect.fromLTRB(-2, -2, 0, 0), pi / 2, pi * 3 / 2)
-        ..lineTo(0, 0);
-
-  void _onSelectionHandlesPanStart(DragStartDetails details) {
-    if (_isInteractionGoingOn) return;
-    _selectingOnProgress = _hitTestForSelectionHandles(details.localPosition);
-    final anchor = Offset(_txController.value.x, _txController.value.y);
-    if (_selectingOnProgress == _SelectionHandle.topLeft) {
-      _textSelectAnchor = anchor + _selectionRect!.topLeft - details.localPosition;
-      _textSelectFrom = _selectionRect!.topLeft;
-    } else if (_selectingOnProgress == _SelectionHandle.bottomRight) {
-      _textSelectAnchor = anchor + _selectionRect!.bottomRight - details.localPosition;
-      _textSelectTo = _selectionRect!.bottomRight;
-    } else {
-      return;
-    }
-    _updateTextSelection();
-  }
-
-  void _updateSelectionHandlesPan({Offset? panTo}) {
-    if (_selectingOnProgress == _SelectionHandle.topLeft) {
-      _textSelectFrom =
-          (panTo ?? _textSelectFrom!) + _textSelectAnchor! - Offset(_txController.value.x, _txController.value.y);
-    } else if (_selectingOnProgress == _SelectionHandle.bottomRight) {
-      _textSelectTo =
-          (panTo ?? _textSelectTo!) + _textSelectAnchor! - Offset(_txController.value.x, _txController.value.y);
-    } else {
-      return;
-    }
-    _updateTextSelection();
-  }
-
-  void _onSelectionHandlesPanUpdate(DragUpdateDetails details) {
-    _updateSelectionHandlesPan(panTo: details.localPosition);
-  }
-
-  void _onSelectionHandlesPanEnd(DragEndDetails details) {
-    _updateSelectionHandlesPan(panTo: details.localPosition);
-    _selectingOnProgress = _SelectionHandle.none;
   }
 
   PdfPageLayout _layoutPages(List<PdfPage> pages, PdfViewerParams params) {
@@ -1733,7 +1618,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _textSelection.clear();
     if (_textSelectFrom != null && _textSelectTo != null) {
       final selectionRect = Rect.fromPoints(_textSelectFrom!, _textSelectTo!);
-      _selectionRect = null;
+      _textSelectA = _textSelectB = null;
       for (int i = 0; i < _document!.pages.length; i++) {
         final pageRect = _layout!.pageLayouts[i];
         if (pageRect.intersect(selectionRect).isEmpty) {
@@ -1744,12 +1629,20 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         if (text == null) continue;
         final selection = _selectPageTextOfRect(selectionRect, pageRect, _document!.pages[i], text);
         if (selection == null) continue;
-        //_selectionRect = _selectionRect?.expandToInclude(selection.boundsRect) ?? selection.boundsRect;
         _textSelection[i + 1] = selection.ranges;
+        final page = _document!.pages[i];
+        if (_textSelectA == null) {
+          final ff = selection.ranges.ranges.first.toTextRangeWithFragments(text);
+          if (ff != null) {
+            _textSelectA = ff.startCharRect.toRectInPageRect(page: page, pageRect: pageRect);
+          }
+        }
+        final lf = selection.ranges.ranges.last.toTextRangeWithFragments(text);
+        if (lf != null) {
+          _textSelectB = lf.endCharRect.toRectInPageRect(page: page, pageRect: pageRect);
+        }
       }
-      _selectionRect = selectionRect;
     } else {
-      _selectionRect = null;
       _textSelection.clear();
     }
     if (invalidate) {
@@ -1874,12 +1767,121 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       _textSelection.clear();
       _textSelection[i + 1] = PdfTextRanges.createEmpty(text)
         ..ranges.appendRange(PdfTextRange(start: f.index, end: f.end));
-      _selectionRect = f.bounds.toRectInPageRect(page: page, pageRect: pageRect);
-      _textSelectFrom = _selectionRect!.topLeft;
-      _textSelectTo = _selectionRect!.bottomRight;
+      final selectionRect = f.bounds.toRectInPageRect(page: page, pageRect: pageRect);
+      _textSelectFrom = selectionRect.topLeft;
+      _textSelectTo = selectionRect.bottomRight;
+      _textSelectA = _textSelectB = selectionRect;
       _textSelectAnchor = Offset(_txController.value.x, _txController.value.y);
     }
     _notifyTextSelectionChange();
+  }
+
+  @override
+  void bringIntoView(ui.TextPosition position) {
+    debugPrint('bringIntoView called');
+  }
+
+  @override
+  void copySelection(SelectionChangedCause cause) {
+    debugPrint('copySelection called');
+  }
+
+  @override
+  void cutSelection(SelectionChangedCause cause) {
+    throw UnsupportedError('cutSelection is not supported in PdfViewer.');
+  }
+
+  @override
+  void hideToolbar([bool hideHandles = true]) {
+    debugPrint('hideToolbar called');
+  }
+
+  @override
+  Future<void> pasteText(SelectionChangedCause cause) =>
+      throw UnsupportedError('pasteText is not supported in PdfViewer.');
+
+  @override
+  void selectAll(SelectionChangedCause cause) {
+    debugPrint('selectAll called');
+  }
+
+  @override
+  // TODO: implement textEditingValue
+  TextEditingValue get textEditingValue => TextEditingValue.empty;
+
+  @override
+  void userUpdateTextEditingValue(TextEditingValue value, SelectionChangedCause cause) =>
+      throw UnsupportedError('userUpdateTextEditingValue is not supported in PdfViewer.');
+
+  static final selectionControls = MaterialTextSelectionControls();
+
+  List<Widget> _placeAdaptiveTextSelectionToolbar(BuildContext context) {
+    final renderBox = _renderBox;
+    if (renderBox == null || _textSelectA == null || _textSelectB == null || _textSelection.isEmpty) {
+      return [];
+    }
+
+    final actualSelectionRect = _textSelectA!.expandToInclude(_textSelectB!);
+    final geom = SelectionGeometry(
+      startSelectionPoint: SelectionPoint(
+        localPosition: _textSelectA!.topLeft,
+        lineHeight: _textSelectA!.height,
+        handleType: TextSelectionHandleType.left,
+      ),
+      endSelectionPoint: SelectionPoint(
+        localPosition: _textSelectB!.bottomRight,
+        lineHeight: _textSelectB!.height,
+        handleType: TextSelectionHandleType.right,
+      ),
+      selectionRects: [actualSelectionRect],
+      status: SelectionStatus.uncollapsed,
+      hasContent: true,
+    );
+
+    final leftHandleAnchor = selectionControls.getHandleAnchor(TextSelectionHandleType.left, _textSelectA!.height);
+    final rightHandleAnchor = selectionControls.getHandleAnchor(TextSelectionHandleType.right, _textSelectB!.height);
+
+    final rect = _documentToRenderBox(
+      Rect.fromPoints(_textSelectA!.bottomLeft - leftHandleAnchor, _textSelectB!.bottomRight + rightHandleAnchor),
+      renderBox,
+    );
+    final selRect = _documentToRenderBox(_textSelectA!.expandToInclude(_textSelectB!), renderBox);
+
+    return [
+      if (rect != null && _textSelectA != null && _selectingOnProgress != _SelectionHandle.free)
+        Positioned(
+          left: rect.left,
+          top: rect.top,
+          child: GestureDetector(
+            child: selectionControls.buildHandle(context, TextSelectionHandleType.left, _textSelectA!.height),
+          ),
+        ),
+      if (rect != null && _textSelectB != null && _selectingOnProgress != _SelectionHandle.free)
+        Positioned(
+          left: rect.right,
+          top: rect.bottom,
+          child: GestureDetector(
+            child: selectionControls.buildHandle(context, TextSelectionHandleType.right, _textSelectB!.height),
+          ),
+        ),
+
+      if (selRect != null && _selectingOnProgress == _SelectionHandle.none)
+        AdaptiveTextSelectionToolbar.selectable(
+          onCopy: () {},
+          onSelectAll: () {},
+          onShare: () {},
+          selectionGeometry: geom,
+          anchors: TextSelectionToolbarAnchors.fromSelection(
+            renderBox: renderBox,
+            startGlyphHeight: _textSelectA!.height,
+            endGlyphHeight: _textSelectB!.height,
+            selectionEndpoints: [
+              TextSelectionPoint(selRect.topLeft, TextDirection.ltr),
+              TextSelectionPoint(selRect.bottomRight, TextDirection.ltr),
+            ],
+          ),
+        ),
+    ];
   }
 }
 
