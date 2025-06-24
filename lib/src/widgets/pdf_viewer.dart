@@ -98,7 +98,7 @@ class PdfViewer extends StatefulWidget {
   /// [controller] is the controller to control the viewer.
   /// [params] is the parameters to customize the viewer.
   /// [initialPageNumber] is the page number to show initially.
-  /// [preferRangeAccess] to prefer range access to download the PDF. The default is false.
+  /// [preferRangeAccess] to prefer range access to download the PDF. The default is false. (Not supported on Web).
   /// [headers] is used to specify additional HTTP headers especially for authentication/authorization.
   /// [withCredentials] is used to specify whether to include credentials in the request (Only supported on Web).
   PdfViewer.uri(
@@ -699,9 +699,11 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       return;
     }
     _minScale =
-        !widget.params.useAlternativeFitScaleAsMinScale || _alternativeFitScale == null
+        !widget.params.useAlternativeFitScaleAsMinScale
             ? widget.params.minScale
-            : _alternativeFitScale!;
+            : _alternativeFitScale == null
+            ? _coverScale!
+            : min(_coverScale!, _alternativeFitScale!);
   }
 
   void _calcZoomStopTable() {

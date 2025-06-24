@@ -49,6 +49,7 @@ dart run ffigen          # Regenerate PDFium FFI bindings
    - If there are breaking changes, increment the minor version (X.Y.Z -> X.Y+1.0)
    - If there are major changes, increment the major version (X.Y.Z -> X+1.0.0)
 2. Update `CHANGELOG.md` with changes
+   - Don't mention CI/CD changes and `CLAUDE.md` related changes (unless they are significant)
 3. Update `README.md` with new version information
    - Changes version in example fragments
    - Consider to add notes for new features or breaking changes
@@ -61,6 +62,10 @@ dart run ffigen          # Regenerate PDFium FFI bindings
 7. Tag the commit with `git tag vX.Y.Z`
 8. Push changes and tags to remote
 9. Do `flutter pub publish` to publish the package
+10. If the changes reference GitHub issues or PRs, add comments on them notifying about the new release
+    - Use `gh issue comment` or `gh pr comment` to notify that the issue/PR has been addressed in the new release
+    - Focus on the release notes and what was fixed/changed rather than upgrade instructions
+    - Include a link to the changelog for the specific version
 
 ## Architecture Overview
 
@@ -123,14 +128,14 @@ flutter test test/pdf_document_test.dart  # Run specific test file
 
 ### Web
 
-- Prebuilt PDFium WASM included in the plugin
-- Pdf.js backend is removed
+- `assets/pdfium.wasm` is prebuilt PDFium WASM binary
+- `assets/pdfium_worker.js` is the worker script that contains Pdfium WASM's shim
+- `assets/pdfium_client.js` is the code that launches the worker and provides the API, which is used by `lib/src/web/pdfrx_wasm.dart`
 
 ### Windows/Linux
 
 - CMake-based build
 - Downloads PDFium binaries during build
-- If PATH contains `/mnt/.../flutter/bin`, remove it before running `flutter` or `dart` commands to avoid conflicts with WSL paths
 
 ## Code Style
 
@@ -138,3 +143,46 @@ flutter test test/pdf_document_test.dart  # Run specific test file
 - 120 character line width
 - Relative imports within lib/
 - Follow flutter_lints with custom rules in analysis_options.yaml
+
+## Dependency Version Policy
+
+This package intentionally does NOT specify version constraints for core Flutter-managed packages (collection, ffi, http, path, rxdart). This design decision allows:
+
+- Flutter SDK to manage these dependencies based on the user's Flutter version
+- Broader compatibility across different Flutter stable versions
+- Avoiding version conflicts for users on older Flutter stable releases
+
+When running `flutter pub publish`, warnings about missing version constraints for these packages can be safely ignored. Only packages that are not managed by Flutter SDK should have explicit version constraints.
+
+## Documentation Guidelines
+
+The following guidelines should be followed when writing documentation including comments, `README.md`, and other markdown files:
+
+- Use proper grammar and spelling
+- Use clear and concise language
+- Use consistent terminology
+- Use proper headings for sections
+- Use code blocks for code snippets
+- Use bullet points for lists
+- Use link to relevant issues/PRs when applicable
+- Use backticks (`` ` ``) for code references and file/directory/path names in documentation
+
+### Commenting Guidelines
+
+- Use reference links for classes, enums, and functions in documentation
+- Use `///` (dartdoc comments) for public API comments (and even for important private APIs)
+
+### Markdown Documentation Guidelines
+
+- Include links to issues/PRs when relevant
+- Use link to [API reference](https://pub.dev/documentation/pdfrx/latest/pdfrx/) for public APIs if possible
+- `README.md` should provide an overview of the project, how to use it, and any important notes
+- `CHANGELOG.md` should follow the [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) principles
+  - Be careful not to include implementation details in the changelog
+  - Focus on user-facing changes, new features, bug fixes, and breaking changes
+  - Use sections for different versions
+  - Use bullet points for changes
+
+## Special Notes
+
+- `CHANGELOG.md` is not an implementation node. So it should be updated only on releasing a new version

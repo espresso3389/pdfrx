@@ -1,6 +1,8 @@
 # pdfrx
 
-[pdfrx](https://pub.dartlang.org/packages/pdfrx) is a rich and fast PDF viewer implementation built on the top of [PDFium](https://pdfium.googlesource.com/pdfium/).
+[![Build Test](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml/badge.svg)](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml)
+
+[pdfrx](https://pub.dartlang.org/packages/pdfrx) is a rich and fast PDF viewer implementation built on top of [PDFium](https://pdfium.googlesource.com/pdfium/).
 The plugin supports Android, iOS, Windows, macOS, Linux, and Web.
 
 ## Interactive Demo
@@ -15,7 +17,7 @@ A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web
 - iOS
 - Windows
 - macOS
-- Linux (even on Raspberry PI)
+- Linux (even on Raspberry Pi)
 - Web (WASM)
 
 ## Example Code
@@ -52,21 +54,25 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^1.2.1
+  pdfrx: ^1.2.8
 ```
 
 ### Note for Windows
 
-**Ensure your Windows installation enables [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development#activate-developer-mode).**
+**REQUIRED: You must enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development#activate-developer-mode) to build pdfrx on Windows.**
 
-The build process internally uses *symbolic links* and it requires Developer Mode to be enabled.
-Without this, you may encounter errors [like this](https://github.com/espresso3389/pdfrx/issues/34).
+The build process uses *symbolic links* which requires Developer Mode to be enabled. If Developer Mode is not enabled:
+- The build will fail with an error message
+- You will see a link to Microsoft's official instructions
+- You must enable Developer Mode and restart your computer before building
+
+Please follow Microsoft's official guide to enable Developer Mode as the exact steps may vary depending on your Windows version.
 
 ## Note for Building Release Builds
 
 *Please note that the section is not applicable to Web.*
 
-Because the plugin contains WASM binaries as it's assets and they increase the size of the app regardless of the platform.
+Because the plugin contains WASM binaries as its assets and they increase the size of the app regardless of the platform.
 This is normally OK for development or debugging but you may want to remove them when building release builds.
 
 To do this, do `dart run pdfrx:remove_wasm_modules` between `flutter pub get` and `flutter build ...` on your app project's root directory:
@@ -175,7 +181,7 @@ PdfDocumentViewBuilder.asset(
 
 ## PdfDocument Management
 
-[PdfDocumentViewBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentViewBuilder-class.html) can accept [PdfDocumentRef](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRef-class.html) from [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) to safely share the same [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) instance. For more information, see [example/viewer/lib/thumbnails_view.dart](example/viewer/lib/thumbnails_view.dart).
+[PdfDocumentViewBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentViewBuilder-class.html) can accept [PdfDocumentRef](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRef-class.html) from [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) to safely share the same [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) instance. For more information, see [`example/viewer/lib/thumbnails_view.dart`](example/viewer/lib/thumbnails_view.dart).
 
 ## Low Level PDF API
 
@@ -186,4 +192,4 @@ PdfDocumentViewBuilder.asset(
 - Easy to use PDF APIs
   - [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html)
 - PDFium bindings
-  - Not encouraged but you can import [package:pdfrx/src/pdfium/pdfium_bindings.dart](https://github.com/espresso3389/pdfrx/blob/master/lib/src/pdfium/pdfium_bindings.dart)
+  - Not encouraged but you can import [`package:pdfrx/src/pdfium/pdfium_bindings.dart`](https://github.com/espresso3389/pdfrx/blob/master/lib/src/pdfium/pdfium_bindings.dart)

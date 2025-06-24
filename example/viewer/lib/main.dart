@@ -12,24 +12,28 @@ import 'password_dialog.dart';
 import 'search_view.dart';
 import 'thumbnails_view.dart';
 
-void main() {
-  runApp(const MyApp());
+void main(List<String> args) {
+  runApp(MyApp(fileOrUri: args.isNotEmpty ? args[0] : null));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({this.fileOrUri, super.key});
+
+  final String? fileOrUri;
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       title: 'Pdfrx example',
-      home: MainPage(),
+      home: MainPage(fileOrUri: fileOrUri),
     );
   }
 }
 
 class MainPage extends StatefulWidget {
-  const MainPage({super.key});
+  const MainPage({this.fileOrUri, super.key});
+
+  final String? fileOrUri;
 
   @override
   State<MainPage> createState() => _MainPageState();
@@ -54,7 +58,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    openDefaultAsset();
+    openInitialFile();
   }
 
   @override
@@ -600,11 +604,26 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     return result ?? false;
   }
 
-  Future<void> openDefaultAsset() async {
-    documentRef.value = PdfDocumentRefAsset('assets/hello.pdf');
+  Future<void> openInitialFile({bool useProgressiveLoading = true}) async {
+    if (widget.fileOrUri != null) {
+      final fileOrUri = widget.fileOrUri!;
+      if (fileOrUri.startsWith('https://') || fileOrUri.startsWith('http://')) {
+        documentRef.value = PdfDocumentRefUri(
+          Uri.parse(fileOrUri),
+          passwordProvider: () => passwordDialog(context),
+          useProgressiveLoading: useProgressiveLoading,
+        );
+        return;
+      } else {
+        documentRef.value = PdfDocumentRefFile(fileOrUri,
+            passwordProvider: () => passwordDialog(context), useProgressiveLoading: useProgressiveLoading);
+        return;
+      }
+    }
+    documentRef.value = PdfDocumentRefAsset('assets/hello.pdf', useProgressiveLoading: useProgressiveLoading);
   }
 
-  Future<void> openFile() async {
+  Future<void> openFile({bool useProgressiveLoading = true}) async {
     final file = await fs.openFile(acceptedTypeGroups: [
       fs.XTypeGroup(
         label: 'PDF files',
@@ -619,13 +638,18 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
         bytes,
         sourceName: file.name,
         passwordProvider: () => passwordDialog(context),
+        useProgressiveLoading: useProgressiveLoading,
       );
     } else {
-      documentRef.value = PdfDocumentRefFile(file.path, passwordProvider: () => passwordDialog(context));
+      documentRef.value = PdfDocumentRefFile(
+        file.path,
+        passwordProvider: () => passwordDialog(context),
+        useProgressiveLoading: useProgressiveLoading,
+      );
     }
   }
 
-  Future<void> openUri() async {
+  Future<void> openUri({bool useProgressiveLoading = true}) async {
     final result = await showDialog<String?>(
       context: context,
       builder: (context) {
@@ -666,6 +690,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     documentRef.value = PdfDocumentRefUri(
       uri,
       passwordProvider: () => passwordDialog(context),
+      useProgressiveLoading: useProgressiveLoading,
     );
   }
 

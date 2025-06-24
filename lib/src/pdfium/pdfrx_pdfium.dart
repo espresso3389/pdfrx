@@ -18,10 +18,9 @@ import 'worker.dart';
 
 PdfDocumentFactory? _pdfiumDocumentFactory;
 
-/// Get [PdfDocumentFactory] backed by Pdfium.
+/// Get [PdfDocumentFactory] backed by PDFium.
 ///
-/// For Flutter Web, you must set up Pdfium WASM module.
-/// For more information, see [Enable Pdfium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-Pdfium-WASM-support).
+/// For Flutter Web, you must set up PDFium WASM module.
 PdfDocumentFactory getPdfiumDocumentFactory() => _pdfiumDocumentFactory ??= PdfDocumentFactoryImpl();
 
 /// Get the module file name for pdfium.
@@ -251,7 +250,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
-    PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
@@ -261,7 +259,6 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     useProgressiveLoading: useProgressiveLoading,
     progressCallback: progressCallback,
-    reportCallback: reportCallback,
     useRangeAccess: preferRangeAccess,
     headers: headers,
   );
@@ -663,7 +660,7 @@ class PdfPagePdfium extends PdfPage {
                 params.fullWidth,
                 params.fullHeight,
                 0,
-                flags |
+                params.flags |
                     (params.annotationRenderingMode != PdfAnnotationRenderingMode.none
                         ? pdfium_bindings.FPDF_ANNOT
                         : 0),
@@ -680,7 +677,7 @@ class PdfPagePdfium extends PdfPage {
                   params.fullWidth,
                   params.fullHeight,
                   0,
-                  flags,
+                  params.flags,
                 );
               }
               return true;
@@ -701,6 +698,7 @@ class PdfPagePdfium extends PdfPage {
             fullHeight: fullHeight!.toInt(),
             backgroundColor: backgroundColor!.toARGB32(),
             annotationRenderingMode: annotationRenderingMode,
+            flags: flags,
             formHandle: document.formHandle.address,
             formInfo: document.formInfo.address,
             cancelFlag: cancelFlag.address,

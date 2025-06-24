@@ -75,7 +75,39 @@ if (NOT EXISTS ${PDFIUM_LIBS_DIR}/include)
 endif()
 
 file(REMOVE ${PDFIUM_LATEST_DIR})
-file(CREATE_LINK ${PDFIUM_LIBS_DIR} ${PDFIUM_LATEST_DIR} SYMBOLIC)
+
+# Check if we can create symbolic links (requires Developer Mode on Windows)
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E create_symlink ${PDFIUM_LIBS_DIR} ${PDFIUM_LATEST_DIR}_test
+    RESULT_VARIABLE SYMLINK_RESULT
+    ERROR_QUIET
+    OUTPUT_QUIET
+)
+
+if(EXISTS ${PDFIUM_LATEST_DIR}_test)
+    file(REMOVE ${PDFIUM_LATEST_DIR}_test)
+endif()
+
+if(SYMLINK_RESULT EQUAL 0)
+    # Developer Mode is enabled, use symbolic link
+    file(CREATE_LINK ${PDFIUM_LIBS_DIR} ${PDFIUM_LATEST_DIR} SYMBOLIC)
+else()
+    # Developer Mode is not enabled, fail the build
+    message(FATAL_ERROR "\n"
+        "========================================================================\n"
+        "  ERROR: Windows Developer Mode is not enabled!\n"
+        "------------------------------------------------------------------------\n"
+        "  The pdfrx build process requires Developer Mode to create symbolic\n"
+        "  links. The build cannot continue without Developer Mode enabled.\n"
+        "\n"
+        "  Please enable Developer Mode by following the instructions at:\n"
+        "  https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development#activate-developer-mode\n"
+        "\n"
+        "  After enabling Developer Mode, restart your computer and run the\n"
+        "  build again.\n"
+        "========================================================================\n"
+    )
+endif()
 
 # List of absolute paths to libraries that should be bundled with the plugin.
 # This list could contain prebuilt libraries, or libraries created by an

@@ -38,6 +38,16 @@ class Pdfrx {
 
   /// To override the default pdfium WASM modules directory URL. It must be terminated by '/'.
   static String? pdfiumWasmModulesUrl;
+
+  /// HTTP headers to use when fetching the PDFium WASM module.
+  /// This is useful for authentication on protected servers.
+  /// Only supported on Flutter Web.
+  static Map<String, String>? pdfiumWasmHeaders;
+
+  /// Whether to include credentials (cookies) when fetching the PDFium WASM module.
+  /// This is useful for authentication on protected servers.
+  /// Only supported on Flutter Web.
+  static bool pdfiumWasmWithCredentials = false;
 }
 
 /// Web runtime type.
@@ -46,7 +56,7 @@ enum PdfrxWebRuntimeType {
   /// Use PDFium (WASM).
   pdfiumWasm,
 
-  /// Pdf.js is no longer supported.
+  /// PDF.js is no longer supported.
   pdfjs,
 }
 
@@ -98,7 +108,6 @@ abstract class PdfDocumentFactory {
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
-    PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
@@ -115,13 +124,13 @@ abstract class PdfDocumentFactory {
   /// For Flutter Web, it uses PDFium (WASM) implementation.
   static PdfDocumentFactory get pdfium => getPdfiumDocumentFactory();
 
-  /// Pdf.js is no longer supported.
+  /// PDF.js is no longer supported.
   /// This function is deprecated and will throw an error if called.
   @Deprecated('PdfDocumentFactory backed by PDF.js is no longer supported.')
   static PdfDocumentFactory get pdfjs => getPdfjsDocumentFactory();
 }
 
-/// Pdf.js is no longer supported.
+/// PDF.js is no longer supported.
 /// This function is deprecated and will throw an error if called.
 @Deprecated('PdfDocumentFactory backed by PDF.js is no longer supported.')
 PdfDocumentFactory getPdfjsDocumentFactory() {
@@ -136,13 +145,6 @@ PdfDocumentFactory getDocumentFactory() => getPdfiumDocumentFactory();
 /// [downloadedBytes] is the number of bytes downloaded so far.
 /// [totalBytes] is the total number of bytes to download. It may be null if the total size is unknown.
 typedef PdfDownloadProgressCallback = void Function(int downloadedBytes, [int? totalBytes]);
-
-/// Callback function to report download status on completion.
-///
-/// [downloaded] is the number of bytes downloaded.
-/// [total] is the total number of bytes downloaded.
-/// [elapsedTime] is the time taken to download the file.
-typedef PdfDownloadReportCallback = void Function(int downloaded, int total, Duration elapsedTime);
 
 /// Function to provide password for encrypted PDF.
 ///
@@ -303,9 +305,8 @@ abstract class PdfDocument {
   /// If [useProgressiveLoading] is true, only the first page is loaded initially and the rest of the pages
   /// are loaded progressively when [PdfDocument.loadPagesProgressively] is called explicitly.
   ///
-  /// [progressCallback] is called when the download progress is updated (Not supported on Web).
-  /// [reportCallback] is called when the download is completed (Not supported on Web).
-  /// [preferRangeAccess] to prefer range access to download the PDF (Not supported on Web).
+  /// [progressCallback] is called when the download progress is updated.
+  /// [preferRangeAccess] to prefer range access to download the PDF. The default is false (Not supported on Web).
   /// [headers] is used to specify additional HTTP headers especially for authentication/authorization.
   /// [withCredentials] is used to specify whether to include credentials in the request (Only supported on Web).
   static Future<PdfDocument> openUri(
@@ -314,7 +315,6 @@ abstract class PdfDocument {
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
-    PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
@@ -324,7 +324,6 @@ abstract class PdfDocument {
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     useProgressiveLoading: useProgressiveLoading,
     progressCallback: progressCallback,
-    reportCallback: reportCallback,
     preferRangeAccess: preferRangeAccess,
     headers: headers,
     withCredentials: withCredentials,
@@ -451,7 +450,7 @@ enum PdfAnnotationRenderingMode { none, annotation, annotationAndForms }
 
 /// Flags for [PdfPage.render].
 ///
-/// Basically, they are Pdfium's `FPDF_RENDER_*` flags and not supported on Pdf.js.
+/// Basically, they are PDFium's `FPDF_RENDER_*` flags and not supported on PDF.js.
 abstract class PdfPageRenderFlags {
   /// None.
   static const none = 0;

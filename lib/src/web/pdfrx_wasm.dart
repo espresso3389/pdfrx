@@ -5,19 +5,50 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart' show Colors, immutable;
 import 'package:flutter/services.dart';
+import 'package:synchronized/extension.dart';
 import 'package:web/web.dart' as web;
 
 import '../pdf_api.dart';
 
-/// Get [PdfDocumentFactory] backed by Pdfium.
+/// Get [PdfDocumentFactory] backed by PDFium.
 ///
-/// For Flutter Web, you must set up Pdfium WASM module.
-/// For more information, see [Enable Pdfium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-Pdfium-WASM-support).
+/// For Flutter Web, you must set up PDFium WASM module.
+/// For more information, see [Enable PDFium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-PDFium-WASM-support).
 PdfDocumentFactory getPdfiumDocumentFactory() => PdfDocumentFactoryWasmImpl.singleton;
 
-/// Calls PDFium WASM worker with the given command and parameters.
-@JS()
-external JSPromise<JSAny?> pdfiumWasmSendCommand([String command, JSAny? parameters, JSArray<JSAny>? transfer]);
+/// The PDFium WASM communicator object
+@JS('PdfiumWasmCommunicator')
+extension type PdfiumWasmCommunicator(JSObject _) implements JSObject {
+  /// Sends a command to the worker and returns a promise
+  @JS('sendCommand')
+  external JSPromise<JSAny?> sendCommand([String command, JSAny? parameters, JSArray<JSAny>? transfer]);
+
+  /// Registers a callback function and returns its ID
+  @JS('registerCallback')
+  external int _registerCallback(JSFunction callback);
+
+  /// Unregisters a callback by its ID
+  @JS('unregisterCallback')
+  external void _unregisterCallback(int callbackId);
+}
+
+/// Get the global PdfiumWasmCommunicator instance
+@JS('PdfiumWasmCommunicator')
+external PdfiumWasmCommunicator get pdfiumWasmCommunicator;
+
+/// A handle to a registered callback that can be unregistered
+class PdfiumWasmCallback {
+  PdfiumWasmCallback.register(JSFunction callback)
+    : id = pdfiumWasmCommunicator._registerCallback(callback),
+      _communicator = pdfiumWasmCommunicator;
+
+  final int id;
+  final PdfiumWasmCommunicator _communicator;
+
+  void unregister() {
+    _communicator._unregisterCallback(id);
+  }
+}
 
 /// The URL of the PDFium WASM worker script; pdfium_client.js tries to load worker script from this URL.'
 ///
@@ -36,38 +67,45 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
   /// Normally, the WASM modules are provided by pdfrx_wasm package and this is the path to its assets.
   static const defaultWasmModulePath = 'assets/packages/pdfrx/assets/';
 
+  bool _initialized = false;
+
   Future<void> _init() async {
-    _globalInit();
-    pdfiumWasmWorkerUrl = _getWorkerUrl();
-    Pdfrx.pdfiumWasmModulesUrl ??= _pdfiumWasmModulesUrlFromMetaTag();
-    final moduleUrl = _resolveUrl(Pdfrx.pdfiumWasmModulesUrl ?? defaultWasmModulePath);
-    final script =
-        web.document.createElement('script') as web.HTMLScriptElement
-          ..type = 'text/javascript'
-          ..charset = 'utf-8'
-          ..async = true
-          ..type = 'module'
-          ..src = _resolveUrl('pdfium_client.js', baseUrl: moduleUrl);
-    web.document.querySelector('head')!.appendChild(script);
-    final completer = Completer();
-    final sub1 = script.onLoad.listen((_) => completer.complete());
-    final sub2 = script.onError.listen((event) => completer.completeError(event));
-    try {
-      await completer.future;
-    } catch (e) {
-      throw StateError('Failed to load pdfium_client.js from $moduleUrl: $e');
-    } finally {
-      await sub1.cancel();
-      await sub2.cancel();
-    }
-  }
+    if (_initialized) return;
+    await synchronized(() async {
+      if (_initialized) return;
+      Pdfrx.pdfiumWasmModulesUrl ??= _pdfiumWasmModulesUrlFromMetaTag();
+      pdfiumWasmWorkerUrl = _getWorkerUrl();
+      final moduleUrl = _resolveUrl(Pdfrx.pdfiumWasmModulesUrl ?? defaultWasmModulePath);
+      final script =
+          web.document.createElement('script') as web.HTMLScriptElement
+            ..type = 'text/javascript'
+            ..charset = 'utf-8'
+            ..async = true
+            ..type = 'module'
+            ..src = _resolveUrl('pdfium_client.js', baseUrl: moduleUrl);
+      web.document.querySelector('head')!.appendChild(script);
+      final completer = Completer();
+      final sub1 = script.onLoad.listen((_) => completer.complete());
+      final sub2 = script.onError.listen((event) => completer.completeError(event));
+      try {
+        await completer.future;
+      } catch (e) {
+        throw StateError('Failed to load pdfium_client.js from $moduleUrl: $e');
+      } finally {
+        await sub1.cancel();
+        await sub2.cancel();
+      }
 
-  static bool _globalInitialized = false;
-
-  static void _globalInit() {
-    if (_globalInitialized) return;
-    Pdfrx.pdfiumWasmModulesUrl ??= _pdfiumWasmModulesUrlFromMetaTag();
-    _globalInitialized = true;
+      // Send init command to worker with authentication options
+      await sendCommand(
+        'init',
+        parameters: {
+          if (Pdfrx.pdfiumWasmHeaders != null) 'headers': Pdfrx.pdfiumWasmHeaders,
+          'withCredentials': Pdfrx.pdfiumWasmWithCredentials,
+        },
+      );
+      _initialized = true;
+    });
   }
 
   static String? _pdfiumWasmModulesUrlFromMetaTag() {
@@ -95,7 +133,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
   }
 
   Future<Map<Object?, dynamic>> sendCommand(String command, {Map<Object?, dynamic>? parameters}) async {
-    final result = await pdfiumWasmSendCommand(command, parameters?.jsify()).toDart;
+    final result = await pdfiumWasmCommunicator.sendCommand(command, parameters?.jsify()).toDart;
     return (result.dartify()) as Map<Object?, dynamic>;
   }
 
@@ -178,21 +216,45 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
     PdfDownloadProgressCallback? progressCallback,
-    PdfDownloadReportCallback? reportCallback,
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
-  }) => _openByFunc(
-    (password) => sendCommand(
-      'loadDocumentFromUrl',
-      parameters: {'url': uri.toString(), 'password': password, 'useProgressiveLoading': useProgressiveLoading},
-    ),
-    sourceName: uri.toString(),
-    factory: this,
-    passwordProvider: passwordProvider,
-    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-    onDispose: null,
-  );
+  }) async {
+    PdfiumWasmCallback? progressCallbackReg;
+    void cleanupCallbacks() => progressCallbackReg?.unregister();
+
+    try {
+      if (progressCallback != null) {
+        await _init();
+        progressCallbackReg = PdfiumWasmCallback.register(
+          ((int bytesReceived, int bytesTotal) => progressCallback(bytesReceived, bytesTotal)).toJS,
+        );
+      }
+
+      return _openByFunc(
+        (password) => sendCommand(
+          'loadDocumentFromUrl',
+          parameters: {
+            'url': uri.toString(),
+            'password': password,
+            'useProgressiveLoading': useProgressiveLoading,
+            if (progressCallbackReg != null) 'progressCallbackId': progressCallbackReg.id,
+            'preferRangeAccess': preferRangeAccess,
+            if (headers != null) 'headers': headers,
+            'withCredentials': withCredentials,
+          },
+        ),
+        sourceName: uri.toString(),
+        factory: this,
+        passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+        onDispose: cleanupCallbacks,
+      );
+    } catch (e) {
+      cleanupCallbacks();
+      rethrow;
+    }
+  }
 
   Future<PdfDocument> _openByFunc(
     Future<Map<Object?, dynamic>> Function(String? password) openDocument, {
@@ -202,6 +264,8 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     required bool firstAttemptByEmptyPassword,
     required void Function()? onDispose,
   }) async {
+    await _init();
+
     for (int i = 0; ; i++) {
       final String? password;
       if (firstAttemptByEmptyPassword && i == 0) {
@@ -212,8 +276,6 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
           throw const PdfPasswordException('No password supplied by PasswordProvider.');
         }
       }
-
-      await _init();
 
       final result = await openDocument(password);
 

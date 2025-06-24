@@ -1,10 +1,10 @@
 name: Build Test
 
 on:
-  # push:
-  #   branches: [ master, main ]
-  # pull_request:
-  #   branches: [ master, main ]
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
   workflow_dispatch:
     inputs:
       build_android:
@@ -37,11 +37,11 @@ on:
         required: false
         type: boolean
         default: true
-      build_windows_arm64:
-        description: 'Build Windows ARM64'
-        required: false
-        type: boolean
-        default: true
+      # build_windows_arm64:
+      #   description: 'Build Windows ARM64'
+      #   required: false
+      #   type: boolean
+      #   default: true
       build_web:
         description: 'Build Web'
         required: false
@@ -76,7 +76,7 @@ jobs:
       
       - name: Build App Bundle
         working-directory: example/viewer
-        run: flutter build appbundle --debug
+        run: flutter build apk --debug --verbose
 
   # iOS build
   ios:
@@ -99,7 +99,7 @@ jobs:
       
       - name: Build iOS (no signing)
         working-directory: example/viewer
-        run: flutter build ios --debug --no-codesign
+        run: flutter build ios --debug --no-codesign --verbose
 
   # macOS build
   macos:
@@ -122,7 +122,7 @@ jobs:
       
       - name: Build macOS
         working-directory: example/viewer
-        run: flutter build macos --debug
+        run: flutter build macos --debug --verbose
 
   # Linux build
   linux:
@@ -150,7 +150,7 @@ jobs:
       
       - name: Build Linux
         working-directory: example/viewer
-        run: flutter build linux --debug
+        run: flutter build linux --debug --verbose
 
   # Linux ARM64 build
   linux-arm64:
@@ -178,7 +178,7 @@ jobs:
       
       - name: Build Linux
         working-directory: example/viewer
-        run: flutter build linux --debug
+        run: flutter build linux --debug --verbose
 
   # Windows build
   windows:
@@ -202,32 +202,32 @@ jobs:
       
       - name: Build Windows
         working-directory: example/viewer
-        run: C:\flutter\bin\flutter.bat build windows --debug
+        run: C:\flutter\bin\flutter.bat build windows --debug --verbose
 
   # Windows ARM64 build (requires ARM64 runner or cross-compilation)
-  windows-arm64:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_windows_arm64 }}
-    runs-on: windows-11-arm
-    continue-on-error: true  # ARM64 build might fail on x64 runners
-    steps:
-      - uses: actions/checkout@v4
+  # windows-arm64:
+  #   if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_windows_arm64 }}
+  #   runs-on: windows-11-arm
+  #   continue-on-error: true  # ARM64 build might fail on x64 runners
+  #   steps:
+  #     - uses: actions/checkout@v4
       
-      - name: Setup Flutter
-        shell: pwsh
-        run: |
-          git clone https://github.com/flutter/flutter.git --depth 1 --branch stable C:\flutter
-          echo "C:\flutter\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          C:\flutter\bin\flutter.bat config --no-enable-android
-          C:\flutter\bin\flutter.bat channel stable
-          C:\flutter\bin\flutter.bat doctor -v
+  #     - name: Setup Flutter
+  #       shell: pwsh
+  #       run: |
+  #         git clone https://github.com/flutter/flutter.git --depth 1 --branch stable C:\flutter
+  #         echo "C:\flutter\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+  #         C:\flutter\bin\flutter.bat config --no-enable-android
+  #         C:\flutter\bin\flutter.bat channel stable
+  #         C:\flutter\bin\flutter.bat doctor -v
       
-      - name: Install dependencies
-        working-directory: example/viewer
-        run: C:\flutter\bin\flutter.bat pub get
+  #     - name: Install dependencies
+  #       working-directory: example/viewer
+  #       run: C:\flutter\bin\flutter.bat pub get
       
-      - name: Build Windows ARM64
-        working-directory: example/viewer
-        run: C:\flutter\bin\flutter.bat build windows --debug
+  #     - name: Build Windows ARM64
+  #       working-directory: example/viewer
+  #       run: C:\flutter\bin\flutter.bat build windows --debug --verbose
 
   # Web build
   web:
@@ -250,8 +250,8 @@ jobs:
       
       - name: Build Web
         working-directory: example/viewer
-        run: flutter build web
+        run: flutter build web --verbose
       
       - name: Build Web (WASM)
         working-directory: example/viewer
-        run: flutter build web --wasm
+        run: flutter build web --wasm --verbose
