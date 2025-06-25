@@ -410,6 +410,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
           builder: (context, snapshot) {
             return LayoutBuilder(
               builder: (context, constraints) {
+                final isTextSelectionEnabled =
+                    widget.params.enableTextSelection && _document!.permissions?.allowsCopying != false;
+
                 _updateLayout(Size(constraints.maxWidth, constraints.maxHeight));
                 return Stack(
                   children: [
@@ -458,8 +461,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                     if (widget.params.viewerOverlayBuilder != null)
                       ...widget.params.viewerOverlayBuilder!(context, _viewSize!, _canvasLinkPainter._handleLinkTap)
                           .map((e) => SelectionContainer.disabled(child: e)),
-
-                    ..._placeAdaptiveTextSelectionToolbar(context),
+                    ..._placeAdaptiveTextSelectionToolbar(context, isTextSelectionEnabled),
                   ],
                 );
               },
@@ -768,7 +770,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     final linkWidgets = <Widget>[];
     final overlayWidgets = <Widget>[];
     final targetRect = _getCacheExtentRect();
-    final isTextSelectionEnabled = widget.params.enableTextSelection && _document!.permissions?.allowsCopying != false;
 
     for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
@@ -1773,52 +1774,20 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _notifyTextSelectionChange();
   }
 
-  @override
-  void bringIntoView(ui.TextPosition position) {
-    debugPrint('bringIntoView called');
-  }
-
-  @override
-  void copySelection(SelectionChangedCause cause) {
-    debugPrint('copySelection called');
-  }
-
-  @override
-  void cutSelection(SelectionChangedCause cause) {
-    throw UnsupportedError('cutSelection is not supported in PdfViewer.');
-  }
-
-  @override
-  void hideToolbar([bool hideHandles = true]) {
-    debugPrint('hideToolbar called');
-  }
-
-  @override
-  Future<void> pasteText(SelectionChangedCause cause) =>
-      throw UnsupportedError('pasteText is not supported in PdfViewer.');
-
-  @override
-  void selectAll(SelectionChangedCause cause) {
-    debugPrint('selectAll called');
-  }
-
-  @override
-  // TODO: implement textEditingValue
-  TextEditingValue get textEditingValue => TextEditingValue.empty;
-
-  @override
-  void userUpdateTextEditingValue(TextEditingValue value, SelectionChangedCause cause) =>
-      throw UnsupportedError('userUpdateTextEditingValue is not supported in PdfViewer.');
-
   static final selectionControls = MaterialTextSelectionControls();
 
-  List<Widget> _placeAdaptiveTextSelectionToolbar(BuildContext context) {
+  List<Widget> _placeAdaptiveTextSelectionToolbar(BuildContext context, bool isTextSelectionEnabled) {
     final renderBox = _renderBox;
     if (renderBox == null || _textSelectA == null || _textSelectB == null || _textSelection.isEmpty) {
       return [];
     }
 
     final actualSelectionRect = _textSelectA!.expandToInclude(_textSelectB!);
+    final selRect = _documentToRenderBox(actualSelectionRect, renderBox);
+    if (selRect == null) {
+      return [];
+    }
+
     final geom = SelectionGeometry(
       startSelectionPoint: SelectionPoint(
         localPosition: _textSelectA!.topLeft,
@@ -1830,43 +1799,50 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         lineHeight: _textSelectB!.height,
         handleType: TextSelectionHandleType.right,
       ),
-      selectionRects: [actualSelectionRect],
+      selectionRects: [selRect],
       status: SelectionStatus.uncollapsed,
       hasContent: true,
     );
 
     final leftHandleAnchor = selectionControls.getHandleAnchor(TextSelectionHandleType.left, _textSelectA!.height);
     final rightHandleAnchor = selectionControls.getHandleAnchor(TextSelectionHandleType.right, _textSelectB!.height);
-
-    final rect = _documentToRenderBox(
+    final anchorRect = _documentToRenderBox(
       Rect.fromPoints(_textSelectA!.bottomLeft - leftHandleAnchor, _textSelectB!.bottomRight + rightHandleAnchor),
       renderBox,
     );
-    final selRect = _documentToRenderBox(_textSelectA!.expandToInclude(_textSelectB!), renderBox);
 
     return [
-      if (rect != null && _textSelectA != null && _selectingOnProgress != _SelectionHandle.free)
+      if (anchorRect != null && _textSelectA != null && _selectingOnProgress != _SelectionHandle.free)
         Positioned(
-          left: rect.left,
-          top: rect.top,
+          left: anchorRect.left,
+          top: anchorRect.top,
           child: GestureDetector(
             child: selectionControls.buildHandle(context, TextSelectionHandleType.left, _textSelectA!.height),
           ),
         ),
-      if (rect != null && _textSelectB != null && _selectingOnProgress != _SelectionHandle.free)
+      if (anchorRect != null && _textSelectB != null && _selectingOnProgress != _SelectionHandle.free)
         Positioned(
-          left: rect.right,
-          top: rect.bottom,
+          left: anchorRect.right,
+          top: anchorRect.bottom,
           child: GestureDetector(
             child: selectionControls.buildHandle(context, TextSelectionHandleType.right, _textSelectB!.height),
           ),
         ),
 
-      if (selRect != null && _selectingOnProgress == _SelectionHandle.none)
+      if (isTextSelectionEnabled && _selectingOnProgress == _SelectionHandle.none)
         AdaptiveTextSelectionToolbar.selectable(
-          onCopy: () {},
-          onSelectAll: () {},
-          onShare: () {},
+          onCopy: () {
+            debugPrint('onCopy called');
+            _clearAllTextSelections();
+          },
+          onSelectAll: () {
+            debugPrint('onSelectAll called');
+            _clearAllTextSelections();
+          },
+          onShare: () {
+            debugPrint('onShare called');
+            _clearAllTextSelections();
+          },
           selectionGeometry: geom,
           anchors: TextSelectionToolbarAnchors.fromSelection(
             renderBox: renderBox,
