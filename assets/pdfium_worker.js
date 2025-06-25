@@ -1330,6 +1330,11 @@ console.log(`PDFium worker initialized: ${self.location.href}`);
  */
 async function initializePdfium(params = {}) {
   try {
+    if (pdfiumInitialized) {
+      // Hot-restart or such may call this multiple times, so we can skip re-initialization
+      return;
+    }
+    
     console.log(`Loading PDFium WASM module from ${pdfiumWasmUrl}`);
 
     const fetchOptions = {
