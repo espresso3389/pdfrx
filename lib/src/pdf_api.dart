@@ -633,7 +633,9 @@ abstract class PdfPageTextFragment {
   /// Get the bounds of the subrange of the text fragment.
   ///
   /// If the specified range is out of bounds, it returns null.
-  PdfRect? getBoundsForRange(int start, int end, {double? widthForEmpty}) {
+  PdfRect? getBoundsForRange({int? start, int? end, double? widthForEmpty}) {
+    start ??= 0;
+    end ??= length;
     if (start < 0 || start >= length) {
       throw RangeError.range(start, 0, length, 'start', 'Invalid start index');
     }
@@ -840,7 +842,7 @@ class PdfTextRangeWithFragments {
       if (f.end <= start || end <= f.index) continue;
       final s = max(start - f.index, 0);
       final e = min(end - f.index, f.length);
-      yield f.getBoundsForRange(s, e, widthForEmpty: widthForEmpty)!;
+      yield f.getBoundsForRange(start: s, end: e, widthForEmpty: widthForEmpty)!;
     }
   }
 

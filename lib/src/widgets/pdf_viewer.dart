@@ -1806,25 +1806,33 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
     final leftHandleAnchor = selectionControls.getHandleAnchor(TextSelectionHandleType.left, _textSelectA!.height);
     final rightHandleAnchor = selectionControls.getHandleAnchor(TextSelectionHandleType.right, _textSelectB!.height);
-    final anchorRect = _documentToRenderBox(
-      Rect.fromPoints(_textSelectA!.bottomLeft - leftHandleAnchor, _textSelectB!.bottomRight + rightHandleAnchor),
-      renderBox,
+    final anchorRect = Rect.fromLTRB(
+      selRect.left - leftHandleAnchor.dx,
+      selRect.top + _textSelectA!.height - leftHandleAnchor.dy,
+      selRect.right + rightHandleAnchor.dx,
+      selRect.bottom + rightHandleAnchor.dy,
     );
 
     return [
-      if (anchorRect != null && _textSelectA != null && _selectingOnProgress != _SelectionHandle.free)
+      if (_textSelectA != null && _selectingOnProgress != _SelectionHandle.free)
         Positioned(
           left: anchorRect.left,
           top: anchorRect.top,
           child: GestureDetector(
+            onPanStart: (details) => _onSelectionHandlePanStart(_SelectionHandle.topLeft, details),
+            onPanUpdate: (details) => _onSelectionHandlePanUpdate(_SelectionHandle.topLeft, details),
+            onPanEnd: (details) => _onSelectionHandlePanEnd(_SelectionHandle.topLeft, details),
             child: selectionControls.buildHandle(context, TextSelectionHandleType.left, _textSelectA!.height),
           ),
         ),
-      if (anchorRect != null && _textSelectB != null && _selectingOnProgress != _SelectionHandle.free)
+      if (_textSelectB != null && _selectingOnProgress != _SelectionHandle.free)
         Positioned(
           left: anchorRect.right,
           top: anchorRect.bottom,
           child: GestureDetector(
+            onPanStart: (details) => _onSelectionHandlePanStart(_SelectionHandle.bottomRight, details),
+            onPanUpdate: (details) => _onSelectionHandlePanUpdate(_SelectionHandle.bottomRight, details),
+            onPanEnd: (details) => _onSelectionHandlePanEnd(_SelectionHandle.bottomRight, details),
             child: selectionControls.buildHandle(context, TextSelectionHandleType.right, _textSelectB!.height),
           ),
         ),
@@ -1855,6 +1863,47 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
           ),
         ),
     ];
+  }
+
+  void _onSelectionHandlePanStart(_SelectionHandle handle, DragStartDetails details) {
+    if (_isInteractionGoingOn) return;
+    _selectingOnProgress = handle;
+    final position = _globalToDocument(details.globalPosition);
+    final anchor = Offset(_txController.value.x, _txController.value.y);
+    if (_selectingOnProgress == _SelectionHandle.topLeft) {
+      _textSelectAnchor = anchor + _textSelectA!.topLeft - position!;
+      _textSelectFrom = _textSelectA!.topLeft;
+    } else if (_selectingOnProgress == _SelectionHandle.bottomRight) {
+      _textSelectAnchor = anchor + _textSelectB!.bottomRight - position!;
+      _textSelectTo = _textSelectB!.bottomRight;
+    } else {
+      return;
+    }
+    _updateTextSelection();
+  }
+
+  void _updateSelectionHandlesPan({Offset? panTo}) {
+    if (_selectingOnProgress == _SelectionHandle.topLeft) {
+      _textSelectFrom =
+          (panTo ?? _textSelectFrom!) + _textSelectAnchor! - Offset(_txController.value.x, _txController.value.y);
+    } else if (_selectingOnProgress == _SelectionHandle.bottomRight) {
+      _textSelectTo =
+          (panTo ?? _textSelectTo!) + _textSelectAnchor! - Offset(_txController.value.x, _txController.value.y);
+    } else {
+      return;
+    }
+    _updateTextSelection();
+  }
+
+  void _onSelectionHandlePanUpdate(_SelectionHandle handle, DragUpdateDetails details) {
+    if (_isInteractionGoingOn) return;
+    _updateSelectionHandlesPan(panTo: _globalToDocument(details.globalPosition));
+  }
+
+  void _onSelectionHandlePanEnd(_SelectionHandle handle, DragEndDetails details) {
+    if (_isInteractionGoingOn) return;
+    _updateSelectionHandlesPan(panTo: _globalToDocument(details.globalPosition));
+    _selectingOnProgress = _SelectionHandle.none;
   }
 }
 
