@@ -920,8 +920,8 @@ class PdfImagePdfium extends PdfImage {
 }
 
 @immutable
-class PdfPageTextFragmentPdfium implements PdfPageTextFragment {
-  const PdfPageTextFragmentPdfium(this.pageText, this.index, this.length, this.bounds, this.charRects);
+class PdfPageTextFragmentPdfium extends PdfPageTextFragment {
+  PdfPageTextFragmentPdfium(this.pageText, this.index, this.length, this.bounds, this.charRects);
 
   final PdfPageText pageText;
 

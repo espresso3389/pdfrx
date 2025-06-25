@@ -961,12 +961,14 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
           for (final range in selectionInPage.ranges) {
             final f = range.toTextRangeWithFragments(text);
             if (f != null) {
-              canvas.drawRect(
-                f.bounds.toRectInPageRect(page: page, pageRect: rect),
-                Paint()
-                  ..color = selectionColor
-                  ..style = PaintingStyle.fill,
-              );
+              for (final r in f.enumerateRectsForRange()) {
+                canvas.drawRect(
+                  r.toRectInPageRect(page: page, pageRect: rect),
+                  Paint()
+                    ..color = selectionColor
+                    ..style = PaintingStyle.fill,
+                );
+              }
             }
           }
         }
@@ -1627,17 +1629,17 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
         final text = _getCachedTextOrDelayLoadText(i + 1, onTextLoaded: _updateTextSelection);
         if (text == null) continue;
-        final selection = _selectPageTextOfRect(selectionRect, pageRect, _document!.pages[i], text);
-        if (selection == null) continue;
-        _textSelection[i + 1] = selection.ranges;
+        final selectionRanges = _selectPageTextOfRect(selectionRect, pageRect, _document!.pages[i], text);
+        if (selectionRanges == null) continue;
+        _textSelection[i + 1] = selectionRanges;
         final page = _document!.pages[i];
         if (_textSelectA == null) {
-          final ff = selection.ranges.ranges.first.toTextRangeWithFragments(text);
+          final ff = selectionRanges.ranges.first.toTextRangeWithFragments(text);
           if (ff != null) {
             _textSelectA = ff.startCharRect.toRectInPageRect(page: page, pageRect: pageRect);
           }
         }
-        final lf = selection.ranges.ranges.last.toTextRangeWithFragments(text);
+        final lf = selectionRanges.ranges.last.toTextRangeWithFragments(text);
         if (lf != null) {
           _textSelectB = lf.endCharRect.toRectInPageRect(page: page, pageRect: pageRect);
         }
@@ -1655,12 +1657,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _invalidate();
   }
 
-  ({PdfTextRanges ranges, Rect boundsRect})? _selectPageTextOfRect(
-    Rect selectionRect,
-    Rect pageRect,
-    PdfPage page,
-    PdfPageText pageText,
-  ) {
+  PdfTextRanges? _selectPageTextOfRect(Rect selectionRect, Rect pageRect, PdfPage page, PdfPageText pageText) {
     final fragments = pageText.fragments;
     final selectionRects = <Rect>[];
     final sb = StringBuffer();
@@ -1744,10 +1741,11 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       return null;
     }
 
-    return (ranges: selectedRanges, boundsRect: selectionRects.reduce((a, b) => a.expandToInclude(b)));
+    return selectedRanges;
   }
 
   Future<void> _selectWord(Offset offset) async {
+    _textSelection.clear();
     for (int i = 0; i < _document!.pages.length; i++) {
       final pageRect = _layout!.pageLayouts[i];
       if (!pageRect.contains(offset)) {
@@ -1761,10 +1759,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
           .toPdfPoint(page: page, scaledPageSize: pageRect.size);
       final f = text.fragments.firstWhereOrNull((f) => f.bounds.containsPoint(point));
       if (f == null) {
-        _clearAllTextSelections();
-        return;
+        continue;
       }
-      _textSelection.clear();
       _textSelection[i + 1] = PdfTextRanges.createEmpty(text)
         ..ranges.appendRange(PdfTextRange(start: f.index, end: f.end));
       final selectionRect = f.bounds.toRectInPageRect(page: page, pageRect: pageRect);
@@ -1772,6 +1768,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       _textSelectTo = selectionRect.bottomRight;
       _textSelectA = _textSelectB = selectionRect;
       _textSelectAnchor = Offset(_txController.value.x, _txController.value.y);
+      break;
     }
     _notifyTextSelectionChange();
   }

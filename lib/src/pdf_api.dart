@@ -1,5 +1,6 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:async';
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:collection/collection.dart';
@@ -557,8 +558,13 @@ abstract class PdfPageText {
 
   /// Find text fragment index for the specified text index.
   ///
-  /// If the specified text index is out of range, it returns -1.
+  /// If the specified text index is out of range, it returns -1;
+  /// only the exception is [textIndex] is equal to [fullText.length],
+  /// which means the end of the text and it returns [fragments.length].
   int getFragmentIndexForTextIndex(int textIndex) {
+    if (textIndex == fullText.length) {
+      return fragments.length; // the end of the text
+    }
     final index = fragments.lowerBound(_PdfPageTextFragmentForSearch(textIndex), (a, b) => a.index - b.index);
     if (index > fragments.length) {
       return -1; // range error
@@ -623,6 +629,31 @@ abstract class PdfPageTextFragment {
 
   /// Text for the fragment.
   String get text;
+
+  /// Get the bounds of the subrange of the text fragment.
+  ///
+  /// If the specified range is out of bounds, it returns null.
+  PdfRect? getBoundsForRange(int start, int end, {double? widthForEmpty}) {
+    if (start < 0 || start >= length) {
+      throw RangeError.range(start, 0, length, 'start', 'Invalid start index');
+    }
+    if (end < start || end > length) {
+      throw RangeError.range(end, start, length, 'end', 'Invalid end index');
+    }
+    if (start == end) {
+      if (widthForEmpty == null) return null; // empty range
+      final cur = charRects![start];
+      final next = charRects![start + 1];
+      final w = next.left - cur.right;
+      final h = next.bottom - cur.top; // the Y-coord is bottom-up
+      if (w > h) {
+        return PdfRect(cur.left, cur.top, cur.left + widthForEmpty, cur.bottom);
+      } else {
+        return PdfRect(cur.left, cur.top, cur.right, cur.top - widthForEmpty);
+      }
+    }
+    return charRects!.skip(start).take(end - start).boundingRect();
+  }
 
   @override
   bool operator ==(covariant PdfPageTextFragment other) {
@@ -802,6 +833,17 @@ class PdfTextRangeWithFragments {
     return lastFragment.charRects![end - 1];
   }
 
+  Iterable<PdfRect> enumerateRectsForRange({int? start, int? end, double? widthForEmpty}) sync* {
+    start ??= fragments.first.index + this.start;
+    end ??= fragments.last.index + this.end;
+    for (final f in fragments) {
+      if (f.end <= start || end <= f.index) continue;
+      final s = max(start - f.index, 0);
+      final e = min(end - f.index, f.length);
+      yield f.getBoundsForRange(s, e, widthForEmpty: widthForEmpty)!;
+    }
+  }
+
   /// Create [PdfTextRangeWithFragments] from text range in [PdfPageText].
   ///
   /// When you implement search-to-highlight feature, the most easiest way is to use [PdfTextSearcher] but you can
@@ -859,6 +901,16 @@ class PdfTextRangeWithFragments {
     for (int i = s + 1; i < l; i++) {
       bounds = bounds.merge(pageText.fragments[i].bounds);
     }
+    if (l == pageText.fragments.length) {
+      return PdfTextRangeWithFragments(
+        pageText.pageNumber,
+        pageText.fragments.sublist(s),
+        start - sf.index,
+        pageText.fragments.last.length,
+        bounds,
+      );
+    }
+
     final lf = pageText.fragments[l];
     final containLastFragment = end > lf.index;
     if (containLastFragment) {
