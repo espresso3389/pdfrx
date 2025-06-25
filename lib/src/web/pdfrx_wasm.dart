@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:js_interop';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/material.dart' show Colors, immutable;
 import 'package:flutter/services.dart';
@@ -126,10 +127,15 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     return web.URL.createObjectURL(blob);
   }
 
-  /// Resolves the given [relativeUrl] against the [baseUrl].
-  /// If [baseUrl] is null, it uses the current page URL.
+  /// Resolves the given [relativeUrl] against a base URL to produce an absolute URL.
+  ///
+  /// The base URL is determined in the following order of preference:
+  /// 1. The explicitly provided [baseUrl] parameter.
+  /// 2. The `<base href>` tag of the current HTML document (obtained via `ui_web.BrowserPlatformLocation().getBaseHref()`).
+  /// 3. The current browser window's URL (`web.window.location.href`).
   static String _resolveUrl(String relativeUrl, {String? baseUrl}) {
-    return Uri.parse(baseUrl ?? web.window.location.href).resolveUri(Uri.parse(relativeUrl)).toString();
+    final baseHref = ui_web.BrowserPlatformLocation().getBaseHref();
+    return Uri.parse(baseUrl ?? baseHref ?? web.window.location.href).resolveUri(Uri.parse(relativeUrl)).toString();
   }
 
   Future<Map<Object?, dynamic>> sendCommand(String command, {Map<Object?, dynamic>? parameters}) async {

@@ -1,3 +1,8 @@
+# 1.2.9
+
+- FIXED: Use document base href for resolving URLs in PDFium WASM ([#402](https://github.com/espresso3389/pdfrx/pull/402))
+- FIXED: PDFium WASM hot-restarting may call initializePdfium multiple times
+
 # 1.2.8
 
 - FIXED: Ensure PDFium WASM is initialized before registering callbacks ([#399](https://github.com/espresso3389/pdfrx/issues/399))
