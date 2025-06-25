@@ -1840,7 +1840,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       if (isTextSelectionEnabled && _selectingOnProgress == _SelectionHandle.none)
         AdaptiveTextSelectionToolbar.selectable(
           onCopy: () {
-            debugPrint('onCopy called');
+            _copyTextSelection();
             _clearAllTextSelections();
           },
           onSelectAll: () {
@@ -1863,6 +1863,11 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
           ),
         ),
     ];
+  }
+
+  void _copyTextSelection() {
+    final fullText = _textSelection.values.map((p) => p.text).join();
+    setClipboardData(fullText);
   }
 
   void _onSelectionHandlePanStart(_SelectionHandle handle, DragStartDetails details) {
