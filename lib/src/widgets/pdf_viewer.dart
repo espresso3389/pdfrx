@@ -1,10 +1,12 @@
 // ignore_for_file: public_member_api_docs
 import 'dart:async';
 import 'dart:collection';
+import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:collection/collection.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -195,7 +197,7 @@ class PdfViewer extends StatefulWidget {
   State<PdfViewer> createState() => _PdfViewerState();
 }
 
-class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMixin {
+class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMixin implements PdfTextSelectionDelegate {
   PdfViewerController? _controller;
   late final TransformationController _txController = _PdfViewerTransformationController(this);
   late final AnimationController _animController;
@@ -299,7 +301,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _releaseAllImages();
     _canvasLinkPainter.resetAll();
     _textCache.clear();
-    _clearAllTextSelections(invalidate: false);
+    _clearTextSelections(invalidate: false);
     _pageNumber = null;
     _gotoTargetPageNumber = null;
     _initialized = false;
@@ -410,8 +412,14 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
           builder: (context, snapshot) {
             return LayoutBuilder(
               builder: (context, constraints) {
-                final isTextSelectionEnabled =
-                    widget.params.enableTextSelection && _document!.permissions?.allowsCopying != false;
+                final isCopyTextEnabled = _document!.permissions?.allowsCopying != false;
+                final enableSwipeToSelectText =
+                    widget.params.textSelectionParams?.textSelectionTriggeredBySwipe ??
+                    switch (Platform.operatingSystem) {
+                      'android' => false,
+                      'ios' => false,
+                      _ => true,
+                    };
 
                 _updateLayout(Size(constraints.maxWidth, constraints.maxHeight));
                 return Stack(
@@ -441,9 +449,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                             onTapDown: _textTap,
                             onDoubleTapDown: _textDoubleTap,
                             onLongPressStart: _textLongPress,
-                            onPanStart: _onTextPanStart,
-                            onPanUpdate: _onTextPanUpdate,
-                            onPanEnd: _onTextPanEnd,
+                            onPanStart: enableSwipeToSelectText ? _onTextPanStart : null,
+                            onPanUpdate: enableSwipeToSelectText ? _onTextPanUpdate : null,
+                            onPanEnd: enableSwipeToSelectText ? _onTextPanEnd : null,
                             child: CustomPaint(
                               foregroundPainter: _CustomPainter.fromFunctions(
                                 _paintPages,
@@ -461,7 +469,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                     if (widget.params.viewerOverlayBuilder != null)
                       ...widget.params.viewerOverlayBuilder!(context, _viewSize!, _canvasLinkPainter._handleLinkTap)
                           .map((e) => SelectionContainer.disabled(child: e)),
-                    ..._placeAdaptiveTextSelectionToolbar(context, isTextSelectionEnabled),
+                    ..._placeAdaptiveTextSelectionToolbar(context, isCopyTextEnabled),
                   ],
                 );
               },
@@ -821,17 +829,11 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     return [...linkWidgets, ...overlayWidgets];
   }
 
-  void _clearAllTextSelections({bool invalidate = true}) {
-    _textSelectFrom = _textSelectTo = null;
-    _textSelectA = _textSelectB = null;
-    _updateTextSelection(invalidate: invalidate);
-  }
-
   void _onSelectionChange() {
     _textSelectionChangedThrottleTimer?.cancel();
     _textSelectionChangedThrottleTimer = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
-      widget.params.onTextSelectionChange?.call(_textSelection.values.toList());
+      widget.params.textSelectionParams?.onTextSelectionChange?.call(this);
     });
   }
 
@@ -1582,7 +1584,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   );
 
   void _textTap(TapDownDetails details) {
-    _clearAllTextSelections();
+    _clearTextSelections();
   }
 
   void _textDoubleTap(TapDownDetails details) {}
@@ -1774,9 +1776,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _notifyTextSelectionChange();
   }
 
-  static final selectionControls = MaterialTextSelectionControls();
-
-  List<Widget> _placeAdaptiveTextSelectionToolbar(BuildContext context, bool isTextSelectionEnabled) {
+  List<Widget> _placeAdaptiveTextSelectionToolbar(BuildContext context, bool isCopyTextEnabled) {
     final renderBox = _renderBox;
     if (renderBox == null || _textSelectA == null || _textSelectB == null || _textSelection.isEmpty) {
       return [];
@@ -1804,6 +1804,14 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       hasContent: true,
     );
 
+    final selectionControls =
+        widget.params.textSelectionParams?.selectionControls ??
+        switch (Platform.operatingSystem) {
+          'android' => materialTextSelectionControls,
+          'ios' => cupertinoTextSelectionControls,
+          'macos' => cupertinoDesktopTextSelectionControls,
+          _ => desktopTextSelectionControls,
+        };
     final leftHandleAnchor = selectionControls.getHandleAnchor(TextSelectionHandleType.left, _textSelectA!.height);
     final rightHandleAnchor = selectionControls.getHandleAnchor(TextSelectionHandleType.right, _textSelectB!.height);
     final anchorRect = Rect.fromLTRB(
@@ -1812,9 +1820,44 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       selRect.right + rightHandleAnchor.dx,
       selRect.bottom + rightHandleAnchor.dy,
     );
+    final showSelectionHandles =
+        widget.params.textSelectionParams?.showSelectionHandles ?? (Platform.isAndroid || Platform.isIOS);
+    final anchors = TextSelectionToolbarAnchors.fromSelection(
+      renderBox: renderBox,
+      startGlyphHeight: _textSelectA!.height,
+      endGlyphHeight: _textSelectB!.height,
+      selectionEndpoints: [
+        TextSelectionPoint(selRect.topLeft, TextDirection.ltr),
+        TextSelectionPoint(selRect.bottomRight, TextDirection.ltr),
+      ],
+    );
+
+    Widget? toolbar;
+    if (_selectingOnProgress == _SelectionHandle.none) {
+      if (widget.params.textSelectionParams?.buildAdaptiveTextSelectionToolbar != null) {
+        toolbar = widget.params.textSelectionParams?.buildAdaptiveTextSelectionToolbar?.call(
+          context,
+          geom,
+          anchors,
+          this,
+        );
+      } else if (isCopyTextEnabled) {
+        toolbar = AdaptiveTextSelectionToolbar.selectable(
+          onCopy: () async {
+            if (await copyTextSelection()) {
+              clearTextSelection();
+            }
+          },
+          onSelectAll: () => selectAllText(),
+          onShare: null,
+          selectionGeometry: geom,
+          anchors: anchors,
+        );
+      }
+    }
 
     return [
-      if (_textSelectA != null && _selectingOnProgress != _SelectionHandle.free)
+      if (showSelectionHandles && _textSelectA != null && _selectingOnProgress != _SelectionHandle.free)
         Positioned(
           left: anchorRect.left,
           top: anchorRect.top,
@@ -1825,7 +1868,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
             child: selectionControls.buildHandle(context, TextSelectionHandleType.left, _textSelectA!.height),
           ),
         ),
-      if (_textSelectB != null && _selectingOnProgress != _SelectionHandle.free)
+      if (showSelectionHandles && _textSelectB != null && _selectingOnProgress != _SelectionHandle.free)
         Positioned(
           left: anchorRect.right,
           top: anchorRect.bottom,
@@ -1837,37 +1880,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
           ),
         ),
 
-      if (isTextSelectionEnabled && _selectingOnProgress == _SelectionHandle.none)
-        AdaptiveTextSelectionToolbar.selectable(
-          onCopy: () {
-            _copyTextSelection();
-            _clearAllTextSelections();
-          },
-          onSelectAll: () {
-            debugPrint('onSelectAll called');
-            _clearAllTextSelections();
-          },
-          onShare: () {
-            debugPrint('onShare called');
-            _clearAllTextSelections();
-          },
-          selectionGeometry: geom,
-          anchors: TextSelectionToolbarAnchors.fromSelection(
-            renderBox: renderBox,
-            startGlyphHeight: _textSelectA!.height,
-            endGlyphHeight: _textSelectB!.height,
-            selectionEndpoints: [
-              TextSelectionPoint(selRect.topLeft, TextDirection.ltr),
-              TextSelectionPoint(selRect.bottomRight, TextDirection.ltr),
-            ],
-          ),
-        ),
+      if (toolbar != null) toolbar,
     ];
-  }
-
-  void _copyTextSelection() {
-    final fullText = _textSelection.values.map((p) => p.text).join();
-    setClipboardData(fullText);
   }
 
   void _onSelectionHandlePanStart(_SelectionHandle handle, DragStartDetails details) {
@@ -1909,6 +1923,46 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     if (_isInteractionGoingOn) return;
     _updateSelectionHandlesPan(panTo: _globalToDocument(details.globalPosition));
     _selectingOnProgress = _SelectionHandle.none;
+  }
+
+  void _clearTextSelections({bool invalidate = true}) {
+    _textSelectFrom = _textSelectTo = null;
+    _textSelectA = _textSelectB = null;
+    _updateTextSelection(invalidate: invalidate);
+  }
+
+  @override
+  Future<void> clearTextSelection() async => _clearTextSelections();
+
+  @override
+  String get selectedText => _textSelection.values.map((p) => p.text).join();
+
+  @override
+  List<PdfTextRanges> get selectedTextRanges => _textSelection.values.toList();
+
+  @override
+  bool get isCopyAllowed => _document!.permissions?.allowsCopying != false;
+
+  @override
+  Future<void> selectAllText() async {
+    if (_document!.pages.isEmpty && _layout != null) return;
+    _textSelectFrom = _layout!.pageLayouts.first.topLeft;
+    _textSelectA = _textSelectFrom! & Size(1, 1);
+    _textSelectTo = _layout!.pageLayouts.last.bottomRight;
+    _textSelectB = _textSelectTo! & Size(1, 1);
+    _textSelection.clear();
+    for (int i = 1; i <= _document!.pages.length; i++) {
+      final text = await _loadTextAsync(i, onTextLoaded: () {});
+      _textSelection[i] = PdfTextRanges(pageText: text, ranges: [PdfTextRange(start: 0, end: text.fullText.length)]);
+    }
+    _invalidate();
+  }
+
+  @override
+  Future<bool> copyTextSelection() async {
+    if (_document!.permissions?.allowsCopying == false) return false;
+    setClipboardData(selectedText);
+    return true;
   }
 }
 
@@ -2324,7 +2378,13 @@ class PdfViewerController extends ValueListenable<Matrix4> {
     }
   }
 
+  /// Invalidates the current Widget display state.
+  ///
+  /// Almost identical to `setState` but can be called outside the state.
   void invalidate() => _state._invalidate();
+
+  /// The text selection delegate.
+  PdfTextSelectionDelegate get textSelectionDelegate => _state;
 }
 
 /// [PdfViewerController.calcFitZoomMatrices] returns the list of this class.
@@ -2502,7 +2562,7 @@ class _CanvasLinkPainter {
         return true;
       }
     }
-    _state._clearAllTextSelections();
+    _state._clearTextSelections();
     return false;
   }
 

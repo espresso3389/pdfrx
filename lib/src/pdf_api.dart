@@ -726,7 +726,7 @@ class PdfTextRange {
   PdfTextRange copyWith({int? start, int? end}) => PdfTextRange(start: start ?? this.start, end: end ?? this.end);
 
   @override
-  int get hashCode => start ^ end;
+  int get hashCode => start ^ end.hashCode;
 
   @override
   bool operator ==(Object other) {
@@ -746,7 +746,7 @@ class PdfTextRange {
 extension PdfTextRangeListExt on List<PdfTextRange> {
   void appendRange(PdfTextRange range) {
     if (isNotEmpty && range.start >= last.start && range.start <= last.end) {
-      last = last.copyWith(end: range.end);
+      last = PdfTextRange(start: last.start, end: range.end);
     } else {
       add(range);
     }
@@ -815,6 +815,8 @@ class PdfTextRangeWithFragments {
   ///
   /// If the first fragment does not have character level bounding rectangles,
   /// it returns the bounds of the first fragment.
+  ///
+  /// The function is useful when you implement text selection algorithm or such.
   PdfRect get startCharRect {
     final firstFragment = fragments.first;
     if (firstFragment.charRects == null || firstFragment.charRects!.isEmpty) {
@@ -827,6 +829,8 @@ class PdfTextRangeWithFragments {
   ///
   /// If the last fragment does not have character level bounding rectangles,
   /// it returns the bounds of the last fragment.
+  ///
+  /// The function is useful when you implement text selection algorithm or such.
   PdfRect get endCharRect {
     final lastFragment = fragments.last;
     if (lastFragment.charRects == null || lastFragment.charRects!.isEmpty) {
@@ -835,6 +839,9 @@ class PdfTextRangeWithFragments {
     return lastFragment.charRects![end - 1];
   }
 
+  /// Enumerate all the character bounding rectangles for the text range.
+  ///
+  /// The function is useful when you implement text selection algorithm or such.
   Iterable<PdfRect> enumerateRectsForRange({int? start, int? end, double? widthForEmpty}) sync* {
     start ??= fragments.first.index + this.start;
     end ??= fragments.last.index + this.end;
@@ -862,7 +869,8 @@ class PdfTextRangeWithFragments {
   /// ```
   ///
   /// To paint text highlights on PDF pages, see [PdfViewerParams.pagePaintCallbacks] and [PdfViewerPagePaintCallback].
-  static PdfTextRangeWithFragments? fromTextRange(PdfPageText pageText, int start, int end) {
+  static PdfTextRangeWithFragments? fromTextRange(PdfPageText pageText, int start, [int? end]) {
+    end ??= pageText.fullText.length;
     if (start >= end) {
       return null;
     }

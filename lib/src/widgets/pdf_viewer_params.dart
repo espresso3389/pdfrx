@@ -1,6 +1,8 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../../pdfrx.dart';
@@ -26,7 +28,7 @@ class PdfViewerParams {
     this.pageAnchor = PdfPageAnchor.top,
     this.pageAnchorEnd = PdfPageAnchor.bottom,
     this.onePassRenderingScaleThreshold = 200 / 72,
-    this.enableTextSelection = false,
+    this.textSelectionParams,
     this.matchTextColor,
     this.activeMatchTextColor,
     this.pageDropShadow = const BoxShadow(color: Colors.black54, blurRadius: 4, spreadRadius: 2, offset: Offset(2, 2)),
@@ -58,7 +60,6 @@ class PdfViewerParams {
     this.linkWidgetBuilder,
     this.pagePaintCallbacks,
     this.pageBackgroundPaintCallbacks,
-    this.onTextSelectionChange,
     this.onKey,
     this.keyHandlerParams = const PdfViewerKeyHandlerParams(),
     this.forceReload = false,
@@ -180,12 +181,8 @@ class PdfViewerParams {
   /// If you want more granular control for each page, use [getPageRenderingScale].
   final double onePassRenderingScaleThreshold;
 
-  /// Enable text selection on pages.
-  ///
-  /// The default is false.
-  /// If it is true, the text selection is enabled by injecting [SelectionArea]
-  /// internally.
-  final bool enableTextSelection;
+  /// Parameters for text selection.
+  final PdfTextSelectionParams? textSelectionParams;
 
   /// Color for text search match.
   ///
@@ -353,7 +350,7 @@ class PdfViewerParams {
   /// Add overlays to the viewer.
   ///
   /// This function is to generate widgets on PDF viewer's overlay [Stack].
-  /// The widgets can be layed out using layout widgets such as [Positioned] and [Align].
+  /// The widgets can be laid out using layout widgets such as [Positioned] and [Align].
   ///
   /// The most typical use case is to add scroll thumbs to the viewer.
   /// The following fragment illustrates how to add vertical and horizontal scroll thumbs:
@@ -468,9 +465,6 @@ class PdfViewerParams {
   /// For the detail usage, see [PdfViewerPagePaintCallback].
   final List<PdfViewerPagePaintCallback>? pageBackgroundPaintCallbacks;
 
-  /// Function to be notified when the text selection is changed.
-  final PdfViewerTextSelectionChangeCallback? onTextSelectionChange;
-
   /// Function to handle key events.
   ///
   /// See [PdfViewerOnKeyCallback] for the details.
@@ -505,7 +499,7 @@ class PdfViewerParams {
         other.pageAnchor != pageAnchor ||
         other.pageAnchorEnd != pageAnchorEnd ||
         other.onePassRenderingScaleThreshold != onePassRenderingScaleThreshold ||
-        other.enableTextSelection != enableTextSelection ||
+        other.textSelectionParams != textSelectionParams ||
         other.matchTextColor != matchTextColor ||
         other.activeMatchTextColor != activeMatchTextColor ||
         other.pageDropShadow != pageDropShadow ||
@@ -537,7 +531,7 @@ class PdfViewerParams {
         other.pageAnchor == pageAnchor &&
         other.pageAnchorEnd == pageAnchorEnd &&
         other.onePassRenderingScaleThreshold == onePassRenderingScaleThreshold &&
-        other.enableTextSelection == enableTextSelection &&
+        other.textSelectionParams == textSelectionParams &&
         other.matchTextColor == matchTextColor &&
         other.activeMatchTextColor == activeMatchTextColor &&
         other.pageDropShadow == pageDropShadow &&
@@ -568,7 +562,6 @@ class PdfViewerParams {
         other.linkWidgetBuilder == linkWidgetBuilder &&
         other.pagePaintCallbacks == pagePaintCallbacks &&
         other.pageBackgroundPaintCallbacks == pageBackgroundPaintCallbacks &&
-        other.onTextSelectionChange == onTextSelectionChange &&
         other.onKey == onKey &&
         other.keyHandlerParams == keyHandlerParams &&
         other.forceReload == forceReload;
@@ -588,7 +581,7 @@ class PdfViewerParams {
         pageAnchor.hashCode ^
         pageAnchorEnd.hashCode ^
         onePassRenderingScaleThreshold.hashCode ^
-        enableTextSelection.hashCode ^
+        textSelectionParams.hashCode ^
         matchTextColor.hashCode ^
         activeMatchTextColor.hashCode ^
         pageDropShadow.hashCode ^
@@ -619,11 +612,101 @@ class PdfViewerParams {
         linkWidgetBuilder.hashCode ^
         pagePaintCallbacks.hashCode ^
         pageBackgroundPaintCallbacks.hashCode ^
-        onTextSelectionChange.hashCode ^
         onKey.hashCode ^
         keyHandlerParams.hashCode ^
         forceReload.hashCode;
   }
+}
+
+/// Parameters for text selection.
+@immutable
+class PdfTextSelectionParams {
+  const PdfTextSelectionParams({
+    this.textSelectionTriggeredBySwipe,
+    this.showSelectionHandles,
+    this.selectionControls,
+    this.buildAdaptiveTextSelectionToolbar,
+    this.onTextSelectionChange,
+  });
+
+  /// Whether text selection is triggered by swipe.
+  ///
+  /// null to determine the behavior based on the platform; enabled on Desktop/Web, disabled on Mobile.
+  final bool? textSelectionTriggeredBySwipe;
+
+  /// Whether to show selection handles.
+  ///
+  /// null to determine the behavior based on the platform; enabled on Mobile, disabled on Desktop/Web.
+  final bool? showSelectionHandles;
+
+  /// Controls for text selection.
+  ///
+  /// null to determine the behavior based on the platform.
+  /// - [materialTextSelectionControls] for Android
+  /// - [cupertinoTextSelectionControls] for iOS
+  /// - [cupertinoDesktopTextSelectionControls] for macOS
+  /// - [desktopTextSelectionControls] for other platforms
+  final TextSelectionControls? selectionControls;
+
+  /// Function to build the adaptive text selection toolbar.
+  ///
+  /// See [AdaptiveTextSelectionToolbar] for more info.
+  /// If the function returns null, no toolbar is shown.
+  /// If the function is null, the default toolbar will be used.
+  final AdaptiveTextSelectionToolbar? Function(
+    BuildContext context,
+    SelectionGeometry selectionGeometry,
+    TextSelectionToolbarAnchors anchors,
+    PdfTextSelectionDelegate textSelectionDelegate,
+  )?
+  buildAdaptiveTextSelectionToolbar;
+
+  /// Function to be notified when the text selection is changed.
+  final PdfViewerTextSelectionChangeCallback? onTextSelectionChange;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is PdfTextSelectionParams &&
+        other.selectionControls == selectionControls &&
+        other.buildAdaptiveTextSelectionToolbar == buildAdaptiveTextSelectionToolbar &&
+        other.onTextSelectionChange == onTextSelectionChange;
+  }
+
+  @override
+  int get hashCode =>
+      selectionControls.hashCode ^ buildAdaptiveTextSelectionToolbar.hashCode ^ onTextSelectionChange.hashCode;
+}
+
+/// Text selection
+abstract class PdfTextSelection {
+  /// Whether the copy action is allowed.
+  bool get isCopyAllowed;
+
+  /// Get the selected text.
+  String get selectedText;
+
+  /// Get the selected text ranges.
+  List<PdfTextRanges> get selectedTextRanges;
+}
+
+/// Delegate for text selection actions.
+abstract class PdfTextSelectionDelegate implements PdfTextSelection {
+  /// Copy the selected text.
+  ///
+  /// Please note that the function does not copy the text if [isCopyAllowed] is false.
+  /// The function returns true if the copy action is successful.
+  Future<bool> copyTextSelection();
+
+  /// Clear the text selection.
+  ///
+  /// By clearing the text selection, the text context menu will be dismissed.
+  Future<void> clearTextSelection();
+
+  /// Select all text.
+  ///
+  /// The function may take some time to complete if the document is large.
+  Future<void> selectAllText();
 }
 
 /// Function to notify that the document is loaded/changed.
@@ -732,8 +815,8 @@ typedef PdfViewerPagePaintCallback = void Function(ui.Canvas canvas, Rect pageRe
 
 /// Function to be notified when the text selection is changed.
 ///
-/// [selections] contains the selected text ranges on each page.
-typedef PdfViewerTextSelectionChangeCallback = void Function(List<PdfTextRanges> selections);
+/// [textSelection] contains the selected text ranges on each page.
+typedef PdfViewerTextSelectionChangeCallback = void Function(PdfTextSelection textSelection);
 
 /// When [PdfViewerController.goToPage] is called, the page is aligned to the specified anchor.
 ///

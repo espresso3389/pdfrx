@@ -317,7 +317,11 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           scrollHorizontallyByMouseWheel: isHorizontalLayout,
                           pageAnchor: isHorizontalLayout ? PdfPageAnchor.left : PdfPageAnchor.top,
                           pageAnchorEnd: isHorizontalLayout ? PdfPageAnchor.right : PdfPageAnchor.bottom,
-                          enableTextSelection: true,
+                          textSelectionParams: PdfTextSelectionParams(
+                            onTextSelectionChange: (textSelection) {
+                              textSelections = textSelection.selectedTextRanges;
+                            },
+                          ),
                           useAlternativeFitScaleAsMinScale: false,
                           maxScale: 8,
                           onViewSizeChanged: (viewSize, oldViewSize, controller) {
@@ -434,9 +438,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           onViewerReady: (document, controller) async {
                             outline.value = await document.loadOutline();
                             textSearcher.value = PdfTextSearcher(controller)..addListener(_update);
-                          },
-                          onTextSelectionChange: (selections) {
-                            textSelections = selections;
                           },
                         ),
                       );
