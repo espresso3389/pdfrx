@@ -1,5 +1,6 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:async';
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:collection/collection.dart';
@@ -557,8 +558,13 @@ abstract class PdfPageText {
 
   /// Find text fragment index for the specified text index.
   ///
-  /// If the specified text index is out of range, it returns -1.
+  /// If the specified text index is out of range, it returns -1;
+  /// only the exception is [textIndex] is equal to [fullText.length],
+  /// which means the end of the text and it returns [fragments.length].
   int getFragmentIndexForTextIndex(int textIndex) {
+    if (textIndex == fullText.length) {
+      return fragments.length; // the end of the text
+    }
     final index = fragments.lowerBound(_PdfPageTextFragmentForSearch(textIndex), (a, b) => a.index - b.index);
     if (index > fragments.length) {
       return -1; // range error
@@ -623,6 +629,33 @@ abstract class PdfPageTextFragment {
 
   /// Text for the fragment.
   String get text;
+
+  /// Get the bounds of the subrange of the text fragment.
+  ///
+  /// If the specified range is out of bounds, it returns null.
+  PdfRect? getBoundsForRange({int? start, int? end, double? widthForEmpty}) {
+    start ??= 0;
+    end ??= length;
+    if (start < 0 || start >= length) {
+      throw RangeError.range(start, 0, length, 'start', 'Invalid start index');
+    }
+    if (end < start || end > length) {
+      throw RangeError.range(end, start, length, 'end', 'Invalid end index');
+    }
+    if (start == end) {
+      if (widthForEmpty == null) return null; // empty range
+      final cur = charRects![start];
+      final next = charRects![start + 1];
+      final w = next.left - cur.right;
+      final h = next.bottom - cur.top; // the Y-coord is bottom-up
+      if (w > h) {
+        return PdfRect(cur.left, cur.top, cur.left + widthForEmpty, cur.bottom);
+      } else {
+        return PdfRect(cur.left, cur.top, cur.right, cur.top - widthForEmpty);
+      }
+    }
+    return charRects!.skip(start).take(end - start).boundingRect();
+  }
 
   @override
   bool operator ==(covariant PdfPageTextFragment other) {
@@ -693,7 +726,7 @@ class PdfTextRange {
   PdfTextRange copyWith({int? start, int? end}) => PdfTextRange(start: start ?? this.start, end: end ?? this.end);
 
   @override
-  int get hashCode => start ^ end;
+  int get hashCode => start ^ end.hashCode;
 
   @override
   bool operator ==(Object other) {
@@ -708,6 +741,22 @@ class PdfTextRange {
   /// The method is used to convert [PdfTextRange] to [PdfTextRangeWithFragments] using [PdfPageText].
   PdfTextRangeWithFragments? toTextRangeWithFragments(PdfPageText pageText) =>
       PdfTextRangeWithFragments.fromTextRange(pageText, start, end);
+}
+
+extension PdfTextRangeListExt on List<PdfTextRange> {
+  void appendRange(PdfTextRange range) {
+    if (isNotEmpty && range.start >= last.start && range.start <= last.end) {
+      last = PdfTextRange(start: last.start, end: range.end);
+    } else {
+      add(range);
+    }
+  }
+
+  void appendAllRanges(Iterable<PdfTextRange> ranges) {
+    for (final r in ranges) {
+      appendRange(r);
+    }
+  }
 }
 
 /// Text ranges in a PDF page typically used to describe text selection.
@@ -753,14 +802,56 @@ class PdfTextRangeWithFragments {
   /// Fragments that contains the text.
   final List<PdfPageTextFragment> fragments;
 
-  /// In-fragment text start index on the first fragment.
+  /// In-fragment text start index on the first fragment ([fragments.first]).
   final int start;
 
-  /// In-fragment text end index on the last fragment.
+  /// In-fragment text end index on the last fragment ([fragments.last]).
   final int end;
 
   /// Bounding rectangle of the text.
   final PdfRect bounds;
+
+  /// The first character's bounding rectangle.
+  ///
+  /// If the first fragment does not have character level bounding rectangles,
+  /// it returns the bounds of the first fragment.
+  ///
+  /// The function is useful when you implement text selection algorithm or such.
+  PdfRect get startCharRect {
+    final firstFragment = fragments.first;
+    if (firstFragment.charRects == null || firstFragment.charRects!.isEmpty) {
+      return firstFragment.bounds;
+    }
+    return firstFragment.charRects![start];
+  }
+
+  /// The last character's bounding rectangle.
+  ///
+  /// If the last fragment does not have character level bounding rectangles,
+  /// it returns the bounds of the last fragment.
+  ///
+  /// The function is useful when you implement text selection algorithm or such.
+  PdfRect get endCharRect {
+    final lastFragment = fragments.last;
+    if (lastFragment.charRects == null || lastFragment.charRects!.isEmpty) {
+      return lastFragment.bounds;
+    }
+    return lastFragment.charRects![end - 1];
+  }
+
+  /// Enumerate all the character bounding rectangles for the text range.
+  ///
+  /// The function is useful when you implement text selection algorithm or such.
+  Iterable<PdfRect> enumerateRectsForRange({int? start, int? end, double? widthForEmpty}) sync* {
+    start ??= fragments.first.index + this.start;
+    end ??= fragments.last.index + this.end;
+    for (final f in fragments) {
+      if (f.end <= start || end <= f.index) continue;
+      final s = max(start - f.index, 0);
+      final e = min(end - f.index, f.length);
+      yield f.getBoundsForRange(start: s, end: e, widthForEmpty: widthForEmpty)!;
+    }
+  }
 
   /// Create [PdfTextRangeWithFragments] from text range in [PdfPageText].
   ///
@@ -778,7 +869,8 @@ class PdfTextRangeWithFragments {
   /// ```
   ///
   /// To paint text highlights on PDF pages, see [PdfViewerParams.pagePaintCallbacks] and [PdfViewerPagePaintCallback].
-  static PdfTextRangeWithFragments? fromTextRange(PdfPageText pageText, int start, int end) {
+  static PdfTextRangeWithFragments? fromTextRange(PdfPageText pageText, int start, [int? end]) {
+    end ??= pageText.fullText.length;
     if (start >= end) {
       return null;
     }
@@ -790,11 +882,11 @@ class PdfTextRangeWithFragments {
         [pageText.fragments[s]],
         start - sf.index,
         end - sf.index,
-        sf.bounds,
+        sf.charRects?.skip(start - sf.index).take(end - start).boundingRect() ?? sf.bounds,
       );
     }
 
-    final l = pageText.getFragmentIndexForTextIndex(end - 1);
+    final l = pageText.getFragmentIndexForTextIndex(end);
     if (s == l) {
       if (sf.charRects == null) {
         return PdfTextRangeWithFragments(
@@ -819,14 +911,27 @@ class PdfTextRangeWithFragments {
     for (int i = s + 1; i < l; i++) {
       bounds = bounds.merge(pageText.fragments[i].bounds);
     }
+    if (l == pageText.fragments.length) {
+      return PdfTextRangeWithFragments(
+        pageText.pageNumber,
+        pageText.fragments.sublist(s),
+        start - sf.index,
+        pageText.fragments.last.length,
+        bounds,
+      );
+    }
+
     final lf = pageText.fragments[l];
-    bounds = bounds.merge(lf.charRects != null ? lf.charRects!.take(end - lf.index).boundingRect() : lf.bounds);
+    final containLastFragment = end > lf.index;
+    if (containLastFragment) {
+      bounds = bounds.merge(lf.charRects != null ? lf.charRects!.take(end - lf.index).boundingRect() : lf.bounds);
+    }
 
     return PdfTextRangeWithFragments(
       pageText.pageNumber,
-      pageText.fragments.sublist(s, l + 1),
+      pageText.fragments.sublist(s, containLastFragment ? l + 1 : l),
       start - sf.index,
-      end - lf.index,
+      containLastFragment ? end - lf.index : end - pageText.fragments[l - 1].index,
       bounds,
     );
   }
@@ -878,6 +983,21 @@ class PdfRect {
 
   /// Height of the rectangle.
   double get height => top - bottom;
+
+  /// Top-left point of the rectangle.
+  PdfPoint get topLeft => PdfPoint(left, top);
+
+  /// Top-right point of the rectangle.
+  PdfPoint get topRight => PdfPoint(right, top);
+
+  /// Bottom-left point of the rectangle.
+  PdfPoint get bottomLeft => PdfPoint(left, bottom);
+
+  /// Bottom-right point of the rectangle.
+  PdfPoint get bottomRight => PdfPoint(right, bottom);
+
+  /// Center point of the rectangle.
+  PdfPoint get center => PdfPoint((left + right) / 2, (top + bottom) / 2);
 
   /// Merge two rectangles.
   PdfRect merge(PdfRect other) {
@@ -1154,6 +1274,12 @@ class PdfPoint {
 
   @override
   int get hashCode => x.hashCode ^ y.hashCode;
+
+  double distanceSquaredTo(PdfPoint other) {
+    final dx = x - other.x;
+    final dy = y - other.y;
+    return dx * dx + dy * dy;
+  }
 
   /// Convert to [Offset] in Flutter coordinate.
   /// [page] is the page to convert the rectangle.

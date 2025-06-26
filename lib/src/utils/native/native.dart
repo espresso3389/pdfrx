@@ -8,3 +8,7 @@ final isWindows = Platform.isWindows;
 /// Key pressing state of ⌘ or Control depending on the platform.
 bool get isCommandKeyPressed =>
     isApple ? HardwareKeyboard.instance.isMetaPressed : HardwareKeyboard.instance.isControlPressed;
+
+void setClipboardData(String text) {
+  Clipboard.setData(ClipboardData(text: text));
+}

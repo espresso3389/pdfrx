@@ -62,6 +62,7 @@ dependencies:
 **REQUIRED: You must enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development#activate-developer-mode) to build pdfrx on Windows.**
 
 The build process uses *symbolic links* which requires Developer Mode to be enabled. If Developer Mode is not enabled:
+
 - The build will fail with an error message
 - You will see a link to Microsoft's official instructions
 - You must enable Developer Mode and restart your computer before building
@@ -103,13 +104,23 @@ See [Deal with Password Protected PDF Files using PasswordProvider](https://gith
 
 ### Text Selection
 
-The following fragment enables text selection feature:
+With pdfrx 1.3.0, the text selection mechanism is fully rewritten and ON by default.
+
+You can customize the behavior by [PdfTextSelectionParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionParams-class.html).
 
 ```dart
 PdfViewer.asset(
   'assets/test.pdf',
   params: PdfViewerParams(
-    enableTextSelection: true,
+    textSelectionParams: PdfTextSelectionParams(
+      // by default, on mobile devices, text selection is NOT triggered by swipe but by long press
+      // this can be changed by setting textSelectionTriggeredBySwipe to true
+      textSelectionTriggeredBySwipe: true,
+      // Called when text selection changes
+      onTextSelectionChange: (selection) {
+        print('Text selection changed: ${selection.selectedText}');
+      }
+    ),
     ...
   ),
   ...

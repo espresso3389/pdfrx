@@ -558,8 +558,8 @@ class PdfImageWeb extends PdfImage {
 }
 
 @immutable
-class PdfPageTextFragmentPdfium implements PdfPageTextFragment {
-  const PdfPageTextFragmentPdfium(this.pageText, this.index, this.length, this.bounds, this.charRects);
+class PdfPageTextFragmentPdfium extends PdfPageTextFragment {
+  PdfPageTextFragmentPdfium(this.pageText, this.index, this.length, this.bounds, this.charRects);
 
   final PdfPageText pageText;
 
@@ -587,7 +587,7 @@ PdfDest? _pdfDestFromMap(dynamic dest) {
   );
 }
 
-class PdfPageTextFragmentWeb implements PdfPageTextFragment {
+class PdfPageTextFragmentWeb extends PdfPageTextFragment {
   PdfPageTextFragmentWeb(this.index, this.bounds, this.text);
 
   @override
