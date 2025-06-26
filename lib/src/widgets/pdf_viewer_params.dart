@@ -627,6 +627,9 @@ class PdfTextSelectionParams {
     this.selectionControls,
     this.buildAdaptiveTextSelectionToolbar,
     this.onTextSelectionChange,
+    this.textTap,
+    this.textDoubleTap,
+    this.textLongPress,
   });
 
   /// Whether text selection is triggered by swipe.
@@ -646,13 +649,15 @@ class PdfTextSelectionParams {
   /// - [cupertinoTextSelectionControls] for iOS
   /// - [cupertinoDesktopTextSelectionControls] for macOS
   /// - [desktopTextSelectionControls] for other platforms
+  ///
   final TextSelectionControls? selectionControls;
 
   /// Function to build the adaptive text selection toolbar.
   ///
+  /// - If the function returns null, no toolbar is shown.
+  /// - If the function is null, the default toolbar will be used.
+  ///
   /// See [AdaptiveTextSelectionToolbar] for more info.
-  /// If the function returns null, no toolbar is shown.
-  /// If the function is null, the default toolbar will be used.
   final AdaptiveTextSelectionToolbar? Function(
     BuildContext context,
     SelectionGeometry selectionGeometry,
@@ -664,18 +669,43 @@ class PdfTextSelectionParams {
   /// Function to be notified when the text selection is changed.
   final PdfViewerTextSelectionChangeCallback? onTextSelectionChange;
 
+  /// Function to call when the text is tapped.
+  ///
+  /// By default, tapping on the text resets the text selection.
+  /// You can set empty function to disable the default behavior.
+  final void Function(TapDownDetails details)? textTap;
+
+  /// Function to call when the text is double tapped.
+  ///
+  /// By default, double tapping on the text do nothing.
+  final void Function(TapDownDetails details)? textDoubleTap;
+
+  /// Function to call when the text is long pressed.
+  ///
+  /// By default, long pressing on the text selects the word under the pointer.
+  /// You can set empty function to disable the default behavior.
+  final void Function(LongPressStartDetails details)? textLongPress;
+
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is PdfTextSelectionParams &&
         other.selectionControls == selectionControls &&
         other.buildAdaptiveTextSelectionToolbar == buildAdaptiveTextSelectionToolbar &&
-        other.onTextSelectionChange == onTextSelectionChange;
+        other.onTextSelectionChange == onTextSelectionChange &&
+        other.textTap == textTap &&
+        other.textDoubleTap == textDoubleTap &&
+        other.textLongPress == textLongPress;
   }
 
   @override
   int get hashCode =>
-      selectionControls.hashCode ^ buildAdaptiveTextSelectionToolbar.hashCode ^ onTextSelectionChange.hashCode;
+      selectionControls.hashCode ^
+      buildAdaptiveTextSelectionToolbar.hashCode ^
+      onTextSelectionChange.hashCode ^
+      textTap.hashCode ^
+      textDoubleTap.hashCode ^
+      textLongPress.hashCode;
 }
 
 /// Text selection
@@ -707,6 +737,11 @@ abstract class PdfTextSelectionDelegate implements PdfTextSelection {
   ///
   /// The function may take some time to complete if the document is large.
   Future<void> selectAllText();
+
+  /// Select a word at the given position.
+  ///
+  /// Please note that the position is in document coordinates.
+  Future<void> selectWord(Offset position);
 }
 
 /// Function to notify that the document is loaded/changed.

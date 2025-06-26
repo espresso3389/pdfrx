@@ -446,9 +446,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                           cursor: SystemMouseCursors.text,
                           hitTestBehavior: HitTestBehavior.deferToChild,
                           child: GestureDetector(
-                            onTapDown: _textTap,
-                            onDoubleTapDown: _textDoubleTap,
-                            onLongPressStart: _textLongPress,
+                            onTapDown: widget.params.textSelectionParams?.textTap ?? _textTap,
+                            onDoubleTapDown: widget.params.textSelectionParams?.textDoubleTap ?? _textDoubleTap,
+                            onLongPressStart: widget.params.textSelectionParams?.textLongPress ?? _textLongPress,
                             onPanStart: enableSwipeToSelectText ? _onTextPanStart : null,
                             onPanUpdate: enableSwipeToSelectText ? _onTextPanUpdate : null,
                             onPanEnd: enableSwipeToSelectText ? _onTextPanEnd : null,
@@ -598,6 +598,16 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       case LogicalKeyboardKey.arrowRight:
         _goToManipulated((m) => m.translate(-widget.params.scrollByArrowKey, 0.0));
         return true;
+      case LogicalKeyboardKey.keyA:
+        if (isCommandKeyPressed) {
+          selectAllText();
+          return true;
+        }
+      case LogicalKeyboardKey.keyC:
+        if (isCommandKeyPressed) {
+          copyTextSelection();
+          return true;
+        }
     }
     return false;
   }
@@ -1584,6 +1594,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   );
 
   void _textTap(TapDownDetails details) {
+    if (_isInteractionGoingOn) return;
     _clearTextSelections();
   }
 
@@ -1591,7 +1602,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   void _textLongPress(LongPressStartDetails details) {
     if (_isInteractionGoingOn) return;
-    _selectWord(details.localPosition);
+    selectWord(details.localPosition);
   }
 
   void _onTextPanStart(DragStartDetails details) {
@@ -1747,40 +1758,20 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     return selectedRanges;
   }
 
-  Future<void> _selectWord(Offset offset) async {
-    _textSelection.clear();
-    for (int i = 0; i < _document!.pages.length; i++) {
-      final pageRect = _layout!.pageLayouts[i];
-      if (!pageRect.contains(offset)) {
-        continue;
-      }
-
-      final text = await _loadTextAsync(i + 1);
-      final page = _document!.pages[i];
-      final point = offset
-          .translate(-pageRect.left, -pageRect.top)
-          .toPdfPoint(page: page, scaledPageSize: pageRect.size);
-      final f = text.fragments.firstWhereOrNull((f) => f.bounds.containsPoint(point));
-      if (f == null) {
-        continue;
-      }
-      _textSelection[i + 1] = PdfTextRanges.createEmpty(text)
-        ..ranges.appendRange(PdfTextRange(start: f.index, end: f.end));
-      final selectionRect = f.bounds.toRectInPageRect(page: page, pageRect: pageRect);
-      _textSelectFrom = selectionRect.topLeft;
-      _textSelectTo = selectionRect.bottomRight;
-      _textSelectA = _textSelectB = selectionRect;
-      _textSelectAnchor = Offset(_txController.value.x, _txController.value.y);
-      break;
-    }
-    _notifyTextSelectionChange();
-  }
-
   List<Widget> _placeAdaptiveTextSelectionToolbar(BuildContext context, bool isCopyTextEnabled) {
     final renderBox = _renderBox;
     if (renderBox == null || _textSelectA == null || _textSelectB == null || _textSelection.isEmpty) {
       return [];
     }
+
+    final selectionControls =
+        widget.params.textSelectionParams?.selectionControls ??
+        switch (Platform.operatingSystem) {
+          'android' => materialTextSelectionControls,
+          'ios' => cupertinoTextSelectionControls,
+          'macos' => cupertinoDesktopTextSelectionControls,
+          _ => desktopTextSelectionControls,
+        };
 
     final actualSelectionRect = _textSelectA!.expandToInclude(_textSelectB!);
     final selRect = _documentToRenderBox(actualSelectionRect, renderBox);
@@ -1804,14 +1795,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       hasContent: true,
     );
 
-    final selectionControls =
-        widget.params.textSelectionParams?.selectionControls ??
-        switch (Platform.operatingSystem) {
-          'android' => materialTextSelectionControls,
-          'ios' => cupertinoTextSelectionControls,
-          'macos' => cupertinoDesktopTextSelectionControls,
-          _ => desktopTextSelectionControls,
-        };
     final leftHandleAnchor = selectionControls.getHandleAnchor(TextSelectionHandleType.left, _textSelectA!.height);
     final rightHandleAnchor = selectionControls.getHandleAnchor(TextSelectionHandleType.right, _textSelectB!.height);
     final anchorRect = Rect.fromLTRB(
@@ -1956,6 +1939,36 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       _textSelection[i] = PdfTextRanges(pageText: text, ranges: [PdfTextRange(start: 0, end: text.fullText.length)]);
     }
     _invalidate();
+  }
+
+  @override
+  Future<void> selectWord(Offset offset) async {
+    _textSelection.clear();
+    for (int i = 0; i < _document!.pages.length; i++) {
+      final pageRect = _layout!.pageLayouts[i];
+      if (!pageRect.contains(offset)) {
+        continue;
+      }
+
+      final text = await _loadTextAsync(i + 1);
+      final page = _document!.pages[i];
+      final point = offset
+          .translate(-pageRect.left, -pageRect.top)
+          .toPdfPoint(page: page, scaledPageSize: pageRect.size);
+      final f = text.fragments.firstWhereOrNull((f) => f.bounds.containsPoint(point));
+      if (f == null) {
+        continue;
+      }
+      _textSelection[i + 1] = PdfTextRanges.createEmpty(text)
+        ..ranges.appendRange(PdfTextRange(start: f.index, end: f.end));
+      final selectionRect = f.bounds.toRectInPageRect(page: page, pageRect: pageRect);
+      _textSelectFrom = selectionRect.topLeft;
+      _textSelectTo = selectionRect.bottomRight;
+      _textSelectA = _textSelectB = selectionRect;
+      _textSelectAnchor = Offset(_txController.value.x, _txController.value.y);
+      break;
+    }
+    _notifyTextSelectionChange();
   }
 
   @override

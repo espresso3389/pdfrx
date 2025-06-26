@@ -1,3 +1,10 @@
+# 1.3.0
+
+- BREAKING CHANGE: Completely redesigned text selection API for better flexibility and platform consistency
+  - PdfViewer is no longer a [Selectable](https://api.flutter.dev/flutter/rendering/Selectable-mixin.html)
+  - Added `PdfTextSelectionParams` class for configuring text selection behavior
+  - Added `PdfTextSelectionDelegate` for selection operations
+
 # 1.2.9
 
 - FIXED: Use document base href for resolving URLs in PDFium WASM ([#402](https://github.com/espresso3389/pdfrx/pull/402))
