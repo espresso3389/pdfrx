@@ -66,6 +66,7 @@ dart run ffigen          # Regenerate PDFium FFI bindings
     - Use `gh issue comment` or `gh pr comment` to notify that the issue/PR has been addressed in the new release
     - If the PR references issues, please also comment on the issues
     - Follow the template below for comments (but modify it as needed):
+
       ```
       The FIX|UPDATE|SOMETHING for this issue has been released in v[x.y.z](https://pub.dev/packages/pdfrx/versions/x.y.z).
 
@@ -73,6 +74,7 @@ dart run ffigen          # Regenerate PDFium FFI bindings
 
       Written by 🤖[Claude Code](https://claude.ai/code)
       ```
+
     - Focus on the release notes and what was fixed/changed rather than upgrade instructions
     - Include a link to the changelog for the specific version
 
@@ -195,3 +197,4 @@ The following guidelines should be followed when writing documentation including
 ## Special Notes
 
 - `CHANGELOG.md` is not an implementation node. So it should be updated only on releasing a new version
+- For web search, if `gemini` command is available, use `gemini -p "<query>"`.
