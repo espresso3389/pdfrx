@@ -1773,21 +1773,22 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
           _ => desktopTextSelectionControls,
         };
 
-    final actualSelectionRect = _textSelectA!.expandToInclude(_textSelectB!);
-    final selRect = _documentToRenderBox(actualSelectionRect, renderBox);
-    if (selRect == null) {
+    final selRect = _documentToRenderBox(_textSelectA!.expandToInclude(_textSelectB!), renderBox);
+    final rectA = _documentToRenderBox(_textSelectA!, renderBox);
+    final rectB = _documentToRenderBox(_textSelectB!, renderBox);
+    if (selRect == null || rectA == null || rectB == null) {
       return [];
     }
 
     final geom = SelectionGeometry(
       startSelectionPoint: SelectionPoint(
-        localPosition: _textSelectA!.topLeft,
-        lineHeight: _textSelectA!.height,
+        localPosition: rectA.topLeft,
+        lineHeight: rectA.height,
         handleType: TextSelectionHandleType.left,
       ),
       endSelectionPoint: SelectionPoint(
-        localPosition: _textSelectB!.bottomRight,
-        lineHeight: _textSelectB!.height,
+        localPosition: rectB.bottomRight,
+        lineHeight: rectB.height,
         handleType: TextSelectionHandleType.right,
       ),
       selectionRects: [selRect],
@@ -1799,7 +1800,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     final rightHandleAnchor = selectionControls.getHandleAnchor(TextSelectionHandleType.right, _textSelectB!.height);
     final anchorRect = Rect.fromLTRB(
       selRect.left - leftHandleAnchor.dx,
-      selRect.top + _textSelectA!.height - leftHandleAnchor.dy,
+      selRect.top + rectA.height - leftHandleAnchor.dy,
       selRect.right + rightHandleAnchor.dx,
       selRect.bottom + rightHandleAnchor.dy,
     );
@@ -1807,8 +1808,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         widget.params.textSelectionParams?.showSelectionHandles ?? (Platform.isAndroid || Platform.isIOS);
     final anchors = TextSelectionToolbarAnchors.fromSelection(
       renderBox: renderBox,
-      startGlyphHeight: _textSelectA!.height,
-      endGlyphHeight: _textSelectB!.height,
+      startGlyphHeight: rectA.height,
+      endGlyphHeight: rectB.height,
       selectionEndpoints: [
         TextSelectionPoint(selRect.topLeft, TextDirection.ltr),
         TextSelectionPoint(selRect.bottomRight, TextDirection.ltr),

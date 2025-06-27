@@ -652,13 +652,13 @@ class PdfTextSelectionParams {
   ///
   final TextSelectionControls? selectionControls;
 
-  /// Function to build the adaptive text selection toolbar.
+  /// Function to build toolbar/context menu for text selection.
   ///
   /// - If the function returns null, no toolbar is shown.
   /// - If the function is null, the default toolbar will be used.
   ///
   /// See [AdaptiveTextSelectionToolbar] for more info.
-  final AdaptiveTextSelectionToolbar? Function(
+  final Widget? Function(
     BuildContext context,
     SelectionGeometry selectionGeometry,
     TextSelectionToolbarAnchors anchors,
