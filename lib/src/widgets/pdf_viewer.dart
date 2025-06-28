@@ -6,7 +6,6 @@ import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:collection/collection.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -415,11 +414,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                 final isCopyTextEnabled = _document!.permissions?.allowsCopying != false;
                 final enableSwipeToSelectText =
                     widget.params.textSelectionParams?.textSelectionTriggeredBySwipe ??
-                    switch (Platform.operatingSystem) {
-                      'android' => false,
-                      'ios' => false,
-                      _ => true,
-                    };
+                    shouldTextSelectionTriggeredBySwipe;
 
                 _updateLayout(Size(constraints.maxWidth, constraints.maxHeight));
                 return Stack(
@@ -1765,13 +1760,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     }
 
     final selectionControls =
-        widget.params.textSelectionParams?.selectionControls ??
-        switch (Platform.operatingSystem) {
-          'android' => materialTextSelectionControls,
-          'ios' => cupertinoTextSelectionControls,
-          'macos' => cupertinoDesktopTextSelectionControls,
-          _ => desktopTextSelectionControls,
-        };
+        widget.params.textSelectionParams?.selectionControls ?? platformDefaultTextSelectionControls;
 
     final selRect = _documentToRenderBox(_textSelectA!.expandToInclude(_textSelectB!), renderBox);
     final rectA = _documentToRenderBox(_textSelectA!, renderBox);
