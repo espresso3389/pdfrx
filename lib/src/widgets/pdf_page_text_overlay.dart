@@ -293,20 +293,12 @@ class _PdfTextRenderBox extends RenderBox with PdfPageTextSelectable, Selectable
     Iterable<({Rect rect, String text, PdfTextRange range})> enumerateCharRects(int start, int end) sync* {
       for (int i = start; i < end; i++) {
         final fragment = _fragments[i];
-        if (fragment.charRects == null) {
+        for (int j = 0; j < fragment.charRects.length; j++) {
           yield (
-            rect: fragment.bounds.toRect(page: _page, scaledPageSize: size),
-            text: fragment.text,
-            range: PdfTextRange(start: fragment.index, end: fragment.end),
+            rect: fragment.charRects[j].toRect(page: _page, scaledPageSize: size),
+            text: fragment.text.substring(j, j + 1),
+            range: PdfTextRange(start: fragment.index + j, end: fragment.index + j + 1),
           );
-        } else {
-          for (int j = 0; j < fragment.charRects!.length; j++) {
-            yield (
-              rect: fragment.charRects![j].toRect(page: _page, scaledPageSize: size),
-              text: fragment.text.substring(j, j + 1),
-              range: PdfTextRange(start: fragment.index + j, end: fragment.index + j + 1),
-            );
-          }
         }
       }
     }
@@ -652,21 +644,5 @@ class _PdfTextRenderBox extends RenderBox with PdfPageTextSelectable, Selectable
     //   );
     //   return;
     // }
-  }
-}
-
-extension _PdfTextRangeListExt on List<PdfTextRange> {
-  void appendRange(PdfTextRange range) {
-    if (isNotEmpty && range.start >= last.start && range.start <= last.end) {
-      last = last.copyWith(end: range.end);
-    } else {
-      add(range);
-    }
-  }
-
-  void appendAllRanges(Iterable<PdfTextRange> ranges) {
-    for (final r in ranges) {
-      appendRange(r);
-    }
   }
 }

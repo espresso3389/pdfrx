@@ -21,7 +21,7 @@ PdfDocumentFactory? _pdfiumDocumentFactory;
 /// Get [PdfDocumentFactory] backed by PDFium.
 ///
 /// For Flutter Web, you must set up PDFium WASM module.
-PdfDocumentFactory getPdfiumDocumentFactory() => _pdfiumDocumentFactory ??= PdfDocumentFactoryImpl();
+PdfDocumentFactory getPdfiumDocumentFactory() => _pdfiumDocumentFactory ??= _PdfDocumentFactoryImpl();
 
 /// Get the module file name for pdfium.
 String _getModuleFileName() {
@@ -76,7 +76,7 @@ void _init() {
 
 final backgroundWorker = BackgroundWorker.create();
 
-class PdfDocumentFactoryImpl extends PdfDocumentFactory {
+class _PdfDocumentFactoryImpl extends PdfDocumentFactory {
   @override
   Future<PdfDocument> openAsset(
     String name, {
@@ -293,7 +293,7 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
       }
       final doc = await openPdfDocument(password);
       if (doc != 0) {
-        return PdfDocumentPdfium.fromPdfDocument(
+        return _PdfDocumentPdfium.fromPdfDocument(
           pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
           sourceName: sourceName,
           useProgressiveLoading: useProgressiveLoading,
@@ -308,11 +308,11 @@ class PdfDocumentFactoryImpl extends PdfDocumentFactory {
   }
 }
 
-extension FpdfUtf8StringExt on String {
+extension _FpdfUtf8StringExt on String {
   Pointer<Char> toUtf8(Arena arena) => Pointer.fromAddress(toNativeUtf8(allocator: arena).address);
 }
 
-class PdfDocumentPdfium extends PdfDocument {
+class _PdfDocumentPdfium extends PdfDocument {
   final pdfium_bindings.FPDF_DOCUMENT document;
   final void Function()? disposeCallback;
   final int securityHandlerRevision;
@@ -325,7 +325,7 @@ class PdfDocumentPdfium extends PdfDocument {
   @override
   final PdfPermissions? permissions;
 
-  PdfDocumentPdfium._(
+  _PdfDocumentPdfium._(
     this.document, {
     required super.sourceName,
     required this.securityHandlerRevision,
@@ -344,7 +344,7 @@ class PdfDocumentPdfium extends PdfDocument {
     if (doc == nullptr) {
       throw const PdfException('Failed to load PDF document.');
     }
-    PdfDocumentPdfium? pdfDoc;
+    _PdfDocumentPdfium? pdfDoc;
     try {
       final result = await (await backgroundWorker).compute((docAddress) {
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(docAddress);
@@ -372,7 +372,7 @@ class PdfDocumentPdfium extends PdfDocument {
         });
       }, doc.address);
 
-      pdfDoc = PdfDocumentPdfium._(
+      pdfDoc = _PdfDocumentPdfium._(
         doc,
         sourceName: sourceName,
         securityHandlerRevision: result.securityHandlerRevision,
@@ -428,8 +428,8 @@ class PdfDocumentPdfium extends PdfDocument {
   }
 
   /// Loads pages in the document in a time-limited manner.
-  Future<({List<PdfPagePdfium> pages, int pageCountLoadedTotal})> _loadPagesInLimitedTime({
-    List<PdfPagePdfium> pagesLoadedSoFar = const [],
+  Future<({List<_PdfPagePdfium> pages, int pageCountLoadedTotal})> _loadPagesInLimitedTime({
+    List<_PdfPagePdfium> pagesLoadedSoFar = const [],
     int? maxPageCountToLoadAdditionally,
     Duration? timeout,
   }) async {
@@ -475,7 +475,7 @@ class PdfDocumentPdfium extends PdfDocument {
       for (int i = 0; i < results.pages.length; i++) {
         final pageData = results.pages[i];
         pages.add(
-          PdfPagePdfium._(
+          _PdfPagePdfium._(
             document: this,
             pageNumber: pages.length + 1,
             width: pageData.width,
@@ -490,7 +490,7 @@ class PdfDocumentPdfium extends PdfDocument {
         final last = pages.last;
         for (int i = pages.length; i < results.totalPageCount; i++) {
           pages.add(
-            PdfPagePdfium._(
+            _PdfPagePdfium._(
               document: this,
               pageNumber: pages.length + 1,
               width: last.width,
@@ -508,13 +508,13 @@ class PdfDocumentPdfium extends PdfDocument {
   }
 
   @override
-  List<PdfPagePdfium> get pages => _pages;
+  List<_PdfPagePdfium> get pages => _pages;
 
-  List<PdfPagePdfium> _pages = [];
+  List<_PdfPagePdfium> _pages = [];
 
   @override
   bool isIdenticalDocumentHandle(Object? other) =>
-      other is PdfDocumentPdfium && document.address == other.document.address;
+      other is _PdfDocumentPdfium && document.address == other.document.address;
 
   @override
   Future<void> dispose() async {
@@ -569,9 +569,9 @@ class PdfDocumentPdfium extends PdfDocument {
   }
 }
 
-class PdfPagePdfium extends PdfPage {
+class _PdfPagePdfium extends PdfPage {
   @override
-  final PdfDocumentPdfium document;
+  final _PdfDocumentPdfium document;
   @override
   final int pageNumber;
   @override
@@ -585,7 +585,7 @@ class PdfPagePdfium extends PdfPage {
   @override
   final bool isLoaded;
 
-  PdfPagePdfium._({
+  _PdfPagePdfium._({
     required this.document,
     required this.pageNumber,
     required this.width,
@@ -712,7 +712,7 @@ class PdfPagePdfium extends PdfPage {
 
       final resultBuffer = buffer;
       buffer = nullptr;
-      return PdfImagePdfium._(width: width, height: height, buffer: resultBuffer);
+      return _PdfImagePdfium._(width: width, height: height, buffer: resultBuffer);
     } catch (e) {
       return null;
     } finally {
@@ -725,7 +725,7 @@ class PdfPagePdfium extends PdfPage {
   PdfPageRenderCancellationTokenPdfium createCancellationToken() => PdfPageRenderCancellationTokenPdfium(this);
 
   @override
-  Future<PdfPageText> loadText() => PdfPageTextPdfium._loadText(this);
+  Future<PdfPageText> loadText() => _PdfPageTextPdfium._loadText(this);
 
   @override
   Future<List<PdfLink>> loadLinks({bool compact = false}) async {
@@ -899,7 +899,7 @@ class PdfPageRenderCancellationTokenPdfium extends PdfPageRenderCancellationToke
   }
 }
 
-class PdfImagePdfium extends PdfImage {
+class _PdfImagePdfium extends PdfImage {
   @override
   final int width;
   @override
@@ -911,7 +911,7 @@ class PdfImagePdfium extends PdfImage {
 
   final Pointer<Uint8> _buffer;
 
-  PdfImagePdfium._({required this.width, required this.height, required Pointer<Uint8> buffer}) : _buffer = buffer;
+  _PdfImagePdfium._({required this.width, required this.height, required Pointer<Uint8> buffer}) : _buffer = buffer;
 
   @override
   void dispose() {
@@ -920,8 +920,8 @@ class PdfImagePdfium extends PdfImage {
 }
 
 @immutable
-class PdfPageTextFragmentPdfium implements PdfPageTextFragment {
-  const PdfPageTextFragmentPdfium(this.pageText, this.index, this.length, this.bounds, this.charRects);
+class _PdfPageTextFragmentPdfium extends PdfPageTextFragment {
+  _PdfPageTextFragmentPdfium(this.pageText, this.index, this.length, this.bounds, this.charRects);
 
   final PdfPageText pageText;
 
@@ -934,13 +934,13 @@ class PdfPageTextFragmentPdfium implements PdfPageTextFragment {
   @override
   final PdfRect bounds;
   @override
-  final List<PdfRect>? charRects;
+  final List<PdfRect> charRects;
   @override
   String get text => pageText.fullText.substring(index, index + length);
 }
 
-class PdfPageTextPdfium extends PdfPageText {
-  PdfPageTextPdfium({required this.pageNumber, required this.fullText, required this.fragments});
+class _PdfPageTextPdfium extends PdfPageText {
+  _PdfPageTextPdfium({required this.pageNumber, required this.fullText, required this.fragments});
 
   @override
   final int pageNumber;
@@ -950,19 +950,19 @@ class PdfPageTextPdfium extends PdfPageText {
   @override
   final List<PdfPageTextFragment> fragments;
 
-  static Future<PdfPageTextPdfium> _loadText(PdfPagePdfium page) async {
+  static Future<_PdfPageTextPdfium> _loadText(_PdfPagePdfium page) async {
     final result = await _load(page);
-    final pageText = PdfPageTextPdfium(pageNumber: page.pageNumber, fullText: result.fullText, fragments: []);
+    final pageText = _PdfPageTextPdfium(pageNumber: page.pageNumber, fullText: result.fullText, fragments: []);
     int pos = 0;
     for (final fragment in result.fragments) {
       final charRects = result.charRects.sublist(pos, pos + fragment);
-      pageText.fragments.add(PdfPageTextFragmentPdfium(pageText, pos, fragment, charRects.boundingRect(), charRects));
+      pageText.fragments.add(_PdfPageTextFragmentPdfium(pageText, pos, fragment, charRects.boundingRect(), charRects));
       pos += fragment;
     }
     return pageText;
   }
 
-  static Future<({String fullText, List<PdfRect> charRects, List<int> fragments})> _load(PdfPagePdfium page) async {
+  static Future<({String fullText, List<PdfRect> charRects, List<int> fragments})> _load(_PdfPagePdfium page) async {
     if (page.document.isDisposed) {
       return (fullText: '', charRects: <PdfRect>[], fragments: <int>[]);
     }
@@ -1093,15 +1093,14 @@ class PdfPageTextPdfium extends PdfPageText {
   }
 
   static String _getText(pdfium_bindings.FPDF_TEXTPAGE textPage, int from, int length, Arena arena) {
+    // Since FPDFText_GetText could not handle '\0' in the middle of the text,
+    // we'd better use FPDFText_GetUnicode to obtain the text here.
     final count = pdfium.FPDFText_CountChars(textPage);
     final sb = StringBuffer();
     for (int i = 0; i < count; i++) {
       sb.writeCharCode(pdfium.FPDFText_GetUnicode(textPage, i));
     }
     return sb.toString();
-    // final buffer = arena.allocate<Uint16>((length + 1) * sizeOf<Uint16>());
-    // pdfium.FPDFText_GetText(textPage, from, length, buffer.cast<UnsignedShort>());
-    // return String.fromCharCodes(buffer.asTypedList(length));
   }
 }
 

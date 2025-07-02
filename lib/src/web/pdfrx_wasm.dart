@@ -15,11 +15,11 @@ import '../pdf_api.dart';
 ///
 /// For Flutter Web, you must set up PDFium WASM module.
 /// For more information, see [Enable PDFium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-PDFium-WASM-support).
-PdfDocumentFactory getPdfiumDocumentFactory() => PdfDocumentFactoryWasmImpl.singleton;
+PdfDocumentFactory getPdfiumDocumentFactory() => _PdfDocumentFactoryWasmImpl.singleton;
 
 /// The PDFium WASM communicator object
 @JS('PdfiumWasmCommunicator')
-extension type PdfiumWasmCommunicator(JSObject _) implements JSObject {
+extension type _PdfiumWasmCommunicator(JSObject _) implements JSObject {
   /// Sends a command to the worker and returns a promise
   @JS('sendCommand')
   external JSPromise<JSAny?> sendCommand([String command, JSAny? parameters, JSArray<JSAny>? transfer]);
@@ -35,16 +35,16 @@ extension type PdfiumWasmCommunicator(JSObject _) implements JSObject {
 
 /// Get the global PdfiumWasmCommunicator instance
 @JS('PdfiumWasmCommunicator')
-external PdfiumWasmCommunicator get pdfiumWasmCommunicator;
+external _PdfiumWasmCommunicator get _pdfiumWasmCommunicator;
 
 /// A handle to a registered callback that can be unregistered
 class PdfiumWasmCallback {
   PdfiumWasmCallback.register(JSFunction callback)
-    : id = pdfiumWasmCommunicator._registerCallback(callback),
-      _communicator = pdfiumWasmCommunicator;
+    : id = _pdfiumWasmCommunicator._registerCallback(callback),
+      _communicator = _pdfiumWasmCommunicator;
 
   final int id;
-  final PdfiumWasmCommunicator _communicator;
+  final _PdfiumWasmCommunicator _communicator;
 
   void unregister() {
     _communicator._unregisterCallback(id);
@@ -53,15 +53,15 @@ class PdfiumWasmCallback {
 
 /// The URL of the PDFium WASM worker script; pdfium_client.js tries to load worker script from this URL.'
 ///
-/// [PdfDocumentFactoryWasmImpl._init] will initializes its value.
+/// [_PdfDocumentFactoryWasmImpl._init] will initializes its value.
 @JS()
 external String pdfiumWasmWorkerUrl;
 
 /// [PdfDocumentFactory] for PDFium WASM implementation.
-class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
-  PdfDocumentFactoryWasmImpl._();
+class _PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
+  _PdfDocumentFactoryWasmImpl._();
 
-  static final singleton = PdfDocumentFactoryWasmImpl._();
+  static final singleton = _PdfDocumentFactoryWasmImpl._();
 
   /// Default path to the WASM modules
   ///
@@ -139,7 +139,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
   }
 
   Future<Map<Object?, dynamic>> sendCommand(String command, {Map<Object?, dynamic>? parameters}) async {
-    final result = await pdfiumWasmCommunicator.sendCommand(command, parameters?.jsify()).toDart;
+    final result = await _pdfiumWasmCommunicator.sendCommand(command, parameters?.jsify()).toDart;
     return (result.dartify()) as Map<Object?, dynamic>;
   }
 
@@ -265,7 +265,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
   Future<PdfDocument> _openByFunc(
     Future<Map<Object?, dynamic>> Function(String? password) openDocument, {
     required String sourceName,
-    required PdfDocumentFactoryWasmImpl factory,
+    required _PdfDocumentFactoryWasmImpl factory,
     required PdfPasswordProvider? passwordProvider,
     required bool firstAttemptByEmptyPassword,
     required void Function()? onDispose,
@@ -294,19 +294,19 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
         throw StateError('Failed to open document: ${result['errorCodeStr']} ($errorCode)');
       }
 
-      return PdfDocumentWasm._(result, sourceName: sourceName, disposeCallback: onDispose, factory: factory);
+      return _PdfDocumentWasm._(result, sourceName: sourceName, disposeCallback: onDispose, factory: factory);
     }
   }
 }
 
-class PdfDocumentWasm extends PdfDocument {
-  PdfDocumentWasm._(this.document, {required super.sourceName, required this.factory, this.disposeCallback})
+class _PdfDocumentWasm extends PdfDocument {
+  _PdfDocumentWasm._(this.document, {required super.sourceName, required this.factory, this.disposeCallback})
     : permissions = parsePermissions(document) {
     pages = parsePages(this, document['pages'] as List<dynamic>);
   }
 
   final Map<Object?, dynamic> document;
-  final PdfDocumentFactoryWasmImpl factory;
+  final _PdfDocumentFactoryWasmImpl factory;
   final void Function()? disposeCallback;
   bool isDisposed = false;
 
@@ -327,7 +327,7 @@ class PdfDocumentWasm extends PdfDocument {
 
   @override
   bool isIdenticalDocumentHandle(Object? other) {
-    return other is PdfDocumentWasm && other.document['docHandle'] == document['docHandle'];
+    return other is _PdfDocumentWasm && other.document['docHandle'] == document['docHandle'];
   }
 
   @override
@@ -391,10 +391,10 @@ class PdfDocumentWasm extends PdfDocument {
     }
   }
 
-  static List<PdfPage> parsePages(PdfDocumentWasm doc, List<dynamic> pageList) {
+  static List<PdfPage> parsePages(_PdfDocumentWasm doc, List<dynamic> pageList) {
     return pageList
         .map(
-          (page) => PdfPageWasm(
+          (page) => _PdfPageWasm(
             doc,
             (page['pageIndex'] as num).toInt(),
             page['width'],
@@ -407,8 +407,8 @@ class PdfDocumentWasm extends PdfDocument {
   }
 }
 
-class PdfPageRenderCancellationTokenWasm extends PdfPageRenderCancellationToken {
-  PdfPageRenderCancellationTokenWasm();
+class _PdfPageRenderCancellationTokenWasm extends PdfPageRenderCancellationToken {
+  _PdfPageRenderCancellationTokenWasm();
 
   bool _isCanceled = false;
 
@@ -421,18 +421,18 @@ class PdfPageRenderCancellationTokenWasm extends PdfPageRenderCancellationToken 
   bool get isCanceled => _isCanceled;
 }
 
-class PdfPageWasm extends PdfPage {
-  PdfPageWasm(this.document, int pageIndex, this.width, this.height, int rotation, this.isLoaded)
+class _PdfPageWasm extends PdfPage {
+  _PdfPageWasm(this.document, int pageIndex, this.width, this.height, int rotation, this.isLoaded)
     : pageNumber = pageIndex + 1,
       rotation = PdfPageRotation.values[rotation];
 
   @override
   PdfPageRenderCancellationToken createCancellationToken() {
-    return PdfPageRenderCancellationTokenWasm();
+    return _PdfPageRenderCancellationTokenWasm();
   }
 
   @override
-  final PdfDocumentWasm document;
+  final _PdfDocumentWasm document;
 
   @override
   Future<List<PdfLink>> loadLinks({bool compact = false}) async {
@@ -467,7 +467,7 @@ class PdfPageWasm extends PdfPage {
       'loadText',
       parameters: {'docHandle': document.document['docHandle'], 'pageIndex': pageNumber - 1},
     );
-    final pageText = PdfPageTextJs(pageNumber: pageNumber, fullText: result['fullText'], fragments: []);
+    final pageText = _PdfPageTextJs(pageNumber: pageNumber, fullText: result['fullText'], fragments: []);
     final fragmentOffsets = result['fragments'];
     final charRectsAll = result['charRects'] as List;
     if (fragmentOffsets is List) {
@@ -478,7 +478,9 @@ class PdfPageWasm extends PdfPage {
               final r = rect as List;
               return PdfRect(r[0] as double, r[1] as double, r[2] as double, r[3] as double);
             }).toList();
-        pageText.fragments.add(PdfPageTextFragmentPdfium(pageText, pos, fragment, charRects.boundingRect(), charRects));
+        pageText.fragments.add(
+          _PdfPageTextFragmentPdfium(pageText, pos, fragment, charRects.boundingRect(), charRects),
+        );
         pos += fragment;
       }
     }
@@ -558,8 +560,8 @@ class PdfImageWeb extends PdfImage {
 }
 
 @immutable
-class PdfPageTextFragmentPdfium implements PdfPageTextFragment {
-  const PdfPageTextFragmentPdfium(this.pageText, this.index, this.length, this.bounds, this.charRects);
+class _PdfPageTextFragmentPdfium extends PdfPageTextFragment {
+  _PdfPageTextFragmentPdfium(this.pageText, this.index, this.length, this.bounds, this.charRects);
 
   final PdfPageText pageText;
 
@@ -572,7 +574,7 @@ class PdfPageTextFragmentPdfium implements PdfPageTextFragment {
   @override
   final PdfRect bounds;
   @override
-  final List<PdfRect>? charRects;
+  final List<PdfRect> charRects;
   @override
   String get text => pageText.fullText.substring(index, index + length);
 }
@@ -587,25 +589,8 @@ PdfDest? _pdfDestFromMap(dynamic dest) {
   );
 }
 
-class PdfPageTextFragmentWeb implements PdfPageTextFragment {
-  PdfPageTextFragmentWeb(this.index, this.bounds, this.text);
-
-  @override
-  final int index;
-  @override
-  int get length => text.length;
-  @override
-  int get end => index + length;
-  @override
-  final PdfRect bounds;
-  @override
-  List<PdfRect>? get charRects => null;
-  @override
-  final String text;
-}
-
-class PdfPageTextJs extends PdfPageText {
-  PdfPageTextJs({required this.pageNumber, required this.fullText, required this.fragments});
+class _PdfPageTextJs extends PdfPageText {
+  _PdfPageTextJs({required this.pageNumber, required this.fullText, required this.fragments});
 
   @override
   final int pageNumber;
