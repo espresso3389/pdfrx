@@ -728,8 +728,11 @@ class PdfPagePdfium extends PdfPage {
   Future<PdfPageText> loadText() => PdfPageTextPdfium._loadText(this);
 
   @override
-  Future<List<PdfLink>> loadLinks({bool compact = false}) async {
-    final links = await _loadAnnotLinks() + await _loadLinks();
+  Future<List<PdfLink>> loadLinks({bool compact = false, bool loadWebLinks = true}) async {
+    final links = await _loadAnnotLinks();
+    if (loadWebLinks) {
+      links.addAll(await _loadWebLinks());
+    }
     if (compact) {
       for (int i = 0; i < links.length; i++) {
         links[i] = links[i].compact();
@@ -738,7 +741,7 @@ class PdfPagePdfium extends PdfPage {
     return List.unmodifiable(links);
   }
 
-  Future<List<PdfLink>> _loadLinks() async =>
+  Future<List<PdfLink>> _loadWebLinks() async =>
       document.isDisposed
           ? []
           : await (await backgroundWorker).compute((params) {

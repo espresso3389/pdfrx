@@ -1087,21 +1087,24 @@ function _getText(textPage, from, length) {
  */
 
 /**
- * @param {{docHandle: number, pageIndex: number}} params
+ * @param {{docHandle: number, pageIndex: number, loadWebLinks: boolean}} params
  * @returns {{links: Array<PdfUrlLink|PdfDestLink>}}
  */
 function loadLinks(params) {
-  const links = [..._loadAnnotLinks(params), ..._loadLinks(params)];
+  const links = [
+    ..._loadAnnotLinks(params), 
+    ...(params.loadWebLinks ? _loadWebLinks(params) : []),
+  ];
   return {
     links: links,
   };
 }
 
 /**
- * @param {{docHandle: number, pageIndex: number}} params
+ * @param {{docHandle: number, pageIndex: number, loadWebLinks: boolean}} params
  * @returns {Array<PdfUrlLink>}
  */
-function _loadLinks(params) {
+function _loadWebLinks(params) {
   const { pageIndex, docHandle } = params;
   const pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
   const textPage = Pdfium.wasmExports.FPDFText_LoadPage(pageHandle);

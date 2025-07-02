@@ -817,7 +817,12 @@ enum PdfPageAnchor {
 
 /// Parameters to customize link handling/appearance.
 class PdfLinkHandlerParams {
-  const PdfLinkHandlerParams({required this.onLinkTap, this.linkColor, this.customPainter});
+  const PdfLinkHandlerParams({
+    required this.onLinkTap,
+    this.linkColor,
+    this.customPainter,
+    this.loadWebLinks = true,
+  });
 
   /// Function to be called when the link is tapped.
   ///
@@ -847,16 +852,25 @@ class PdfLinkHandlerParams {
   /// ```
   final PdfLinkCustomPagePainter? customPainter;
 
+  /// Whether to load web-like links from text content.
+  final bool loadWebLinks;
+
   @override
   bool operator ==(covariant PdfLinkHandlerParams other) {
     if (identical(this, other)) return true;
 
-    return other.onLinkTap == onLinkTap && other.linkColor == linkColor && other.customPainter == customPainter;
+    return other.onLinkTap == onLinkTap &&
+        other.linkColor == linkColor &&
+        other.customPainter == customPainter &&
+        other.loadWebLinks == loadWebLinks;
   }
 
   @override
   int get hashCode {
-    return onLinkTap.hashCode ^ linkColor.hashCode ^ customPainter.hashCode;
+    return onLinkTap.hashCode ^
+        linkColor.hashCode ^
+        customPainter.hashCode ^
+        loadWebLinks.hashCode;
   }
 }
 
