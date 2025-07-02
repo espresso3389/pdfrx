@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:io';
 
 import 'package:dart_pubspec_licenses/dart_pubspec_licenses.dart' as oss;
