@@ -1,3 +1,7 @@
+# 1.3.0
+
+- NEW FEATURE: Added support for disabling automatic web link detection from text content ([#403](https://github.com/espresso3389/pdfrx/pull/403))
+
 # 1.2.9
 
 - FIXED: Use document base href for resolving URLs in PDFium WASM ([#402](https://github.com/espresso3389/pdfrx/pull/402))
