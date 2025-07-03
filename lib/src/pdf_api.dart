@@ -33,10 +33,6 @@ class Pdfrx {
   /// It is not supported on Flutter Web.
   static http.Client Function()? createHttpClient;
 
-  /// pdfrx always uses PDFium (WASM) on Flutter Web and the runtime type is not used now.
-  @Deprecated('PdfrxWebRuntimeType is not used now. pdfrx always uses PDFium (WASM) on Flutter Web.')
-  static PdfrxWebRuntimeType webRuntimeType = PdfrxWebRuntimeType.pdfiumWasm;
-
   /// To override the default pdfium WASM modules directory URL. It must be terminated by '/'.
   static String? pdfiumWasmModulesUrl;
 
@@ -49,16 +45,6 @@ class Pdfrx {
   /// This is useful for authentication on protected servers.
   /// Only supported on Flutter Web.
   static bool pdfiumWasmWithCredentials = false;
-}
-
-/// Web runtime type.
-@Deprecated('PdfrxWebRuntimeType is not working now. pdfrx always uses PDFium (WASM) on Flutter Web.')
-enum PdfrxWebRuntimeType {
-  /// Use PDFium (WASM).
-  pdfiumWasm,
-
-  /// PDF.js is no longer supported.
-  pdfjs,
 }
 
 /// For platform abstraction purpose; use [PdfDocument] instead.
