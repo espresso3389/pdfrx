@@ -435,11 +435,13 @@ abstract class PdfPage {
 
   /// Load links.
   ///
-  /// if [compact] is true, it tries to reduce memory usage by compacting the link data.
+  /// If [compact] is true, it tries to reduce memory usage by compacting the link data.
   /// See [PdfLink.compact] for more info.
-  /// if [loadWebLinks] is false, it does not load web-like links from text content.
+  ///
+  /// If [enableAutoLinkDetection] is true, the function tries to detect Web links automatically.
+  /// This is useful if the PDF file contains text that looks like Web links but not defined as links in the PDF.
   /// The default is true.
-  Future<List<PdfLink>> loadLinks({bool compact = false, bool loadWebLinks = true});
+  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true});
 }
 
 /// Page rotation.

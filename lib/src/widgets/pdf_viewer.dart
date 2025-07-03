@@ -2078,8 +2078,8 @@ class _CanvasLinkPainter {
     synchronized(() async {
       final links = _links[page.pageNumber];
       if (links != null) return links;
-      final loadWebLinks = _state.widget.params.linkHandlerParams?.loadWebLinks ?? true;
-      _links[page.pageNumber] = await page.loadLinks(compact: true, loadWebLinks: loadWebLinks);
+      final enableAutoLinkDetection = _state.widget.params.linkHandlerParams?.enableAutoLinkDetection ?? true;
+      _links[page.pageNumber] = await page.loadLinks(compact: true, enableAutoLinkDetection: enableAutoLinkDetection);
       if (onLoaded != null) {
         onLoaded();
       } else {

@@ -728,9 +728,9 @@ class _PdfPagePdfium extends PdfPage {
   Future<PdfPageText> loadText() => _PdfPageTextPdfium._loadText(this);
 
   @override
-  Future<List<PdfLink>> loadLinks({bool compact = false, bool loadWebLinks = true}) async {
+  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async {
     final links = await _loadAnnotLinks();
-    if (loadWebLinks) {
+    if (enableAutoLinkDetection) {
       links.addAll(await _loadWebLinks());
     }
     if (compact) {

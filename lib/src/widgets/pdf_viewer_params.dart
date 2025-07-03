@@ -821,7 +821,7 @@ class PdfLinkHandlerParams {
     required this.onLinkTap,
     this.linkColor,
     this.customPainter,
-    this.loadWebLinks = true,
+    this.enableAutoLinkDetection = true,
   });
 
   /// Function to be called when the link is tapped.
@@ -852,8 +852,10 @@ class PdfLinkHandlerParams {
   /// ```
   final PdfLinkCustomPagePainter? customPainter;
 
-  /// Whether to load web-like links from text content.
-  final bool loadWebLinks;
+  /// Whether to try to detect Web links automatically or not.
+  /// This is useful if the PDF file contains text that looks like Web links but not defined as links in the PDF.
+  /// The default is true.
+  final bool enableAutoLinkDetection;
 
   @override
   bool operator ==(covariant PdfLinkHandlerParams other) {
@@ -862,15 +864,12 @@ class PdfLinkHandlerParams {
     return other.onLinkTap == onLinkTap &&
         other.linkColor == linkColor &&
         other.customPainter == customPainter &&
-        other.loadWebLinks == loadWebLinks;
+        other.enableAutoLinkDetection == enableAutoLinkDetection;
   }
 
   @override
   int get hashCode {
-    return onLinkTap.hashCode ^
-        linkColor.hashCode ^
-        customPainter.hashCode ^
-        loadWebLinks.hashCode;
+    return onLinkTap.hashCode ^ linkColor.hashCode ^ customPainter.hashCode ^ enableAutoLinkDetection.hashCode;
   }
 }
 

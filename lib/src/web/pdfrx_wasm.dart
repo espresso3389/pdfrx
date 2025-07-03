@@ -435,13 +435,13 @@ class _PdfPageWasm extends PdfPage {
   final _PdfDocumentWasm document;
 
   @override
-  Future<List<PdfLink>> loadLinks({bool compact = false, bool loadWebLinks = true}) async {
+  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async {
     final result = await document.factory.sendCommand(
       'loadLinks',
       parameters: {
         'docHandle': document.document['docHandle'],
         'pageIndex': pageNumber - 1,
-        'loadWebLinks': loadWebLinks
+        'enableAutoLinkDetection': enableAutoLinkDetection,
       },
     );
     return (result['links'] as List).map((link) {

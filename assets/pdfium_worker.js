@@ -1087,13 +1087,13 @@ function _getText(textPage, from, length) {
  */
 
 /**
- * @param {{docHandle: number, pageIndex: number, loadWebLinks: boolean}} params
+ * @param {{docHandle: number, pageIndex: number, enableAutoLinkDetection: boolean}} params
  * @returns {{links: Array<PdfUrlLink|PdfDestLink>}}
  */
 function loadLinks(params) {
   const links = [
     ..._loadAnnotLinks(params), 
-    ...(params.loadWebLinks ? _loadWebLinks(params) : []),
+    ...(params.enableAutoLinkDetection ? _loadWebLinks(params) : []),
   ];
   return {
     links: links,
@@ -1101,7 +1101,7 @@ function loadLinks(params) {
 }
 
 /**
- * @param {{docHandle: number, pageIndex: number, loadWebLinks: boolean}} params
+ * @param {{docHandle: number, pageIndex: number, enableAutoLinkDetection: boolean}} params
  * @returns {Array<PdfUrlLink>}
  */
 function _loadWebLinks(params) {
