@@ -1,3 +1,8 @@
+# 1.3.1
+
+- NEW FEATURE: Added `PdfViewerParams.calculateInitialZoom` to customize initial zoom calculation ([#406](https://github.com/espresso3389/pdfrx/pull/406))
+- Removed deprecated `PdfrxWebRuntimeType` API
+
 # 1.3.0
 
 - NEW FEATURE: Added support for disabling automatic web link detection from text content ([#403](https://github.com/espresso3389/pdfrx/pull/403))

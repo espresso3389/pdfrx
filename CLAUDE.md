@@ -58,11 +58,14 @@ dart run ffigen          # Regenerate PDFium FFI bindings
    - This includes the main package, example app, and wasm package if applicable
    - Ensure all dependencies are resolved and up-to-date
 5. Run tests to ensure everything works
-6. Commit changes with message "Release vX.Y.Z"
-7. Tag the commit with `git tag vX.Y.Z`
-8. Push changes and tags to remote
-9. Do `flutter pub publish` to publish the package
-10. If the changes reference GitHub issues or PRs, add comments on them notifying about the new release
+   - Run `flutter test` to execute all tests on root directory (not in `example/viewer`)
+6. Ensure the example app builds correctly
+   - Run `flutter build web --wasm` in `example/viewer` to test the example app
+7. Commit changes with message "Release vX.Y.Z"
+8. Tag the commit with `git tag vX.Y.Z`
+9. Push changes and tags to remote
+10. Do `flutter pub publish` to publish the package
+11. If the changes reference GitHub issues or PRs, add comments on them notifying about the new release
     - Use `gh issue comment` or `gh pr comment` to notify that the issue/PR has been addressed in the new release
     - If the PR references issues, please also comment on the issues
     - Follow the template below for comments (but modify it as needed):
