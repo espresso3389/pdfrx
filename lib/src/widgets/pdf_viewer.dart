@@ -196,7 +196,7 @@ class PdfViewer extends StatefulWidget {
 
 class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMixin {
   PdfViewerController? _controller;
-  late final TransformationController _txController = _PdfViewerTransformationController(this);
+  late final _txController = _PdfViewerTransformationController(this);
   late final AnimationController _animController;
   Animation<Matrix4>? _animGoTo;
   int _animationResettingGuard = 0;
@@ -210,6 +210,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   double _minScale = _defaultMinScale;
   int? _pageNumber;
   bool _initialized = false;
+  StreamSubscription<PdfDocumentEvent>? _documentSubscription;
 
   final List<double> _zoomStops = [1.0];
 
@@ -288,6 +289,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   void _onDocumentChanged() async {
     _layout = null;
 
+    _documentSubscription?.cancel();
+    _documentSubscription = null;
     _selectionChangedThrottleTimer?.cancel();
     _stopInteraction();
     _releaseAllImages();
@@ -313,6 +316,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _controller ??= widget.controller ?? PdfViewerController();
     _controller!._attach(this);
     _txController.addListener(_onMatrixChanged);
+    _documentSubscription = document.events.listen(_onDocumentEvent);
 
     if (mounted) {
       setState(() {});
@@ -339,7 +343,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     await _document?.loadPagesProgressively((pageNumber, totalPageCount, document) {
       if (document == _document && mounted) {
         debugPrint('PdfViewer: Loaded page $pageNumber of $totalPageCount in ${stopwatch.elapsedMilliseconds} ms');
-        _invalidate();
         return true;
       }
       return false;
@@ -354,6 +357,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   @override
   void dispose() {
+    _documentSubscription?.cancel();
     _selectionChangedThrottleTimer?.cancel();
     _interactionEndedTimer?.cancel();
     _cancelAllPendingRenderings();
@@ -367,8 +371,15 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     super.dispose();
   }
 
-  void _onMatrixChanged() {
-    _updateStream.add(_txController.value);
+  void _onMatrixChanged() => _invalidate();
+
+  void _onDocumentEvent(PdfDocumentEvent event) {
+    if (event is PdfDocumentPageStatusChangedEvent) {
+      for (final page in event.pages) {
+        _removeCacheImagesForPage(page.pageNumber);
+      }
+      _invalidate();
+    }
   }
 
   @override
@@ -999,7 +1010,11 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         final currentPageNumber = _pageNumber;
         if (currentPageNumber != null && currentPageNumber > 0) {
           final currentPage = _document!.pages[currentPageNumber - 1];
-          _removeImagesIfCacheBytesExceedsLimit(unusedPageList, widget.params.maxImageBytesCachedOnMemory, currentPage);
+          _removeCacheImagesIfCacheBytesExceedsLimit(
+            unusedPageList,
+            widget.params.maxImageBytesCachedOnMemory,
+            currentPage,
+          );
         }
       }
     }
@@ -1129,7 +1144,18 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     return result;
   }
 
-  void _removeImagesIfCacheBytesExceedsLimit(List<int> pageNumbers, int acceptableBytes, PdfPage currentPage) {
+  void _removeCacheImagesForPage(int pageNumber) {
+    final removed = _pageImages.remove(pageNumber);
+    if (removed != null) {
+      removed.image.dispose();
+    }
+    final removedPartial = _pageImagesPartial.remove(pageNumber);
+    if (removedPartial != null) {
+      removedPartial.image.dispose();
+    }
+  }
+
+  void _removeCacheImagesIfCacheBytesExceedsLimit(List<int> pageNumbers, int acceptableBytes, PdfPage currentPage) {
     double dist(int pageNumber) {
       return (_layout!.pageLayouts[pageNumber - 1].center - _layout!.pageLayouts[currentPage.pageNumber - 1].center)
           .distanceSquared;

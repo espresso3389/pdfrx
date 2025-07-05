@@ -9,6 +9,7 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:rxdart/rxdart.dart';
 
 import '../pdf_api.dart';
 import 'pdf_file_cache.dart';
@@ -319,11 +320,15 @@ class _PdfDocumentPdfium extends PdfDocument {
   final pdfium_bindings.FPDF_FORMHANDLE formHandle;
   final Pointer<pdfium_bindings.FPDF_FORMFILLINFO> formInfo;
   bool isDisposed = false;
+  final subject = BehaviorSubject<PdfDocumentEvent>();
 
   @override
   bool get isEncrypted => securityHandlerRevision != -1;
   @override
   final PdfPermissions? permissions;
+
+  @override
+  Stream<PdfDocumentEvent> get events => subject.stream;
 
   _PdfDocumentPdfium._(
     this.document, {
@@ -416,6 +421,9 @@ class _PdfDocumentPdfium extends PdfDocument {
       );
       if (isDisposed) return;
       _pages = List.unmodifiable(loaded.pages);
+
+      subject.add(PdfDocumentPageStatusChangedEvent(this, _pages.sublist(firstUnloadedPageIndex)));
+
       if (onPageLoadProgress != null) {
         final result = await onPageLoadProgress(loaded.pageCountLoadedTotal, loaded.pages.length, data);
         if (result == false) {
@@ -520,6 +528,7 @@ class _PdfDocumentPdfium extends PdfDocument {
   Future<void> dispose() async {
     if (!isDisposed) {
       isDisposed = true;
+      subject.close();
       await (await backgroundWorker).compute((params) {
         final formHandle = pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle);
         final formInfo = Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(params.formInfo);

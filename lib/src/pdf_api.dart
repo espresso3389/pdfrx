@@ -171,6 +171,9 @@ abstract class PdfDocument {
   /// PdfDocument must have [dispose] function.
   Future<void> dispose();
 
+  /// Stream to notify change events in the document.
+  Stream<PdfDocumentEvent> get events;
+
   /// Opening the specified file.
   /// For Web, [filePath] can be relative path from `index.html` or any arbitrary URL but it may be restricted by CORS.
   ///
@@ -344,6 +347,32 @@ abstract class PdfDocument {
 }
 
 typedef PdfPageLoadingCallback<T> = FutureOr<bool> Function(int currentPageNumber, int totalPageCount, T? data);
+
+/// PDF document event types.
+enum PdfDocumentEventType { pageStatusChanged }
+
+/// Base class for PDF document events.
+abstract class PdfDocumentEvent {
+  /// Event type.
+  PdfDocumentEventType get type;
+
+  /// Document that this event is related to.
+  PdfDocument get document;
+}
+
+/// Event that is triggered when the status of PDF document pages has changed.
+class PdfDocumentPageStatusChangedEvent implements PdfDocumentEvent {
+  PdfDocumentPageStatusChangedEvent(this.document, this.pages);
+
+  @override
+  PdfDocumentEventType get type => PdfDocumentEventType.pageStatusChanged;
+
+  @override
+  final PdfDocument document;
+
+  /// The pages that have changed.
+  final List<PdfPage> pages;
+}
 
 /// Handles a PDF page in [PdfDocument].
 ///
