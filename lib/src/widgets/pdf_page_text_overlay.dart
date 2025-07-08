@@ -192,6 +192,12 @@ class _PdfTextRenderBox extends RenderBox with PdfPageTextSelectable, Selectable
 
   final ValueNotifier<SelectionGeometry> _geometry;
 
+  @override
+  int get contentLength => 0;
+
+  @override
+  SelectedContentRange? getSelection() => null;
+
   Color _selectionColor;
   Color get selectionColor => _selectionColor;
   set selectionColor(Color value) {
