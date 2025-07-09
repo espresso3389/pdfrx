@@ -56,6 +56,7 @@ class PdfViewer extends StatefulWidget {
     String assetName, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = true,
     super.key,
     this.controller,
     this.params = const PdfViewerParams(),
@@ -64,6 +65,7 @@ class PdfViewer extends StatefulWidget {
          assetName,
          passwordProvider: passwordProvider,
          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+         useProgressiveLoading: useProgressiveLoading,
        );
 
   /// Create [PdfViewer] from a file.
@@ -79,6 +81,7 @@ class PdfViewer extends StatefulWidget {
     String path, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = true,
     super.key,
     this.controller,
     this.params = const PdfViewerParams(),
@@ -87,6 +90,7 @@ class PdfViewer extends StatefulWidget {
          path,
          passwordProvider: passwordProvider,
          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+         useProgressiveLoading: useProgressiveLoading,
        );
 
   /// Create [PdfViewer] from a URI.
@@ -105,6 +109,7 @@ class PdfViewer extends StatefulWidget {
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = true,
     super.key,
     this.controller,
     this.params = const PdfViewerParams(),
@@ -116,6 +121,7 @@ class PdfViewer extends StatefulWidget {
          uri,
          passwordProvider: passwordProvider,
          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+         useProgressiveLoading: useProgressiveLoading,
          preferRangeAccess: preferRangeAccess,
          headers: headers,
          withCredentials: withCredentials,
@@ -137,6 +143,7 @@ class PdfViewer extends StatefulWidget {
     required String sourceName,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = true,
     super.key,
     this.controller,
     this.params = const PdfViewerParams(),
@@ -146,6 +153,7 @@ class PdfViewer extends StatefulWidget {
          sourceName: sourceName,
          passwordProvider: passwordProvider,
          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+         useProgressiveLoading: useProgressiveLoading,
        );
 
   /// Create [PdfViewer] from a custom source.
@@ -166,6 +174,7 @@ class PdfViewer extends StatefulWidget {
     required String sourceName,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = true,
     super.key,
     this.controller,
     this.params = const PdfViewerParams(),
@@ -176,6 +185,7 @@ class PdfViewer extends StatefulWidget {
          sourceName: sourceName,
          passwordProvider: passwordProvider,
          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+         useProgressiveLoading: useProgressiveLoading,
        );
 
   /// [PdfDocumentRef] that represents the PDF document.
