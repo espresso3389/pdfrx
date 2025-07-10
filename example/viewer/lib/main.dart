@@ -176,6 +176,11 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           }
                         },
                 ),
+                IconButton(
+                  visualDensity: visualDensity,
+                  icon: const Icon(Icons.comment),
+                  onPressed: documentRef == null ? null : _showAnnotations,
+                ),
               ],
             );
           },
@@ -698,5 +703,43 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     if (path == null) return null;
     final parts = path.split(RegExp(r'[\\/]'));
     return parts.isEmpty ? path : parts.last;
+  }
+
+  Future<void> _showAnnotations() async {
+    if (!controller.isReady) {
+      return;
+    }
+    final page = controller.pages[controller.pageNumber! - 1];
+    if (page == null) {
+      return;
+    }
+    final annotations = await page.loadAnnotations();
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Annotations for Page ${page.pageNumber}'),
+        content: SizedBox(
+          width: 400,
+          height: 600,
+          child: ListView.builder(
+            itemCount: annotations.length,
+            itemBuilder: (context, index) {
+              final annot = annotations[index];
+              return ListTile(
+                title: Text('Annotation #${index + 1}: ${annot.subtype.name}'),
+                subtitle: Text('Rect: ${annot.rect}'),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 }
