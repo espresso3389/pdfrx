@@ -457,6 +457,52 @@ abstract class PdfPage {
   /// This is useful if the PDF file contains text that looks like Web links but not defined as links in the PDF.
   /// The default is true.
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true});
+
+  /// Load annotations.
+  ///
+  /// If [compact] is true, it tries to reduce memory usage by compacting the annotation data.
+  Future<List<PdfAnnotation>> loadAnnotations({bool compact = false});
+}
+
+/// Annotation subtype.
+/// See PDF 32000-1:2008, 12.5.2, Table 169.
+enum PdfAnnotationSubtype {
+  unknown,
+  text,
+  link,
+  freeText,
+  line,
+  square,
+  circle,
+  polygon,
+  polyline,
+  highlight,
+  underline,
+  squiggly,
+  strikeOut,
+  stamp,
+  caret,
+  ink,
+  popup,
+  fileAttachment,
+  sound,
+  movie,
+  widget,
+  screen,
+  printerMark,
+  trapNet,
+  watermark,
+  threeD,
+  redact,
+}
+
+/// PDF annotation.
+abstract class PdfAnnotation {
+  /// Annotation subtype.
+  PdfAnnotationSubtype get subtype;
+
+  /// Annotation rectangle in PDF page coordinates.
+  PdfRect get rect;
 }
 
 /// Page rotation.
