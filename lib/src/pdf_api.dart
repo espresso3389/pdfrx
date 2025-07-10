@@ -494,11 +494,11 @@ abstract class PdfPage {
             switch (dir) {
               case PdfTextDirection.ltr:
               case PdfTextDirection.unknown:
-                outputCharRects.add(PdfRect(a.right, bounds.top, b.left, bounds.bottom));
+                outputCharRects.add(PdfRect(a.right, bounds.top, a.right < b.left ? b.left : a.right, bounds.bottom));
               case PdfTextDirection.rtl:
-                outputCharRects.add(PdfRect(b.right, bounds.top, a.left, bounds.bottom));
+                outputCharRects.add(PdfRect(b.right, bounds.top, b.right < a.left ? a.left : b.right, bounds.bottom));
               case PdfTextDirection.vrtl:
-                outputCharRects.add(PdfRect(bounds.left, a.bottom, bounds.right, b.top));
+                outputCharRects.add(PdfRect(bounds.left, a.bottom, bounds.right, a.bottom > b.top ? b.top : a.bottom));
             }
             outputText.write(' ');
           }
@@ -552,26 +552,77 @@ abstract class PdfPage {
       return fragmentsTmp.length - firstIndex;
     }
 
+    Vector2 charVec(int index, Vector2 prev) {
+      if (index + 1 >= inputCharRects.length) {
+        return prev;
+      }
+      final next = inputCharRects[index + 1];
+      if (next.isEmpty) {
+        return prev;
+      }
+      final cur = inputCharRects[index];
+      return cur.center.differenceTo(next.center);
+    }
+
+    List<({int start, int end, PdfTextDirection dir})> splitLine(int start, int end) {
+      final list = <({int start, int end, PdfTextDirection dir})>[];
+      final lineThreshold = 1.5; // radians
+      final last = end - 1;
+      var curStart = start;
+      var curVec = charVec(start, Vector2(1, 0));
+      for (int next = start + 1; next < last;) {
+        final nextVec = charVec(next, curVec);
+        if (curVec.angleTo(nextVec) > lineThreshold) {
+          list.add((start: curStart, end: next + 1, dir: vector2direction(curVec)));
+          curStart = next + 1;
+          if (next + 2 == end) break;
+          curVec = charVec(next + 1, nextVec);
+          next += 2;
+          continue;
+        }
+        curVec += nextVec;
+        next++;
+      }
+      if (curStart < end) {
+        list.add((start: curStart, end: end, dir: vector2direction(curVec)));
+      }
+      return list;
+    }
+
+    void handleLine(int start, int end, {int? newLineEnd}) {
+      final dir = getLineDirection(start, end);
+      final segments = splitLine(start, end).toList();
+      if (segments.length >= 2) {
+        for (int i = 0; i < segments.length; i++) {
+          final seg = segments[i];
+          final bounds = inputCharRects.boundingRect(start: seg.start, end: seg.end);
+          addWords(seg.start, seg.end, seg.dir, bounds);
+          if (i + 1 == segments.length && newLineEnd != null) {
+            addWord(seg.end, newLineEnd, seg.dir, bounds, isNewLine: true);
+          }
+        }
+      } else {
+        final bounds = inputCharRects.boundingRect(start: start, end: end);
+        addWords(start, end, dir, bounds);
+        if (newLineEnd != null) {
+          addWord(end, newLineEnd, dir, bounds, isNewLine: true);
+        }
+      }
+    }
+
     int lineStart = 0;
     for (final match in reNewLine.allMatches(inputFullText)) {
       if (lineStart < match.start) {
-        final dir = getLineDirection(lineStart, match.start);
-        final bounds = inputCharRects.boundingRect(start: lineStart, end: match.start);
-        addWords(lineStart, match.start, dir, bounds);
-        addWord(match.start, match.end, dir, bounds, isNewLine: true);
+        handleLine(lineStart, match.start, newLineEnd: match.end);
       } else {
-        outputCharRects.add(outputCharRects.last);
+        final lastRect = outputCharRects.last;
+        outputCharRects.add(PdfRect(lastRect.left, lastRect.top, lastRect.left, lastRect.bottom));
         outputText.write('\n');
       }
       lineStart = match.end;
     }
     if (lineStart < inputFullText.length) {
-      addWords(
-        lineStart,
-        inputFullText.length,
-        getLineDirection(lineStart, inputFullText.length),
-        inputCharRects.boundingRect(start: lineStart, end: inputFullText.length),
-      );
+      handleLine(lineStart, inputFullText.length);
     }
 
     final fragments = <PdfPageTextFragment>[];
@@ -1005,11 +1056,9 @@ class PdfPageTextRange {
 /// The unit is normally in points (1/72 inch).
 @immutable
 class PdfRect {
-  const PdfRect(double x1, double y1, double x2, double y2)
-    : left = x1 < x2 ? x1 : x2,
-      top = y1 > y2 ? y1 : y2,
-      right = x1 > x2 ? x1 : x2,
-      bottom = y1 < y2 ? y1 : y2;
+  const PdfRect(this.left, this.top, this.right, this.bottom)
+    : assert(left <= right, 'Left coordinate must be less than or equal to right coordinate.'),
+      assert(top >= bottom, 'Top coordinate must be greater than or equal to bottom coordinate.');
 
   /// Left coordinate.
   final double left;
