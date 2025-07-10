@@ -906,179 +906,39 @@ function _memset(ptr, value, num) {
   }
 }
 
-const CR = 0x0d,
-  LF = 0x0a,
-  SPC = 0x20;
-
 /**
  *
  * @param {{pageIndex: number, docHandle: number}} params
  * @returns {{fullText: string, charRects: number[][], fragments: number[]}}
  */
-function loadText(params) {
+function loadRawText(params) {
   const { pageIndex, docHandle } = params;
   const pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
   const textPage = Pdfium.wasmExports.FPDFText_LoadPage(pageHandle);
   if (textPage == null) return { fullText: '', charRects: [], fragments: [] };
-  const charCount = Pdfium.wasmExports.FPDFText_CountChars(textPage);
-  /** @type {number[][]} */
-  const charRects = [];
-  /** @type {number[]} */
-  const fragments = [];
-  const fullText = _loadTextInternal(textPage, 0, charCount, charRects, fragments);
-  Pdfium.wasmExports.FPDFText_ClosePage(textPage);
-  Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
-  return { fullText, charRects, fragments };
-}
 
-/**
- * @param {number} textPage
- * @param {number} from
- * @param {number} length
- * @param {number[][]} charRects
- * @param {number[]} fragments
- * @returns
- */
-function _loadTextInternal(textPage, from, length, charRects, fragments) {
-  const fullText = _getText(textPage, from, length);
   const rectBuffer = Pdfium.wasmExports.malloc(8 * 4); // double[4]
-  const sb = {
-    str: '',
-    push(text) {
-      this.str += text;
-    },
-    get length() {
-      return this.str.length;
-    },
-  };
-  let lineStart = 0,
-    wordStart = 0;
-  let lastChar;
-  for (let i = 0; i < length; i++) {
-    const char = fullText.charCodeAt(i);
-    if (char == CR) {
-      if (i + 1 < length && fullText.codePointAt(i + 1) == LF) {
-        lastChar = char;
-        continue;
-      }
-    }
-    if (char === CR || char === LF) {
-      if (_makeLineFlat(charRects, lineStart, sb.length, sb)) {
-        sb.push('\r\n');
-        _appendDummy(charRects);
-        _appendDummy(charRects);
-        fragments.push(sb.length - wordStart);
-        lineStart = wordStart = sb.length;
-      }
-      lastChar = char;
-      continue;
-    }
-
+  const rect = new Float64Array(Pdfium.memory.buffer, rectBuffer, 4);
+  const count = Pdfium.wasmExports.FPDFText_CountChars(textPage);
+  let fullText = '';
+  let charRects = [];
+  for (let i = 0; i < count; i++) {
+    fullText += String.fromCodePoint(Pdfium.wasmExports.FPDFText_GetUnicode(textPage, i));
     Pdfium.wasmExports.FPDFText_GetCharBox(
       textPage,
-      from + i,
+      i,
       rectBuffer, // L
       rectBuffer + 8 * 2, // R
       rectBuffer + 8 * 3, // B
-      rectBuffer + 8
-    ); // T
-    const rect = Array.from(new Float64Array(Pdfium.memory.buffer, rectBuffer, 4));
-    if (char === SPC) {
-      if (lastChar == SPC) continue;
-      if (sb.length > wordStart) {
-        fragments.push(sb.length - wordStart);
-      }
-      sb.push(String.fromCharCode(char));
-      charRects.push(rect);
-      fragments.push(1);
-      wordStart = sb.length;
-      lastChar = char;
-      continue;
-    }
-
-    if (sb.length > lineStart) {
-      const columnHeightThreshold = 72.0; // 1 inch
-      const prev = charRects[charRects.length - 1];
-      if (prev[0] > rect[0] || prev[3] + columnHeightThreshold < rect[3]) {
-        if (_makeLineFlat(charRects, lineStart, sb.length, sb)) {
-          if (sb.length > wordStart) {
-            fragments.push(sb.length - wordStart);
-          }
-          lineStart = wordStart = sb.length;
-        }
-      }
-    }
-
-    sb.push(String.fromCharCode(char));
-    charRects.push(rect);
-    lastChar = char;
+      rectBuffer + 8 // T
+    );
+    charRects.push(Array.from(rect));
   }
-
-  if (_makeLineFlat(charRects, lineStart, sb.length, sb)) {
-    if (sb.length > wordStart) {
-      fragments.push(sb.length - wordStart);
-    }
-  }
-
   Pdfium.wasmExports.free(rectBuffer);
-  return sb.str;
-}
 
-function _appendDummy(rects, width = 1) {
-  if (rects.length === 0) return;
-  const last = rects[rects.length - 1];
-  rects.push([last[0], last[1], last[2] + width, last[3]]);
-}
-
-/// return true if any meaningful characters in the line (start -> end)
-function _makeLineFlat(rects, start, end, sb) {
-  if (start >= end) return false;
-  const str = sb.str;
-  const bounds = _boundingRect(rects, start, end);
-  let prev;
-  for (let i = start; i < end; i++) {
-    const rect = rects[i];
-    const char = str.codePointAt(i);
-    if (char === SPC) {
-      const next = i + 1 < end ? rects[i + 1][0] : null;
-      rects[i] = [prev != null ? prev : rect[0], bounds[1], next != null ? next : rect[2], bounds[3]];
-      prev = null;
-    } else {
-      rects[i] = [prev != null ? prev : rect[0], bounds[1], rect[2], bounds[3]];
-      prev = rect[2]; // right
-    }
-  }
-  return true;
-}
-
-function _boundingRect(rects, start, end) {
-  let l = Number.MAX_VALUE,
-    t = 0,
-    r = 0,
-    b = Number.MAX_VALUE;
-  for (let i = start; i < end; i++) {
-    const rect = rects[i];
-    l = Math.min(l, rect[0]);
-    t = Math.max(t, rect[1]);
-    r = Math.max(r, rect[2]);
-    b = Math.min(b, rect[3]);
-  }
-  return [l, t, r, b];
-}
-
-function _getText(textPage, from, length) {
-  const count = Pdfium.wasmExports.FPDFText_CountChars(textPage);
-  let sb = '';
-  for (let i = 0; i < count; i++) {
-    sb += String.fromCodePoint(Pdfium.wasmExports.FPDFText_GetUnicode(textPage, i));
-  }
-  return sb;
-
-  // const textBuffer = Pdfium.wasmExports.malloc(length * 2 + 2);
-  // const count = Pdfium.wasmExports.FPDFText_GetText(textPage, from, length, textBuffer);
-  // const text = StringUtils.utf16BytesToString(new Uint8Array(Pdfium.memory.buffer, textBuffer, count * 2));
-  // Pdfium.wasmExports.free(textBuffer);
-  // return text;
+  Pdfium.wasmExports.FPDFText_ClosePage(textPage);
+  Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+  return { fullText, charRects };
 }
 
 /**
@@ -1264,7 +1124,7 @@ const functions = {
   loadPage,
   closePage,
   renderPage,
-  loadText,
+  loadRawText,
   loadLinks,
 };
 

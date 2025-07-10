@@ -478,7 +478,7 @@ class _PdfPageWasm extends PdfPage {
   @override
   Future<PdfPageRawText?> loadRawText() async {
     final result = await document.factory.sendCommand(
-      'loadText',
+      'loadRawText',
       parameters: {'docHandle': document.document['docHandle'], 'pageIndex': pageNumber - 1},
     );
     final charRectsAll =
