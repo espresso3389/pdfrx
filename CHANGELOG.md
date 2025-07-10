@@ -1,3 +1,8 @@
+# 1.3.2
+
+- NEW FEATURE: Added `useProgressiveLoading` parameter for all `PdfViewer` constructors to enable progressive page loading
+- NEW FEATURE: Added `PdfDocument.changes` stream to notify page status changes and loading progress
+
 # 1.3.1
 
 - NEW FEATURE: Added `PdfViewerParams.calculateInitialZoom` to customize initial zoom calculation ([#406](https://github.com/espresso3389/pdfrx/pull/406))
