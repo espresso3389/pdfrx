@@ -1,11 +1,11 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'dart:ui';
 
 import 'package:collection/collection.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 // The trick to support Flutter Web is to use conditional import
@@ -15,6 +15,7 @@ import 'web/pdfrx_wasm.dart' if (dart.library.io) 'pdfium/pdfrx_pdfium.dart';
 
 /// Class to provide Pdfrx's configuration.
 /// The parameters should be set before calling any Pdfrx's functions.
+///
 class Pdfrx {
   Pdfrx._();
 
@@ -45,87 +46,24 @@ class Pdfrx {
   /// This is useful for authentication on protected servers.
   /// Only supported on Flutter Web.
   static bool pdfiumWasmWithCredentials = false;
-}
 
-/// For platform abstraction purpose; use [PdfDocument] instead.
-abstract class PdfDocumentFactory {
-  /// See [PdfDocument.openAsset].
-  Future<PdfDocument> openAsset(
-    String name, {
-    PdfPasswordProvider? passwordProvider,
-    bool firstAttemptByEmptyPassword = true,
-    bool useProgressiveLoading = false,
-  });
-
-  /// See [PdfDocument.openData].
-  Future<PdfDocument> openData(
-    Uint8List data, {
-    PdfPasswordProvider? passwordProvider,
-    bool firstAttemptByEmptyPassword = true,
-    bool useProgressiveLoading = false,
-    String? sourceName,
-    bool allowDataOwnershipTransfer = false,
-    void Function()? onDispose,
-  });
-
-  /// See [PdfDocument.openFile].
-  Future<PdfDocument> openFile(
-    String filePath, {
-    PdfPasswordProvider? passwordProvider,
-    bool firstAttemptByEmptyPassword = true,
-    bool useProgressiveLoading = false,
-  });
-
-  /// See [PdfDocument.openCustom].
-  Future<PdfDocument> openCustom({
-    required FutureOr<int> Function(Uint8List buffer, int position, int size) read,
-    required int fileSize,
-    required String sourceName,
-    PdfPasswordProvider? passwordProvider,
-    bool firstAttemptByEmptyPassword = true,
-    bool useProgressiveLoading = false,
-    int? maxSizeToCacheOnMemory,
-    void Function()? onDispose,
-  });
-
-  /// See [PdfDocument.openUri].
-  Future<PdfDocument> openUri(
-    Uri uri, {
-    PdfPasswordProvider? passwordProvider,
-    bool firstAttemptByEmptyPassword = true,
-    bool useProgressiveLoading = false,
-    PdfDownloadProgressCallback? progressCallback,
-    bool preferRangeAccess = false,
-    Map<String, String>? headers,
-    bool withCredentials = false,
-  });
-
-  /// Singleton [PdfDocumentFactory] instance.
+  /// Function to load asset data.
   ///
-  /// It is used to switch PDFium/web implementation based on the running platform and of course, you can
-  /// override it to use your own implementation.
-  static PdfDocumentFactory instance = getDocumentFactory();
-
-  /// Get [PdfDocumentFactory] that uses PDFium implementation.
+  /// This function is used to load PDF files from assets.
+  /// It is used to isolate pdfrx API implementation from Flutter framework.
   ///
-  /// For Flutter Web, it uses PDFium (WASM) implementation.
-  static PdfDocumentFactory get pdfium => getPdfiumDocumentFactory();
+  /// For Flutter, [pdfrxFlutterInitialize] should be called explicitly or implicitly before using this class.
+  /// For Dart only, you can set this function to load assets from your own asset management system.
+  static Future<Uint8List> Function(String name)? loadAsset;
 
-  /// PDF.js is no longer supported.
-  /// This function is deprecated and will throw an error if called.
-  @Deprecated('PdfDocumentFactory backed by PDF.js is no longer supported.')
-  static PdfDocumentFactory get pdfjs => getPdfjsDocumentFactory();
+  /// Function to determine the cache directory.
+  ///
+  /// You can override the default cache directory by setting this variable.
+  ///
+  /// For Flutter, [pdfrxFlutterInitialize] should be called explicitly or implicitly before using this class.
+  /// For Dart only, you can set this function to obtain the cache directory from your own file system.
+  static Future<String> Function()? getCacheDirectory;
 }
-
-/// PDF.js is no longer supported.
-/// This function is deprecated and will throw an error if called.
-@Deprecated('PdfDocumentFactory backed by PDF.js is no longer supported.')
-PdfDocumentFactory getPdfjsDocumentFactory() {
-  throw UnsupportedError('PdfDocumentFactory backed by PDF.js is no longer supported.');
-}
-
-/// Get the default [PdfDocumentFactory].
-PdfDocumentFactory getDocumentFactory() => getPdfiumDocumentFactory();
 
 /// Callback function to notify download progress.
 ///
@@ -682,7 +620,7 @@ abstract class PdfPageTextFragment {
 
     return other.index == index &&
         other.bounds == bounds &&
-        listEquals(other.charRects, charRects) &&
+        _listEquals(other.charRects, charRects) &&
         other.text == text;
   }
 
@@ -950,7 +888,7 @@ class PdfTextRangeWithFragments {
         other.start == start &&
         other.end == end &&
         other.bounds == bounds &&
-        listEquals(other.fragments, fragments);
+        _listEquals(other.fragments, fragments);
   }
 }
 
@@ -960,7 +898,6 @@ class PdfTextRangeWithFragments {
 /// PDF page coordinates's origin is at the bottom-left corner and Y-axis is pointing upward;
 /// [bottom] is generally smaller than [top].
 /// The unit is normally in points (1/72 inch).
-@immutable
 class PdfRect {
   const PdfRect(this.left, this.top, this.right, this.bottom);
 
@@ -1150,7 +1087,6 @@ extension PdfRectsExt on Iterable<PdfRect> {
 }
 
 /// PDF [Explicit Destination](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=374) the page and inner-page location to jump to.
-@immutable
 class PdfDest {
   const PdfDest(this.pageNumber, this.command, this.params);
 
@@ -1203,7 +1139,6 @@ enum PdfDestCommand {
 ///
 /// Either one of [url] or [dest] is valid (not null).
 /// See [PdfPage.loadLinks].
-@immutable
 class PdfLink {
   const PdfLink(this.rects, {this.url, this.dest});
 
@@ -1236,7 +1171,6 @@ class PdfLink {
 /// Outline (a.k.a. Bookmark) node in PDF document.
 ///
 /// See [PdfDocument.loadOutline].
-@immutable
 class PdfOutlineNode {
   const PdfOutlineNode({required this.title, required this.dest, required this.children});
 
@@ -1348,4 +1282,25 @@ extension OffsetPdfPointExt on Offset {
     final scale = scaledPageSize == null ? 1.0 : page.height / scaledPageSize.height;
     return PdfPoint(dx * scale, page.height - dy * scale).rotateReverse(rotation ?? page.rotation.index, page);
   }
+}
+
+/// Compares two lists for element-by-element equality.
+///
+/// **NOTE: This function is copiedd from flutter's `foundation` library to remove dependency to Flutter**
+bool _listEquals<T>(List<T>? a, List<T>? b) {
+  if (a == null) {
+    return b == null;
+  }
+  if (b == null || a.length != b.length) {
+    return false;
+  }
+  if (identical(a, b)) {
+    return true;
+  }
+  for (int index = 0; index < a.length; index += 1) {
+    if (a[index] != b[index]) {
+      return false;
+    }
+  }
+  return true;
 }

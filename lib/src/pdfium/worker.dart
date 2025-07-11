@@ -3,9 +3,10 @@ import 'dart:developer' as developer;
 import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
-import 'package:flutter/foundation.dart';
 
 import '../../pdfrx.dart';
+
+typedef PdfrxComputeCallback<M, R> = FutureOr<R> Function(M message);
 
 /// Background worker based on Dart [Isolate].
 class BackgroundWorker {
@@ -42,7 +43,7 @@ class BackgroundWorker {
     });
   }
 
-  Future<R> compute<M, R>(ComputeCallback<M, R> callback, M message) async {
+  Future<R> compute<M, R>(PdfrxComputeCallback<M, R> callback, M message) async {
     if (_isDisposed) {
       throw StateError('Worker is already disposed');
     }
@@ -69,7 +70,7 @@ class BackgroundWorker {
 class _ComputeParams<M, R> {
   _ComputeParams(this.sendPort, this.callback, this.message);
   final SendPort sendPort;
-  final ComputeCallback<M, R> callback;
+  final PdfrxComputeCallback<M, R> callback;
   final M message;
 
   void execute() => sendPort.send(callback(message));

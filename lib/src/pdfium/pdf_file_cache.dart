@@ -7,7 +7,6 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
 import 'package:synchronized/extension.dart';
 
 import '../../pdfrx.dart';
@@ -27,6 +26,10 @@ final _rafFinalizer = Finalizer<RandomAccessFile>((raf) {
 
 /// PDF file cache backed by a file.
 ///
+/// The cache directory used by this class is obtained using [Pdfrx.getCacheDirectory].
+///
+/// For Flutter, [pdfrxFlutterInitialize] should be called explicitly or implicitly before using this class.
+/// For Dart only, you can set this function to load assets from your own asset management system.
 class PdfFileCache {
   PdfFileCache(this.file);
 
@@ -236,13 +239,16 @@ class PdfFileCache {
   }
 
   static Future<File> getCacheFilePathForUri(Uri uri) async {
-    final cacheDir = await getCacheDirectory();
+    if (Pdfrx.getCacheDirectory == null) {
+      throw StateError('Pdfrx.getCacheDirectory is not set. Please set it to get cache directory.');
+    }
+    final cacheDir = await Pdfrx.getCacheDirectory!();
     final fnHash =
         sha1.convert(utf8.encode(uri.toString())).bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     final dir1 = fnHash.substring(0, 2);
     final dir2 = fnHash.substring(2, 4);
     final body = fnHash.substring(4);
-    final dir = Directory(path.join(cacheDir.path, 'pdfrx.cache', dir1, dir2));
+    final dir = Directory(path.join(cacheDir, 'pdfrx.cache', dir1, dir2));
     await dir.create(recursive: true);
     return File(path.join(dir.path, '$body.pdf'));
   }
@@ -250,11 +256,6 @@ class PdfFileCache {
   static Future<PdfFileCache> fromUri(Uri uri) async {
     return await fromFile(await getCacheFilePathForUri(uri));
   }
-
-  /// Function to determine the cache directory.
-  ///
-  /// You can override the default cache directory by setting this variable.
-  static Future<Directory> Function() getCacheDirectory = getApplicationCacheDirectory;
 }
 
 class _HttpClientWrapper {

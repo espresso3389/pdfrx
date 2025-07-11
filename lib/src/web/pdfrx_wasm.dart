@@ -4,19 +4,11 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'dart:ui_web' as ui_web;
 
-import 'package:flutter/material.dart' show Colors, immutable;
-import 'package:flutter/services.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
 import 'package:web/web.dart' as web;
 
 import '../pdf_api.dart';
-
-/// Get [PdfDocumentFactory] backed by PDFium.
-///
-/// For Flutter Web, you must set up PDFium WASM module.
-/// For more information, see [Enable PDFium WASM support](https://github.com/espresso3389/pdfrx/wiki/Enable-PDFium-WASM-support).
-PdfDocumentFactory getPdfiumDocumentFactory() => _PdfDocumentFactoryWasmImpl.singleton;
 
 /// The PDFium WASM communicator object
 @JS('PdfiumWasmCommunicator')
@@ -54,15 +46,15 @@ class PdfiumWasmCallback {
 
 /// The URL of the PDFium WASM worker script; pdfium_client.js tries to load worker script from this URL.'
 ///
-/// [_PdfDocumentFactoryWasmImpl._init] will initializes its value.
+/// [PdfDocumentFactory._init] will initializes its value.
 @JS()
 external String pdfiumWasmWorkerUrl;
 
 /// [PdfDocumentFactory] for PDFium WASM implementation.
-class _PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
-  _PdfDocumentFactoryWasmImpl._();
+class PdfDocumentFactory {
+  PdfDocumentFactory._();
 
-  static final singleton = _PdfDocumentFactoryWasmImpl._();
+  static final instance = PdfDocumentFactory._();
 
   /// Default path to the WASM modules
   ///
@@ -144,26 +136,26 @@ class _PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     return (result.dartify()) as Map<Object?, dynamic>;
   }
 
-  @override
   Future<PdfDocument> openAsset(
     String name, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
   }) async {
-    final asset = await rootBundle.load(name);
-    final data = asset.buffer.asUint8List();
+    if (Pdfrx.loadAsset == null) {
+      throw StateError('Pdfrx.loadAsset is not set. Please set it to load assets.');
+    }
+    final asset = await Pdfrx.loadAsset!(name);
     return await openData(
-      data,
+      asset.buffer.asUint8List(),
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       useProgressiveLoading: useProgressiveLoading,
-      sourceName: name,
+      sourceName: 'asset:$name',
       allowDataOwnershipTransfer: true,
     );
   }
 
-  @override
   Future<PdfDocument> openCustom({
     required FutureOr<int> Function(Uint8List buffer, int position, int size) read,
     required int fileSize,
@@ -177,7 +169,6 @@ class _PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     throw UnimplementedError('PdfDocumentFactoryWasmImpl.openCustom is not implemented.');
   }
 
-  @override
   Future<PdfDocument> openData(
     Uint8List data, {
     PdfPasswordProvider? passwordProvider,
@@ -198,7 +189,6 @@ class _PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     onDispose: onDispose,
   );
 
-  @override
   Future<PdfDocument> openFile(
     String filePath, {
     PdfPasswordProvider? passwordProvider,
@@ -216,7 +206,6 @@ class _PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     onDispose: null,
   );
 
-  @override
   Future<PdfDocument> openUri(
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
@@ -266,7 +255,7 @@ class _PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
   Future<PdfDocument> _openByFunc(
     Future<Map<Object?, dynamic>> Function(String? password) openDocument, {
     required String sourceName,
-    required _PdfDocumentFactoryWasmImpl factory,
+    required PdfDocumentFactory factory,
     required PdfPasswordProvider? passwordProvider,
     required bool firstAttemptByEmptyPassword,
     required void Function()? onDispose,
@@ -307,7 +296,7 @@ class _PdfDocumentWasm extends PdfDocument {
   }
 
   final Map<Object?, dynamic> document;
-  final _PdfDocumentFactoryWasmImpl factory;
+  final PdfDocumentFactory factory;
   final void Function()? disposeCallback;
   bool isDisposed = false;
   final subject = BehaviorSubject<PdfDocumentEvent>();
@@ -523,7 +512,7 @@ class _PdfPageWasm extends PdfPage {
     int? height,
     double? fullWidth,
     double? fullHeight,
-    Color? backgroundColor,
+    ui.Color? backgroundColor,
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
@@ -532,7 +521,7 @@ class _PdfPageWasm extends PdfPage {
     fullHeight ??= this.height;
     width ??= fullWidth.toInt();
     height ??= fullHeight.toInt();
-    backgroundColor ??= Colors.white;
+    backgroundColor ??= const ui.Color(0xffffffff); // white background
 
     final result = await document.factory.sendCommand(
       'renderPage',
@@ -572,7 +561,6 @@ class PdfImageWeb extends PdfImage {
   void dispose() {}
 }
 
-@immutable
 class _PdfPageTextFragmentPdfium extends PdfPageTextFragment {
   _PdfPageTextFragmentPdfium(this.pageText, this.index, this.length, this.bounds, this.charRects);
 

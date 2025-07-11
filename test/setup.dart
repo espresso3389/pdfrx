@@ -14,6 +14,8 @@ final cacheRoot = Directory('${tmpRoot.path}/cache');
 
 /// Sets up the test environment.
 Future<void> setup() async {
+  pdfrxFlutterInitialize();
+
   final envPath = Platform.environment['PDFIUM_PATH'];
   if (envPath != null && await File(envPath).exists()) {
     Pdfrx.pdfiumModulePath = envPath;

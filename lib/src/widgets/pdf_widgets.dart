@@ -106,6 +106,7 @@ class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
   @override
   void initState() {
     super.initState();
+    pdfrxFlutterInitialize();
     widget.documentRef.resolveListenable()
       ..addListener(_onDocumentChanged)
       ..load();
@@ -208,6 +209,12 @@ class _PdfPageViewState extends State<PdfPageView> {
   ui.Image? _image;
   Size? _pageSize;
   PdfPageRenderCancellationToken? _cancellationToken;
+
+  @override
+  void initState() {
+    super.initState();
+    pdfrxFlutterInitialize();
+  }
 
   @override
   void dispose() {

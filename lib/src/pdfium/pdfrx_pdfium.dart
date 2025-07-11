@@ -3,12 +3,10 @@ import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:ffi/ffi.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:rxdart/rxdart.dart';
 
 import '../pdf_api.dart';
@@ -16,13 +14,6 @@ import 'pdf_file_cache.dart';
 import 'pdfium_bindings.dart' as pdfium_bindings;
 import 'pdfium_interop.dart';
 import 'worker.dart';
-
-PdfDocumentFactory? _pdfiumDocumentFactory;
-
-/// Get [PdfDocumentFactory] backed by PDFium.
-///
-/// For Flutter Web, you must set up PDFium WASM module.
-PdfDocumentFactory getPdfiumDocumentFactory() => _pdfiumDocumentFactory ??= _PdfDocumentFactoryImpl();
 
 /// Get the module file name for pdfium.
 String _getModuleFileName() {
@@ -77,17 +68,23 @@ void _init() {
 
 final backgroundWorker = BackgroundWorker.create();
 
-class _PdfDocumentFactoryImpl extends PdfDocumentFactory {
-  @override
+class PdfDocumentFactory {
+  PdfDocumentFactory._();
+
+  static final instance = PdfDocumentFactory._();
+
   Future<PdfDocument> openAsset(
     String name, {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
   }) async {
-    final data = await rootBundle.load(name);
+    if (Pdfrx.loadAsset == null) {
+      throw StateError('Pdfrx.loadAsset is not set. Please set it to load assets.');
+    }
+    final asset = await Pdfrx.loadAsset!(name);
     return await _openData(
-      data.buffer.asUint8List(),
+      asset.buffer.asUint8List(),
       'asset:$name',
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -97,7 +94,6 @@ class _PdfDocumentFactoryImpl extends PdfDocumentFactory {
     );
   }
 
-  @override
   Future<PdfDocument> openData(
     Uint8List data, {
     PdfPasswordProvider? passwordProvider,
@@ -116,7 +112,6 @@ class _PdfDocumentFactoryImpl extends PdfDocumentFactory {
     onDispose: onDispose,
   );
 
-  @override
   Future<PdfDocument> openFile(
     String filePath, {
     PdfPasswordProvider? passwordProvider,
@@ -166,7 +161,6 @@ class _PdfDocumentFactoryImpl extends PdfDocumentFactory {
     );
   }
 
-  @override
   Future<PdfDocument> openCustom({
     required FutureOr<int> Function(Uint8List buffer, int position, int size) read,
     required int fileSize,
@@ -244,7 +238,6 @@ class _PdfDocumentFactoryImpl extends PdfDocumentFactory {
     }
   }
 
-  @override
   Future<PdfDocument> openUri(
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
@@ -611,7 +604,7 @@ class _PdfPagePdfium extends PdfPage {
     int? height,
     double? fullWidth,
     double? fullHeight,
-    Color? backgroundColor,
+    ui.Color? backgroundColor,
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
@@ -628,7 +621,7 @@ class _PdfPagePdfium extends PdfPage {
     fullHeight ??= this.height;
     width ??= fullWidth.toInt();
     height ??= fullHeight.toInt();
-    backgroundColor ??= Colors.white;
+    backgroundColor ??= const ui.Color(0xffffffff); // white background
     const rgbaSize = 4;
     Pointer<Uint8> buffer = nullptr;
     try {
@@ -931,7 +924,6 @@ class _PdfImagePdfium extends PdfImage {
   }
 }
 
-@immutable
 class _PdfPageTextFragmentPdfium extends PdfPageTextFragment {
   _PdfPageTextFragmentPdfium(this.pageText, this.index, this.length, this.bounds, this.charRects);
 

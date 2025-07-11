@@ -244,6 +244,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   @override
   void initState() {
     super.initState();
+    pdfrxFlutterInitialize();
     _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
     _widgetUpdated(null);
   }
