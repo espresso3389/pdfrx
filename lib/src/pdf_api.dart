@@ -116,6 +116,7 @@ abstract class PdfDocument {
   /// For Web, [filePath] can be relative path from `index.html` or any arbitrary URL but it may be restricted by CORS.
   ///
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  ///
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
   /// password or not. For more info, see [PdfPasswordProvider].
   ///
@@ -136,6 +137,7 @@ abstract class PdfDocument {
   /// Opening the specified asset.
   ///
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  ///
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
   /// password or not. For more info, see [PdfPasswordProvider].
   ///
@@ -156,6 +158,7 @@ abstract class PdfDocument {
   /// Opening the PDF on memory.
   ///
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  ///
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
   ///
@@ -187,11 +190,15 @@ abstract class PdfDocument {
 
   /// Opening the PDF from custom source.
   ///
+  /// On Flutter Web, this function is not supported and throws an exception.
+  /// It is also not supported if pdfrx is running without libpdfrx (**typically on Dart only**).
+  ///
   /// [maxSizeToCacheOnMemory] is the maximum size of the PDF to cache on memory in bytes; the custom loading process
   /// may be heavy because of FFI overhead and it may be better to cache the PDF on memory if it's not too large.
   /// The default size is 1MB.
   ///
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  ///
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
   /// password or not. For more info, see [PdfPasswordProvider].
   ///
@@ -227,6 +234,7 @@ abstract class PdfDocument {
   /// For other platforms, it uses [pdfDocumentFromUri] that uses HTTP's range request to download the file.
   ///
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  ///
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
   /// password or not. For more info, see [PdfPasswordProvider].
   ///
@@ -234,8 +242,12 @@ abstract class PdfDocument {
   /// are loaded progressively when [PdfDocument.loadPagesProgressively] is called explicitly.
   ///
   /// [progressCallback] is called when the download progress is updated.
+  ///
   /// [preferRangeAccess] to prefer range access to download the PDF. The default is false (Not supported on Web).
+  /// It is not supported if pdfrx is running without libpdfrx (**typically on Dart only**).
+  ///
   /// [headers] is used to specify additional HTTP headers especially for authentication/authorization.
+  ///
   /// [withCredentials] is used to specify whether to include credentials in the request (Only supported on Web).
   static Future<PdfDocument> openUri(
     Uri uri, {
