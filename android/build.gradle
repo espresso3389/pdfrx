@@ -26,9 +26,12 @@ android {
         namespace = "jp.espresso3389.pdfrx"
     }
 
-    compileSdk = 34
+    compileSdk = 35
 
-    ndkVersion = android.ndkVersion
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
 
     // Invoke the shared CMake build with the Android Gradle Plugin.
     externalNativeBuild {
@@ -40,11 +43,6 @@ android {
 
     sourceSets {
         main.jniLibs.srcDirs += ".lib/latest"
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     defaultConfig {

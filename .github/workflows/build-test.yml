@@ -69,6 +69,7 @@ jobs:
           ~/flutter/bin/flutter config --no-enable-linux-desktop
           ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
+          yes | ~/flutter/bin/flutter doctor --android-licenses
       
       - name: Install dependencies
         working-directory: example/viewer
