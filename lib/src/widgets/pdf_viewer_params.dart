@@ -782,7 +782,7 @@ abstract class PdfTextSelectionDelegate implements PdfTextSelection {
 
   /// Select a word at the given position.
   ///
-  /// Please note that the position is in document coordinates.
+  /// Please note that [position] is in document coordinates.
   Future<void> selectWord(Offset position);
 }
 

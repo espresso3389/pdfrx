@@ -889,6 +889,9 @@ class PdfPageText {
     return index;
   }
 
+  /// Get text fragment for the specified text index.
+  ///
+  /// If the specified text index is out of range, it returns null.
   PdfPageTextFragment? getFragmentForTextIndex(int textIndex) {
     final index = getFragmentIndexForTextIndex(textIndex);
     if (index < 0 || index >= fragments.length) {
@@ -923,9 +926,14 @@ class PdfPageText {
   /// Create a [PdfPageTextRange] from two character indices.
   ///
   /// Unlike [PdfPageTextRange.end], both [a] and [b] are inclusive character indices in [fullText] and
-  /// [a] and [b] can be in any order (e
+  /// [a] and [b] can be in any order (e.g., [a] can be greater than [b]).
   PdfPageTextRange getRangeFromAB(int a, int b) {
-    return PdfPageTextRange(pageText: this, start: min(a, b), end: max(a, b) + 1);
+    final min = a < b ? a : b;
+    final max = a < b ? b : a;
+    if (min < 0 || max > fullText.length) {
+      throw RangeError('Indices out of range: $min, $max for fullText length ${fullText.length}.');
+    }
+    return PdfPageTextRange(pageText: this, start: min, end: max + 1);
   }
 }
 

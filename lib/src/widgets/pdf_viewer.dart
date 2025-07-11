@@ -2337,6 +2337,7 @@ class PdfTextSelectionAnchor {
     }
   }
 
+  /// Copies the current instance with the given parameters.
   PdfTextSelectionAnchor copyWith({
     Rect? rect,
     PdfTextDirection? direction,
@@ -2351,6 +2352,22 @@ class PdfTextSelectionAnchor {
       page ?? this.page,
       index ?? this.index,
     );
+  }
+
+  @override
+  operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! PdfTextSelectionAnchor) return false;
+    return rect == other.rect &&
+        direction == other.direction &&
+        type == other.type &&
+        page == other.page &&
+        index == other.index;
+  }
+
+  @override
+  int get hashCode {
+    return rect.hashCode ^ direction.hashCode ^ type.hashCode ^ page.hashCode ^ index.hashCode;
   }
 }
 
