@@ -7,8 +7,8 @@ plugins {
 
 android {
     namespace = "jp.espresso3389.pdfrx_example"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdk = 35
+    ndkVersion = "29.0.13599879 rc2"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
