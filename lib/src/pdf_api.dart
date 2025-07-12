@@ -464,6 +464,9 @@ abstract class PdfPage {
   Future<List<PdfAnnotation>> loadAnnotations({bool compact = false});
 }
 
+/// Page rotation.
+enum PdfPageRotation { none, clockwise90, clockwise180, clockwise270 }
+
 /// Annotation subtype.
 /// See PDF 32000-1:2008, 12.5.6, Table 169.
 enum PdfAnnotationSubtype {
@@ -496,17 +499,334 @@ enum PdfAnnotationSubtype {
   redact,
 }
 
-/// PDF annotation.
+/// Base class for all annotations containing universal properties.
 abstract class PdfAnnotation {
-  /// Annotation subtype.
-  PdfAnnotationSubtype get subtype;
+  final PdfAnnotationSubtype subtype;
+  final PdfRect rect;
+  // Other common fields can go here:
+  // final String? author;
+  // final DateTime? modifiedDate;
 
-  /// Annotation rectangle in PDF page coordinates.
-  PdfRect get rect;
+  PdfAnnotation({required this.subtype, required this.rect});
 }
 
-/// Page rotation.
-enum PdfPageRotation { none, clockwise90, clockwise180, clockwise270 }
+/// A base class for markup annotations (highlight, underline, etc.)
+/// whose locations are defined by a set of rectangles.
+abstract class PdfMarkupAnnotation extends PdfAnnotation {
+  /// List of [PdfRect] that locate the area that is marked up.
+  final List<PdfRect> subRects;
+
+  PdfMarkupAnnotation({
+    required super.subtype,
+    required super.rect,
+    required this.subRects,
+  });
+}
+
+/// A concrete implementation for a Highlight annotation.
+class PdfHighlightAnnotation extends PdfMarkupAnnotation {
+  final Color color;
+
+  PdfHighlightAnnotation({
+    required super.rect,
+    required super.subRects,
+    this.color = Colors.yellow,
+  }) : super(subtype: PdfAnnotationSubtype.highlight);
+}
+
+/// A concrete implementation for an Underline annotation.
+class PdfUnderlineAnnotation extends PdfMarkupAnnotation {
+  final Color color;
+
+  PdfUnderlineAnnotation({
+    required super.rect,
+    required super.subRects,
+    this.color = Colors.red,
+  }) : super(subtype: PdfAnnotationSubtype.underline);
+}
+
+/// A concrete implementation for a Squiggly annotation.
+class PdfSquigglyAnnotation extends PdfMarkupAnnotation {
+  final Color color;
+
+  PdfSquigglyAnnotation({
+    required super.rect,
+    required super.subRects,
+    this.color = Colors.orange,
+  }) : super(subtype: PdfAnnotationSubtype.squiggly);
+}
+
+/// A concrete implementation for a StrikeOut annotation.
+class PdfStrikeOutAnnotation extends PdfMarkupAnnotation {
+  final Color color;
+
+  PdfStrikeOutAnnotation({
+    required super.rect,
+    required super.subRects,
+    this.color = Colors.black,
+  }) : super(subtype: PdfAnnotationSubtype.strikeOut);
+}
+
+/// A concrete implementation for an Ink (free-hand) annotation.
+class PdfInkAnnotation extends PdfAnnotation {
+  /// A list of paths, where each path is a list of points.
+  final List<List<PdfPoint>> paths;
+  final Color color;
+  final double strokeWidth;
+
+  PdfInkAnnotation({
+    required super.rect,
+    required this.paths,
+    this.color = Colors.red,
+    this.strokeWidth = 2.0,
+  }) : super(subtype: PdfAnnotationSubtype.ink);
+}
+
+/// A concrete implementation for a Text (sticky note) annotation.
+class PdfTextAnnotation extends PdfAnnotation {
+  final String content;
+  final String? iconName;
+
+  PdfTextAnnotation({
+    required super.rect,
+    required this.content,
+    this.iconName,
+  }) : super(subtype: PdfAnnotationSubtype.text);
+}
+
+/// A concrete implementation for a Link annotation.
+class PdfLinkAnnotation extends PdfAnnotation {
+  /// The destination URI. Either this or [dest] will be non-null.
+  final Uri? uri;
+
+  /// The destination within the PDF document.
+  final PdfDest? dest;
+
+  PdfLinkAnnotation({
+    required super.rect,
+    this.uri,
+    this.dest,
+  }) : super(subtype: PdfAnnotationSubtype.link);
+}
+
+/// A concrete implementation for a FreeText annotation.
+class PdfFreeTextAnnotation extends PdfAnnotation {
+  final String content;
+  final Color color;
+  final double fontSize;
+
+  PdfFreeTextAnnotation({
+    required super.rect,
+    required this.content,
+    this.color = Colors.black,
+    this.fontSize = 12.0,
+  }) : super(subtype: PdfAnnotationSubtype.freeText);
+}
+
+/// A concrete implementation for a Line annotation.
+class PdfLineAnnotation extends PdfAnnotation {
+  final PdfPoint start;
+  final PdfPoint end;
+  final Color color;
+  final double strokeWidth;
+
+  PdfLineAnnotation({
+    required super.rect,
+    required this.start,
+    required this.end,
+    this.color = Colors.black,
+    this.strokeWidth = 1.0,
+  }) : super(subtype: PdfAnnotationSubtype.line);
+}
+
+/// A concrete implementation for a Square annotation.
+class PdfSquareAnnotation extends PdfAnnotation {
+  final Color color;
+  final double strokeWidth;
+  final Color? interiorColor;
+
+  PdfSquareAnnotation({
+    required super.rect,
+    this.color = Colors.black,
+    this.strokeWidth = 1.0,
+    this.interiorColor,
+  }) : super(subtype: PdfAnnotationSubtype.square);
+}
+
+/// A concrete implementation for a Circle annotation.
+class PdfCircleAnnotation extends PdfAnnotation {
+  final Color color;
+  final double strokeWidth;
+  final Color? interiorColor;
+
+  PdfCircleAnnotation({
+    required super.rect,
+    this.color = Colors.black,
+    this.strokeWidth = 1.0,
+    this.interiorColor,
+  }) : super(subtype: PdfAnnotationSubtype.circle);
+}
+
+/// A concrete implementation for a Polygon annotation.
+class PdfPolygonAnnotation extends PdfAnnotation {
+  final List<PdfPoint> vertices;
+  final Color color;
+  final double strokeWidth;
+  final Color? interiorColor;
+
+  PdfPolygonAnnotation({
+    required super.rect,
+    required this.vertices,
+    this.color = Colors.black,
+    this.strokeWidth = 1.0,
+    this.interiorColor,
+  }) : super(subtype: PdfAnnotationSubtype.polygon);
+}
+
+/// A concrete implementation for a Polyline annotation.
+class PdfPolylineAnnotation extends PdfAnnotation {
+  final List<PdfPoint> vertices;
+  final Color color;
+  final double strokeWidth;
+
+  PdfPolylineAnnotation({
+    required super.rect,
+    required this.vertices,
+    this.color = Colors.black,
+    this.strokeWidth = 1.0,
+  }) : super(subtype: PdfAnnotationSubtype.polyline);
+}
+
+/// A concrete implementation for a Stamp annotation.
+class PdfStampAnnotation extends PdfAnnotation {
+  final String stampName; // e.g., "Approved", "Confidential"
+  final String? content;
+
+  PdfStampAnnotation({
+    required super.rect,
+    required this.stampName,
+    this.content,
+  }) : super(subtype: PdfAnnotationSubtype.stamp);
+}
+
+/// A concrete implementation for a Caret annotation.
+class PdfCaretAnnotation extends PdfAnnotation {
+  PdfCaretAnnotation({
+    required super.rect,
+  }) : super(subtype: PdfAnnotationSubtype.caret);
+}
+
+/// A concrete implementation for a Popup annotation.
+class PdfPopupAnnotation extends PdfAnnotation {
+  final String? content;
+  final int? parentIndex; // Index of the parent annotation
+
+  PdfPopupAnnotation({
+    required super.rect,
+    this.content,
+    this.parentIndex,
+  }) : super(subtype: PdfAnnotationSubtype.popup);
+}
+
+/// A concrete implementation for a FileAttachment annotation.
+class PdfFileAttachmentAnnotation extends PdfAnnotation {
+  final String fileName;
+  final String? content;
+
+  PdfFileAttachmentAnnotation({
+    required super.rect,
+    required this.fileName,
+    this.content,
+  }) : super(subtype: PdfAnnotationSubtype.fileAttachment);
+}
+
+/// A concrete implementation for a Sound annotation.
+class PdfSoundAnnotation extends PdfAnnotation {
+  // Sound data might be complex, maybe just identify it for now.
+  final String? iconName;
+
+  PdfSoundAnnotation({
+    required super.rect,
+    this.iconName,
+  }) : super(subtype: PdfAnnotationSubtype.sound);
+}
+
+/// A concrete implementation for a Movie annotation.
+class PdfMovieAnnotation extends PdfAnnotation {
+  final String? title;
+
+  PdfMovieAnnotation({
+    required super.rect,
+    this.title,
+  }) : super(subtype: PdfAnnotationSubtype.movie);
+}
+
+/// A concrete implementation for a Widget annotation (form fields).
+class PdfWidgetAnnotation extends PdfAnnotation {
+  final String? fieldType; // e.g., "Tx" for text, "Btn" for button
+  final String? fieldValue;
+
+  PdfWidgetAnnotation({
+    required super.rect,
+    this.fieldType,
+    this.fieldValue,
+  }) : super(subtype: PdfAnnotationSubtype.widget);
+}
+
+/// A concrete implementation for a Screen annotation.
+class PdfScreenAnnotation extends PdfAnnotation {
+  // Similar to Link, but for multimedia
+  final String? title;
+
+  PdfScreenAnnotation({
+    required super.rect,
+    this.title,
+  }) : super(subtype: PdfAnnotationSubtype.screen);
+}
+
+/// A concrete implementation for a PrinterMark annotation.
+class PdfPrinterMarkAnnotation extends PdfAnnotation {
+  final String? markName;
+
+  PdfPrinterMarkAnnotation({
+    required super.rect,
+    this.markName,
+  }) : super(subtype: PdfAnnotationSubtype.printerMark);
+}
+
+/// A concrete implementation for a TrapNet annotation.
+class PdfTrapNetAnnotation extends PdfAnnotation {
+  PdfTrapNetAnnotation({
+    required super.rect,
+  }) : super(subtype: PdfAnnotationSubtype.trapNet);
+}
+
+/// A concrete implementation for a Watermark annotation.
+class PdfWatermarkAnnotation extends PdfAnnotation {
+  PdfWatermarkAnnotation({
+    required super.rect,
+  }) : super(subtype: PdfAnnotationSubtype.watermark);
+}
+
+/// A concrete implementation for a 3D annotation.
+class PdfThreeDAnnotation extends PdfAnnotation {
+  PdfThreeDAnnotation({
+    required super.rect,
+  }) : super(subtype: PdfAnnotationSubtype.threeD);
+}
+
+/// A concrete implementation for a Redact annotation.
+class PdfRedactAnnotation extends PdfMarkupAnnotation {
+  final Color? overlayColor;
+  final String? overlayText;
+
+  PdfRedactAnnotation({
+    required super.rect,
+    required super.subRects,
+    this.overlayColor,
+    this.overlayText,
+  }) : super(subtype: PdfAnnotationSubtype.redact);
+}
 
 /// Annotation rendering mode.
 /// - [none]: Do not render annotations.

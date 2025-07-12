@@ -753,54 +753,116 @@ class _PdfPagePdfium extends PdfPage {
   @override
   Future<List<PdfAnnotation>> loadAnnotations({bool compact = false}) async {
     final annotsData = await _loadAnnotationsData();
-    final annots = annotsData.map((d) {
-      // FIXME: this is a temporary workaround for the issue that FPDFAnnot_GetSubtype() may return a value that is not in PdfAnnotationSubtype.
-      final subtype = d.subtype < PdfAnnotationSubtype.values.length ? PdfAnnotationSubtype.values[d.subtype] : PdfAnnotationSubtype.unknown;
-      return _PdfAnnotationPdfium(
-        subtype: subtype,
-        rect: d.rect,
-      );
-    }).toList();
+    final annots =
+        annotsData
+            .map((d) {
+              final subtype =
+                  d.subtype < PdfAnnotationSubtype.values.length
+                      ? PdfAnnotationSubtype.values[d.subtype]
+                      : PdfAnnotationSubtype.unknown;
+              switch (subtype) {
+                case PdfAnnotationSubtype.text:
+                  return PdfTextAnnotation(rect: d.rect, content: d.content ?? '');
+                case PdfAnnotationSubtype.link:
+                  // Link annotations are handled by loadLinks
+                  return null;
+                case PdfAnnotationSubtype.highlight:
+                  return PdfHighlightAnnotation(
+                    rect: d.rect,
+                    subRects: d.subRects ?? [],
+                    color: d.color != null ? Color(d.color!) : Colors.yellow,
+                  );
+                case PdfAnnotationSubtype.underline:
+                  return PdfUnderlineAnnotation(
+                    rect: d.rect,
+                    subRects: d.subRects ?? [],
+                    color: d.color != null ? Color(d.color!) : Colors.red,
+                  );
+                case PdfAnnotationSubtype.squiggly:
+                  return PdfSquigglyAnnotation(
+                    rect: d.rect,
+                    subRects: d.subRects ?? [],
+                    color: d.color != null ? Color(d.color!) : Colors.orange,
+                  );
+                case PdfAnnotationSubtype.strikeOut:
+                  return PdfStrikeOutAnnotation(
+                    rect: d.rect,
+                    subRects: d.subRects ?? [],
+                    color: d.color != null ? Color(d.color!) : Colors.black,
+                  );
+                case PdfAnnotationSubtype.ink:
+                  return PdfInkAnnotation(
+                    rect: d.rect,
+                    paths: d.inkList ?? [],
+                    color: d.color != null ? Color(d.color!) : Colors.red,
+                  );
+                default:
+                  return _PdfAnnotationPdfium(subtype: subtype, rect: d.rect);
+              }
+            })
+            .whereType<PdfAnnotation>()
+            .toList();
     return List.unmodifiable(annots);
   }
 
-  Future<List<({int subtype, PdfRect rect})>> _loadAnnotationsData() async => document.isDisposed
-      ? []
-      : await (await backgroundWorker).compute(
-          (params) => using((arena) {
-            final document = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
-            final page = pdfium.FPDF_LoadPage(document, params.pageNumber - 1);
-            try {
-              final count = pdfium.FPDFPage_GetAnnotCount(page);
-              final rectf = arena.allocate<pdfium_bindings.FS_RECTF>(sizeOf<pdfium_bindings.FS_RECTF>());
-              final annots = <({int subtype, PdfRect rect})>[];
-              for (int i = 0; i < count; i++) {
-                final annot = pdfium.FPDFPage_GetAnnot(page, i);
-                try {
-                  pdfium.FPDFAnnot_GetRect(annot, rectf);
-                  final r = rectf.ref;
-                  final rect = PdfRect(
-                    r.left,
-                    r.top > r.bottom ? r.top : r.bottom,
-                    r.right,
-                    r.top > r.bottom ? r.bottom : r.top,
-                  );
-                  final subtype = pdfium.FPDFAnnot_GetSubtype(annot);
-                  annots.add((
-                    subtype: subtype,
-                    rect: rect,
-                  ));
-                } finally {
-                  pdfium.FPDFPage_CloseAnnot(annot);
+  Future<
+    List<
+      ({int subtype, PdfRect rect, int? color, List<PdfRect>? subRects, List<List<PdfPoint>>? inkList, String? content})
+    >
+  >
+  _loadAnnotationsData() async =>
+      document.isDisposed
+          ? []
+          : await (await backgroundWorker).compute(
+            (params) => using((arena) {
+              final document = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
+              final page = pdfium.FPDF_LoadPage(document, params.pageNumber - 1);
+              try {
+                final count = pdfium.FPDFPage_GetAnnotCount(page);
+                final rectf = arena.allocate<pdfium_bindings.FS_RECTF>(sizeOf<pdfium_bindings.FS_RECTF>());
+                final annots =
+                    <
+                      ({
+                        int subtype,
+                        PdfRect rect,
+                        int? color,
+                        List<PdfRect>? subRects,
+                        List<List<PdfPoint>>? inkList,
+                        String? content,
+                      })
+                    >[];
+                for (int i = 0; i < count; i++) {
+                  final annot = pdfium.FPDFPage_GetAnnot(page, i);
+                  try {
+                    pdfium.FPDFAnnot_GetRect(annot, rectf);
+                    final r = rectf.ref;
+                    final rect = PdfRect(
+                      r.left,
+                      r.top > r.bottom ? r.top : r.bottom,
+                      r.right,
+                      r.top > r.bottom ? r.bottom : r.top,
+                    );
+                    final subtype = pdfium.FPDFAnnot_GetSubtype(annot);
+
+                    annots.add((
+                      subtype: subtype,
+                      rect: rect,
+                      color: pdfium.getAnnotColor(annot, arena),
+                      subRects: pdfium.getAnnotSubRects(annot, arena),
+                      inkList: pdfium.getAnnotInkList(annot, arena),
+                      content: pdfium.getAnnotStringValue(annot, 'Contents', arena),
+                    ));
+                  } finally {
+                    pdfium.FPDFPage_CloseAnnot(annot);
+                  }
                 }
+                return annots;
+              } finally {
+                pdfium.FPDF_ClosePage(page);
               }
-              return annots;
-            } finally {
-              pdfium.FPDF_ClosePage(page);
-            }
-          }),
-          (document: document.document.address, pageNumber: pageNumber),
-        );
+            }),
+            (document: document.document.address, pageNumber: pageNumber),
+          );
 
   Future<List<PdfLink>> _loadWebLinks() async =>
       document.isDisposed
@@ -937,10 +999,7 @@ class _PdfPagePdfium extends PdfPage {
 }
 
 class _PdfAnnotationPdfium implements PdfAnnotation {
-  _PdfAnnotationPdfium({
-    required this.subtype,
-    required this.rect,
-  });
+  _PdfAnnotationPdfium({required this.subtype, required this.rect});
 
   @override
   final PdfAnnotationSubtype subtype;
@@ -1206,4 +1265,60 @@ PdfDest? _pdfDestFromDest(pdfium_bindings.FPDF_DEST dest, pdfium_bindings.FPDF_D
     return PdfDest(pageIndex + 1, PdfDestCommand.values[type], List.generate(pul.value, (index) => values[index]));
   }
   return null;
+}
+
+extension PdfiumExt on pdfium_bindings.pdfium {
+  int? getAnnotColor(pdfium_bindings.FPDF_ANNOTATION annot, Arena arena) {
+    final R = arena.allocate<UnsignedInt>(0);
+    final G = arena.allocate<UnsignedInt>(0);
+    final B = arena.allocate<UnsignedInt>(0);
+    final A = arena.allocate<UnsignedInt>(0);
+    if (FPDFAnnot_GetColor(annot, pdfium_bindings.FPDFANNOT_COLORTYPE.FPDFANNOT_COLORTYPE_Color, R, G, B, A) == 1) {
+      return Color.fromARGB(A.value, R.value, G.value, B.value).value;
+    }
+    return null;
+  }
+
+  List<PdfRect>? getAnnotSubRects(pdfium_bindings.FPDF_ANNOTATION annot, Arena arena) {
+    final count = FPDFAnnot_CountAttachmentPoints(annot);
+    if (count == 0) return null;
+    final quadPoints = arena.allocate<pdfium_bindings.FS_QUADPOINTSF>(sizeOf<pdfium_bindings.FS_QUADPOINTSF>());
+    final result = <PdfRect>[];
+    for (int i = 0; i < count; i++) {
+      FPDFAnnot_GetAttachmentPoints(annot, i, quadPoints);
+      final q = quadPoints.ref;
+      result.add(PdfRect(q.x1, q.y1, q.x3, q.y3));
+    }
+    return result;
+  }
+
+  List<List<PdfPoint>>? getAnnotInkList(pdfium_bindings.FPDF_ANNOTATION annot, Arena arena) {
+    if (FPDFAnnot_GetSubtype(annot) != pdfium_bindings.FPDF_ANNOT_INK) {
+      return null;
+    }
+    final pathCount = FPDFAnnot_GetInkListCount(annot);
+    if (pathCount == 0) return null;
+    final result = <List<PdfPoint>>[];
+    for (int i = 0; i < pathCount; i++) {
+      final pointCount = FPDFAnnot_GetInkListPath(annot, i, nullptr, 0);
+      if (pointCount == 0) continue;
+      final points = arena.allocate<pdfium_bindings.FS_POINTF>(sizeOf<pdfium_bindings.FS_POINTF>() * pointCount);
+      FPDFAnnot_GetInkListPath(annot, i, points, pointCount);
+      result.add(List.generate(pointCount, (j) => PdfPoint(points[j].x, points[j].y)));
+    }
+    return result;
+  }
+
+  String? getAnnotStringValue(pdfium_bindings.FPDF_ANNOTATION annot, String key, Arena arena) {
+    final keyPtr = key.toNativeUtf8(allocator: arena);
+    final type = FPDFAnnot_GetValueType(annot, keyPtr.cast());
+    if (type != pdfium_bindings.FPDF_OBJECT_STRING) {
+      return null;
+    }
+    final len = FPDFAnnot_GetStringValue(annot, keyPtr.cast(), nullptr, 0);
+    if (len <= 0) return null;
+    final buffer = arena.allocate<Char>(len);
+    FPDFAnnot_GetStringValue(annot, keyPtr.cast(), buffer.cast(), len);
+    return buffer.cast<Utf16>().toDartString();
+  }
 }
