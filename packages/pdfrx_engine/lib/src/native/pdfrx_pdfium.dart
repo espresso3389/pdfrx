@@ -457,8 +457,9 @@ class _PdfDocumentPdfium extends PdfDocument {
           return;
         }
       }
-      if (loaded.pageCountLoadedTotal == loaded.pages.length || isDisposed)
+      if (loaded.pageCountLoadedTotal == loaded.pages.length || isDisposed) {
         return;
+      }
     }
   }
 

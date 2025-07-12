@@ -2,7 +2,9 @@
 
 [![Build Test](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml/badge.svg)](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml)
 
-[pdfrx_engine](https://pub.dartlang.org/packages/pdfrx_engine) is a PDF engine built on top of [PDFium](https://pdfium.googlesource.com/pdfium/) and is used by the [pdfrx](https://pub.dartlang.org/packages/pdfrx) plugin. The package supports Android, iOS, Windows, macOS, Linux, and Web.
+[pdfrx_engine](https://pub.dartlang.org/packages/pdfrx_engine) is a platform-agnostic PDF rendering engine built on top of [PDFium](https://pdfium.googlesource.com/pdfium/). It provides low-level PDF document APIs without any Flutter dependencies, making it suitable for use in pure Dart applications, CLI tools, or server-side processing.
+
+This package is part of the pdfrx monorepo and serves as the foundation for the [pdfrx](https://pub.dartlang.org/packages/pdfrx) Flutter plugin, which adds UI widgets and Flutter-specific features on top of this engine.
 
 ## Multi-platform support
 
@@ -36,6 +38,22 @@ void main() async {
 ## PDF API
 
 - Easy to use PDF APIs
-  - [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html)
+  - [PdfDocument](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) - Main document interface
+  - [PdfPage](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage-class.html) - Page representation and rendering
 - PDFium bindings
-  - Not encouraged but you can import [`package:pdfrx/src/pdfium/pdfium_bindings.dart`](https://github.com/espresso3389/pdfrx/blob/master/lib/src/pdfium/pdfium_bindings.dart)
+  - For advanced use cases, you can access the raw PDFium bindings via `package:pdfrx_engine/src/native/pdfium_bindings.dart`
+  - Note: Direct use of PDFium bindings is not recommended for most use cases
+
+## When to Use pdfrx_engine vs pdfrx
+
+**Use pdfrx_engine when:**
+- Building CLI tools or server applications
+- You need PDF rendering without Flutter UI
+- Creating custom PDF processing pipelines
+- Working in pure Dart environments
+
+**Use pdfrx when:**
+- Building Flutter applications
+- You need ready-to-use PDF viewer widgets
+- You want features like text selection, search, and zoom controls
+- You prefer high-level APIs with Flutter integration

@@ -2,7 +2,12 @@
 
 [![Build Test](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml/badge.svg)](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml)
 
-[pdfrx](https://pub.dartlang.org/packages/pdfrx) is a rich and fast PDF viewer implementation built on top of [PDFium](https://pdfium.googlesource.com/pdfium/).
+[pdfrx](https://pub.dartlang.org/packages/pdfrx) is a rich and fast PDF viewer plugin for Flutter. It provides ready-to-use widgets for displaying PDF documents in your Flutter applications.
+
+This plugin is built on top of [pdfrx_engine](https://pub.dartlang.org/packages/pdfrx_engine), which handles the low-level PDF rendering using [PDFium](https://pdfium.googlesource.com/pdfium/). The separation allows for a clean architecture where:
+- **pdfrx** (this package) - Provides Flutter widgets, UI components, and platform integration
+- **pdfrx_engine** - Handles PDF parsing and rendering without Flutter dependencies
+
 The plugin supports Android, iOS, Windows, macOS, Linux, and Web.
 
 ## Interactive Demo
@@ -56,6 +61,8 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 dependencies:
   pdfrx: ^1.3.2
 ```
+
+**Note:** You only need to add `pdfrx` to your dependencies. The `pdfrx_engine` package is automatically included as a dependency of `pdfrx`.
 
 ### Note for Windows
 
@@ -184,11 +191,16 @@ PdfDocumentViewBuilder.asset(
 
 [PdfDocumentViewBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentViewBuilder-class.html) can accept [PdfDocumentRef](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRef-class.html) from [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) to safely share the same [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) instance. For more information, see [`example/viewer/lib/thumbnails_view.dart`](example/viewer/lib/thumbnails_view.dart).
 
-## Low Level PDF API
+## API Documentation
 
-- Easy to use Flutter widgets
-  - [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html)
-  - [PdfDocumentViewBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentViewBuilder-class.html)
-  - [PdfPageView](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageView-class.html)
-- Easy to use PDF APIs
-  - [pdfrx_engine API reference](https://pub.dev/documentation/pdfrx_engine/latest/)
+### Flutter Widgets (pdfrx)
+
+- [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) - Main PDF viewer widget
+- [PdfDocumentViewBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentViewBuilder-class.html) - Builder for safe async document loading
+- [PdfPageView](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageView-class.html) - Single page display widget
+
+### Low-Level PDF API (pdfrx_engine)
+
+For advanced use cases requiring direct PDF manipulation without Flutter widgets, see the [pdfrx_engine API reference](https://pub.dev/documentation/pdfrx_engine/latest/). This includes:
+- [PdfDocument](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) - Core document interface
+- [PdfPage](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage-class.html) - Page rendering and manipulation

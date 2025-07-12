@@ -4,24 +4,59 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-pdfrx is a cross-platform PDF viewer plugin for Flutter that supports iOS, Android, Windows, macOS, Linux, and Web. It uses PDFium for native platforms and supports both PDF.js and PDFium WASM for web platforms.
+pdfrx is a monorepo containing two packages:
+
+1. **pdfrx_engine** (`packages/pdfrx_engine/`) - A platform-agnostic PDF rendering API built on top of PDFium
+   - Pure Dart package with no Flutter dependencies
+   - Provides core PDF document API and PDFium bindings
+   - Can be used independently for non-Flutter Dart applications
+
+2. **pdfrx** (`packages/pdfrx/`) - A cross-platform PDF viewer plugin for Flutter
+   - Depends on pdfrx_engine for PDF rendering functionality
+   - Provides Flutter widgets and UI components
+   - Supports iOS, Android, Windows, macOS, Linux, and Web
+   - Uses PDFium for native platforms and PDFium WASM for web platforms
 
 ## Development Commands
+
+### Monorepo Management
+
+This project uses Melos for managing the multi-package repository:
+
+```bash
+# Install melos globally (if not already installed)
+dart pub global activate melos
+
+# Bootstrap the project (install dependencies for all packages)
+melos bootstrap
+
+# Run analysis on all packages
+melos analyze
+```
 
 ### Basic Flutter Commands
 
 ```bash
+# For the main pdfrx package
+cd packages/pdfrx
 flutter pub get          # Install dependencies
 flutter analyze          # Run static analysis
 flutter test             # Run all tests
 flutter format .         # Format code (120 char line width)
+
+# For the pdfrx_engine package
+cd packages/pdfrx_engine
+dart pub get            # Install dependencies
+dart analyze            # Run static analysis
+dart test               # Run all tests
+dart format .           # Format code (120 char line width)
 ```
 
 ### Platform-Specific Builds
 
 ```bash
 # Example app
-cd example/viewer
+cd packages/pdfrx/example/viewer
 flutter run              # Run on connected device/emulator
 flutter build appbundle  # Build Android App Bundle
 flutter build ios        # Build iOS (requires macOS)
@@ -31,40 +66,52 @@ flutter build windows     # Build for Windows
 flutter build macos      # Build for macOS
 ```
 
-### FFI Bindings Generation
+### FFI Bindings Generation (pdfrx_engine)
 
-- FFI bindings for PDFium are generated using `ffigen`.
-- FFI bindings depends on the Pdfium headers installed on `example/viewer/build/linux/x64/release/.lib/latest/include`
-  - The headers are downloaded automatically during the build process; `flutter build linux` must be run at least once
+- FFI bindings for PDFium are generated using `ffigen` in the pdfrx_engine package.
+- FFI bindings depends on the Pdfium headers which are downloaded during `dart test` on pdfrx_engine (Linux only).
 
 ```bash
-cd example/viewer && flutter build linux
+# Run on Linux
+cd packages/pdfrx_engine
+dart test
 dart run ffigen          # Regenerate PDFium FFI bindings
 ```
 
 ## Release Process
 
-1. Update version in `pubspec.yaml`
+Both packages may need to be released when changes are made:
+
+### For pdfrx_engine package updates
+
+1. Update version in `packages/pdfrx_engine/pubspec.yaml`
    - Basically, if the changes are not breaking (or relatively small breaking changes), increment the patch version (X.Y.Z -> X.Y.Z+1)
    - If there are breaking changes, increment the minor version (X.Y.Z -> X.Y+1.0)
    - If there are major changes, increment the major version (X.Y.Z -> X+1.0.0)
-2. Update `CHANGELOG.md` with changes
+2. Update `packages/pdfrx_engine/CHANGELOG.md` with changes
    - Don't mention CI/CD changes and `CLAUDE.md` related changes (unless they are significant)
-3. Update `README.md` with new version information
+3. Update `packages/pdfrx_engine/README.md` if needed
+4. Run `dart pub publish` in `packages/pdfrx_engine/`
+
+### For pdfrx package updates
+
+1. Update version in `packages/pdfrx/pubspec.yaml`
+   - If pdfrx_engine was updated, update the dependency version
+2. Update `packages/pdfrx/CHANGELOG.md` with changes
+3. Update `packages/pdfrx/README.md` with new version information
    - Changes version in example fragments
    - Consider to add notes for new features or breaking changes
    - Notify the owner if you find any issues with the example app or documentation
-4. Run `flutter pub get` on all affected directories
-   - This includes the main package, example app, and wasm package if applicable
-   - Ensure all dependencies are resolved and up-to-date
+4. Run `melos bootstrap` to update all dependencies
 5. Run tests to ensure everything works
-   - Run `flutter test` to execute all tests on root directory (not in `example/viewer`)
+   - Run `dart test` in `packages/pdfrx_engine/`
+   - Run `flutter test` in `packages/pdfrx/`
 6. Ensure the example app builds correctly
-   - Run `flutter build web --wasm` in `example/viewer` to test the example app
-7. Commit changes with message "Release vX.Y.Z"
-8. Tag the commit with `git tag vX.Y.Z`
+   - Run `flutter build web --wasm` in `packages/pdfrx/example/viewer` to test the example app
+7. Commit changes with message "Release pdfrx vX.Y.Z" or "Release pdfrx_engine vX.Y.Z"
+8. Tag the commit with `git tag pdfrx-vX.Y.Z` or `git tag pdfrx_engine-vX.Y.Z`
 9. Push changes and tags to remote
-10. Do `flutter pub publish` to publish the package
+10. Run `flutter pub publish` in `packages/pdfrx/`
 11. If the changes reference GitHub issues or PRs, add comments on them notifying about the new release
     - Use `gh issue comment` or `gh pr comment` to notify that the issue/PR has been addressed in the new release
     - If the PR references issues, please also comment on the issues
@@ -83,32 +130,46 @@ dart run ffigen          # Regenerate PDFium FFI bindings
 
 ## Architecture Overview
 
-### Platform Abstraction
+### Package Architecture
 
-The plugin uses conditional imports to support different platforms:
+The project is split into two packages with clear separation of concerns:
 
-- `lib/src/pdfium/` - Native platform implementation using PDFium via FFI
-- `lib/src/web/` - Web implementation by PDFium WASM
-- Platform-specific code determined at import time based on `dart:library.io` availability
+#### pdfrx_engine (`packages/pdfrx_engine/`)
+
+- Platform-agnostic PDF rendering engine
+- Conditional imports to support different platforms:
+  - `lib/src/native/` - Native platform implementation using PDFium via FFI
+  - `lib/src/web/` - Web implementation using PDFium WASM
+  - Platform-specific code determined at import time based on `dart:library.io` availability
+- Main exports:
+  - `pdf_api.dart` - Core PDF document interfaces
+
+#### pdfrx (`packages/pdfrx/`)
+
+- Flutter plugin built on top of pdfrx_engine
+- Contains all Flutter-specific code:
+  - Widget layer
+  - Platform channel implementations
+  - UI components and overlays
 
 ### Core Components
 
-1. **Document API** (`lib/src/pdf_api.dart`)
+1. **Document API** (in `packages/pdfrx_engine/lib/src/pdf_api.dart`)
    - `PdfDocument` - Main document interface
    - `PdfPage` - Page representation
    - `PdfDocumentRef` - Reference counting for document lifecycle
    - Platform-agnostic interfaces implemented differently per platform
 
-2. **Widget Layer** (`lib/src/widgets/`)
+2. **Widget Layer** (in `packages/pdfrx/lib/src/widgets/`)
    - `PdfViewer` - Main viewer widget with multiple constructors
    - `PdfPageView` - Single page display
    - `PdfDocumentViewBuilder` - Safe document loading pattern
    - Overlay widgets for text selection, links, search
 
 3. **Native Integration**
-   - Uses Flutter FFI for PDFium integration
-   - Native code in `src/pdfium_interop.cpp`
-   - Platform folders contain build configurations
+   - pdfrx_engine uses Dart FFI for PDFium integration
+   - Native code in `packages/pdfrx_engine/src/pdfium_interop.cpp`
+   - Platform folders in `packages/pdfrx/` contain Flutter plugin build configurations
 
 ### Key Patterns
 
@@ -122,8 +183,16 @@ The plugin uses conditional imports to support different platforms:
 Tests download PDFium binaries automatically for supported platforms. Run tests with:
 
 ```bash
+# Test pdfrx_engine
+cd packages/pdfrx_engine
+dart test
+
+# Test pdfrx Flutter plugin
+cd packages/pdfrx
 flutter test
-flutter test test/pdf_document_test.dart  # Run specific test file
+
+# Run all tests using melos
+melos run test
 ```
 
 ## Platform-Specific Notes
@@ -131,7 +200,7 @@ flutter test test/pdf_document_test.dart  # Run specific test file
 ### iOS/macOS
 
 - Uses pre-built PDFium binaries from [GitHub releases](https://github.com/espresso3389/pdfrx/releases)
-- CocoaPods integration via `darwin/pdfrx.podspec`
+- CocoaPods integration via `packages/pdfrx/darwin/pdfrx.podspec`
 - Binaries downloaded during pod install (Or you can use Swift Package Manager if you like)
 
 ### Android
@@ -142,9 +211,9 @@ flutter test test/pdf_document_test.dart  # Run specific test file
 
 ### Web
 
-- `assets/pdfium.wasm` is prebuilt PDFium WASM binary
-- `assets/pdfium_worker.js` is the worker script that contains Pdfium WASM's shim
-- `assets/pdfium_client.js` is the code that launches the worker and provides the API, which is used by `lib/src/web/pdfrx_wasm.dart`
+- `packages/pdfrx/assets/pdfium.wasm` is prebuilt PDFium WASM binary
+- `packages/pdfrx/assets/pdfium_worker.js` is the worker script that contains Pdfium WASM's shim
+- `packages/pdfrx/assets/pdfium_client.js` is the code that launches the worker and provides the API, which is used by pdfrx_engine's web implementation
 
 ### Windows/Linux
 
@@ -159,6 +228,12 @@ flutter test test/pdf_document_test.dart  # Run specific test file
 - Follow flutter_lints with custom rules in analysis_options.yaml
 
 ## Dependency Version Policy
+
+### pdfrx_engine
+
+This package follows standard Dart package versioning practices.
+
+### pdfrx
 
 This package intentionally does NOT specify version constraints for core Flutter-managed packages (collection, ffi, http, path, rxdart). This design decision allows:
 

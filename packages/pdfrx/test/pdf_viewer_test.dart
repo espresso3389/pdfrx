@@ -7,13 +7,13 @@ import 'package:http/testing.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 
-import '../../pdfrx_engine/test/setup.dart';
-
 final testPdfFile = File('example/viewer/assets/hello.pdf');
 final binding = TestWidgetsFlutterBinding.ensureInitialized();
 
 void main() {
-  setUp(() => setup());
+  // For testing purpose, we should run on the command line
+  // and pdfrxEngineDartInitialize is a better way to initialize the library.
+  setUp(() => pdfrxEngineDartInitialize());
   Pdfrx.createHttpClient =
       () => MockClient((request) async {
         return http.Response.bytes(await testPdfFile.readAsBytes(), 200);
@@ -24,7 +24,9 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         // FIXME: Just a workaround for "A RenderFlex overflowed..."
-        home: SingleChildScrollView(child: PdfViewer.uri(Uri.parse('https://example.com/hello.pdf'))),
+        home: SingleChildScrollView(
+          child: PdfViewer.uri(Uri.parse('https://example.com/hello.pdf')),
+        ),
       ),
     );
 
