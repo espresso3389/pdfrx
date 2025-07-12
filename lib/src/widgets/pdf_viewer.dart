@@ -770,6 +770,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
     final linkWidgets = <Widget>[];
     final textWidgets = <Widget>[];
+    final annotationWidgets = <Widget>[];
     final overlayWidgets = <Widget>[];
     final targetRect = _getCacheExtentRect();
     final isTextSelectionEnabled =
@@ -805,6 +806,19 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                       },
                     ),
               ),
+            ),
+          );
+        }
+
+        if (widget.params.annotationBuilder != null) {
+          annotationWidgets.add(
+            Positioned(
+              key: Key('#__pageAnnotations__:${page.pageNumber}'),
+              left: rectExternal.left,
+              top: rectExternal.top,
+              width: rectExternal.width,
+              height: rectExternal.height,
+              child: _PdfPageAnnotationWidgets(page: page, pageRect: rectExternal, params: widget.params),
             ),
           );
         }
@@ -868,6 +882,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         ),
       ...linkWidgets,
       ...overlayWidgets,
+      if (annotationWidgets.isNotEmpty) Stack(children: annotationWidgets),
     ];
   }
 
@@ -1570,6 +1585,66 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   Offset? _documentToGlobal(Offset document) => _localToGlobal(
     document.scale(_currentZoom, _currentZoom).translate(_txController.value.xZoomed, _txController.value.yZoomed),
   );
+}
+
+class _PdfPageAnnotationWidgets extends StatefulWidget {
+  const _PdfPageAnnotationWidgets({required this.page, required this.pageRect, required this.params});
+
+  final PdfPage page;
+  final Rect pageRect;
+  final PdfViewerParams params;
+
+  @override
+  State<_PdfPageAnnotationWidgets> createState() => _PdfPageAnnotationWidgetsState();
+}
+
+class _PdfPageAnnotationWidgetsState extends State<_PdfPageAnnotationWidgets> {
+  List<PdfAnnotation>? _annotations;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAnnotations();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PdfPageAnnotationWidgets oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.page != widget.page) {
+      _loadAnnotations();
+    }
+  }
+
+  Future<void> _loadAnnotations() async {
+    final annotations = await widget.page.loadAnnotations();
+    if (mounted) {
+      setState(() {
+        _annotations = annotations;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_annotations == null || widget.params.annotationBuilder == null) {
+      return const SizedBox.shrink();
+    }
+    final annotationWidgets = <Widget>[];
+    for (final annotation in _annotations!) {
+      final rect = annotation.rect.toRect(page: widget.page, scaledPageSize: widget.pageRect.size);
+      annotationWidgets.add(
+        Positioned(
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+          child: widget.params.annotationBuilder!(context, annotation),
+        ),
+      );
+    }
+
+    return Stack(children: annotationWidgets);
+  }
 }
 
 class _PdfPartialImageRenderingRequest {
