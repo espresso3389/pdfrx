@@ -1,0 +1,8 @@
+name: pdfrx
+
+packages:
+  - packages/**
+
+scripts:
+  analyze:
+    exec: dart analyze .

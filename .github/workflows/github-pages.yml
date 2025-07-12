@@ -34,7 +34,7 @@ jobs:
         run: flutter pub get
       - name: Build Flutter Web App (WASM)
         run: |
-          cd example/viewer/
+          cd packages/pdfrx/example/viewer/
           flutter build web --wasm --release --dart-define=GITHUB_COMMIT=$GITHUB_SHA --dart-define=PDFRX_VERSION=$PDFRX_VERSION
           sed -i \
             -e 's|<base href="/">|<base href="/pdfrx/">|' \
@@ -47,7 +47,7 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.TOKEN_FOR_GHPAGE_DEPLOYMENT }}@github.com/${{ github.repository }}.git
       - name: Deploy to GitHub Pages using subtree push
         run: |
-          git add -f example/viewer/build/web
+          git add -f packages/pdfrx/example/viewer/build/web
           git commit -m "$PDFRX_VERSION $GITHUB_SHA"
-          git subtree split --prefix example/viewer/build/web -b tmp
+          git subtree split --prefix packages/pdfrx/example/viewer/build/web -b tmp
           git push -f origin tmp:gh-pages

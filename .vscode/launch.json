@@ -8,13 +8,13 @@
       "name": "viewer example",
       "request": "launch",
       "type": "dart",
-      "program": "example/viewer/lib/main.dart"
+      "program": "packages/pdfrx/example/viewer/lib/main.dart"
     },
     {
       "name": "viewer example (WASM)",
       "request": "launch",
       "type": "dart",
-      "program": "example/viewer/lib/main.dart",
+      "program": "packages/pdfrx/example/viewer/lib/main.dart",
       "args": ["-d", "chrome", "--wasm"]
     }
   ]
