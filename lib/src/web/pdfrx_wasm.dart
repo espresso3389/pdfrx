@@ -475,6 +475,31 @@ class _PdfPageWasm extends PdfPage {
   }
 
   @override
+  Future<List<PdfAnnotation>> loadAnnotations({bool compact = false}) async {
+    final result = await document.factory.sendCommand(
+      'loadAnnotations',
+      parameters: {
+        'docHandle': document.document['docHandle'],
+        'pageIndex': pageNumber - 1,
+      },
+    );
+    return (result['annotations'] as List).map((annot) {
+      if (annot is! Map<Object?, dynamic>) {
+        throw FormatException('Unexpected annotation structure: $annot');
+      }
+      final rect = annot['rect'] as List;
+      final subtypeValue = (annot['subtype'] as num).toInt();
+      final subtype = subtypeValue < PdfAnnotationSubtype.values.length
+          ? PdfAnnotationSubtype.values[subtypeValue]
+          : PdfAnnotationSubtype.unknown;
+      return _PdfAnnotationWasm(
+        subtype: subtype,
+        rect: PdfRect(rect[0] as double, rect[1] as double, rect[2] as double, rect[3] as double),
+      );
+    }).toList();
+  }
+
+  @override
   Future<PdfPageText> loadText() async {
     final result = await document.factory.sendCommand(
       'loadText',
@@ -555,6 +580,19 @@ class _PdfPageWasm extends PdfPage {
     final pixels = Uint8List.view(bb.asByteData().buffer, 0, bb.lengthInBytes);
     return PdfImageWeb(width: width, height: height, pixels: pixels, format: ui.PixelFormat.bgra8888);
   }
+}
+
+class _PdfAnnotationWasm implements PdfAnnotation {
+  _PdfAnnotationWasm({
+    required this.subtype,
+    required this.rect,
+  });
+
+  @override
+  final PdfAnnotationSubtype subtype;
+
+  @override
+  final PdfRect rect;
 }
 
 class PdfImageWeb extends PdfImage {

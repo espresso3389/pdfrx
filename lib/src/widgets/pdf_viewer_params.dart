@@ -57,6 +57,7 @@ class PdfViewerParams {
     this.loadingBannerBuilder,
     this.errorBannerBuilder,
     this.linkWidgetBuilder,
+    this.annotationBuilder,
     this.pagePaintCallbacks,
     this.pageBackgroundPaintCallbacks,
     this.onTextSelectionChange,
@@ -468,6 +469,11 @@ class PdfViewerParams {
   /// [linkHandlerParams] is the recommended way to handle links.
   final PdfLinkWidgetBuilder? linkWidgetBuilder;
 
+  /// Build annotation widget.
+  ///
+  /// If null, no annotation widgets are built.
+  final PdfAnnotationWidgetBuilder? annotationBuilder;
+
   /// Callback to paint over the rendered page.
   ///
   /// For the detail usage, see [PdfViewerPagePaintCallback].
@@ -604,6 +610,7 @@ class PdfViewerParams {
         other.loadingBannerBuilder == loadingBannerBuilder &&
         other.errorBannerBuilder == errorBannerBuilder &&
         other.linkWidgetBuilder == linkWidgetBuilder &&
+        other.annotationBuilder == annotationBuilder &&
         other.pagePaintCallbacks == pagePaintCallbacks &&
         other.pageBackgroundPaintCallbacks == pageBackgroundPaintCallbacks &&
         other.onTextSelectionChange == onTextSelectionChange &&
@@ -658,6 +665,7 @@ class PdfViewerParams {
         loadingBannerBuilder.hashCode ^
         errorBannerBuilder.hashCode ^
         linkWidgetBuilder.hashCode ^
+        annotationBuilder.hashCode ^
         pagePaintCallbacks.hashCode ^
         pageBackgroundPaintCallbacks.hashCode ^
         onTextSelectionChange.hashCode ^
@@ -764,6 +772,9 @@ typedef PdfViewerErrorBannerBuilder =
 ///
 /// [size] is the size of the link.
 typedef PdfLinkWidgetBuilder = Widget? Function(BuildContext context, PdfLink link, Size size);
+
+/// Function to build annotation widget.
+typedef PdfAnnotationWidgetBuilder = Widget Function(BuildContext context, PdfAnnotation annotation);
 
 /// Function to inject [SelectionArea] or [SelectableRegion] to customize text selection.
 typedef PdfSelectableRegionInjector = Widget Function(BuildContext context, Widget child);

@@ -1266,6 +1266,7 @@ const functions = {
   renderPage,
   loadText,
   loadLinks,
+  loadAnnotations,
 };
 
 /**
@@ -1281,6 +1282,33 @@ function invokeCallback(callbackId, ...args) {
       args: args,
     });
   }
+}
+
+/**
+ * @param {{docHandle: number, pageIndex: number}} params
+ * @returns {{annotations: Array<{subtype: number, rect: number[]}>}}
+ */
+function loadAnnotations(params) {
+  const { pageIndex, docHandle } = params;
+  const pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
+  const count = Pdfium.wasmExports.FPDFPage_GetAnnotCount(pageHandle);
+  const rectF = Pdfium.wasmExports.malloc(4 * 4); // float[4]
+  const annotations = [];
+  for (let i = 0; i < count; i++) {
+    const annot = Pdfium.wasmExports.FPDFPage_GetAnnot(pageHandle, i);
+    Pdfium.wasmExports.FPDFAnnot_GetRect(annot, rectF);
+    const [l, t, r, b] = new Float32Array(Pdfium.memory.buffer, rectF, 4);
+    const rect = [l, t > b ? t : b, r, t > b ? b : t];
+    const subtype = Pdfium.wasmExports.FPDFAnnot_GetSubtype(annot);
+    annotations.push({
+      subtype: subtype,
+      rect: rect,
+    });
+    Pdfium.wasmExports.FPDFPage_CloseAnnot(annot);
+  }
+  Pdfium.wasmExports.free(rectF);
+  Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+  return { annotations: annotations };
 }
 
 function handleRequest(data) {
