@@ -451,8 +451,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                         ),
                       ),
                       if (_initialized) ..._buildPageOverlayWidgets(context),
-                      if (_initialized && _canvasLinkPainter.isEnabled)
-                        SelectionContainer.disabled(child: _canvasLinkPainter.linkHandlingOverlay(_viewSize!)),
                       if (_initialized && widget.params.viewerOverlayBuilder != null)
                         ...widget.params.viewerOverlayBuilder!(context, _viewSize!, _canvasLinkPainter._handleLinkTap)
                             .map((e) => SelectionContainer.disabled(child: e)),
@@ -880,6 +878,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
             child: Stack(children: textWidgets),
           ),
         ),
+      if (_canvasLinkPainter.isEnabled)
+        SelectionContainer.disabled(
+            child: _canvasLinkPainter.linkHandlingOverlay(_viewSize!)),
       ...linkWidgets,
       ...overlayWidgets,
       if (annotationWidgets.isNotEmpty) Stack(children: annotationWidgets),
