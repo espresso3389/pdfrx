@@ -465,7 +465,7 @@ abstract class PdfPage {
 }
 
 /// Annotation subtype.
-/// See PDF 32000-1:2008, 12.5.2, Table 169.
+/// See PDF 32000-1:2008, 12.5.6, Table 169.
 enum PdfAnnotationSubtype {
   unknown,
   text,
