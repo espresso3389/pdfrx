@@ -1,0 +1,39 @@
+diff --git a/core/fxge/BUILD.gn b/core/fxge/BUILD.gn
+index a07bcd089..3d1d197d2 100644
+--- a/core/fxge/BUILD.gn
++++ b/core/fxge/BUILD.gn
+@@ -164,7 +164,7 @@ source_set("fxge") {
+     sources += [ "linux/fx_linux_impl.cpp" ]
+   }
+ 
+-  if (is_mac) {
++  if (is_mac || is_ios) {
+     sources += [
+       "apple/fx_apple_impl.cpp",
+       "apple/fx_apple_platform.cpp",
+diff --git a/public/fpdfview.h b/public/fpdfview.h
+index d96556b47..79b6f3ebb 100644
+--- a/public/fpdfview.h
++++ b/public/fpdfview.h
+@@ -220,7 +220,7 @@ typedef int FPDF_OBJECT_TYPE;
+ #endif  // defined(FPDF_IMPLEMENTATION)
+ #endif  // defined(WIN32)
+ #else
+-#define FPDF_EXPORT
++#define FPDF_EXPORT __attribute__((visibility("default"))) __attribute__((used))
+ #endif  // defined(COMPONENT_BUILD)
+ 
+ #if defined(WIN32) && defined(FPDFSDK_EXPORTS)
+diff --git a/testing/test.gni b/testing/test.gni
+index 6ad2c2d4a..bae5117d8 100644
+--- a/testing/test.gni
++++ b/testing/test.gni
+@@ -207,7 +207,7 @@ template("test") {
+       }
+ 
+       _bundle_id_suffix = target_name
+-      if (ios_automatically_manage_certs) {
++      if (true) {
+         # Use the same bundle identifier for all unit tests when managing
+         # certificates automatically as the number of free certs is limited.
+         _bundle_id_suffix = "generic-unit-test"

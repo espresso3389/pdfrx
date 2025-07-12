@@ -1,5 +1,3 @@
 .lib/
 .tmp/
-ios/
-macos/
 *.tgz
