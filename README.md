@@ -60,9 +60,6 @@ melos bootstrap
 
 # Run analysis on all packages
 melos analyze
-
-# Run tests on all packages
-melos test
 ```
 
 ## Example Application
