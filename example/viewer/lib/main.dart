@@ -179,7 +179,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                 IconButton(
                   visualDensity: visualDensity,
                   icon: const Icon(Icons.comment),
-                  onPressed: documentRef == null ? null : _showAnnotations,
+                  onPressed: documentRef == null ? null : _inspectAnnotations,
                 ),
               ],
             );
@@ -443,6 +443,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           onTextSelectionChange: (selections) {
                             textSelections = selections;
                           },
+                          annotationBuilder: _annotationBuilder,
                         ),
                       );
                     }),
@@ -452,6 +453,53 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
         ],
       ),
     );
+  }
+
+  Widget _annotationBuilder(BuildContext context, PdfAnnotation annotation) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () {
+        final content = annotation is PdfTextAnnotation ? annotation.content : null;
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Annotation'),
+            content: Text('Tapped on ${annotation.subtype.name}${content != null ? ':\n$content' : ''}'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      },
+      child: _buildAnnotationWidget(annotation),
+    );
+  }
+
+  Widget _buildAnnotationWidget(PdfAnnotation annotation) {
+    switch (annotation.subtype) {
+      case PdfAnnotationSubtype.text:
+        return Container(
+          color: Colors.yellow.withAlpha(50),
+          child: const Icon(Icons.comment, color: Colors.orange, size: 20),
+        );
+      case PdfAnnotationSubtype.highlight:
+      case PdfAnnotationSubtype.underline:
+      case PdfAnnotationSubtype.strikeOut:
+      case PdfAnnotationSubtype.ink:
+        // These are rendered by PDFium, so we just need a transparent widget to handle taps.
+        return SizedBox.expand();
+      default:
+        // For other types, show a semi-transparent purple box.
+        return Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.purple.withAlpha(127), width: 1),
+            color: Colors.purple.withAlpha(20),
+          ),
+        );
+    }
   }
 
   void _paintMarkers(Canvas canvas, Rect pageRect, PdfPage page) {
@@ -705,14 +753,11 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     return parts.isEmpty ? path : parts.last;
   }
 
-  Future<void> _showAnnotations() async {
+  Future<void> _inspectAnnotations() async {
     if (!controller.isReady) {
       return;
     }
     final page = controller.pages[controller.pageNumber! - 1];
-    if (page == null) {
-      return;
-    }
     final annotations = await page.loadAnnotations();
     if (!mounted) return;
     showDialog(
