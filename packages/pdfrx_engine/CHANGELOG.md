@@ -1,3 +1,7 @@
+## 0.1.4
+
+- Minor updates.
+
 ## 0.1.3
 
 - Add an example for converting PDF pages to images.
