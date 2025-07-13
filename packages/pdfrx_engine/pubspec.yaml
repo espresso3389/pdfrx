@@ -1,6 +1,6 @@
 name: pdfrx_engine
 description: pdfrx_engine is a PDF rendering API built on top of PDFium, designed to be used with the pdfrx plugin.
-version: 1.0.0
+version: 0.1.0
 homepage: https://github.com/espresso3389/pdfrx
 repository: https://github.com/espresso3389/pdfrx
 issue_tracker: https://github.com/espresso3389/pdfrx/issues
@@ -25,6 +25,9 @@ dev_dependencies:
   ffigen: ^19.0.0
   lints: ^5.0.0
   test: ^1.24.0
+
+executables:
+  pdf2jpeg:
 
 # To generate the bindings, firstly you must build example/viewer on x64 linux and
 # then run the following command:
