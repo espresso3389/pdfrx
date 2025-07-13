@@ -221,7 +221,7 @@ class SearchResultTile extends StatefulWidget {
     super.key,
   });
 
-  final PdfTextRangeWithFragments match;
+  final PdfPageTextRange match;
   final void Function() onTap;
   final PdfPageTextCache pageTextStore;
   final double height;
@@ -287,19 +287,19 @@ class _SearchResultTileState extends State<SearchResultTile> {
     );
   }
 
-  TextSpan createTextSpanForMatch(PdfPageText? pageText, PdfTextRangeWithFragments match, {TextStyle? style}) {
+  TextSpan createTextSpanForMatch(PdfPageText? pageText, PdfPageTextRange match, {TextStyle? style}) {
     style ??= const TextStyle(
       fontSize: 14,
     );
     if (pageText == null) {
       return TextSpan(
-        text: match.fragments.map((f) => f.text).join(),
+        text: match.text,
         style: style,
       );
     }
     final fullText = pageText.fullText;
     int first = 0;
-    for (int i = match.fragments.first.index - 1; i >= 0;) {
+    for (int i = match.start - 1; i >= 0;) {
       if (fullText[i] == '\n') {
         first = i + 1;
         break;
@@ -307,16 +307,16 @@ class _SearchResultTileState extends State<SearchResultTile> {
       i--;
     }
     int last = fullText.length;
-    for (int i = match.fragments.last.end; i < fullText.length; i++) {
+    for (int i = match.end; i < fullText.length; i++) {
       if (fullText[i] == '\n') {
         last = i;
         break;
       }
     }
 
-    final header = fullText.substring(first, match.fragments.first.index + match.start);
-    final body = fullText.substring(match.fragments.first.index + match.start, match.fragments.last.index + match.end);
-    final footer = fullText.substring(match.fragments.last.index + match.end, last);
+    final header = fullText.substring(first, match.start);
+    final body = fullText.substring(match.start, match.end);
+    final footer = fullText.substring(match.end, last);
 
     return TextSpan(
       children: [

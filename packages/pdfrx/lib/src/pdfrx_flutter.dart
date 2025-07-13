@@ -42,7 +42,13 @@ extension PdfImageExt on PdfImage {
   /// Create [Image] from the rendered image.
   Future<Image> createImage() {
     final comp = Completer<Image>();
-    decodeImageFromPixels(pixels, width, height, PixelFormat.bgra8888, (image) => comp.complete(image));
+    decodeImageFromPixels(
+      pixels,
+      width,
+      height,
+      PixelFormat.bgra8888,
+      (image) => comp.complete(image),
+    );
     return comp.future;
   }
 }
@@ -54,7 +60,8 @@ extension PdfRectExt on PdfRect {
   /// [rotation] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
   Rect toRect({required PdfPage page, Size? scaledPageSize, int? rotation}) {
     final rotated = rotate(rotation ?? page.rotation.index, page);
-    final scale = scaledPageSize == null ? 1.0 : scaledPageSize.height / page.height;
+    final scale =
+        scaledPageSize == null ? 1.0 : scaledPageSize.height / page.height;
     return Rect.fromLTRB(
       rotated.left * scale,
       (page.height - rotated.top) * scale,
@@ -64,14 +71,22 @@ extension PdfRectExt on PdfRect {
   }
 
   ///  Convert to [Rect] in Flutter coordinate using [pageRect] as the page's bounding rectangle.
-  Rect toRectInPageRect({required PdfPage page, required Rect pageRect}) =>
-      toRect(page: page, scaledPageSize: pageRect.size).translate(pageRect.left, pageRect.top);
+  Rect toRectInDocument({required PdfPage page, required Rect pageRect}) =>
+      toRect(
+        page: page,
+        scaledPageSize: pageRect.size,
+      ).translate(pageRect.left, pageRect.top);
 }
 
 extension RectPdfRectExt on Rect {
   /// Convert to [PdfRect] in PDF page coordinates.
-  PdfRect toPdfRect({required PdfPage page, Size? scaledPageSize, int? rotation}) {
-    final scale = scaledPageSize == null ? 1.0 : scaledPageSize.height / page.height;
+  PdfRect toPdfRect({
+    required PdfPage page,
+    Size? scaledPageSize,
+    int? rotation,
+  }) {
+    final scale =
+        scaledPageSize == null ? 1.0 : scaledPageSize.height / page.height;
     return PdfRect(
       left / scale,
       page.height - top / scale,
@@ -86,17 +101,39 @@ extension PdfPointExt on PdfPoint {
   /// [page] is the page to convert the rectangle.
   /// [scaledPageSize] is the scaled page size to scale the rectangle. If not specified, [PdfPage.size] is used.
   /// [rotation] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
-  Offset toOffset({required PdfPage page, Size? scaledPageSize, int? rotation}) {
+  Offset toOffset({
+    required PdfPage page,
+    Size? scaledPageSize,
+    int? rotation,
+  }) {
     final rotated = rotate(rotation ?? page.rotation.index, page);
-    final scale = scaledPageSize == null ? 1.0 : scaledPageSize.height / page.height;
+    final scale =
+        scaledPageSize == null ? 1.0 : scaledPageSize.height / page.height;
     return Offset(rotated.x * scale, (page.height - rotated.y) * scale);
+  }
+
+  Offset toOffsetInDocument({required PdfPage page, required Rect pageRect}) {
+    final rotated = rotate(page.rotation.index, page);
+    final scale = pageRect.height / page.height;
+    return Offset(
+      rotated.x * scale,
+      (page.height - rotated.y) * scale,
+    ).translate(pageRect.left, pageRect.top);
   }
 }
 
 extension OffsetPdfPointExt on Offset {
   /// Convert to [PdfPoint] in PDF page coordinates.
-  PdfPoint toPdfPoint({required PdfPage page, Size? scaledPageSize, int? rotation}) {
-    final scale = scaledPageSize == null ? 1.0 : page.height / scaledPageSize.height;
-    return PdfPoint(dx * scale, page.height - dy * scale).rotateReverse(rotation ?? page.rotation.index, page);
+  PdfPoint toPdfPoint({
+    required PdfPage page,
+    Size? scaledPageSize,
+    int? rotation,
+  }) {
+    final scale =
+        scaledPageSize == null ? 1.0 : page.height / scaledPageSize.height;
+    return PdfPoint(
+      dx * scale,
+      page.height - dy * scale,
+    ).rotateReverse(rotation ?? page.rotation.index, page);
   }
 }

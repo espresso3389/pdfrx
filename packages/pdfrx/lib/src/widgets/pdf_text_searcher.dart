@@ -20,11 +20,11 @@ class PdfTextSearcher extends Listenable {
 
   Timer? _searchTextTimer; // timer to start search
   int _searchSession = 0; // current search session
-  List<PdfTextRangeWithFragments> _matches = const [];
+  List<PdfPageTextRange> _matches = const [];
   List<int> _matchesPageStartIndices = const [];
   Pattern? _lastSearchPattern;
   int? _currentIndex;
-  PdfTextRangeWithFragments? _currentMatch;
+  PdfPageTextRange? _currentMatch;
   int? _searchingPageNumber;
   int? _totalPageCount;
   bool _isSearching = false;
@@ -34,7 +34,7 @@ class PdfTextSearcher extends Listenable {
   int? get currentIndex => _currentIndex;
 
   /// Get the current matches.
-  List<PdfTextRangeWithFragments> get matches => _matches;
+  List<PdfPageTextRange> get matches => _matches;
 
   /// Whether there are any matches or not (so far).
   bool get hasMatches => _currentIndex != null && matches.isNotEmpty;
@@ -151,7 +151,7 @@ class PdfTextSearcher extends Listenable {
     bool goToFirstMatch,
   ) async {
     await controller?.useDocument((document) async {
-      final textMatches = <PdfTextRangeWithFragments>[];
+      final textMatches = <PdfPageTextRange>[];
       final textMatchesPageStartIndex = <int>[];
       bool first = true;
       _isSearching = true;
@@ -219,7 +219,7 @@ class PdfTextSearcher extends Listenable {
   }
 
   /// Go to the given match.
-  Future<void> goToMatch(PdfTextRangeWithFragments match) async {
+  Future<void> goToMatch(PdfPageTextRange match) async {
     _currentMatch = match;
     _currentIndex = _matches.indexOf(match);
     await controller?.ensureVisible(

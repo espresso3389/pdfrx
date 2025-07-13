@@ -22,15 +22,21 @@ class PdfViewerParams {
     this.useAlternativeFitScaleAsMinScale = true,
     this.panAxis = PanAxis.free,
     this.boundaryMargin,
-    this.annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
+    this.annotationRenderingMode =
+        PdfAnnotationRenderingMode.annotationAndForms,
     this.limitRenderingCache = true,
     this.pageAnchor = PdfPageAnchor.top,
     this.pageAnchorEnd = PdfPageAnchor.bottom,
     this.onePassRenderingScaleThreshold = 200 / 72,
-    this.enableTextSelection = false,
+    this.textSelectionParams,
     this.matchTextColor,
     this.activeMatchTextColor,
-    this.pageDropShadow = const BoxShadow(color: Colors.black54, blurRadius: 4, spreadRadius: 2, offset: Offset(2, 2)),
+    this.pageDropShadow = const BoxShadow(
+      color: Colors.black54,
+      blurRadius: 4,
+      spreadRadius: 2,
+      offset: Offset(2, 2),
+    ),
     this.panEnabled = true,
     this.scaleEnabled = true,
     this.onInteractionEnd,
@@ -60,9 +66,6 @@ class PdfViewerParams {
     this.linkWidgetBuilder,
     this.pagePaintCallbacks,
     this.pageBackgroundPaintCallbacks,
-    this.onTextSelectionChange,
-    this.selectableRegionInjector,
-    this.perPageSelectableRegionInjector,
     this.onKey,
     this.keyHandlerParams = const PdfViewerKeyHandlerParams(),
     this.forceReload = false,
@@ -184,17 +187,8 @@ class PdfViewerParams {
   /// If you want more granular control for each page, use [getPageRenderingScale].
   final double onePassRenderingScaleThreshold;
 
-  /// Enable text selection on pages.
-  ///
-  /// The default is false.
-  /// If it is true, the text selection is enabled by injecting [SelectionArea]
-  /// internally.
-  ///
-  /// Basically, you can enable text selection by setting one (or more) of the following parameters:
-  /// - [enableTextSelection] to enable [SelectionArea] on the viewer
-  /// - [selectableRegionInjector] to inject your own [SelectableRegion] on the viewer
-  /// - [perPageSelectableRegionInjector] to inject your own [SelectableRegion] on each page
-  final bool enableTextSelection;
+  /// Parameters for text selection.
+  final PdfTextSelectionParams? textSelectionParams;
 
   /// Color for text search match.
   ///
@@ -365,7 +359,7 @@ class PdfViewerParams {
   /// Add overlays to the viewer.
   ///
   /// This function is to generate widgets on PDF viewer's overlay [Stack].
-  /// The widgets can be layed out using layout widgets such as [Positioned] and [Align].
+  /// The widgets can be laid out using layout widgets such as [Positioned] and [Align].
   ///
   /// The most typical use case is to add scroll thumbs to the viewer.
   /// The following fragment illustrates how to add vertical and horizontal scroll thumbs:
@@ -480,35 +474,6 @@ class PdfViewerParams {
   /// For the detail usage, see [PdfViewerPagePaintCallback].
   final List<PdfViewerPagePaintCallback>? pageBackgroundPaintCallbacks;
 
-  /// Function to be notified when the text selection is changed.
-  final PdfViewerTextSelectionChangeCallback? onTextSelectionChange;
-
-  /// Function to inject [SelectionArea] or [SelectableRegion] to customize text selection.
-  ///
-  /// It can be also used to "remove" the text selection feature by returning the child widget as it is.
-  /// Furthermore, it can be used to customize the text selection feature by returning a custom widget.
-  ///
-  /// Basically, you can enable text selection by setting one (or more) of the following parameters:
-  /// - [enableTextSelection] to enable [SelectionArea] on the viewer
-  /// - [selectableRegionInjector] to inject your own [SelectableRegion] on the viewer
-  /// - [perPageSelectableRegionInjector] to inject your own [SelectableRegion] on each page
-  ///
-  /// You can even enable both of [selectableRegionInjector] and [perPageSelectableRegionInjector] at the same time.
-  final PdfSelectableRegionInjector? selectableRegionInjector;
-
-  /// Function to inject [SelectionArea] or [SelectableRegion] to customize text selection on each page.
-  ///
-  /// It can be also used to "remove" the text selection feature by returning the child widget as it is.
-  /// Furthermore, it can be used to customize the text selection feature by returning a custom widget.
-  ///
-  /// Basically, you can enable text selection by setting one (or more) of the following parameters:
-  /// - [enableTextSelection] to enable [SelectionArea] on the viewer
-  /// - [selectableRegionInjector] to inject your own [SelectableRegion] on the viewer
-  /// - [perPageSelectableRegionInjector] to inject your own [SelectableRegion] on each page
-  ///
-  /// You can even enable both of [selectableRegionInjector] and [perPageSelectableRegionInjector] at the same time.
-  final PdfPerPageSelectableRegionInjector? perPageSelectableRegionInjector;
-
   /// Function to handle key events.
   ///
   /// See [PdfViewerOnKeyCallback] for the details.
@@ -535,23 +500,27 @@ class PdfViewerParams {
         other.backgroundColor != backgroundColor ||
         other.maxScale != maxScale ||
         other.minScale != minScale ||
-        other.useAlternativeFitScaleAsMinScale != useAlternativeFitScaleAsMinScale ||
+        other.useAlternativeFitScaleAsMinScale !=
+            useAlternativeFitScaleAsMinScale ||
         other.panAxis != panAxis ||
         other.boundaryMargin != boundaryMargin ||
         other.annotationRenderingMode != annotationRenderingMode ||
         other.limitRenderingCache != limitRenderingCache ||
         other.pageAnchor != pageAnchor ||
         other.pageAnchorEnd != pageAnchorEnd ||
-        other.onePassRenderingScaleThreshold != onePassRenderingScaleThreshold ||
-        other.enableTextSelection != enableTextSelection ||
+        other.onePassRenderingScaleThreshold !=
+            onePassRenderingScaleThreshold ||
+        other.textSelectionParams != textSelectionParams ||
         other.matchTextColor != matchTextColor ||
         other.activeMatchTextColor != activeMatchTextColor ||
         other.pageDropShadow != pageDropShadow ||
         other.panEnabled != panEnabled ||
         other.scaleEnabled != scaleEnabled ||
-        other.interactionEndFrictionCoefficient != interactionEndFrictionCoefficient ||
+        other.interactionEndFrictionCoefficient !=
+            interactionEndFrictionCoefficient ||
         other.scrollByMouseWheel != scrollByMouseWheel ||
-        other.scrollHorizontallyByMouseWheel != scrollHorizontallyByMouseWheel ||
+        other.scrollHorizontallyByMouseWheel !=
+            scrollHorizontallyByMouseWheel ||
         other.enableKeyboardNavigation != enableKeyboardNavigation ||
         other.scrollByArrowKey != scrollByArrowKey ||
         other.horizontalCacheExtent != horizontalCacheExtent ||
@@ -567,15 +536,17 @@ class PdfViewerParams {
         other.backgroundColor == backgroundColor &&
         other.maxScale == maxScale &&
         other.minScale == minScale &&
-        other.useAlternativeFitScaleAsMinScale == useAlternativeFitScaleAsMinScale &&
+        other.useAlternativeFitScaleAsMinScale ==
+            useAlternativeFitScaleAsMinScale &&
         other.panAxis == panAxis &&
         other.boundaryMargin == boundaryMargin &&
         other.annotationRenderingMode == annotationRenderingMode &&
         other.limitRenderingCache == limitRenderingCache &&
         other.pageAnchor == pageAnchor &&
         other.pageAnchorEnd == pageAnchorEnd &&
-        other.onePassRenderingScaleThreshold == onePassRenderingScaleThreshold &&
-        other.enableTextSelection == enableTextSelection &&
+        other.onePassRenderingScaleThreshold ==
+            onePassRenderingScaleThreshold &&
+        other.textSelectionParams == textSelectionParams &&
         other.matchTextColor == matchTextColor &&
         other.activeMatchTextColor == activeMatchTextColor &&
         other.pageDropShadow == pageDropShadow &&
@@ -584,7 +555,8 @@ class PdfViewerParams {
         other.onInteractionEnd == onInteractionEnd &&
         other.onInteractionStart == onInteractionStart &&
         other.onInteractionUpdate == onInteractionUpdate &&
-        other.interactionEndFrictionCoefficient == interactionEndFrictionCoefficient &&
+        other.interactionEndFrictionCoefficient ==
+            interactionEndFrictionCoefficient &&
         other.onDocumentChanged == onDocumentChanged &&
         other.calculateInitialPageNumber == calculateInitialPageNumber &&
         other.calculateInitialZoom == calculateInitialZoom &&
@@ -594,7 +566,8 @@ class PdfViewerParams {
         other.onPageChanged == onPageChanged &&
         other.getPageRenderingScale == getPageRenderingScale &&
         other.scrollByMouseWheel == scrollByMouseWheel &&
-        other.scrollHorizontallyByMouseWheel == scrollHorizontallyByMouseWheel &&
+        other.scrollHorizontallyByMouseWheel ==
+            scrollHorizontallyByMouseWheel &&
         other.enableKeyboardNavigation == enableKeyboardNavigation &&
         other.scrollByArrowKey == scrollByArrowKey &&
         other.horizontalCacheExtent == horizontalCacheExtent &&
@@ -607,9 +580,6 @@ class PdfViewerParams {
         other.linkWidgetBuilder == linkWidgetBuilder &&
         other.pagePaintCallbacks == pagePaintCallbacks &&
         other.pageBackgroundPaintCallbacks == pageBackgroundPaintCallbacks &&
-        other.onTextSelectionChange == onTextSelectionChange &&
-        other.selectableRegionInjector == selectableRegionInjector &&
-        other.perPageSelectableRegionInjector == perPageSelectableRegionInjector &&
         other.onKey == onKey &&
         other.keyHandlerParams == keyHandlerParams &&
         other.forceReload == forceReload;
@@ -629,7 +599,7 @@ class PdfViewerParams {
         pageAnchor.hashCode ^
         pageAnchorEnd.hashCode ^
         onePassRenderingScaleThreshold.hashCode ^
-        enableTextSelection.hashCode ^
+        textSelectionParams.hashCode ^
         matchTextColor.hashCode ^
         activeMatchTextColor.hashCode ^
         pageDropShadow.hashCode ^
@@ -661,14 +631,311 @@ class PdfViewerParams {
         linkWidgetBuilder.hashCode ^
         pagePaintCallbacks.hashCode ^
         pageBackgroundPaintCallbacks.hashCode ^
-        onTextSelectionChange.hashCode ^
-        selectableRegionInjector.hashCode ^
-        perPageSelectableRegionInjector.hashCode ^
         onKey.hashCode ^
         keyHandlerParams.hashCode ^
         forceReload.hashCode;
   }
 }
+
+/// Parameters for text selection.
+@immutable
+class PdfTextSelectionParams {
+  const PdfTextSelectionParams({
+    this.textSelectionTriggeredBySwipe,
+    this.enableSelectionHandles,
+    this.buildContextMenu,
+    this.buildSelectionHandle,
+    this.onTextSelectionChange,
+    this.textTap,
+    this.textDoubleTap,
+    this.textLongPress,
+    this.textSecondaryTapUp,
+    this.magnifier,
+  });
+
+  /// Whether text selection is triggered by swipe.
+  ///
+  /// null to determine the behavior based on the platform; enabled on Desktop/Web, disabled on Mobile.
+  final bool? textSelectionTriggeredBySwipe;
+
+  /// Whether to show selection handles.
+  ///
+  /// null to determine the behavior based on the platform; enabled on Mobile, disabled on Desktop/Web.
+  final bool? enableSelectionHandles;
+
+  /// Function to build context menu for text selection.
+  ///
+  /// - If the function returns null, no context menu is shown.
+  /// - If the function is null, the default context menu will be used.
+  final PdfViewerTextSelectionContextMenuBuilder? buildContextMenu;
+
+  /// Function to build anchor handle for text selection.
+  ///
+  /// - If the function returns null, no anchor handle is shown.
+  /// - If the function is null, the default anchor handle will be used.
+  final PdfViewerTextSelectionAnchorHandleBuilder? buildSelectionHandle;
+
+  /// Function to be notified when the text selection is changed.
+  final PdfViewerTextSelectionChangeCallback? onTextSelectionChange;
+
+  /// Function to call when the text is tapped.
+  ///
+  /// By default, tapping on the text resets the text selection.
+  /// You can set empty function to disable the default behavior.
+  final void Function(TapDownDetails details)? textTap;
+
+  /// Function to call when the text is double tapped.
+  ///
+  /// By default, double tapping on the text do nothing.
+  final void Function(TapDownDetails details)? textDoubleTap;
+
+  /// Function to call when the text is long pressed.
+  ///
+  /// By default, long pressing on the text selects the word under the pointer.
+  /// You can set empty function to disable the default behavior.
+  final void Function(LongPressStartDetails details)? textLongPress;
+
+  /// Function to call when the text is secondary tapped (right-click).
+  ///
+  /// By default, secondary tap on the text open the context menu.
+  final void Function(TapUpDetails details)? textSecondaryTapUp;
+
+  /// Parameters for the magnifier.
+  final PdfViewerSelectionMagnifierParams? magnifier;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is PdfTextSelectionParams &&
+        other.textSelectionTriggeredBySwipe == textSelectionTriggeredBySwipe &&
+        other.buildContextMenu == buildContextMenu &&
+        other.buildSelectionHandle == buildSelectionHandle &&
+        other.onTextSelectionChange == onTextSelectionChange &&
+        other.textTap == textTap &&
+        other.textDoubleTap == textDoubleTap &&
+        other.textLongPress == textLongPress &&
+        other.textSecondaryTapUp == textSecondaryTapUp &&
+        other.enableSelectionHandles == enableSelectionHandles &&
+        other.magnifier == magnifier;
+  }
+
+  @override
+  int get hashCode =>
+      textSelectionTriggeredBySwipe.hashCode ^
+      buildContextMenu.hashCode ^
+      buildSelectionHandle.hashCode ^
+      onTextSelectionChange.hashCode ^
+      textTap.hashCode ^
+      textDoubleTap.hashCode ^
+      textLongPress.hashCode ^
+      textSecondaryTapUp.hashCode ^
+      enableSelectionHandles.hashCode ^
+      magnifier.hashCode;
+}
+
+/// Function to build the text selection context menu.
+///
+/// [a], [b] are the text selection anchors that represent the selected text range.
+///
+/// [textSelectionDelegate] provides access to the text selection actions such as copy and clear selection.
+/// Please note that the function does not copy the text if [PdfTextSelectionDelegate.isCopyAllowed] is false and
+/// use of [PdfTextSelectionDelegate.selectedText] is also restricted by the same condition.
+///
+/// [rightClickPosition] is the position of the right-click in the document coordinates if available.
+/// [dismissContextMenu] is the function to dismiss the context menu.
+typedef PdfViewerTextSelectionContextMenuBuilder =
+    Widget? Function(
+      BuildContext context,
+      PdfTextSelectionAnchor a,
+      PdfTextSelectionAnchor b,
+      PdfTextSelectionDelegate textSelectionDelegate,
+      Offset? rightClickPosition,
+      void Function() dismissContextMenu,
+    );
+
+/// Function to build the  text  selection anchor handle.
+typedef PdfViewerTextSelectionAnchorHandleBuilder =
+    Widget? Function(BuildContext context, PdfTextSelectionAnchor anchor);
+
+/// Function to be notified when the text selection is changed.
+///
+/// [textSelection] contains the selected text range on each page.
+typedef PdfViewerTextSelectionChangeCallback =
+    void Function(PdfTextSelection textSelection);
+
+/// Text selection
+abstract class PdfTextSelection {
+  /// Whether the copy action is allowed.
+  bool get isCopyAllowed;
+
+  /// Get the selected text.
+  ///
+  /// Although the use of this property is not restricted by [isCopyAllowed]
+  /// but you have to ensure that your use of the text does not violate [isCopyAllowed] condition.
+  String get selectedText;
+
+  /// Get the selected text range.
+  List<PdfPageTextRange> get selectedTextRange;
+}
+
+/// Delegate for text selection actions.
+abstract class PdfTextSelectionDelegate implements PdfTextSelection {
+  /// Copy the selected text.
+  ///
+  /// Please note that the function does not copy the text if [isCopyAllowed] is false.
+  /// The function returns true if the copy action is successful.
+  Future<bool> copyTextSelection();
+
+  /// Clear the text selection.
+  ///
+  /// By clearing the text selection, the text context menu will be dismissed.
+  Future<void> clearTextSelection();
+
+  /// Select all text.
+  ///
+  /// The function may take some time to complete if the document is large.
+  Future<void> selectAllText();
+
+  /// Select a word at the given position.
+  ///
+  /// Please note that [position] is in document coordinates.
+  Future<void> selectWord(Offset position);
+}
+
+@immutable
+class PdfViewerSelectionMagnifierParams {
+  const PdfViewerSelectionMagnifierParams({
+    this.enabled,
+    this.width = 200.0,
+    this.height = 200.0,
+    this.scale = 4.0,
+    this.builder,
+    this.paintMagnifierContent,
+    this.shouldBeShown,
+    this.maxImageBytesCachedOnMemory = defaultMaxImageBytesCachedOnMemory,
+  });
+
+  /// The default maximum image bytes cached on memory is 256 KB.
+  static const defaultMaxImageBytesCachedOnMemory = 256 * 1024;
+
+  /// Whether the magnifier is enabled.
+  ///
+  /// If null, the magnifier is enabled by default on Mobile and disabled on Desktop/Web.
+  final bool? enabled;
+
+  /// Width of the widget to build (Not the size of the  magnifier content).
+  ///
+  /// The size is used to layout the magnifier widget.
+  final double width;
+
+  /// Height of the widget to build (Not the size of the  magnifier content).
+  ///
+  /// The size is used to layout the magnifier widget.
+  final double height;
+
+  /// Scale (zoom ratio) of the magnifier content.
+  final double scale;
+
+  /// Function to build the magnifier widget.
+  ///
+  /// The function can be used to decorate the magnifier widget with additional widgets such as [Container] or [Size].
+  /// The widget built by the function should be the exact size of specified by [width] and [height].
+  ///
+  /// If the function returns null, the magnifier is not shown.
+  /// If the function is null, the magnifier is shown with the default magnifier widget.
+  ///
+  /// If the function returns a widget of [Positioned] or [Align], the magnifier content is laid out as
+  /// specified. Otherwise, the widget is laid out automatically.
+  ///
+  /// The following fragment illustrates how to build a magnifier widget with a border and rounded corners:
+  ///
+  /// ```dart
+  /// builder: (context, params, magnifierContent) {
+  ///   return Container(
+  ///     width: params.width,
+  ///     height: params.height,
+  ///     decoration: BoxDecoration(
+  ///       borderRadius: BorderRadius.circular(16),
+  ///       boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8, spreadRadius: 2)],
+  ///     ),
+  ///     child: ClipRRect(borderRadius: BorderRadius.circular(15), child: child),
+  ///   );
+  /// }
+  /// ```
+  ///
+  /// You can also use the function to build a [OverlayEntry] to show the magnifier as an overlay. In that case,
+  /// you should do everything by yourself and return null from the function.
+  ///
+  final PdfViewerMagnifierBuilder? builder;
+
+  /// Function to paint the magnifier content.
+  final PdfViewerMagnifierContentPaintFunction? paintMagnifierContent;
+
+  /// Function to determine whether the magnifier should be shown based on conditions such as zoom level.
+  ///
+  /// If [enabled] is false, this function is not called.
+  /// By default, the magnifier is shown if the zoom level is smaller than [scale].
+  final PdfViewerMagnifierShouldBeShownFunction? shouldBeShown;
+
+  /// The maximum number of image bytes to be cached on memory.
+  ///
+  /// The default is 256 * 1024 bytes (256 KB).
+  final int maxImageBytesCachedOnMemory;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is PdfViewerSelectionMagnifierParams &&
+        other.enabled == enabled &&
+        other.width == width &&
+        other.height == height &&
+        other.scale == scale &&
+        other.builder == builder &&
+        other.paintMagnifierContent == paintMagnifierContent &&
+        other.shouldBeShown == shouldBeShown &&
+        other.maxImageBytesCachedOnMemory == maxImageBytesCachedOnMemory;
+  }
+
+  @override
+  int get hashCode =>
+      enabled.hashCode ^
+      width.hashCode ^
+      height.hashCode ^
+      scale.hashCode ^
+      builder.hashCode ^
+      paintMagnifierContent.hashCode ^
+      shouldBeShown.hashCode ^
+      maxImageBytesCachedOnMemory.hashCode;
+}
+
+/// Function to build the magnifier widget.
+typedef PdfViewerMagnifierBuilder =
+    Widget? Function(
+      BuildContext context,
+      PdfViewerSelectionMagnifierParams params,
+      Widget magnifierContent,
+    );
+
+/// Function to paint the magnifier content.
+///
+/// The function is called to paint the magnifier content on the canvas.
+/// The [canvas] is the canvas to paint on, [size] is the size of the magnifier content,
+/// and [center] is the center position of the magnifier in the document coordinates.
+/// [params] is the magnifier parameters.
+typedef PdfViewerMagnifierContentPaintFunction =
+    void Function(
+      Canvas canvas,
+      Size size,
+      Offset center,
+      PdfViewerSelectionMagnifierParams params,
+    );
+
+/// Function to determine whether the magnifier should be shown or not.
+typedef PdfViewerMagnifierShouldBeShownFunction =
+    bool Function(
+      PdfViewerController controller,
+      PdfViewerSelectionMagnifierParams params,
+    );
 
 /// Function to notify that the document is loaded/changed.
 typedef PdfViewerDocumentChangedCallback = void Function(PdfDocument? document);
@@ -686,21 +953,36 @@ typedef PdfViewerCalculateInitialPageNumberFunction =
 /// - [fitZoom] is the zoom level to fit the "initial" page into the viewer.
 /// - [coverZoom] is the zoom level to cover the entire viewer with the "initial" page.
 typedef PdfViewerCalculateZoomFunction =
-    double? Function(PdfDocument document, PdfViewerController controller, double fitZoom, double coverZoom);
+    double? Function(
+      PdfDocument document,
+      PdfViewerController controller,
+      double fitZoom,
+      double coverZoom,
+    );
 
 /// Function to guess the current page number based on the visible rectangle and page layouts.
 typedef PdfViewerCalculateCurrentPageNumberFunction =
-    int? Function(Rect visibleRect, List<Rect> pageRects, PdfViewerController controller);
+    int? Function(
+      Rect visibleRect,
+      List<Rect> pageRects,
+      PdfViewerController controller,
+    );
 
 /// Function called when the viewer is ready.
 ///
-typedef PdfViewerReadyCallback = void Function(PdfDocument document, PdfViewerController controller);
+typedef PdfViewerReadyCallback =
+    void Function(PdfDocument document, PdfViewerController controller);
 
 /// Function to be called when the viewer view size is changed.
 ///
 /// [viewSize] is the new view size.
 /// [oldViewSize] is the previous view size.
-typedef PdfViewerViewSizeChanged = void Function(Size viewSize, Size? oldViewSize, PdfViewerController controller);
+typedef PdfViewerViewSizeChanged =
+    void Function(
+      Size viewSize,
+      Size? oldViewSize,
+      PdfViewerController controller,
+    );
 
 /// Function called when the current page is changed.
 typedef PdfPageChangedCallback = void Function(int? pageNumber);
@@ -712,14 +994,20 @@ typedef PdfPageChangedCallback = void Function(int? pageNumber);
 /// - [controller] can be used to get the current zoom by [PdfViewerController.currentZoom]
 /// - [estimatedScale] is the precalculated scale for the page
 typedef PdfViewerGetPageRenderingScale =
-    double? Function(BuildContext context, PdfPage page, PdfViewerController controller, double estimatedScale);
+    double? Function(
+      BuildContext context,
+      PdfPage page,
+      PdfViewerController controller,
+      double estimatedScale,
+    );
 
 /// Function to customize the layout of the pages.
 ///
 /// - [pages] is the list of pages.
 ///   This is just a copy of the first loaded page of the document.
 /// - [params] is the viewer parameters.
-typedef PdfPageLayoutFunction = PdfPageLayout Function(List<PdfPage> pages, PdfViewerParams params);
+typedef PdfPageLayoutFunction =
+    PdfPageLayout Function(List<PdfPage> pages, PdfViewerParams params);
 
 /// Function to normalize the matrix.
 ///
@@ -729,14 +1017,23 @@ typedef PdfPageLayoutFunction = PdfPageLayout Function(List<PdfPage> pages, PdfV
 ///
 /// If no actual matrix change is needed, just return the input matrix.
 typedef PdfMatrixNormalizeFunction =
-    Matrix4 Function(Matrix4 matrix, Size viewSize, PdfPageLayout layout, PdfViewerController? controller);
+    Matrix4 Function(
+      Matrix4 matrix,
+      Size viewSize,
+      PdfPageLayout layout,
+      PdfViewerController? controller,
+    );
 
 /// Function to build viewer overlays.
 ///
 /// [size] is the size of the viewer widget.
 /// [handleLinkTap] is a function to handle link tap. For more details, see [PdfViewerParams.viewerOverlayBuilder].
 typedef PdfViewerOverlaysBuilder =
-    List<Widget> Function(BuildContext context, Size size, PdfViewerHandleLinkTap handleLinkTap);
+    List<Widget> Function(
+      BuildContext context,
+      Size size,
+      PdfViewerHandleLinkTap handleLinkTap,
+    );
 
 /// Function to handle link tap.
 ///
@@ -749,31 +1046,30 @@ typedef PdfViewerHandleLinkTap = bool Function(Offset position);
 ///
 /// [pageRect] is the rectangle of the page in the viewer.
 /// [page] is the page.
-typedef PdfPageOverlaysBuilder = List<Widget> Function(BuildContext context, Rect pageRect, PdfPage page);
+typedef PdfPageOverlaysBuilder =
+    List<Widget> Function(BuildContext context, Rect pageRect, PdfPage page);
 
 /// Function to build loading banner.
 ///
 /// [bytesDownloaded] is the number of bytes downloaded so far.
 /// [totalBytes] is the total number of bytes to be downloaded if available.
-typedef PdfViewerLoadingBannerBuilder = Widget Function(BuildContext context, int bytesDownloaded, int? totalBytes);
+typedef PdfViewerLoadingBannerBuilder =
+    Widget Function(BuildContext context, int bytesDownloaded, int? totalBytes);
 
 /// Function to build loading error banner.
 typedef PdfViewerErrorBannerBuilder =
-    Widget Function(BuildContext context, Object error, StackTrace? stackTrace, PdfDocumentRef documentRef);
+    Widget Function(
+      BuildContext context,
+      Object error,
+      StackTrace? stackTrace,
+      PdfDocumentRef documentRef,
+    );
 
 /// Function to build link widget for [PdfLink].
 ///
 /// [size] is the size of the link.
-typedef PdfLinkWidgetBuilder = Widget? Function(BuildContext context, PdfLink link, Size size);
-
-/// Function to inject [SelectionArea] or [SelectableRegion] to customize text selection.
-typedef PdfSelectableRegionInjector = Widget Function(BuildContext context, Widget child);
-
-/// Function to inject [SelectionArea] or [SelectableRegion] to customize text selection on each page.
-///
-/// [pageRect] is the rectangle of the page in the viewer.
-typedef PdfPerPageSelectableRegionInjector =
-    Widget Function(BuildContext context, Widget child, PdfPage page, Rect pageRect);
+typedef PdfLinkWidgetBuilder =
+    Widget? Function(BuildContext context, PdfLink link, Size size);
 
 /// Function to paint things on page.
 ///
@@ -787,15 +1083,11 @@ typedef PdfPerPageSelectableRegionInjector =
 /// ```dart
 /// PdfRect pdfRect = ...;
 /// canvas.drawRect(
-///   pdfRect.toRectInPageRect(page: page, pageRect: pageRect),
+///   pdfRect.toRectInDocument(page: page, pageRect: pageRect),
 ///   Paint()..color = Colors.red);
 /// ```
-typedef PdfViewerPagePaintCallback = void Function(ui.Canvas canvas, Rect pageRect, PdfPage page);
-
-/// Function to be notified when the text selection is changed.
-///
-/// [selections] contains the selected text ranges on each page.
-typedef PdfViewerTextSelectionChangeCallback = void Function(List<PdfTextRanges> selections);
+typedef PdfViewerPagePaintCallback =
+    void Function(ui.Canvas canvas, Rect pageRect, PdfPage page);
 
 /// When [PdfViewerController.goToPage] is called, the page is aligned to the specified anchor.
 ///
@@ -861,7 +1153,7 @@ class PdfLinkHandlerParams {
   ///     ..color = Colors.red.withOpacity(0.2)
   ///     ..style = PaintingStyle.fill;
   ///   for (final link in links) {
-  ///     final rect = link.rect.toRectInPageRect(page: page, pageRect: pageRect);
+  ///     final rect = link.rect.toRectInDocument(page: page, pageRect: pageRect);
   ///     canvas.drawRect(rect, paint);
   ///   }
   /// }
@@ -885,12 +1177,21 @@ class PdfLinkHandlerParams {
 
   @override
   int get hashCode {
-    return onLinkTap.hashCode ^ linkColor.hashCode ^ customPainter.hashCode ^ enableAutoLinkDetection.hashCode;
+    return onLinkTap.hashCode ^
+        linkColor.hashCode ^
+        customPainter.hashCode ^
+        enableAutoLinkDetection.hashCode;
   }
 }
 
 /// Custom painter for the page links.
-typedef PdfLinkCustomPagePainter = void Function(ui.Canvas canvas, Rect pageRect, PdfPage page, List<PdfLink> links);
+typedef PdfLinkCustomPagePainter =
+    void Function(
+      ui.Canvas canvas,
+      Rect pageRect,
+      PdfPage page,
+      List<PdfLink> links,
+    );
 
 /// Function to handle key events.
 ///
@@ -906,7 +1207,11 @@ typedef PdfLinkCustomPagePainter = void Function(ui.Canvas canvas, Rect pageRect
 /// [isRealKeyPress] is true if the key event is the actual key press event. It is false if the key event is generated
 /// by key repeat feature.
 typedef PdfViewerOnKeyCallback =
-    bool? Function(PdfViewerKeyHandlerParams params, LogicalKeyboardKey key, bool isRealKeyPress);
+    bool? Function(
+      PdfViewerKeyHandlerParams params,
+      LogicalKeyboardKey key,
+      bool isRealKeyPress,
+    );
 
 /// Parameters for the built-in key handler.
 ///
