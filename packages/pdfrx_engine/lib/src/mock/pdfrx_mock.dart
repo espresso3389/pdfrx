@@ -26,8 +26,7 @@ class PdfDocumentFactoryImpl implements PdfDocumentFactory {
 
   @override
   Future<PdfDocument> openCustom({
-    required FutureOr<int> Function(Uint8List buffer, int position, int size)
-    read,
+    required FutureOr<int> Function(Uint8List buffer, int position, int size) read,
     required int fileSize,
     required String sourceName,
     PdfPasswordProvider? passwordProvider,

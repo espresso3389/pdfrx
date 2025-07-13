@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pdfrx/pdfrx.dart';
-import 'package:pdfrx_engine/pdfrx_engine.dart';
 
 final testPdfFile = File('example/viewer/assets/hello.pdf');
 final binding = TestWidgetsFlutterBinding.ensureInitialized();
@@ -24,9 +23,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         // FIXME: Just a workaround for "A RenderFlex overflowed..."
-        home: SingleChildScrollView(
-          child: PdfViewer.uri(Uri.parse('https://example.com/hello.pdf')),
-        ),
+        home: SingleChildScrollView(child: PdfViewer.uri(Uri.parse('https://example.com/hello.pdf'))),
       ),
     );
 

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:pdfrx_engine/pdfrx_engine.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 class Marker {
   Marker(this.color, this.range);

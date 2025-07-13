@@ -15,30 +15,21 @@ const pdfrxCurrentPdfiumRelease = 'chromium%2F7202';
 /// [pdfiumRelease] is the release of pdfium to download if not already present.
 ///
 /// The function checks for the `PDFIUM_PATH` environment variable to find an existing pdfium module.
-Future<void> pdfrxEngineDartInitialize({
-  String? tmpPath,
-  String? pdfiumRelease = pdfrxCurrentPdfiumRelease,
-}) async {
+Future<void> pdfrxEngineDartInitialize({String? tmpPath, String? pdfiumRelease = pdfrxCurrentPdfiumRelease}) async {
   if (_isInitialized) return;
 
   Pdfrx.loadAsset ??= (name) async {
-    throw UnimplementedError(
-      'By default, Pdfrx.loadAsset is not implemented for Dart.',
-    );
+    throw UnimplementedError('By default, Pdfrx.loadAsset is not implemented for Dart.');
   };
 
   final tmpDir = Directory.systemTemp;
   Pdfrx.getCacheDirectory ??= () => tmpDir.path;
-  final pdfiumPath = Directory(
-    Platform.environment['PDFIUM_PATH'] ?? "${tmpDir.path}/pdfrx.cache/pdfium",
-  );
+  final pdfiumPath = Directory(Platform.environment['PDFIUM_PATH'] ?? "${tmpDir.path}/pdfrx.cache/pdfium");
   Pdfrx.pdfiumModulePath ??= pdfiumPath.path;
 
   if (!File(Pdfrx.pdfiumModulePath!).existsSync()) {
     pdfiumPath.createSync(recursive: true);
-    Pdfrx.pdfiumModulePath = await downloadAndGetPdfiumModulePath(
-      pdfiumPath.path,
-    );
+    Pdfrx.pdfiumModulePath = await downloadAndGetPdfiumModulePath(pdfiumPath.path);
   }
 
   _isInitialized = true;
@@ -58,31 +49,13 @@ Future<String> downloadAndGetPdfiumModulePath(
   final platform = pa[1]!;
   final arch = pa[2]!;
   if (platform == 'windows' && arch == 'x64') {
-    return await _downloadPdfium(
-      tmpPath,
-      'win',
-      arch,
-      'bin/pdfium.dll',
-      pdfiumRelease,
-    );
+    return await _downloadPdfium(tmpPath, 'win', arch, 'bin/pdfium.dll', pdfiumRelease);
   }
   if (platform == 'linux' && (arch == 'x64' || arch == 'arm64')) {
-    return await _downloadPdfium(
-      tmpPath,
-      platform,
-      arch,
-      'lib/libpdfium.so',
-      pdfiumRelease,
-    );
+    return await _downloadPdfium(tmpPath, platform, arch, 'lib/libpdfium.so', pdfiumRelease);
   }
   if (platform == 'macos') {
-    return await _downloadPdfium(
-      tmpPath,
-      'mac',
-      arch,
-      'lib/libpdfium.dylib',
-      pdfiumRelease,
-    );
+    return await _downloadPdfium(tmpPath, 'mac', arch, 'lib/libpdfium.dylib', pdfiumRelease);
   } else {
     throw Exception('Unsupported platform: $platform-$arch');
   }
@@ -106,9 +79,7 @@ Future<String> _downloadPdfium(
   if (tgz.statusCode != 200) {
     throw Exception('Failed to download pdfium: $uri');
   }
-  final archive = TarDecoder().decodeBytes(
-    GZipDecoder().decodeBytes(tgz.bodyBytes),
-  );
+  final archive = TarDecoder().decodeBytes(GZipDecoder().decodeBytes(tgz.bodyBytes));
   try {
     await tmpDir.delete(recursive: true);
   } catch (_) {}

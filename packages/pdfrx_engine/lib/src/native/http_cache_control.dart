@@ -107,22 +107,21 @@ class HttpCacheControlState {
       maxAge = maxAgeForNoStore.inSeconds;
     }
     return HttpCacheControlState(
-      cacheControl:
-          cacheControl != null
-              ? HttpCacheControl.fromDirectives(
-                noCache: noCache,
-                mustRevalidate: cacheControl.contains('must-revalidate'),
-                noStore: noStore,
-                private: cacheControl.contains('private'),
-                public: cacheControl.contains('public'),
-                mustUnderstand: cacheControl.contains('must-understand'),
-                noTransform: cacheControl.contains('no-transform'),
-                immutable: cacheControl.contains('immutable'),
-                staleWhileRevalidate: cacheControl.contains('stale-while-revalidate'),
-                staleIfError: cacheControl.contains('stale-if-error'),
-                maxAge: maxAge,
-              )
-              : const HttpCacheControl(directives: 0),
+      cacheControl: cacheControl != null
+          ? HttpCacheControl.fromDirectives(
+              noCache: noCache,
+              mustRevalidate: cacheControl.contains('must-revalidate'),
+              noStore: noStore,
+              private: cacheControl.contains('private'),
+              public: cacheControl.contains('public'),
+              mustUnderstand: cacheControl.contains('must-understand'),
+              noTransform: cacheControl.contains('no-transform'),
+              immutable: cacheControl.contains('immutable'),
+              staleWhileRevalidate: cacheControl.contains('stale-while-revalidate'),
+              staleIfError: cacheControl.contains('stale-if-error'),
+              maxAge: maxAge,
+            )
+          : const HttpCacheControl(directives: 0),
       date: date,
       expires: expires,
       etag: etag,

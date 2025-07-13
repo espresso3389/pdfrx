@@ -1,16 +1,14 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
-import 'package:pdfrx_engine/pdfrx_engine.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 final isApple = Platform.isMacOS || Platform.isIOS;
 final isWindows = Platform.isWindows;
 
 /// Key pressing state of ⌘ or Control depending on the platform.
 bool get isCommandKeyPressed =>
-    isApple
-        ? HardwareKeyboard.instance.isMetaPressed
-        : HardwareKeyboard.instance.isControlPressed;
+    isApple ? HardwareKeyboard.instance.isMetaPressed : HardwareKeyboard.instance.isControlPressed;
 
 void setClipboardData(String text) {
   Clipboard.setData(ClipboardData(text: text));

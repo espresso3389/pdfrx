@@ -1,7 +1,6 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
-import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:synchronized/extension.dart';
 
 //

@@ -4,7 +4,6 @@ import 'package:file_selector/file_selector.dart' as fs;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
-import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'markers_view.dart';

@@ -3,7 +3,6 @@
 //
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
-import 'package:pdfrx_engine/pdfrx_engine.dart';
 
 class OutlineView extends StatelessWidget {
   const OutlineView({

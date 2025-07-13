@@ -76,9 +76,7 @@ class PdfFileCache {
   Future<void> close() async {
     final raf = _raf;
     if (raf != null) {
-      _rafFinalizer.detach(
-        this,
-      ); // Detach from finalizer since we are closing explicitly
+      _rafFinalizer.detach(this); // Detach from finalizer since we are closing explicitly
       _raf = null;
       await raf.close();
     }
@@ -92,12 +90,7 @@ class PdfFileCache {
     }
   }
 
-  Future<void> _read(
-    List<int> buffer,
-    int bufferPosition,
-    int position,
-    int size,
-  ) async {
+  Future<void> _read(List<int> buffer, int bufferPosition, int position, int size) async {
     await _ensureFileOpen();
     await _raf!.setPosition(position);
     await _raf!.readInto(buffer, bufferPosition, bufferPosition + size);
@@ -114,15 +107,10 @@ class PdfFileCache {
     return await _raf!.length();
   }
 
-  Future<void> read(
-    List<int> buffer,
-    int bufferPosition,
-    int position,
-    int size,
-  ) => _read(buffer, bufferPosition, _headerSize! + position, size);
+  Future<void> read(List<int> buffer, int bufferPosition, int position, int size) =>
+      _read(buffer, bufferPosition, _headerSize! + position, size);
 
-  Future<void> write(int position, List<int> bytes) =>
-      _write(_headerSize! + position, bytes);
+  Future<void> write(int position, List<int> bytes) => _write(_headerSize! + position, bytes);
 
   bool isCached(int block) => _cacheState[block >> 3] & (1 << (block & 7)) != 0;
 
@@ -170,9 +158,7 @@ class PdfFileCache {
       if (dataStrSize != 0) {
         final dataStrBytes = Uint8List(dataStrSize);
         await _read(dataStrBytes, 0, header1Size, dataStrBytes.length);
-        _cacheControlState = HttpCacheControlState.parseDataStr(
-          utf8.decode(dataStrBytes),
-        );
+        _cacheControlState = HttpCacheControlState.parseDataStr(utf8.decode(dataStrBytes));
       } else {
         _cacheControlState = HttpCacheControlState.empty;
       }
@@ -213,10 +199,7 @@ class PdfFileCache {
     return true;
   }
 
-  Future<void> initializeWithFileSize(
-    int fileSize, {
-    required bool truncateExistingContent,
-  }) async {
+  Future<void> initializeWithFileSize(int fileSize, {required bool truncateExistingContent}) async {
     if (truncateExistingContent) {
       await invalidateCache();
     }
@@ -250,18 +233,14 @@ class PdfFileCache {
     await _write(header1Size, dataStrEncoded);
   }
 
-  Future<void> setCacheControlState(
-    HttpCacheControlState cacheControlState,
-  ) async {
+  Future<void> setCacheControlState(HttpCacheControlState cacheControlState) async {
     _cacheControlState = cacheControlState;
     await _saveCacheControlState();
   }
 
   static Future<File> getCacheFilePathForUri(Uri uri) async {
     if (Pdfrx.getCacheDirectory == null) {
-      throw StateError(
-        'Pdfrx.getCacheDirectory is not set. Please set it to get cache directory.',
-      );
+      throw StateError('Pdfrx.getCacheDirectory is not set. Please set it to get cache directory.');
     }
     final cacheDir = await Pdfrx.getCacheDirectory!();
     final fnHash = sha1
@@ -311,9 +290,7 @@ Future<PdfDocument> pdfDocumentFromUri(
 }) async {
   progressCallback?.call(0);
   cache ??= await PdfFileCache.fromUri(uri);
-  final httpClientWrapper = _HttpClientWrapper(
-    Pdfrx.createHttpClient ?? () => http.Client(),
-  );
+  final httpClientWrapper = _HttpClientWrapper(Pdfrx.createHttpClient ?? () => http.Client());
 
   try {
     if (!cache.isInitialized) {
@@ -336,8 +313,7 @@ Future<PdfDocument> pdfDocumentFromUri(
       }
     } else {
       // Check if the file is fresh (no-need-to-reload).
-      if (cache.cacheControlState.cacheControl.mustRevalidate &&
-          cache.cacheControlState.isFresh(now: DateTime.now())) {
+      if (cache.cacheControlState.cacheControl.mustRevalidate && cache.cacheControlState.isFresh(now: DateTime.now())) {
         // cache is valid; no need to download.
       } else {
         final result = await _downloadBlock(
@@ -374,14 +350,7 @@ Future<PdfDocument> pdfDocumentFromUri(
           final blockId = p ~/ cache!.blockSize;
           final isAvailable = cache.isCached(blockId);
           if (!isAvailable) {
-            await _downloadBlock(
-              httpClientWrapper,
-              uri,
-              cache,
-              progressCallback,
-              blockId,
-              headers: headers,
-            );
+            await _downloadBlock(httpClientWrapper, uri, cache, progressCallback, blockId, headers: headers);
           }
           final readEnd = min(p + size, (blockId + 1) * cache.blockSize);
           final sizeToRead = readEnd - p;
@@ -444,15 +413,12 @@ Future<_DownloadResult> _downloadBlock(
   final request = http.Request('GET', uri)
     ..headers.addAll({
       if (useRangeAccess) 'Range': 'bytes=$blockOffset-${end - 1}',
-      if (addCacheControlHeaders)
-        ...cache.cacheControlState.getHeadersForFetch(),
+      if (addCacheControlHeaders) ...cache.cacheControlState.getHeadersForFetch(),
       if (headers != null) ...headers,
     });
   late final http.StreamedResponse response;
   try {
-    response = await httpClientWrapper.client
-        .send(request)
-        .timeout(Duration(seconds: 5));
+    response = await httpClientWrapper.client.send(request).timeout(Duration(seconds: 5));
   } on TimeoutException {
     httpClientWrapper.reset();
     rethrow;
@@ -465,9 +431,7 @@ Future<_DownloadResult> _downloadBlock(
   }
 
   if (response.statusCode != 200 && response.statusCode != 206) {
-    throw PdfException(
-      'Failed to download PDF file: ${response.statusCode} ${response.reasonPhrase}',
-    );
+    throw PdfException('Failed to download PDF file: ${response.statusCode} ${response.reasonPhrase}');
   }
 
   if (addCacheControlHeaders) {
@@ -485,14 +449,9 @@ Future<_DownloadResult> _downloadBlock(
     isFullDownload = true;
   }
   if (!cache.isInitialized) {
-    await cache.initializeWithFileSize(
-      fileSize ?? 0,
-      truncateExistingContent: true,
-    );
+    await cache.initializeWithFileSize(fileSize ?? 0, truncateExistingContent: true);
   }
-  await cache.setCacheControlState(
-    HttpCacheControlState.fromHeaders(response.headers),
-  );
+  await cache.setCacheControlState(HttpCacheControlState.fromHeaders(response.headers));
 
   var offset = blockOffset;
   var cachedBytesSoFar = cache.cachedBytes;
@@ -505,10 +464,7 @@ Future<_DownloadResult> _downloadBlock(
 
   if (isFullDownload) {
     fileSize ??= cachedBytesSoFar;
-    await cache.initializeWithFileSize(
-      fileSize,
-      truncateExistingContent: false,
-    );
+    await cache.initializeWithFileSize(fileSize, truncateExistingContent: false);
     await cache.setCached(0, lastBlock: cache.totalBlocks - 1);
   } else {
     await cache.setCached(blockId, lastBlock: blockId + blockCount - 1);

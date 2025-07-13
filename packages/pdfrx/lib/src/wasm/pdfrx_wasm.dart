@@ -14,11 +14,7 @@ import 'package:web/web.dart' as web;
 extension type _PdfiumWasmCommunicator(JSObject _) implements JSObject {
   /// Sends a command to the worker and returns a promise
   @JS('sendCommand')
-  external JSPromise<JSAny?> sendCommand([
-    String command,
-    JSAny? parameters,
-    JSArray<JSAny>? transfer,
-  ]);
+  external JSPromise<JSAny?> sendCommand([String command, JSAny? parameters, JSArray<JSAny>? transfer]);
 
   /// Registers a callback function and returns its ID
   @JS('registerCallback')
@@ -47,14 +43,8 @@ class _PdfiumWasmCallback {
   }
 }
 
-Future<Map<Object?, dynamic>> _sendCommand(
-  String command, {
-  Map<Object?, dynamic>? parameters,
-}) async {
-  final result =
-      await _pdfiumWasmCommunicator
-          .sendCommand(command, parameters?.jsify())
-          .toDart;
+Future<Map<Object?, dynamic>> _sendCommand(String command, {Map<Object?, dynamic>? parameters}) async {
+  final result = await _pdfiumWasmCommunicator.sendCommand(command, parameters?.jsify()).toDart;
   return (result.dartify()) as Map<Object?, dynamic>;
 }
 
@@ -79,9 +69,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
       if (_initialized) return;
       Pdfrx.pdfiumWasmModulesUrl ??= _pdfiumWasmModulesUrlFromMetaTag();
       pdfiumWasmWorkerUrl = _getWorkerUrl();
-      final moduleUrl = _resolveUrl(
-        Pdfrx.pdfiumWasmModulesUrl ?? defaultWasmModulePath,
-      );
+      final moduleUrl = _resolveUrl(Pdfrx.pdfiumWasmModulesUrl ?? defaultWasmModulePath);
       final script =
           web.document.createElement('script') as web.HTMLScriptElement
             ..type = 'text/javascript'
@@ -92,9 +80,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
       web.document.querySelector('head')!.appendChild(script);
       final completer = Completer();
       final sub1 = script.onLoad.listen((_) => completer.complete());
-      final sub2 = script.onError.listen(
-        (event) => completer.completeError(event),
-      );
+      final sub2 = script.onError.listen((event) => completer.completeError(event));
       try {
         await completer.future;
       } catch (e) {
@@ -108,8 +94,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
       await _sendCommand(
         'init',
         parameters: {
-          if (Pdfrx.pdfiumWasmHeaders != null)
-            'headers': Pdfrx.pdfiumWasmHeaders,
+          if (Pdfrx.pdfiumWasmHeaders != null) 'headers': Pdfrx.pdfiumWasmHeaders,
           'withCredentials': Pdfrx.pdfiumWasmWithCredentials,
         },
       );
@@ -118,21 +103,16 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
   }
 
   static String? _pdfiumWasmModulesUrlFromMetaTag() {
-    final meta =
-        web.document.querySelector('meta[name="pdfium-wasm-module-url"]')
-            as web.HTMLMetaElement?;
+    final meta = web.document.querySelector('meta[name="pdfium-wasm-module-url"]') as web.HTMLMetaElement?;
     return meta?.content;
   }
 
   /// Workaround for Cross-Origin-Embedder-Policy restriction on WASM enabled environments
   String _getWorkerUrl() {
-    final moduleUrl = _resolveUrl(
-      Pdfrx.pdfiumWasmModulesUrl ?? defaultWasmModulePath,
-    );
+    final moduleUrl = _resolveUrl(Pdfrx.pdfiumWasmModulesUrl ?? defaultWasmModulePath);
     final workerJsUrl = _resolveUrl('pdfium_worker.js', baseUrl: moduleUrl);
     final pdfiumWasmUrl = _resolveUrl('pdfium.wasm', baseUrl: moduleUrl);
-    final content =
-        'const pdfiumWasmUrl="$pdfiumWasmUrl";importScripts("$workerJsUrl");';
+    final content = 'const pdfiumWasmUrl="$pdfiumWasmUrl";importScripts("$workerJsUrl");';
     final blob = web.Blob(
       [content].jsify() as JSArray<web.BlobPart>,
       web.BlobPropertyBag(type: 'application/javascript'),
@@ -148,9 +128,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
   /// 3. The current browser window's URL (`web.window.location.href`).
   static String _resolveUrl(String relativeUrl, {String? baseUrl}) {
     final baseHref = ui_web.BrowserPlatformLocation().getBaseHref();
-    return Uri.parse(
-      baseUrl ?? baseHref ?? web.window.location.href,
-    ).resolveUri(Uri.parse(relativeUrl)).toString();
+    return Uri.parse(baseUrl ?? baseHref ?? web.window.location.href).resolveUri(Uri.parse(relativeUrl)).toString();
   }
 
   @override
@@ -161,9 +139,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     bool useProgressiveLoading = false,
   }) async {
     if (Pdfrx.loadAsset == null) {
-      throw StateError(
-        'Pdfrx.loadAsset is not set. Please set it to load assets.',
-      );
+      throw StateError('Pdfrx.loadAsset is not set. Please set it to load assets.');
     }
     final asset = await Pdfrx.loadAsset!(name);
     return await openData(
@@ -178,8 +154,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
 
   @override
   Future<PdfDocument> openCustom({
-    required FutureOr<int> Function(Uint8List buffer, int position, int size)
-    read,
+    required FutureOr<int> Function(Uint8List buffer, int position, int size) read,
     required int fileSize,
     required String sourceName,
     PdfPasswordProvider? passwordProvider,
@@ -188,9 +163,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
-    throw UnimplementedError(
-      'PdfDocumentFactoryWasmImpl.openCustom is not implemented.',
-    );
+    throw UnimplementedError('PdfDocumentFactoryWasmImpl.openCustom is not implemented.');
   }
 
   @override
@@ -205,11 +178,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
   }) => _openByFunc(
     (password) => _sendCommand(
       'loadDocumentFromData',
-      parameters: {
-        'data': data,
-        'password': password,
-        'useProgressiveLoading': useProgressiveLoading,
-      },
+      parameters: {'data': data, 'password': password, 'useProgressiveLoading': useProgressiveLoading},
     ),
     sourceName: sourceName ?? 'data',
     passwordProvider: passwordProvider,
@@ -226,11 +195,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
   }) => _openByFunc(
     (password) => _sendCommand(
       'loadDocumentFromUrl',
-      parameters: {
-        'url': filePath,
-        'password': password,
-        'useProgressiveLoading': useProgressiveLoading,
-      },
+      parameters: {'url': filePath, 'password': password, 'useProgressiveLoading': useProgressiveLoading},
     ),
     sourceName: filePath,
     passwordProvider: passwordProvider,
@@ -256,9 +221,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
       if (progressCallback != null) {
         await _init();
         progressCallbackReg = _PdfiumWasmCallback.register(
-          ((int bytesReceived, int bytesTotal) =>
-                  progressCallback(bytesReceived, bytesTotal))
-              .toJS,
+          ((int bytesReceived, int bytesTotal) => progressCallback(bytesReceived, bytesTotal)).toJS,
         );
       }
 
@@ -269,8 +232,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
             'url': uri.toString(),
             'password': password,
             'useProgressiveLoading': useProgressiveLoading,
-            if (progressCallbackReg != null)
-              'progressCallbackId': progressCallbackReg.id,
+            if (progressCallbackReg != null) 'progressCallbackId': progressCallbackReg.id,
             'preferRangeAccess': preferRangeAccess,
             if (headers != null) 'headers': headers,
             'withCredentials': withCredentials,
@@ -303,9 +265,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
       } else {
         password = await passwordProvider?.call();
         if (password == null) {
-          throw const PdfPasswordException(
-            'No password supplied by PasswordProvider.',
-          );
+          throw const PdfPasswordException('No password supplied by PasswordProvider.');
         }
       }
 
@@ -317,26 +277,17 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
         if (errorCode == fpdfErrPassword) {
           continue;
         }
-        throw StateError(
-          'Failed to open document: ${result['errorCodeStr']} ($errorCode)',
-        );
+        throw StateError('Failed to open document: ${result['errorCodeStr']} ($errorCode)');
       }
 
-      return _PdfDocumentWasm._(
-        result,
-        sourceName: sourceName,
-        disposeCallback: onDispose,
-      );
+      return _PdfDocumentWasm._(result, sourceName: sourceName, disposeCallback: onDispose);
     }
   }
 }
 
 class _PdfDocumentWasm extends PdfDocument {
-  _PdfDocumentWasm._(
-    this.document, {
-    required super.sourceName,
-    this.disposeCallback,
-  }) : permissions = parsePermissions(document) {
+  _PdfDocumentWasm._(this.document, {required super.sourceName, this.disposeCallback})
+    : permissions = parsePermissions(document) {
     pages = parsePages(this, document['pages'] as List<dynamic>);
   }
 
@@ -366,16 +317,12 @@ class _PdfDocumentWasm extends PdfDocument {
 
   @override
   bool isIdenticalDocumentHandle(Object? other) {
-    return other is _PdfDocumentWasm &&
-        other.document['docHandle'] == document['docHandle'];
+    return other is _PdfDocumentWasm && other.document['docHandle'] == document['docHandle'];
   }
 
   @override
   Future<List<PdfOutlineNode>> loadOutline() async {
-    final result = await _sendCommand(
-      'loadOutline',
-      parameters: {'docHandle': document['docHandle']},
-    );
+    final result = await _sendCommand('loadOutline', parameters: {'docHandle': document['docHandle']});
     final outlineList = result['outline'] as List<dynamic>;
     return outlineList.map((node) => _nodeFromMap(node)).toList();
   }
@@ -384,10 +331,7 @@ class _PdfDocumentWasm extends PdfDocument {
     return PdfOutlineNode(
       title: node['title'],
       dest: _pdfDestFromMap(node['dest']),
-      children:
-          (node['children'] as List<dynamic>)
-              .map((child) => _nodeFromMap(child))
-              .toList(),
+      children: (node['children'] as List<dynamic>).map((child) => _nodeFromMap(child)).toList(),
     );
   }
 
@@ -432,8 +376,7 @@ class _PdfDocumentWasm extends PdfDocument {
 
   static PdfPermissions? parsePermissions(Map<Object?, dynamic> document) {
     final perms = (document['permissions'] as num).toInt();
-    final securityHandlerRevision =
-        (document['securityHandlerRevision'] as num).toInt();
+    final securityHandlerRevision = (document['securityHandlerRevision'] as num).toInt();
     if (perms >= 0 && securityHandlerRevision >= 0) {
       return PdfPermissions(perms, securityHandlerRevision);
     } else {
@@ -441,10 +384,7 @@ class _PdfDocumentWasm extends PdfDocument {
     }
   }
 
-  static List<PdfPage> parsePages(
-    _PdfDocumentWasm doc,
-    List<dynamic> pageList,
-  ) {
+  static List<PdfPage> parsePages(_PdfDocumentWasm doc, List<dynamic> pageList) {
     return pageList
         .map(
           (page) => _PdfPageWasm(
@@ -460,8 +400,7 @@ class _PdfDocumentWasm extends PdfDocument {
   }
 }
 
-class _PdfPageRenderCancellationTokenWasm
-    extends PdfPageRenderCancellationToken {
+class _PdfPageRenderCancellationTokenWasm extends PdfPageRenderCancellationToken {
   _PdfPageRenderCancellationTokenWasm();
 
   bool _isCanceled = false;
@@ -476,14 +415,8 @@ class _PdfPageRenderCancellationTokenWasm
 }
 
 class _PdfPageWasm extends PdfPage {
-  _PdfPageWasm(
-    this.document,
-    int pageIndex,
-    this.width,
-    this.height,
-    int rotation,
-    this.isLoaded,
-  ) : pageNumber = pageIndex + 1,
+  _PdfPageWasm(this.document, int pageIndex, this.width, this.height, int rotation, this.isLoaded)
+    : pageNumber = pageIndex + 1,
       rotation = PdfPageRotation.values[rotation];
 
   @override
@@ -495,10 +428,7 @@ class _PdfPageWasm extends PdfPage {
   final _PdfDocumentWasm document;
 
   @override
-  Future<List<PdfLink>> loadLinks({
-    bool compact = false,
-    bool enableAutoLinkDetection = true,
-  }) async {
+  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async {
     final result = await _sendCommand(
       'loadLinks',
       parameters: {
@@ -514,12 +444,7 @@ class _PdfPageWasm extends PdfPage {
       final rects =
           (link['rects'] as List).map((r) {
             final rect = r as List;
-            return PdfRect(
-              rect[0] as double,
-              rect[1] as double,
-              rect[2] as double,
-              rect[3] as double,
-            );
+            return PdfRect(rect[0] as double, rect[1] as double, rect[2] as double, rect[3] as double);
           }).toList();
       final url = link['url'];
       if (url is String) {
@@ -537,25 +462,14 @@ class _PdfPageWasm extends PdfPage {
   Future<PdfPageRawText?> loadRawText() async {
     final result = await _sendCommand(
       'loadRawText',
-      parameters: {
-        'docHandle': document.document['docHandle'],
-        'pageIndex': pageNumber - 1,
-      },
+      parameters: {'docHandle': document.document['docHandle'], 'pageIndex': pageNumber - 1},
     );
     final charRectsAll =
         (result['charRects'] as List).map((rect) {
           final r = rect as List;
-          return PdfRect(
-            r[0] as double,
-            r[1] as double,
-            r[2] as double,
-            r[3] as double,
-          );
+          return PdfRect(r[0] as double, r[1] as double, r[2] as double, r[3] as double);
         }).toList();
-    return PdfPageRawText(
-      result['fullText'] as String,
-      UnmodifiableListView(charRectsAll),
-    );
+    return PdfPageRawText(result['fullText'] as String, UnmodifiableListView(charRectsAll));
   }
 
   @override
@@ -582,8 +496,7 @@ class _PdfPageWasm extends PdfPage {
     double? fullWidth,
     double? fullHeight,
     int? backgroundColor,
-    PdfAnnotationRenderingMode annotationRenderingMode =
-        PdfAnnotationRenderingMode.annotationAndForms,
+    PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
   }) async {
@@ -617,11 +530,7 @@ class _PdfPageWasm extends PdfPage {
 }
 
 class PdfImageWeb extends PdfImage {
-  PdfImageWeb({
-    required this.width,
-    required this.height,
-    required this.pixels,
-  });
+  PdfImageWeb({required this.width, required this.height, required this.pixels});
 
   @override
   final int width;

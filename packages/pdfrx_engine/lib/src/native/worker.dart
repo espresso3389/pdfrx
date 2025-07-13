@@ -17,15 +17,8 @@ class BackgroundWorker {
 
   static Future<BackgroundWorker> create({String? debugName}) async {
     final receivePort = ReceivePort();
-    await Isolate.spawn(
-      _workerEntry,
-      receivePort.sendPort,
-      debugName: debugName,
-    );
-    final worker = BackgroundWorker._(
-      receivePort,
-      await receivePort.first as SendPort,
-    );
+    await Isolate.spawn(_workerEntry, receivePort.sendPort, debugName: debugName);
+    final worker = BackgroundWorker._(receivePort, await receivePort.first as SendPort);
 
     // propagate the pdfium module path to the worker
     worker.compute((params) {
@@ -50,10 +43,7 @@ class BackgroundWorker {
     });
   }
 
-  Future<R> compute<M, R>(
-    PdfrxComputeCallback<M, R> callback,
-    M message,
-  ) async {
+  Future<R> compute<M, R>(PdfrxComputeCallback<M, R> callback, M message) async {
     if (_isDisposed) {
       throw StateError('Worker is already disposed');
     }
@@ -63,10 +53,7 @@ class BackgroundWorker {
   }
 
   /// [compute] wrapper that also provides [Arena] for temporary memory allocation.
-  Future<R> computeWithArena<M, R>(
-    R Function(Arena arena, M message) callback,
-    M message,
-  ) =>
+  Future<R> computeWithArena<M, R>(R Function(Arena arena, M message) callback, M message) =>
       compute((message) => using((arena) => callback(arena, message)), message);
 
   void dispose() {

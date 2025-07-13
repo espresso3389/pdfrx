@@ -9,7 +9,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
 import 'package:vector_math/vector_math_64.dart' as vec;

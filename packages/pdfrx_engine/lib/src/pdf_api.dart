@@ -8,8 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:pdfrx_engine/src/utils/unmodifiable_list.dart';
 import 'package:vector_math/vector_math_64.dart' hide Colors;
 
-import './mock/pdfrx_mock.dart'
-    if (dart.library.io) './native/pdfrx_pdfium.dart';
+import './mock/pdfrx_mock.dart' if (dart.library.io) './native/pdfrx_pdfium.dart';
 
 /// Class to provide Pdfrx's configuration.
 /// The parameters should be set before calling any Pdfrx's functions.
@@ -91,8 +90,7 @@ abstract class PdfDocumentFactory {
   });
 
   Future<PdfDocument> openCustom({
-    required FutureOr<int> Function(Uint8List buffer, int position, int size)
-    read,
+    required FutureOr<int> Function(Uint8List buffer, int position, int size) read,
     required int fileSize,
     required String sourceName,
     PdfPasswordProvider? passwordProvider,
@@ -118,8 +116,7 @@ abstract class PdfDocumentFactory {
 ///
 /// [downloadedBytes] is the number of bytes downloaded so far.
 /// [totalBytes] is the total number of bytes to download. It may be null if the total size is unknown.
-typedef PdfDownloadProgressCallback =
-    void Function(int downloadedBytes, [int? totalBytes]);
+typedef PdfDownloadProgressCallback = void Function(int downloadedBytes, [int? totalBytes]);
 
 /// Function to provide password for encrypted PDF.
 ///
@@ -258,8 +255,7 @@ abstract class PdfDocument {
   /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
   /// unique for each source, the viewer may not work correctly.
   static Future<PdfDocument> openCustom({
-    required FutureOr<int> Function(Uint8List buffer, int position, int size)
-    read,
+    required FutureOr<int> Function(Uint8List buffer, int position, int size) read,
     required int fileSize,
     required String sourceName,
     PdfPasswordProvider? passwordProvider,
@@ -347,8 +343,7 @@ abstract class PdfDocument {
   bool isIdenticalDocumentHandle(Object? other);
 }
 
-typedef PdfPageLoadingCallback<T> =
-    FutureOr<bool> Function(int currentPageNumber, int totalPageCount, T? data);
+typedef PdfPageLoadingCallback<T> = FutureOr<bool> Function(int currentPageNumber, int totalPageCount, T? data);
 
 /// PDF document event types.
 enum PdfDocumentEventType { pageStatusChanged }
@@ -436,8 +431,7 @@ abstract class PdfPage {
     double? fullWidth,
     double? fullHeight,
     int? backgroundColor,
-    PdfAnnotationRenderingMode annotationRenderingMode =
-        PdfAnnotationRenderingMode.annotationAndForms,
+    PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
   });
@@ -452,12 +446,7 @@ abstract class PdfPage {
   Future<PdfPageText> loadText() async {
     final raw = await _loadFormattedText();
     if (raw == null) {
-      return PdfPageText(
-        pageNumber: pageNumber,
-        fullText: '',
-        charRects: [],
-        fragments: [],
-      );
+      return PdfPageText(pageNumber: pageNumber, fullText: '', charRects: [], fragments: []);
     }
     final inputCharRects = raw.charRects;
     final inputFullText = raw.fullText;
@@ -476,11 +465,7 @@ abstract class PdfPage {
 
     PdfTextDirection getLineDirection(int start, int end) {
       if (start == end || start + 1 == end) return PdfTextDirection.unknown;
-      return vector2direction(
-        inputCharRects[start].center.differenceTo(
-          inputCharRects[end - 1].center,
-        ),
-      );
+      return vector2direction(inputCharRects[start].center.differenceTo(inputCharRects[end - 1].center));
     }
 
     void addWord(
@@ -501,32 +486,11 @@ abstract class PdfPage {
             switch (dir) {
               case PdfTextDirection.ltr:
               case PdfTextDirection.unknown:
-                outputCharRects.add(
-                  PdfRect(
-                    a.right,
-                    bounds.top,
-                    a.right < b.left ? b.left : a.right,
-                    bounds.bottom,
-                  ),
-                );
+                outputCharRects.add(PdfRect(a.right, bounds.top, a.right < b.left ? b.left : a.right, bounds.bottom));
               case PdfTextDirection.rtl:
-                outputCharRects.add(
-                  PdfRect(
-                    b.right,
-                    bounds.top,
-                    b.right < a.left ? a.left : b.right,
-                    bounds.bottom,
-                  ),
-                );
+                outputCharRects.add(PdfRect(b.right, bounds.top, b.right < a.left ? a.left : b.right, bounds.bottom));
               case PdfTextDirection.vrtl:
-                outputCharRects.add(
-                  PdfRect(
-                    bounds.left,
-                    a.bottom,
-                    bounds.right,
-                    a.bottom > b.top ? b.top : a.bottom,
-                  ),
-                );
+                outputCharRects.add(PdfRect(bounds.left, a.bottom, bounds.right, a.bottom > b.top ? b.top : a.bottom));
             }
             outputText.write(' ');
           }
@@ -536,27 +500,11 @@ abstract class PdfPage {
             switch (dir) {
               case PdfTextDirection.ltr:
               case PdfTextDirection.unknown:
-                outputCharRects.add(
-                  PdfRect(
-                    bounds.right,
-                    bounds.top,
-                    bounds.right,
-                    bounds.bottom,
-                  ),
-                );
+                outputCharRects.add(PdfRect(bounds.right, bounds.top, bounds.right, bounds.bottom));
               case PdfTextDirection.rtl:
-                outputCharRects.add(
-                  PdfRect(bounds.left, bounds.top, bounds.left, bounds.bottom),
-                );
+                outputCharRects.add(PdfRect(bounds.left, bounds.top, bounds.left, bounds.bottom));
               case PdfTextDirection.vrtl:
-                outputCharRects.add(
-                  PdfRect(
-                    bounds.left,
-                    bounds.bottom,
-                    bounds.right,
-                    bounds.bottom,
-                  ),
-                );
+                outputCharRects.add(PdfRect(bounds.left, bounds.bottom, bounds.right, bounds.bottom));
             }
             outputText.write('\n');
           }
@@ -568,22 +516,17 @@ abstract class PdfPage {
             case PdfTextDirection.unknown:
               for (int i = wordStart; i < wordEnd; i++) {
                 final r = inputCharRects[i];
-                outputCharRects.add(
-                  PdfRect(r.left, bounds.top, r.right, bounds.bottom),
-                );
+                outputCharRects.add(PdfRect(r.left, bounds.top, r.right, bounds.bottom));
               }
             case PdfTextDirection.vrtl:
               for (int i = wordStart; i < wordEnd; i++) {
                 final r = inputCharRects[i];
-                outputCharRects.add(
-                  PdfRect(bounds.left, r.top, bounds.right, r.bottom),
-                );
+                outputCharRects.add(PdfRect(bounds.left, r.top, bounds.right, r.bottom));
               }
           }
           outputText.write(inputFullText.substring(wordStart, wordEnd));
         }
-        if (outputText.length > pos)
-          fragmentsTmp.add((length: outputText.length - pos, direction: dir));
+        if (outputText.length > pos) fragmentsTmp.add((length: outputText.length - pos, direction: dir));
       }
     }
 
@@ -613,10 +556,7 @@ abstract class PdfPage {
       return cur.center.differenceTo(next.center);
     }
 
-    List<({int start, int end, PdfTextDirection dir})> splitLine(
-      int start,
-      int end,
-    ) {
+    List<({int start, int end, PdfTextDirection dir})> splitLine(int start, int end) {
       final list = <({int start, int end, PdfTextDirection dir})>[];
       final lineThreshold = 1.5; // radians
       final last = end - 1;
@@ -625,11 +565,7 @@ abstract class PdfPage {
       for (int next = start + 1; next < last;) {
         final nextVec = charVec(next, curVec);
         if (curVec.angleTo(nextVec) > lineThreshold) {
-          list.add((
-            start: curStart,
-            end: next + 1,
-            dir: vector2direction(curVec),
-          ));
+          list.add((start: curStart, end: next + 1, dir: vector2direction(curVec)));
           curStart = next + 1;
           if (next + 2 == end) break;
           curVec = charVec(next + 1, nextVec);
@@ -651,10 +587,7 @@ abstract class PdfPage {
       if (segments.length >= 2) {
         for (int i = 0; i < segments.length; i++) {
           final seg = segments[i];
-          final bounds = inputCharRects.boundingRect(
-            start: seg.start,
-            end: seg.end,
-          );
+          final bounds = inputCharRects.boundingRect(start: seg.start, end: seg.end);
           addWords(seg.start, seg.end, seg.dir, bounds);
           if (i + 1 == segments.length && newLineEnd != null) {
             addWord(seg.end, newLineEnd, seg.dir, bounds, isNewLine: true);
@@ -675,9 +608,7 @@ abstract class PdfPage {
         handleLine(lineStart, match.start, newLineEnd: match.end);
       } else {
         final lastRect = outputCharRects.last;
-        outputCharRects.add(
-          PdfRect(lastRect.left, lastRect.top, lastRect.left, lastRect.bottom),
-        );
+        outputCharRects.add(PdfRect(lastRect.left, lastRect.top, lastRect.left, lastRect.bottom));
         outputText.write('\n');
       }
       lineStart = match.end;
@@ -699,11 +630,7 @@ abstract class PdfPage {
       final length = fragmentsTmp[i].length;
       final direction = fragmentsTmp[i].direction;
       final end = start + length;
-      final fragmentRects = UnmodifiableSublist(
-        outputCharRects,
-        start: start,
-        end: end,
-      );
+      final fragmentRects = UnmodifiableSublist(outputCharRects, start: start, end: end);
       fragments.add(
         PdfPageTextFragment(
           pageText: text,
@@ -750,9 +677,7 @@ abstract class PdfPage {
           final rect = raw.charRects[lineStart];
           final nextRect = raw.charRects[match.end];
           final nextCenterX = nextRect.center.x;
-          if (rect.left < nextCenterX &&
-              nextCenterX < rect.right &&
-              rect.top > nextRect.top) {
+          if (rect.left < nextCenterX && nextCenterX < rect.right && rect.top > nextRect.top) {
             // The line is vertical, and the line-feed is virtual
             continue;
           }
@@ -779,10 +704,7 @@ abstract class PdfPage {
   /// If [enableAutoLinkDetection] is true, the function tries to detect Web links automatically.
   /// This is useful if the PDF file contains text that looks like Web links but not defined as links in the PDF.
   /// The default is true.
-  Future<List<PdfLink>> loadLinks({
-    bool compact = false,
-    bool enableAutoLinkDetection = true,
-  });
+  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true});
 }
 
 /// PDF's raw text and its associated character bounding boxes.
@@ -931,10 +853,7 @@ class PdfPageText {
       charRects: const [],
       direction: PdfTextDirection.unknown,
     );
-    final index = fragments.lowerBound(
-      searchIndex,
-      (a, b) => a.index - b.index,
-    );
+    final index = fragments.lowerBound(searchIndex, (a, b) => a.index - b.index);
     if (index > fragments.length) {
       return -1; // range error
     }
@@ -968,10 +887,7 @@ class PdfPageText {
   ///
   /// Just work like [Pattern.allMatches] but it returns stream of [PdfPageTextRange].
   /// [caseInsensitive] is used to specify case-insensitive search only if [pattern] is [String].
-  Stream<PdfPageTextRange> allMatches(
-    Pattern pattern, {
-    bool caseInsensitive = true,
-  }) async* {
+  Stream<PdfPageTextRange> allMatches(Pattern pattern, {bool caseInsensitive = true}) async* {
     final String text;
     if (pattern is RegExp) {
       caseInsensitive = pattern.isCaseSensitive;
@@ -985,11 +901,7 @@ class PdfPageText {
     final matches = pattern.allMatches(text);
     for (final match in matches) {
       if (match.start == match.end) continue;
-      final m = PdfPageTextRange(
-        pageText: this,
-        start: match.start,
-        end: match.end,
-      );
+      final m = PdfPageTextRange(pageText: this, start: match.start, end: match.end);
       yield m;
     }
   }
@@ -1002,9 +914,7 @@ class PdfPageText {
     final min = a < b ? a : b;
     final max = a < b ? b : a;
     if (min < 0 || max > fullText.length) {
-      throw RangeError(
-        'Indices out of range: $min, $max for fullText length ${fullText.length}.',
-      );
+      throw RangeError('Indices out of range: $min, $max for fullText length ${fullText.length}.');
     }
     return PdfPageTextRange(pageText: this, start: min, end: max + 1);
   }
@@ -1072,11 +982,7 @@ class PdfPageTextRange {
   /// Create a [PdfPageTextRange].
   ///
   /// [start] is inclusive and [end] is exclusive.
-  const PdfPageTextRange({
-    required this.pageText,
-    required this.start,
-    required this.end,
-  });
+  const PdfPageTextRange({required this.pageText, required this.start, required this.end});
 
   /// The page text the text range are associated with.
   final PdfPageText pageText;
@@ -1128,11 +1034,7 @@ class PdfPageTextRange {
     for (int i = fStart; i <= fEnd; i++) {
       final f = pageText.fragments[i];
       if (f.end <= start || end <= f.index) continue;
-      yield PdfTextFragmentBoundingRect(
-        f,
-        max(start - f.index, 0),
-        min(end - f.index, f.length),
-      );
+      yield PdfTextFragmentBoundingRect(f, max(start - f.index, 0), min(end - f.index, f.length));
     }
   }
 }
@@ -1145,14 +1047,8 @@ class PdfPageTextRange {
 /// The unit is normally in points (1/72 inch).
 class PdfRect {
   const PdfRect(this.left, this.top, this.right, this.bottom)
-    : assert(
-        left <= right,
-        'Left coordinate must be less than or equal to right coordinate.',
-      ),
-      assert(
-        top >= bottom,
-        'Top coordinate must be greater than or equal to bottom coordinate.',
-      );
+    : assert(left <= right, 'Left coordinate must be less than or equal to right coordinate.'),
+      assert(top >= bottom, 'Top coordinate must be greater than or equal to bottom coordinate.');
 
   /// Left coordinate.
   final double left;
@@ -1205,14 +1101,10 @@ class PdfRect {
 
   /// Determine whether the rectangle contains the specified point (in the PDF page coordinates).
   bool containsXy(double x, double y, {double margin = 0}) =>
-      x >= left - margin &&
-      x <= right + margin &&
-      y >= bottom - margin &&
-      y <= top + margin;
+      x >= left - margin && x <= right + margin && y >= bottom - margin && y <= top + margin;
 
   /// Determine whether the rectangle contains the specified point (in the PDF page coordinates).
-  bool containsPoint(PdfPoint offset, {double margin = 0}) =>
-      containsXy(offset.x, offset.y, margin: margin);
+  bool containsPoint(PdfPoint offset, {double margin = 0}) => containsXy(offset.x, offset.y, margin: margin);
 
   double distanceSquaredTo(PdfPoint point) {
     if (containsPoint(point)) {
@@ -1245,12 +1137,7 @@ class PdfRect {
       case 1:
         return PdfRect(bottom, width - left, top, width - right);
       case 2:
-        return PdfRect(
-          width - right,
-          height - bottom,
-          width - left,
-          height - top,
-        );
+        return PdfRect(width - right, height - bottom, width - left, height - top);
       case 3:
         return PdfRect(height - top, right, height - bottom, left);
       default:
@@ -1269,12 +1156,7 @@ class PdfRect {
       case 1:
         return PdfRect(width - top, right, width - bottom, left);
       case 2:
-        return PdfRect(
-          width - right,
-          height - bottom,
-          width - left,
-          height - top,
-        );
+        return PdfRect(width - right, height - bottom, width - left, height - top);
       case 3:
         return PdfRect(bottom, height - left, top, height - right);
       default:
@@ -1282,23 +1164,17 @@ class PdfRect {
     }
   }
 
-  PdfRect inflate(double dx, double dy) =>
-      PdfRect(left - dx, top + dy, right + dx, bottom - dy);
+  PdfRect inflate(double dx, double dy) => PdfRect(left - dx, top + dy, right + dx, bottom - dy);
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
 
-    return other is PdfRect &&
-        other.left == left &&
-        other.top == top &&
-        other.right == right &&
-        other.bottom == bottom;
+    return other is PdfRect && other.left == left && other.top == top && other.right == right && other.bottom == bottom;
   }
 
   @override
-  int get hashCode =>
-      left.hashCode ^ top.hashCode ^ right.hashCode ^ bottom.hashCode;
+  int get hashCode => left.hashCode ^ top.hashCode ^ right.hashCode ^ bottom.hashCode;
 
   @override
   String toString() {
@@ -1358,8 +1234,7 @@ class PdfTextFragmentBoundingRect {
   final int eif;
 
   /// Rectangle in PDF page coordinates.
-  PdfRect get bounds =>
-      fragment.pageText.charRects.boundingRect(start: start, end: end);
+  PdfRect get bounds => fragment.pageText.charRects.boundingRect(start: start, end: end);
 
   /// Start index of the text range in page's full text.
   int get start => fragment.index + sif;
@@ -1385,17 +1260,14 @@ class PdfDest {
   final List<double?>? params;
 
   @override
-  String toString() =>
-      'PdfDest{pageNumber: $pageNumber, command: $command, params: $params}';
+  String toString() => 'PdfDest{pageNumber: $pageNumber, command: $command, params: $params}';
 
   /// Compact the destination.
   ///
   /// The method is used to compact the destination to reduce memory usage.
   /// [params] is typically growable and also modifiable. The method ensures that [params] is unmodifiable.
   PdfDest compact() {
-    return params == null
-        ? this
-        : PdfDest(pageNumber, command, List.unmodifiable(params!));
+    return params == null ? this : PdfDest(pageNumber, command, List.unmodifiable(params!));
   }
 }
 
@@ -1419,10 +1291,7 @@ enum PdfDestCommand {
   /// Parse the command name to [PdfDestCommand].
   factory PdfDestCommand.parse(String name) {
     final nameLow = name.toLowerCase();
-    return PdfDestCommand.values.firstWhere(
-      (e) => e.name == nameLow,
-      orElse: () => PdfDestCommand.unknown,
-    );
+    return PdfDestCommand.values.firstWhere((e) => e.name == nameLow, orElse: () => PdfDestCommand.unknown);
   }
 }
 
@@ -1463,11 +1332,7 @@ class PdfLink {
 ///
 /// See [PdfDocument.loadOutline].
 class PdfOutlineNode {
-  const PdfOutlineNode({
-    required this.title,
-    required this.dest,
-    required this.children,
-  });
+  const PdfOutlineNode({required this.title, required this.dest, required this.children});
 
   /// Outline node title.
   final String title;
