@@ -1,10 +1,12 @@
 # pdfrx_engine
 
+**PRERELEASE NOTE**: This package is currently in pre-release. The APIs may change before the final release.
+
 [![Build Test](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml/badge.svg)](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml)
 
 [pdfrx_engine](https://pub.dartlang.org/packages/pdfrx_engine) is a platform-agnostic PDF rendering engine built on top of [PDFium](https://pdfium.googlesource.com/pdfium/). It provides low-level PDF document APIs without any Flutter dependencies, making it suitable for use in pure Dart applications, CLI tools, or server-side processing.
 
-This package is part of the pdfrx monorepo and serves as the foundation for the [pdfrx](https://pub.dartlang.org/packages/pdfrx) Flutter plugin, which adds UI widgets and Flutter-specific features on top of this engine.
+This package is a part of [pdfrx](https://pub.dartlang.org/packages/pdfrx) Flutter plugin, which adds UI widgets and Flutter-specific features on top of this engine.
 
 ## Multi-platform support
 
@@ -13,7 +15,7 @@ This package is part of the pdfrx monorepo and serves as the foundation for the 
 - Windows
 - macOS
 - Linux (even on Raspberry Pi)
-- Web (WASM)
+- Web (WASM) supported only on Flutter by [pdfrx](https://pub.dartlang.org/packages/pdfrx)
 
 ## Example Code
 
@@ -47,13 +49,15 @@ void main() async {
 ## When to Use pdfrx_engine vs pdfrx
 
 **Use pdfrx_engine when:**
+
 - Building CLI tools or server applications
 - You need PDF rendering without Flutter UI
 - Creating custom PDF processing pipelines
 - Working in pure Dart environments
 
 **Use pdfrx when:**
+
 - Building Flutter applications
-- You need ready-to-use PDF viewer widgets
+- You need ready-to-use [PDF viewer widgets](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html)
 - You want features like text selection, search, and zoom controls
 - You prefer high-level APIs with Flutter integration
