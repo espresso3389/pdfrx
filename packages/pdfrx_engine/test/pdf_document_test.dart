@@ -10,7 +10,7 @@ import 'utils.dart';
 final testPdfFile = File('../pdfrx/example/viewer/assets/hello.pdf');
 
 void main() {
-  setUp(() => pdfrxEngineDartInitialize(tmpPath: tmpRoot.path));
+  setUp(() => pdfrxInitialize(tmpPath: tmpRoot.path));
 
   test('PdfDocument.openFile', () async => await testDocument(await PdfDocument.openFile(testPdfFile.path)));
   test('PdfDocument.openData', () async {

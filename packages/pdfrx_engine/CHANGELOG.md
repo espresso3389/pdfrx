@@ -1,3 +1,8 @@
+## 0.1.3
+
+- Add an example for converting PDF pages to images.
+- Add PdfImage.createImageNF() extension method to create Image (of image package) from PdfImage.
+
 ## 0.1.2
 
 - Introduces new PDF text extraction API.

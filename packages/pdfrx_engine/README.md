@@ -22,19 +22,24 @@ This package is a part of [pdfrx](https://pub.dartlang.org/packages/pdfrx) Flutt
 The following fragment illustrates how to use the PDF engine to load and render a PDF file:
 
 ```dart
+import 'dart:io';
+import 'package:image/image.dart' as img;
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 
 void main() async {
+  await pdfrxInitialize();
+
   final document = await PdfDocument.openFile('test.pdf');
-  final page = document.pages[0];
-  final image = await page.render(
+  final page = document.pages[0]; // first page
+  final pageImage = await page.render(
     width: page.width * 200 / 72,
     height: page.height * 200 / 72,
   );
-  image.dispose();
+  final image = pageImage!.createImageNF();
+  await File('output.png').writeAsBytes(img.encodePng(image));
+  pageImage.dispose();
   document.close();
 }
-
 ```
 
 ## PDF API

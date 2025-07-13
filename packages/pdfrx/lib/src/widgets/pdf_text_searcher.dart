@@ -247,7 +247,7 @@ class PdfTextSearcher extends Listenable {
 
   /// Paint callback to highlight the matches.
   ///
-  /// Use this with [PdfViewerParams.pagePaintCallback] to highlight the matches.
+  /// Use this with [PdfViewerParams.pagePaintCallbacks] to highlight the matches.
   void pageTextMatchPaintCallback(ui.Canvas canvas, Rect pageRect, PdfPage page) {
     final range = getMatchesRangeForPage(page.pageNumber);
     if (range == null) return;

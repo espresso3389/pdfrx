@@ -9,7 +9,8 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:synchronized/extension.dart';
 
-import '../pdf_api.dart';
+import '../pdfrx_api.dart';
+import '../pdfrx_initialize_dart.dart';
 import 'http_cache_control.dart';
 
 final _rafFinalizer = Finalizer<RandomAccessFile>((raf) {
@@ -28,8 +29,8 @@ final _rafFinalizer = Finalizer<RandomAccessFile>((raf) {
 ///
 /// The cache directory used by this class is obtained using [Pdfrx.getCacheDirectory].
 ///
-/// For Flutter, [pdfrxFlutterInitialize] should be called explicitly or implicitly before using this class.
-/// For Dart only, you can set this function to load assets from your own asset management system.
+/// For Flutter, `pdfrxFlutterInitialize` should be called explicitly or implicitly before using this class.
+/// For Dart only, call [pdfrxInitialize] or explicitly set [Pdfrx.getCacheDirectory].
 class PdfFileCache {
   PdfFileCache(this.file);
 

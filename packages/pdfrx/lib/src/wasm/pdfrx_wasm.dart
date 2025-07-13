@@ -49,8 +49,6 @@ Future<Map<Object?, dynamic>> _sendCommand(String command, {Map<Object?, dynamic
 }
 
 /// The URL of the PDFium WASM worker script; pdfium_client.js tries to load worker script from this URL.'
-///
-/// [PdfDocumentFactory._init] will initializes its value.
 @JS()
 external String pdfiumWasmWorkerUrl;
 

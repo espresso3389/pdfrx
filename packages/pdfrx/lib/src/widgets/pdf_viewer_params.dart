@@ -8,7 +8,7 @@ import '../../pdfrx.dart';
 /// Viewer customization parameters.
 ///
 /// Changes to several builder functions such as [layoutPages] does not
-/// take effect until the viewer is re-layout-ed. You can relayout the viewer by calling [PdfViewerController.relayout].
+/// take effect until the viewer is re-layout-ed. You can relayout the viewer by calling [PdfViewerController].relayout.
 @immutable
 class PdfViewerParams {
   const PdfViewerParams({
@@ -72,7 +72,7 @@ class PdfViewerParams {
 
   /// Function to customize the layout of the pages.
   ///
-  /// Changes to this function does not take effect until the viewer is re-layout-ed. You can relayout the viewer by calling [PdfViewerController.relayout].
+  /// Changes to this function does not take effect until the viewer is re-layout-ed. You can relayout the viewer by calling [PdfViewerController].relayout.
   ///
   /// The following fragment is an example to layout pages horizontally with margin:
   ///
@@ -1012,7 +1012,7 @@ typedef PdfLinkWidgetBuilder = Widget? Function(BuildContext context, PdfLink li
 /// [page] is the page.
 ///
 /// If you have some [PdfRect] that describes something on the page,
-/// you can use [PdfRect.toRect] to convert it to [Rect] and draw the rect on the canvas:
+/// you can use [PdfRect].toRect to convert it to [Rect] and draw the rect on the canvas:
 ///
 /// ```dart
 /// PdfRect pdfRect = ...;

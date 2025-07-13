@@ -1,8 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:pdfrx/pdfrx.dart';
 import 'package:synchronized/extension.dart';
+
+import '../pdfrx.dart';
 
 /// Callback function to notify download progress.
 ///

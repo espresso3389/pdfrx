@@ -3,8 +3,8 @@ import 'dart:ui';
 
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pdfrx/pdfrx.dart';
 
+import '../pdfrx.dart';
 import 'utils/platform.dart';
 
 bool _isInitialized = false;
@@ -14,6 +14,8 @@ bool _isInitialized = false;
 /// This function actually sets up the following functions:
 /// - [Pdfrx.loadAsset]: Loads an asset by name and returns its byte data.
 /// - [Pdfrx.getCacheDirectory]: Returns the path to the temporary directory for caching.
+///
+/// For Dart (non-Flutter) programs, you should call [pdfrxInitialize] instead.
 void pdfrxFlutterInitialize() {
   if (_isInitialized) return;
 
@@ -40,6 +42,8 @@ extension PdfPageExt on PdfPage {
 
 extension PdfImageExt on PdfImage {
   /// Create [Image] from the rendered image.
+  ///
+  /// The returned [Image] must be disposed of when no longer needed.
   Future<Image> createImage() {
     final comp = Completer<Image>();
     decodeImageFromPixels(pixels, width, height, PixelFormat.bgra8888, (image) => comp.complete(image));
@@ -50,7 +54,7 @@ extension PdfImageExt on PdfImage {
 extension PdfRectExt on PdfRect {
   /// Convert to [Rect] in Flutter coordinate.
   /// [page] is the page to convert the rectangle.
-  /// [scaledPageSize] is the scaled page size to scale the rectangle. If not specified, [PdfPage.size] is used.
+  /// [scaledPageSize] is the scaled page size to scale the rectangle. If not specified, [PdfPage].size is used.
   /// [rotation] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
   Rect toRect({required PdfPage page, Size? scaledPageSize, int? rotation}) {
     final rotated = rotate(rotation ?? page.rotation.index, page);
@@ -84,7 +88,7 @@ extension RectPdfRectExt on Rect {
 extension PdfPointExt on PdfPoint {
   /// Convert to [Offset] in Flutter coordinate.
   /// [page] is the page to convert the rectangle.
-  /// [scaledPageSize] is the scaled page size to scale the rectangle. If not specified, [PdfPage.size] is used.
+  /// [scaledPageSize] is the scaled page size to scale the rectangle. If not specified, [PdfPage].size is used.
   /// [rotation] is the rotation of the page. If not specified, [PdfPage.rotation] is used.
   Offset toOffset({required PdfPage page, Size? scaledPageSize, int? rotation}) {
     final rotated = rotate(rotation ?? page.rotation.index, page);

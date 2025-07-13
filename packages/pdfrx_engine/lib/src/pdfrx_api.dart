@@ -5,10 +5,10 @@ import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
 import 'package:http/http.dart' as http;
-import 'package:pdfrx_engine/src/utils/unmodifiable_list.dart';
 import 'package:vector_math/vector_math_64.dart' hide Colors;
 
 import './mock/pdfrx_mock.dart' if (dart.library.io) './native/pdfrx_pdfium.dart';
+import 'utils/unmodifiable_list.dart';
 
 /// Class to provide Pdfrx's configuration.
 /// The parameters should be set before calling any Pdfrx's functions.
@@ -49,7 +49,7 @@ class Pdfrx {
   /// This function is used to load PDF files from assets.
   /// It is used to isolate pdfrx API implementation from Flutter framework.
   ///
-  /// For Flutter, [pdfrxFlutterInitialize] should be called explicitly or implicitly before using this class.
+  /// For Flutter, `pdfrxFlutterInitialize` should be called explicitly or implicitly before using this class.
   /// For Dart only, you can set this function to load assets from your own asset management system.
   static Future<Uint8List> Function(String name)? loadAsset;
 
@@ -57,7 +57,7 @@ class Pdfrx {
   ///
   /// You can override the default cache directory by setting this variable.
   ///
-  /// For Flutter, [pdfrxFlutterInitialize] should be called explicitly or implicitly before using this class.
+  /// For Flutter, `pdfrxFlutterInitialize` should be called explicitly or implicitly before using this class.
   /// For Dart only, you can set this function to obtain the cache directory from your own file system.
   static FutureOr<String> Function()? getCacheDirectory;
 }
@@ -392,7 +392,7 @@ abstract class PdfPage {
 
   /// Whether the page is really loaded or not.
   ///
-  /// If the value is false, the page's [width], [height], [size], and [rotation] are just guessed values and
+  /// If the value is false, the page's [width], [height], and [rotation] are just guessed values and
   /// will be updated when the page is really loaded.
   bool get isLoaded;
 
@@ -405,7 +405,7 @@ abstract class PdfPage {
   /// - If [fullWidth], [fullHeight] are not specified, [PdfPage.width] and [PdfPage.height] are used (it means rendered at 72-dpi).
   /// [backgroundColor] is `AARRGGBB` integer color notation used to fill the background of the page. If no color is specified, 0xffffffff (white) is used.
   /// - [annotationRenderingMode] controls to render annotations or not. The default is [PdfAnnotationRenderingMode.annotationAndForms].
-  /// - [flags] is used to specify additional rendering flags. The default is [PdfPageRenderingFlags.none].
+  /// - [flags] is used to specify additional rendering flags. The default is [PdfPageRenderFlags.none].
   /// - [cancellationToken] can be used to cancel the rendering process. It must be created by [createCancellationToken].
   ///
   /// The following figure illustrates what each parameter means:
@@ -839,8 +839,8 @@ class PdfPageText {
   /// Find text fragment index for the specified text index.
   ///
   /// If the specified text index is out of range, it returns -1;
-  /// only the exception is [textIndex] is equal to [fullText.length],
-  /// which means the end of the text and it returns [fragments.length].
+  /// only the exception is [textIndex] is equal to [fullText].length,
+  /// which means the end of the text and it returns [fragments].length.
   int getFragmentIndexForTextIndex(int textIndex) {
     if (textIndex == fullText.length) {
       return fragments.length; // the end of the text

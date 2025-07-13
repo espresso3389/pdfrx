@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
-import 'package:pdfrx/pdfrx.dart';
 import 'package:web/web.dart' as web;
 
+import '../../../pdfrx.dart';
 import '../../wasm/pdfrx_wasm.dart';
 
 final isApple = false;
@@ -22,4 +22,6 @@ final isMobile = false;
 bool get shouldTextSelectionTriggeredBySwipe => true;
 
 /// Override for the [PdfDocumentFactory] for web platforms to use WASM implementation.
-final PdfDocumentFactory? pdfDocumentFactoryOverride = PdfDocumentFactoryWasmImpl();
+PdfDocumentFactory? get pdfDocumentFactoryOverride => _factoryWasm;
+
+final _factoryWasm = PdfDocumentFactoryWasmImpl();

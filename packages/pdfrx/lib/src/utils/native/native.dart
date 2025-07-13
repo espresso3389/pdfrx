@@ -1,7 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
-import 'package:pdfrx/pdfrx.dart';
+
+import '../../../pdfrx.dart';
 
 final isApple = Platform.isMacOS || Platform.isIOS;
 final isWindows = Platform.isWindows;
@@ -25,4 +26,4 @@ bool get shouldTextSelectionTriggeredBySwipe {
 }
 
 /// Override for the [PdfDocumentFactory] for native platforms; it is null.
-final PdfDocumentFactory? pdfDocumentFactoryOverride = null;
+PdfDocumentFactory? get pdfDocumentFactoryOverride => null;

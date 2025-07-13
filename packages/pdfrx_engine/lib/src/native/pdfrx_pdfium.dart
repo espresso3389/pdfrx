@@ -8,7 +8,7 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:rxdart/rxdart.dart';
 
-import '../pdf_api.dart';
+import '../pdfrx_api.dart';
 import 'pdf_file_cache.dart';
 import 'pdfium_bindings.dart' as pdfium_bindings;
 import 'pdfium_interop.dart';

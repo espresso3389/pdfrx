@@ -12,7 +12,7 @@ class PdfDocumentFactoryImpl implements PdfDocumentFactory {
   Future<PdfDocument> unimplemented() {
     throw UnimplementedError(
       'PdfDocumentFactory.instance is not initialized. '
-      'Please call pdfrxFlutterInitialize() or explicitly set PdfDocumentFactory.instance.',
+      'Please call pdfrxInitialize()/pdfrxFlutterInitialize() or explicitly set PdfDocumentFactory.instance.',
     );
   }
 

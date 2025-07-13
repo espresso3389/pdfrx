@@ -4,7 +4,7 @@ import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
 
-import '../pdf_api.dart';
+import '../pdfrx_api.dart';
 
 typedef PdfrxComputeCallback<M, R> = FutureOr<R> Function(M message);
 
