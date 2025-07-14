@@ -444,7 +444,7 @@ class _PdfDocumentPdfium extends PdfDocument {
             final end = maxPageCountToLoadAdditionally == null
                 ? pageCount
                 : min(pageCount, params.pagesCountLoadedSoFar + params.maxPageCountToLoadAdditionally!);
-            final t = params.timeoutUs != null ? DateTime.now().add(Duration(microseconds: params.timeoutUs!)) : null;
+            final t = params.timeoutUs != null ? (Stopwatch()..start()) : null;
             final pages = <({double width, double height, int rotation})>[];
             for (int i = params.pagesCountLoadedSoFar; i < end; i++) {
               final page = pdfium.FPDF_LoadPage(doc, i);
@@ -457,7 +457,7 @@ class _PdfDocumentPdfium extends PdfDocument {
               } finally {
                 pdfium.FPDF_ClosePage(page);
               }
-              if (t != null && DateTime.now().isAfter(t)) {
+              if (t != null && t.elapsedMicroseconds > params.timeoutUs!) {
                 break;
               }
             }

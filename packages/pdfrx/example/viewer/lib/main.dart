@@ -319,6 +319,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           pageAnchorEnd: isHorizontalLayout ? PdfPageAnchor.right : PdfPageAnchor.bottom,
                           textSelectionParams: PdfTextSelectionParams(
                             enableSelectionHandles: true,
+                            showContextMenuOnSelectionHandle: true,
                             magnifier: PdfViewerSelectionMagnifierParams(enabled: true),
                             onTextSelectionChange: (textSelection) {
                               textSelections = textSelection.selectedTextRange;

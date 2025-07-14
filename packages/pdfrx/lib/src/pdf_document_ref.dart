@@ -510,4 +510,17 @@ class PdfDownloadReport {
   final int downloaded;
   final int total;
   final Duration elapsedTime;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is PdfDownloadReport &&
+        other.downloaded == downloaded &&
+        other.total == total &&
+        other.elapsedTime == elapsedTime;
+  }
+
+  @override
+  int get hashCode => downloaded.hashCode ^ total.hashCode ^ elapsedTime.hashCode;
 }

@@ -349,12 +349,12 @@ packages:
     source: path
     version: "1.3.2"
   pdfrx_engine:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       path: "../../../pdfrx_engine"
       relative: true
     source: path
-    version: "0.1.3"
+    version: "0.1.4"
   petitparser:
     dependency: transitive
     description:

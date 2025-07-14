@@ -716,6 +716,16 @@ class PdfPageRawText {
 
   /// Bounds corresponding to characters in the full text.
   final List<PdfRect> charRects;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is PdfPageRawText && other.fullText == fullText && _listEquals(other.charRects, charRects);
+  }
+
+  @override
+  int get hashCode => fullText.hashCode ^ charRects.hashCode;
 }
 
 /// Page rotation.
@@ -789,9 +799,19 @@ class PdfPermissions {
 
   /// Determine whether the PDF file allows modifying annotations, form fields, and their associated
   bool get allowsModifyAnnotations => (permissions & 32) != 0;
-}
 
-enum PdfImageFormat { rgba8888, bgra8888 }
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is PdfPermissions &&
+        other.permissions == permissions &&
+        other.securityHandlerRevision == securityHandlerRevision;
+  }
+
+  @override
+  int get hashCode => permissions.hashCode ^ securityHandlerRevision.hashCode;
+}
 
 /// Image rendered from PDF page.
 ///
@@ -918,6 +938,20 @@ class PdfPageText {
     }
     return PdfPageTextRange(pageText: this, start: min, end: max + 1);
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is PdfPageText &&
+        other.pageNumber == pageNumber &&
+        other.fullText == fullText &&
+        _listEquals(other.charRects, charRects) &&
+        _listEquals(other.fragments, fragments);
+  }
+
+  @override
+  int get hashCode => pageNumber.hashCode ^ fullText.hashCode ^ charRects.hashCode ^ fragments.hashCode;
 }
 
 /// Text direction in PDF page.
@@ -1037,6 +1071,16 @@ class PdfPageTextRange {
       yield PdfTextFragmentBoundingRect(f, max(start - f.index, 0), min(end - f.index, f.length));
     }
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is PdfPageTextRange && other.pageText == pageText && other.start == start && other.end == end;
+  }
+
+  @override
+  int get hashCode => pageText.hashCode ^ start.hashCode ^ end.hashCode;
 }
 
 /// Rectangle in PDF page coordinates.
@@ -1244,6 +1288,16 @@ class PdfTextFragmentBoundingRect {
 
   /// Text direction of the text range.
   PdfTextDirection get direction => fragment.direction;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is PdfTextFragmentBoundingRect && other.fragment == fragment && other.sif == sif && other.eif == eif;
+  }
+
+  @override
+  int get hashCode => fragment.hashCode ^ sif.hashCode ^ eif.hashCode;
 }
 
 /// PDF [Explicit Destination](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=374) the page and inner-page location to jump to.
@@ -1269,6 +1323,19 @@ class PdfDest {
   PdfDest compact() {
     return params == null ? this : PdfDest(pageNumber, command, List.unmodifiable(params!));
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is PdfDest &&
+        other.pageNumber == pageNumber &&
+        other.command == command &&
+        _listEquals(other.params, params);
+  }
+
+  @override
+  int get hashCode => pageNumber.hashCode ^ command.hashCode ^ params.hashCode;
 }
 
 /// [PDF 32000-1:2008, 12.3.2.2 Explicit Destinations, Table 151](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=374)
@@ -1326,6 +1393,16 @@ class PdfLink {
   String toString() {
     return 'PdfLink{${url?.toString() ?? dest?.toString()}, rects: $rects}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is PdfLink && other.url == url && other.dest == dest && _listEquals(other.rects, rects);
+  }
+
+  @override
+  int get hashCode => url.hashCode ^ dest.hashCode ^ rects.hashCode;
 }
 
 /// Outline (a.k.a. Bookmark) node in PDF document.
@@ -1342,6 +1419,19 @@ class PdfOutlineNode {
 
   /// Outline child nodes.
   final List<PdfOutlineNode> children;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is PdfOutlineNode &&
+        other.title == title &&
+        other.dest == dest &&
+        _listEquals(other.children, children);
+  }
+
+  @override
+  int get hashCode => title.hashCode ^ dest.hashCode ^ children.hashCode;
 }
 
 class PdfException implements Exception {

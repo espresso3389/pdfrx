@@ -14,8 +14,6 @@ dependencies:
 
   pdfrx:
     path: ../../
-  pdfrx_engine:
-    path: ../../../pdfrx_engine
 
   cupertino_icons: ^1.0.8
   rxdart: ^0.28.0
