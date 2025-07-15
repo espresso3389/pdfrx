@@ -19,10 +19,21 @@ void setClipboardData(String text) {
 final isMobile = Platform.isAndroid || Platform.isIOS || Platform.isFuchsia;
 
 /// Whether text selection should be triggered by swipe gestures or not.
-
 bool get shouldTextSelectionTriggeredBySwipe {
   if (isMobile) return false;
   return true;
+}
+
+/// Whether to show text selection handles.
+bool get shouldShowTextSelectionHandles {
+  if (isMobile) return true;
+  return false;
+}
+
+/// Whether to show text selection magnifier.
+bool get shouldShowTextSelectionMagnifier {
+  if (isMobile) return true;
+  return false;
 }
 
 /// Override for the [PdfDocumentFactory] for native platforms; it is null.

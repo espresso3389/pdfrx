@@ -647,12 +647,12 @@ class PdfTextSelectionParams {
 
   /// Whether text selection is triggered by swipe.
   ///
-  /// null to determine the behavior based on the platform; enabled on Desktop/Web, disabled on Mobile.
+  /// null to determine the behavior based on the platform; enabled on desktop, disabled on mobile/Web.
   final bool? textSelectionTriggeredBySwipe;
 
   /// Whether to show selection handles.
   ///
-  /// null to determine the behavior based on the platform; enabled on Mobile, disabled on Desktop/Web.
+  /// null to determine the behavior based on the platform; enabled on mobile/Web, disabled on desktop/.
   final bool? enableSelectionHandles;
 
   /// Whether to show context menu on selection handle.
@@ -874,7 +874,7 @@ class PdfViewerSelectionMagnifierParams {
 
   /// Whether the magnifier is enabled.
   ///
-  /// If null, the magnifier is enabled by default on Mobile and disabled on Desktop/Web.
+  /// If null, the magnifier is enabled by default on mobile/web and disabled on desktop.
   final bool? enabled;
 
   /// Size of the magnifier content.
@@ -1244,8 +1244,7 @@ class PdfViewerBehaviorControlParams {
     this.trailingPageLoadingDelay = const Duration(milliseconds: kIsWeb ? 200 : 100),
     this.enableLowResolutionPagePreview = true,
     this.pageImageCachingDelay = const Duration(milliseconds: kIsWeb ? 100 : 20),
-    this.partialImageLoadingDelay = const Duration(milliseconds: 0),
-    this.enableDifferentialRendering = false,
+    this.partialImageLoadingDelay = const Duration(milliseconds: kIsWeb ? 200 : 0),
   });
 
   /// How long to wait before loading the trailing pages after the initial page load.
@@ -1262,9 +1261,6 @@ class PdfViewerBehaviorControlParams {
   /// How long to wait before loading the partial real size image.
   final Duration partialImageLoadingDelay;
 
-  /// Whether to enable differential rendering (experimental).
-  final bool enableDifferentialRendering;
-
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
@@ -1273,8 +1269,7 @@ class PdfViewerBehaviorControlParams {
         other.trailingPageLoadingDelay == trailingPageLoadingDelay &&
         other.enableLowResolutionPagePreview == enableLowResolutionPagePreview &&
         other.pageImageCachingDelay == pageImageCachingDelay &&
-        other.partialImageLoadingDelay == partialImageLoadingDelay &&
-        other.enableDifferentialRendering == enableDifferentialRendering;
+        other.partialImageLoadingDelay == partialImageLoadingDelay;
   }
 
   @override
@@ -1282,6 +1277,5 @@ class PdfViewerBehaviorControlParams {
       trailingPageLoadingDelay.hashCode ^
       enableLowResolutionPagePreview.hashCode ^
       pageImageCachingDelay.hashCode ^
-      partialImageLoadingDelay.hashCode ^
-      enableDifferentialRendering.hashCode;
+      partialImageLoadingDelay.hashCode;
 }

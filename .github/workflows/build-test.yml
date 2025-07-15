@@ -71,6 +71,12 @@ jobs:
           ~/flutter/bin/flutter doctor -v
           yes | ~/flutter/bin/flutter doctor --android-licenses
       
+      - name: Install melos
+        run:  ~/flutter/bin/dart pub global activate melos
+      
+      - name: Bootstrap monorepo
+        run:  ~/flutter/bin/dart pub global run melos:melos bootstrap
+      
       - name: Install dependencies
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
@@ -94,6 +100,11 @@ jobs:
           ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
       
+      - name: Melos setup
+        run: |
+          ~/flutter/bin/dart pub global activate melos
+          ~/flutter/bin/dart pub global run melos:melos bootstrap
+      
       - name: Install dependencies
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
@@ -116,6 +127,11 @@ jobs:
           ~/flutter/bin/flutter config --no-enable-android --no-enable-ios
           ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
+      
+      - name: Melos setup
+        run: |
+          ~/flutter/bin/dart pub global activate melos
+          ~/flutter/bin/dart pub global run melos:melos bootstrap
       
       - name: Install dependencies
         working-directory: packages/pdfrx/example/viewer
@@ -145,6 +161,11 @@ jobs:
           ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
       
+      - name: Melos setup
+        run: |
+          ~/flutter/bin/dart pub global activate melos
+          ~/flutter/bin/dart pub global run melos:melos bootstrap
+      
       - name: Install dependencies
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
@@ -173,6 +194,11 @@ jobs:
           ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
       
+      - name: Melos setup
+        run: |
+          ~/flutter/bin/dart pub global activate melos
+          ~/flutter/bin/dart pub global run melos:melos bootstrap
+      
       - name: Install dependencies
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
@@ -196,6 +222,11 @@ jobs:
           C:\flutter\bin\flutter.bat config --no-enable-android
           C:\flutter\bin\flutter.bat channel stable
           C:\flutter\bin\flutter.bat doctor -v
+      
+      - name: Melos setup
+        run: |
+          C:\flutter\bin\dart pub global activate melos
+          C:\flutter\bin\dart pub global run melos:melos bootstrap
       
       - name: Install dependencies
         working-directory: packages/pdfrx/example/viewer
@@ -221,7 +252,10 @@ jobs:
   #         C:\flutter\bin\flutter.bat config --no-enable-android
   #         C:\flutter\bin\flutter.bat channel stable
   #         C:\flutter\bin\flutter.bat doctor -v
-      
+  #     - name: Melos setup
+  #       run: |
+  #         C:\flutter\bin\dart pub global activate melos
+  #         C:\flutter\bin\dart pub global run melos:melos bootstrap
   #     - name: Install dependencies
   #       working-directory: packages/pdfrx/example/viewer
   #       run: C:\flutter\bin\flutter.bat pub get
@@ -244,6 +278,11 @@ jobs:
           ~/flutter/bin/flutter config --no-enable-android --no-enable-linux-desktop
           ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
+      
+      - name: Melos setup
+        run: |
+          ~/flutter/bin/dart pub global activate melos
+          ~/flutter/bin/dart pub global run melos:melos bootstrap
       
       - name: Install dependencies
         working-directory: packages/pdfrx/example/viewer

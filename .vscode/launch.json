@@ -16,6 +16,13 @@
       "type": "dart",
       "program": "packages/pdfrx/example/viewer/lib/main.dart",
       "args": ["-d", "chrome", "--wasm"]
+    },
+    {
+      "name": "viewer example (WASM/Web Server)",
+      "request": "launch",
+      "type": "dart",
+      "program": "packages/pdfrx/example/viewer/lib/main.dart",
+      "args": ["-d", "web-server", "--wasm"]
     }
   ]
 }

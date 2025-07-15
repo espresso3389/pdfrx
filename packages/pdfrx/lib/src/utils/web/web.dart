@@ -18,8 +18,13 @@ void setClipboardData(String text) {
 final isMobile = false;
 
 /// Whether text selection should be triggered by swipe gestures or not.
+bool get shouldTextSelectionTriggeredBySwipe => false;
 
-bool get shouldTextSelectionTriggeredBySwipe => true;
+/// Whether to show text selection handles.
+bool get shouldShowTextSelectionHandles => true;
+
+/// Whether to show text selection magnifier.
+bool get shouldShowTextSelectionMagnifier => true;
 
 /// Override for the [PdfDocumentFactory] for web platforms to use WASM implementation.
 PdfDocumentFactory? get pdfDocumentFactoryOverride => _factoryWasm;

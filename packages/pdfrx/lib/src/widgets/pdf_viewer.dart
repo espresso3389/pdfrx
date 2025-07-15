@@ -878,7 +878,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       canvas,
       cache: _imageCache,
       maxImageCacheBytes: widget.params.maxImageBytesCachedOnMemory,
-      targetRect: _getCacheExtentRect(),
+      targetRect: _visibleRect,
+      cacheTargetRect: _getCacheExtentRect(),
       resolutionMultiplier: MediaQuery.of(context).devicePixelRatio,
       enableLowResolutionPagePreview: widget.params.behaviorControlParams.enableLowResolutionPagePreview,
       filterQuality: FilterQuality.low,
@@ -890,6 +891,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     required _PdfPageImageCache cache,
     required int maxImageCacheBytes,
     required Rect targetRect,
+    Rect? cacheTargetRect,
     double resolutionMultiplier = 1.0,
     bool enableLowResolutionPagePreview = true,
     FilterQuality filterQuality = FilterQuality.high,
@@ -897,10 +899,11 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     final scale = _currentZoom * resolutionMultiplier;
     final unusedPageList = <int>[];
     final dropShadowPaint = widget.params.pageDropShadow?.toPaint()?..style = PaintingStyle.fill;
+    cacheTargetRect ??= targetRect;
 
     for (int i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
-      final intersection = rect.intersect(targetRect);
+      final intersection = rect.intersect(cacheTargetRect);
       if (intersection.isEmpty) {
         final page = _document!.pages[i];
         cache.cancelPendingRenderings(page.pageNumber);
@@ -958,7 +961,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
       final pageScale = scale * max(rect.width / page.width, rect.height / page.height);
       if (!enableLowResolutionPagePreview || pageScale > previewScaleLimit) {
-        _requestRealSizePartialImage(cache, page, pageScale);
+        _requestRealSizePartialImage(cache, page, pageScale, targetRect);
       }
 
       if ((!enableLowResolutionPagePreview || pageScale > previewScaleLimit) && partial != null) {
@@ -1111,7 +1114,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     final cancellationToken = page.createCancellationToken();
 
     cache.addCancellationToken(page.pageNumber, cancellationToken);
-    await synchronized(() async {
+    await cache.synchronized(() async {
       if (!mounted || cancellationToken.isCanceled) return;
       if (cache.pageImages[page.pageNumber]?.scale == scale) return;
       final img = await page.render(
@@ -1140,22 +1143,21 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     });
   }
 
-  Future<void> _requestRealSizePartialImage(_PdfPageImageCache cache, PdfPage page, double scale) async {
+  Future<void> _requestRealSizePartialImage(
+    _PdfPageImageCache cache,
+    PdfPage page,
+    double scale,
+    Rect targetRect,
+  ) async {
     cache.pageImagePartialRenderingRequests[page.pageNumber]?.cancel();
     final cancellationToken = page.createCancellationToken();
     cache.pageImagePartialRenderingRequests[page.pageNumber] = _PdfPartialImageRenderingRequest(
       Timer(widget.params.behaviorControlParams.partialImageLoadingDelay, () async {
-        await synchronized(() async {
-          if (!mounted || cancellationToken.isCanceled) return;
-          final oldImage = cache.pageImagesPartial[page.pageNumber];
-          final newImage = await _createRealSizePartialImage(cache, page, scale, oldImage, cancellationToken);
-          if (oldImage == newImage) return;
-          if (newImage != null) {
-            cache.pageImagesPartial.remove(page.pageNumber)?.dispose();
-            cache.pageImagesPartial[page.pageNumber] = newImage;
-            _invalidate();
-          }
-        });
+        if (!mounted || cancellationToken.isCanceled) return;
+        final newImage = await _createRealSizePartialImage(cache, page, scale, targetRect, cancellationToken);
+        if (newImage != null) {
+          _invalidate();
+        }
       }),
       cancellationToken,
     );
@@ -1165,15 +1167,15 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _PdfPageImageCache cache,
     PdfPage page,
     double scale,
-    _PdfImageWithScaleAndRect? oldImage,
+    Rect targetRect,
     PdfPageRenderCancellationToken cancellationToken,
   ) async {
+    if (!mounted || cancellationToken.isCanceled) return null;
     final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
-    final rect = pageRect.intersect(_visibleRect);
+    final rect = pageRect.intersect(targetRect);
     final prev = cache.pageImagesPartial[page.pageNumber];
     if (prev?.rect == rect && prev?.scale == scale) return prev;
     if (rect.width < 1 || rect.height < 1) return null;
-    if (!mounted || cancellationToken.isCanceled) return null;
 
     Future<_PdfImageWithScaleAndRect?> renderRect(Rect rect, [int? x, int? y, int? width, int? height]) async {
       final inPageRect = rect.translate(-pageRect.left, -pageRect.top);
@@ -1206,52 +1208,16 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       return result;
     }
 
-    // experimental differential rendering
-    if (widget.params.behaviorControlParams.enableDifferentialRendering &&
-        oldImage != null &&
-        oldImage.scale == scale) {
-      if (rect == oldImage.rect) {
-        return oldImage; // no need to render again
-      }
-      if (oldImage.rect.overlaps(rect)) {
-        final inPageRect = rect.translate(-pageRect.left, -pageRect.top);
-        final x = (inPageRect.left * scale).toInt();
-        final y = (inPageRect.top * scale).toInt();
-        final width = (inPageRect.width * scale).toInt();
-        final height = (inPageRect.height * scale).toInt();
-        _PdfImageWithScaleAndRect? upper, lower, left, right;
-        try {
-          upper = await renderRect(rect, x, y, width, oldImage.top - y);
-          lower = await renderRect(rect, x, oldImage.bottom, width, y + height - oldImage.bottom);
-          left = await renderRect(rect, x, oldImage.top, oldImage.left - x, oldImage.height);
-          right = await renderRect(rect, oldImage.right, oldImage.top, x + width - oldImage.right, oldImage.height);
-
-          final recorder = ui.PictureRecorder();
-          final canvas = ui.Canvas(recorder, Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()));
-          oldImage.drawNoScale(canvas, x, y);
-          upper?.drawNoScale(canvas, x, y);
-          lower?.drawNoScale(canvas, x, y);
-          left?.drawNoScale(canvas, x, y);
-          right?.drawNoScale(canvas, x, y);
-          final picture = recorder.endRecording();
-          final image = await picture.toImage(width, height);
-          picture.dispose();
-          return _PdfImageWithScaleAndRect(image, scale, rect, x, y);
-        } catch (e) {
-          return null; // canceled
-        } finally {
-          upper?.dispose();
-          lower?.dispose();
-          left?.dispose();
-          right?.dispose();
-        }
-      }
-    }
     try {
-      return await renderRect(rect);
+      final newImage = await renderRect(rect);
+      if (newImage != null) {
+        cache.pageImagesPartial.remove(page.pageNumber)?.dispose();
+        cache.pageImagesPartial[page.pageNumber] = newImage;
+      }
     } catch (e) {
       return null; // canceled
     }
+    return null;
   }
 
   void _onWheelDelta(PointerScrollEvent event) {
@@ -1801,7 +1767,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       return [];
     }
 
-    final enableSelectionHandles = widget.params.textSelectionParams?.enableSelectionHandles ?? isMobile;
+    final enableSelectionHandles =
+        widget.params.textSelectionParams?.enableSelectionHandles ?? shouldShowTextSelectionHandles;
 
     double? aLeft, aTop, aRight, aBottom;
     double? bLeft, bTop, bRight;
@@ -1875,9 +1842,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     // Determines whether the widget is [Positioned] or [Align] to avoid unnecessary wrapping.
     bool isPositionalWidget(Widget? widget) => widget != null && (widget is Positioned || widget is Align);
 
-    const margin = 8.0;
+    const defMargin = 8.0;
 
-    Offset? calcPosition(Rect? rect, _TextSelectionPart part) {
+    Offset? calcPosition(Rect? rect, _TextSelectionPart part, {double margin = defMargin, double? marginOnBottom}) {
       if (rect == null || (part != _TextSelectionPart.a && part != _TextSelectionPart.b)) {
         return null;
       }
@@ -1908,7 +1875,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
           top = rectTop - height - margin;
           if (top < margin) {
             // If the anchor is too close to the top, place the magnifier below it.
-            top = rectBottom + margin;
+            top = rectBottom + (marginOnBottom ?? margin);
           }
           break;
         case PdfTextDirection.vrtl:
@@ -1937,7 +1904,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     Widget? magnifier;
     final magnifierParams = widget.params.textSelectionParams?.magnifier ?? const PdfViewerSelectionMagnifierParams();
     final magnifierEnabled =
-        (magnifierParams.enabled ?? isMobile) &&
+        (magnifierParams.enabled ?? shouldShowTextSelectionMagnifier) &&
         (magnifierParams.shouldBeShown?.call(_controller!, magnifierParams) ?? (_currentZoom < magnifierParams.scale));
     if (magnifierEnabled && (textAnchorMoving == _TextSelectionPart.a || textAnchorMoving == _TextSelectionPart.b)) {
       final textAnchor = textAnchorMoving == _TextSelectionPart.a ? _textSelA : _textSelB;
@@ -1947,7 +1914,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         final builder = magnifierParams.builder ?? _buildMagnifierDecoration;
         magnifier = builder(context, magnifierParams, magnifierMain);
         if (magnifier != null && !isPositionalWidget(magnifier)) {
-          final offset = calcPosition(_magnifierRect, textAnchorMoving) ?? Offset.zero;
+          final offset = calcPosition(_magnifierRect, textAnchorMoving, marginOnBottom: 80) ?? Offset.zero;
           magnifier = Positioned(
             left: offset.dx,
             top: offset.dy,
@@ -1979,7 +1946,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       showContextMenu = true;
     }
 
-    Offset normalizedContextMenuPosition(Offset pos) {
+    Offset normalizedContextMenuPosition(Offset pos, {double margin = defMargin}) {
       if (_contextMenuRect == null) return pos;
       var left = pos.dx;
       var top = pos.dy;
@@ -2207,7 +2174,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                 ),
                 resolutionMultiplier: magScale,
                 enableLowResolutionPagePreview: false,
-                filterQuality: FilterQuality.high,
+                filterQuality: FilterQuality.low,
               );
               canvas.restore();
               canvas.drawLine(
@@ -2528,10 +2495,7 @@ class _PdfPageImageCache {
     if (removed != null) {
       removed.image.dispose();
     }
-    final removedPartial = pageImagesPartial.remove(pageNumber);
-    if (removedPartial != null) {
-      synchronized(() => removedPartial.image.dispose());
-    }
+    pageImagesPartial.remove(pageNumber)?.dispose();
   }
 
   void removeCacheImagesIfCacheBytesExceedsLimit(
@@ -2554,7 +2518,7 @@ class _PdfPageImageCache {
       final removedPartial = pageImagesPartial.remove(key);
       if (removedPartial != null) {
         bytesConsumed -= getBytesConsumed(removedPartial.image);
-        synchronized(() => removedPartial.image.dispose());
+        removedPartial.dispose();
       }
       if (bytesConsumed <= acceptableBytes) {
         break;

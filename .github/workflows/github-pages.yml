@@ -26,6 +26,12 @@ jobs:
           flutter --version
           FLUTTER_VERSION=$(flutter --version | head -n 1 | awk '{print $2}')
           echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
+
+      - name: Melos setup
+        run: |
+          ~/flutter/bin/dart pub global activate melos
+          ~/flutter/bin/dart pub global run melos:melos bootstrap
+
       - name: Check pdfrx version
         run: |
           PDFRX_VERSION=$(awk -F": " '/^version:/ {print $2}' pubspec.yaml)

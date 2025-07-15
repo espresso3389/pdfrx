@@ -1,3 +1,15 @@
+# 2.0.0-beta1
+
+This is a major release that introduces significant architectural changes and new features.
+
+- BREAKING CHANGE: Extracted PDF rendering engine into a separate `pdfrx_engine` package that is platform-agnostic
+- NEW FEATURE: Text selection support with native platform UI including:
+  - Selection handles with drag support
+  - Magnifier/loupe for precise text selection
+  - Context menu with copy functionality
+- IMPROVED: Better separation of concerns between rendering engine and Flutter UI layer
+- IMPROVED: Platform-specific implementations are now more maintainable
+
 # 1.3.2
 
 - NEW FEATURE: Added `useProgressiveLoading` parameter for all `PdfViewer` constructors to enable progressive page loading
