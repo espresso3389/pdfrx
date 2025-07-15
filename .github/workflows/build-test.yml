@@ -72,11 +72,11 @@ jobs:
           yes | ~/flutter/bin/flutter doctor --android-licenses
       
       - name: Install dependencies
-        working-directory: example/viewer
+        working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
       
       - name: Build App Bundle
-        working-directory: example/viewer
+        working-directory: packages/pdfrx/example/viewer
         run: flutter build apk --debug --verbose
 
   # iOS build
@@ -95,11 +95,11 @@ jobs:
           ~/flutter/bin/flutter doctor -v
       
       - name: Install dependencies
-        working-directory: example/viewer
+        working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
       
       - name: Build iOS (no signing)
-        working-directory: example/viewer
+        working-directory: packages/pdfrx/example/viewer
         run: flutter build ios --debug --no-codesign --verbose
 
   # macOS build
@@ -118,11 +118,11 @@ jobs:
           ~/flutter/bin/flutter doctor -v
       
       - name: Install dependencies
-        working-directory: example/viewer
+        working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
       
       - name: Build macOS
-        working-directory: example/viewer
+        working-directory: packages/pdfrx/example/viewer
         run: flutter build macos --debug --verbose
 
   # Linux build
@@ -146,11 +146,11 @@ jobs:
           ~/flutter/bin/flutter doctor -v
       
       - name: Install dependencies
-        working-directory: example/viewer
+        working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
       
       - name: Build Linux
-        working-directory: example/viewer
+        working-directory: packages/pdfrx/example/viewer
         run: flutter build linux --debug --verbose
 
   # Linux ARM64 build
@@ -174,11 +174,11 @@ jobs:
           ~/flutter/bin/flutter doctor -v
       
       - name: Install dependencies
-        working-directory: example/viewer
+        working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
       
       - name: Build Linux
-        working-directory: example/viewer
+        working-directory: packages/pdfrx/example/viewer
         run: flutter build linux --debug --verbose
 
   # Windows build
@@ -198,11 +198,11 @@ jobs:
           C:\flutter\bin\flutter.bat doctor -v
       
       - name: Install dependencies
-        working-directory: example/viewer
+        working-directory: packages/pdfrx/example/viewer
         run: C:\flutter\bin\flutter.bat pub get
       
       - name: Build Windows
-        working-directory: example/viewer
+        working-directory: packages/pdfrx/example/viewer
         run: C:\flutter\bin\flutter.bat build windows --debug --verbose
 
   # Windows ARM64 build (requires ARM64 runner or cross-compilation)
@@ -223,11 +223,11 @@ jobs:
   #         C:\flutter\bin\flutter.bat doctor -v
       
   #     - name: Install dependencies
-  #       working-directory: example/viewer
+  #       working-directory: packages/pdfrx/example/viewer
   #       run: C:\flutter\bin\flutter.bat pub get
       
   #     - name: Build Windows ARM64
-  #       working-directory: example/viewer
+  #       working-directory: packages/pdfrx/example/viewer
   #       run: C:\flutter\bin\flutter.bat build windows --debug --verbose
 
   # Web build
@@ -246,13 +246,13 @@ jobs:
           ~/flutter/bin/flutter doctor -v
       
       - name: Install dependencies
-        working-directory: example/viewer
+        working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
       
       - name: Build Web
-        working-directory: example/viewer
+        working-directory: packages/pdfrx/example/viewer
         run: flutter build web --verbose
       
       - name: Build Web (WASM)
-        working-directory: example/viewer
+        working-directory: packages/pdfrx/example/viewer
         run: flutter build web --wasm --verbose

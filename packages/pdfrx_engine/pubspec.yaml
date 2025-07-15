@@ -1,0 +1,52 @@
+name: pdfrx_engine
+description: pdfrx_engine is a PDF rendering API built on top of PDFium, designed to be used with the pdfrx plugin.
+version: 0.1.4
+homepage: https://github.com/espresso3389/pdfrx
+repository: https://github.com/espresso3389/pdfrx/tree/master/packages/pdfrx_engine
+issue_tracker: https://github.com/espresso3389/pdfrx/issues
+
+environment:
+  sdk: ^3.8.1
+
+# Add regular dependencies here.
+dependencies:
+  collection:
+  crypto: ^3.0.6
+  ffi:
+  http:
+  path:
+  rxdart:
+  synchronized: ^3.3.1
+  vector_math: ^2.1.4
+  archive: ^4.0.7
+  image: ^4.5.4
+
+dev_dependencies:
+  ffigen: ^19.0.0
+  lints: ^5.0.0
+  test: ^1.24.0
+
+# To generate the bindings, firstly you must build example/viewer on x64 linux and
+# then run the following command:
+# dart run ffigen
+ffigen:
+  output:
+    bindings: "lib/src/native/pdfium_bindings.dart"
+  headers:
+    entry-points:
+      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdfview.h"
+      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_annot.h"
+      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_text.h"
+      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_doc.h"
+      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_edit.h"
+      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_formfill.h"
+    include-directives:
+      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/**"
+  preamble: |
+    // ignore_for_file: unused_field
+    // dart format off
+  name: "pdfium"
+  comments:
+    style: any
+    length: full
+
