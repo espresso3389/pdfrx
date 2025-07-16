@@ -10,6 +10,11 @@ This is a major release that introduces significant architectural changes and ne
 - IMPROVED: Better separation of concerns between rendering engine and Flutter UI layer
 - IMPROVED: Platform-specific implementations are now more maintainable
 
+# 1.3.3
+
+- NEW FEATURE: Updated `bin/remove_wasm_modules.dart` to comment out assets line in pubspec.yaml instead of deleting files
+  - Added `--revert` option to restore commented assets line in `bin/remove_wasm_modules.dart`
+
 # 1.3.2
 
 - NEW FEATURE: Added `useProgressiveLoading` parameter for all `PdfViewer` constructors to enable progressive page loading

@@ -5,6 +5,7 @@
 [pdfrx](https://pub.dartlang.org/packages/pdfrx) is a rich and fast PDF viewer plugin for Flutter. It provides ready-to-use widgets for displaying PDF documents in your Flutter applications.
 
 This plugin is built on top of [pdfrx_engine](https://pub.dartlang.org/packages/pdfrx_engine), which handles the low-level PDF rendering using [PDFium](https://pdfium.googlesource.com/pdfium/). The separation allows for a clean architecture where:
+
 - **pdfrx** (this package) - Provides Flutter widgets, UI components, and platform integration
 - **pdfrx_engine** - Handles PDF parsing and rendering without Flutter dependencies
 
@@ -89,6 +90,12 @@ To do this, do `dart run pdfrx:remove_wasm_modules` between `flutter pub get` an
 flutter pub get
 dart run pdfrx:remove_wasm_modules
 flutter build ...
+```
+
+To restore the WASM binaries, run the following command:
+
+```bash
+dart run pdfrx:remove_wasm_modules --revert
 ```
 
 ## Customizations/Features
@@ -202,5 +209,6 @@ PdfDocumentViewBuilder.asset(
 ### Low-Level PDF API (pdfrx_engine)
 
 For advanced use cases requiring direct PDF manipulation without Flutter widgets, see the [pdfrx_engine API reference](https://pub.dev/documentation/pdfrx_engine/latest/). This includes:
+
 - [PdfDocument](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) - Core document interface
 - [PdfPage](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage-class.html) - Page rendering and manipulation
