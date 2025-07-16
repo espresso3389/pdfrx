@@ -1,3 +1,8 @@
+# 1.3.3
+
+- NEW FEATURE: Updated `bin/remove_wasm_modules.dart` to comment out assets line in pubspec.yaml instead of deleting files
+  - Added `--revert` option to restore commented assets line in `bin/remove_wasm_modules.dart`
+
 # 1.3.2
 
 - NEW FEATURE: Added `useProgressiveLoading` parameter for all `PdfViewer` constructors to enable progressive page loading

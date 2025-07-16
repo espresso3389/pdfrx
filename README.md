@@ -83,6 +83,12 @@ dart run pdfrx:remove_wasm_modules
 flutter build ...
 ```
 
+The command comments out the `- assets/` line in pdfrx's pubspec.yaml. To restore the WASM modules, use:
+
+```bash
+dart run pdfrx:remove_wasm_modules --revert
+```
+
 ## Customizations/Features
 
 You can customize the behaviors and the viewer look and feel by configuring [PdfViewerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams-class.html).
