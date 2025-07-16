@@ -27,6 +27,7 @@ class PdfViewerParams {
     this.pageAnchor = PdfPageAnchor.top,
     this.pageAnchorEnd = PdfPageAnchor.bottom,
     this.onePassRenderingScaleThreshold = 200 / 72,
+    this.onePassRenderingSizeThreshold = 2000,
     this.textSelectionParams,
     this.matchTextColor,
     this.activeMatchTextColor,
@@ -181,6 +182,11 @@ class PdfViewerParams {
   /// The default is 200 / 72, which implies rendering at 200 dpi.
   /// If you want more granular control for each page, use [getPageRenderingScale].
   final double onePassRenderingScaleThreshold;
+
+  /// If a page is too large, the page is rendered with the size which fits within the threshold size (in pixels).
+  ///
+  /// The default is 2000, which implies the maximum size of the page is 2000 pixels in width or height.
+  final double onePassRenderingSizeThreshold;
 
   /// Parameters for text selection.
   final PdfTextSelectionParams? textSelectionParams;
@@ -505,6 +511,7 @@ class PdfViewerParams {
         other.pageAnchor != pageAnchor ||
         other.pageAnchorEnd != pageAnchorEnd ||
         other.onePassRenderingScaleThreshold != onePassRenderingScaleThreshold ||
+        other.onePassRenderingSizeThreshold != onePassRenderingSizeThreshold ||
         other.textSelectionParams != textSelectionParams ||
         other.matchTextColor != matchTextColor ||
         other.activeMatchTextColor != activeMatchTextColor ||
@@ -537,6 +544,7 @@ class PdfViewerParams {
         other.pageAnchor == pageAnchor &&
         other.pageAnchorEnd == pageAnchorEnd &&
         other.onePassRenderingScaleThreshold == onePassRenderingScaleThreshold &&
+        other.onePassRenderingSizeThreshold == onePassRenderingSizeThreshold &&
         other.textSelectionParams == textSelectionParams &&
         other.matchTextColor == matchTextColor &&
         other.activeMatchTextColor == activeMatchTextColor &&
@@ -589,6 +597,7 @@ class PdfViewerParams {
         pageAnchor.hashCode ^
         pageAnchorEnd.hashCode ^
         onePassRenderingScaleThreshold.hashCode ^
+        onePassRenderingSizeThreshold.hashCode ^
         textSelectionParams.hashCode ^
         matchTextColor.hashCode ^
         activeMatchTextColor.hashCode ^
@@ -857,14 +866,14 @@ abstract class PdfTextSelectionDelegate implements PdfTextSelection {
   Future<void> selectWord(Offset position);
 }
 
+/// Parameters for the text selection magnifier.
 @immutable
 class PdfViewerSelectionMagnifierParams {
   const PdfViewerSelectionMagnifierParams({
     this.enabled,
-    this.size = const Size(150.0, 150.0),
-    this.scale = 4.0,
+    this.magnifierSizeThreshold = 72,
+    this.getMagnifierRectForAnchor,
     this.builder,
-    this.paintMagnifierContent,
     this.shouldBeShown,
     this.maxImageBytesCachedOnMemory = defaultMaxImageBytesCachedOnMemory,
   });
@@ -877,17 +886,16 @@ class PdfViewerSelectionMagnifierParams {
   /// If null, the magnifier is enabled by default on mobile/web and disabled on desktop.
   final bool? enabled;
 
-  /// Size of the magnifier content.
-  final Size size;
+  /// If the character size (in pt.) is smaller than this value, the magnifier will be shown.
+  ///
+  /// The default is 72 pt.
+  final double magnifierSizeThreshold;
 
-  /// Scale (zoom ratio) of the magnifier content.
-  final double scale;
+  /// Function to get the magnifier rectangle for the anchor.
+  final PdfViewerGetMagnifierRectForAnchor? getMagnifierRectForAnchor;
 
   /// Function to build the magnifier widget.
   final PdfViewerMagnifierBuilder? builder;
-
-  /// Function to paint the magnifier content.
-  final PdfViewerMagnifierContentPaintFunction? paintMagnifierContent;
 
   /// Function to determine whether the magnifier should be shown based on conditions such as zoom level.
   ///
@@ -906,10 +914,9 @@ class PdfViewerSelectionMagnifierParams {
 
     return other is PdfViewerSelectionMagnifierParams &&
         other.enabled == enabled &&
-        other.size == size &&
-        other.scale == scale &&
+        other.magnifierSizeThreshold == magnifierSizeThreshold &&
+        other.getMagnifierRectForAnchor == getMagnifierRectForAnchor &&
         other.builder == builder &&
-        other.paintMagnifierContent == paintMagnifierContent &&
         other.shouldBeShown == shouldBeShown &&
         other.maxImageBytesCachedOnMemory == maxImageBytesCachedOnMemory;
   }
@@ -917,13 +924,38 @@ class PdfViewerSelectionMagnifierParams {
   @override
   int get hashCode =>
       enabled.hashCode ^
-      size.hashCode ^
-      scale.hashCode ^
+      magnifierSizeThreshold.hashCode ^
+      getMagnifierRectForAnchor.hashCode ^
       builder.hashCode ^
-      paintMagnifierContent.hashCode ^
       shouldBeShown.hashCode ^
       maxImageBytesCachedOnMemory.hashCode;
 }
+
+/// Function to get the magnifier rectangle for the anchor.
+///
+/// The following fragment illustrates how to get the magnifier rectangle for the anchor:
+///
+///```dart
+/// getMagnifierRectForAnchor: (textAnchor, params) {
+///     final c = textAnchor.page.charRects[textAnchor.index];
+///     return switch (textAnchor.direction) {
+///       PdfTextDirection.ltr || PdfTextDirection.rtl || PdfTextDirection.unknown => Rect.fromLTRB(
+///         textAnchor.rect.left - c.height * 2,
+///         textAnchor.rect.top - c.height * .2,
+///         textAnchor.rect.right + c.height * 2,
+///         textAnchor.rect.bottom + c.height * .2,
+///       ),
+///       PdfTextDirection.vrtl => Rect.fromLTRB(
+///         textAnchor.rect.left - c.width * .2,
+///         textAnchor.rect.top - c.width * 2,
+///         textAnchor.rect.right + c.width * .2,
+///         textAnchor.rect.bottom + c.width * 2,
+///       ),
+///     };
+///   }
+///```
+typedef PdfViewerGetMagnifierRectForAnchor =
+    Rect Function(PdfTextSelectionAnchor anchor, PdfViewerSelectionMagnifierParams params);
 
 /// Function to build the magnifier widget.
 ///
@@ -938,29 +970,30 @@ class PdfViewerSelectionMagnifierParams {
 /// The following fragment illustrates how to build a magnifier widget with a border and rounded corners:
 ///
 /// ```dart
-/// builder: (context, params, magnifierContent) {
+/// builder: (context, params, magnifierContent, magnifierContentSize) {
+///   final scale = 80 / min(magnifierContentSize.width, magnifierContentSize.height);
 ///   return Container(
-///     width: params.size.width,
-///     height: params.size.height,
 ///     decoration: BoxDecoration(
 ///       borderRadius: BorderRadius.circular(16),
 ///       boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8, spreadRadius: 2)],
 ///     ),
-///     child: ClipRRect(borderRadius: BorderRadius.circular(15), child: child),
+///     child: ClipRRect(borderRadius: BorderRadius.circular(15),
+///       child: SizedBox(
+///         width: magnifierContentSize.width * scale,
+///         height: magnifierContentSize.height * scale,
+///         child: magnifierContent
+///       ),
+///     ),
 ///   );
 /// }
 /// ```
 typedef PdfViewerMagnifierBuilder =
-    Widget? Function(BuildContext context, PdfViewerSelectionMagnifierParams params, Widget magnifierContent);
-
-/// Function to paint the magnifier content.
-///
-/// The function is called to paint the magnifier content on the canvas.
-/// The [canvas] is the canvas to paint on, [size] is the size of the magnifier content,
-/// and [center] is the center position of the magnifier in the document coordinates.
-/// [params] is the magnifier parameters.
-typedef PdfViewerMagnifierContentPaintFunction =
-    void Function(Canvas canvas, Size size, Offset center, PdfViewerSelectionMagnifierParams params);
+    Widget? Function(
+      BuildContext context,
+      PdfViewerSelectionMagnifierParams params,
+      Widget magnifierContent,
+      Size magnifierContentSize,
+    );
 
 /// Function to determine whether the magnifier should be shown or not.
 typedef PdfViewerMagnifierShouldBeShownFunction =
@@ -1008,7 +1041,7 @@ typedef PdfPageChangedCallback = void Function(int? pageNumber);
 /// - [controller] can be used to get the current zoom by [PdfViewerController.currentZoom]
 /// - [estimatedScale] is the precalculated scale for the page
 typedef PdfViewerGetPageRenderingScale =
-    double? Function(BuildContext context, PdfPage page, PdfViewerController controller, double estimatedScale);
+    double Function(BuildContext context, PdfPage page, PdfViewerController controller, double estimatedScale);
 
 /// Function to customize the layout of the pages.
 ///
