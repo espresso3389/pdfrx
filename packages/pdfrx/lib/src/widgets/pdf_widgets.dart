@@ -46,11 +46,13 @@ class PdfDocumentViewBuilder extends StatefulWidget {
     super.key,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     bool autoDispose = true,
   }) : documentRef = PdfDocumentRefAsset(
          assetName,
          passwordProvider: passwordProvider,
          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+         useProgressiveLoading: useProgressiveLoading,
          autoDispose: autoDispose,
        );
 
@@ -60,11 +62,14 @@ class PdfDocumentViewBuilder extends StatefulWidget {
     super.key,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
+
     bool autoDispose = true,
   }) : documentRef = PdfDocumentRefFile(
          filePath,
          passwordProvider: passwordProvider,
          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+         useProgressiveLoading: useProgressiveLoading,
          autoDispose: autoDispose,
        );
 
@@ -74,6 +79,7 @@ class PdfDocumentViewBuilder extends StatefulWidget {
     super.key,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
     bool autoDispose = true,
     bool preferRangeAccess = false,
     Map<String, String>? headers,
@@ -82,6 +88,7 @@ class PdfDocumentViewBuilder extends StatefulWidget {
          uri,
          passwordProvider: passwordProvider,
          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+         useProgressiveLoading: useProgressiveLoading,
          autoDispose: autoDispose,
          preferRangeAccess: preferRangeAccess,
          headers: headers,
@@ -120,14 +127,23 @@ class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
 
   void _onDocumentChanged() {
     if (mounted) {
+      widget.documentRef.resolveListenable().useDocument((document) {
+        document.loadPagesProgressively((_, _, _) {
+          if (mounted) {
+            setState(() {});
+            return true;
+          } else {
+            return false;
+          }
+        });
+      });
       setState(() {});
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final listenable = widget.documentRef.resolveListenable();
-    return widget.builder(context, listenable.document);
+    return widget.builder(context, widget.documentRef.resolveListenable().document);
   }
 }
 
