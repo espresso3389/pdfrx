@@ -1,3 +1,7 @@
+# 1.3.4
+
+- FIXED: `PdfDocumentViewBuilder` did not properly handle progressive loading ([#419](https://github.com/espresso3389/pdfrx/pull/419))
+
 # 1.3.3
 
 - NEW FEATURE: Updated `bin/remove_wasm_modules.dart` to comment out assets line in pubspec.yaml instead of deleting files
