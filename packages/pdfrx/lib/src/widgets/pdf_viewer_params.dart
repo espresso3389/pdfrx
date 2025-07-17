@@ -836,10 +836,10 @@ abstract class PdfTextSelection {
   ///
   /// Although the use of this property is not restricted by [isCopyAllowed]
   /// but you have to ensure that your use of the text does not violate [isCopyAllowed] condition.
-  String get selectedText;
+  Future<String> getSelectedText();
 
   /// Get the selected text range.
-  List<PdfPageTextRange> get selectedTextRange;
+  Future<List<PdfPageTextRange>> getSelectedTextRange();
 }
 
 /// Delegate for text selection actions.

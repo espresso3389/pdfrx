@@ -318,8 +318,8 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           pageAnchor: isHorizontalLayout ? PdfPageAnchor.left : PdfPageAnchor.top,
                           pageAnchorEnd: isHorizontalLayout ? PdfPageAnchor.right : PdfPageAnchor.bottom,
                           textSelectionParams: PdfTextSelectionParams(
-                            onTextSelectionChange: (textSelection) {
-                              textSelections = textSelection.selectedTextRange;
+                            onTextSelectionChange: (textSelection) async {
+                              textSelections = await textSelection.getSelectedTextRange();
                             },
                           ),
                           useAlternativeFitScaleAsMinScale: false,

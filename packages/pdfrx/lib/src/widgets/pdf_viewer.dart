@@ -1,6 +1,5 @@
 // ignore_for_file: public_member_api_docs
 import 'dart:async';
-import 'dart:collection';
 import 'dart:math';
 import 'dart:ui' as ui;
 
@@ -235,7 +234,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   final _updateStream = BehaviorSubject<Matrix4>();
 
   final _textCache = <int, PdfPageText?>{};
-  final _textSelection = SplayTreeMap<int, PdfPageTextRange>();
   Timer? _textSelectionChangedDebounceTimer;
   final double _hitTestMargin = 3.0;
 
@@ -985,7 +983,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
           Theme.of(context).textSelectionTheme.selectionColor ?? DefaultSelectionStyle.of(context).selectionColor!;
       final text = _getCachedTextOrDelayLoadText(page.pageNumber);
       if (text != null) {
-        final selectionInPage = _textSelection[page.pageNumber];
+        final selectionInPage = _loadTextSelectionForPageNumber(page.pageNumber);
         if (selectionInPage != null) {
           for (final r in selectionInPage.enumerateFragmentBoundingRects()) {
             canvas.drawRect(
@@ -1035,11 +1033,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   PdfPageText? _getCachedTextOrDelayLoadText(int pageNumber, {void Function()? onTextLoaded, bool invalidate = true}) {
     if (_textCache.containsKey(pageNumber)) return _textCache[pageNumber];
     if (onTextLoaded == null && invalidate) {
-      onTextLoaded = () {
-        if (mounted) {
-          setState(() {});
-        }
-      };
+      onTextLoaded = _invalidate;
     }
     _loadTextAsync(pageNumber, onTextLoaded: onTextLoaded);
     return null;
@@ -1662,7 +1656,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     final b = _selB;
     if (a == null || b == null) {
       _textSelA = _textSelB = null;
-      _textSelection.clear();
     } else if (a.text.pageNumber == b.text.pageNumber) {
       final page = _document!.pages[a.text.pageNumber - 1];
       final pageRect = _layout!.pageLayouts[a.text.pageNumber - 1];
@@ -1681,8 +1674,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         a.text,
         b.index,
       );
-      _textSelection.clear();
-      _textSelection[page.pageNumber] = range;
     } else {
       final first = a.text.pageNumber < b.text.pageNumber ? a : b;
       final second = a.text.pageNumber < b.text.pageNumber ? b : a;
@@ -1708,14 +1699,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         second.text,
         second.index,
       );
-      _textSelection.clear();
-      _textSelection[first.text.pageNumber] = rangeA;
-      _textSelection[second.text.pageNumber] = rangeB;
-      for (int i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
-        final text = _getCachedTextOrDelayLoadText(i, onTextLoaded: () => _updateTextSelection());
-        if (text == null) continue;
-        _textSelection[i] = PdfPageTextRange(pageText: text, start: 0, end: text.charRects.length);
-      }
     }
 
     if (invalidate) {
@@ -1768,7 +1751,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   List<Widget> _placeTextSelectionWidgets(BuildContext context, Size viewSize, bool isCopyTextEnabled) {
     final renderBox = _renderBox;
-    if (renderBox == null || _textSelA == null || _textSelB == null || _textSelection.isEmpty) {
+    if (renderBox == null || _textSelA == null || _textSelB == null) {
       return [];
     }
 
@@ -2373,11 +2356,61 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   @override
   Future<void> clearTextSelection() async => _clearTextSelections();
 
-  @override
-  String get selectedText => _textSelection.values.map((p) => p.text).join();
+  PdfPageTextRange? _loadTextSelectionForPageNumber(int pageNumber) {
+    final a = _selA;
+    final b = _selB;
+    if (a == null || b == null) {
+      return null;
+    }
+    final first = a.text.pageNumber < b.text.pageNumber ? a : b;
+    final second = a.text.pageNumber < b.text.pageNumber ? b : a;
+    if (first.text.pageNumber == second.text.pageNumber && first.text.pageNumber == pageNumber) {
+      return a.text.getRangeFromAB(a.index, b.index);
+    }
+    if (first.text.pageNumber == pageNumber) {
+      return PdfPageTextRange(pageText: first.text, start: a.index, end: first.text.charRects.length);
+    }
+    if (second.text.pageNumber == pageNumber) {
+      return PdfPageTextRange(pageText: second.text, start: 0, end: b.index + 1);
+    }
+    if (first.text.pageNumber < pageNumber && pageNumber < second.text.pageNumber) {
+      final text = _getCachedTextOrDelayLoadText(pageNumber, onTextLoaded: () => _invalidate());
+      if (text == null) return null;
+      return PdfPageTextRange(pageText: text, start: 0, end: text.fullText.length);
+    }
+    return null;
+  }
 
   @override
-  List<PdfPageTextRange> get selectedTextRange => _textSelection.values.toList();
+  Future<List<PdfPageTextRange>> getSelectedTextRange() async {
+    final a = _selA;
+    final b = _selB;
+    if (a == null || b == null) {
+      return [];
+    }
+    final first = a.text.pageNumber < b.text.pageNumber ? a : b;
+    final second = a.text.pageNumber < b.text.pageNumber ? b : a;
+    if (first.text.pageNumber == second.text.pageNumber) {
+      return [a.text.getRangeFromAB(a.index, b.index)];
+    }
+    final selections = <PdfPageTextRange>[a.text.getRangeFromAB(a.index, a.text.charRects.length - 1)];
+
+    for (int i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
+      final text = await _loadTextAsync(i);
+      if (text.fullText.isEmpty) continue;
+      selections.add(text.getRangeFromAB(0, text.charRects.length - 1));
+    }
+
+    selections.add(second.text.getRangeFromAB(0, b.index));
+    return selections;
+  }
+
+  @override
+  Future<String> getSelectedText() async {
+    final selections = await getSelectedTextRange();
+    if (selections.isEmpty) return '';
+    return selections.map((e) => e.text).join();
+  }
 
   @override
   bool get isCopyAllowed => _document!.permissions?.allowsCopying != false;
@@ -2385,14 +2418,19 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   @override
   Future<void> selectAllText() async {
     if (_document!.pages.isEmpty && _layout != null) return;
-    final textSelection = SplayTreeMap<int, PdfPageTextRange>();
-    PdfPageText? first, last;
+    PdfPageText? first;
     for (int i = 1; i <= _document!.pages.length; i++) {
       final text = await _loadTextAsync(i);
       if (text.fullText.isEmpty) continue;
-      textSelection[i] = PdfPageTextRange(pageText: text, start: 0, end: text.fullText.length);
-      first ??= text;
+      first = text;
+      break;
+    }
+    PdfPageText? last;
+    for (int i = _document!.pages.length; i >= 1; i--) {
+      final text = await _loadTextAsync(i);
+      if (text.fullText.isEmpty) continue;
       last = text;
+      break;
     }
 
     if (first != null && last != null) {
@@ -2418,7 +2456,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   @override
   Future<void> selectWord(Offset offset) async {
-    _textSelection.clear();
     for (int i = 0; i < _document!.pages.length; i++) {
       final pageRect = _layout!.pageLayouts[i];
       if (!pageRect.contains(offset)) {
@@ -2434,7 +2471,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       if (f == null) {
         continue;
       }
-      final range = _textSelection[i + 1] = PdfPageTextRange(pageText: text, start: f.index, end: f.end);
+      final range = PdfPageTextRange(pageText: text, start: f.index, end: f.end);
       final selectionRect = f.bounds.toRectInDocument(page: page, pageRect: pageRect);
       _selA = _TextSelectionPoint(
         text,
@@ -2462,7 +2499,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   Future<bool> _copyTextSelection() async {
     if (_document!.permissions?.allowsCopying == false) return false;
-    setClipboardData(selectedText);
+    setClipboardData(await getSelectedText());
     return true;
   }
 
