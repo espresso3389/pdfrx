@@ -439,11 +439,11 @@ abstract class PdfPage {
   /// Create [PdfPageRenderCancellationToken] to cancel the rendering process.
   PdfPageRenderCancellationToken createCancellationToken();
 
-  static final reSpaces = RegExp(r'(\s+)', unicode: true);
-  static final reNewLine = RegExp(r'\r?\n', unicode: true);
+  static final _reSpaces = RegExp(r'(\s+)', unicode: true);
+  static final _reNewLine = RegExp(r'\r?\n', unicode: true);
 
   /// Load text.
-  Future<PdfPageText> loadText() async {
+  Future<PdfPageText> loadStructuredText() async {
     final raw = await _loadFormattedText();
     if (raw == null) {
       return PdfPageText(pageNumber: pageNumber, fullText: '', charRects: [], fragments: []);
@@ -532,7 +532,7 @@ abstract class PdfPage {
 
     int addWords(int start, int end, PdfTextDirection dir, PdfRect bounds) {
       final firstIndex = fragmentsTmp.length;
-      final matches = reSpaces.allMatches(inputFullText.substring(start, end));
+      final matches = _reSpaces.allMatches(inputFullText.substring(start, end));
       int wordStart = start;
       for (final match in matches) {
         final spaceStart = start + match.start;
@@ -603,7 +603,7 @@ abstract class PdfPage {
     }
 
     int lineStart = 0;
-    for (final match in reNewLine.allMatches(inputFullText)) {
+    for (final match in _reNewLine.allMatches(inputFullText)) {
       if (lineStart < match.start) {
         handleLine(lineStart, match.start, newLineEnd: match.end);
       } else {
@@ -648,23 +648,21 @@ abstract class PdfPage {
   }
 
   Future<PdfPageRawText?> _loadFormattedText() async {
-    final raw = await loadRawText();
-    if (raw == null) {
-      return null;
-    }
+    final inputFullText = await loadText();
+    final inputCharRects = await loadTextCharRects();
 
     final fullText = StringBuffer();
     final charRects = <PdfRect>[];
 
     // Process the whole text
-    final lnMatches = reNewLine.allMatches(raw.fullText).toList();
+    final lnMatches = _reNewLine.allMatches(inputFullText).toList();
     int lineStart = 0;
     int prevEnd = 0;
     for (int i = 0; i < lnMatches.length; i++) {
       lineStart = prevEnd;
       final match = lnMatches[i];
-      fullText.write(raw.fullText.substring(lineStart, match.start));
-      charRects.addAll(raw.charRects.sublist(lineStart, match.start));
+      fullText.write(inputFullText.substring(lineStart, match.start));
+      charRects.addAll(inputCharRects.sublist(lineStart, match.start));
       prevEnd = match.end;
 
       // Microsoft Word sometimes outputs vertical text like this: "縦\n書\nき\nの\nテ\nキ\nス\nト\nで\nす\n。\n"
@@ -674,8 +672,8 @@ abstract class PdfPage {
         final len = match.start - lineStart;
         final nextLen = next.start - match.end;
         if (len == 1 && nextLen == 1) {
-          final rect = raw.charRects[lineStart];
-          final nextRect = raw.charRects[match.end];
+          final rect = inputCharRects[lineStart];
+          final nextRect = inputCharRects[match.end];
           final nextCenterX = nextRect.center.x;
           if (rect.left < nextCenterX && nextCenterX < rect.right && rect.top > nextRect.top) {
             // The line is vertical, and the line-feed is virtual
@@ -683,18 +681,27 @@ abstract class PdfPage {
           }
         }
       }
-      fullText.write(raw.fullText.substring(match.start, match.end));
-      charRects.addAll(raw.charRects.sublist(match.start, match.end));
+      fullText.write(inputFullText.substring(match.start, match.end));
+      charRects.addAll(inputCharRects.sublist(match.start, match.end));
     }
-    if (prevEnd < raw.fullText.length) {
-      fullText.write(raw.fullText.substring(prevEnd));
-      charRects.addAll(raw.charRects.sublist(prevEnd));
+    if (prevEnd < inputFullText.length) {
+      fullText.write(inputFullText.substring(prevEnd));
+      charRects.addAll(inputCharRects.sublist(prevEnd));
     }
     return PdfPageRawText(fullText.toString(), charRects);
   }
 
-  /// Load raw text and its associated character bounding boxes.
-  Future<PdfPageRawText?> loadRawText();
+  /// Load plain text for the page.
+  ///
+  /// For text with character bounding boxes, use [loadStructuredText].
+  Future<String> loadText();
+
+  /// Load character bounding boxes for the page text.
+  ///
+  /// Each [PdfRect] corresponds to a character in the text loaded by [loadText].
+  ///
+  /// For text with character bounding boxes, use [loadStructuredText].
+  Future<List<PdfRect>> loadTextCharRects();
 
   /// Load links.
   ///

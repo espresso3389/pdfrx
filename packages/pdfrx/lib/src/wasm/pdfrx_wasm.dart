@@ -457,9 +457,18 @@ class _PdfPageWasm extends PdfPage {
   }
 
   @override
-  Future<PdfPageRawText?> loadRawText() async {
+  Future<String> loadText() async {
     final result = await _sendCommand(
-      'loadRawText',
+      'loadText',
+      parameters: {'docHandle': document.document['docHandle'], 'pageIndex': pageNumber - 1},
+    );
+    return result['fullText'] as String;
+  }
+
+  @override
+  Future<List<PdfRect>> loadTextCharRects() async {
+    final result = await _sendCommand(
+      'loadTextCharRects',
       parameters: {'docHandle': document.document['docHandle'], 'pageIndex': pageNumber - 1},
     );
     final charRectsAll =
@@ -467,7 +476,7 @@ class _PdfPageWasm extends PdfPage {
           final r = rect as List;
           return PdfRect(r[0] as double, r[1] as double, r[2] as double, r[3] as double);
         }).toList();
-    return PdfPageRawText(result['fullText'] as String, UnmodifiableListView(charRectsAll));
+    return UnmodifiableListView(charRectsAll);
   }
 
   @override

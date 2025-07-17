@@ -187,7 +187,7 @@ class PdfTextSearcher extends Listenable {
     final cached = _cachedText[pageNumber];
     if (cached != null) return cached;
     return await controller?.useDocument((document) async {
-      return _cachedText[pageNumber] ??= await document.pages[pageNumber - 1].loadText();
+      return _cachedText[pageNumber] ??= await document.pages[pageNumber - 1].loadStructuredText();
     });
   }
 

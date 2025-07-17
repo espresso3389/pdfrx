@@ -1044,7 +1044,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     return await synchronized(() async {
       if (_textCache.containsKey(pageNumber)) return _textCache[pageNumber]!;
       final page = _document!.pages[pageNumber - 1];
-      final text = await page.loadText();
+      final text = await page.loadStructuredText();
       _textCache[pageNumber] = text;
       if (onTextLoaded != null) {
         onTextLoaded();
@@ -2371,22 +2371,32 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   Future<void> selectAllText() async {
     if (_document!.pages.isEmpty && _layout != null) return;
     final textSelection = SplayTreeMap<int, PdfPageTextRange>();
+    PdfPageText? first, last;
     for (int i = 1; i <= _document!.pages.length; i++) {
       final text = await _loadTextAsync(i);
+      if (text.fullText.isEmpty) continue;
       textSelection[i] = PdfPageTextRange(pageText: text, start: 0, end: text.fullText.length);
+      first ??= text;
+      last = text;
     }
-    _selA = _findTextAndIndexForPoint(
-      textSelection[1]!.pageText.charRects.first.center.toOffsetInDocument(
-        page: _document!.pages[0],
-        pageRect: _layout!.pageLayouts[0],
-      ),
-    );
-    _selB = _findTextAndIndexForPoint(
-      textSelection[_document!.pages.length]!.pageText.charRects.last.center.toOffsetInDocument(
-        page: _document!.pages.last,
-        pageRect: _layout!.pageLayouts.last,
-      ),
-    );
+
+    if (first != null && last != null) {
+      _selA = _findTextAndIndexForPoint(
+        first.charRects.first.center.toOffsetInDocument(
+          page: _document!.pages[first.pageNumber - 1],
+          pageRect: _layout!.pageLayouts[first.pageNumber - 1],
+        ),
+      );
+      _selB = _findTextAndIndexForPoint(
+        last.charRects.last.center.toOffsetInDocument(
+          page: _document!.pages[last.pageNumber - 1],
+          pageRect: _layout!.pageLayouts[last.pageNumber - 1],
+        ),
+      );
+    } else {
+      _selA = _selB = null;
+    }
+    _textSelA = _textSelB = null;
     _showTextSelectionContextMenuAt = null;
     _updateTextSelection();
   }

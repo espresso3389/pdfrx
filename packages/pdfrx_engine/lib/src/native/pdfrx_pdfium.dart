@@ -726,9 +726,35 @@ class _PdfPagePdfium extends PdfPage {
   PdfPageRenderCancellationTokenPdfium createCancellationToken() => PdfPageRenderCancellationTokenPdfium(this);
 
   @override
-  Future<PdfPageRawText?> loadRawText() async {
+  Future<String> loadText() async {
     if (document.isDisposed) {
-      return null;
+      throw StateError('Cannot load text from disposed document.');
+    }
+    return await (await backgroundWorker).compute(
+      (params) => using((arena) {
+        final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
+        final page = pdfium.FPDF_LoadPage(doc, params.pageNumber - 1);
+        final textPage = pdfium.FPDFText_LoadPage(page);
+        try {
+          final charCount = pdfium.FPDFText_CountChars(textPage);
+          final sb = StringBuffer();
+          for (int i = 0; i < charCount; i++) {
+            sb.writeCharCode(pdfium.FPDFText_GetUnicode(textPage, i));
+          }
+          return sb.toString();
+        } finally {
+          pdfium.FPDFText_ClosePage(textPage);
+          pdfium.FPDF_ClosePage(page);
+        }
+      }),
+      (docHandle: document.document.address, pageNumber: pageNumber),
+    );
+  }
+
+  @override
+  Future<List<PdfRect>> loadTextCharRects() async {
+    if (document.isDisposed) {
+      throw StateError('Cannot load text from disposed document.');
     }
     return await (await backgroundWorker).compute(
       (params) => using((arena) {
@@ -741,9 +767,7 @@ class _PdfPagePdfium extends PdfPage {
         try {
           final charCount = pdfium.FPDFText_CountChars(textPage);
           final charRects = <PdfRect>[];
-          final sb = StringBuffer();
           for (int i = 0; i < charCount; i++) {
-            sb.writeCharCode(pdfium.FPDFText_GetUnicode(textPage, i));
             pdfium.FPDFText_GetCharBox(
               textPage,
               i,
@@ -754,7 +778,7 @@ class _PdfPagePdfium extends PdfPage {
             );
             charRects.add(_rectFromLTRBBuffer(rectBuffer));
           }
-          return PdfPageRawText(sb.toString(), charRects);
+          return charRects;
         } finally {
           pdfium.FPDFText_ClosePage(textPage);
           pdfium.FPDF_ClosePage(page);
