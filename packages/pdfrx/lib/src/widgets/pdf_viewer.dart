@@ -16,7 +16,9 @@ import 'package:vector_math/vector_math_64.dart' as vec;
 import '../../pdfrx.dart';
 import '../utils/platform.dart';
 import 'interactive_viewer.dart' as iv;
-import 'pdf_error_widget.dart';
+import 'internals/pdf_error_widget.dart';
+import 'internals/pdf_viewer_key_handler.dart';
+import 'internals/widget_size_sniffer.dart';
 import 'pdf_page_links_overlay.dart';
 
 /// A widget to display PDF document.
@@ -409,7 +411,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
     return Container(
       color: widget.params.backgroundColor,
-      child: _PdfViewerKeyHandler(
+      child: PdfViewerKeyHandler(
         onKeyRepeat: _onKey,
         params: widget.params.keyHandlerParams,
         child: StreamBuilder(
@@ -467,11 +469,10 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                       ),
                     ),
                     if (_initialized) ..._buildPageOverlayWidgets(context),
-                    if (_initialized && _canvasLinkPainter.isEnabled)
-                      SelectionContainer.disabled(child: _canvasLinkPainter.linkHandlingOverlay(viewSize)),
+                    if (_initialized && _canvasLinkPainter.isEnabled) _canvasLinkPainter.linkHandlingOverlay(viewSize),
                     if (_initialized && widget.params.viewerOverlayBuilder != null)
                       ...widget.params.viewerOverlayBuilder!(context, viewSize, _canvasLinkPainter._handleLinkTap).map(
-                        (e) => SelectionContainer.disabled(child: e),
+                        (e) => e,
                       ),
                     if (_initialized) ..._placeTextSelectionWidgets(context, viewSize, isCopyTextEnabled),
                   ],
@@ -807,23 +808,21 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       if (rectExternal != null) {
         if (widget.params.linkHandlerParams == null && widget.params.linkWidgetBuilder != null) {
           linkWidgets.add(
-            SelectionContainer.disabled(
-              child: PdfPageLinksOverlay(
-                key: Key('#__pageLinks__:${page.pageNumber}'),
-                page: page,
-                pageRect: rectExternal,
-                params: widget.params,
-                // FIXME: workaround for link widget eats wheel events.
-                wrapperBuilder:
-                    (child) => Listener(
-                      child: child,
-                      onPointerSignal: (event) {
-                        if (event is PointerScrollEvent) {
-                          _onWheelDelta(event);
-                        }
-                      },
-                    ),
-              ),
+            PdfPageLinksOverlay(
+              key: Key('#__pageLinks__:${page.pageNumber}'),
+              page: page,
+              pageRect: rectExternal,
+              params: widget.params,
+              // FIXME: workaround for link widget eats wheel events.
+              wrapperBuilder:
+                  (child) => Listener(
+                    child: child,
+                    onPointerSignal: (event) {
+                      if (event is PointerScrollEvent) {
+                        _onWheelDelta(event);
+                      }
+                    },
+                  ),
             ),
           );
         }
@@ -837,7 +836,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
               top: rectExternal.top,
               width: rectExternal.width,
               height: rectExternal.height,
-              child: SelectionContainer.disabled(child: Stack(children: overlay)),
+              child: Stack(children: overlay),
             ),
           );
         }
@@ -968,10 +967,17 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
       final pageScale = scale * max(rect.width / page.width, rect.height / page.height);
       if (!enableLowResolutionPagePreview || pageScale > previewScaleLimit) {
-        _requestRealSizePartialImage(cache, page, pageScale, targetRect);
+        _requestRealSizePartialImage(cache, page, pageScale, targetRect, 50);
       }
 
       if ((!enableLowResolutionPagePreview || pageScale > previewScaleLimit) && partial != null) {
+        canvas.drawRect(
+          partial.rect.intersect(rect),
+          Paint()
+            ..color = Colors.white
+            ..style = PaintingStyle.fill,
+        );
+
         partial.draw(canvas, filterQuality);
       }
 
@@ -1153,20 +1159,28 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     PdfPage page,
     double scale,
     Rect targetRect,
+    double margin,
   ) async {
-    cache.pageImagePartialRenderingRequests[page.pageNumber]?.cancel();
-
     final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
     final rect = pageRect.intersect(targetRect);
     final prev = cache.pageImagesPartial[page.pageNumber];
-    if (prev?.rect == rect && prev?.scale == scale) return;
+    if (prev?.requestedRect == rect && prev?.scale == scale) return;
     if (rect.width < 1 || rect.height < 1) return;
+
+    cache.pageImagePartialRenderingRequests[page.pageNumber]?.cancel();
 
     final cancellationToken = page.createCancellationToken();
     cache.pageImagePartialRenderingRequests[page.pageNumber] = _PdfPartialImageRenderingRequest(
       Timer(widget.params.behaviorControlParams.partialImageLoadingDelay, () async {
         if (!mounted || cancellationToken.isCanceled) return;
-        final newImage = await _createRealSizePartialImage(cache, page, scale, rect, cancellationToken);
+        final newImage = await _createRealSizePartialImage(
+          cache,
+          page,
+          scale,
+          rect.inflate(margin),
+          rect,
+          cancellationToken,
+        );
         if (newImage != null) {
           cache.pageImagesPartial.remove(page.pageNumber)?.dispose();
           cache.pageImagesPartial[page.pageNumber] = newImage;
@@ -1182,6 +1196,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     PdfPage page,
     double scale,
     Rect rect,
+    Rect requestedRect,
     PdfPageRenderCancellationToken cancellationToken,
   ) async {
     if (!mounted || cancellationToken.isCanceled) return null;
@@ -1202,13 +1217,13 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         height: height,
         fullWidth: pageRect.width * scale,
         fullHeight: pageRect.height * scale,
-        backgroundColor: 0xffffffff,
+        backgroundColor: 0,
         annotationRenderingMode: widget.params.annotationRenderingMode,
         flags: widget.params.limitRenderingCache ? PdfPageRenderFlags.limitedImageCache : PdfPageRenderFlags.none,
         cancellationToken: cancellationToken,
       );
       if (img == null || !mounted || cancellationToken.isCanceled) return null;
-      return _PdfImageWithScaleAndRect(await img.createImage(), scale, rect, x, y);
+      return _PdfImageWithScaleAndRect(await img.createImage(), scale, rect, x, y, requestedRect);
     } catch (e) {
       return null; // ignore error
     } finally {
@@ -1922,7 +1937,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
           magnifier = Positioned(
             left: offset.dx,
             top: offset.dy,
-            child: _WidgetSizeSniffer(
+            child: WidgetSizeSniffer(
               key: Key('magnifier'),
               child: magnifier,
               onSizeChanged: (rect) {
@@ -1988,7 +2003,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         contextMenu = Positioned(
           left: offset.dx,
           top: offset.dy,
-          child: _WidgetSizeSniffer(
+          child: WidgetSizeSniffer(
             key: Key('contextMenu'),
             child: contextMenu,
             onSizeChanged: (rect) {
@@ -2022,7 +2037,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
               onPanStart: (details) => _onSelectionHandlePanStart(_TextSelectionPart.a, details),
               onPanUpdate: (details) => _onSelectionHandlePanUpdate(_TextSelectionPart.a, details),
               onPanEnd: (details) => _onSelectionHandlePanEnd(_TextSelectionPart.a, details),
-              child: _WidgetSizeSniffer(
+              child: WidgetSizeSniffer(
                 key: Key('anchorA'),
                 child: anchorA,
                 onSizeChanged: (rect) {
@@ -2048,7 +2063,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
               onPanStart: (details) => _onSelectionHandlePanStart(_TextSelectionPart.b, details),
               onPanUpdate: (details) => _onSelectionHandlePanUpdate(_TextSelectionPart.b, details),
               onPanEnd: (details) => _onSelectionHandlePanEnd(_TextSelectionPart.b, details),
-              child: _WidgetSizeSniffer(
+              child: WidgetSizeSniffer(
                 key: Key('anchorB'),
                 child: anchorB,
                 onSizeChanged: (rect) {
@@ -2569,10 +2584,11 @@ class _PdfImageWithScale {
 }
 
 class _PdfImageWithScaleAndRect extends _PdfImageWithScale {
-  _PdfImageWithScaleAndRect(super.image, super.scale, this.rect, this.left, this.top);
+  _PdfImageWithScaleAndRect(super.image, super.scale, this.rect, this.left, this.top, this.requestedRect);
   final Rect rect;
   final int left;
   final int top;
+  final Rect requestedRect;
 
   int get bottom => top + height;
   int get right => left + width;
@@ -3336,136 +3352,5 @@ class _CanvasLinkPainter {
         canvas.drawRect(rectLink, paint);
       }
     }
-  }
-}
-
-class _PdfViewerKeyHandler extends StatefulWidget {
-  const _PdfViewerKeyHandler({required this.child, required this.onKeyRepeat, required this.params});
-
-  /// Called on every key repeat.
-  ///
-  /// See [PdfViewerOnKeyCallback] for the parameters.
-  final bool Function(PdfViewerKeyHandlerParams, LogicalKeyboardKey, bool) onKeyRepeat;
-  final PdfViewerKeyHandlerParams params;
-  final Widget child;
-
-  @override
-  _PdfViewerKeyHandlerState createState() => _PdfViewerKeyHandlerState();
-}
-
-class _PdfViewerKeyHandlerState extends State<_PdfViewerKeyHandler> {
-  Timer? _timer;
-  LogicalKeyboardKey? _currentKey;
-
-  void _startRepeating(FocusNode node, LogicalKeyboardKey key) {
-    _currentKey = key;
-
-    // Initial delay before starting to repeat
-    _timer = Timer(widget.params.initialDelay, () {
-      // Start repeating at the specified interval
-      _timer = Timer.periodic(widget.params.repeatInterval, (_) {
-        widget.onKeyRepeat(widget.params, _currentKey!, false);
-      });
-    });
-  }
-
-  void _stopRepeating() {
-    _timer?.cancel();
-    _timer = null;
-    _currentKey = null;
-  }
-
-  @override
-  void dispose() {
-    _stopRepeating();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Focus(
-      focusNode: widget.params.focusNode,
-      parentNode: widget.params.parentNode,
-      autofocus: widget.params.autofocus,
-      canRequestFocus: widget.params.canRequestFocus,
-      onKeyEvent: (node, event) {
-        if (event is KeyDownEvent) {
-          // Key pressed down
-          if (_currentKey == null) {
-            if (widget.onKeyRepeat(widget.params, event.logicalKey, true)) {
-              _startRepeating(node, event.logicalKey);
-              return KeyEventResult.handled;
-            }
-          }
-        } else if (event is KeyUpEvent) {
-          // Key released
-          if (_currentKey == event.logicalKey) {
-            _stopRepeating();
-            return KeyEventResult.handled;
-          }
-        }
-        return KeyEventResult.ignored;
-      },
-      child: Builder(
-        builder: (context) {
-          final focusNode = Focus.of(context);
-          return ListenableBuilder(
-            listenable: focusNode,
-            builder: (context, _) {
-              return widget.child;
-            },
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _WidgetSizeSniffer extends StatefulWidget {
-  const _WidgetSizeSniffer({required this.child, this.onSizeChanged, super.key});
-
-  final Widget child;
-  final FutureOr<void> Function(_GlobalRect rect)? onSizeChanged;
-
-  @override
-  State<_WidgetSizeSniffer> createState() => _WidgetSizeSnifferState();
-}
-
-class _GlobalRect {
-  const _GlobalRect(this.globalRect);
-
-  final Rect globalRect;
-
-  Rect? toLocal(BuildContext context) {
-    final renderBox = context.findRenderObject();
-    if (renderBox is RenderBox) {
-      return Rect.fromPoints(
-        renderBox.globalToLocal(globalRect.topLeft),
-        renderBox.globalToLocal(globalRect.bottomRight),
-      );
-    }
-    return null;
-  }
-}
-
-class _WidgetSizeSnifferState extends State<_WidgetSizeSniffer> {
-  Rect? _rect;
-
-  @override
-  Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      final r = context.findRenderObject();
-      if (r is! RenderBox) return;
-      final rect = Rect.fromPoints(r.localToGlobal(Offset.zero), r.localToGlobal(Offset(r.size.width, r.size.height)));
-      if (_rect != rect) {
-        _rect = rect;
-        await widget.onSizeChanged?.call(_GlobalRect(_rect!));
-        if (mounted) {
-          setState(() {});
-        }
-      }
-    });
-    return Offstage(offstage: _rect == null, child: widget.child);
   }
 }

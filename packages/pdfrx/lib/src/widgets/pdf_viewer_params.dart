@@ -1276,8 +1276,8 @@ class PdfViewerBehaviorControlParams {
   const PdfViewerBehaviorControlParams({
     this.trailingPageLoadingDelay = const Duration(milliseconds: kIsWeb ? 200 : 100),
     this.enableLowResolutionPagePreview = true,
-    this.pageImageCachingDelay = const Duration(milliseconds: kIsWeb ? 100 : 20),
-    this.partialImageLoadingDelay = const Duration(milliseconds: kIsWeb ? 200 : 0),
+    this.pageImageCachingDelay = const Duration(milliseconds: kIsWeb ? 20 : 20),
+    this.partialImageLoadingDelay = const Duration(milliseconds: kIsWeb ? 0 : 0),
   });
 
   /// How long to wait before loading the trailing pages after the initial page load.

@@ -2,8 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
-import '../../pdfrx.dart';
-import '../utils/platform.dart';
+import '../../../pdfrx.dart';
+import '../../utils/platform.dart';
 
 /// Show error widget when pdf viewer failed to load pdf.
 Widget pdfErrorWidget(BuildContext context, Object error, {StackTrace? stackTrace, bool bannerWarning = true}) {
