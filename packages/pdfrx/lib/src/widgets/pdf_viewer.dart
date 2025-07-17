@@ -1219,8 +1219,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   void _onWheelDelta(PointerScrollEvent event) {
     _startInteraction();
     final m = _txController.value.clone();
-    final dx = -event.scrollDelta.dx * widget.params.scrollByMouseWheel!;
-    final dy = -event.scrollDelta.dy * widget.params.scrollByMouseWheel!;
+    final dx = -event.scrollDelta.dx * widget.params.scrollByMouseWheel! / _currentZoom;
+    final dy = -event.scrollDelta.dy * widget.params.scrollByMouseWheel! / _currentZoom;
     if (widget.params.scrollHorizontallyByMouseWheel) {
       m.translate(dy, dx);
     } else {
