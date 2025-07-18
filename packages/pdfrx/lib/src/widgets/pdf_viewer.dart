@@ -967,17 +967,10 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
       final pageScale = scale * max(rect.width / page.width, rect.height / page.height);
       if (!enableLowResolutionPagePreview || pageScale > previewScaleLimit) {
-        _requestRealSizePartialImage(cache, page, pageScale, targetRect, 0);
+        _requestRealSizePartialImage(cache, page, pageScale, targetRect);
       }
 
       if ((!enableLowResolutionPagePreview || pageScale > previewScaleLimit) && partial != null) {
-        canvas.drawRect(
-          partial.rect.intersect(rect),
-          Paint()
-            ..color = Colors.white
-            ..style = PaintingStyle.fill,
-        );
-
         partial.draw(canvas, filterQuality);
       }
 
@@ -1150,47 +1143,25 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     });
   }
 
-  /// If [margin] is not 0, the image may be rendered with out-of-page margins and they should be transparent;
-  /// this requires the rendered image should be real BGRA image and the alpha channel should be premultiplied.
-  /// Because Pdfium binary currently does not support rendering with premultiplied alpha,
-  /// we need to convert independent alpha to premultiplied alpha in the Flutter side. Because of this,
-  /// on Flutter Web, if the code is running on JS, it may degrade the performance a bit. WASM compilation seems vital.
   Future<void> _requestRealSizePartialImage(
     _PdfPageImageCache cache,
     PdfPage page,
     double scale,
     Rect targetRect,
-    double margin,
   ) async {
     final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
     final rect = pageRect.intersect(targetRect);
     final prev = cache.pageImagesPartial[page.pageNumber];
-    if (prev?.requestedRect == rect && prev?.scale == scale) return;
+    if (prev?.rect == rect && prev?.scale == scale) return;
     if (rect.width < 1 || rect.height < 1) return;
 
     cache.pageImagePartialRenderingRequests[page.pageNumber]?.cancel();
 
-    final renderRect = rect.inflate(margin);
-    bool needPremultipliedAlpha =
-        (renderRect.left < 0 ||
-            renderRect.top < 0 ||
-            renderRect.right > pageRect.width ||
-            renderRect.bottom > pageRect.height);
-
     final cancellationToken = page.createCancellationToken();
     cache.pageImagePartialRenderingRequests[page.pageNumber] = _PdfPartialImageRenderingRequest(
       Timer(widget.params.behaviorControlParams.partialImageLoadingDelay, () async {
-        debugPrint('Requesting real size partial image for page ${page.pageNumber} at rect $rect');
         if (!mounted || cancellationToken.isCanceled) return;
-        final newImage = await _createRealSizePartialImage(
-          cache,
-          page,
-          scale,
-          renderRect,
-          rect,
-          needPremultipliedAlpha,
-          cancellationToken,
-        );
+        final newImage = await _createRealSizePartialImage(cache, page, scale, rect, cancellationToken);
         if (newImage != null) {
           cache.pageImagesPartial.remove(page.pageNumber)?.dispose();
           cache.pageImagesPartial[page.pageNumber] = newImage;
@@ -1206,8 +1177,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     PdfPage page,
     double scale,
     Rect rect,
-    Rect requestedRect,
-    bool needPremultipliedAlpha,
     PdfPageRenderCancellationToken cancellationToken,
   ) async {
     if (!mounted || cancellationToken.isCanceled) return null;
@@ -1221,7 +1190,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
     int flags = 0;
     if (widget.params.limitRenderingCache) flags |= PdfPageRenderFlags.limitedImageCache;
-    if (needPremultipliedAlpha) flags |= PdfPageRenderFlags.premultipliedAlpha;
 
     PdfImage? img;
     try {
@@ -1232,13 +1200,13 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         height: height,
         fullWidth: pageRect.width * scale,
         fullHeight: pageRect.height * scale,
-        backgroundColor: needPremultipliedAlpha ? 0 : 0xffffffff,
+        backgroundColor: 0xffffffff,
         annotationRenderingMode: widget.params.annotationRenderingMode,
         flags: flags,
         cancellationToken: cancellationToken,
       );
       if (img == null || !mounted || cancellationToken.isCanceled) return null;
-      return _PdfImageWithScaleAndRect(await img.createImage(), scale, rect, x, y, requestedRect);
+      return _PdfImageWithScaleAndRect(await img.createImage(), scale, rect, x, y);
     } catch (e) {
       return null; // ignore error
     } finally {
@@ -2665,11 +2633,10 @@ class _PdfImageWithScale {
 }
 
 class _PdfImageWithScaleAndRect extends _PdfImageWithScale {
-  _PdfImageWithScaleAndRect(super.image, super.scale, this.rect, this.left, this.top, this.requestedRect);
+  _PdfImageWithScaleAndRect(super.image, super.scale, this.rect, this.left, this.top);
   final Rect rect;
   final int left;
   final int top;
-  final Rect requestedRect;
 
   int get bottom => top + height;
   int get right => left + width;

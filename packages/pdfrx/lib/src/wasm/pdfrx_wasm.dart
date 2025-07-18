@@ -526,7 +526,7 @@ class _PdfPageWasm extends PdfPage {
         'fullHeight': fullHeight,
         'backgroundColor': backgroundColor,
         'annotationRenderingMode': annotationRenderingMode.index,
-        'flags': flags & 0xffff, // Ensure flags are within 16-bit range
+        'flags': flags,
         'formHandle': document.document['formHandle'],
       },
     );

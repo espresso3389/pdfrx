@@ -864,7 +864,9 @@ function renderPage(params) {
     const FPDF_ANNOT = 1;
     const PdfAnnotationRenderingMode_none = 0;
     const PdfAnnotationRenderingMode_annotationAndForms = 2;
+    const premultipliedAlpha = 0x80000000;
 
+    const pdfiumFlags = (flags & 0xffff) | (annotationRenderingMode !== PdfAnnotationRenderingMode_none ? FPDF_ANNOT : 0);
     Pdfium.wasmExports.FPDF_RenderPageBitmap(
       bitmap,
       pageHandle,
@@ -873,16 +875,26 @@ function renderPage(params) {
       fullWidth,
       fullHeight,
       0,
-      flags | (annotationRenderingMode !== PdfAnnotationRenderingMode_none ? FPDF_ANNOT : 0)
+      pdfiumFlags
     );
 
     if (formHandle && annotationRenderingMode == PdfAnnotationRenderingMode_annotationAndForms) {
       Pdfium.wasmExports.FPDF_FFLDraw(formHandle, bitmap, pageHandle, -x, -y, fullWidth, fullHeight, 0, flags);
     }
-
+    const src = new Uint8Array(Pdfium.memory.buffer, bufferPtr, bufferSize);
     let copiedBuffer = new ArrayBuffer(bufferSize);
-    let b = new Uint8Array(copiedBuffer);
-    b.set(new Uint8Array(Pdfium.memory.buffer, bufferPtr, bufferSize));
+    let dest = new Uint8Array(copiedBuffer);
+    if (flags & premultipliedAlpha) {
+      for (let i = 0; i < src.length; i += 4) {
+        const a = src[i + 3];
+        dest[i] = (src[i] * a + 128) >> 8;
+        dest[i + 1] = (src[i + 1] * a + 128) >> 8;
+        dest[i + 2] = (src[i + 2] * a + 128) >> 8;
+        dest[i + 3] = a;
+      }
+    } else {
+      dest.set(src);
+    }
 
     return {
       result: {
