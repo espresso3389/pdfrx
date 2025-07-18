@@ -1,3 +1,7 @@
+## 0.1.6
+
+- Add premultiplied alpha support with new flag `PdfPageRenderFlags.premultipliedAlpha`
+
 ## 0.1.5
 
 - New text extraction API.

@@ -1,3 +1,9 @@
+# 2.0.0-beta2
+
+- IMPROVED: Text selection API changed to async with `getSelectedTextRange()` method
+- IMPROVED: Internal stability and performance improvements
+- Updated to use pdfrx_engine 0.1.6 with premultiplied alpha support
+
 # 2.0.0-beta1
 
 This is a major release that introduces significant architectural changes and new features.
