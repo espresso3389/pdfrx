@@ -1,3 +1,10 @@
+# 2.0.0-beta4
+
+- IMPROVED: Enhanced text selection behavior with better Select All functionality
+- FIXED: Corrected operator precedence issue with premultiplied alpha flag check in WASM implementation
+- IMPROVED: Context menu position handling when selecting all text
+- Updated deprecated `withOpacity` to `withValue(alpha:)` for better forward compatibility
+
 # 2.0.0-beta3
 
 - BREAKING CHANGE: Renamed `showContextMenuOnSelectionHandle` to `showContextMenuAutomatically` in `PdfTextSelectionParams` for better clarity
