@@ -832,6 +832,9 @@ abstract class PdfTextSelection {
   /// Whether the copy action is allowed.
   bool get isCopyAllowed;
 
+  /// Whether the viewer is currently selecting all text.
+  bool get isSelectingAllText;
+
   /// Get the selected text.
   ///
   /// Although the use of this property is not restricted by [isCopyAllowed]

@@ -1043,16 +1043,20 @@ class PdfPageTextRange {
   /// The composed text of the text range.
   String get text => pageText.fullText.substring(start, end);
 
+  /// The bounding rectangle of the text range in PDF page coordinates.
   PdfRect get bounds => pageText.charRects.boundingRect(start: start, end: end);
 
-  int get firstFragmentIndex {
-    return pageText.getFragmentIndexForTextIndex(start);
-  }
+  /// Get the first text fragment index corresponding to the text range.
+  ///
+  /// It can be used with [PdfPageText.fragments] to get the first text fragment in the range.
+  int get firstFragmentIndex => pageText.getFragmentIndexForTextIndex(start);
 
-  int get lastFragmentIndex {
-    return pageText.getFragmentIndexForTextIndex(end - 1);
-  }
+  /// Get the last text fragment index corresponding to the text range.
+  ///
+  /// It can be used with [PdfPageText.fragments] to get the last text fragment in the range.
+  int get lastFragmentIndex => pageText.getFragmentIndexForTextIndex(end - 1);
 
+  /// Get the first text fragment in the range.
   PdfPageTextFragment? get firstFragment {
     final index = firstFragmentIndex;
     if (index < 0 || index >= pageText.fragments.length) {
@@ -1061,6 +1065,7 @@ class PdfPageTextRange {
     return pageText.fragments[index];
   }
 
+  /// Get the last text fragment in the range.
   PdfPageTextFragment? get lastFragment {
     final index = lastFragmentIndex;
     if (index < 0 || index >= pageText.fragments.length) {

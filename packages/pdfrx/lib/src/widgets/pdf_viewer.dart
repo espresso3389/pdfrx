@@ -2447,6 +2447,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   bool get isCopyAllowed => _document!.permissions?.allowsCopying != false;
 
   @override
+  bool get isSelectingAllText => _isSelectingAllText;
+
+  @override
   Future<void> selectAllText() async {
     if (_document!.pages.isEmpty && _layout != null) return;
     PdfPageText? first;
