@@ -1,3 +1,7 @@
+# 2.0.0-beta5
+
+- Minor fixes and improvements
+
 # 2.0.0-beta4
 
 - IMPROVED: Enhanced text selection behavior with better Select All functionality
