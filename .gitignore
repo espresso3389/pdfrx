@@ -34,3 +34,5 @@ migrate_working_dir/
 .dart_tool/
 
 .claude/
+
+pubspec_overrides.yaml

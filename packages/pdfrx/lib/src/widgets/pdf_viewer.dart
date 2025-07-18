@@ -420,7 +420,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                 final isCopyTextEnabled = _document!.permissions?.allowsCopying != false;
                 final enableSwipeToSelectText =
                     widget.params.textSelectionParams?.textSelectionTriggeredBySwipe ??
-                    shouldTextSelectionTriggeredBySwipe;
+                    PlatformBehaviorDefaults.shouldTextSelectionTriggeredBySwipe;
                 final viewSize = Size(constraints.maxWidth, constraints.maxHeight);
                 _updateLayout(viewSize);
                 return Stack(
@@ -1780,7 +1780,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     }
 
     final enableSelectionHandles =
-        widget.params.textSelectionParams?.enableSelectionHandles ?? shouldShowTextSelectionHandles;
+        widget.params.textSelectionParams?.enableSelectionHandles ??
+        PlatformBehaviorDefaults.shouldShowTextSelectionHandles;
 
     double? aLeft, aTop, aRight, aBottom;
     double? bLeft, bTop, bRight;
@@ -1920,7 +1921,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     Widget? magnifier;
     final magnifierParams = widget.params.textSelectionParams?.magnifier ?? const PdfViewerSelectionMagnifierParams();
     final magnifierEnabled =
-        (magnifierParams.enabled ?? shouldShowTextSelectionMagnifier) &&
+        (magnifierParams.enabled ?? PlatformBehaviorDefaults.shouldShowTextSelectionMagnifier) &&
         (magnifierParams.shouldBeShown?.call(_controller!, magnifierParams) ?? true);
     if (magnifierEnabled && (textAnchorMoving == _TextSelectionPart.a || textAnchorMoving == _TextSelectionPart.b)) {
       final textAnchor = textAnchorMoving == _TextSelectionPart.a ? _textSelA : _textSelB;
@@ -1953,12 +1954,13 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       _magnifierRect = null;
     }
 
-    final showContextMenuOnSelectionHandle =
-        widget.params.textSelectionParams?.showContextMenuOnSelectionHandle ?? isMobile;
+    final showContextMenuAutomatically =
+        widget.params.textSelectionParams?.showContextMenuAutomatically ??
+        PlatformBehaviorDefaults.showContextMenuAutomatically;
     bool showContextMenu = false;
     if (_showTextSelectionContextMenuAt != null) {
       showContextMenu = true;
-    } else if (showContextMenuOnSelectionHandle &&
+    } else if (showContextMenuAutomatically &&
         _textSelA != null &&
         _textSelB != null &&
         _selPartMoving == _TextSelectionPart.none) {

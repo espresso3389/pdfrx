@@ -643,7 +643,7 @@ class PdfTextSelectionParams {
   const PdfTextSelectionParams({
     this.textSelectionTriggeredBySwipe,
     this.enableSelectionHandles,
-    this.showContextMenuOnSelectionHandle,
+    this.showContextMenuAutomatically,
     this.buildContextMenu,
     this.buildSelectionHandle,
     this.onTextSelectionChange,
@@ -661,15 +661,15 @@ class PdfTextSelectionParams {
 
   /// Whether to show selection handles.
   ///
-  /// null to determine the behavior based on the platform; enabled on mobile/Web, disabled on desktop/.
+  /// null to determine the behavior based on the platform; enabled on mobile/Web, disabled on desktop.
   final bool? enableSelectionHandles;
 
-  /// Whether to show context menu on selection handle.
+  /// Whether to automatically show context menu on text selection.
   ///
-  /// Normally, on desktop and web, the context menu is shown on right-click.
+  /// Normally, on desktop, the context menu is shown on right-click.
   /// If this is true, the context menu is shown on selection handle.
-  /// null to determine the behavior based on the platform; enabled on Mobile, disabled on Desktop/Web.
-  final bool? showContextMenuOnSelectionHandle;
+  /// null to determine the behavior based on the platform; enabled on mobile/Web, disabled on desktop.
+  final bool? showContextMenuAutomatically;
 
   /// Function to build context menu for text selection.
   ///
@@ -724,7 +724,7 @@ class PdfTextSelectionParams {
         other.textLongPress == textLongPress &&
         other.textSecondaryTapUp == textSecondaryTapUp &&
         other.enableSelectionHandles == enableSelectionHandles &&
-        other.showContextMenuOnSelectionHandle == showContextMenuOnSelectionHandle &&
+        other.showContextMenuAutomatically == showContextMenuAutomatically &&
         other.magnifier == magnifier;
   }
 
@@ -739,7 +739,7 @@ class PdfTextSelectionParams {
       textLongPress.hashCode ^
       textSecondaryTapUp.hashCode ^
       enableSelectionHandles.hashCode ^
-      showContextMenuOnSelectionHandle.hashCode ^
+      showContextMenuAutomatically.hashCode ^
       magnifier.hashCode;
 }
 
