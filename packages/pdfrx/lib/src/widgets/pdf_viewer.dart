@@ -251,7 +251,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   _TextSelectionPart _selPartLastMoved = _TextSelectionPart.none;
 
-  Offset? _showTextSelectionContextMenuAt;
+  bool _isSelectingAllText = false;
+
+  Offset? _textSelectionContextMenuGlobalPosition;
 
   Timer? _interactionEndedTimer;
   bool _isInteractionGoingOn = false;
@@ -1634,17 +1636,18 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   }
 
   void _textSecondaryTapUp(TapUpDetails details) {
-    _showTextSelectionContextMenuAt = details.globalPosition;
+    _textSelectionContextMenuGlobalPosition = details.globalPosition;
     _invalidate();
   }
 
   void _onTextPanStart(DragStartDetails details) {
     if (_isInteractionGoingOn) return;
     _selPartMoving = _TextSelectionPart.free;
+    _isSelectingAllText = false;
+    _textSelectionContextMenuGlobalPosition = null;
     _selA = _findTextAndIndexForPoint(details.localPosition);
     _textSelectAnchor = Offset(_txController.value.x, _txController.value.y);
     _selB = null;
-    _showTextSelectionContextMenuAt = null;
     _updateTextSelection();
   }
 
@@ -1655,6 +1658,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   void _onTextPanEnd(DragEndDetails details) {
     _updateTextSelectRectTo(details.localPosition);
     _selPartMoving = _TextSelectionPart.none;
+    _isSelectingAllText = false;
     _invalidate();
   }
 
@@ -1857,6 +1861,25 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
     const defMargin = 8.0;
 
+    Offset normalizeWidgetPosition(Offset pos, Size? widgetSize, {double margin = defMargin}) {
+      if (widgetSize == null) return pos;
+      var left = pos.dx;
+      var top = pos.dy;
+      if (left + widgetSize.width + margin > viewSize.width) {
+        left = viewSize.width - widgetSize.width - margin;
+      }
+      if (left < margin) {
+        left = margin;
+      }
+      if (top + widgetSize.height + margin > viewSize.height) {
+        top = viewSize.height - widgetSize.height - margin;
+      }
+      if (top < margin) {
+        top = margin;
+      }
+      return Offset(left, top);
+    }
+
     Offset? calcPosition(
       Size? widgetSize,
       _TextSelectionPart part, {
@@ -1915,7 +1938,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
             top = viewSize.height - widgetSize.height - margin;
           }
       }
-      return Offset(left, top);
+      return normalizeWidgetPosition(Offset(left, top), widgetSize, margin: margin);
     }
 
     Widget? magnifier;
@@ -1958,7 +1981,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         widget.params.textSelectionParams?.showContextMenuAutomatically ??
         PlatformBehaviorDefaults.showContextMenuAutomatically;
     bool showContextMenu = false;
-    if (_showTextSelectionContextMenuAt != null) {
+    if (_textSelectionContextMenuGlobalPosition != null) {
       showContextMenu = true;
     } else if (showContextMenuAutomatically &&
         _textSelA != null &&
@@ -1968,38 +1991,24 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       showContextMenu = true;
     }
 
-    Offset normalizedContextMenuPosition(Offset pos, {double margin = defMargin}) {
-      if (_contextMenuRect == null) return pos;
-      var left = pos.dx;
-      var top = pos.dy;
-      if (left + _contextMenuRect!.width + margin > viewSize.width) {
-        left = viewSize.width - _contextMenuRect!.width - margin;
-      }
-      if (left < margin) {
-        left = margin;
-      }
-      if (top + _contextMenuRect!.height + margin > viewSize.height) {
-        top = viewSize.height - _contextMenuRect!.height - margin;
-      }
-      if (top < margin) {
-        top = margin;
-      }
-      return Offset(left, top);
-    }
-
     Widget? contextMenu;
     if (showContextMenu &&
         _selPartMoving == _TextSelectionPart.none &&
-        (_selPartLastMoved == _TextSelectionPart.a || _selPartLastMoved == _TextSelectionPart.b) &&
+        (_textSelectionContextMenuGlobalPosition != null ||
+            _selPartLastMoved == _TextSelectionPart.a ||
+            _selPartLastMoved == _TextSelectionPart.b) &&
         isCopyTextEnabled) {
       final offset =
-          _showTextSelectionContextMenuAt != null
-              ? normalizedContextMenuPosition(renderBox.globalToLocal(_showTextSelectionContextMenuAt!))
+          _textSelectionContextMenuGlobalPosition != null
+              ? normalizeWidgetPosition(
+                renderBox.globalToLocal(_textSelectionContextMenuGlobalPosition!),
+                _contextMenuRect?.size,
+              )
               : (calcPosition(_contextMenuRect?.size, _selPartLastMoved) ?? Offset.zero);
       Offset.zero;
       final ctxMenuBuilder = widget.params.textSelectionParams?.buildContextMenu ?? _buildTextSelectionContextMenu;
       contextMenu = ctxMenuBuilder(context, _textSelA!, _textSelB!, this, () {
-        _showTextSelectionContextMenuAt = null;
+        _textSelectionContextMenuGlobalPosition = null;
         _invalidate();
       });
       if (contextMenu != null && !isPositionalWidget(contextMenu)) {
@@ -2290,6 +2299,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   void _onSelectionHandlePanStart(_TextSelectionPart handle, DragStartDetails details) {
     if (_isInteractionGoingOn) return;
     _selPartMoving = handle;
+    _isSelectingAllText = false;
     final position = _globalToDocument(details.globalPosition);
     final anchor = Offset(_txController.value.x, _txController.value.y);
     if (_selPartMoving == _TextSelectionPart.a) {
@@ -2305,7 +2315,6 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     } else {
       return;
     }
-    _showTextSelectionContextMenuAt = null;
     _updateTextSelection();
   }
 
@@ -2338,7 +2347,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   void _onSelectionHandlePanUpdate(_TextSelectionPart handle, DragUpdateDetails details) {
     if (_isInteractionGoingOn) return;
-    _showTextSelectionContextMenuAt = null;
+    _textSelectionContextMenuGlobalPosition = null;
     _updateSelectionHandlesPan(_globalToDocument(details.globalPosition));
   }
 
@@ -2346,6 +2355,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     if (_isInteractionGoingOn) return;
     final result = _updateSelectionHandlesPan(_globalToDocument(details.globalPosition));
     _selPartMoving = _TextSelectionPart.none;
+    _isSelectingAllText = false;
     if (!result) {
       _updateTextSelection();
     }
@@ -2369,7 +2379,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   void _clearTextSelections({bool invalidate = true}) {
     _selA = _selB = null;
     _textSelA = _textSelB = null;
-    _showTextSelectionContextMenuAt = null;
+    _textSelectionContextMenuGlobalPosition = null;
+    _isSelectingAllText = false;
     _updateTextSelection(invalidate: invalidate);
   }
 
@@ -2470,7 +2481,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       _selA = _selB = null;
     }
     _textSelA = _textSelB = null;
-    _showTextSelectionContextMenuAt = null;
+    _textSelectionContextMenuGlobalPosition = _documentToGlobal(_centerPosition);
+    _selPartLastMoved = _TextSelectionPart.none;
+    _isSelectingAllText = true;
     _updateTextSelection();
   }
 
@@ -2514,6 +2527,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       _textSelectAnchor = Offset(_txController.value.x, _txController.value.y);
       break;
     }
+
+    _selPartLastMoved = _TextSelectionPart.a;
+    _isSelectingAllText = false;
     _notifyTextSelectionChange();
   }
 
