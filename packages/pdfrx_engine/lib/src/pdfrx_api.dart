@@ -774,6 +774,9 @@ abstract class PdfPageRenderFlags {
 
   /// `FPDF_RENDER_NO_SMOOTHPATH` flag.
   static const noSmoothPath = 0x4000;
+
+  /// Output image is in premultiplied alpha format.
+  static const premultipliedAlpha = 0x80000000;
 }
 
 /// Token to try to cancel the rendering process.

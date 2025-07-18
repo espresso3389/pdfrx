@@ -699,7 +699,7 @@ class _PdfPagePdfium extends PdfPage {
             fullHeight: fullHeight!.toInt(),
             backgroundColor: backgroundColor,
             annotationRenderingMode: annotationRenderingMode,
-            flags: flags,
+            flags: flags & 0xffff, // Ensure flags are within 16-bit range
             formHandle: document.formHandle.address,
             formInfo: document.formInfo.address,
             cancelFlag: cancelFlag.address,
@@ -713,6 +713,20 @@ class _PdfPagePdfium extends PdfPage {
 
       final resultBuffer = buffer;
       buffer = nullptr;
+
+      if (flags & PdfPageRenderFlags.premultipliedAlpha != 0) {
+        final count = width * height;
+        for (int i = 0; i < count; i++) {
+          final b = resultBuffer[i * rgbaSize];
+          final g = resultBuffer[i * rgbaSize + 1];
+          final r = resultBuffer[i * rgbaSize + 2];
+          final a = resultBuffer[i * rgbaSize + 3];
+          resultBuffer[i * rgbaSize] = b * a ~/ 255;
+          resultBuffer[i * rgbaSize + 1] = g * a ~/ 255;
+          resultBuffer[i * rgbaSize + 2] = r * a ~/ 255;
+        }
+      }
+
       return _PdfImagePdfium._(width: width, height: height, buffer: resultBuffer);
     } catch (e) {
       return null;

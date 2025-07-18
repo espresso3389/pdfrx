@@ -526,12 +526,26 @@ class _PdfPageWasm extends PdfPage {
         'fullHeight': fullHeight,
         'backgroundColor': backgroundColor,
         'annotationRenderingMode': annotationRenderingMode.index,
-        'flags': flags,
+        'flags': flags & 0xffff, // Ensure flags are within 16-bit range
         'formHandle': document.document['formHandle'],
       },
     );
     final bb = result['imageData'] as ByteBuffer;
     final pixels = Uint8List.view(bb.asByteData().buffer, 0, bb.lengthInBytes);
+
+    if (flags & PdfPageRenderFlags.premultipliedAlpha != 0) {
+      final count = width * height;
+      for (int i = 0; i < count; i++) {
+        final b = pixels[i * 4];
+        final g = pixels[i * 4 + 1];
+        final r = pixels[i * 4 + 2];
+        final a = pixels[i * 4 + 3];
+        pixels[i * 4] = b * a ~/ 255;
+        pixels[i * 4 + 1] = g * a ~/ 255;
+        pixels[i * 4 + 2] = r * a ~/ 255;
+      }
+    }
+
     return PdfImageWeb(width: width, height: height, pixels: pixels);
   }
 }

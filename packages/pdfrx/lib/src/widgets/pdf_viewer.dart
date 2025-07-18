@@ -1148,6 +1148,11 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     });
   }
 
+  /// If [margin] is not 0, the image may be rendered with out-of-page margins and they should be transparent;
+  /// this requires the rendered image should be real BGRA image and the alpha channel should be premultiplied.
+  /// Because Pdfium binary currently does not support rendering with premultiplied alpha,
+  /// we need to convert independent alpha to premultiplied alpha in the Flutter side. Because of this,
+  /// on Flutter Web, if the code is running on JS, it may degrade the performance a bit. WASM compilation seems vital.
   Future<void> _requestRealSizePartialImage(
     _PdfPageImageCache cache,
     PdfPage page,
@@ -1163,6 +1168,13 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
     cache.pageImagePartialRenderingRequests[page.pageNumber]?.cancel();
 
+    final renderRect = rect.inflate(margin);
+    bool needPremultipliedAlpha =
+        (renderRect.left < 0 ||
+            renderRect.top < 0 ||
+            renderRect.right > pageRect.width ||
+            renderRect.bottom > pageRect.height);
+
     final cancellationToken = page.createCancellationToken();
     cache.pageImagePartialRenderingRequests[page.pageNumber] = _PdfPartialImageRenderingRequest(
       Timer(widget.params.behaviorControlParams.partialImageLoadingDelay, () async {
@@ -1171,8 +1183,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
           cache,
           page,
           scale,
-          rect.inflate(margin),
+          renderRect,
           rect,
+          needPremultipliedAlpha,
           cancellationToken,
         );
         if (newImage != null) {
@@ -1191,6 +1204,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     double scale,
     Rect rect,
     Rect requestedRect,
+    bool needPremultipliedAlpha,
     PdfPageRenderCancellationToken cancellationToken,
   ) async {
     if (!mounted || cancellationToken.isCanceled) return null;
@@ -1202,6 +1216,10 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     final height = (inPageRect.height * scale).toInt();
     if (width < 1 || height < 1) return null;
 
+    int flags = 0;
+    if (widget.params.limitRenderingCache) flags |= PdfPageRenderFlags.limitedImageCache;
+    if (needPremultipliedAlpha) flags |= PdfPageRenderFlags.premultipliedAlpha;
+
     PdfImage? img;
     try {
       img = await page.render(
@@ -1211,9 +1229,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         height: height,
         fullWidth: pageRect.width * scale,
         fullHeight: pageRect.height * scale,
-        backgroundColor: 0,
+        backgroundColor: needPremultipliedAlpha ? 0 : 0xffffffff,
         annotationRenderingMode: widget.params.annotationRenderingMode,
-        flags: widget.params.limitRenderingCache ? PdfPageRenderFlags.limitedImageCache : PdfPageRenderFlags.none,
+        flags: flags,
         cancellationToken: cancellationToken,
       );
       if (img == null || !mounted || cancellationToken.isCanceled) return null;
@@ -2190,7 +2208,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                     PdfViewerSelectionMagnifierParams.defaultMaxImageBytesCachedOnMemory,
                 targetRect: rectToDraw,
                 scale: magScale * MediaQuery.of(context).devicePixelRatio,
-                enableLowResolutionPagePreview: false,
+                enableLowResolutionPagePreview: true,
                 filterQuality: FilterQuality.low,
               );
               canvas.restore();

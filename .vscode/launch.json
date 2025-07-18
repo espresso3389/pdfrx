@@ -5,24 +5,24 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "viewer example",
+      "name": "Example",
       "request": "launch",
       "type": "dart",
       "program": "packages/pdfrx/example/viewer/lib/main.dart"
     },
     {
-      "name": "viewer example (WASM)",
+      "name": "WASM",
       "request": "launch",
       "type": "dart",
       "program": "packages/pdfrx/example/viewer/lib/main.dart",
       "args": ["-d", "chrome", "--wasm"]
     },
     {
-      "name": "viewer example (WASM/Web Server)",
+      "name": "WASM-Server",
       "request": "launch",
       "type": "dart",
       "program": "packages/pdfrx/example/viewer/lib/main.dart",
-      "args": ["-d", "web-server", "--wasm"]
+      "args": ["-d", "web-server", "--wasm", "--web-port", "8080", "--web-hostname", "127.0.0.1"]
     }
   ]
 }
