@@ -193,12 +193,12 @@ class PdfViewerParams {
 
   /// Color for text search match.
   ///
-  /// If null, the default color is `Colors.yellow.withOpacity(0.5)`.
+  /// If null, the default color is `Colors.yellow.withValue(alpha: 0.5)`.
   final Color? matchTextColor;
 
   /// Color for active text search match.
   ///
-  /// If null, the default color is `Colors.orange.withOpacity(0.5)`.
+  /// If null, the default color is `Colors.orange.withValue(alpha: 0.5)`.
   final Color? activeMatchTextColor;
 
   /// Drop shadow for the page.
@@ -1160,7 +1160,7 @@ class PdfLinkHandlerParams {
   /// The functions should return true if it processes the link; otherwise, it should return false.
   final void Function(PdfLink link) onLinkTap;
 
-  /// Color for the link. If null, the default color is `Colors.blue.withOpacity(0.2)`.
+  /// Color for the link. If null, the default color is `Colors.blue.withValue(alpha: 0.2)`.
   ///
   /// To fully customize the link appearance, use [customPainter].
   final Color? linkColor;
@@ -1173,7 +1173,7 @@ class PdfLinkHandlerParams {
   /// ```dart
   /// customPainter: (canvas, pageRect, page, links) {
   ///   final paint = Paint()
-  ///     ..color = Colors.red.withOpacity(0.2)
+  ///     ..color = Colors.red.withValue(alpha: 0.2)
   ///     ..style = PaintingStyle.fill;
   ///   for (final link in links) {
   ///     final rect = link.rect.toRectInDocument(page: page, pageRect: pageRect);

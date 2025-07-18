@@ -2086,9 +2086,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     final baseColor =
         Theme.of(context).textSelectionTheme.selectionColor ?? DefaultSelectionStyle.of(context).selectionColor!;
     final (selectionColor, shadow) = switch (state) {
-      PdfViewerTextSelectionAnchorHandleState.normal => (baseColor.withOpacity(.7), true),
-      PdfViewerTextSelectionAnchorHandleState.dragging => (baseColor.withOpacity(1), false),
-      PdfViewerTextSelectionAnchorHandleState.hover => (baseColor.withOpacity(1), true),
+      PdfViewerTextSelectionAnchorHandleState.normal => (baseColor.withValues(alpha: .7), true),
+      PdfViewerTextSelectionAnchorHandleState.dragging => (baseColor.withValues(alpha: 1), false),
+      PdfViewerTextSelectionAnchorHandleState.hover => (baseColor.withValues(alpha: 1), true),
     };
     return CustomPaint(
       painter: _CustomPainter.fromFunctions((canvas, size) {
