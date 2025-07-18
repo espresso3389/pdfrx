@@ -533,7 +533,7 @@ class _PdfPageWasm extends PdfPage {
     final bb = result['imageData'] as ByteBuffer;
     final pixels = Uint8List.view(bb.asByteData().buffer, 0, bb.lengthInBytes);
 
-    if (flags & PdfPageRenderFlags.premultipliedAlpha != 0) {
+    if ((flags & PdfPageRenderFlags.premultipliedAlpha) != 0) {
       final count = width * height;
       for (int i = 0; i < count; i++) {
         final b = pixels[i * 4];

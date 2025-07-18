@@ -714,7 +714,7 @@ class _PdfPagePdfium extends PdfPage {
       final resultBuffer = buffer;
       buffer = nullptr;
 
-      if (flags & PdfPageRenderFlags.premultipliedAlpha != 0) {
+      if ((flags & PdfPageRenderFlags.premultipliedAlpha) != 0) {
         final count = width * height;
         for (int i = 0; i < count; i++) {
           final b = resultBuffer[i * rgbaSize];

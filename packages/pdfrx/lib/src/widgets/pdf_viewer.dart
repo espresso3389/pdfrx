@@ -967,7 +967,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
       final pageScale = scale * max(rect.width / page.width, rect.height / page.height);
       if (!enableLowResolutionPagePreview || pageScale > previewScaleLimit) {
-        _requestRealSizePartialImage(cache, page, pageScale, targetRect, 50);
+        _requestRealSizePartialImage(cache, page, pageScale, targetRect, 0);
       }
 
       if ((!enableLowResolutionPagePreview || pageScale > previewScaleLimit) && partial != null) {
@@ -1180,6 +1180,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     final cancellationToken = page.createCancellationToken();
     cache.pageImagePartialRenderingRequests[page.pageNumber] = _PdfPartialImageRenderingRequest(
       Timer(widget.params.behaviorControlParams.partialImageLoadingDelay, () async {
+        debugPrint('Requesting real size partial image for page ${page.pageNumber} at rect $rect');
         if (!mounted || cancellationToken.isCanceled) return;
         final newImage = await _createRealSizePartialImage(
           cache,
@@ -2282,13 +2283,17 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
               style: TextStyle(color: textSelectionDelegate.isCopyAllowed ? Colors.black : Colors.grey),
             ),
           ),
-          if (textSelectionDelegate.isCopyAllowed)
+
+          if (!textSelectionDelegate.isSelectingAllText)
             RawMaterialButton(
               visualDensity: VisualDensity.compact,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              onPressed: () {
-                textSelectionDelegate.selectAllText();
-              },
+              onPressed:
+                  textSelectionDelegate.isSelectingAllText
+                      ? null
+                      : () {
+                        textSelectionDelegate.selectAllText();
+                      },
               child: const Text('Select All'),
             ),
         ],
