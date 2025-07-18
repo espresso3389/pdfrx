@@ -1,3 +1,7 @@
+# 2.0.0-beta3
+
+- BREAKING CHANGE: Renamed `showContextMenuOnSelectionHandle` to `showContextMenuAutomatically` in `PdfTextSelectionParams` for better clarity
+
 # 2.0.0-beta2
 
 - IMPROVED: Text selection API changed to async with `getSelectedTextRange()` method
