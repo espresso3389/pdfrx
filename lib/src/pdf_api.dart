@@ -328,8 +328,8 @@ abstract class PdfDocument {
   /// [data] is an optional data that can be used to pass additional information to the callback.
   ///
   /// It's always safe to call this function even if the pages are already loaded.
-  Future<void> loadPagesProgressively<T>(
-    PdfPageLoadingCallback<T>? onPageLoadProgress, {
+  Future<void> loadPagesProgressively<T>({
+    PdfPageLoadingCallback<T>? onPageLoadProgress,
     T? data,
     Duration loadUnitDuration = const Duration(milliseconds: 250),
   });

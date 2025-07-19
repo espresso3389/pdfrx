@@ -352,8 +352,8 @@ class _PdfDocumentWasm extends PdfDocument {
   }
 
   @override
-  Future<void> loadPagesProgressively<T>(
-    PdfPageLoadingCallback<T>? onPageLoadProgress, {
+  Future<void> loadPagesProgressively<T>({
+    PdfPageLoadingCallback<T>? onPageLoadProgress,
     T? data,
     Duration loadUnitDuration = const Duration(milliseconds: 250),
   }) async {

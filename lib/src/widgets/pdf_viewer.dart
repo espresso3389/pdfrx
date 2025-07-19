@@ -350,13 +350,16 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     await Future.delayed(_trailingPageLoadingDelay);
 
     final stopwatch = Stopwatch()..start();
-    await _document?.loadPagesProgressively((pageNumber, totalPageCount, document) {
-      if (document == _document && mounted) {
-        debugPrint('PdfViewer: Loaded page $pageNumber of $totalPageCount in ${stopwatch.elapsedMilliseconds} ms');
-        return true;
-      }
-      return false;
-    }, data: _document);
+    await _document?.loadPagesProgressively(
+      onPageLoadProgress: (pageNumber, totalPageCount, document) {
+        if (document == _document && mounted) {
+          debugPrint('PdfViewer: Loaded page $pageNumber of $totalPageCount in ${stopwatch.elapsedMilliseconds} ms');
+          return true;
+        }
+        return false;
+      },
+      data: _document,
+    );
   }
 
   void _notifyOnDocumentChanged() {
