@@ -1,3 +1,8 @@
+# 1.3.5
+
+- Improved progressive loading support for `PdfDocumentViewBuilder` with updates backported from 2.0.X series
+- FIXED: Wheel-to-scroll behavior now properly conditioned by zoom ratio
+
 # 1.3.4
 
 - FIXED: `PdfDocumentViewBuilder` did not properly handle progressive loading ([#419](https://github.com/espresso3389/pdfrx/pull/419))
