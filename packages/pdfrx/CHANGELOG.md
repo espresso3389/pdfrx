@@ -1,3 +1,10 @@
+# 2.0.0-beta6
+
+- BREAKING CHANGE: Changed `loadPagesProgressively` to use named parameter `onPageLoadProgress` for better API clarity
+- IMPROVED: Enhanced focus management for better keyboard interaction support
+- IMPROVED: Focus is now properly requested on text selection and interaction events
+- IMPROVED: Added comprehensive documentation for enum values in API
+
 # 2.0.0-beta5
 
 - Minor fixes and improvements
