@@ -18,6 +18,8 @@ void setClipboardData(String text) {
   web.window.navigator.clipboard.writeText(text);
 }
 
+Future<String> getCacheDirectory() async => throw UnimplementedError('No temporary directory available for web.');
+
 /// Override for the [PdfDocumentFactory] for web platforms to use WASM implementation.
 PdfDocumentFactory? get pdfDocumentFactoryOverride => _factoryWasm;
 

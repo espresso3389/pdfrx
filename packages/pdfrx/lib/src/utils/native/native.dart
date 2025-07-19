@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../../pdfrx.dart';
 
@@ -18,6 +19,8 @@ bool get isCommandKeyPressed =>
 void setClipboardData(String text) {
   Clipboard.setData(ClipboardData(text: text));
 }
+
+Future<String> getCacheDirectory() async => (await getTemporaryDirectory()).path;
 
 /// Override for the [PdfDocumentFactory] for native platforms; it is null.
 PdfDocumentFactory? get pdfDocumentFactoryOverride => null;

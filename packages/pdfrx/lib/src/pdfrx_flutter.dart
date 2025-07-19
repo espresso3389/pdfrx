@@ -3,7 +3,6 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../pdfrx.dart';
 import 'utils/platform.dart';
@@ -28,10 +27,7 @@ void pdfrxFlutterInitialize() {
     final asset = await rootBundle.load(name);
     return asset.buffer.asUint8List();
   };
-  Pdfrx.getCacheDirectory ??= () async {
-    final dir = await getTemporaryDirectory();
-    return dir.path;
-  };
+  Pdfrx.getCacheDirectory ??= getCacheDirectory;
 
   // Checking pdfium.wasm availability for Web and debug builds.
   if (kDebugMode) {
