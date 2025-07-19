@@ -877,7 +877,7 @@ class PdfViewerSelectionMagnifierParams {
     this.magnifierSizeThreshold = 72,
     this.getMagnifierRectForAnchor,
     this.builder,
-    this.shouldBeShown,
+    this.shouldBeShownForAnchor,
     this.maxImageBytesCachedOnMemory = defaultMaxImageBytesCachedOnMemory,
   });
 
@@ -903,8 +903,7 @@ class PdfViewerSelectionMagnifierParams {
   /// Function to determine whether the magnifier should be shown based on conditions such as zoom level.
   ///
   /// If [enabled] is false, this function is not called.
-  /// By default, the magnifier is shown if the zoom level is smaller than [scale].
-  final PdfViewerMagnifierShouldBeShownFunction? shouldBeShown;
+  final PdfViewerMagnifierShouldBeShownFunction? shouldBeShownForAnchor;
 
   /// The maximum number of image bytes to be cached on memory.
   ///
@@ -920,7 +919,7 @@ class PdfViewerSelectionMagnifierParams {
         other.magnifierSizeThreshold == magnifierSizeThreshold &&
         other.getMagnifierRectForAnchor == getMagnifierRectForAnchor &&
         other.builder == builder &&
-        other.shouldBeShown == shouldBeShown &&
+        other.shouldBeShownForAnchor == shouldBeShownForAnchor &&
         other.maxImageBytesCachedOnMemory == maxImageBytesCachedOnMemory;
   }
 
@@ -930,32 +929,28 @@ class PdfViewerSelectionMagnifierParams {
       magnifierSizeThreshold.hashCode ^
       getMagnifierRectForAnchor.hashCode ^
       builder.hashCode ^
-      shouldBeShown.hashCode ^
+      shouldBeShownForAnchor.hashCode ^
       maxImageBytesCachedOnMemory.hashCode;
 }
 
 /// Function to get the magnifier rectangle for the anchor.
 ///
-/// The following fragment illustrates how to get the magnifier rectangle for the anchor:
+/// The following fragment illustrates one example of the code to calculate where on the document the magnifier should
+/// be shown for:
 ///
 ///```dart
 /// getMagnifierRectForAnchor: (textAnchor, params) {
-///     final c = textAnchor.page.charRects[textAnchor.index];
-///     return switch (textAnchor.direction) {
-///       PdfTextDirection.ltr || PdfTextDirection.rtl || PdfTextDirection.unknown => Rect.fromLTRB(
-///         textAnchor.rect.left - c.height * 2,
-///         textAnchor.rect.top - c.height * .2,
-///         textAnchor.rect.right + c.height * 2,
-///         textAnchor.rect.bottom + c.height * .2,
-///       ),
-///       PdfTextDirection.vrtl => Rect.fromLTRB(
-///         textAnchor.rect.left - c.width * .2,
-///         textAnchor.rect.top - c.width * 2,
-///         textAnchor.rect.right + c.width * .2,
-///         textAnchor.rect.bottom + c.width * 2,
-///       ),
-///     };
-///   }
+///   final c = textAnchor.page.charRects[textAnchor.index];
+///   final baseUnit = switch (textAnchor.direction) {
+///     PdfTextDirection.ltr || PdfTextDirection.rtl || PdfTextDirection.unknown => c.height,
+///     PdfTextDirection.vrtl => c.width,
+///   };
+///   return Rect.fromLTRB(
+///     textAnchor.rect.left - baseUnit * 2,
+///     textAnchor.rect.top - baseUnit * .2,
+///     textAnchor.rect.right + baseUnit * 2,
+///     textAnchor.rect.bottom + baseUnit * .2,
+/// );
 ///```
 typedef PdfViewerGetMagnifierRectForAnchor =
     Rect Function(PdfTextSelectionAnchor anchor, PdfViewerSelectionMagnifierParams params);
@@ -970,10 +965,15 @@ typedef PdfViewerGetMagnifierRectForAnchor =
 /// If the function returns a widget of [Positioned] or [Align], the magnifier content is laid out as
 /// specified. Otherwise, the widget is laid out automatically.
 ///
+/// [magnifierContent] is the widget that contains the magnified content. And you can embed it into your widget tree.
+/// [magnifierContentSize] is the size of the magnified content in document coordinates; you can use the size to know
+/// the aspect ratio of the magnified content.
+///
 /// The following fragment illustrates how to build a magnifier widget with a border and rounded corners:
 ///
 /// ```dart
-/// builder: (context, params, magnifierContent, magnifierContentSize) {
+/// builder: (context, textAnchor, params, magnifierContent, magnifierContentSize) {
+///   // calculate the scale to fit the magnifier content fit into 80x80 box
 ///   final scale = 80 / min(magnifierContentSize.width, magnifierContentSize.height);
 ///   return Container(
 ///     decoration: BoxDecoration(
@@ -993,14 +993,30 @@ typedef PdfViewerGetMagnifierRectForAnchor =
 typedef PdfViewerMagnifierBuilder =
     Widget? Function(
       BuildContext context,
+      PdfTextSelectionAnchor textAnchor,
       PdfViewerSelectionMagnifierParams params,
       Widget magnifierContent,
       Size magnifierContentSize,
     );
 
 /// Function to determine whether the magnifier should be shown or not.
+///
+/// Determine whether the magnifier should be shown for the text anchor, [textAnchor],
+/// which points to a character in the text.
+///
+/// The following fragment illustrates how to determine whether the magnifier should be shown based on the zoom level:
+///
+/// ```dart
+/// shouldBeShownForAnchor: (textAnchor, controller, params) {
+///   final h = textAnchor.direction == PdfTextDirection.vrtl ? textAnchor.rect.size.width : textAnchor.rect.size.height;
+///   return h * _currentZoom < params.magnifierSizeThreshold;
+/// ```
 typedef PdfViewerMagnifierShouldBeShownFunction =
-    bool Function(PdfViewerController controller, PdfViewerSelectionMagnifierParams params);
+    bool Function(
+      PdfTextSelectionAnchor textAnchor,
+      PdfViewerController controller,
+      PdfViewerSelectionMagnifierParams params,
+    );
 
 /// Function to notify that the document is loaded/changed.
 typedef PdfViewerDocumentChangedCallback = void Function(PdfDocument? document);

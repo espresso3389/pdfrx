@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -31,6 +32,35 @@ void pdfrxFlutterInitialize() {
     final dir = await getTemporaryDirectory();
     return dir.path;
   };
+
+  // Checking pdfium.wasm availability for Web and debug builds.
+  if (kDebugMode) {
+    () async {
+      try {
+        await Pdfrx.loadAsset!('packages/pdfrx/assets/pdfium.wasm');
+        if (!kIsWeb) {
+          debugPrint(
+            '*********************\n'
+            '⚠️\u001b[37;41;1mDEBUG TIME WARNING: The app is bundling PDFium WASM module (about 4MB) as a part of the app.\u001b[0m\n'
+            'For production use (not for Web/Debug), you\'d better remove the PDFium WASM module.\n'
+            'See https://github.com/espresso3389/pdfrx/tree/master/packages/pdfrx#note-for-building-release-builds for more details.\n'
+            '*********************\n',
+          );
+        }
+      } catch (e) {
+        if (kIsWeb) {
+          debugPrint(
+            '*********************\n'
+            '⚠️\u001b[37;41;1mDEBUG TIME WARNING: The app is running on Web, but the PDFium WASM module is not bundled with the app.\u001b[0m\n'
+            'Make sure to include the PDFium WASM module in your web project.\n'
+            'If you explicitly set Pdfrx.pdfiumWasmModulesUrl, you can ignore this warning.\n'
+            'See https://github.com/espresso3389/pdfrx/tree/master/packages/pdfrx#note-for-building-release-builds for more details.\n'
+            '*********************\n',
+          );
+        }
+      }
+    }();
+  }
 
   _isInitialized = true;
 }

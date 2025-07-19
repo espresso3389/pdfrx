@@ -334,8 +334,8 @@ class _PdfDocumentWasm extends PdfDocument {
   }
 
   @override
-  Future<void> loadPagesProgressively<T>(
-    PdfPageLoadingCallback<T>? onPageLoadProgress, {
+  Future<void> loadPagesProgressively<T>({
+    PdfPageLoadingCallback<T>? onPageLoadProgress,
     T? data,
     Duration loadUnitDuration = const Duration(milliseconds: 250),
   }) async {
@@ -358,7 +358,9 @@ class _PdfDocumentWasm extends PdfDocument {
         pages[page.pageNumber - 1] = page; // Update the existing page
       }
 
-      subject.add(PdfDocumentPageStatusChangedEvent(this, pagesLoaded));
+      if (!subject.isClosed) {
+        subject.add(PdfDocumentPageStatusChangedEvent(this, pagesLoaded));
+      }
 
       if (onPageLoadProgress != null) {
         if (!await onPageLoadProgress(firstPageIndex, pages.length, data)) {

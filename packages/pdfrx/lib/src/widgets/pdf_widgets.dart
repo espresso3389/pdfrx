@@ -110,6 +110,8 @@ class PdfDocumentViewBuilder extends StatefulWidget {
 }
 
 class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
+  StreamSubscription<PdfDocumentEvent>? _updateSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -120,23 +122,36 @@ class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
   }
 
   @override
+  void didUpdateWidget(covariant PdfDocumentViewBuilder oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget == oldWidget) {
+      return;
+    }
+
+    oldWidget.documentRef.resolveListenable().removeListener(_onDocumentChanged);
+    widget.documentRef.resolveListenable()
+      ..addListener(_onDocumentChanged)
+      ..load();
+    _onDocumentChanged();
+  }
+
+  @override
   void dispose() {
+    _updateSubscription?.cancel();
     widget.documentRef.resolveListenable().removeListener(_onDocumentChanged);
     super.dispose();
   }
 
   void _onDocumentChanged() {
     if (mounted) {
-      widget.documentRef.resolveListenable().useDocument((document) {
-        document.loadPagesProgressively((_, _, _) {
-          if (mounted) {
-            setState(() {});
-            return true;
-          } else {
-            return false;
-          }
-        });
+      _updateSubscription?.cancel();
+      final document = widget.documentRef.resolveListenable().document;
+      _updateSubscription = document?.events.listen((event) {
+        if (mounted && event.type == PdfDocumentEventType.pageStatusChanged) {
+          setState(() {});
+        }
       });
+      document?.loadPagesProgressively();
       setState(() {});
     }
   }

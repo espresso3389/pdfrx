@@ -258,6 +258,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   Timer? _interactionEndedTimer;
   bool _isInteractionGoingOn = false;
 
+  BuildContext? _contextForFocusNode;
+
   @override
   void initState() {
     super.initState();
@@ -286,11 +288,10 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       }
       return;
     } else {
-      final oldListenable = oldWidget?.documentRef.resolveListenable();
-      oldListenable?.removeListener(_onDocumentChanged);
-      final listenable = widget.documentRef.resolveListenable();
-      listenable.addListener(_onDocumentChanged);
-      listenable.load();
+      oldWidget?.documentRef.resolveListenable().removeListener(_onDocumentChanged);
+      widget.documentRef.resolveListenable()
+        ..addListener(_onDocumentChanged)
+        ..load();
     }
 
     _onDocumentChanged();
@@ -343,13 +344,16 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     await Future.delayed(widget.params.behaviorControlParams.trailingPageLoadingDelay);
 
     final stopwatch = Stopwatch()..start();
-    await _document?.loadPagesProgressively((pageNumber, totalPageCount, document) {
-      if (document == _document && mounted) {
-        debugPrint('PdfViewer: Loaded page $pageNumber of $totalPageCount in ${stopwatch.elapsedMilliseconds} ms');
-        return true;
-      }
-      return false;
-    }, data: _document);
+    await _document?.loadPagesProgressively(
+      onPageLoadProgress: (pageNumber, totalPageCount, document) {
+        if (document == _document && mounted) {
+          debugPrint('PdfViewer: Loaded page $pageNumber of $totalPageCount in ${stopwatch.elapsedMilliseconds} ms');
+          return true;
+        }
+        return false;
+      },
+      data: _document,
+    );
   }
 
   void _notifyOnDocumentChanged() {
@@ -417,6 +421,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         child: StreamBuilder(
           stream: _updateStream,
           builder: (context, snapshot) {
+            _contextForFocusNode = context;
             return LayoutBuilder(
               builder: (context, constraints) {
                 final isCopyTextEnabled = _document!.permissions?.allowsCopying != false;
@@ -559,6 +564,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   void _onInteractionStart(ScaleStartDetails details) {
     _startInteraction();
+    _requestFocus();
     widget.params.onInteractionStart?.call(details);
   }
 
@@ -1592,16 +1598,28 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     document.scale(_currentZoom, _currentZoom).translate(_txController.value.xZoomed, _txController.value.yZoomed),
   );
 
+  FocusNode? _getFocusNode() {
+    return _contextForFocusNode != null ? Focus.of(_contextForFocusNode!) : null;
+  }
+
+  void _requestFocus() {
+    _getFocusNode()?.requestFocus();
+  }
+
   void _textTap(TapDownDetails details) {
     if (_isInteractionGoingOn) return;
     _clearTextSelections();
+    _requestFocus();
   }
 
-  void _textDoubleTap(TapDownDetails details) {}
+  void _textDoubleTap(TapDownDetails details) {
+    _requestFocus();
+  }
 
   void _textLongPress(LongPressStartDetails details) {
     if (_isInteractionGoingOn) return;
     selectWord(details.localPosition);
+    _requestFocus();
   }
 
   void _textSecondaryTapUp(TapUpDetails details) {
@@ -1618,6 +1636,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     _textSelectAnchor = Offset(_txController.value.x, _txController.value.y);
     _selB = null;
     _updateTextSelection();
+    _requestFocus();
   }
 
   void _onTextPanUpdate(DragUpdateDetails details) {
@@ -1911,20 +1930,22 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     }
 
     Widget? magnifier;
-    final magnifierParams = widget.params.textSelectionParams?.magnifier ?? const PdfViewerSelectionMagnifierParams();
-    final magnifierEnabled =
-        (magnifierParams.enabled ?? PlatformBehaviorDefaults.shouldShowTextSelectionMagnifier) &&
-        (magnifierParams.shouldBeShown?.call(_controller!, magnifierParams) ?? true);
-    if (magnifierEnabled && (textAnchorMoving == _TextSelectionPart.a || textAnchorMoving == _TextSelectionPart.b)) {
-      final textAnchor = textAnchorMoving == _TextSelectionPart.a ? _textSelA : _textSelB;
-      final magCenter = textAnchor?.anchorPoint;
-      final charSize = textAnchor!.rect.size * _currentZoom;
-      final h = textAnchor.direction == PdfTextDirection.vrtl ? charSize.width : charSize.height;
-      if (magCenter != null && h < magnifierParams.magnifierSizeThreshold) {
+    if (textAnchorMoving == _TextSelectionPart.a || textAnchorMoving == _TextSelectionPart.b) {
+      final textAnchor = textAnchorMoving == _TextSelectionPart.a ? _textSelA! : _textSelB!;
+      final magnifierParams = widget.params.textSelectionParams?.magnifier ?? const PdfViewerSelectionMagnifierParams();
+
+      final magnifierEnabled =
+          (magnifierParams.enabled ?? PlatformBehaviorDefaults.shouldShowTextSelectionMagnifier) &&
+          (magnifierParams.shouldBeShownForAnchor ?? _shouldBeShownForAnchor)(
+            textAnchor,
+            _controller!,
+            magnifierParams,
+          );
+      if (magnifierEnabled) {
         final magRect = (magnifierParams.getMagnifierRectForAnchor ?? _getMagnifierRect)(textAnchor, magnifierParams);
         final magnifierMain = _buildMagnifier(context, magRect, magnifierParams);
         final builder = magnifierParams.builder ?? _buildMagnifierDecoration;
-        magnifier = builder(context, magnifierParams, magnifierMain, magRect.size);
+        magnifier = builder(context, textAnchor, magnifierParams, magnifierMain, magRect.size);
         if (magnifier != null && !isPositionalWidget(magnifier)) {
           final offset =
               calcPosition(_magnifierRect?.size, textAnchorMoving, marginOnTop: 20, marginOnBottom: 80) ?? Offset.zero;
@@ -1941,9 +1962,9 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
             ),
           );
         }
+      } else {
+        _magnifierRect = null;
       }
-    } else {
-      _magnifierRect = null;
     }
 
     final showContextMenuAutomatically =
@@ -2060,6 +2081,15 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
     ];
   }
 
+  bool _shouldBeShownForAnchor(
+    PdfTextSelectionAnchor textAnchor,
+    PdfViewerController controller,
+    PdfViewerSelectionMagnifierParams params,
+  ) {
+    final h = textAnchor.direction == PdfTextDirection.vrtl ? textAnchor.rect.size.width : textAnchor.rect.size.height;
+    return h * _currentZoom < params.magnifierSizeThreshold;
+  }
+
   Widget _buildHandle(BuildContext context, Path path, PdfViewerTextSelectionAnchorHandleState state) {
     final baseColor =
         Theme.of(context).textSelectionTheme.selectionColor ?? DefaultSelectionStyle.of(context).selectionColor!;
@@ -2153,20 +2183,16 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   /// Calculate the rectangle shown in the magnifier for the given text anchor.
   Rect _getMagnifierRect(PdfTextSelectionAnchor textAnchor, PdfViewerSelectionMagnifierParams params) {
     final c = textAnchor.page.charRects[textAnchor.index];
-    return switch (textAnchor.direction) {
-      PdfTextDirection.ltr || PdfTextDirection.rtl || PdfTextDirection.unknown => Rect.fromLTRB(
-        textAnchor.rect.left - c.height * 2,
-        textAnchor.rect.top - c.height * .2,
-        textAnchor.rect.right + c.height * 2,
-        textAnchor.rect.bottom + c.height * .2,
-      ),
-      PdfTextDirection.vrtl => Rect.fromLTRB(
-        textAnchor.rect.left - c.width * .2,
-        textAnchor.rect.top - c.width * 2,
-        textAnchor.rect.right + c.width * .2,
-        textAnchor.rect.bottom + c.width * 2,
-      ),
+    final baseUnit = switch (textAnchor.direction) {
+      PdfTextDirection.ltr || PdfTextDirection.rtl || PdfTextDirection.unknown => c.height,
+      PdfTextDirection.vrtl => c.width,
     };
+    return Rect.fromLTRB(
+      textAnchor.rect.left - baseUnit * 2,
+      textAnchor.rect.top - baseUnit * .2,
+      textAnchor.rect.right + baseUnit * 2,
+      textAnchor.rect.bottom + baseUnit * .2,
+    );
   }
 
   Widget _buildMagnifier(BuildContext context, Rect rectToDraw, PdfViewerSelectionMagnifierParams magnifierParams) {
@@ -2202,6 +2228,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   Widget _buildMagnifierDecoration(
     BuildContext context,
+    PdfTextSelectionAnchor textAnchor,
     PdfViewerSelectionMagnifierParams params,
     Widget child,
     Size childSize,
@@ -2289,6 +2316,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
       return;
     }
     _updateTextSelection();
+    _requestFocus();
   }
 
   bool _updateSelectionHandlesPan(Offset? panTo) {
@@ -3151,6 +3179,12 @@ class PdfViewerController extends ValueListenable<Matrix4> {
 
   /// The text selection delegate.
   PdfTextSelectionDelegate get textSelectionDelegate => _state;
+
+  /// [FocusNode] associated to the [PdfViewer] if available.
+  FocusNode? get focusNode => _state._getFocusNode();
+
+  /// Request focus to the [PdfViewer].
+  void requestFocus() => _state._requestFocus();
 }
 
 /// [PdfViewerController.calcFitZoomMatrices] returns the list of this class.
@@ -3333,6 +3367,7 @@ class _CanvasLinkPainter {
   }
 
   bool _handleLinkTap(Offset tapPosition) {
+    _state._requestFocus();
     _cursor = MouseCursor.defer;
     final link = _findLinkAtPosition(tapPosition);
     if (link != null) {

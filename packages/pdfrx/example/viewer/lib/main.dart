@@ -322,6 +322,9 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                               textSelections = await textSelection.getSelectedTextRange();
                             },
                           ),
+                          keyHandlerParams: PdfViewerKeyHandlerParams(
+                            autofocus: true,
+                          ),
                           useAlternativeFitScaleAsMinScale: false,
                           maxScale: 8,
                           onViewSizeChanged: (viewSize, oldViewSize, controller) {
@@ -438,6 +441,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           onViewerReady: (document, controller) async {
                             outline.value = await document.loadOutline();
                             textSearcher.value = PdfTextSearcher(controller)..addListener(_update);
+                            controller.requestFocus();
                           },
                         ),
                       );

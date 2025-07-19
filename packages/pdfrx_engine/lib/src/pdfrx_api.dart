@@ -325,8 +325,8 @@ abstract class PdfDocument {
   /// [data] is an optional data that can be used to pass additional information to the callback.
   ///
   /// It's always safe to call this function even if the pages are already loaded.
-  Future<void> loadPagesProgressively<T>(
-    PdfPageLoadingCallback<T>? onPageLoadProgress, {
+  Future<void> loadPagesProgressively<T>({
+    PdfPageLoadingCallback<T>? onPageLoadProgress,
     T? data,
     Duration loadUnitDuration = const Duration(milliseconds: 250),
   });
@@ -346,7 +346,10 @@ abstract class PdfDocument {
 typedef PdfPageLoadingCallback<T> = FutureOr<bool> Function(int currentPageNumber, int totalPageCount, T? data);
 
 /// PDF document event types.
-enum PdfDocumentEventType { pageStatusChanged }
+enum PdfDocumentEventType {
+  /// [PdfDocumentPageStatusChangedEvent]: Page status changed.
+  pageStatusChanged,
+}
 
 /// Base class for PDF document events.
 abstract class PdfDocumentEvent {
@@ -739,10 +742,16 @@ class PdfPageRawText {
 enum PdfPageRotation { none, clockwise90, clockwise180, clockwise270 }
 
 /// Annotation rendering mode.
-/// - [none]: Do not render annotations.
-/// - [annotation]: Render annotations.
-/// - [annotationAndForms]: Render annotations and forms.
-enum PdfAnnotationRenderingMode { none, annotation, annotationAndForms }
+enum PdfAnnotationRenderingMode {
+  /// Do not render annotations.
+  none,
+
+  /// Render annotations.
+  annotation,
+
+  /// Render annotations and forms.
+  annotationAndForms,
+}
 
 /// Flags for [PdfPage.render].
 ///
@@ -965,12 +974,19 @@ class PdfPageText {
 }
 
 /// Text direction in PDF page.
-///
-/// - [ltr]: left to right
-/// - [rtl]: right to left
-/// - [vrtl]: vertical (top to bottom), right to left.
-/// - [unknown]: unknown direction, e.g., no text or no text direction can be determined.
-enum PdfTextDirection { ltr, rtl, vrtl, unknown }
+enum PdfTextDirection {
+  /// Left to Right
+  ltr,
+
+  /// Right to Left
+  rtl,
+
+  /// Vertical (top to bottom), Right to Left.
+  vrtl,
+
+  /// Unknown direction, e.g., no text or no text direction can be determined.
+  unknown,
+}
 
 /// Text fragment in PDF page.
 class PdfPageTextFragment {
