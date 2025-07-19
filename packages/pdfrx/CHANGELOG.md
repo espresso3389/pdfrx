@@ -1,3 +1,8 @@
+# 2.0.0-beta7
+
+- Update to pdfrx_engine 0.1.7
+- IMPROVED: Platform-specific cache directory handling
+
 # 2.0.0-beta6
 
 - BREAKING CHANGE: Changed `loadPagesProgressively` to use named parameter `onPageLoadProgress` for better API clarity

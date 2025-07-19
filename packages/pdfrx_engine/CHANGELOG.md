@@ -1,3 +1,9 @@
+## 0.1.7
+
+- Improve `loadPagesProgressively` API by making `onPageLoadProgress` a named parameter
+- Fix parentheses in premultiplied alpha flag check
+- Improve documentation for enums
+
 ## 0.1.6
 
 - Add premultiplied alpha support with new flag `PdfPageRenderFlags.premultipliedAlpha`
