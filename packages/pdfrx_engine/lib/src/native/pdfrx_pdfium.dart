@@ -741,9 +741,7 @@ class _PdfPagePdfium extends PdfPage {
 
   @override
   Future<String> loadText() async {
-    if (document.isDisposed) {
-      throw StateError('Cannot load text from disposed document.');
-    }
+    if (document.isDisposed) return '';
     return await (await backgroundWorker).compute(
       (params) => using((arena) {
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
@@ -767,9 +765,7 @@ class _PdfPagePdfium extends PdfPage {
 
   @override
   Future<List<PdfRect>> loadTextCharRects() async {
-    if (document.isDisposed) {
-      throw StateError('Cannot load text from disposed document.');
-    }
+    if (document.isDisposed) return [];
     return await (await backgroundWorker).compute(
       (params) => using((arena) {
         final doubleSize = sizeOf<Double>();

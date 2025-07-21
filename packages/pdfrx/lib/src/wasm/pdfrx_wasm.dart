@@ -339,11 +339,11 @@ class _PdfDocumentWasm extends PdfDocument {
     T? data,
     Duration loadUnitDuration = const Duration(milliseconds: 250),
   }) async {
-    if (isDisposed) return;
     int firstPageIndex = pages.indexWhere((page) => !page.isLoaded);
     if (firstPageIndex < 0) return; // All pages are already loaded
 
     for (; firstPageIndex < pages.length;) {
+      if (isDisposed) return;
       final result = await _sendCommand(
         'loadPagesProgressively',
         parameters: {
@@ -429,6 +429,7 @@ class _PdfPageWasm extends PdfPage {
 
   @override
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async {
+    if (document.isDisposed) return [];
     final result = await _sendCommand(
       'loadLinks',
       parameters: {
@@ -460,6 +461,7 @@ class _PdfPageWasm extends PdfPage {
 
   @override
   Future<String> loadText() async {
+    if (document.isDisposed) return '';
     final result = await _sendCommand(
       'loadText',
       parameters: {'docHandle': document.document['docHandle'], 'pageIndex': pageNumber - 1},
@@ -469,6 +471,7 @@ class _PdfPageWasm extends PdfPage {
 
   @override
   Future<List<PdfRect>> loadTextCharRects() async {
+    if (document.isDisposed) return [];
     final result = await _sendCommand(
       'loadTextCharRects',
       parameters: {'docHandle': document.document['docHandle'], 'pageIndex': pageNumber - 1},
@@ -509,6 +512,7 @@ class _PdfPageWasm extends PdfPage {
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
   }) async {
+    if (document.isDisposed) return null;
     fullWidth ??= this.width;
     fullHeight ??= this.height;
     width ??= fullWidth.toInt();
