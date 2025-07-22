@@ -2427,7 +2427,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
   }
 
   @override
-  Future<List<PdfPageTextRange>> getSelectedTextRange() async {
+  Future<List<PdfPageTextRange>> getSelectedTextRanges() async {
     final a = _selA;
     final b = _selB;
     if (a == null || b == null) {
@@ -2452,7 +2452,7 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
 
   @override
   Future<String> getSelectedText() async {
-    final selections = await getSelectedTextRange();
+    final selections = await getSelectedTextRanges();
     if (selections.isEmpty) return '';
     return selections.map((e) => e.text).join();
   }

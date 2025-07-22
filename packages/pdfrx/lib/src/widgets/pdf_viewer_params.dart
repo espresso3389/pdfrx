@@ -845,8 +845,8 @@ abstract class PdfTextSelection {
   /// but you have to ensure that your use of the text does not violate [isCopyAllowed] condition.
   Future<String> getSelectedText();
 
-  /// Get the selected text range.
-  Future<List<PdfPageTextRange>> getSelectedTextRange();
+  /// Get the selected text ranges.
+  Future<List<PdfPageTextRange>> getSelectedTextRanges();
 }
 
 /// Delegate for text selection actions.

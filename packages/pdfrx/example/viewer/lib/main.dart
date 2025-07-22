@@ -320,7 +320,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           textSelectionParams: PdfTextSelectionParams(
                             enabled: true,
                             onTextSelectionChange: (textSelection) async {
-                              textSelections = await textSelection.getSelectedTextRange();
+                              textSelections = await textSelection.getSelectedTextRanges();
                             },
                           ),
                           keyHandlerParams: PdfViewerKeyHandlerParams(
