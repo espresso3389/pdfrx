@@ -1,7 +1,5 @@
 # pdfrx_engine
 
-**PRERELEASE NOTE**: This package is currently in pre-release. The APIs may change before the final release.
-
 [![Build Test](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml/badge.svg)](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml)
 
 [pdfrx_engine](https://pub.dartlang.org/packages/pdfrx_engine) is a platform-agnostic PDF rendering engine built on top of [PDFium](https://pdfium.googlesource.com/pdfium/). It provides low-level PDF document APIs without any Flutter dependencies, making it suitable for use in pure Dart applications, CLI tools, or server-side processing.
