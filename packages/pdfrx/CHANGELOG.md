@@ -1,3 +1,7 @@
+# 2.0.1
+
+- FIXED: Added missing `PdfTextSelectionParams.enabled` property to control text selection functionality
+
 # 2.0.0
 
 This is a major release that introduces significant architectural changes and new features.
