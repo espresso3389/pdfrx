@@ -1,3 +1,7 @@
+## 0.1.9
+
+- Update example to include text extraction functionality
+
 ## 0.1.8
 
 - More consistent behavior on disposed PdfDocument

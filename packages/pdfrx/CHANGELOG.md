@@ -1,3 +1,8 @@
+# 2.0.2
+
+- BREAKING CHANGE: Renamed `PdfTextSelection.getSelectedTextRange()` to `getSelectedTextRanges()` for consistency
+- NEW FEATURE: Added Shift+Space keyboard shortcut to navigate to previous page
+
 # 2.0.1
 
 - FIXED: Added missing `PdfTextSelectionParams.enabled` property to control text selection functionality
