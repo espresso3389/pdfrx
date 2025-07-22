@@ -641,6 +641,7 @@ class PdfViewerParams {
 @immutable
 class PdfTextSelectionParams {
   const PdfTextSelectionParams({
+    this.enabled = true,
     this.textSelectionTriggeredBySwipe,
     this.enableSelectionHandles,
     this.showContextMenuAutomatically,
@@ -653,6 +654,9 @@ class PdfTextSelectionParams {
     this.textSecondaryTapUp,
     this.magnifier,
   });
+
+  /// Whether text selection is enabled.
+  final bool enabled;
 
   /// Whether text selection is triggered by swipe.
   ///

@@ -424,12 +424,23 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
             _contextForFocusNode = context;
             return LayoutBuilder(
               builder: (context, constraints) {
+                final enableTextSelection = widget.params.textSelectionParams?.enabled ?? true;
                 final isCopyTextEnabled = _document!.permissions?.allowsCopying != false;
                 final enableSwipeToSelectText =
                     widget.params.textSelectionParams?.textSelectionTriggeredBySwipe ??
                     PlatformBehaviorDefaults.shouldTextSelectionTriggeredBySwipe;
                 final viewSize = Size(constraints.maxWidth, constraints.maxHeight);
+
                 _updateLayout(viewSize);
+
+                final pages = CustomPaint(
+                  foregroundPainter: _CustomPainter.fromFunctions(
+                    _paintPages,
+                    hitTestFunction: _hitTestForTextSelection,
+                  ),
+                  size: _layout!.documentSize,
+                );
+
                 return Stack(
                   children: [
                     iv.InteractiveViewer(
@@ -447,31 +458,29 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                       interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
                       onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
                       // PDF pages
-                      child: MouseRegion(
-                        cursor: SystemMouseCursors.move,
-                        hitTestBehavior: HitTestBehavior.deferToChild,
-                        child: MouseRegion(
-                          cursor: SystemMouseCursors.text,
-                          hitTestBehavior: HitTestBehavior.deferToChild,
-                          child: GestureDetector(
-                            onTapDown: widget.params.textSelectionParams?.textTap ?? _textTap,
-                            onDoubleTapDown: widget.params.textSelectionParams?.textDoubleTap ?? _textDoubleTap,
-                            onLongPressStart: widget.params.textSelectionParams?.textLongPress ?? _textLongPress,
-                            onSecondaryTapUp:
-                                widget.params.textSelectionParams?.textSecondaryTapUp ?? _textSecondaryTapUp,
-                            onPanStart: enableSwipeToSelectText ? _onTextPanStart : null,
-                            onPanUpdate: enableSwipeToSelectText ? _onTextPanUpdate : null,
-                            onPanEnd: enableSwipeToSelectText ? _onTextPanEnd : null,
-                            child: CustomPaint(
-                              foregroundPainter: _CustomPainter.fromFunctions(
-                                _paintPages,
-                                hitTestFunction: _hitTestForTextSelection,
+                      child:
+                          !enableTextSelection
+                              ? pages
+                              : MouseRegion(
+                                cursor: SystemMouseCursors.move,
+                                hitTestBehavior: HitTestBehavior.deferToChild,
+                                child: MouseRegion(
+                                  cursor: SystemMouseCursors.text,
+                                  hitTestBehavior: HitTestBehavior.deferToChild,
+                                  child: GestureDetector(
+                                    onTapDown: widget.params.textSelectionParams?.textTap ?? _textTap,
+                                    onDoubleTapDown: widget.params.textSelectionParams?.textDoubleTap ?? _textDoubleTap,
+                                    onLongPressStart:
+                                        widget.params.textSelectionParams?.textLongPress ?? _textLongPress,
+                                    onSecondaryTapUp:
+                                        widget.params.textSelectionParams?.textSecondaryTapUp ?? _textSecondaryTapUp,
+                                    onPanStart: enableSwipeToSelectText ? _onTextPanStart : null,
+                                    onPanUpdate: enableSwipeToSelectText ? _onTextPanUpdate : null,
+                                    onPanEnd: enableSwipeToSelectText ? _onTextPanEnd : null,
+                                    child: pages,
+                                  ),
+                                ),
                               ),
-                              size: _layout!.documentSize,
-                            ),
-                          ),
-                        ),
-                      ),
                     ),
                     if (_initialized) ..._buildPageOverlayWidgets(context),
                     if (_initialized && _canvasLinkPainter.isEnabled) _canvasLinkPainter.linkHandlingOverlay(viewSize),
@@ -479,7 +488,8 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
                       ...widget.params.viewerOverlayBuilder!(context, viewSize, _canvasLinkPainter._handleLinkTap).map(
                         (e) => e,
                       ),
-                    if (_initialized) ..._placeTextSelectionWidgets(context, viewSize, isCopyTextEnabled),
+                    if (_initialized && enableTextSelection)
+                      ..._placeTextSelectionWidgets(context, viewSize, isCopyTextEnabled),
                   ],
                 );
               },
