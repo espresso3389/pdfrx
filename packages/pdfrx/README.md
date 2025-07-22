@@ -108,7 +108,7 @@ You can customize the behaviors and the viewer look and feel by configuring [Pdf
 PdfViewer.asset(
   'assets/test.pdf',
   // The easiest way to supply a password
-  passwordProvider: () => 'password',
+  passwordProvider: () => createSimplePasswordProvider('password'),
 
   ...
 ),
@@ -118,14 +118,18 @@ See [Deal with Password Protected PDF Files using PasswordProvider](https://gith
 
 ### Text Selection
 
-The following fragment enables text selection feature:
+The text selection feature is enabled by default, allowing users to select text in the PDF viewer. You can customize the text selection behavior using [PdfTextSelectionParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionParams-class.html).
+
+The following example shows how to disable text selection in the PDF viewer:
 
 ```dart
 PdfViewer.asset(
   'assets/test.pdf',
   params: PdfViewerParams(
-    enableTextSelection: true,
-    ...
+    textSelectionParams: PdfTextSelectionParams(
+      enabled: false,
+      ...
+    ),
   ),
   ...
 ),
