@@ -592,8 +592,11 @@ class _PdfViewerState extends State<PdfViewer> with SingleTickerProviderStateMix
         _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) - 1, duration: duration);
         return true;
       case LogicalKeyboardKey.pageDown:
-      case LogicalKeyboardKey.space:
         _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) + 1, duration: duration);
+        return true;
+      case LogicalKeyboardKey.space:
+        final move = HardwareKeyboard.instance.isShiftPressed ? -1 : 1;
+        _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) + move, duration: duration);
         return true;
       case LogicalKeyboardKey.home:
         _goToPage(pageNumber: 1, duration: duration);
