@@ -347,14 +347,14 @@ packages:
       path: "../.."
       relative: true
     source: path
-    version: "2.0.0-beta7"
+    version: "2.0.0"
   pdfrx_engine:
     dependency: "direct overridden"
     description:
       path: "../../../pdfrx_engine"
       relative: true
     source: path
-    version: "0.1.7"
+    version: "0.1.8"
   petitparser:
     dependency: transitive
     description:

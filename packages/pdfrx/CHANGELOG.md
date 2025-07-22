@@ -1,47 +1,14 @@
-# 2.0.0-beta7
-
-- Update to pdfrx_engine 0.1.7
-- IMPROVED: Platform-specific cache directory handling
-
-# 2.0.0-beta6
-
-- BREAKING CHANGE: Changed `loadPagesProgressively` to use named parameter `onPageLoadProgress` for better API clarity
-- IMPROVED: Enhanced focus management for better keyboard interaction support
-- IMPROVED: Focus is now properly requested on text selection and interaction events
-- IMPROVED: Added comprehensive documentation for enum values in API
-
-# 2.0.0-beta5
-
-- Minor fixes and improvements
-
-# 2.0.0-beta4
-
-- IMPROVED: Enhanced text selection behavior with better Select All functionality
-- FIXED: Corrected operator precedence issue with premultiplied alpha flag check in WASM implementation
-- IMPROVED: Context menu position handling when selecting all text
-- Updated deprecated `withOpacity` to `withValue(alpha:)` for better forward compatibility
-
-# 2.0.0-beta3
-
-- BREAKING CHANGE: Renamed `showContextMenuOnSelectionHandle` to `showContextMenuAutomatically` in `PdfTextSelectionParams` for better clarity
-
-# 2.0.0-beta2
-
-- IMPROVED: Text selection API changed to async with `getSelectedTextRange()` method
-- IMPROVED: Internal stability and performance improvements
-- Updated to use pdfrx_engine 0.1.6 with premultiplied alpha support
-
-# 2.0.0-beta1
+# 2.0.0
 
 This is a major release that introduces significant architectural changes and new features.
 
 - BREAKING CHANGE: Extracted PDF rendering engine into a separate `pdfrx_engine` package that is platform-agnostic
-- NEW FEATURE: Text selection support with native platform UI including:
+- NEW FEATURE/BREAKING CHANGE: Text selection support with native platform UI including:
   - Selection handles with drag support
-  - Magnifier/loupe for precise text selection
+  - Magnifier for precise text selection
   - Context menu with copy functionality
-- IMPROVED: Better separation of concerns between rendering engine and Flutter UI layer
-- IMPROVED: Platform-specific implementations are now more maintainable
+  - Brand-new text selection/text extraction API (not compatible with previous versions)
+- Enhanced focus management for better keyboard interaction support
 
 # 1.3.4
 

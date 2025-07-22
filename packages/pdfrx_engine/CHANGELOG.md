@@ -1,3 +1,7 @@
+## 0.1.8
+
+- More consistent behavior on disposed PdfDocument
+
 ## 0.1.7
 
 - Improve `loadPagesProgressively` API by making `onPageLoadProgress` a named parameter
