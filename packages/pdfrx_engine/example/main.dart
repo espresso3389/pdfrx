@@ -51,9 +51,11 @@ Future<int> main(List<String> args) async {
       pageImage.dispose();
 
       // Save as PNG
-      final outputFile = File('$outputDir/page_$pageNumber.png');
-      await outputFile.writeAsBytes(img.encodePng(image));
-      print('Saved: ${outputFile.path}');
+      final outputImageFile = File('$outputDir/page_$pageNumber.png');
+      await outputImageFile.writeAsBytes(img.encodePng(image));
+
+      final outputTextFile = File('$outputDir/page_$pageNumber.txt');
+      await outputTextFile.writeAsString(await page.loadText());
     }
 
     // Clean up
