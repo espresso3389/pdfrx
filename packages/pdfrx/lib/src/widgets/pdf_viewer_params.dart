@@ -749,58 +749,39 @@ class PdfTextSelectionParams {
 
 /// Function to build the text selection context menu.
 ///
+/// [anchorA], [anchorB] are the offsets of the text selection anchors in the local coordinates, which are normally
+/// directly corresponding to the `primaryAnchor` and `secondaryAnchor` of [TextSelectionToolbarAnchors] if you use
+/// [AdaptiveTextSelectionToolbar.buttonItems].
+///
 /// [a], [b] are the text selection anchors that represent the selected text range.
 ///
 /// [textSelectionDelegate] provides access to the text selection actions such as copy and clear selection.
 /// Please note that the function does not copy the text if [PdfTextSelectionDelegate.isCopyAllowed] is false and
-/// use of [PdfTextSelectionDelegate.selectedText] is also restricted by the same condition.
+/// use of [PdfTextSelectionDelegate.getSelectedText]/[PdfTextSelectionDelegate.getSelectedTextRanges] is also restricted by the same condition.
 ///
 /// [dismissContextMenu] is the function to dismiss the context menu.
 ///
-/// The following fragment is a simple example to build a context menu with copy and select all actions:
+/// The following fragment is a simple example to build a context menu with "Copy" and "Select All" actions:
 ///
 /// ```dart
 /// Widget? _buildTextSelectionContextMenu(
 ///   BuildContext context,
-///   PdfTextSelectionAnchor a,
-///   PdfTextSelectionAnchor b,
+///   Offset anchorA,
+///   Offset? anchorB,
+///   PdfTextSelectionAnchor? a,
+///   PdfTextSelectionAnchor? b,
 ///   PdfTextSelectionDelegate textSelectionDelegate,
 ///   void Function() dismissContextMenu,
 /// ) {
-///   return Container(
-///     decoration: BoxDecoration(
-///       color: Colors.white,
-///       boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8, spreadRadius: 2)],
-///     ),
-///     padding: const EdgeInsets.all(2),
-///     child: Column(
-///       mainAxisSize: MainAxisSize.min,
-///       children: [
-///         RawMaterialButton(
-///           visualDensity: VisualDensity.compact,
-///           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-///           onPressed:
-///               textSelectionDelegate.isCopyAllowed
-///                   ? () {
-///                     if (textSelectionDelegate.isCopyAllowed) {
-///                       textSelectionDelegate.copyTextSelection();
-///                     }
-///                   }
-///                   : null,
-///           child: Text(
-///             'Copy',
-///             style: TextStyle(color: textSelectionDelegate.isCopyAllowed ? Colors.black : Colors.grey),
-///           ),
-///         ),
-///         if (textSelectionDelegate.isCopyAllowed)
-///           RawMaterialButton(
-///             visualDensity: VisualDensity.compact,
-///             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-///             onPressed: () {
-///               textSelectionDelegate.selectAllText();
-///             },
-///             child: const Text('Select All'),
-///           ),
+///   return Align(
+///     alignment: Alignment.topLeft,
+///     child: AdaptiveTextSelectionToolbar.buttonItems(
+///       anchors: TextSelectionToolbarAnchors(primaryAnchor: anchorA, secondaryAnchor: anchorB),
+///       buttonItems: [
+///         if (textSelectionDelegate.isCopyAllowed && textSelectionDelegate.hasSelectedText)
+///           ContextMenuButtonItem(onPressed: () => textSelectionDelegate.copyTextSelection(), label: 'Copy'),
+///         if (!textSelectionDelegate.isSelectingAllText)
+///           ContextMenuButtonItem(onPressed: () => textSelectionDelegate.selectAllText(), label: 'Select All'),
 ///       ],
 ///     ),
 ///   );
@@ -809,8 +790,10 @@ class PdfTextSelectionParams {
 typedef PdfViewerTextSelectionContextMenuBuilder =
     Widget? Function(
       BuildContext context,
-      PdfTextSelectionAnchor a,
-      PdfTextSelectionAnchor b,
+      Offset anchorA,
+      Offset? anchorB,
+      PdfTextSelectionAnchor? a,
+      PdfTextSelectionAnchor? b,
       PdfTextSelectionDelegate textSelectionDelegate,
       void Function() dismissContextMenu,
     );
@@ -835,6 +818,9 @@ typedef PdfViewerTextSelectionChangeCallback = void Function(PdfTextSelection te
 abstract class PdfTextSelection {
   /// Whether the copy action is allowed.
   bool get isCopyAllowed;
+
+  /// Whether the viewer has selected text.
+  bool get hasSelectedText;
 
   /// Whether the viewer is currently selecting all text.
   bool get isSelectingAllText;
@@ -871,6 +857,24 @@ abstract class PdfTextSelectionDelegate implements PdfTextSelection {
   ///
   /// Please note that [position] is in document coordinates.
   Future<void> selectWord(Offset position);
+
+  /// Convert document coordinates to local coordinates and vice versa.
+  DocumentCoordinateConverter get doc2local;
+}
+
+/// Utility class to convert document coordinates to local coordinates and vice versa.
+abstract class DocumentCoordinateConverter {
+  /// Convert a document position to a local position in the specified [context].
+  Offset? offsetToLocal(BuildContext context, Offset? position);
+
+  /// Convert a document rectangle to a local rectangle in the specified [context].
+  Rect? rectToLocal(BuildContext context, Rect? rect);
+
+  /// Convert a local position in the specified [context] to a document position.
+  Offset? offsetToDocument(BuildContext context, Offset? position);
+
+  /// Convert a local rectangle in the specified [context] to a document rectangle.
+  Rect? rectToDocument(BuildContext context, Rect? rect);
 }
 
 /// Parameters for the text selection magnifier.
