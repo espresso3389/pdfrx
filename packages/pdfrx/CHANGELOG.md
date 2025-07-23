@@ -1,3 +1,7 @@
+# 2.0.3
+
+- IMPROVED: Enhanced text selection context menu API with better anchor positioning and adaptive toolbar support
+
 # 2.0.2
 
 - BREAKING CHANGE: Renamed `PdfTextSelection.getSelectedTextRange()` to `getSelectedTextRanges()` for consistency
