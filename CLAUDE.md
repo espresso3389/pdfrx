@@ -91,7 +91,8 @@ Both packages may need to be released when changes are made:
 2. Update `packages/pdfrx_engine/CHANGELOG.md` with changes
    - Don't mention CI/CD changes and `CLAUDE.md` related changes (unless they are significant)
 3. Update `packages/pdfrx_engine/README.md` if needed
-4. Run `dart pub publish` in `packages/pdfrx_engine/`
+4. Update `README.md` on the repo root if needed
+5. Run `dart pub publish` in `packages/pdfrx_engine/`
 
 ### For pdfrx package updates
 
@@ -102,22 +103,23 @@ Both packages may need to be released when changes are made:
    - Changes version in example fragments
    - Consider to add notes for new features or breaking changes
    - Notify the owner if you find any issues with the example app or documentation
-4. Run `melos bootstrap` to update all dependencies
-5. Run tests to ensure everything works
+4. Update `README.md` on the repo root if needed
+5. Run `melos bootstrap` to update all dependencies
+6. Run tests to ensure everything works
    - Run `dart test` in `packages/pdfrx_engine/`
    - Run `flutter test` in `packages/pdfrx/`
-6. Ensure the example app builds correctly
+7. Ensure the example app builds correctly
    - Run `flutter build web --wasm` in `packages/pdfrx/example/viewer` to test the example app
-7. Commit changes with message "Release pdfrx vX.Y.Z" or "Release pdfrx_engine vX.Y.Z"
-8. Tag the commit with `git tag pdfrx-vX.Y.Z` or `git tag pdfrx_engine-vX.Y.Z`
-9. Push changes and tags to remote
-10. Run `flutter pub publish` in `packages/pdfrx/`
-11. If the changes reference GitHub issues or PRs, add comments on them notifying about the new release
+8. Commit changes with message "Release pdfrx vX.Y.Z" or "Release pdfrx_engine vX.Y.Z"
+9. Tag the commit with `git tag pdfrx-vX.Y.Z` or `git tag pdfrx_engine-vX.Y.Z`
+10. Push changes and tags to remote
+11. Run `flutter pub publish` in `packages/pdfrx/`
+12. If the changes reference GitHub issues or PRs, add comments on them notifying about the new release
     - Use `gh issue comment` or `gh pr comment` to notify that the issue/PR has been addressed in the new release
     - If the PR references issues, please also comment on the issues
     - Follow the template below for comments (but modify it as needed):
 
-      ```
+      ```md
       The FIX|UPDATE|SOMETHING for this issue has been released in v[x.y.z](https://pub.dev/packages/pdfrx/versions/x.y.z).
 
       ...Fix/update summary...
