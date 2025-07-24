@@ -1,3 +1,7 @@
+# 2.0.4
+
+- FIXED: GestureDetector for text selection now ignores touchpad events to prevent interference with touch-to-scroll ([#426](https://github.com/espresso3389/pdfrx/issues/426))
+
 # 2.0.3
 
 - IMPROVED: Enhanced text selection context menu API with better anchor positioning and adaptive toolbar support
