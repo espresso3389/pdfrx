@@ -488,6 +488,12 @@ class _PdfViewerState extends State<PdfViewer>
                                         onPanStart: enableSwipeToSelectText ? _onTextPanStart : null,
                                         onPanUpdate: enableSwipeToSelectText ? _onTextPanUpdate : null,
                                         onPanEnd: enableSwipeToSelectText ? _onTextPanEnd : null,
+                                        supportedDevices: {
+                                          PointerDeviceKind.mouse,
+                                          PointerDeviceKind.stylus,
+                                          PointerDeviceKind.touch,
+                                          PointerDeviceKind.invertedStylus,
+                                        },
                                         child: pages,
                                       ),
                                     ),
