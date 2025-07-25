@@ -24,17 +24,3 @@ Future<String> getCacheDirectory() async => throw UnimplementedError('No tempora
 PdfDocumentFactory? get pdfDocumentFactoryOverride => _factoryWasm;
 
 final _factoryWasm = PdfDocumentFactoryWasmImpl();
-
-abstract class PlatformBehaviorDefaults {
-  /// Whether text selection should be triggered by swipe gestures or not.
-  static bool get shouldTextSelectionTriggeredBySwipe => false;
-
-  /// Whether to show text selection handles.
-  static bool get shouldShowTextSelectionHandles => true;
-
-  /// Whether to automatically show context menu on text selection.
-  static bool get showContextMenuAutomatically => true;
-
-  /// Whether to show text selection magnifier.
-  static bool get shouldShowTextSelectionMagnifier => true;
-}

@@ -24,17 +24,3 @@ Future<String> getCacheDirectory() async => (await getTemporaryDirectory()).path
 
 /// Override for the [PdfDocumentFactory] for native platforms; it is null.
 PdfDocumentFactory? get pdfDocumentFactoryOverride => null;
-
-abstract class PlatformBehaviorDefaults {
-  /// Whether text selection should be triggered by swipe gestures or not.
-  static bool get shouldTextSelectionTriggeredBySwipe => !isMobile;
-
-  /// Whether to show text selection handles.
-  static bool get shouldShowTextSelectionHandles => isMobile;
-
-  /// Whether to automatically show context menu on text selection.
-  static bool get showContextMenuAutomatically => isMobile;
-
-  /// Whether to show text selection magnifier.
-  static bool get shouldShowTextSelectionMagnifier => isMobile;
-}
