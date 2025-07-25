@@ -1,4 +1,0 @@
-# melos_managed_dependency_overrides: pdfrx_engine
-dependency_overrides:
-  pdfrx_engine:
-    path: ../pdfrx_engine
