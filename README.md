@@ -35,7 +35,7 @@ Add `pdfrx` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.0.4
+  pdfrx: ^2.1.0
 ```
 
 ### For Pure Dart Applications

@@ -1,3 +1,14 @@
+# 2.1.0
+
+- BREAKING CHANGE: Text selection handles are now automatically shown/hidden based on the pointing device type used
+  - Touch input shows selection handles for precise control
+  - Non-touch input hides handles for cleaner interaction
+  - Removing some of text selection related parameters to simplify the API
+- BREAKING CHANGE: Now context menu is not only for text selection but also for general tap events
+  - `PdfViewerParams.buildContextMenu` and `PdfViewerParams.customizeContextMenuItems` to customize context menu
+  - Introduces `PdfViewerContextMenuBuilderParams` (many context menu related parameters are moved to this class)
+- BREAKING CHANGE: Tap handler functions are integrated into `PdfViewerParams.onGeneralTap` for better consistency
+  
 # 2.0.4
 
 - FIXED: GestureDetector for text selection now ignores touchpad events to prevent interference with touch-to-scroll ([#426](https://github.com/espresso3389/pdfrx/issues/426))
