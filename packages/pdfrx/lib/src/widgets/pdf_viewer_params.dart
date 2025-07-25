@@ -38,6 +38,8 @@ class PdfViewerParams {
     this.onInteractionStart,
     this.onInteractionUpdate,
     this.interactionEndFrictionCoefficient = _kDrag,
+    this.onSecondaryTapUp,
+    this.onLongPressStart,
     this.onDocumentChanged,
     this.calculateInitialPageNumber,
     this.calculateInitialZoom,
@@ -61,6 +63,9 @@ class PdfViewerParams {
     this.linkWidgetBuilder,
     this.pagePaintCallbacks,
     this.pageBackgroundPaintCallbacks,
+    this.onGeneralTap,
+    this.buildContextMenu,
+    this.customizeContextMenuItems,
     this.onKey,
     this.keyHandlerParams = const PdfViewerKeyHandlerParams(),
     this.behaviorControlParams = const PdfViewerBehaviorControlParams(),
@@ -233,6 +238,16 @@ class PdfViewerParams {
 
   /// See [InteractiveViewer.interactionEndFrictionCoefficient] for details.
   final double interactionEndFrictionCoefficient;
+
+  /// Function to call when the text is secondary tapped (right-click).
+  ///
+  /// By default, secondary tap on non-text area to open text context menu.
+  final void Function(TapUpDetails details)? onSecondaryTapUp;
+
+  /// Function to call when the text is long pressed.
+  ///
+  /// By default, long press on non-text area to open text context menu.
+  final void Function(LongPressStartDetails details)? onLongPressStart;
 
   // Used as the coefficient of friction in the inertial translation animation.
   // This value was eyeballed to give a feel similar to Google Photos.
@@ -475,6 +490,31 @@ class PdfViewerParams {
   /// For the detail usage, see [PdfViewerPagePaintCallback].
   final List<PdfViewerPagePaintCallback>? pageBackgroundPaintCallbacks;
 
+  /// Function to handle general tap events.
+  ///
+  /// This function is called when the user taps on the viewer.
+  /// It can be used to handle general tap events such as single tap, double tap, long press, etc.
+  /// The function returns true if it processes the tap; otherwise, returns false.
+  ///
+  /// When the function returns true, the tap is considered handled and the viewer does not process it further.
+  final PdfViewerGeneralTapHandler? onGeneralTap;
+
+  /// Function to build context menu.
+  ///
+  /// - If the function returns null, no context menu is shown.
+  /// - If the function is null, the default context menu will be used.
+  ///
+  /// When you implement the function, you should consider whether to call [customizeContextMenuItems] internally
+  /// or not according to your use case.
+  final PdfViewerContextMenuBuilder? buildContextMenu;
+
+  /// Function to customize the context menu items.
+  ///
+  /// This function is called when the context menu is built and can be used to customize the context menu items.
+  /// This function may not be called if the context menu is build using [buildContextMenu]. [buildContextMenu] is
+  /// responsible for building the context menu items (i.e. it should decide whether to call this function internally or not)
+  final PdfViewerContextMenuUpdateMenuItemsFunction? customizeContextMenuItems;
+
   /// Function to handle key events.
   ///
   /// See [PdfViewerOnKeyCallback] for the details.
@@ -555,6 +595,8 @@ class PdfViewerParams {
         other.onInteractionStart == onInteractionStart &&
         other.onInteractionUpdate == onInteractionUpdate &&
         other.interactionEndFrictionCoefficient == interactionEndFrictionCoefficient &&
+        other.onSecondaryTapUp == onSecondaryTapUp &&
+        other.onLongPressStart == onLongPressStart &&
         other.onDocumentChanged == onDocumentChanged &&
         other.calculateInitialPageNumber == calculateInitialPageNumber &&
         other.calculateInitialZoom == calculateInitialZoom &&
@@ -577,6 +619,9 @@ class PdfViewerParams {
         other.linkWidgetBuilder == linkWidgetBuilder &&
         other.pagePaintCallbacks == pagePaintCallbacks &&
         other.pageBackgroundPaintCallbacks == pageBackgroundPaintCallbacks &&
+        other.onGeneralTap == onGeneralTap &&
+        other.buildContextMenu == buildContextMenu &&
+        other.customizeContextMenuItems == customizeContextMenuItems &&
         other.onKey == onKey &&
         other.keyHandlerParams == keyHandlerParams &&
         other.behaviorControlParams == behaviorControlParams &&
@@ -608,6 +653,8 @@ class PdfViewerParams {
         onInteractionStart.hashCode ^
         onInteractionUpdate.hashCode ^
         interactionEndFrictionCoefficient.hashCode ^
+        onSecondaryTapUp.hashCode ^
+        onLongPressStart.hashCode ^
         onDocumentChanged.hashCode ^
         calculateInitialPageNumber.hashCode ^
         calculateInitialZoom.hashCode ^
@@ -630,6 +677,9 @@ class PdfViewerParams {
         linkWidgetBuilder.hashCode ^
         pagePaintCallbacks.hashCode ^
         pageBackgroundPaintCallbacks.hashCode ^
+        onGeneralTap.hashCode ^
+        buildContextMenu.hashCode ^
+        customizeContextMenuItems.hashCode ^
         onKey.hashCode ^
         keyHandlerParams.hashCode ^
         behaviorControlParams.hashCode ^
@@ -642,44 +692,28 @@ class PdfViewerParams {
 class PdfTextSelectionParams {
   const PdfTextSelectionParams({
     this.enabled = true,
-    this.textSelectionTriggeredBySwipe,
     this.enableSelectionHandles,
     this.showContextMenuAutomatically,
-    this.buildContextMenu,
     this.buildSelectionHandle,
     this.onTextSelectionChange,
-    this.textTap,
-    this.textDoubleTap,
-    this.textLongPress,
-    this.textSecondaryTapUp,
     this.magnifier,
   });
 
   /// Whether text selection is enabled.
   final bool enabled;
 
-  /// Whether text selection is triggered by swipe.
+  /// Whether to use selection handles or not.
   ///
-  /// null to determine the behavior based on the platform; enabled on desktop, disabled on mobile/Web.
-  final bool? textSelectionTriggeredBySwipe;
-
-  /// Whether to show selection handles.
-  ///
-  /// null to determine the behavior based on the platform; enabled on mobile/Web, disabled on desktop.
+  /// If true, drag-to-select is disabled and only the selection handles are used to select text.
+  /// null to determine the behavior based on pointing device.
   final bool? enableSelectionHandles;
 
   /// Whether to automatically show context menu on text selection.
   ///
   /// Normally, on desktop, the context menu is shown on right-click.
   /// If this is true, the context menu is shown on selection handle.
-  /// null to determine the behavior based on the platform; enabled on mobile/Web, disabled on desktop.
+  /// null to determine the behavior based on pointing device.
   final bool? showContextMenuAutomatically;
-
-  /// Function to build context menu for text selection.
-  ///
-  /// - If the function returns null, no context menu is shown.
-  /// - If the function is null, the default context menu will be used.
-  final PdfViewerTextSelectionContextMenuBuilder? buildContextMenu;
 
   /// Function to build anchor handle for text selection.
   ///
@@ -690,28 +724,6 @@ class PdfTextSelectionParams {
   /// Function to be notified when the text selection is changed.
   final PdfViewerTextSelectionChangeCallback? onTextSelectionChange;
 
-  /// Function to call when the text is tapped.
-  ///
-  /// By default, tapping on the text resets the text selection.
-  /// You can set empty function to disable the default behavior.
-  final void Function(TapDownDetails details)? textTap;
-
-  /// Function to call when the text is double tapped.
-  ///
-  /// By default, double tapping on the text do nothing.
-  final void Function(TapDownDetails details)? textDoubleTap;
-
-  /// Function to call when the text is long pressed.
-  ///
-  /// By default, long pressing on the text selects the word under the pointer.
-  /// You can set empty function to disable the default behavior.
-  final void Function(LongPressStartDetails details)? textLongPress;
-
-  /// Function to call when the text is secondary tapped (right-click).
-  ///
-  /// By default, secondary tap on the text open the context menu.
-  final void Function(TapUpDetails details)? textSecondaryTapUp;
-
   /// Parameters for the magnifier.
   final PdfViewerSelectionMagnifierParams? magnifier;
 
@@ -719,14 +731,8 @@ class PdfTextSelectionParams {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is PdfTextSelectionParams &&
-        other.textSelectionTriggeredBySwipe == textSelectionTriggeredBySwipe &&
-        other.buildContextMenu == buildContextMenu &&
         other.buildSelectionHandle == buildSelectionHandle &&
         other.onTextSelectionChange == onTextSelectionChange &&
-        other.textTap == textTap &&
-        other.textDoubleTap == textDoubleTap &&
-        other.textLongPress == textLongPress &&
-        other.textSecondaryTapUp == textSecondaryTapUp &&
         other.enableSelectionHandles == enableSelectionHandles &&
         other.showContextMenuAutomatically == showContextMenuAutomatically &&
         other.magnifier == magnifier;
@@ -734,20 +740,62 @@ class PdfTextSelectionParams {
 
   @override
   int get hashCode =>
-      textSelectionTriggeredBySwipe.hashCode ^
-      buildContextMenu.hashCode ^
       buildSelectionHandle.hashCode ^
       onTextSelectionChange.hashCode ^
-      textTap.hashCode ^
-      textDoubleTap.hashCode ^
-      textLongPress.hashCode ^
-      textSecondaryTapUp.hashCode ^
       enableSelectionHandles.hashCode ^
       showContextMenuAutomatically.hashCode ^
       magnifier.hashCode;
 }
 
 /// Function to build the text selection context menu.
+///
+/// The following fragment is a simple example to build a context menu with "Copy" and "Select All" actions:
+///
+/// ```dart
+/// Widget? _buildTextSelectionContextMenu(
+///   BuildContext context,
+///   PdfViewerTextSelectionContextMenuBuilderParams params,
+/// ) {
+///
+///   final items = [
+///     if (params.isTextSelectionEnabled &&
+///         params.textSelectionDelegate.isCopyAllowed &&
+///         params.textSelectionDelegate.hasSelectedText)
+///       ContextMenuButtonItem(
+///         onPressed: () => params.textSelectionDelegate.copyTextSelection(),
+///         label: 'Copy',
+///         type: ContextMenuButtonType.copy,
+///       ),
+///     if (params.isTextSelectionEnabled && !params.textSelectionDelegate.isSelectingAllText)
+///       ContextMenuButtonItem(
+///         onPressed: () => params.textSelectionDelegate.selectAllText(),
+///         label: 'Select All',
+///         type: ContextMenuButtonType.selectAll,
+///       ),
+///   ];
+///
+///   widget.params.customizeContextMenuItems?.call(params, items);
+///
+///   if (items.isEmpty) {
+///     return null;
+///   }
+///
+///   return Align(
+///     alignment: Alignment.topLeft,
+///     child: AdaptiveTextSelectionToolbar.buttonItems(
+///       anchors: TextSelectionToolbarAnchors(primaryAnchor: params.anchorA, secondaryAnchor: params.anchorB),
+///       buttonItems: items,
+///     ),
+///   );
+/// }
+///
+/// See [PdfViewerParams.customizeContextMenuItems] for more.
+typedef PdfViewerContextMenuBuilder = Widget? Function(BuildContext context, PdfViewerContextMenuBuilderParams params);
+
+typedef PdfViewerContextMenuUpdateMenuItemsFunction =
+    void Function(PdfViewerContextMenuBuilderParams params, List<ContextMenuButtonItem> items);
+
+/// Parameters for the text selection context menu builder.
 ///
 /// [anchorA], [anchorB] are the offsets of the text selection anchors in the local coordinates, which are normally
 /// directly corresponding to the `primaryAnchor` and `secondaryAnchor` of [TextSelectionToolbarAnchors] if you use
@@ -760,43 +808,53 @@ class PdfTextSelectionParams {
 /// use of [PdfTextSelectionDelegate.getSelectedText]/[PdfTextSelectionDelegate.getSelectedTextRanges] is also restricted by the same condition.
 ///
 /// [dismissContextMenu] is the function to dismiss the context menu.
-///
-/// The following fragment is a simple example to build a context menu with "Copy" and "Select All" actions:
-///
-/// ```dart
-/// Widget? _buildTextSelectionContextMenu(
-///   BuildContext context,
-///   Offset anchorA,
-///   Offset? anchorB,
-///   PdfTextSelectionAnchor? a,
-///   PdfTextSelectionAnchor? b,
-///   PdfTextSelectionDelegate textSelectionDelegate,
-///   void Function() dismissContextMenu,
-/// ) {
-///   return Align(
-///     alignment: Alignment.topLeft,
-///     child: AdaptiveTextSelectionToolbar.buttonItems(
-///       anchors: TextSelectionToolbarAnchors(primaryAnchor: anchorA, secondaryAnchor: anchorB),
-///       buttonItems: [
-///         if (textSelectionDelegate.isCopyAllowed && textSelectionDelegate.hasSelectedText)
-///           ContextMenuButtonItem(onPressed: () => textSelectionDelegate.copyTextSelection(), label: 'Copy'),
-///         if (!textSelectionDelegate.isSelectingAllText)
-///           ContextMenuButtonItem(onPressed: () => textSelectionDelegate.selectAllText(), label: 'Select All'),
-///       ],
-///     ),
-///   );
-/// }
-/// ```
-typedef PdfViewerTextSelectionContextMenuBuilder =
-    Widget? Function(
-      BuildContext context,
-      Offset anchorA,
-      Offset? anchorB,
-      PdfTextSelectionAnchor? a,
-      PdfTextSelectionAnchor? b,
-      PdfTextSelectionDelegate textSelectionDelegate,
-      void Function() dismissContextMenu,
-    );
+class PdfViewerContextMenuBuilderParams {
+  const PdfViewerContextMenuBuilderParams({
+    required this.isTextSelectionEnabled,
+    required this.anchorA,
+    required this.textSelectionDelegate,
+    required this.dismissContextMenu,
+    required this.contextMenuFor,
+    this.anchorB,
+    this.a,
+    this.b,
+  });
+
+  final bool isTextSelectionEnabled;
+
+  /// The primary anchor offset in the local coordinates.
+  final Offset anchorA;
+
+  /// The secondary anchor offset in the local coordinates.
+  final Offset? anchorB;
+
+  /// The primary text selection anchor.
+  final PdfTextSelectionAnchor? a;
+
+  /// The secondary text selection anchor.
+  final PdfTextSelectionAnchor? b;
+
+  /// The text selection delegate to access text selection actions.
+  final PdfTextSelectionDelegate textSelectionDelegate;
+
+  /// For what target part the context menu will be built.
+  final PdfViewerPart contextMenuFor;
+
+  /// Function to dismiss the context menu.
+  final void Function() dismissContextMenu;
+}
+
+/// Where the user taps on.
+enum PdfViewerPart {
+  /// Selected text.
+  selectedText,
+
+  /// Non-selected text.
+  nonSelectedText,
+
+  /// Background (it means either page area or outside of page area).
+  background,
+}
 
 /// State of the text selection anchor handle.
 enum PdfViewerTextSelectionAnchorHandleState { normal, hover, dragging }
@@ -816,6 +874,11 @@ typedef PdfViewerTextSelectionChangeCallback = void Function(PdfTextSelection te
 
 /// Text selection
 abstract class PdfTextSelection {
+  /// Whether the text selection is enabled by the configuration.
+  ///
+  /// See [PdfTextSelectionParams.enabled].
+  bool get isTextSelectionEnabled;
+
   /// Whether the copy action is allowed.
   bool get isCopyAllowed;
 
@@ -894,7 +957,7 @@ class PdfViewerSelectionMagnifierParams {
 
   /// Whether the magnifier is enabled.
   ///
-  /// If null, the magnifier is enabled by default on mobile/web and disabled on desktop.
+  /// null to determine the behavior based on pointing device.
   final bool? enabled;
 
   /// If the character size (in pt.) is smaller than this value, the magnifier will be shown.
@@ -1101,6 +1164,42 @@ typedef PdfViewerOverlaysBuilder =
 /// typically it is [GestureDetector.onTapUp]'s [TapUpDetails.localPosition].
 typedef PdfViewerHandleLinkTap = bool Function(Offset position);
 
+/// Function to handle tap events.
+///
+/// This function is called when the user taps on the viewer.
+/// It can be used to handle general tap events such as single tap, double tap, long press, etc.
+/// The function returns true if it processes the tap; otherwise, returns false.
+///
+/// When the function returns true, the tap is considered handled and the viewer does not process it further.
+typedef PdfViewerGeneralTapHandler =
+    bool Function(BuildContext context, PdfViewerController controller, PdfViewerGeneralTapHandlerDetails details);
+
+/// Describes the type of the tap.
+class PdfViewerGeneralTapHandlerDetails {
+  const PdfViewerGeneralTapHandlerDetails({
+    required this.localPosition,
+    required this.documentPosition,
+    required this.type,
+    required this.tapOn,
+  });
+
+  /// The global position of the tap.
+  final Offset localPosition;
+
+  /// The document position of the tap.
+  final Offset documentPosition;
+
+  /// The type of the tap.
+  ///
+  /// This is used to determine the type of the tap, such as single tap, double tap, long press, etc.
+  final PdfViewerGeneralTapType type;
+
+  /// Where the tap is occurred on.
+  ///
+  /// This is used to determine where the tap is occurred, such as on selected text, non-selected text, or background.
+  final PdfViewerPart tapOn;
+}
+
 /// Function to build page overlays.
 ///
 /// [pageRect] is the rectangle of the page in the viewer.
@@ -1294,6 +1393,20 @@ class PdfViewerKeyHandlerParams {
       canRequestFocus.hashCode ^
       focusNode.hashCode ^
       parentNode.hashCode;
+}
+
+enum PdfViewerGeneralTapType {
+  /// Tap gesture.
+  tap,
+
+  /// Double tap gesture.
+  doubleTap,
+
+  /// Long press gesture.
+  longPress,
+
+  /// Secondary tap gesture.
+  secondaryTap,
 }
 
 /// Parameters to customize the behavior of the PDF viewer.
