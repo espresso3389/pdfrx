@@ -370,6 +370,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   void dispose() {
+    focusReportForPreventingContextMenuWeb(this, false);
     _documentSubscription?.cancel();
     _textSelectionChangedDebounceTimer?.cancel();
     _interactionEndedTimer?.cancel();
@@ -423,6 +424,7 @@ class _PdfViewerState extends State<PdfViewer>
       color: widget.params.backgroundColor,
       child: PdfViewerKeyHandler(
         onKeyRepeat: _onKey,
+        onFocusChange: (hasFocus) => focusReportForPreventingContextMenuWeb(this, hasFocus),
         params: widget.params.keyHandlerParams,
         child: StreamBuilder(
           stream: _updateStream,

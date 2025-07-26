@@ -29,6 +29,8 @@ void pdfrxFlutterInitialize() {
   };
   Pdfrx.getCacheDirectory ??= getCacheDirectory;
 
+  platformInitialize();
+
   // Checking pdfium.wasm availability for Web and debug builds.
   if (kDebugMode) {
     () async {

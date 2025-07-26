@@ -1,3 +1,6 @@
+import 'dart:js_interop';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:web/web.dart' as web;
 
@@ -24,3 +27,35 @@ Future<String> getCacheDirectory() async => throw UnimplementedError('No tempora
 PdfDocumentFactory? get pdfDocumentFactoryOverride => _factoryWasm;
 
 final _factoryWasm = PdfDocumentFactoryWasmImpl();
+
+final _focusObject = <Object>{};
+
+/// Initializes the Pdfrx library for Web.
+///
+/// For Web, this function currently setup "contextmenu" event listener to prevent the default context menu from
+/// appearing on right-click.
+void platformInitialize() {
+  web.document.addEventListener(
+    'contextmenu',
+    ((web.Event event) {
+      // Prevent the default context menu from appearing on right-click.
+      if (_focusObject.isNotEmpty) {
+        debugPrint('pdfrx: Context menu event prevented because PdfViewer has focus.');
+        event.preventDefault();
+      } else {
+        debugPrint('pdfrx: Context menu event allowed.');
+      }
+    }).toJS,
+  );
+}
+
+/// Reports focus changes for the Web platform to handle right-click context menus.
+///
+/// For native platforms, this function does nothing.
+void focusReportForPreventingContextMenuWeb(Object viewer, bool hasFocus) {
+  if (hasFocus) {
+    _focusObject.add(viewer);
+  } else {
+    _focusObject.remove(viewer);
+  }
+}

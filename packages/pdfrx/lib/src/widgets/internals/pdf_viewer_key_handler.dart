@@ -9,12 +9,19 @@ import '../../../pdfrx.dart';
 
 /// A widget that handles key events for the PDF viewer.
 class PdfViewerKeyHandler extends StatefulWidget {
-  const PdfViewerKeyHandler({required this.child, required this.onKeyRepeat, required this.params, super.key});
+  const PdfViewerKeyHandler({
+    required this.child,
+    required this.onKeyRepeat,
+    required this.params,
+    this.onFocusChange,
+    super.key,
+  });
 
   /// Called on every key repeat.
   ///
   /// See [PdfViewerOnKeyCallback] for the parameters.
   final bool Function(PdfViewerKeyHandlerParams, LogicalKeyboardKey, bool) onKeyRepeat;
+  final ValueChanged<bool>? onFocusChange;
   final PdfViewerKeyHandlerParams params;
   final Widget child;
 
@@ -57,6 +64,7 @@ class _PdfViewerKeyHandlerState extends State<PdfViewerKeyHandler> {
       parentNode: widget.params.parentNode,
       autofocus: widget.params.autofocus,
       canRequestFocus: widget.params.canRequestFocus,
+      onFocusChange: widget.onFocusChange,
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent) {
           // Key pressed down

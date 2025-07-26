@@ -24,3 +24,13 @@ Future<String> getCacheDirectory() async => (await getTemporaryDirectory()).path
 
 /// Override for the [PdfDocumentFactory] for native platforms; it is null.
 PdfDocumentFactory? get pdfDocumentFactoryOverride => null;
+
+/// Initializes the Pdfrx library for native platforms.
+///
+/// This function is here to maintain a consistent API with web and other platforms.
+void platformInitialize() {}
+
+/// Reports focus changes for the Web platform to handle right-click context menus.
+///
+/// For native platforms, this function does nothing.
+void focusReportForPreventingContextMenuWeb(Object viewer, bool hasFocus) {}
