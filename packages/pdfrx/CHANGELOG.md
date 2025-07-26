@@ -1,3 +1,8 @@
+# 2.1.2
+
+- FIXED: Prevent right-click context menu from showing on Flutter Web
+- Update pdfrx_engine dependency to 0.1.11
+
 # 2.1.1
 
 - Update pdfrx_engine dependency to 0.1.10 for WASM compatibility improvements
