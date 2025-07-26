@@ -1,3 +1,7 @@
+## 0.1.11
+
+- Make PdfiumDownloader class private to native implementation
+
 ## 0.1.10
 
 - Add mock pdfrxInitialize implementation for WASM compatibility to address pub.dev analyzer complaints
