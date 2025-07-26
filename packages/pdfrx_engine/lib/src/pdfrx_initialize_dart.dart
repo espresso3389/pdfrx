@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:archive/archive_io.dart';
+import 'package:http/http.dart' as http;
+
 import '../pdfrx_engine.dart';
-import 'pdfium_downloader.dart';
 
 bool _isInitialized = false;
 
@@ -18,7 +20,7 @@ bool _isInitialized = false;
 /// For Flutter, you should call `pdfrxFlutterInitialize` instead of the function.
 Future<void> pdfrxInitialize({
   String? tmpPath,
-  String? pdfiumRelease = PdfiumDownloader.pdfrxCurrentPdfiumRelease,
+  String? pdfiumRelease = _PdfiumDownloader.pdfrxCurrentPdfiumRelease,
 }) async {
   if (_isInitialized) return;
 
@@ -33,8 +35,70 @@ Future<void> pdfrxInitialize({
 
   if (!File(Pdfrx.pdfiumModulePath!).existsSync()) {
     pdfiumPath.createSync(recursive: true);
-    Pdfrx.pdfiumModulePath = await PdfiumDownloader.downloadAndGetPdfiumModulePath(pdfiumPath.path);
+    Pdfrx.pdfiumModulePath = await _PdfiumDownloader.downloadAndGetPdfiumModulePath(pdfiumPath.path);
   }
 
   _isInitialized = true;
+}
+
+/// PdfiumDownloader is a utility class to download the Pdfium module for various platforms.
+class _PdfiumDownloader {
+  _PdfiumDownloader._();
+
+  /// The release of pdfium to download.
+  static const pdfrxCurrentPdfiumRelease = 'chromium%2F7202';
+
+  /// Downloads the pdfium module for the current platform and architecture.
+  ///
+  /// Currently, the following platforms are supported:
+  /// - Windows x64
+  /// - Linux x64, arm64
+  /// - macOS x64, arm64
+  ///
+  /// The binaries are downloaded from https://github.com/bblanchon/pdfium-binaries.
+  static Future<String> downloadAndGetPdfiumModulePath(
+    String tmpPath, {
+    String? pdfiumRelease = pdfrxCurrentPdfiumRelease,
+  }) async {
+    final pa = RegExp(r'"([^_]+)_([^_]+)"').firstMatch(Platform.version)!;
+    final platform = pa[1]!;
+    final arch = pa[2]!;
+    if (platform == 'windows' && arch == 'x64') {
+      return await downloadPdfium(tmpPath, 'win', arch, 'bin/pdfium.dll', pdfiumRelease);
+    }
+    if (platform == 'linux' && (arch == 'x64' || arch == 'arm64')) {
+      return await downloadPdfium(tmpPath, platform, arch, 'lib/libpdfium.so', pdfiumRelease);
+    }
+    if (platform == 'macos') {
+      return await downloadPdfium(tmpPath, 'mac', arch, 'lib/libpdfium.dylib', pdfiumRelease);
+    } else {
+      throw Exception('Unsupported platform: $platform-$arch');
+    }
+  }
+
+  /// Downloads the pdfium module for the given platform and architecture.
+  static Future<String> downloadPdfium(
+    String tmpRoot,
+    String platform,
+    String arch,
+    String modulePath,
+    String? pdfiumRelease,
+  ) async {
+    final tmpDir = Directory('$tmpRoot/$platform-$arch');
+    final targetPath = '${tmpDir.path}/$modulePath';
+    if (await File(targetPath).exists()) return targetPath;
+
+    final uri =
+        'https://github.com/bblanchon/pdfium-binaries/releases/download/$pdfiumRelease/pdfium-$platform-$arch.tgz';
+    final tgz = await http.Client().get(Uri.parse(uri));
+    if (tgz.statusCode != 200) {
+      throw Exception('Failed to download pdfium: $uri');
+    }
+    final archive = TarDecoder().decodeBytes(GZipDecoder().decodeBytes(tgz.bodyBytes));
+    try {
+      await tmpDir.delete(recursive: true);
+    } catch (_) {}
+    await extractArchiveToDisk(archive, tmpDir.path);
+    return targetPath;
+  }
 }
