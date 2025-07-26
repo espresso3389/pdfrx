@@ -1,3 +1,7 @@
+# 2.1.1
+
+- Update pdfrx_engine dependency to 0.1.10 for WASM compatibility improvements
+
 # 2.1.0
 
 - BREAKING CHANGE: Text selection handles are now automatically shown/hidden based on the pointing device type used
