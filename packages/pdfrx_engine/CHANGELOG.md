@@ -1,3 +1,7 @@
+## 0.1.10
+
+- Add mock pdfrxInitialize implementation for WASM compatibility to address pub.dev analyzer complaints
+
 ## 0.1.9
 
 - Update example to include text extraction functionality
