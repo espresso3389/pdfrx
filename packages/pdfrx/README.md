@@ -135,13 +135,18 @@ PdfViewer.asset(
 ),
 ```
 
-For more text selection customization, see [Text Selection](https://github.com/espresso3389/pdfrx/wiki/Text-Selection).
+The text selection feature supports various customizations, such as:
+
+- Context Menu Customization using [PdfViewerParams.buildContextMenu](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/buildContextMenu.html)
+- Text Selection Magnifier Customization using [PdfTextSelectionParams.magnifier](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionParams/magnifier.html)
+
+For more text selection customization, see [Text Selection](https://github.com/espresso3389/pdfrx/wiki/%5B2.1.X%5D-Text-Selection).
 
 ### PDF Feature Support
 
 - [PDF Link Handling](https://github.com/espresso3389/pdfrx/wiki/PDF-Link-Handling)
 - [Document Outline (a.k.a Bookmarks)](https://github.com/espresso3389/pdfrx/wiki/Document-Outline-(a.k.a-Bookmarks))
-- [Text Search](https://github.com/espresso3389/pdfrx/wiki/Text-Search)
+- [Text Search](https://github.com/espresso3389/pdfrx/wiki/%5B2.1.X%5D-Text-Search)
 
 ### Viewer Customization
 

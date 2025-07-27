@@ -788,6 +788,7 @@ class PdfTextSelectionParams {
 ///     ),
 ///   );
 /// }
+/// ```
 ///
 /// See [PdfViewerParams.customizeContextMenuItems] for more.
 typedef PdfViewerContextMenuBuilder = Widget? Function(BuildContext context, PdfViewerContextMenuBuilderParams params);
