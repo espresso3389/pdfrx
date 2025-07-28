@@ -227,6 +227,7 @@ class PdfTextSearcher extends Listenable {
     );
     controller?.setCurrentPageNumber(match.pageNumber);
     controller?.invalidate();
+    notifyListeners();
   }
 
   /// Get the matches range for the given page number.
@@ -242,6 +243,7 @@ class PdfTextSearcher extends Listenable {
     if (index < 0 || index >= _matches.length) return -1;
     _currentIndex = index;
     await goToMatch(_matches[index]);
+    notifyListeners();
     return index;
   }
 
