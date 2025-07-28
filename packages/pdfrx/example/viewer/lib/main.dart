@@ -443,6 +443,11 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                             outline.value = await document.loadOutline();
                             textSearcher.value = PdfTextSearcher(controller)..addListener(_update);
                             controller.requestFocus();
+                            controller.document.events.listen((event) {
+                              if (event is PdfDocumentMissingFontsEvent) {
+                                debugPrint('Missing fonts: ${event.missingFonts.map((f) => f.face).join(', ')}');
+                              }
+                            });
                           },
                         ),
                       );

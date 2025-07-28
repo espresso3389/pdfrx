@@ -18,11 +18,11 @@ extension type _PdfiumWasmCommunicator(JSObject _) implements JSObject {
 
   /// Registers a callback function and returns its ID
   @JS('registerCallback')
-  external int _registerCallback(JSFunction callback);
+  external int registerCallback(JSFunction callback);
 
   /// Unregisters a callback by its ID
   @JS('unregisterCallback')
-  external void _unregisterCallback(int callbackId);
+  external void unregisterCallback(int callbackId);
 }
 
 /// Get the global PdfiumWasmCommunicator instance
@@ -32,14 +32,14 @@ external _PdfiumWasmCommunicator get _pdfiumWasmCommunicator;
 /// A handle to a registered callback that can be unregistered
 class _PdfiumWasmCallback {
   _PdfiumWasmCallback.register(JSFunction callback)
-    : id = _pdfiumWasmCommunicator._registerCallback(callback),
+    : id = _pdfiumWasmCommunicator.registerCallback(callback),
       _communicator = _pdfiumWasmCommunicator;
 
   final int id;
   final _PdfiumWasmCommunicator _communicator;
 
   void unregister() {
-    _communicator._unregisterCallback(id);
+    _communicator.unregisterCallback(id);
   }
 }
 
@@ -287,6 +287,7 @@ class _PdfDocumentWasm extends PdfDocument {
   _PdfDocumentWasm._(this.document, {required super.sourceName, this.disposeCallback})
     : permissions = parsePermissions(document) {
     pages = parsePages(this, document['pages'] as List<dynamic>);
+    updateMissingFonts(document['missingFonts']);
   }
 
   final Map<Object?, dynamic> document;
@@ -362,6 +363,8 @@ class _PdfDocumentWasm extends PdfDocument {
         subject.add(PdfDocumentPageStatusChangedEvent(this, pagesLoaded));
       }
 
+      updateMissingFonts(result['missingFonts']);
+
       if (onPageLoadProgress != null) {
         if (!await onPageLoadProgress(firstPageIndex, pages.length, data)) {
           // If the callback returns false, stop loading more pages
@@ -373,6 +376,26 @@ class _PdfDocumentWasm extends PdfDocument {
 
   @override
   late final List<PdfPage> pages;
+
+  void updateMissingFonts(Map<dynamic, dynamic>? missingFonts) {
+    if (missingFonts == null || missingFonts.isEmpty) {
+      return;
+    }
+    final fontQueries = <PdfFontQuery>[];
+    for (final entry in missingFonts.entries) {
+      final font = entry.value as Map<Object?, dynamic>;
+      fontQueries.add(
+        PdfFontQuery(
+          face: font['face'] as String,
+          weight: (font['weight'] as num).toInt(),
+          italic: (font['italic'] as bool),
+          charset: PdfFontCharset.fromPdfiumCharsetId((font['charset'] as num).toInt()),
+          pitchFamily: (font['pitchFamily'] as num).toInt(),
+        ),
+      );
+    }
+    subject.add(PdfDocumentMissingFontsEvent(this, fontQueries));
+  }
 
   static PdfPermissions? parsePermissions(Map<Object?, dynamic> document) {
     final perms = (document['permissions'] as num).toInt();
@@ -466,6 +489,7 @@ class _PdfPageWasm extends PdfPage {
       'loadText',
       parameters: {'docHandle': document.document['docHandle'], 'pageIndex': pageNumber - 1},
     );
+    document.updateMissingFonts(result['missingFonts']);
     return result['fullText'] as String;
   }
 
@@ -551,6 +575,8 @@ class _PdfPageWasm extends PdfPage {
         pixels[i * 4 + 2] = r * a ~/ 255;
       }
     }
+
+    document.updateMissingFonts(result['missingFonts']);
 
     return PdfImageWeb(width: width, height: height, pixels: pixels);
   }

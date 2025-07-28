@@ -349,6 +349,7 @@ typedef PdfPageLoadingCallback<T> = FutureOr<bool> Function(int currentPageNumbe
 enum PdfDocumentEventType {
   /// [PdfDocumentPageStatusChangedEvent]: Page status changed.
   pageStatusChanged,
+  missingFonts, // [PdfDocumentMissingFontsEvent]: Missing fonts changed.
 }
 
 /// Base class for PDF document events.
@@ -372,6 +373,20 @@ class PdfDocumentPageStatusChangedEvent implements PdfDocumentEvent {
 
   /// The pages that have changed.
   final List<PdfPage> pages;
+}
+
+/// Event that is triggered when the list of missing fonts in the PDF document has changed.
+class PdfDocumentMissingFontsEvent implements PdfDocumentEvent {
+  PdfDocumentMissingFontsEvent(this.document, this.missingFonts);
+
+  @override
+  PdfDocumentEventType get type => PdfDocumentEventType.missingFonts;
+
+  @override
+  final PdfDocument document;
+
+  /// The list of missing fonts.
+  final List<PdfFontQuery> missingFonts;
 }
 
 /// Handles a PDF page in [PdfDocument].
@@ -1569,4 +1584,67 @@ bool _listEquals<T>(List<T>? a, List<T>? b) {
     }
   }
   return true;
+}
+
+class PdfFontQuery {
+  const PdfFontQuery({
+    required this.face,
+    required this.weight,
+    required this.italic,
+    required this.charset,
+    required this.pitchFamily,
+  });
+
+  /// Font face name.
+  final String face;
+
+  /// Font weight.
+  final int weight;
+
+  /// Whether the font is italic.
+  final bool italic;
+
+  /// PDFium's charset ID.
+  final PdfFontCharset charset;
+
+  /// Pitch family flags.
+  ///
+  /// It can be any combination of the following values:
+  /// - `fixed` = 1
+  /// - `roman` = 16
+  /// - `script` = 64
+  final int pitchFamily;
+
+  bool get isFixed => (pitchFamily & 1) != 0;
+  bool get isRoman => (pitchFamily & 16) != 0;
+  bool get isScript => (pitchFamily & 64) != 0;
+}
+
+/// PDFium font charset ID.
+///
+enum PdfFontCharset {
+  ansi(0),
+  default_(1),
+  symbol(2),
+  shiftJis(128),
+  hangul(129),
+  gb2312(134),
+  chineseBig5(136),
+  greek(161),
+  vietnamese(163),
+  hebrew(177),
+  arabic(178),
+  cyrillic(204),
+  thai(222),
+  easternEuropean(238);
+
+  const PdfFontCharset(this.pdfiumCharsetId);
+
+  /// PDFium's charset ID.
+  final int pdfiumCharsetId;
+
+  static final _value2Enum = {for (final e in PdfFontCharset.values) e.pdfiumCharsetId: e};
+
+  /// Convert PDFium's charset ID to [PdfFontCharset].
+  static PdfFontCharset fromPdfiumCharsetId(int id) => _value2Enum[id]!;
 }
