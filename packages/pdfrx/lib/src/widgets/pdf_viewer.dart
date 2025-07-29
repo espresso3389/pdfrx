@@ -2734,6 +2734,14 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   DocumentCoordinateConverter get doc2local => this;
+
+  void forceRepaintAllPageImages() {
+    _imageCache.cancelAllPendingRenderings();
+    _magnifierImageCache.cancelAllPendingRenderings();
+    _imageCache.releaseAllImages();
+    _magnifierImageCache.releaseAllImages();
+    _invalidate();
+  }
 }
 
 class _PdfPageImageCache {
@@ -3403,6 +3411,9 @@ class PdfViewerController extends ValueListenable<Matrix4> {
 
   /// Request focus to the [PdfViewer].
   void requestFocus() => _state._requestFocus();
+
+  /// Force redraw all the page images.
+  void forceRepaintAllPageImages() => _state.forceRepaintAllPageImages();
 }
 
 /// [PdfViewerController.calcFitZoomMatrices] returns the list of this class.
