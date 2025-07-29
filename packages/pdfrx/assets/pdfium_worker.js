@@ -313,7 +313,7 @@ class FileSystemEmulator {
   /**
    * Register file
    * @param {string} fn Filename
-   * @param {FileContext} context I/O functions/data
+   * @param {FileContext|DirectoryContext} context I/O functions/data
    */
   registerFile(fn, context) {
     this.fn2context[fn] = context;
@@ -341,15 +341,6 @@ class FileSystemEmulator {
         }
       },
     });
-  }
-
-  /**
-   * Register directory
-   * @param {string} fn Filename
-   * @param {*} entries Directory entries (For directories, the name should be terminated with /)
-   */
-  registerDirectoryWithEntries(fn, entries) {
-    this.registerFile(fn, { entries });
   }
 
   /**
@@ -393,26 +384,34 @@ class FileSystemEmulator {
   /**
    * Seek to a position in a file
    * @param {number} fd File descriptor
-   * @param {number} offset_low Offset low
-   * @param {number} offset_high Offset high
-   * @param {number} whence Whence
-   * @param {number} newOffset New offset
    * @returns {number} New offset
    */
-  seek(fd, offset_low, offset_high, whence, newOffset) {
-    const context = this.fd2context[fd];
-    if (offset_high !== 0) {
-      throw new Error('seek: offset_high is not supported');
+  seek(fd) {
+    let offset, whence, newOffset;
+    if (arguments.length == 4) {
+      // (fd: number, offset: BigInt, whence: number, newOffset: number)
+      offset = Number(arguments[1]); // BigInt to Number
+      whence = arguments[2];
+      newOffset = arguments[3];
+    } else if (arguments.length == 5) {
+      // (fd: number, offset_low: number, offset_high: number, whence: number, newOffset: number)
+      offset = arguments[1]; // offset_low; offset_high is ignored
+      whence = arguments[3];
+      newOffset = arguments[4];
+    } else {
+      throw new Error(`seek: invalid arguments count: ${arguments.length}`);
     }
+
+    const context = this.fd2context[fd];
     switch (whence) {
       case 0: // SEEK_SET
-        context.position = offset_low;
+        context.position = offset;
         break;
       case 1: // SEEK_CUR
-        context.position += offset_low;
+        context.position += offset;
         break;
       case 2: // SEEK_END
-        context.position = context.size + offset_low;
+        context.position = context.size + offset;
         break;
     }
     const offsetLowHigh = new Uint32Array(Pdfium.memory.buffer, newOffset, 2);
@@ -505,7 +504,7 @@ class FileSystemEmulator {
   /**
    * __syscall_getdents64
    * @param {num} fd
-   * @param {num} dirp
+   * @param {num} dirp struct linux_dirent64
    * @param {num} count
    * @returns {num}
    */
@@ -513,12 +512,14 @@ class FileSystemEmulator {
     /** @type {DirectoryFileDescriptorContext} */
     const context = this.fd2context[fd];
     const entries = context.entries;
-    if (entries == null) return 0;
+    context.getdents_position = context.getdents_position || 0;
+    if (entries == null) return -1;
     let written = 0;
     const DT_REG = 8,
       DT_DIR = 4;
     _memset(dirp, 0, count);
-    for (let i = context.position; i < entries.length; i++) {
+    for (; context.position < entries.length; context.position++) {
+      const i = context.position;
       let d_type, d_name;
       if (entries[i].endsWith('/')) {
         d_type = DT_DIR;
@@ -529,13 +530,15 @@ class FileSystemEmulator {
       }
       const d_nameLength = StringUtils.lengthBytesUTF8(d_name) + 1;
       const size = 8 + 8 + 2 + 1 + d_nameLength;
-
       if (written + size > count) break;
+
       const buffer = new Uint8Array(Pdfium.memory.buffer, dirp + written, size);
       // d_off
       const d_off = written + size;
       buffer[8] = d_off & 255;
       buffer[9] = (d_off >> 8) & 255;
+      buffer[10] = (d_off >> 16) & 255;
+      buffer[11] = (d_off >> 24) & 255;
       // d_reclen
       buffer[16] = size & 255;
       buffer[17] = (size >> 8) & 255;
@@ -598,6 +601,7 @@ const emEnv = {
     throw Infinity;
   },
   _gmtime_js: function (time, tmPtr) {
+    time = Number(time);
     const date = new Date(time * 1000);
     const tm = new Int32Array(Pdfium.memory.buffer, tmPtr, 9);
     tm[0] = date.getUTCSeconds();
@@ -800,7 +804,7 @@ const disposers = {};
 
 /** @typedef {{face: string, weight: number, italic: boolean, charset: number, pitch_family: number}} FontQuery
  * @typedef {Object<string, FontQuery>} FontQueries
-*/
+ */
 /** @type {FontQueries} */
 let lastMissingFonts = {};
 
@@ -808,13 +812,13 @@ let lastMissingFonts = {};
 let missingFonts = {};
 
 /**
- * 
- * @param {number} docHandle 
+ *
+ * @param {number} docHandle
  * @returns {FontQueries} Missing fonts new found.
  */
 function _updateMissingFonts(docHandle) {
   if (Object.keys(lastMissingFonts).length === 0) return;
-  
+
   const existing = missingFonts[docHandle] ?? {};
   missingFonts[docHandle] = { ...existing, ...lastMissingFonts };
   const result = lastMissingFonts;
@@ -1373,6 +1377,95 @@ function _pdfDestFromDest(dest, docHandle) {
 }
 
 /**
+ * Setup the system font info in PDFium.
+ */
+function _initializeFontEnvironment() {
+  // kBase14FontNames
+  const fontNamesToIgnore = {
+    Courier: true,
+    'Courier-Bold': true,
+    'Courier-BoldOblique': true,
+    'Courier-Oblique': true,
+    Helvetica: true,
+    'Helvetica-Bold': true,
+    'Helvetica-BoldOblique': true,
+    'Helvetica-Oblique': true,
+    'Times-Roman': true,
+    'Times-Bold': true,
+    'Times-BoldItalic': true,
+    'Times-Italic': true,
+    Symbol: true,
+    ZapfDingbats: true,
+  };
+
+  // load the default system font info and modify only MapFont (index=3) entry with our one, which
+  // wraps the original function and adds our custom logic
+  const sysFontInfoBuffer = Pdfium.wasmExports.FPDF_GetDefaultSystemFontInfo();
+  const sysFontInfo = new Int32Array(Pdfium.memory.buffer, sysFontInfoBuffer, 9); // struct _FPDF_SYSFONTINFO
+
+  // void* MapFont(
+  //   struct _FPDF_SYSFONTINFO* pThis,
+  //   int weight,
+  //   FPDF_BOOL bItalic,
+  //   int charset,
+  //   int pitch_family,
+  //   const char* face,
+  //   FPDF_BOOL* bExact);
+  const mapFont = sysFontInfo[3];
+  sysFontInfo[3] = Pdfium.addFunction((pThis, weight, bItalic, charset, pitchFamily, face, bExact) => {
+    const result = Pdfium.invokeFunc(mapFont, (func) =>
+      func(sysFontInfoBuffer, weight, bItalic, charset, pitchFamily, face, bExact)
+    );
+    if (!result) {
+      // the font face is missing
+      const faceName = StringUtils.utf8BytesToString(new Uint8Array(Pdfium.memory.buffer, face));
+      if (fontNamesToIgnore[faceName] || lastMissingFonts[faceName]) return 0;
+      lastMissingFonts[faceName] = {
+        face: faceName,
+        weight: weight,
+        italic: !!bItalic,
+        charset: charset,
+        pitchFamily: pitchFamily,
+      };
+    }
+    return result;
+  }, 'iiiiiiii');
+
+  // when registering a new SetSystemFontInfo, the previous one is automatically released
+  // and the only last one remains on memory
+  Pdfium.wasmExports.FPDF_SetSystemFontInfo(sysFontInfoBuffer);
+}
+
+/**
+ * Reload fonts in PDFium.
+ *
+ * The function is based on the fact that PDFium reloads all the fonts when FPDF_SetSystemFontInfo is called.
+ */
+function reloadFonts() {
+  console.log('Reloading system fonts in PDFium...');
+  _initializeFontEnvironment();
+  return { message: 'Fonts reloaded' };
+}
+/**
+ * @type {{[face: string]: string}}
+ */
+const fontFileNames = {};
+let fontFilesId = 0;
+
+/**
+ * Add font data to the file system.
+ * @param {{face: string, data: ArrayBuffer}} params
+ */
+function addFontData(params) {
+  console.log(`Adding font data for face: ${params.face}`);
+  const { face, data } = params;
+  fontFileNames[face] ??= `font_${++fontFilesId}.ttf`;
+  fileSystem.registerFileWithData(`/usr/share/fonts/${fontFileNames[face]}`, data);
+  fileSystem.registerFile('/usr/share/fonts', { entries: Object.values(fontFileNames) });
+  return { message: `Font ${face} added`, face: face, fileName: fontFileNames[face] };
+}
+
+/**
  * Functions that can be called from the main thread
  */
 const functions = {
@@ -1387,6 +1480,8 @@ const functions = {
   loadText,
   loadTextCharRects,
   loadLinks,
+  reloadFonts,
+  addFontData,
 };
 
 /**
@@ -1476,7 +1571,7 @@ async function initializePdfium(params = {}) {
 
     Pdfium.initWith(result.instance.exports);
     Pdfium.wasmExports.FPDF_InitLibrary();
-    initializeMissingFontReporter();
+    _initializeFontEnvironment();
 
     pdfiumInitialized = true;
 
@@ -1490,74 +1585,6 @@ async function initializePdfium(params = {}) {
     postMessage({ type: 'error', error: _error(err) });
     throw err;
   }
-}
-
-function initializeMissingFontReporter() {
-  // kBase14FontNames
-  const fontNamesToIgnore = {
-        "Courier" : true,
-        "Courier-Bold" : true,
-        "Courier-BoldOblique" : true,
-        "Courier-Oblique" : true,
-        "Helvetica" : true,
-        "Helvetica-Bold" : true,
-        "Helvetica-BoldOblique" : true,
-        "Helvetica-Oblique" : true,
-        "Times-Roman" : true,
-        "Times-Bold" : true,
-        "Times-BoldItalic" : true,
-        "Times-Italic" : true,
-        "Symbol" : true,
-        "ZapfDingbats" : true,
-  };
-
-  const defaultSysFontInfo = Pdfium.wasmExports.FPDF_GetDefaultSystemFontInfo();
-  const defSysFontInfo = new Int32Array(Pdfium.memory.buffer, defaultSysFontInfo, 9);
-  function invokeDefault(index, func) {
-    const funcIndex = defSysFontInfo[index];
-    if (!funcIndex) return undefined;
-    return Pdfium.invokeFunc(funcIndex, func);
-  }
-
-  // NOTE: The buffer passed to FPDF_SetSystemFontInfo must be kept alive because it is used by the PDFium library
-  const buf = Pdfium.wasmExports.malloc(4 * 9);
-  const sysFontInfo = new Int32Array(Pdfium.memory.buffer, buf, 9);
-  sysFontInfo[0] = 1; // version
-
-  // void Release(PDF_SYSFONTINFO* pThis)
-  sysFontInfo[1] = Pdfium.addFunction((pThis) => invokeDefault(1, function (func) { return func(defaultSysFontInfo); }), 'vi');
-  // void EnumFonts(FPDF_SYSFONTINFO* pThis, void* pMapper)
-  sysFontInfo[2] = Pdfium.addFunction((pThis, pMapper) => invokeDefault(2, function (func) { return func(defaultSysFontInfo, pMapper); }), 'vii');
-  // void* MapFont(FPDF_SYSFONTINFO* pThis, int weight, FPDF_BOOL bItalic, int charset, int pitch_family, const char* face, FPDF_BOOL* bExact)
-  sysFontInfo[3] = Pdfium.addFunction((pThis, weight, bItalic, charset, pitchFamily, face, bExact) => {
-    const result = invokeDefault(3, function (func) { return func(defaultSysFontInfo, weight, bItalic, charset, pitchFamily, face, bExact); });
-    if (!result) {
-      const faceName = StringUtils.utf8BytesToString(new Uint8Array(Pdfium.memory.buffer, face));
-      if (fontNamesToIgnore[faceName]) return 0;
-      if (lastMissingFonts[faceName]) return 0;
-      lastMissingFonts[faceName] = {
-        face: faceName,
-        weight: weight,
-        italic: !!bItalic,
-        charset: charset,
-        pitchFamily: pitchFamily,
-      };
-    }
-    return result;
-  }, 'iiiiiiii');
-
-  // void* GetFont(FPDF_SYSFONTINFO* pThis, const char* face)
-  sysFontInfo[4] = Pdfium.addFunction((pThis, face) => invokeDefault(4, function (func) { return func(defaultSysFontInfo, face); }), 'iii');
-  // unsigned long GetFontData(FPDF_SYSFONTINFO* pThis, void* hFont, unsigned int table, unsigned char* buffer, unsigned long buf_size);
-  sysFontInfo[5] = Pdfium.addFunction((pThis, hFont, table, buffer, buf_size) => invokeDefault(5, function (func) { return func(defaultSysFontInfo, hFont, table, buffer, buf_size); }), 'iiiiii');
-  // unsigned long GetFaceName(FPDF_SYSFONTINFO* pThis, void* hFont, char* buffer, unsigned long buf_size)
-  sysFontInfo[6] = Pdfium.addFunction((pThis, hFont, buffer, buf_size) => invokeDefault(6, function (func) { return func(defaultSysFontInfo, hFont, buffer, buf_size); }), 'iiiii');
-  // int GetFontCharset(FPDF_SYSFONTINFO* pThis, void* hFont)
-  sysFontInfo[7] = Pdfium.addFunction((pThis, hFont) => invokeDefault(7, function (func) { return func(defaultSysFontInfo, hFont); }), 'iii');
-  // void DeleteFont(FPDF_SYSFONTINFO* pThis, void* hFont);
-  sysFontInfo[8] = Pdfium.addFunction((pThis, hFont) => invokeDefault(8, function (func) { return func(defaultSysFontInfo, hFont); }), 'vii');
-
-  Pdfium.wasmExports.FPDF_SetSystemFontInfo(buf);
 }
 
 onmessage = function (e) {

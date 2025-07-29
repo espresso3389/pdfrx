@@ -23,6 +23,7 @@ class Pdfrx {
 
   /// Font paths scanned by pdfium if supported.
   ///
+  /// It should be set before calling any Pdfrx's functions.
   /// It is not supported on Flutter Web.
   static final fontPaths = <String>[];
 
@@ -62,8 +63,8 @@ class Pdfrx {
   static FutureOr<String> Function()? getCacheDirectory;
 }
 
-abstract class PdfDocumentFactory {
-  static PdfDocumentFactory instance = PdfDocumentFactoryImpl();
+abstract class PdfrxEntryFunctions {
+  static PdfrxEntryFunctions instance = PdfrxEntryFunctionsImpl();
 
   Future<PdfDocument> openAsset(
     String name, {
@@ -110,6 +111,10 @@ abstract class PdfDocumentFactory {
     Map<String, String>? headers,
     bool withCredentials = false,
   });
+
+  Future<void> reloadFonts();
+
+  Future<void> addFontData({required String face, required Uint8List data});
 }
 
 /// Callback function to notify download progress.
@@ -174,7 +179,7 @@ abstract class PdfDocument {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
-  }) => PdfDocumentFactory.instance.openFile(
+  }) => PdfrxEntryFunctions.instance.openFile(
     filePath,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -195,7 +200,7 @@ abstract class PdfDocument {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
-  }) => PdfDocumentFactory.instance.openAsset(
+  }) => PdfrxEntryFunctions.instance.openAsset(
     name,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -225,7 +230,7 @@ abstract class PdfDocument {
     String? sourceName,
     bool allowDataOwnershipTransfer = false,
     void Function()? onDispose,
-  }) => PdfDocumentFactory.instance.openData(
+  }) => PdfrxEntryFunctions.instance.openData(
     data,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -263,7 +268,7 @@ abstract class PdfDocument {
     bool useProgressiveLoading = false,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
-  }) => PdfDocumentFactory.instance.openCustom(
+  }) => PdfrxEntryFunctions.instance.openCustom(
     read: read,
     fileSize: fileSize,
     sourceName: sourceName,
@@ -305,7 +310,7 @@ abstract class PdfDocument {
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
-  }) => PdfDocumentFactory.instance.openUri(
+  }) => PdfrxEntryFunctions.instance.openUri(
     uri,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -1618,6 +1623,10 @@ class PdfFontQuery {
   bool get isFixed => (pitchFamily & 1) != 0;
   bool get isRoman => (pitchFamily & 16) != 0;
   bool get isScript => (pitchFamily & 64) != 0;
+
+  @override
+  String toString() =>
+      'PdfFontQuery(face: "$face", weight: $weight, italic: $italic, charset: $charset, pitchFamily: $pitchFamily)';
 }
 
 /// PDFium font charset ID.
@@ -1647,4 +1656,7 @@ enum PdfFontCharset {
 
   /// Convert PDFium's charset ID to [PdfFontCharset].
   static PdfFontCharset fromPdfiumCharsetId(int id) => _value2Enum[id]!;
+
+  @override
+  String toString() => '$name($pdfiumCharsetId)';
 }

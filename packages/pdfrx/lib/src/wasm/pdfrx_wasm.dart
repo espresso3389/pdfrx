@@ -43,8 +43,12 @@ class _PdfiumWasmCallback {
   }
 }
 
-Future<Map<Object?, dynamic>> _sendCommand(String command, {Map<Object?, dynamic>? parameters}) async {
-  final result = await _pdfiumWasmCommunicator.sendCommand(command, parameters?.jsify()).toDart;
+Future<Map<Object?, dynamic>> _sendCommand(
+  String command, {
+  Map<Object?, dynamic>? parameters,
+  JSArray<JSAny>? transfer,
+}) async {
+  final result = await _pdfiumWasmCommunicator.sendCommand(command, parameters?.jsify(), transfer).toDart;
   return (result.dartify()) as Map<Object?, dynamic>;
 }
 
@@ -52,8 +56,8 @@ Future<Map<Object?, dynamic>> _sendCommand(String command, {Map<Object?, dynamic
 @JS()
 external String pdfiumWasmWorkerUrl;
 
-/// [PdfDocumentFactory] for PDFium WASM implementation.
-class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
+/// [PdfrxEntryFunctions] for PDFium WASM implementation.
+class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
   /// Default path to the WASM modules
   ///
   /// Normally, the WASM modules are provided by pdfrx_wasm package and this is the path to its assets.
@@ -161,7 +165,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
-    throw UnimplementedError('PdfDocumentFactoryWasmImpl.openCustom is not implemented.');
+    throw UnimplementedError('PdfrxEntryFunctionsWasmImpl.openCustom is not implemented.');
   }
 
   @override
@@ -280,6 +284,19 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
 
       return _PdfDocumentWasm._(result, sourceName: sourceName, disposeCallback: onDispose);
     }
+  }
+
+  @override
+  Future<void> reloadFonts() async {
+    await _init();
+    await _sendCommand('reloadFonts', parameters: {'dummy': true});
+  }
+
+  @override
+  Future<void> addFontData({required String face, required Uint8List data}) async {
+    await _init();
+    final jsData = data.buffer.toJS;
+    await _sendCommand('addFontData', parameters: {'face': face, 'data': jsData}, transfer: [jsData].toJS);
   }
 }
 

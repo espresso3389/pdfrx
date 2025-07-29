@@ -19,8 +19,8 @@ bool _isInitialized = false;
 void pdfrxFlutterInitialize() {
   if (_isInitialized) return;
 
-  if (pdfDocumentFactoryOverride != null) {
-    PdfDocumentFactory.instance = pdfDocumentFactoryOverride!;
+  if (pdfrxEntryFunctionsOverride != null) {
+    PdfrxEntryFunctions.instance = pdfrxEntryFunctionsOverride!;
   }
 
   Pdfrx.loadAsset ??= (name) async {
