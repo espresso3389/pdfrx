@@ -298,6 +298,12 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     final jsData = data.buffer.toJS;
     await _sendCommand('addFontData', parameters: {'face': face, 'data': jsData}, transfer: [jsData].toJS);
   }
+
+  @override
+  Future<void> clearAllFontData() async {
+    await _init();
+    await _sendCommand('clearAllFontData', parameters: {'dummy': true});
+  }
 }
 
 class _PdfDocumentWasm extends PdfDocument {
@@ -405,7 +411,7 @@ class _PdfDocumentWasm extends PdfDocument {
         PdfFontQuery(
           face: font['face'] as String,
           weight: (font['weight'] as num).toInt(),
-          italic: (font['italic'] as bool),
+          isItalic: (font['italic'] as bool),
           charset: PdfFontCharset.fromPdfiumCharsetId((font['charset'] as num).toInt()),
           pitchFamily: (font['pitchFamily'] as num).toInt(),
         ),

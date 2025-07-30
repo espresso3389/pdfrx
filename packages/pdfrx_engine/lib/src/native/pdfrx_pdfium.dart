@@ -307,6 +307,10 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   @override
   Future<void> addFontData({required String face, required Uint8List data}) =>
       throw UnimplementedError('FIXME: PdfrxEntryFunctions.addFontData is not implemented.');
+
+  @override
+  Future<void> clearAllFontData() =>
+      throw UnimplementedError('FIXME: PdfrxEntryFunctions.clearAllFontData is not implemented.');
 }
 
 extension _FpdfUtf8StringExt on String {

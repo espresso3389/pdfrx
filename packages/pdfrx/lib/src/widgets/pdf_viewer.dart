@@ -1088,7 +1088,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   bool _hitTestForTextSelection(ui.Offset position) {
     if (_selPartMoving != _TextSelectionPart.free && enableSelectionHandles) return false;
-
+    if (_document == null || _layout == null) return false;
     for (int i = 0; i < _document!.pages.length; i++) {
       final pageRect = _layout!.pageLayouts[i];
       if (!pageRect.contains(position)) continue;

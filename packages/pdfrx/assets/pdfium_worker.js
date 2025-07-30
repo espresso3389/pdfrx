@@ -1465,6 +1465,17 @@ function addFontData(params) {
   return { message: `Font ${face} added`, face: face, fileName: fontFileNames[face] };
 }
 
+function clearAllFontData() {
+  console.log(`Clearing all font data`);
+  for (const face in fontFileNames) {
+    const fileName = fontFileNames[face];
+    fileSystem.unregisterFile(`/usr/share/fonts/${fileName}`);
+  }
+  fileSystem.registerFile('/usr/share/fonts', { entries: [] });
+  fontFileNames = {};
+  return { message: 'All font data cleared' };
+}
+
 /**
  * Functions that can be called from the main thread
  */
@@ -1482,6 +1493,7 @@ const functions = {
   loadLinks,
   reloadFonts,
   addFontData,
+  clearAllFontData,
 };
 
 /**

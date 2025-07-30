@@ -115,6 +115,8 @@ abstract class PdfrxEntryFunctions {
   Future<void> reloadFonts();
 
   Future<void> addFontData({required String face, required Uint8List data});
+
+  Future<void> clearAllFontData();
 }
 
 /// Callback function to notify download progress.
@@ -1595,7 +1597,7 @@ class PdfFontQuery {
   const PdfFontQuery({
     required this.face,
     required this.weight,
-    required this.italic,
+    required this.isItalic,
     required this.charset,
     required this.pitchFamily,
   });
@@ -1607,7 +1609,7 @@ class PdfFontQuery {
   final int weight;
 
   /// Whether the font is italic.
-  final bool italic;
+  final bool isItalic;
 
   /// PDFium's charset ID.
   final PdfFontCharset charset;
@@ -1624,9 +1626,13 @@ class PdfFontQuery {
   bool get isRoman => (pitchFamily & 16) != 0;
   bool get isScript => (pitchFamily & 64) != 0;
 
+  String _getPitchFamily() {
+    return [if (isFixed) 'fixed', if (isRoman) 'roman', if (isScript) 'script'].join(',');
+  }
+
   @override
   String toString() =>
-      'PdfFontQuery(face: "$face", weight: $weight, italic: $italic, charset: $charset, pitchFamily: $pitchFamily)';
+      'PdfFontQuery(face: "$face", weight: $weight, italic: $isItalic, charset: $charset, pitchFamily: $pitchFamily=[${_getPitchFamily()}])';
 }
 
 /// PDFium font charset ID.
@@ -1635,9 +1641,17 @@ enum PdfFontCharset {
   ansi(0),
   default_(1),
   symbol(2),
+
+  /// Japanese
   shiftJis(128),
+
+  /// Korean
   hangul(129),
+
+  /// Chinese Simplified
   gb2312(134),
+
+  /// Chinese Traditional
   chineseBig5(136),
   greek(161),
   vietnamese(163),
