@@ -1,3 +1,7 @@
+## 0.1.12
+
+- Fix text character rectangle rotation handling in `loadTextCharRects()` and related methods
+
 ## 0.1.11
 
 - Make PdfiumDownloader class private to native implementation
