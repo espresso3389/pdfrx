@@ -1837,6 +1837,7 @@ class _PdfViewerState extends State<PdfViewer>
   Rect? _anchorARect;
   Rect? _anchorBRect;
   Rect? _magnifierRect;
+  Rect? _previousMagnifierRect;
   Rect? _contextMenuRect;
   _TextSelectionPart _hoverOn = _TextSelectionPart.none;
 
@@ -2054,7 +2055,8 @@ class _PdfViewerState extends State<PdfViewer>
         if (magnifier != null && !isPositionalWidget(magnifier)) {
           final offset =
               calcPosition(_magnifierRect?.size, textAnchorMoving, marginOnTop: 20, marginOnBottom: 80) ?? Offset.zero;
-          magnifier = Positioned(
+          magnifier = AnimatedPositioned(
+            duration: _previousMagnifierRect != null ? const Duration(milliseconds: 100) : Duration.zero,
             left: offset.dx,
             top: offset.dy,
             child: WidgetSizeSniffer(
@@ -2066,9 +2068,10 @@ class _PdfViewerState extends State<PdfViewer>
               },
             ),
           );
+          _previousMagnifierRect = _magnifierRect;
         }
       } else {
-        _magnifierRect = null;
+        _magnifierRect = _previousMagnifierRect = null;
       }
     }
 
@@ -2331,9 +2334,15 @@ class _PdfViewerState extends State<PdfViewer>
   /// Calculate the rectangle shown in the magnifier for the given text anchor.
   Rect _getMagnifierRect(PdfTextSelectionAnchor textAnchor, PdfViewerSelectionMagnifierParams params) {
     final c = textAnchor.page.charRects[textAnchor.index];
+
+    final (width, height) = switch (_document!.pages[textAnchor.page.pageNumber - 1].rotation.index & 1) {
+      0 => (c.width, c.height),
+      _ => (c.height, c.width),
+    };
+
     final (baseUnit, v, h) = switch (textAnchor.direction) {
-      PdfTextDirection.ltr || PdfTextDirection.rtl || PdfTextDirection.unknown => (c.height, 2.0, 0.2),
-      PdfTextDirection.vrtl => (c.width, 0.2, 2.0),
+      PdfTextDirection.ltr || PdfTextDirection.rtl || PdfTextDirection.unknown => (height, 2.0, 0.2),
+      PdfTextDirection.vrtl => (width, 0.2, 2.0),
     };
     return Rect.fromLTRB(
       textAnchor.rect.left - baseUnit * v,
