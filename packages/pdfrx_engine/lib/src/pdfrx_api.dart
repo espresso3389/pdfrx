@@ -620,6 +620,12 @@ abstract class PdfPage {
       handleLine(lineStart, inputFullText.length);
     }
 
+    if (rotation.index != 0) {
+      for (int i = 0; i < outputCharRects.length; i++) {
+        outputCharRects[i] = outputCharRects[i].rotateReverse(rotation.index, this);
+      }
+    }
+
     final fragments = <PdfPageTextFragment>[];
     final text = PdfPageText(
       pageNumber: pageNumber,
@@ -653,6 +659,12 @@ abstract class PdfPage {
   Future<PdfPageRawText?> _loadFormattedText() async {
     final inputFullText = await loadText();
     final inputCharRects = await loadTextCharRects();
+
+    if (rotation.index != 0) {
+      for (int i = 0; i < inputCharRects.length; i++) {
+        inputCharRects[i] = inputCharRects[i].rotate(rotation.index, this);
+      }
+    }
 
     final fullText = StringBuffer();
     final charRects = <PdfRect>[];
@@ -691,6 +703,7 @@ abstract class PdfPage {
       fullText.write(inputFullText.substring(prevEnd));
       charRects.addAll(inputCharRects.sublist(prevEnd));
     }
+
     return PdfPageRawText(fullText.toString(), charRects);
   }
 
