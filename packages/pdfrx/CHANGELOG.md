@@ -1,3 +1,10 @@
+# 2.1.3
+
+- FIXED: UI distortion when selecting text ([#432](https://github.com/espresso3389/pdfrx/issues/432))
+- The list returned by `PdfPage.loadTextCharRects()` is now mutable for better flexibility
+- Enhanced README documentation for text selection customization features
+- Update pdfrx_engine dependency to 0.1.12
+
 # 2.1.2
 
 - FIXED: Prevent right-click context menu from showing on Flutter Web
