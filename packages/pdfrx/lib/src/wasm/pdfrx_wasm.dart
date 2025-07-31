@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'dart:js_interop';
 import 'dart:typed_data';
 import 'dart:ui_web' as ui_web;
@@ -481,7 +480,7 @@ class _PdfPageWasm extends PdfPage {
           final r = rect as List;
           return PdfRect(r[0] as double, r[1] as double, r[2] as double, r[3] as double);
         }).toList();
-    return UnmodifiableListView(charRectsAll);
+    return charRectsAll;
   }
 
   @override
