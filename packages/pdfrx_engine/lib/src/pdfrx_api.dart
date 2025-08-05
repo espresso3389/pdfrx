@@ -1,4 +1,8 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
+
+/// Pdfrx API
+library;
+
 import 'dart:async';
 import 'dart:math';
 import 'dart:typed_data';
