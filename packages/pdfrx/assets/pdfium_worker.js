@@ -16,6 +16,7 @@ const Pdfium = {
     Pdfium.stackSave = Pdfium.wasmExports['emscripten_stack_get_current'];
     Pdfium.stackRestore = Pdfium.wasmExports['_emscripten_stack_restore'];
     Pdfium.setThrew = Pdfium.wasmExports['setThrew'];
+    Pdfium.__emscripten_stack_alloc = wasmExports['_emscripten_stack_alloc'];
   },
 
   /**
@@ -31,6 +32,18 @@ const Pdfium = {
    */
   wasmTable: null,
   /**
+   * @type {WebAssembly.Table}
+   */
+  wasmTableMirror: [],
+  /**
+   * @type {WeakMap<Function, number>}
+   */
+  functionsInTableMap: null,
+  /**
+   * @type {number[]}
+   */
+  freeTableIndexes: [],
+  /**
    * @type {function():number}
    */
   stackSave: null,
@@ -42,6 +55,10 @@ const Pdfium = {
    * @type {function(number, number):void}
    */
   setThrew: null,
+  /**
+   * @type {function(number):number}
+   */
+  __emscripten_stack_alloc: null,
 
   /**
    * Invoke a function from the WASM table
@@ -58,6 +75,178 @@ const Pdfium = {
       if (e !== e + 0) throw e;
       Pdfium.setThrew(1, 0);
     }
+  },
+
+  getCFunc: (ident) => Pdfium.wasmExports['_' + ident],
+  writeArrayToMemory: (array, buffer) => HEAP8.set(array, buffer),
+  stackAlloc: (sz) => Pdfium.__emscripten_stack_alloc(sz),
+  stringToUTF8OnStack: (str) => {
+    const size = StringUtils.lengthBytesUTF8(str) + 1;
+    const ret = Pdfium.stackAlloc(size);
+    StringUtils.stringToUtf8Bytes(str, ret);
+    return ret;
+  },
+  ccall: (ident, returnType, argTypes, args, opts) => {
+    const toC = {
+      string: (str) => {
+        let ret = 0;
+        if (str !== null && str !== undefined && str !== 0) {
+          ret = Pdfium.stringToUTF8OnStack(str);
+        }
+        return ret;
+      },
+      array: (arr) => {
+        const ret = Pdfium.stackAlloc(arr.length);
+        Pdfium.writeArrayToMemory(arr, ret);
+        return ret;
+      },
+    };
+    function convertReturnValue(ret) {
+      if (returnType === 'string') return UTF8ToString(ret);
+      if (returnType === 'boolean') return Boolean(ret);
+      return ret;
+    }
+    const func = Pdfium.getCFunc(ident);
+    const cArgs = [];
+    let stack = 0;
+    if (args) {
+      for (let i = 0; i < args.length; i++) {
+        const converter = toC[argTypes[i]];
+        if (converter) {
+          if (stack === 0) stack = Pdfium.stackSave();
+          cArgs[i] = converter(args[i]);
+        } else {
+          cArgs[i] = args[i];
+        }
+      }
+    }
+    let ret = func(...cArgs);
+    function onDone(ret) {
+      if (stack !== 0) Pdfium.stackRestore(stack);
+      return convertReturnValue(ret);
+    }
+    ret = onDone(ret);
+    return ret;
+  },
+  cwrap: (ident, returnType, argTypes, opts) => {
+    const numericArgs = !argTypes || argTypes.every((type) => type === 'number' || type === 'boolean');
+    const numericRet = returnType !== 'string';
+    if (numericRet && numericArgs && !opts) {
+      return Pdfium.getCFunc(ident);
+    }
+    return (...args) => Pdfium.ccall(ident, returnType, argTypes, args, opts);
+  },
+  uleb128Encode: (n, target) => {
+    if (n < 128) {
+      target.push(n);
+    } else {
+      target.push(n % 128 | 128, n >> 7);
+    }
+  },
+  sigToWasmTypes: (sig) => {
+    const typeNames = {
+      i: 'i32',
+      j: 'i64',
+      f: 'f32',
+      d: 'f64',
+      e: 'externref',
+      p: 'i32',
+    };
+    const type = {
+      parameters: [],
+      results: sig[0] == 'v' ? [] : [typeNames[sig[0]]],
+    };
+    for (let i = 1; i < sig.length; ++i) {
+      type.parameters.push(typeNames[sig[i]]);
+    }
+    return type;
+  },
+  generateFuncType: (sig, target) => {
+    const sigRet = sig.slice(0, 1);
+    const sigParam = sig.slice(1);
+    const typeCodes = { i: 127, p: 127, j: 126, f: 125, d: 124, e: 111 };
+    target.push(96);
+    Pdfium.uleb128Encode(sigParam.length, target);
+    for (let i = 0; i < sigParam.length; ++i) {
+      target.push(typeCodes[sigParam[i]]);
+    }
+    if (sigRet == 'v') {
+      target.push(0);
+    } else {
+      target.push(1, typeCodes[sigRet]);
+    }
+  },
+  convertJsFunctionToWasm: (func, sig) => {
+    if (typeof WebAssembly.Function == 'function') {
+      return new WebAssembly.Function(Pdfium.sigToWasmTypes(sig), func);
+    }
+    const typeSectionBody = [1];
+    Pdfium.generateFuncType(sig, typeSectionBody);
+    const bytes = [0, 97, 115, 109, 1, 0, 0, 0, 1];
+    Pdfium.uleb128Encode(typeSectionBody.length, bytes);
+    bytes.push(...typeSectionBody);
+    bytes.push(2, 7, 1, 1, 101, 1, 102, 0, 0, 7, 5, 1, 1, 102, 0, 0);
+    const module = new WebAssembly.Module(new Uint8Array(bytes));
+    const instance = new WebAssembly.Instance(module, { e: { f: func } });
+    const wrappedFunc = instance.exports['f'];
+    return wrappedFunc;
+  },
+  updateTableMap: (offset, count) => {
+    if (Pdfium.functionsInTableMap) {
+      for (let i = offset; i < offset + count; i++) {
+        const item = Pdfium.wasmTable.get(i);
+        if (item) {
+          Pdfium.functionsInTableMap.set(item, i);
+        }
+      }
+    }
+  },
+  getFunctionAddress: (func) => {
+    if (!Pdfium.functionsInTableMap) {
+      Pdfium.functionsInTableMap = new WeakMap();
+      Pdfium.updateTableMap(0, Pdfium.wasmTable.length);
+    }
+    return Pdfium.functionsInTableMap.get(func) || 0;
+  },
+  getEmptyTableSlot: () => {
+    if (Pdfium.freeTableIndexes.length) return Pdfium.freeTableIndexes.pop();
+    try {
+      Pdfium.wasmTable.grow(1);
+    } catch (err) {
+      if (!(err instanceof RangeError)) {
+        throw err;
+      }
+      throw 'Unable to grow wasm table. Set ALLOW_TABLE_GROWTH.';
+    }
+    return Pdfium.wasmTable.length - 1;
+  },
+  /**
+   * @param {function} func Function to add
+   * @param {string} sig Signature of the function
+   * @return {number} Function index in the table
+   */
+  addFunction: (func, sig) => {
+    const rtn = Pdfium.getFunctionAddress(func);
+    if (rtn) {
+      return rtn;
+    }
+    const ret = Pdfium.getEmptyTableSlot();
+    try {
+      Pdfium.wasmTable.set(ret, func);
+    } catch (err) {
+      if (!(err instanceof TypeError)) {
+        throw err;
+      }
+      const wrapped = Pdfium.convertJsFunctionToWasm(func, sig);
+      Pdfium.wasmTable.set(ret, wrapped);
+    }
+    Pdfium.functionsInTableMap.set(func, ret);
+    return ret;
+  },
+  removeFunction: (index) => {
+    Pdfium.functionsInTableMap.delete(Pdfium.wasmTable.get(index));
+    Pdfium.wasmTable.set(index, null);
+    Pdfium.freeTableIndexes.push(index);
   },
 };
 
@@ -124,7 +313,7 @@ class FileSystemEmulator {
   /**
    * Register file
    * @param {string} fn Filename
-   * @param {FileContext} context I/O functions/data
+   * @param {FileContext|DirectoryContext} context I/O functions/data
    */
   registerFile(fn, context) {
     this.fn2context[fn] = context;
@@ -152,15 +341,6 @@ class FileSystemEmulator {
         }
       },
     });
-  }
-
-  /**
-   * Register directory
-   * @param {string} fn Filename
-   * @param {*} entries Directory entries (For directories, the name should be terminated with /)
-   */
-  registerDirectoryWithEntries(fn, entries) {
-    this.registerFile(fn, { entries });
   }
 
   /**
@@ -199,36 +379,46 @@ class FileSystemEmulator {
     const context = this.fd2context[fd];
     context.close?.call(context);
     delete this.fd2context[fd];
+    return 0;
   }
 
   /**
    * Seek to a position in a file
    * @param {number} fd File descriptor
-   * @param {number} offset_low Offset low
-   * @param {number} offset_high Offset high
-   * @param {number} whence Whence
-   * @param {number} newOffset New offset
    * @returns {number} New offset
    */
-  seek(fd, offset_low, offset_high, whence, newOffset) {
-    const context = this.fd2context[fd];
-    if (offset_high !== 0) {
-      throw new Error('seek: offset_high is not supported');
+  seek(fd) {
+    let offset, whence, newOffset;
+    if (arguments.length == 4) {
+      // (fd: number, offset: BigInt, whence: number, newOffset: number)
+      offset = Number(arguments[1]); // BigInt to Number
+      whence = arguments[2];
+      newOffset = arguments[3];
+    } else if (arguments.length == 5) {
+      // (fd: number, offset_low: number, offset_high: number, whence: number, newOffset: number)
+      offset = arguments[1]; // offset_low; offset_high is ignored
+      whence = arguments[3];
+      newOffset = arguments[4];
+    } else {
+      throw new Error(`seek: invalid arguments count: ${arguments.length}`);
     }
+
+    const context = this.fd2context[fd];
     switch (whence) {
       case 0: // SEEK_SET
-        context.position = offset_low;
+        context.position = offset;
         break;
       case 1: // SEEK_CUR
-        context.position += offset_low;
+        context.position += offset;
         break;
       case 2: // SEEK_END
-        context.position = context.size + offset_low;
+        context.position = context.size + offset;
         break;
     }
     const offsetLowHigh = new Uint32Array(Pdfium.memory.buffer, newOffset, 2);
     offsetLowHigh[0] = context.position;
     offsetLowHigh[1] = 0;
+    return 0;
   }
 
   /**
@@ -251,6 +441,7 @@ class FileSystemEmulator {
     }
     const bytes_written = new Uint32Array(Pdfium.memory.buffer, ret_ptr, 1);
     bytes_written[0] = written;
+    return 0;
   }
 
   /**
@@ -274,6 +465,7 @@ class FileSystemEmulator {
     }
     const bytes_read = new Uint32Array(Pdfium.memory.buffer, ret_ptr, 1);
     bytes_read[0] = total;
+    return 0;
   }
 
   sync(fd) {
@@ -316,7 +508,7 @@ class FileSystemEmulator {
   /**
    * __syscall_getdents64
    * @param {num} fd
-   * @param {num} dirp
+   * @param {num} dirp struct linux_dirent64
    * @param {num} count
    * @returns {num}
    */
@@ -324,12 +516,14 @@ class FileSystemEmulator {
     /** @type {DirectoryFileDescriptorContext} */
     const context = this.fd2context[fd];
     const entries = context.entries;
-    if (entries == null) return 0;
+    context.getdents_position = context.getdents_position || 0;
+    if (entries == null) return -1;
     let written = 0;
     const DT_REG = 8,
       DT_DIR = 4;
     _memset(dirp, 0, count);
-    for (let i = context.position; i < entries.length; i++) {
+    for (; context.position < entries.length; context.position++) {
+      const i = context.position;
       let d_type, d_name;
       if (entries[i].endsWith('/')) {
         d_type = DT_DIR;
@@ -340,13 +534,15 @@ class FileSystemEmulator {
       }
       const d_nameLength = StringUtils.lengthBytesUTF8(d_name) + 1;
       const size = 8 + 8 + 2 + 1 + d_nameLength;
-
       if (written + size > count) break;
+
       const buffer = new Uint8Array(Pdfium.memory.buffer, dirp + written, size);
       // d_off
       const d_off = written + size;
       buffer[8] = d_off & 255;
       buffer[9] = (d_off >> 8) & 255;
+      buffer[10] = (d_off >> 16) & 255;
+      buffer[11] = (d_off >> 24) & 255;
       // d_reclen
       buffer[16] = size & 255;
       buffer[17] = (size >> 8) & 255;
@@ -409,6 +605,7 @@ const emEnv = {
     throw Infinity;
   },
   _gmtime_js: function (time, tmPtr) {
+    time = Number(time);
     const date = new Date(time * 1000);
     const tm = new Int32Array(Pdfium.memory.buffer, tmPtr, 9);
     tm[0] = date.getUTCSeconds();
