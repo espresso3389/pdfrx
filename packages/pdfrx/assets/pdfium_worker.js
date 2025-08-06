@@ -379,6 +379,7 @@ class FileSystemEmulator {
     const context = this.fd2context[fd];
     context.close?.call(context);
     delete this.fd2context[fd];
+    return 0;
   }
 
   /**
@@ -417,6 +418,7 @@ class FileSystemEmulator {
     const offsetLowHigh = new Uint32Array(Pdfium.memory.buffer, newOffset, 2);
     offsetLowHigh[0] = context.position;
     offsetLowHigh[1] = 0;
+    return 0;
   }
 
   /**
@@ -439,6 +441,7 @@ class FileSystemEmulator {
     }
     const bytes_written = new Uint32Array(Pdfium.memory.buffer, ret_ptr, 1);
     bytes_written[0] = written;
+    return 0;
   }
 
   /**
@@ -462,6 +465,7 @@ class FileSystemEmulator {
     }
     const bytes_read = new Uint32Array(Pdfium.memory.buffer, ret_ptr, 1);
     bytes_read[0] = total;
+    return 0;
   }
 
   sync(fd) {
