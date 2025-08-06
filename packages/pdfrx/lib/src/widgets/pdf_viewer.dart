@@ -1088,7 +1088,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   bool _hitTestForTextSelection(ui.Offset position) {
     if (_selPartMoving != _TextSelectionPart.free && enableSelectionHandles) return false;
-
+    if (_document == null || _layout == null) return false;
     for (int i = 0; i < _document!.pages.length; i++) {
       final pageRect = _layout!.pageLayouts[i];
       if (!pageRect.contains(position)) continue;
@@ -2743,6 +2743,14 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   DocumentCoordinateConverter get doc2local => this;
+
+  void forceRepaintAllPageImages() {
+    _imageCache.cancelAllPendingRenderings();
+    _magnifierImageCache.cancelAllPendingRenderings();
+    _imageCache.releaseAllImages();
+    _magnifierImageCache.releaseAllImages();
+    _invalidate();
+  }
 }
 
 class _PdfPageImageCache {
@@ -3109,16 +3117,16 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// Get the associated document.
   ///
   /// Please note that the field does not ensure that the [PdfDocument] is alive during long asynchronous operations.
-  /// If you want to do some time consuming asynchronous operation, use [useDocument] instead.
-  @Deprecated('Use useDocument instead')
+  ///
+  /// **If you want to do some time consuming asynchronous operation, consider to use [useDocument] instead.**
   PdfDocument get document => _state._document!;
 
   /// Get the associated pages.
   ///
   /// Please note that the field does not ensure that the associated [PdfDocument] is alive during long asynchronous
-  /// operations. If you want to do some time consuming asynchronous operation, use [useDocument] instead.
-  /// For page count, use [pageCount] instead.
-  @Deprecated('Use useDocument instead')
+  /// operations. For page count, use [pageCount] instead.
+  ///
+  /// **If you want to do some time consuming asynchronous operation, consider to use [useDocument] instead.**
   List<PdfPage> get pages => _state._document!.pages;
 
   /// Get the page count of the document.
@@ -3412,6 +3420,9 @@ class PdfViewerController extends ValueListenable<Matrix4> {
 
   /// Request focus to the [PdfViewer].
   void requestFocus() => _state._requestFocus();
+
+  /// Force redraw all the page images.
+  void forceRepaintAllPageImages() => _state.forceRepaintAllPageImages();
 }
 
 /// [PdfViewerController.calcFitZoomMatrices] returns the list of this class.
