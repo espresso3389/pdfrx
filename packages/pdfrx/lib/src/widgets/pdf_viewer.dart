@@ -3108,16 +3108,16 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// Get the associated document.
   ///
   /// Please note that the field does not ensure that the [PdfDocument] is alive during long asynchronous operations.
-  /// If you want to do some time consuming asynchronous operation, use [useDocument] instead.
-  @Deprecated('Use useDocument instead')
+  ///
+  /// **If you want to do some time consuming asynchronous operation, consider to use [useDocument] instead.**
   PdfDocument get document => _state._document!;
 
   /// Get the associated pages.
   ///
   /// Please note that the field does not ensure that the associated [PdfDocument] is alive during long asynchronous
-  /// operations. If you want to do some time consuming asynchronous operation, use [useDocument] instead.
-  /// For page count, use [pageCount] instead.
-  @Deprecated('Use useDocument instead')
+  /// operations. For page count, use [pageCount] instead.
+  ///
+  /// **If you want to do some time consuming asynchronous operation, consider to use [useDocument] instead.**
   List<PdfPage> get pages => _state._document!.pages;
 
   /// Get the page count of the document.

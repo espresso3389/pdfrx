@@ -1574,7 +1574,7 @@ class PdfPoint {
 
 /// Compares two lists for element-by-element equality.
 ///
-/// **NOTE: This function is copiedd from flutter's `foundation` library to remove dependency to Flutter**
+/// **NOTE: This function is copied from flutter's `foundation` library to remove dependency to Flutter**
 bool _listEquals<T>(List<T>? a, List<T>? b) {
   if (a == null) {
     return b == null;

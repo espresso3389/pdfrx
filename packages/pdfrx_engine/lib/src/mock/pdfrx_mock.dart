@@ -72,4 +72,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
 
   @override
   Future<void> addFontData({required String face, required Uint8List data}) => unimplemented();
+
+  @override
+  Future<void> clearAllFontData() => unimplemented();
 }
