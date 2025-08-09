@@ -338,36 +338,39 @@ class _PdfDocumentWasm extends PdfDocument {
     T? data,
     Duration loadUnitDuration = const Duration(milliseconds: 250),
   }) async {
-    int firstPageIndex = pages.indexWhere((page) => !page.isLoaded);
-    if (firstPageIndex < 0) return; // All pages are already loaded
+    if (isDisposed) return;
+    await synchronized(() async {
+      int firstPageIndex = pages.indexWhere((page) => !page.isLoaded);
+      if (firstPageIndex < 0) return; // All pages are already loaded
 
-    for (; firstPageIndex < pages.length;) {
-      if (isDisposed) return;
-      final result = await _sendCommand(
-        'loadPagesProgressively',
-        parameters: {
-          'docHandle': document['docHandle'],
-          'firstPageIndex': firstPageIndex,
-          'loadUnitDuration': loadUnitDuration.inMilliseconds,
-        },
-      );
-      final pagesLoaded = parsePages(this, result['pages'] as List<dynamic>);
-      firstPageIndex += pagesLoaded.length;
-      for (final page in pagesLoaded) {
-        pages[page.pageNumber - 1] = page; // Update the existing page
-      }
+      for (; firstPageIndex < pages.length;) {
+        if (isDisposed) return;
+        final result = await _sendCommand(
+          'loadPagesProgressively',
+          parameters: {
+            'docHandle': document['docHandle'],
+            'firstPageIndex': firstPageIndex,
+            'loadUnitDuration': loadUnitDuration.inMilliseconds,
+          },
+        );
+        final pagesLoaded = parsePages(this, result['pages'] as List<dynamic>);
+        firstPageIndex += pagesLoaded.length;
+        for (final page in pagesLoaded) {
+          pages[page.pageNumber - 1] = page; // Update the existing page
+        }
 
-      if (!subject.isClosed) {
-        subject.add(PdfDocumentPageStatusChangedEvent(this, pagesLoaded));
-      }
+        if (!subject.isClosed) {
+          subject.add(PdfDocumentPageStatusChangedEvent(this, pagesLoaded));
+        }
 
-      if (onPageLoadProgress != null) {
-        if (!await onPageLoadProgress(firstPageIndex, pages.length, data)) {
-          // If the callback returns false, stop loading more pages
-          break;
+        if (onPageLoadProgress != null) {
+          if (!await onPageLoadProgress(firstPageIndex, pages.length, data)) {
+            // If the callback returns false, stop loading more pages
+            break;
+          }
         }
       }
-    }
+    });
   }
 
   @override

@@ -36,3 +36,4 @@ migrate_working_dir/
 .claude/
 
 pubspec_overrides.yaml
+.mcp.json

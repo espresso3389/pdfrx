@@ -516,8 +516,8 @@ class FileSystemEmulator {
     /** @type {DirectoryFileDescriptorContext} */
     const context = this.fd2context[fd];
     const entries = context.entries;
+    if (entries == null) return -1; // not a directory
     context.getdents_position = context.getdents_position || 0;
-    if (entries == null) return -1;
     let written = 0;
     const DT_REG = 8,
       DT_DIR = 4;

@@ -664,6 +664,12 @@ abstract class PdfPage {
     final inputFullText = await loadText();
     final inputCharRects = await loadTextCharRects();
 
+    if (inputFullText.length != inputCharRects.length) {
+      throw Exception(
+        'Page $pageNumber: Internal Error: text and character rects length mismatch (${inputFullText.length} <=> ${inputCharRects.length})',
+      );
+    }
+
     if (rotation.index != 0) {
       for (int i = 0; i < inputCharRects.length; i++) {
         inputCharRects[i] = inputCharRects[i].rotate(rotation.index, this);
