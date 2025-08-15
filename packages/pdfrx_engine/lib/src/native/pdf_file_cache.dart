@@ -12,6 +12,7 @@ import 'package:synchronized/extension.dart';
 import '../pdfrx_api.dart';
 import '../pdfrx_initialize_dart.dart';
 import 'http_cache_control.dart';
+import 'native_utils.dart';
 
 final _rafFinalizer = Finalizer<RandomAccessFile>((raf) {
   // Attempt to close the file if it hasn't been closed explicitly.
@@ -243,7 +244,6 @@ class PdfFileCache {
     if (Pdfrx.getCacheDirectory == null) {
       throw StateError('Pdfrx.getCacheDirectory is not set. Please set it to get cache directory.');
     }
-    final cacheDir = await Pdfrx.getCacheDirectory!();
     final fnHash = sha1
         .convert(utf8.encode(uri.toString()))
         .bytes
@@ -252,8 +252,7 @@ class PdfFileCache {
     final dir1 = fnHash.substring(0, 2);
     final dir2 = fnHash.substring(2, 4);
     final body = fnHash.substring(4);
-    final dir = Directory(path.join(cacheDir, 'pdfrx.cache', dir1, dir2));
-    await dir.create(recursive: true);
+    final dir = await getCacheDirectory('pdfrx.cache', dir1, dir2);
     return File(path.join(dir.path, '$body.pdf'));
   }
 

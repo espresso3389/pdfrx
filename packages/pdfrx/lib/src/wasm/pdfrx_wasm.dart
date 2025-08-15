@@ -387,12 +387,13 @@ class _PdfDocumentWasm extends PdfDocument {
           subject.add(PdfDocumentPageStatusChangedEvent(this, pagesLoaded));
         }
 
-      updateMissingFonts(result['missingFonts']);
+        updateMissingFonts(result['missingFonts']);
 
-      if (onPageLoadProgress != null) {
-        if (!await onPageLoadProgress(firstPageIndex, pages.length, data)) {
-          // If the callback returns false, stop loading more pages
-          break;
+        if (onPageLoadProgress != null) {
+          if (!await onPageLoadProgress(firstPageIndex, pages.length, data)) {
+            // If the callback returns false, stop loading more pages
+            break;
+          }
         }
       }
     });

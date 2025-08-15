@@ -7,8 +7,10 @@ import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:synchronized/extension.dart';
 
 import '../pdfrx_api.dart';
+import 'native_utils.dart';
 import 'pdf_file_cache.dart';
 import 'pdfium_bindings.dart' as pdfium_bindings;
 import 'pdfium_interop.dart';
@@ -38,31 +40,40 @@ DynamicLibrary _getModule() {
 /// Loaded PDFium module.
 final pdfium = pdfium_bindings.pdfium(_getModule());
 
+Directory? _appLocalFontPath;
+
 bool _initialized = false;
 
 /// Initializes PDFium library.
-void _init() {
+Future<void> _init() async {
   if (_initialized) return;
-  using((arena) {
-    final config = arena.allocate<pdfium_bindings.FPDF_LIBRARY_CONFIG>(sizeOf<pdfium_bindings.FPDF_LIBRARY_CONFIG>());
-    config.ref.version = 2;
+  await pdfium.synchronized(() async {
+    if (_initialized) return;
 
-    if (Pdfrx.fontPaths.isNotEmpty) {
-      final fontPathArray = arena.allocate<Pointer<Char>>(sizeOf<Pointer<Char>>() * (Pdfrx.fontPaths.length + 1));
-      for (int i = 0; i < Pdfrx.fontPaths.length; i++) {
-        fontPathArray[i] = Pdfrx.fontPaths[i].toUtf8(arena);
+    _appLocalFontPath = await getCacheDirectory('pdfrx.fonts');
+
+    return using((arena) {
+      final config = arena.allocate<pdfium_bindings.FPDF_LIBRARY_CONFIG>(sizeOf<pdfium_bindings.FPDF_LIBRARY_CONFIG>());
+      config.ref.version = 2;
+
+      final fontPaths = [_appLocalFontPath!.path, ...Pdfrx.fontPaths];
+      if (fontPaths.isNotEmpty) {
+        final fontPathArray = arena.allocate<Pointer<Char>>(sizeOf<Pointer<Char>>() * (fontPaths.length + 1));
+        for (int i = 0; i < fontPaths.length; i++) {
+          fontPathArray[i] = fontPaths[i].toUtf8(arena);
+        }
+        fontPathArray[fontPaths.length] = nullptr;
+        config.ref.m_pUserFontPaths = fontPathArray;
+      } else {
+        config.ref.m_pUserFontPaths = nullptr;
       }
-      fontPathArray[Pdfrx.fontPaths.length] = nullptr;
-      config.ref.m_pUserFontPaths = fontPathArray;
-    } else {
-      config.ref.m_pUserFontPaths = nullptr;
-    }
 
-    config.ref.m_pIsolate = nullptr;
-    config.ref.m_v8EmbedderSlot = 0;
-    pdfium.FPDF_InitLibraryWithConfig(config);
+      config.ref.m_pIsolate = nullptr;
+      config.ref.m_v8EmbedderSlot = 0;
+      pdfium.FPDF_InitLibraryWithConfig(config);
+      _initialized = true;
+    });
   });
-  _initialized = true;
 }
 
 final backgroundWorker = BackgroundWorker.create();
@@ -117,8 +128,8 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
-  }) {
-    _init();
+  }) async {
+    await _init();
     return _openByFunc(
       (password) async => (await backgroundWorker).computeWithArena((arena, params) {
         final doc = pdfium.FPDF_LoadDocument(params.filePath.toUtf8(arena), params.password?.toUtf8(arena) ?? nullptr);
@@ -172,7 +183,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
-    _init();
+    await _init();
 
     maxSizeToCacheOnMemory ??= 1024 * 1024; // the default is 1MB
 
