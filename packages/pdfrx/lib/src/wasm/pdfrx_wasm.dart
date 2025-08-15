@@ -17,11 +17,11 @@ extension type _PdfiumWasmCommunicator(JSObject _) implements JSObject {
 
   /// Registers a callback function and returns its ID
   @JS('registerCallback')
-  external int _registerCallback(JSFunction callback);
+  external int registerCallback(JSFunction callback);
 
   /// Unregisters a callback by its ID
   @JS('unregisterCallback')
-  external void _unregisterCallback(int callbackId);
+  external void unregisterCallback(int callbackId);
 }
 
 /// Get the global PdfiumWasmCommunicator instance
@@ -31,19 +31,23 @@ external _PdfiumWasmCommunicator get _pdfiumWasmCommunicator;
 /// A handle to a registered callback that can be unregistered
 class _PdfiumWasmCallback {
   _PdfiumWasmCallback.register(JSFunction callback)
-    : id = _pdfiumWasmCommunicator._registerCallback(callback),
+    : id = _pdfiumWasmCommunicator.registerCallback(callback),
       _communicator = _pdfiumWasmCommunicator;
 
   final int id;
   final _PdfiumWasmCommunicator _communicator;
 
   void unregister() {
-    _communicator._unregisterCallback(id);
+    _communicator.unregisterCallback(id);
   }
 }
 
-Future<Map<Object?, dynamic>> _sendCommand(String command, {Map<Object?, dynamic>? parameters}) async {
-  final result = await _pdfiumWasmCommunicator.sendCommand(command, parameters?.jsify()).toDart;
+Future<Map<Object?, dynamic>> _sendCommand(
+  String command, {
+  Map<Object?, dynamic>? parameters,
+  JSArray<JSAny>? transfer,
+}) async {
+  final result = await _pdfiumWasmCommunicator.sendCommand(command, parameters?.jsify(), transfer).toDart;
   return (result.dartify()) as Map<Object?, dynamic>;
 }
 
@@ -51,8 +55,8 @@ Future<Map<Object?, dynamic>> _sendCommand(String command, {Map<Object?, dynamic
 @JS()
 external String pdfiumWasmWorkerUrl;
 
-/// [PdfDocumentFactory] for PDFium WASM implementation.
-class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
+/// [PdfrxEntryFunctions] for PDFium WASM implementation.
+class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
   /// Default path to the WASM modules
   ///
   /// Normally, the WASM modules are provided by pdfrx_wasm package and this is the path to its assets.
@@ -160,7 +164,7 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
-    throw UnimplementedError('PdfDocumentFactoryWasmImpl.openCustom is not implemented.');
+    throw UnimplementedError('PdfrxEntryFunctionsWasmImpl.openCustom is not implemented.');
   }
 
   @override
@@ -280,12 +284,32 @@ class PdfDocumentFactoryWasmImpl extends PdfDocumentFactory {
       return _PdfDocumentWasm._(result, sourceName: sourceName, disposeCallback: onDispose);
     }
   }
+
+  @override
+  Future<void> reloadFonts() async {
+    await _init();
+    await _sendCommand('reloadFonts', parameters: {'dummy': true});
+  }
+
+  @override
+  Future<void> addFontData({required String face, required Uint8List data}) async {
+    await _init();
+    final jsData = data.buffer.toJS;
+    await _sendCommand('addFontData', parameters: {'face': face, 'data': jsData}, transfer: [jsData].toJS);
+  }
+
+  @override
+  Future<void> clearAllFontData() async {
+    await _init();
+    await _sendCommand('clearAllFontData', parameters: {'dummy': true});
+  }
 }
 
 class _PdfDocumentWasm extends PdfDocument {
   _PdfDocumentWasm._(this.document, {required super.sourceName, this.disposeCallback})
     : permissions = parsePermissions(document) {
     pages = parsePages(this, document['pages'] as List<dynamic>);
+    updateMissingFonts(document['missingFonts']);
   }
 
   final Map<Object?, dynamic> document;
@@ -363,11 +387,12 @@ class _PdfDocumentWasm extends PdfDocument {
           subject.add(PdfDocumentPageStatusChangedEvent(this, pagesLoaded));
         }
 
-        if (onPageLoadProgress != null) {
-          if (!await onPageLoadProgress(firstPageIndex, pages.length, data)) {
-            // If the callback returns false, stop loading more pages
-            break;
-          }
+      updateMissingFonts(result['missingFonts']);
+
+      if (onPageLoadProgress != null) {
+        if (!await onPageLoadProgress(firstPageIndex, pages.length, data)) {
+          // If the callback returns false, stop loading more pages
+          break;
         }
       }
     });
@@ -375,6 +400,26 @@ class _PdfDocumentWasm extends PdfDocument {
 
   @override
   late final List<PdfPage> pages;
+
+  void updateMissingFonts(Map<dynamic, dynamic>? missingFonts) {
+    if (missingFonts == null || missingFonts.isEmpty) {
+      return;
+    }
+    final fontQueries = <PdfFontQuery>[];
+    for (final entry in missingFonts.entries) {
+      final font = entry.value as Map<Object?, dynamic>;
+      fontQueries.add(
+        PdfFontQuery(
+          face: font['face'] as String,
+          weight: (font['weight'] as num).toInt(),
+          isItalic: (font['italic'] as bool),
+          charset: PdfFontCharset.fromPdfiumCharsetId((font['charset'] as num).toInt()),
+          pitchFamily: (font['pitchFamily'] as num).toInt(),
+        ),
+      );
+    }
+    subject.add(PdfDocumentMissingFontsEvent(this, fontQueries));
+  }
 
   static PdfPermissions? parsePermissions(Map<Object?, dynamic> document) {
     final perms = (document['permissions'] as num).toInt();
@@ -468,6 +513,7 @@ class _PdfPageWasm extends PdfPage {
       'loadText',
       parameters: {'docHandle': document.document['docHandle'], 'pageIndex': pageNumber - 1},
     );
+    document.updateMissingFonts(result['missingFonts']);
     return result['fullText'] as String;
   }
 
@@ -553,6 +599,8 @@ class _PdfPageWasm extends PdfPage {
         pixels[i * 4 + 2] = r * a ~/ 255;
       }
     }
+
+    document.updateMissingFonts(result['missingFonts']);
 
     return PdfImageWeb(width: width, height: height, pixels: pixels);
   }

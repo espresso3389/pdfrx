@@ -23,10 +23,10 @@ void setClipboardData(String text) {
 
 Future<String> getCacheDirectory() async => throw UnimplementedError('No temporary directory available for web.');
 
-/// Override for the [PdfDocumentFactory] for web platforms to use WASM implementation.
-PdfDocumentFactory? get pdfDocumentFactoryOverride => _factoryWasm;
+/// Override for the [PdfrxEntryFunctions] for web platforms to use WASM implementation.
+PdfrxEntryFunctions? get pdfrxEntryFunctionsOverride => _factoryWasm;
 
-final _factoryWasm = PdfDocumentFactoryWasmImpl();
+final _factoryWasm = PdfrxEntryFunctionsWasmImpl();
 
 final _focusObject = <Object>{};
 

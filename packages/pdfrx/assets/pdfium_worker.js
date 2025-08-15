@@ -806,8 +806,36 @@ function loadDocumentFromData(params) {
 /** @type {Object<number, function():void>} */
 const disposers = {};
 
+/** @typedef {{face: string, weight: number, italic: boolean, charset: number, pitch_family: number}} FontQuery
+ * @typedef {Object<string, FontQuery>} FontQueries
+ */
+/** @type {FontQueries} */
+let lastMissingFonts = {};
+
+/** @type {Object<number, FontQueries>} */
+let missingFonts = {};
+
 /**
- * @typedef {{docHandle: number,permissions: number, securityHandlerRevision: number, pages: PdfPage[], formHandle: number, formInfo: number}} PdfDocument
+ *
+ * @param {number} docHandle
+ * @returns {FontQueries} Missing fonts new found.
+ */
+function _updateMissingFonts(docHandle) {
+  if (Object.keys(lastMissingFonts).length === 0) return;
+
+  const existing = missingFonts[docHandle] ?? {};
+  missingFonts[docHandle] = { ...existing, ...lastMissingFonts };
+  const result = lastMissingFonts;
+  lastMissingFonts = {};
+  return result;
+}
+
+function _resetMissingFonts() {
+  missingFonts = {};
+}
+
+/**
+ * @typedef {{docHandle: number,permissions: number, securityHandlerRevision: number, pages: PdfPage[], formHandle: number, formInfo: number, missingFonts: FontQueries}} PdfDocument
  * @typedef {{pageIndex: number, width: number, height: number, rotation: number, isLoaded: boolean}} PdfPage
  * @typedef {{errorCode: number, errorCodeStr: string|undefined, message: string}} PdfError
  */
@@ -831,6 +859,9 @@ function _loadDocument(docHandle, useProgressiveLoading, onDispose) {
         message: `Failed to load document`,
       };
     }
+
+    missingFonts[docHandle] = {};
+    lastMissingFonts = {};
 
     const pageCount = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
     const permissions = Pdfium.wasmExports.FPDF_GetDocPermissions(docHandle);
@@ -856,6 +887,8 @@ function _loadDocument(docHandle, useProgressiveLoading, onDispose) {
       }
     }
     disposers[docHandle] = onDispose;
+    _updateMissingFonts(docHandle);
+
     return {
       docHandle: docHandle,
       permissions: permissions,
@@ -863,6 +896,7 @@ function _loadDocument(docHandle, useProgressiveLoading, onDispose) {
       pages: pages,
       formHandle: formHandle,
       formInfo: formInfo,
+      missingFonts: missingFonts[docHandle],
     };
   } catch (e) {
     try {
@@ -891,6 +925,7 @@ function _loadPagesInLimitedTime(docHandle, pagesLoadedCountSoFar, maxPageCountT
   const t = timeoutMs != null ? Date.now() + timeoutMs : null;
   /** @type {PdfPage[]} */
   const pages = [];
+  _resetMissingFonts();
   for (let i = pagesLoadedCountSoFar; i < end; i++) {
     const pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, i);
     if (!pageHandle) {
@@ -910,17 +945,18 @@ function _loadPagesInLimitedTime(docHandle, pagesLoadedCountSoFar, maxPageCountT
       break;
     }
   }
+  _updateMissingFonts(docHandle);
   return pages;
 }
 
 /**
  * @param {{docHandle: number, loadUnitDuration: number}} params
- * @returns {{pages: PdfPage[]}}
+ * @returns {{pages: PdfPage[], missingFonts: FontQueries}}
  */
 function loadPagesProgressively(params) {
   const { docHandle, firstPageIndex, loadUnitDuration } = params;
   const pages = _loadPagesInLimitedTime(docHandle, firstPageIndex, null, loadUnitDuration);
-  return { pages };
+  return { pages, missingFonts: missingFonts[docHandle] };
 }
 
 /**
@@ -936,6 +972,7 @@ function closeDocument(params) {
   Pdfium.wasmExports.FPDF_CloseDocument(params.docHandle);
   disposers[params.docHandle]();
   delete disposers[params.docHandle];
+  delete missingFonts[params.docHandle];
   return { message: 'Document closed' };
 }
 
@@ -1017,7 +1054,12 @@ function closePage(params) {
  * flags: number,
  * formHandle: number
  * }} params
- * @returns
+ * @returns {{
+ * imageData: ArrayBuffer,
+ * width: number,
+ * height: number,
+ * missingFonts: FontQueries
+ * }}
  */
 function renderPage(params) {
   const {
@@ -1040,6 +1082,7 @@ function renderPage(params) {
   let bitmap = 0;
 
   try {
+    _resetMissingFonts();
     pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
     if (!pageHandle) {
       throw new Error(`Failed to load page ${pageIndex} from document ${docHandle}`);
@@ -1063,17 +1106,9 @@ function renderPage(params) {
     const PdfAnnotationRenderingMode_annotationAndForms = 2;
     const premultipliedAlpha = 0x80000000;
 
-    const pdfiumFlags = (flags & 0xffff) | (annotationRenderingMode !== PdfAnnotationRenderingMode_none ? FPDF_ANNOT : 0);
-    Pdfium.wasmExports.FPDF_RenderPageBitmap(
-      bitmap,
-      pageHandle,
-      -x,
-      -y,
-      fullWidth,
-      fullHeight,
-      0,
-      pdfiumFlags
-    );
+    const pdfiumFlags =
+      (flags & 0xffff) | (annotationRenderingMode !== PdfAnnotationRenderingMode_none ? FPDF_ANNOT : 0);
+    Pdfium.wasmExports.FPDF_RenderPageBitmap(bitmap, pageHandle, -x, -y, fullWidth, fullHeight, 0, pdfiumFlags);
 
     if (formHandle && annotationRenderingMode == PdfAnnotationRenderingMode_annotationAndForms) {
       Pdfium.wasmExports.FPDF_FFLDraw(formHandle, bitmap, pageHandle, -x, -y, fullWidth, fullHeight, 0, flags);
@@ -1093,11 +1128,14 @@ function renderPage(params) {
       dest.set(src);
     }
 
+    _updateMissingFonts(docHandle);
+
     return {
       result: {
         imageData: copiedBuffer,
         width: width,
         height: height,
+        missingFonts: missingFonts[docHandle],
       },
       transfer: [copiedBuffer],
     };
@@ -1118,9 +1156,10 @@ function _memset(ptr, value, num) {
 /**
  *
  * @param {{pageIndex: number, docHandle: number}} params
- * @returns {{fullText: string}}
+ * @returns {{fullText: string, missingFonts: FontQueries}}
  */
 function loadText(params) {
+  _resetMissingFonts();
   const { pageIndex, docHandle } = params;
   const pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
   const textPage = Pdfium.wasmExports.FPDFText_LoadPage(pageHandle);
@@ -1135,7 +1174,9 @@ function loadText(params) {
 
   Pdfium.wasmExports.FPDFText_ClosePage(textPage);
   Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
-  return { fullText };
+
+  _updateMissingFonts(docHandle);
+  return { fullText, missingFonts: missingFonts[docHandle] };
 }
 
 /**
@@ -1181,10 +1222,7 @@ function loadTextCharRects(params) {
  * @returns {{links: Array<PdfUrlLink|PdfDestLink>}}
  */
 function loadLinks(params) {
-  const links = [
-    ..._loadAnnotLinks(params), 
-    ...(params.enableAutoLinkDetection ? _loadWebLinks(params) : []),
-  ];
+  const links = [..._loadAnnotLinks(params), ...(params.enableAutoLinkDetection ? _loadWebLinks(params) : [])];
   return {
     links: links,
   };
@@ -1343,6 +1381,106 @@ function _pdfDestFromDest(dest, docHandle) {
 }
 
 /**
+ * Setup the system font info in PDFium.
+ */
+function _initializeFontEnvironment() {
+  // kBase14FontNames
+  const fontNamesToIgnore = {
+    Courier: true,
+    'Courier-Bold': true,
+    'Courier-BoldOblique': true,
+    'Courier-Oblique': true,
+    Helvetica: true,
+    'Helvetica-Bold': true,
+    'Helvetica-BoldOblique': true,
+    'Helvetica-Oblique': true,
+    'Times-Roman': true,
+    'Times-Bold': true,
+    'Times-BoldItalic': true,
+    'Times-Italic': true,
+    Symbol: true,
+    ZapfDingbats: true,
+  };
+
+  // load the default system font info and modify only MapFont (index=3) entry with our one, which
+  // wraps the original function and adds our custom logic
+  const sysFontInfoBuffer = Pdfium.wasmExports.FPDF_GetDefaultSystemFontInfo();
+  const sysFontInfo = new Int32Array(Pdfium.memory.buffer, sysFontInfoBuffer, 9); // struct _FPDF_SYSFONTINFO
+
+  // void* MapFont(
+  //   struct _FPDF_SYSFONTINFO* pThis,
+  //   int weight,
+  //   FPDF_BOOL bItalic,
+  //   int charset,
+  //   int pitch_family,
+  //   const char* face,
+  //   FPDF_BOOL* bExact);
+  const mapFont = sysFontInfo[3];
+  sysFontInfo[3] = Pdfium.addFunction((pThis, weight, bItalic, charset, pitchFamily, face, bExact) => {
+    const result = Pdfium.invokeFunc(mapFont, (func) =>
+      func(sysFontInfoBuffer, weight, bItalic, charset, pitchFamily, face, bExact)
+    );
+    if (!result) {
+      // the font face is missing
+      const faceName = StringUtils.utf8BytesToString(new Uint8Array(Pdfium.memory.buffer, face));
+      if (fontNamesToIgnore[faceName] || lastMissingFonts[faceName]) return 0;
+      lastMissingFonts[faceName] = {
+        face: faceName,
+        weight: weight,
+        italic: !!bItalic,
+        charset: charset,
+        pitchFamily: pitchFamily,
+      };
+    }
+    return result;
+  }, 'iiiiiiii');
+
+  // when registering a new SetSystemFontInfo, the previous one is automatically released
+  // and the only last one remains on memory
+  Pdfium.wasmExports.FPDF_SetSystemFontInfo(sysFontInfoBuffer);
+}
+
+/**
+ * Reload fonts in PDFium.
+ *
+ * The function is based on the fact that PDFium reloads all the fonts when FPDF_SetSystemFontInfo is called.
+ */
+function reloadFonts() {
+  console.log('Reloading system fonts in PDFium...');
+  _initializeFontEnvironment();
+  return { message: 'Fonts reloaded' };
+}
+/**
+ * @type {{[face: string]: string}}
+ */
+const fontFileNames = {};
+let fontFilesId = 0;
+
+/**
+ * Add font data to the file system.
+ * @param {{face: string, data: ArrayBuffer}} params
+ */
+function addFontData(params) {
+  console.log(`Adding font data for face: ${params.face}`);
+  const { face, data } = params;
+  fontFileNames[face] ??= `font_${++fontFilesId}.ttf`;
+  fileSystem.registerFileWithData(`/usr/share/fonts/${fontFileNames[face]}`, data);
+  fileSystem.registerFile('/usr/share/fonts', { entries: Object.values(fontFileNames) });
+  return { message: `Font ${face} added`, face: face, fileName: fontFileNames[face] };
+}
+
+function clearAllFontData() {
+  console.log(`Clearing all font data`);
+  for (const face in fontFileNames) {
+    const fileName = fontFileNames[face];
+    fileSystem.unregisterFile(`/usr/share/fonts/${fileName}`);
+  }
+  fileSystem.registerFile('/usr/share/fonts', { entries: [] });
+  fontFileNames = {};
+  return { message: 'All font data cleared' };
+}
+
+/**
  * Functions that can be called from the main thread
  */
 const functions = {
@@ -1357,6 +1495,9 @@ const functions = {
   loadText,
   loadTextCharRects,
   loadLinks,
+  reloadFonts,
+  addFontData,
+  clearAllFontData,
 };
 
 /**
@@ -1428,7 +1569,7 @@ async function initializePdfium(params = {}) {
       // Hot-restart or such may call this multiple times, so we can skip re-initialization
       return;
     }
-    
+
     console.log(`Loading PDFium WASM module from ${pdfiumWasmUrl}`);
 
     const fetchOptions = {
@@ -1446,6 +1587,8 @@ async function initializePdfium(params = {}) {
 
     Pdfium.initWith(result.instance.exports);
     Pdfium.wasmExports.FPDF_InitLibrary();
+    _initializeFontEnvironment();
+
     pdfiumInitialized = true;
 
     postMessage({ type: 'ready' });

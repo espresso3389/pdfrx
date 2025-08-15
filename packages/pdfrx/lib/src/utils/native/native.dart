@@ -22,8 +22,8 @@ void setClipboardData(String text) {
 
 Future<String> getCacheDirectory() async => (await getTemporaryDirectory()).path;
 
-/// Override for the [PdfDocumentFactory] for native platforms; it is null.
-PdfDocumentFactory? get pdfDocumentFactoryOverride => null;
+/// Override for the [PdfrxEntryFunctions] for native platforms; it is null.
+PdfrxEntryFunctions? get pdfrxEntryFunctionsOverride => null;
 
 /// Initializes the Pdfrx library for native platforms.
 ///

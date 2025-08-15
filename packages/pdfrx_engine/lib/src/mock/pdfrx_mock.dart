@@ -3,16 +3,16 @@ import 'dart:typed_data';
 
 import '../../pdfrx_engine.dart';
 
-/// This is an empty implementation of [PdfDocumentFactory] that just throws [UnimplementedError].
+/// This is an empty implementation of [PdfrxEntryFunctions] that just throws [UnimplementedError].
 ///
 /// This is used to indicate that the factory is not initialized.
-class PdfDocumentFactoryImpl implements PdfDocumentFactory {
-  PdfDocumentFactoryImpl();
+class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
+  PdfrxEntryFunctionsImpl();
 
   Future<PdfDocument> unimplemented() {
     throw UnimplementedError(
-      'PdfDocumentFactory.instance is not initialized. '
-      'Please call pdfrxInitialize()/pdfrxFlutterInitialize() or explicitly set PdfDocumentFactory.instance.',
+      'PdfrxEntryFunctions.instance is not initialized. '
+      'Please call pdfrxInitialize()/pdfrxFlutterInitialize() or explicitly set PdfrxEntryFunctions.instance.',
     );
   }
 
@@ -66,4 +66,13 @@ class PdfDocumentFactoryImpl implements PdfDocumentFactory {
     Map<String, String>? headers,
     bool withCredentials = false,
   }) => unimplemented();
+
+  @override
+  Future<void> reloadFonts() => unimplemented();
+
+  @override
+  Future<void> addFontData({required String face, required Uint8List data}) => unimplemented();
+
+  @override
+  Future<void> clearAllFontData() => unimplemented();
 }

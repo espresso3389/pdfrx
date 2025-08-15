@@ -67,8 +67,8 @@ void _init() {
 
 final backgroundWorker = BackgroundWorker.create();
 
-class PdfDocumentFactoryImpl implements PdfDocumentFactory {
-  PdfDocumentFactoryImpl();
+class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
+  PdfrxEntryFunctionsImpl();
 
   @override
   Future<PdfDocument> openAsset(
@@ -300,6 +300,17 @@ class PdfDocumentFactoryImpl implements PdfDocumentFactory {
       throw PdfException('Failed to load PDF document (FPDF_GetLastError=${pdfium.FPDF_GetLastError()}).');
     }
   }
+
+  @override
+  Future<void> reloadFonts() => throw UnimplementedError('FIXME: PdfrxEntryFunctions.reloadFonts is not implemented.');
+
+  @override
+  Future<void> addFontData({required String face, required Uint8List data}) =>
+      throw UnimplementedError('FIXME: PdfrxEntryFunctions.addFontData is not implemented.');
+
+  @override
+  Future<void> clearAllFontData() =>
+      throw UnimplementedError('FIXME: PdfrxEntryFunctions.clearAllFontData is not implemented.');
 }
 
 extension _FpdfUtf8StringExt on String {
