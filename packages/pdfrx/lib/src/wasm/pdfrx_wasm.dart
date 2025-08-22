@@ -442,6 +442,8 @@ class _PdfDocumentWasm extends PdfDocument {
             page['height'],
             (page['rotation'] as num).toInt(),
             (page['isLoaded'] as bool?) ?? false,
+            (page['bbLeft'] as num).toDouble(),
+            (page['bbBottom'] as num).toDouble(),
           ),
         )
         .toList();
@@ -463,8 +465,16 @@ class _PdfPageRenderCancellationTokenWasm extends PdfPageRenderCancellationToken
 }
 
 class _PdfPageWasm extends PdfPage {
-  _PdfPageWasm(this.document, int pageIndex, this.width, this.height, int rotation, this.isLoaded)
-    : pageNumber = pageIndex + 1,
+  _PdfPageWasm(
+    this.document,
+    int pageIndex,
+    this.width,
+    this.height,
+    int rotation,
+    this.isLoaded,
+    this.bbLeft,
+    this.bbBottom,
+  ) : pageNumber = pageIndex + 1,
       rotation = PdfPageRotation.values[rotation];
 
   @override
@@ -493,7 +503,12 @@ class _PdfPageWasm extends PdfPage {
       final rects =
           (link['rects'] as List).map((r) {
             final rect = r as List;
-            return PdfRect(rect[0] as double, rect[1] as double, rect[2] as double, rect[3] as double);
+            return PdfRect(
+              (rect[0] as double) - bbLeft,
+              (rect[1] as double) - bbBottom,
+              (rect[2] as double) - bbLeft,
+              (rect[3] as double) - bbBottom,
+            );
           }).toList();
       final url = link['url'];
       if (url is String) {
@@ -528,7 +543,12 @@ class _PdfPageWasm extends PdfPage {
     final charRectsAll =
         (result['charRects'] as List).map((rect) {
           final r = rect as List;
-          return PdfRect(r[0] as double, r[1] as double, r[2] as double, r[3] as double);
+          return PdfRect(
+            (r[0] as double) - bbLeft,
+            (r[1] as double) - bbBottom,
+            (r[2] as double) - bbLeft,
+            (r[3] as double) - bbBottom,
+          );
         }).toList();
     return charRectsAll;
   }
@@ -547,6 +567,10 @@ class _PdfPageWasm extends PdfPage {
 
   @override
   final bool isLoaded;
+
+  final double bbLeft;
+
+  final double bbBottom;
 
   @override
   Future<PdfImage?> render({

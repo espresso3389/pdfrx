@@ -836,7 +836,7 @@ function _resetMissingFonts() {
 
 /**
  * @typedef {{docHandle: number,permissions: number, securityHandlerRevision: number, pages: PdfPage[], formHandle: number, formInfo: number, missingFonts: FontQueries}} PdfDocument
- * @typedef {{pageIndex: number, width: number, height: number, rotation: number, isLoaded: boolean}} PdfPage
+ * @typedef {{pageIndex: number, width: number, height: number, rotation: number, isLoaded: boolean, bbLeft: number, bbBottom: number}} PdfPage
  * @typedef {{errorCode: number, errorCodeStr: string|undefined, message: string}} PdfError
  */
 
@@ -883,6 +883,8 @@ function _loadDocument(docHandle, useProgressiveLoading, onDispose) {
           height: firstPage.height,
           rotation: firstPage.rotation,
           isLoaded: false,
+          bbLeft: 0,
+          bbBottom: 0,
         });
       }
     }
@@ -933,12 +935,21 @@ function _loadPagesInLimitedTime(docHandle, pagesLoadedCountSoFar, maxPageCountT
       throw new Error(`FPDF_LoadPage failed (${_getErrorMessage(error)})`);
     }
 
+  const rectBuffer = Pdfium.wasmExports.malloc(4 * 4); // FS_RECTF: float[4]
+  Pdfium.wasmExports.FPDF_GetPageBoundingBox(pageHandle, rectBuffer);
+  const rect = new Float32Array(Pdfium.memory.buffer, rectBuffer, 4);
+  const bbLeft = rect[0];
+  const bbBottom = rect[3];
+  Pdfium.wasmExports.free(rectBuffer);
+
     pages.push({
       pageIndex: i,
-      width: Pdfium.wasmExports.FPDF_GetPageWidth(pageHandle),
-      height: Pdfium.wasmExports.FPDF_GetPageHeight(pageHandle),
+      width: Pdfium.wasmExports.FPDF_GetPageWidthF(pageHandle),
+      height: Pdfium.wasmExports.FPDF_GetPageHeightF(pageHandle),
       rotation: Pdfium.wasmExports.FPDFPage_GetRotation(pageHandle),
       isLoaded: true,
+      bbLeft: bbLeft,
+      bbBottom: bbBottom,
     });
     Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
     if (t != null && Date.now() > t) {

@@ -467,14 +467,18 @@ class _PdfDocumentPdfium extends PdfDocument {
                 ? pageCount
                 : min(pageCount, params.pagesCountLoadedSoFar + params.maxPageCountToLoadAdditionally!);
             final t = params.timeoutUs != null ? (Stopwatch()..start()) : null;
-            final pages = <({double width, double height, int rotation})>[];
+            final pages = <({double width, double height, int rotation, double bbLeft, double bbBottom})>[];
             for (int i = params.pagesCountLoadedSoFar; i < end; i++) {
               final page = pdfium.FPDF_LoadPage(doc, i);
               try {
+                final rect = arena.allocate<pdfium_bindings.FS_RECTF>(sizeOf<pdfium_bindings.FS_RECTF>());
+                pdfium.FPDF_GetPageBoundingBox(page, rect);
                 pages.add((
                   width: pdfium.FPDF_GetPageWidthF(page),
                   height: pdfium.FPDF_GetPageHeightF(page),
                   rotation: pdfium.FPDFPage_GetRotation(page),
+                  bbLeft: rect.ref.left.toDouble(),
+                  bbBottom: rect.ref.bottom.toDouble(),
                 ));
               } finally {
                 pdfium.FPDF_ClosePage(page);
@@ -504,6 +508,8 @@ class _PdfDocumentPdfium extends PdfDocument {
             width: pageData.width,
             height: pageData.height,
             rotation: PdfPageRotation.values[pageData.rotation],
+            bbLeft: pageData.bbLeft,
+            bbBottom: pageData.bbBottom,
             isLoaded: true,
           ),
         );
@@ -519,6 +525,8 @@ class _PdfDocumentPdfium extends PdfDocument {
               width: last.width,
               height: last.height,
               rotation: last.rotation,
+              bbLeft: last.bbLeft,
+              bbBottom: last.bbBottom,
               isLoaded: false,
             ),
           );
@@ -602,6 +610,12 @@ class _PdfPagePdfium extends PdfPage {
   @override
   final double height;
 
+  /// Bounding box left
+  final double bbLeft;
+
+  /// Bounding box bottom
+  final double bbBottom;
+
   @override
   final PdfPageRotation rotation;
 
@@ -614,6 +628,8 @@ class _PdfPagePdfium extends PdfPage {
     required this.width,
     required this.height,
     required this.rotation,
+    required this.bbLeft,
+    required this.bbBottom,
     required this.isLoaded,
   });
 
@@ -808,7 +824,7 @@ class _PdfPagePdfium extends PdfPage {
               rectBuffer.offset(doubleSize * 3), // B
               rectBuffer.offset(doubleSize), // T
             );
-            charRects.add(_rectFromLTRBBuffer(rectBuffer));
+            charRects.add(_rectFromLTRBBuffer(rectBuffer, params.bbLeft, params.bbBottom));
           }
           return charRects;
         } finally {
@@ -816,7 +832,7 @@ class _PdfPagePdfium extends PdfPage {
           pdfium.FPDF_ClosePage(page);
         }
       }),
-      (docHandle: document.document.address, pageNumber: pageNumber),
+      (docHandle: document.document.address, pageNumber: pageNumber, bbLeft: bbLeft, bbBottom: bbBottom),
     );
   }
 
@@ -862,7 +878,7 @@ class _PdfPagePdfium extends PdfPage {
                     rectBuffer.offset(doubleSize * 2),
                     rectBuffer.offset(doubleSize * 3),
                   );
-                  return _rectFromLTRBBuffer(rectBuffer);
+                  return _rectFromLTRBBuffer(rectBuffer, params.bbLeft, params.bbBottom);
                 });
                 return PdfLink(rects, url: Uri.tryParse(_getLinkUrl(linkPage, index, arena)));
               });
@@ -872,7 +888,7 @@ class _PdfPagePdfium extends PdfPage {
             pdfium.FPDFText_ClosePage(textPage);
             pdfium.FPDF_ClosePage(page);
           }
-        }, (document: document.document.address, pageNumber: pageNumber));
+        }, (document: document.document.address, pageNumber: pageNumber, bbLeft: bbLeft, bbBottom: bbBottom));
 
   static String _getLinkUrl(pdfium_bindings.FPDF_PAGELINK linkPage, int linkIndex, Arena arena) {
     final urlLength = pdfium.FPDFLink_GetURL(linkPage, linkIndex, nullptr, 0);
@@ -964,6 +980,14 @@ class _PdfPagePdfium extends PdfPage {
         return null;
     }
   }
+
+  static PdfRect _rectFromLTRBBuffer(Pointer<Double> buffer, double bbLeft, double bbBottom) {
+    final left = buffer[0] - bbLeft;
+    final top = buffer[1] - bbBottom;
+    final right = buffer[2] - bbLeft;
+    final bottom = buffer[3] - bbBottom;
+    return PdfRect(left, top, right, bottom);
+  }
 }
 
 class PdfPageRenderCancellationTokenPdfium extends PdfPageRenderCancellationToken {
@@ -1010,8 +1034,6 @@ class _PdfImagePdfium extends PdfImage {
     malloc.free(_buffer);
   }
 }
-
-PdfRect _rectFromLTRBBuffer(Pointer<Double> buffer) => PdfRect(buffer[0], buffer[1], buffer[2], buffer[3]);
 
 extension _PointerExt<T extends NativeType> on Pointer<T> {
   Pointer<T> offset(int offsetInBytes) => Pointer.fromAddress(address + offsetInBytes);
