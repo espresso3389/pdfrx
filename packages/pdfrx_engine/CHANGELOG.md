@@ -1,3 +1,10 @@
+## 0.1.13
+
+- Add font loading APIs for WASM: `reloadFonts()` and `addFontData()` methods
+- Add `PdfDocumentMissingFontsEvent` to notify about missing fonts in PDF documents
+- FIXED: Text coordinate calculation when CropBox/MediaBox has non-zero origin ([#441](https://github.com/espresso3389/pdfrx/issues/441))
+- Improve WASM stability and font handling
+
 ## 0.1.12
 
 - Fix text character rectangle rotation handling in `loadTextCharRects()` and related methods

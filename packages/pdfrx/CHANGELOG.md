@@ -1,3 +1,10 @@
+# 2.1.4
+
+- FIXED: Text coordinate calculation when CropBox/MediaBox has non-zero origin ([#441](https://github.com/espresso3389/pdfrx/issues/441))
+- Add support for dynamic font loading in WASM with `PdfDocumentMissingFontsEvent`
+- Improve WASM stability and font handling mechanisms
+- Update pdfrx_engine dependency to 0.1.13
+
 # 2.1.3
 
 - FIXED: UI distortion when selecting text ([#432](https://github.com/espresso3389/pdfrx/issues/432))
