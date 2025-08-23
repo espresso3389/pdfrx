@@ -1,3 +1,7 @@
+# 2.1.5
+
+- FIXED: PdfDocumentViewBuilder was incorrectly reloading document on every widget change ([#439](https://github.com/espresso3389/pdfrx/issues/439))
+
 # 2.1.4
 
 - FIXED: Text coordinate calculation when CropBox/MediaBox has non-zero origin ([#441](https://github.com/espresso3389/pdfrx/issues/441))
