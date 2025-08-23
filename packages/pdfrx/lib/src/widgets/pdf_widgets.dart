@@ -124,15 +124,13 @@ class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
   @override
   void didUpdateWidget(covariant PdfDocumentViewBuilder oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget == oldWidget) {
-      return;
+    if (widget.documentRef != oldWidget.documentRef) {
+      oldWidget.documentRef.resolveListenable().removeListener(_onDocumentChanged);
+      widget.documentRef.resolveListenable()
+        ..addListener(_onDocumentChanged)
+        ..load();
+      _onDocumentChanged();
     }
-
-    oldWidget.documentRef.resolveListenable().removeListener(_onDocumentChanged);
-    widget.documentRef.resolveListenable()
-      ..addListener(_onDocumentChanged)
-      ..load();
-    _onDocumentChanged();
   }
 
   @override
