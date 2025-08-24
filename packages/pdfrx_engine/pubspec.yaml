@@ -6,7 +6,8 @@ repository: https://github.com/espresso3389/pdfrx/tree/master/packages/pdfrx_eng
 issue_tracker: https://github.com/espresso3389/pdfrx/issues
 
 environment:
-  sdk: ^3.8.1
+  sdk: ^3.9.0
+resolution: workspace
 
 # Add regular dependencies here.
 dependencies:

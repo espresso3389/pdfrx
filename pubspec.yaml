@@ -1,7 +1,10 @@
-name: pdfrx_monorepo
+name: pdfrx_workspace
 environment:
-  sdk: '>=3.0.0 <4.0.0'
-
+  sdk: ">=3.9.0 <4.0.0"
 dev_dependencies:
-  melos: ^6.3.3
-
+  melos: ^7.1.0
+workspace:
+  - packages/pdfrx
+  - packages/pdfrx_engine
+  - packages/pdfrx/example/viewer
+melos:
