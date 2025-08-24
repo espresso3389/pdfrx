@@ -13,10 +13,9 @@ void main() {
   // For testing purpose, we should run on the command line
   // and pdfrxInitialize is a better way to initialize the library.
   setUp(() => pdfrxInitialize());
-  Pdfrx.createHttpClient =
-      () => MockClient((request) async {
-        return http.Response.bytes(await testPdfFile.readAsBytes(), 200);
-      });
+  Pdfrx.createHttpClient = () => MockClient((request) async {
+    return http.Response.bytes(await testPdfFile.readAsBytes(), 200);
+  });
 
   testWidgets('PdfViewer.uri', (tester) async {
     await binding.setSurfaceSize(Size(1080, 1920));

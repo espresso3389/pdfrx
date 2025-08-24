@@ -19,14 +19,8 @@ Future<String?> passwordDialog(BuildContext context) async {
           onSubmitted: (value) => Navigator.of(context).pop(value),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(null),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(textController.text),
-            child: const Text('OK'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(null), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(textController.text), child: const Text('OK')),
         ],
       );
     },

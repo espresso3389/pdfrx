@@ -23,7 +23,10 @@ Widget pdfErrorWidget(BuildContext context, Object error, {StackTrace? stackTrac
                         child: Icon(Icons.error, size: 50, color: Colors.yellow),
                         alignment: PlaceholderAlignment.middle,
                       ),
-                      TextSpan(text: ' $error\n\n', style: const TextStyle(color: Colors.white)),
+                      TextSpan(
+                        text: ' $error\n\n',
+                        style: const TextStyle(color: Colors.white),
+                      ),
                       if (stackTrace != null)
                         TextSpan(text: stackTrace.toString(), style: const TextStyle(fontSize: 14)),
                       if (error is PdfPasswordException && isWindows)

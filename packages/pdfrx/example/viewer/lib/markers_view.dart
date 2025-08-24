@@ -8,12 +8,7 @@ class Marker {
 }
 
 class MarkersView extends StatefulWidget {
-  const MarkersView({
-    required this.markers,
-    super.key,
-    this.onTap,
-    this.onDeleteTap,
-  });
+  const MarkersView({required this.markers, super.key, this.onTap, this.onDeleteTap});
 
   final List<Marker> markers;
   final void Function(Marker marker)? onTap;
@@ -46,10 +41,7 @@ class _MarkersViewState extends State<MarkersView> {
               ),
               Align(
                 alignment: Alignment.centerRight,
-                child: IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () => widget.onDeleteTap?.call(marker),
-                ),
+                child: IconButton(icon: const Icon(Icons.delete), onPressed: () => widget.onDeleteTap?.call(marker)),
               ),
             ],
           ),

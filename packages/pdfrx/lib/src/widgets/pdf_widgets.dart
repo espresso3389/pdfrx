@@ -290,11 +290,11 @@ class _PdfPageViewState extends State<PdfPageView> {
             widget.document!.pages[widget.pageNumber - 1],
             _image != null
                 ? RawImage(
-                  image: _image,
-                  width: _pageSize!.width * scale,
-                  height: _pageSize!.height * scale,
-                  fit: BoxFit.fill,
-                )
+                    image: _image,
+                    width: _pageSize!.width * scale,
+                    height: _pageSize!.height * scale,
+                    fit: BoxFit.fill,
+                  )
                 : null,
           );
         }

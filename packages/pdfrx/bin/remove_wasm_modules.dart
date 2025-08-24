@@ -42,10 +42,9 @@ Future<int> main(List<String> args) async {
 
     // Read the pubspec.yaml content
     var pubspecYaml = pubspecFile.readAsStringSync();
-    final modifiedYaml =
-        revert
-            ? pubspecYaml.replaceAll('# - assets/', '- assets/')
-            : pubspecYaml.replaceAll('- assets/', '# - assets/');
+    final modifiedYaml = revert
+        ? pubspecYaml.replaceAll('# - assets/', '- assets/')
+        : pubspecYaml.replaceAll('- assets/', '# - assets/');
     if (modifiedYaml == pubspecYaml) {
       print('No changes needed.');
     } else {

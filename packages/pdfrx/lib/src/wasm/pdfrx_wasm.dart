@@ -71,13 +71,12 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
       Pdfrx.pdfiumWasmModulesUrl ??= _pdfiumWasmModulesUrlFromMetaTag();
       pdfiumWasmWorkerUrl = _getWorkerUrl();
       final moduleUrl = _resolveUrl(Pdfrx.pdfiumWasmModulesUrl ?? defaultWasmModulePath);
-      final script =
-          web.document.createElement('script') as web.HTMLScriptElement
-            ..type = 'text/javascript'
-            ..charset = 'utf-8'
-            ..async = true
-            ..type = 'module'
-            ..src = _resolveUrl('pdfium_client.js', baseUrl: moduleUrl);
+      final script = web.document.createElement('script') as web.HTMLScriptElement
+        ..type = 'text/javascript'
+        ..charset = 'utf-8'
+        ..async = true
+        ..type = 'module'
+        ..src = _resolveUrl('pdfium_client.js', baseUrl: moduleUrl);
       web.document.querySelector('head')!.appendChild(script);
       final completer = Completer();
       final sub1 = script.onLoad.listen((_) => completer.complete());
@@ -500,16 +499,15 @@ class _PdfPageWasm extends PdfPage {
       if (link is! Map<Object?, dynamic>) {
         throw FormatException('Unexpected link structure: $link');
       }
-      final rects =
-          (link['rects'] as List).map((r) {
-            final rect = r as List;
-            return PdfRect(
-              (rect[0] as double) - bbLeft,
-              (rect[1] as double) - bbBottom,
-              (rect[2] as double) - bbLeft,
-              (rect[3] as double) - bbBottom,
-            );
-          }).toList();
+      final rects = (link['rects'] as List).map((r) {
+        final rect = r as List;
+        return PdfRect(
+          (rect[0] as double) - bbLeft,
+          (rect[1] as double) - bbBottom,
+          (rect[2] as double) - bbLeft,
+          (rect[3] as double) - bbBottom,
+        );
+      }).toList();
       final url = link['url'];
       if (url is String) {
         return PdfLink(rects, url: Uri.tryParse(url));
@@ -540,16 +538,15 @@ class _PdfPageWasm extends PdfPage {
       'loadTextCharRects',
       parameters: {'docHandle': document.document['docHandle'], 'pageIndex': pageNumber - 1},
     );
-    final charRectsAll =
-        (result['charRects'] as List).map((rect) {
-          final r = rect as List;
-          return PdfRect(
-            (r[0] as double) - bbLeft,
-            (r[1] as double) - bbBottom,
-            (r[2] as double) - bbLeft,
-            (r[3] as double) - bbBottom,
-          );
-        }).toList();
+    final charRectsAll = (result['charRects'] as List).map((rect) {
+      final r = rect as List;
+      return PdfRect(
+        (r[0] as double) - bbLeft,
+        (r[1] as double) - bbBottom,
+        (r[2] as double) - bbLeft,
+        (r[3] as double) - bbBottom,
+      );
+    }).toList();
     return charRectsAll;
   }
 

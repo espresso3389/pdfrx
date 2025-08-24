@@ -29,20 +29,11 @@ class ThumbnailsView extends StatelessWidget {
                         SizedBox(
                           height: 220,
                           child: InkWell(
-                            onTap: () => controller!.goToPage(
-                              pageNumber: index + 1,
-                              anchor: PdfPageAnchor.top,
-                            ),
-                            child: PdfPageView(
-                              document: document,
-                              pageNumber: index + 1,
-                              alignment: Alignment.center,
-                            ),
+                            onTap: () => controller!.goToPage(pageNumber: index + 1, anchor: PdfPageAnchor.top),
+                            child: PdfPageView(document: document, pageNumber: index + 1, alignment: Alignment.center),
                           ),
                         ),
-                        Text(
-                          '${index + 1}',
-                        ),
+                        Text('${index + 1}'),
                       ],
                     ),
                   );
