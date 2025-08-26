@@ -1,3 +1,7 @@
+# 2.1.7
+
+- Refactor InteractiveViewer to use Matrix4 double variants for better numerical precision
+
 # 2.1.6
 
 - DOCS: Document initialization for Flutter (`pdfrxFlutterInitialize`) and link to non-Flutter initialization (`pdfrxInitialize`). Closes #447
