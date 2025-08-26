@@ -1,3 +1,8 @@
+# 2.1.6
+
+- DOCS: Document initialization for Flutter (`pdfrxFlutterInitialize`) and link to non-Flutter initialization (`pdfrxInitialize`). Closes #447
+- No functional changes
+
 # 2.1.5
 
 - FIXED: PdfDocumentViewBuilder was incorrectly reloading document on every widget change ([#439](https://github.com/espresso3389/pdfrx/issues/439))
