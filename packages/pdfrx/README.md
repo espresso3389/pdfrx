@@ -65,6 +65,25 @@ dependencies:
 
 **Note:** You only need to add `pdfrx` to your dependencies. The `pdfrx_engine` package is automatically included as a dependency of `pdfrx`.
 
+### Initialization
+
+If you access the document API directly (for example, opening a [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) before any pdfrx widget is built), call [pdfrxFlutterInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) once during app startup:
+
+```dart
+import 'package:flutter/widgets.dart';
+import 'package:pdfrx/pdfrx.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await pdfrxFlutterInitialize(); // Required when using engine APIs before widgets
+  runApp(const MyApp());
+}
+```
+
+- Widget-first usage: no action needed; initialization happens automatically.
+- Direct engine usage first: call [pdfrxFlutterInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) once before opening documents.
+- For non-Flutter (pure Dart) use cases, call [pdfrxInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html); refer to [the example](https://github.com/espresso3389/pdfrx/tree/master/packages/pdfrx_engine#example-code).
+
 ### Note for Windows
 
 **REQUIRED: You must enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development#activate-developer-mode) to build pdfrx on Windows.**
