@@ -1352,23 +1352,16 @@ typedef PdfViewerOnKeyCallback =
 
 /// Parameters for the built-in key handler.
 ///
-/// [initialDelay] is the initial delay before the key repeat starts.
-/// [repeatInterval] is the interval between key repeats.
-///
 /// For [autofocus], [canRequestFocus], [focusNode], and [parentNode],
 /// please refer to the documentation of [Focus] widget.
 class PdfViewerKeyHandlerParams {
   const PdfViewerKeyHandlerParams({
-    this.initialDelay = const Duration(milliseconds: 500),
-    this.repeatInterval = const Duration(milliseconds: 100),
     this.autofocus = false,
     this.canRequestFocus = true,
     this.focusNode,
     this.parentNode,
   });
 
-  final Duration initialDelay;
-  final Duration repeatInterval;
   final bool autofocus;
   final bool canRequestFocus;
   final FocusNode? focusNode;
@@ -1378,22 +1371,14 @@ class PdfViewerKeyHandlerParams {
   operator ==(covariant PdfViewerKeyHandlerParams other) {
     if (identical(this, other)) return true;
 
-    return other.initialDelay == initialDelay &&
-        other.repeatInterval == repeatInterval &&
-        other.autofocus == autofocus &&
+    return other.autofocus == autofocus &&
         other.canRequestFocus == canRequestFocus &&
         other.focusNode == focusNode &&
         other.parentNode == parentNode;
   }
 
   @override
-  int get hashCode =>
-      initialDelay.hashCode ^
-      repeatInterval.hashCode ^
-      autofocus.hashCode ^
-      canRequestFocus.hashCode ^
-      focusNode.hashCode ^
-      parentNode.hashCode;
+  int get hashCode => autofocus.hashCode ^ canRequestFocus.hashCode ^ focusNode.hashCode ^ parentNode.hashCode;
 }
 
 enum PdfViewerGeneralTapType {

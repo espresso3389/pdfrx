@@ -1,14 +1,12 @@
 // ignore_for_file: public_member_api_docs
 
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../pdfrx.dart';
 
 /// A widget that handles key events for the PDF viewer.
-class PdfViewerKeyHandler extends StatefulWidget {
+class PdfViewerKeyHandler extends StatelessWidget {
   const PdfViewerKeyHandler({
     required this.child,
     required this.onKeyRepeat,
@@ -26,73 +24,25 @@ class PdfViewerKeyHandler extends StatefulWidget {
   final Widget child;
 
   @override
-  State<PdfViewerKeyHandler> createState() => _PdfViewerKeyHandlerState();
-}
-
-class _PdfViewerKeyHandlerState extends State<PdfViewerKeyHandler> {
-  Timer? _timer;
-  LogicalKeyboardKey? _currentKey;
-
-  void _startRepeating(FocusNode node, LogicalKeyboardKey key) {
-    _currentKey = key;
-
-    // Initial delay before starting to repeat
-    _timer = Timer(widget.params.initialDelay, () {
-      // Start repeating at the specified interval
-      _timer = Timer.periodic(widget.params.repeatInterval, (_) {
-        widget.onKeyRepeat(widget.params, _currentKey!, false);
-      });
-    });
-  }
-
-  void _stopRepeating() {
-    _timer?.cancel();
-    _timer = null;
-    _currentKey = null;
-  }
-
-  @override
-  void dispose() {
-    _stopRepeating();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Focus(
-      focusNode: widget.params.focusNode,
-      parentNode: widget.params.parentNode,
-      autofocus: widget.params.autofocus,
-      canRequestFocus: widget.params.canRequestFocus,
-      onFocusChange: widget.onFocusChange,
+      focusNode: params.focusNode,
+      parentNode: params.parentNode,
+      autofocus: params.autofocus,
+      canRequestFocus: params.canRequestFocus,
+      onFocusChange: onFocusChange,
       onKeyEvent: (node, event) {
-        if (event is KeyDownEvent) {
-          // Key pressed down
-          if (_currentKey == null) {
-            if (widget.onKeyRepeat(widget.params, event.logicalKey, true)) {
-              _startRepeating(node, event.logicalKey);
-              return KeyEventResult.handled;
-            }
-          }
-        } else if (event is KeyUpEvent) {
-          // Key released
-          if (_currentKey == event.logicalKey) {
-            _stopRepeating();
+        if (event is KeyDownEvent || event is KeyRepeatEvent) {
+          if (onKeyRepeat(params, event.logicalKey, event is KeyDownEvent)) {
             return KeyEventResult.handled;
           }
+        } else if (event is KeyUpEvent) {
+          return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
       },
       child: Builder(
-        builder: (context) {
-          final focusNode = Focus.of(context);
-          return ListenableBuilder(
-            listenable: focusNode,
-            builder: (context, _) {
-              return widget.child;
-            },
-          );
-        },
+        builder: (context) => ListenableBuilder(listenable: Focus.of(context), builder: (context, _) => child),
       ),
     );
   }

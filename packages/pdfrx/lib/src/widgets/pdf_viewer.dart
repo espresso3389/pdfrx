@@ -604,32 +604,34 @@ class _PdfViewerState extends State<PdfViewer>
     if (result != null) {
       return result;
     }
-    final duration = widget.params.keyHandlerParams.repeatInterval;
+    // NOTE: repeatInterval should be shorter than the actual key repeat interval of the platform
+    // because the animation should finish before the next key event.
+    const repeatInterval = Duration(milliseconds: 100);
     switch (key) {
       case LogicalKeyboardKey.pageUp:
-        _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) - 1, duration: duration);
+        _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) - 1, duration: repeatInterval);
         return true;
       case LogicalKeyboardKey.pageDown:
-        _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) + 1, duration: duration);
+        _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) + 1, duration: repeatInterval);
         return true;
       case LogicalKeyboardKey.space:
         final move = HardwareKeyboard.instance.isShiftPressed ? -1 : 1;
-        _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) + move, duration: duration);
+        _goToPage(pageNumber: (_gotoTargetPageNumber ?? _pageNumber!) + move, duration: repeatInterval);
         return true;
       case LogicalKeyboardKey.home:
-        _goToPage(pageNumber: 1, duration: duration);
+        _goToPage(pageNumber: 1, duration: repeatInterval);
         return true;
       case LogicalKeyboardKey.end:
-        _goToPage(pageNumber: _document!.pages.length, anchor: widget.params.pageAnchorEnd, duration: duration);
+        _goToPage(pageNumber: _document!.pages.length, anchor: widget.params.pageAnchorEnd, duration: repeatInterval);
         return true;
       case LogicalKeyboardKey.equal:
         if (isCommandKeyPressed) {
-          _zoomUp(duration: duration);
+          _zoomUp(duration: repeatInterval);
           return true;
         }
       case LogicalKeyboardKey.minus:
         if (isCommandKeyPressed) {
-          _zoomDown(duration: duration);
+          _zoomDown(duration: repeatInterval);
           return true;
         }
       case LogicalKeyboardKey.arrowDown:
