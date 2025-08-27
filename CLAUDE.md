@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI agents and developers when working with code in this repository.
 
 ## Project Overview
 
@@ -89,7 +89,7 @@ Both packages may need to be released when changes are made:
    - If there are breaking changes, increment the minor version (X.Y.Z -> X.Y+1.0)
    - If there are major changes, increment the major version (X.Y.Z -> X+1.0.0)
 2. Update `packages/pdfrx_engine/CHANGELOG.md` with changes
-   - Don't mention CI/CD changes and `CLAUDE.md` related changes (unless they are significant)
+   - Don't mention CI/CD changes and `CLAUDE.md`/`AGENTS.md` related changes (unless they are significant)
 3. Update `packages/pdfrx_engine/README.md` if needed
 4. Update `README.md` on the repo root if needed
 5. Run `dart pub publish` in `packages/pdfrx_engine/`
@@ -124,7 +124,7 @@ Both packages may need to be released when changes are made:
 
       ...Fix/update summary...
 
-      Written by 🤖[Claude Code](https://claude.ai/code)
+      Written by [AGENT SIGNATURE]
       ```
 
     - Focus on the release notes and what was fixed/changed rather than upgrade instructions
