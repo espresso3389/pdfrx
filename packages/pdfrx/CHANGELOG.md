@@ -1,3 +1,7 @@
+# 2.1.9
+
+- Replace deprecated Matrix4 methods (`translate` -> `translateByDouble`, `scaled` -> `scaledByDouble`) for improved numerical precision
+
 # 2.1.8
 
 - FIXED: Unstoppable key-repeat on certain keys
