@@ -1,3 +1,7 @@
+# 2.1.8
+
+- FIXED: Unstoppable key-repeat on certain keys
+
 # 2.1.7
 
 - Refactor InteractiveViewer to use Matrix4 double variants for better numerical precision
