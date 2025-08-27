@@ -633,16 +633,16 @@ class _PdfViewerState extends State<PdfViewer>
           return true;
         }
       case LogicalKeyboardKey.arrowDown:
-        _goToManipulated((m) => m.translate(0.0, -widget.params.scrollByArrowKey));
+        _goToManipulated((m) => m.translateByDouble(0.0, -widget.params.scrollByArrowKey, 0, 1));
         return true;
       case LogicalKeyboardKey.arrowUp:
-        _goToManipulated((m) => m.translate(0.0, widget.params.scrollByArrowKey));
+        _goToManipulated((m) => m.translateByDouble(0.0, widget.params.scrollByArrowKey, 0, 1));
         return true;
       case LogicalKeyboardKey.arrowLeft:
-        _goToManipulated((m) => m.translate(widget.params.scrollByArrowKey, 0.0));
+        _goToManipulated((m) => m.translateByDouble(widget.params.scrollByArrowKey, 0.0, 0, 1));
         return true;
       case LogicalKeyboardKey.arrowRight:
-        _goToManipulated((m) => m.translate(-widget.params.scrollByArrowKey, 0.0));
+        _goToManipulated((m) => m.translateByDouble(-widget.params.scrollByArrowKey, 0.0, 0, 1));
         return true;
       case LogicalKeyboardKey.keyA:
         if (isCommandKeyPressed) {
