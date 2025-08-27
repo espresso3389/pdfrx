@@ -1257,9 +1257,9 @@ class _PdfViewerState extends State<PdfViewer>
     final dx = -event.scrollDelta.dx * widget.params.scrollByMouseWheel! / _currentZoom;
     final dy = -event.scrollDelta.dy * widget.params.scrollByMouseWheel! / _currentZoom;
     if (widget.params.scrollHorizontallyByMouseWheel) {
-      m.translate(dy, dx);
+      m.translateByDouble(dy, dx, 0, 1);
     } else {
-      m.translate(dx, dy);
+      m.translateByDouble(dx, dy, 0, 1);
     }
     _txController.value = m;
     _stopInteraction();
@@ -1284,7 +1284,7 @@ class _PdfViewerState extends State<PdfViewer>
     final x = position.dx.range(hw, layout.documentSize.width - hw);
     final y = position.dy.range(hh, layout.documentSize.height - hh);
 
-    return _calcMatrixFor(Offset(x, y), zoom: newZoom, viewSize: viewSize).scaled(1.0, 1.0, newZoom);
+    return _calcMatrixFor(Offset(x, y), zoom: newZoom, viewSize: viewSize).scaledByDouble(1.0, 1.0, newZoom, 1.0);
   }
 
   /// Calculate matrix to center the specified position.
