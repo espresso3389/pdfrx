@@ -73,16 +73,14 @@ If you access the document API directly (for example, opening a [PdfDocument](ht
 import 'package:flutter/widgets.dart';
 import 'package:pdfrx/pdfrx.dart';
 
-Future<void> main() async {
+Future<void> main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await pdfrxFlutterInitialize(); // Required when using engine APIs before widgets
+  pdfrxFlutterInitialize(); // Required when using engine APIs before widgets
   runApp(const MyApp());
 }
 ```
 
-- Widget-first usage: no action needed; initialization happens automatically.
-- Direct engine usage first: call [pdfrxFlutterInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) once before opening documents.
-- For non-Flutter (pure Dart) use cases, call [pdfrxInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html); refer to [the example](https://github.com/espresso3389/pdfrx/tree/master/packages/pdfrx_engine#example-code).
+For more information, see [pdfrx Initialization](https://github.com/espresso3389/pdfrx/wiki/pdfrx-Initialization)
 
 ### Note for Windows
 
@@ -116,6 +114,15 @@ To restore the WASM binaries, run the following command:
 ```bash
 dart run pdfrx:remove_wasm_modules --revert
 ```
+
+## PdfViewer constructors
+
+For opening PDF files from various sources, there are several constructors available in [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html):
+
+- [PdfViewer.asset](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.asset.html) - Load from Flutter assets
+- [PdfViewer.file](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.file.html) - Load from local file
+- [PdfViewer.data](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.data.html) - Load from memory (Uint8List)
+- [PdfViewer.network](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.uri.html) - Load from network URL
 
 ## Customizations/Features
 

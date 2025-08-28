@@ -40,16 +40,25 @@ void main() async {
 }
 ```
 
+You should call `pdfrxInitialize()` before using any PDF engine APIs to ensure the native PDFium library is properly loaded. For more information, see [pdfrx Initialization](https://github.com/espresso3389/pdfrx/wiki/pdfrx-Initialization)
+
 ## PDF API
 
 - Easy to use PDF APIs
   - [PdfDocument](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) - Main document interface
+    - [PdfDocument.openFile](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openFile.html) - Open PDF from file path
+    - [PdfDocument.openData](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openData.html) - Open PDF from memory (Uint8List)
+    - [PdfDocument.openUri](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openUri.html) - Open PDF from stream (advanced use case)
+    - [PdfDocument.openAsset](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openAsset.html) - Open PDF from Flutter asset
   - [PdfPage](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage-class.html) - Page representation and rendering
+    - [PdfPage.render](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/render.html) - Render page to bitmap
+    - [PdfPage.loadText](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/loadText.html) - Extract text content from page
+    - [PdfPage.loadLinks](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/loadLinks.html) - Extract links from page
 - PDFium bindings
   - For advanced use cases, you can access the raw PDFium bindings via `package:pdfrx_engine/src/native/pdfium_bindings.dart`
   - Note: Direct use of PDFium bindings is not recommended for most use cases
 
-## When to Use pdfrx_engine vs pdfrx
+## When to Use pdfrx_engine vs. pdfrx
 
 **Use pdfrx_engine when:**
 
