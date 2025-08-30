@@ -16,7 +16,10 @@ bool _isInitialized = false;
 /// - [Pdfrx.getCacheDirectory]: Returns the path to the temporary directory for caching.
 ///
 /// For Dart (non-Flutter) programs, you should call [pdfrxInitialize] instead.
-void pdfrxFlutterInitialize() {
+///
+/// The function shows PDFium WASM module warnings in debug mode by default.
+/// You can disable these warnings by setting [dismissPdfiumWasmWarnings] to true.
+void pdfrxFlutterInitialize({bool dismissPdfiumWasmWarnings = false}) {
   if (_isInitialized) return;
 
   if (pdfrxEntryFunctionsOverride != null) {
@@ -32,7 +35,7 @@ void pdfrxFlutterInitialize() {
   platformInitialize();
 
   // Checking pdfium.wasm availability for Web and debug builds.
-  if (kDebugMode) {
+  if (kDebugMode && !dismissPdfiumWasmWarnings) {
     () async {
       try {
         await Pdfrx.loadAsset!('packages/pdfrx/assets/pdfium.wasm');
