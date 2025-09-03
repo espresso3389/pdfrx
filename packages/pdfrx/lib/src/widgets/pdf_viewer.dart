@@ -1457,9 +1457,7 @@ class _PdfViewerState extends State<PdfViewer>
         end: _makeMatrixInSafeRange(destination),
       ).animate(_animController);
       _animGoTo!.addListener(update);
-      await _animController.animateTo(1.0, duration: duration, curve: Curves.easeInOut).orCancel;
-    } on TickerCanceled {
-      // expected
+      await _animController.animateTo(1.0, duration: duration, curve: Curves.easeInOut);
     } finally {
       _animGoTo?.removeListener(update);
     }
