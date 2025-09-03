@@ -1,7 +1,7 @@
 # 2.1.10
 
-- NEW: Add `dismissPdfiumWasmWarnings` to `pdfrxFlutterInitialize` to optionally hide WASM warnings in debug (#452)
-- FIXED: Remove use of `.orCancel` on `animateTo` to prevent animation cancellation errors (#454)
+- NEW: Add `dismissPdfiumWasmWarnings` to `pdfrxFlutterInitialize` to optionally hide WASM warnings in debug ([#452](https://github.com/espresso3389/pdfrx/issues/452))
+- FIXED: Remove use of `.orCancel` on `animateTo` to prevent animation cancellation errors ([#454](https://github.com/espresso3389/pdfrx/issues/454))
 
 # 2.1.9
 
@@ -17,7 +17,7 @@
 
 # 2.1.6
 
-- DOCS: Document initialization for Flutter (`pdfrxFlutterInitialize`) and link to non-Flutter initialization (`pdfrxInitialize`). Closes #447
+- DOCS: Document initialization for Flutter (`pdfrxFlutterInitialize`) and link to non-Flutter initialization (`pdfrxInitialize`). Closes [#447](https://github.com/espresso3389/pdfrx/issues/447)
 - No functional changes
 
 # 2.1.5
@@ -57,7 +57,7 @@
   - `PdfViewerParams.buildContextMenu` and `PdfViewerParams.customizeContextMenuItems` to customize context menu
   - Introduces `PdfViewerContextMenuBuilderParams` (many context menu related parameters are moved to this class)
 - BREAKING CHANGE: Tap handler functions are integrated into `PdfViewerParams.onGeneralTap` for better consistency
-  
+
 # 2.0.4
 
 - FIXED: GestureDetector for text selection now ignores touchpad events to prevent interference with touch-to-scroll ([#426](https://github.com/espresso3389/pdfrx/issues/426))
