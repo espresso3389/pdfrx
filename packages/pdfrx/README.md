@@ -60,7 +60,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.1.9
+  pdfrx: ^2.1.10
 ```
 
 **Note:** You only need to add `pdfrx` to your dependencies. The `pdfrx_engine` package is automatically included as a dependency of `pdfrx`.
@@ -81,6 +81,8 @@ Future<void> main() {
 ```
 
 For more information, see [pdfrx Initialization](https://github.com/espresso3389/pdfrx/wiki/pdfrx-Initialization)
+
+Tip: To silence debug-time WASM warnings, call `pdfrxFlutterInitialize(dismissPdfiumWasmWarnings: true)` during startup.
 
 ### Note for Windows
 

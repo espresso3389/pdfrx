@@ -1,3 +1,8 @@
+# 2.1.10
+
+- NEW: Add `dismissPdfiumWasmWarnings` to `pdfrxFlutterInitialize` to optionally hide WASM warnings in debug (#452)
+- FIXED: Remove use of `.orCancel` on `animateTo` to prevent animation cancellation errors (#454)
+
 # 2.1.9
 
 - Replace deprecated Matrix4 methods (`translate` -> `translateByDouble`, `scaled` -> `scaledByDouble`) for improved numerical precision
