@@ -28,6 +28,7 @@ class Pdfrx {
   /// Font paths scanned by pdfium if supported.
   ///
   /// It should be set before calling any Pdfrx's functions.
+  ///
   /// It is not supported on Flutter Web.
   static final fontPaths = <String>[];
 
@@ -116,10 +117,19 @@ abstract class PdfrxEntryFunctions {
     bool withCredentials = false,
   });
 
+  /// Reload the fonts.
   Future<void> reloadFonts();
 
+  /// Add font data to font cache.
+  ///
+  /// For Web platform, this is the only way to add custom fonts (the fonts are cached on memory).
+  ///
+  /// For other platforms, the font data is cached on temporary files in the cache directory; if you want to keep
+  /// the font data permanently, you should save the font data to some other persistent storage and set its path
+  /// to [Pdfrx.fontPaths].
   Future<void> addFontData({required String face, required Uint8List data});
 
+  /// Clear all font data added by [addFontData].
   Future<void> clearAllFontData();
 }
 

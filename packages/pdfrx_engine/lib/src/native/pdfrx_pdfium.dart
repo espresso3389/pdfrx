@@ -1,5 +1,6 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:math';
@@ -52,15 +53,16 @@ Future<void> _init() async {
 
     _appLocalFontPath = await getCacheDirectory('pdfrx.fonts');
 
-    return using((arena) {
+    await using((arena) {
       final config = arena.allocate<pdfium_bindings.FPDF_LIBRARY_CONFIG>(sizeOf<pdfium_bindings.FPDF_LIBRARY_CONFIG>());
       config.ref.version = 2;
 
-      final fontPaths = [_appLocalFontPath!.path, ...Pdfrx.fontPaths];
+      final fontPaths = [?_appLocalFontPath?.path, ...Pdfrx.fontPaths];
       if (fontPaths.isNotEmpty) {
-        final fontPathArray = arena.allocate<Pointer<Char>>(sizeOf<Pointer<Char>>() * (fontPaths.length + 1));
+        // NOTE: m_pUserFontPaths must not be freed until FPDF_DestroyLibrary is called; on pdfrx, it's never freed.
+        final fontPathArray = malloc<Pointer<Char>>(sizeOf<Pointer<Char>>() * (fontPaths.length + 1));
         for (int i = 0; i < fontPaths.length; i++) {
-          fontPathArray[i] = fontPaths[i].toUtf8(arena);
+          fontPathArray[i] = fontPaths[i].toNativeUtf8().cast<Char>();
         }
         fontPathArray[fontPaths.length] = nullptr;
         config.ref.m_pUserFontPaths = fontPathArray;
@@ -74,9 +76,119 @@ Future<void> _init() async {
       _initialized = true;
     });
   });
+
+  await _initializeFontEnvironment();
 }
 
 final backgroundWorker = BackgroundWorker.create();
+
+/// Stores the fonts that were not found during mapping.
+/// NOTE: This is used by [backgroundWorker] and should not be used directly; use [_getAndClearMissingFonts] instead.
+final _lastMissingFonts = <String, PdfFontQuery>{};
+
+/// MapFont function used by PDFium to map font requests to system fonts.
+/// NOTE: This is used by [backgroundWorker] and should not be used directly.
+NativeCallable<
+  Pointer<Void> Function(
+    Pointer<pdfium_bindings.FPDF_SYSFONTINFO>,
+    Int,
+    pdfium_bindings.FPDF_BOOL,
+    Int,
+    Int,
+    Pointer<Char>,
+    Pointer<pdfium_bindings.FPDF_BOOL>,
+  )
+>?
+_mapFont;
+
+/// Setup the system font info in PDFium.
+Future<void> _initializeFontEnvironment() async {
+  await (await backgroundWorker).computeWithArena((arena, params) {
+    // kBase14FontNames
+    const fontNamesToIgnore = {
+      'Courier': true,
+      'Courier-Bold': true,
+      'Courier-BoldOblique': true,
+      'Courier-Oblique': true,
+      'Helvetica': true,
+      'Helvetica-Bold': true,
+      'Helvetica-BoldOblique': true,
+      'Helvetica-Oblique': true,
+      'Times-Roman': true,
+      'Times-Bold': true,
+      'Times-BoldItalic': true,
+      'Times-Italic': true,
+      'Symbol': true,
+      'ZapfDingbats': true,
+    };
+
+    final sysFontInfoBuffer = pdfium.FPDF_GetDefaultSystemFontInfo();
+    final mapFontOriginal = sysFontInfoBuffer.ref.MapFont
+        .asFunction<
+          Pointer<Void> Function(
+            Pointer<pdfium_bindings.FPDF_SYSFONTINFO>,
+            int,
+            int,
+            int,
+            int,
+            Pointer<Char>,
+            Pointer<pdfium_bindings.FPDF_BOOL>,
+          )
+        >();
+
+    _mapFont?.close();
+    _mapFont =
+        NativeCallable<
+          Pointer<Void> Function(
+            Pointer<pdfium_bindings.FPDF_SYSFONTINFO>,
+            Int,
+            pdfium_bindings.FPDF_BOOL,
+            Int,
+            Int,
+            Pointer<Char>,
+            Pointer<pdfium_bindings.FPDF_BOOL>,
+          )
+        >.isolateLocal((
+          Pointer<pdfium_bindings.FPDF_SYSFONTINFO> sysFontInfo,
+          int weight,
+          int italic,
+          int charset,
+          int pitchFamily,
+          Pointer<Char> face,
+          Pointer<pdfium_bindings.FPDF_BOOL> bExact,
+        ) {
+          final result = mapFontOriginal(sysFontInfo, weight, italic, charset, pitchFamily, face, bExact);
+          if (result.address == 0) {
+            final faceName = face.cast<Utf8>().toDartString();
+            if (!fontNamesToIgnore.containsKey(faceName)) {
+              _lastMissingFonts[faceName] = PdfFontQuery(
+                face: faceName,
+                weight: weight,
+                isItalic: italic != 0,
+                charset: PdfFontCharset.fromPdfiumCharsetId(charset),
+                pitchFamily: pitchFamily,
+              );
+            }
+          }
+          return result;
+        });
+
+    sysFontInfoBuffer.ref.MapFont = _mapFont!.nativeFunction;
+
+    // when registering a new SetSystemFontInfo, the previous one is automatically released
+    // and the only last one remains on memory
+    pdfium.FPDF_SetSystemFontInfo(sysFontInfoBuffer);
+  }, {});
+}
+
+/// Retrieve and clear the last missing fonts from [_lastMissingFonts] in a thread-safe manner.
+Future<List<PdfFontQuery>> _getAndClearMissingFonts() async {
+  return await (await backgroundWorker).compute((params) {
+    final fonts = _lastMissingFonts.values.toList();
+    _lastMissingFonts.clear();
+    return fonts;
+  }, null);
+}
 
 class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   PdfrxEntryFunctionsImpl();
@@ -313,15 +425,27 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   }
 
   @override
-  Future<void> reloadFonts() => throw UnimplementedError('FIXME: PdfrxEntryFunctions.reloadFonts is not implemented.');
+  Future<void> reloadFonts() async {
+    await _initializeFontEnvironment();
+  }
 
   @override
-  Future<void> addFontData({required String face, required Uint8List data}) =>
-      throw UnimplementedError('FIXME: PdfrxEntryFunctions.addFontData is not implemented.');
+  Future<void> addFontData({required String face, required Uint8List data}) async {
+    await _appLocalFontPath!.create(recursive: true);
+    final name = base64Encode(utf8.encode(face));
+    final file = File('${_appLocalFontPath!.path}/$name.ttf');
+    await file.writeAsBytes(data);
+    stderr.writeln('Added font data: $face (${data.length} bytes) at ${file.path}');
+  }
 
   @override
-  Future<void> clearAllFontData() =>
-      throw UnimplementedError('FIXME: PdfrxEntryFunctions.clearAllFontData is not implemented.');
+  Future<void> clearAllFontData() async {
+    try {
+      await _appLocalFontPath!.delete(recursive: true);
+    } catch (e) {
+      // ignored
+    }
+  }
 }
 
 extension _FpdfUtf8StringExt on String {
@@ -403,14 +527,24 @@ class _PdfDocumentPdfium extends PdfDocument {
         formInfo: Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(result.formInfo),
         disposeCallback: disposeCallback,
       );
+
       final pages = await pdfDoc._loadPagesInLimitedTime(
         maxPageCountToLoadAdditionally: useProgressiveLoading ? 1 : null,
       );
       pdfDoc._pages = List.unmodifiable(pages.pages);
+      pdfDoc._notifyMissingFonts();
       return pdfDoc;
     } catch (e) {
       pdfDoc?.dispose();
       rethrow;
+    }
+  }
+
+  /// Notify missing fonts by sending [PdfDocumentMissingFontsEvent].
+  Future<void> _notifyMissingFonts() async {
+    final lastMissingFonts = await _getAndClearMissingFonts();
+    if (lastMissingFonts.isNotEmpty) {
+      subject.add(PdfDocumentMissingFontsEvent(this, lastMissingFonts));
     }
   }
 
@@ -744,6 +878,8 @@ class _PdfPagePdfium extends PdfPage {
           ),
         );
       });
+
+      document._notifyMissingFonts();
 
       if (!isSucceeded) {
         return null;

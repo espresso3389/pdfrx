@@ -130,6 +130,7 @@
     "newfstatat",
     "NOEXPORT",
     "NOROTATE",
+    "noto",
     "NOVIEW",
     "NOZOOM",
     "NULLOBJ",
@@ -213,7 +214,8 @@
     "XFAWIDGET",
     "xobject",
     "YESNO",
-    "YESNOCANCEL"
+    "YESNOCANCEL",
+    "ZapfDingbats"
   ],
   "editor.codeActionsOnSave": {
     "source.fixAll": "always",
