@@ -27,9 +27,10 @@ dev_dependencies:
   lints: ^5.0.0
   test: ^1.24.0
 
-# To generate the bindings, firstly you must build example/viewer on x64 linux and
+# To generate the bindings, firstly you must run the test once to download PDFium headers:
+#  dart run test
 # then run the following command:
-# dart run ffigen
+#  dart run ffigen
 ffigen:
   output:
     bindings: "lib/src/native/pdfium_bindings.dart"
@@ -41,6 +42,7 @@ ffigen:
       - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_doc.h"
       - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_edit.h"
       - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_formfill.h"
+      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_sysfontinfo.h"
     include-directives:
       - "/tmp/pdfrx.cache/pdfium/linux-x64/include/**"
   preamble: |
