@@ -40,3 +40,7 @@ build/
 /test/.tmp
 
 .claude/
+
+# Build outputs and intermediate files
+**.xcframework/
+*.zip

@@ -9,7 +9,7 @@ echo "**************************************************************"
 echo " Building PDFium for $1/$2"
 echo "**************************************************************"
 
-LAST_KNOWN_GOOD_COMMIT=chromium/7202
+LAST_KNOWN_GOOD_COMMIT=chromium/7390
 
 SCRIPT_DIR=$(cd $(dirname $0) && pwd)
 
