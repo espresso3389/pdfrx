@@ -2,11 +2,11 @@
 # To learn more about a Podspec see http://guides.cocoapods.org/syntax/podspec.html.
 # Run `pod lib lint pdfrx.podspec` to validate before publishing.
 #
-lib_tag = 'pdfium-apple-v10'
+lib_tag = 'pdfium-apple-v11'
 
 Pod::Spec.new do |s|
   s.name             = 'pdfrx'
-  s.version          = '0.0.6'
+  s.version          = '0.0.7'
   s.summary          = 'Yet another PDF renderer for Flutter using PDFium.'
   s.description      = <<-DESC
   Yet another PDF renderer for Flutter using PDFium.
@@ -36,18 +36,11 @@ Pod::Spec.new do |s|
   s.prepare_command = <<-CMD
     mkdir -p pdfium/.lib/#{lib_tag}
     cd pdfium/.lib/#{lib_tag}
-    if [ ! -f ios.zip ]; then
-      curl -Lo ios.zip https://github.com/espresso3389/pdfrx/releases/download/#{lib_tag}/pdfium-ios.zip
-    fi
-    if [ ! -d ios ]; then
-      unzip -o ios.zip
-    fi
-    if [ ! -f macos.zip ]; then
-      curl -Lo macos.zip https://github.com/espresso3389/pdfrx/releases/download/#{lib_tag}/pdfium-macos.zip
-    fi
-    if [ ! -d macos ]; then
-      unzip -o macos.zip
-    fi
+    rm -rf ios.zip macos.zip ios/ macos/
+    curl -Lo ios.zip https://github.com/espresso3389/pdfrx/releases/download/#{lib_tag}/pdfium-ios.zip
+    unzip -o ios.zip
+    curl -Lo macos.zip https://github.com/espresso3389/pdfrx/releases/download/#{lib_tag}/pdfium-macos.zip
+    unzip -o macos.zip
   CMD
 
   s.swift_version = '5.0'
