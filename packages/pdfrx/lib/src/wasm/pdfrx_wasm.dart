@@ -521,21 +521,10 @@ class _PdfPageWasm extends PdfPage {
   }
 
   @override
-  Future<String> loadText() async {
-    if (document.isDisposed || !isLoaded) return '';
+  Future<PdfPageRawText?> loadText() async {
+    if (document.isDisposed || !isLoaded) return null;
     final result = await _sendCommand(
       'loadText',
-      parameters: {'docHandle': document.document['docHandle'], 'pageIndex': pageNumber - 1},
-    );
-    document.updateMissingFonts(result['missingFonts']);
-    return result['fullText'] as String;
-  }
-
-  @override
-  Future<List<PdfRect>> loadTextCharRects() async {
-    if (document.isDisposed || !isLoaded) return [];
-    final result = await _sendCommand(
-      'loadTextCharRects',
       parameters: {'docHandle': document.document['docHandle'], 'pageIndex': pageNumber - 1},
     );
     final charRectsAll = (result['charRects'] as List).map((rect) {
@@ -547,7 +536,8 @@ class _PdfPageWasm extends PdfPage {
         (r[3] as double) - bbBottom,
       );
     }).toList();
-    return charRectsAll;
+    document.updateMissingFonts(result['missingFonts']);
+    return PdfPageRawText(result['fullText'] as String, charRectsAll);
   }
 
   @override

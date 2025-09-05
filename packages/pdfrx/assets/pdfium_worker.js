@@ -1167,7 +1167,7 @@ function _memset(ptr, value, num) {
 /**
  *
  * @param {{pageIndex: number, docHandle: number}} params
- * @returns {{fullText: string, missingFonts: FontQueries}}
+ * @returns {{fullText: string, charRects: number[][], missingFonts: FontQueries}}
  */
 function loadText(params) {
   _resetMissingFonts();
@@ -1179,33 +1179,11 @@ function loadText(params) {
   const count = Pdfium.wasmExports.FPDFText_CountChars(textPage);
   let fullText = '';
 
-  for (let i = 0; i < count; i++) {
-    fullText += String.fromCodePoint(Pdfium.wasmExports.FPDFText_GetUnicode(textPage, i));
-  }
-
-  Pdfium.wasmExports.FPDFText_ClosePage(textPage);
-  Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
-
-  _updateMissingFonts(docHandle);
-  return { fullText, missingFonts: missingFonts[docHandle] };
-}
-
-/**
- *
- * @param {{pageIndex: number, docHandle: number}} params
- * @returns {{charRects: number[][]}}
- */
-function loadTextCharRects(params) {
-  const { pageIndex, docHandle } = params;
-  const pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
-  const textPage = Pdfium.wasmExports.FPDFText_LoadPage(pageHandle);
-  if (textPage == null) return { charRects: [] };
-
   const rectBuffer = Pdfium.wasmExports.malloc(8 * 4); // double[4]
   const rect = new Float64Array(Pdfium.memory.buffer, rectBuffer, 4);
-  const count = Pdfium.wasmExports.FPDFText_CountChars(textPage);
   let charRects = [];
   for (let i = 0; i < count; i++) {
+    fullText += String.fromCodePoint(Pdfium.wasmExports.FPDFText_GetUnicode(textPage, i));
     Pdfium.wasmExports.FPDFText_GetCharBox(
       textPage,
       i,
@@ -1220,7 +1198,9 @@ function loadTextCharRects(params) {
 
   Pdfium.wasmExports.FPDFText_ClosePage(textPage);
   Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
-  return { charRects };
+
+  _updateMissingFonts(docHandle);
+  return { fullText, charRects, missingFonts: missingFonts[docHandle] };
 }
 
 /**
@@ -1504,7 +1484,6 @@ const functions = {
   closePage,
   renderPage,
   loadText,
-  loadTextCharRects,
   loadLinks,
   reloadFonts,
   addFontData,

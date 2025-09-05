@@ -914,44 +914,21 @@ class _PdfPagePdfium extends PdfPage {
   PdfPageRenderCancellationTokenPdfium createCancellationToken() => PdfPageRenderCancellationTokenPdfium(this);
 
   @override
-  Future<String> loadText() async {
-    if (document.isDisposed || !isLoaded) return '';
+  Future<PdfPageRawText?> loadText() async {
+    if (document.isDisposed || !isLoaded) return null;
     return await (await backgroundWorker).compute(
       (params) => using((arena) {
+        final doubleSize = sizeOf<Double>();
+        final rectBuffer = arena.allocate<Double>(4 * sizeOf<Double>());
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
         final page = pdfium.FPDF_LoadPage(doc, params.pageNumber - 1);
         final textPage = pdfium.FPDFText_LoadPage(page);
         try {
           final charCount = pdfium.FPDFText_CountChars(textPage);
           final sb = StringBuffer();
-          for (int i = 0; i < charCount; i++) {
-            sb.writeCharCode(pdfium.FPDFText_GetUnicode(textPage, i));
-          }
-          return sb.toString();
-        } finally {
-          pdfium.FPDFText_ClosePage(textPage);
-          pdfium.FPDF_ClosePage(page);
-        }
-      }),
-      (docHandle: document.document.address, pageNumber: pageNumber),
-    );
-  }
-
-  @override
-  Future<List<PdfRect>> loadTextCharRects() async {
-    if (document.isDisposed || !isLoaded) return [];
-    return await (await backgroundWorker).compute(
-      (params) => using((arena) {
-        final doubleSize = sizeOf<Double>();
-        final rectBuffer = arena.allocate<Double>(4 * sizeOf<Double>());
-
-        final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
-        final page = pdfium.FPDF_LoadPage(doc, params.pageNumber - 1);
-        final textPage = pdfium.FPDFText_LoadPage(page);
-        try {
-          final charCount = pdfium.FPDFText_CountChars(textPage);
           final charRects = <PdfRect>[];
           for (int i = 0; i < charCount; i++) {
+            sb.writeCharCode(pdfium.FPDFText_GetUnicode(textPage, i));
             pdfium.FPDFText_GetCharBox(
               textPage,
               i,
@@ -962,7 +939,7 @@ class _PdfPagePdfium extends PdfPage {
             );
             charRects.add(_rectFromLTRBBuffer(rectBuffer, params.bbLeft, params.bbBottom));
           }
-          return charRects;
+          return PdfPageRawText(sb.toString(), charRects);
         } finally {
           pdfium.FPDFText_ClosePage(textPage);
           pdfium.FPDF_ClosePage(page);

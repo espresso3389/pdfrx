@@ -693,18 +693,14 @@ abstract class PdfPage {
   }
 
   Future<PdfPageRawText?> _loadFormattedText() async {
-    final inputFullText = await loadText();
-    final inputCharRects = await loadTextCharRects();
-
-    if (inputFullText.length != inputCharRects.length) {
-      throw Exception(
-        'Page $pageNumber: Internal Error: text and character rects length mismatch (${inputFullText.length} <=> ${inputCharRects.length})',
-      );
+    final input = await loadText();
+    if (input == null) {
+      return null;
     }
 
     if (rotation.index != 0) {
-      for (int i = 0; i < inputCharRects.length; i++) {
-        inputCharRects[i] = inputCharRects[i].rotate(rotation.index, this);
+      for (int i = 0; i < input.charRects.length; i++) {
+        input.charRects[i] = input.charRects[i].rotate(rotation.index, this);
       }
     }
 
@@ -712,14 +708,14 @@ abstract class PdfPage {
     final charRects = <PdfRect>[];
 
     // Process the whole text
-    final lnMatches = _reNewLine.allMatches(inputFullText).toList();
+    final lnMatches = _reNewLine.allMatches(input.fullText).toList();
     int lineStart = 0;
     int prevEnd = 0;
     for (int i = 0; i < lnMatches.length; i++) {
       lineStart = prevEnd;
       final match = lnMatches[i];
-      fullText.write(inputFullText.substring(lineStart, match.start));
-      charRects.addAll(inputCharRects.sublist(lineStart, match.start));
+      fullText.write(input.fullText.substring(lineStart, match.start));
+      charRects.addAll(input.charRects.sublist(lineStart, match.start));
       prevEnd = match.end;
 
       // Microsoft Word sometimes outputs vertical text like this: "縦\n書\nき\nの\nテ\nキ\nス\nト\nで\nす\n。\n"
@@ -729,8 +725,8 @@ abstract class PdfPage {
         final len = match.start - lineStart;
         final nextLen = next.start - match.end;
         if (len == 1 && nextLen == 1) {
-          final rect = inputCharRects[lineStart];
-          final nextRect = inputCharRects[match.end];
+          final rect = input.charRects[lineStart];
+          final nextRect = input.charRects[match.end];
           final nextCenterX = nextRect.center.x;
           if (rect.left < nextCenterX && nextCenterX < rect.right && rect.top > nextRect.top) {
             // The line is vertical, and the line-feed is virtual
@@ -738,12 +734,12 @@ abstract class PdfPage {
           }
         }
       }
-      fullText.write(inputFullText.substring(match.start, match.end));
-      charRects.addAll(inputCharRects.sublist(match.start, match.end));
+      fullText.write(input.fullText.substring(match.start, match.end));
+      charRects.addAll(input.charRects.sublist(match.start, match.end));
     }
-    if (prevEnd < inputFullText.length) {
-      fullText.write(inputFullText.substring(prevEnd));
-      charRects.addAll(inputCharRects.sublist(prevEnd));
+    if (prevEnd < input.fullText.length) {
+      fullText.write(input.fullText.substring(prevEnd));
+      charRects.addAll(input.charRects.sublist(prevEnd));
     }
 
     return PdfPageRawText(fullText.toString(), charRects);
@@ -752,14 +748,7 @@ abstract class PdfPage {
   /// Load plain text for the page.
   ///
   /// For text with character bounding boxes, use [loadStructuredText].
-  Future<String> loadText();
-
-  /// Load character bounding boxes for the page text.
-  ///
-  /// Each [PdfRect] corresponds to a character in the text loaded by [loadText].
-  ///
-  /// For text with character bounding boxes, use [loadStructuredText].
-  Future<List<PdfRect>> loadTextCharRects();
+  Future<PdfPageRawText?> loadText();
 
   /// Load links.
   ///
