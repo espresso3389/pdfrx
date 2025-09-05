@@ -1294,7 +1294,15 @@ class PdfRect {
     }
   }
 
+  /// Inflate (or deflate) the rectangle.
+  ///
+  /// [dx] is added to left and right, and [dy] is added to top and bottom.
   PdfRect inflate(double dx, double dy) => PdfRect(left - dx, top + dy, right + dx, bottom - dy);
+
+  /// Translate the rectangle.
+  ///
+  /// [dx] is added to left and right, and [dy] is added to top and bottom.
+  PdfRect translate(double dx, double dy) => PdfRect(left + dx, top + dy, right + dx, bottom + dy);
 
   @override
   bool operator ==(Object other) {
@@ -1603,6 +1611,11 @@ class PdfPoint {
         throw ArgumentError.value(rotate, 'rotate');
     }
   }
+
+  /// Translate the point.
+  ///
+  /// [dx] is added to x, and [dy] is added to y.
+  PdfPoint translate(double dx, double dy) => PdfPoint(x + dx, y + dy);
 }
 
 /// Compares two lists for element-by-element equality.

@@ -1052,7 +1052,7 @@ class _PdfPagePdfium extends PdfPage {
                   r.top > r.bottom ? r.top : r.bottom,
                   r.right,
                   r.top > r.bottom ? r.bottom : r.top,
-                );
+                ).translate(-params.bbLeft, -params.bbBottom);
                 final dest = _processAnnotDest(annot, document, arena);
                 if (dest != nullptr) {
                   links.add(PdfLink([rect], dest: _pdfDestFromDest(dest, document, arena)));
@@ -1069,7 +1069,7 @@ class _PdfPagePdfium extends PdfPage {
               pdfium.FPDF_ClosePage(page);
             }
           }),
-          (document: document.document.address, pageNumber: pageNumber),
+          (document: document.document.address, pageNumber: pageNumber, bbLeft: bbLeft, bbBottom: bbBottom),
         );
 
   static pdfium_bindings.FPDF_DEST _processAnnotDest(
