@@ -1,3 +1,8 @@
+## 0.1.15
+
+- **BREAKING**: Integrated `loadText()` and `loadTextCharRects()` into a single function `loadText()` to fix crash issue ([#434](https://github.com/espresso3389/pdfrx/issues/434))
+- FIXED: Coordinate calculation errors when loading annotation links ([#458](https://github.com/espresso3389/pdfrx/issues/458))
+
 ## 0.1.14
 
 - Experimental support for dynamic font installation on native platforms ([#456](https://github.com/espresso3389/pdfrx/issues/456))

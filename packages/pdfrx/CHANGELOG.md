@@ -1,3 +1,9 @@
+# 2.1.12
+
+- **BREAKING**: API changes in text loading methods - `loadText()` and `loadTextCharRects()` are now integrated into `loadText()` ([#434](https://github.com/espresso3389/pdfrx/issues/434))
+- FIXED: PDF link positioning errors that caused misplaced clickable areas ([#458](https://github.com/espresso3389/pdfrx/issues/458))
+- Updated to pdfrx_engine 0.1.15
+
 # 2.1.11
 
 - NEW: Experimental support for dynamic font installation on native platforms to handle missing fonts in PDFs ([#456](https://github.com/espresso3389/pdfrx/issues/456))
