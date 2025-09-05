@@ -486,7 +486,7 @@ class _PdfPageWasm extends PdfPage {
 
   @override
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async {
-    if (document.isDisposed) return [];
+    if (document.isDisposed || !isLoaded) return [];
     final result = await _sendCommand(
       'loadLinks',
       parameters: {
@@ -522,7 +522,7 @@ class _PdfPageWasm extends PdfPage {
 
   @override
   Future<String> loadText() async {
-    if (document.isDisposed) return '';
+    if (document.isDisposed || !isLoaded) return '';
     final result = await _sendCommand(
       'loadText',
       parameters: {'docHandle': document.document['docHandle'], 'pageIndex': pageNumber - 1},
@@ -533,7 +533,7 @@ class _PdfPageWasm extends PdfPage {
 
   @override
   Future<List<PdfRect>> loadTextCharRects() async {
-    if (document.isDisposed) return [];
+    if (document.isDisposed || !isLoaded) return [];
     final result = await _sendCommand(
       'loadTextCharRects',
       parameters: {'docHandle': document.document['docHandle'], 'pageIndex': pageNumber - 1},

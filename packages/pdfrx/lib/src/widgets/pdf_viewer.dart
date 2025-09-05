@@ -1061,6 +1061,8 @@ class _PdfViewerState extends State<PdfViewer>
   /// and [onTextLoaded] callback will be called when the text is loaded.
   /// If [onTextLoaded] is not provided and [invalidate] is true, the widget will be rebuilt when the text is loaded.
   PdfPageText? _getCachedTextOrDelayLoadText(int pageNumber, {void Function()? onTextLoaded, bool invalidate = true}) {
+    final page = _document!.pages[pageNumber - 1];
+    if (!page.isLoaded) return null;
     if (_textCache.containsKey(pageNumber)) return _textCache[pageNumber];
     if (onTextLoaded == null && invalidate) {
       onTextLoaded = _invalidate;
@@ -1069,11 +1071,14 @@ class _PdfViewerState extends State<PdfViewer>
     return null;
   }
 
-  Future<PdfPageText> _loadTextAsync(int pageNumber, {void Function()? onTextLoaded}) async {
+  Future<PdfPageText?> _loadTextAsync(int pageNumber, {void Function()? onTextLoaded}) async {
+    final page = _document!.pages[pageNumber - 1];
+    if (!page.isLoaded) return null;
     if (_textCache.containsKey(pageNumber)) return _textCache[pageNumber]!;
     return await synchronized(() async {
       if (_textCache.containsKey(pageNumber)) return _textCache[pageNumber]!;
       final page = _document!.pages[pageNumber - 1];
+      if (!page.isLoaded) return null;
       final text = await page.loadStructuredText();
       _textCache[pageNumber] = text;
       if (onTextLoaded != null) {
@@ -2580,7 +2585,7 @@ class _PdfViewerState extends State<PdfViewer>
 
     for (int i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
       final text = await _loadTextAsync(i);
-      if (text.fullText.isEmpty) continue;
+      if (text == null || text.fullText.isEmpty) continue;
       selections.add(text.getRangeFromAB(0, text.charRects.length - 1));
     }
 
@@ -2610,14 +2615,14 @@ class _PdfViewerState extends State<PdfViewer>
     PdfPageText? first;
     for (int i = 1; i <= _document!.pages.length; i++) {
       final text = await _loadTextAsync(i);
-      if (text.fullText.isEmpty) continue;
+      if (text == null || text.fullText.isEmpty) continue;
       first = text;
       break;
     }
     PdfPageText? last;
     for (int i = _document!.pages.length; i >= 1; i--) {
       final text = await _loadTextAsync(i);
-      if (text.fullText.isEmpty) continue;
+      if (text == null || text.fullText.isEmpty) continue;
       last = text;
       break;
     }
@@ -2654,6 +2659,9 @@ class _PdfViewerState extends State<PdfViewer>
       }
 
       final text = await _loadTextAsync(i + 1);
+      if (text == null || text.fullText.isEmpty) {
+        continue;
+      }
       final page = _document!.pages[i];
       final point = offset
           .translate(-pageRect.left, -pageRect.top)
@@ -3581,6 +3589,7 @@ class _CanvasLinkPainter {
   }
 
   List<PdfLink>? _ensureLinksLoaded(PdfPage page, {void Function()? onLoaded}) {
+    if (!page.isLoaded) return null;
     final links = _links[page.pageNumber];
     if (links != null) return links;
     synchronized(() async {

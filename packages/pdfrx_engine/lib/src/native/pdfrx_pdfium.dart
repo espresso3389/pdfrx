@@ -915,7 +915,7 @@ class _PdfPagePdfium extends PdfPage {
 
   @override
   Future<String> loadText() async {
-    if (document.isDisposed) return '';
+    if (document.isDisposed || !isLoaded) return '';
     return await (await backgroundWorker).compute(
       (params) => using((arena) {
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
@@ -939,7 +939,7 @@ class _PdfPagePdfium extends PdfPage {
 
   @override
   Future<List<PdfRect>> loadTextCharRects() async {
-    if (document.isDisposed) return [];
+    if (document.isDisposed || !isLoaded) return [];
     return await (await backgroundWorker).compute(
       (params) => using((arena) {
         final doubleSize = sizeOf<Double>();
@@ -974,6 +974,7 @@ class _PdfPagePdfium extends PdfPage {
 
   @override
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async {
+    if (document.isDisposed || !isLoaded) return [];
     final links = await _loadAnnotLinks();
     if (enableAutoLinkDetection) {
       links.addAll(await _loadWebLinks());
