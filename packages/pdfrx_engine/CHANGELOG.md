@@ -1,3 +1,7 @@
+## 0.1.14
+
+- Experimental support for dynamic font installation on native platforms ([#456](https://github.com/espresso3389/pdfrx/issues/456))
+
 ## 0.1.13
 
 - Add font loading APIs for WASM: `reloadFonts()` and `addFontData()` methods

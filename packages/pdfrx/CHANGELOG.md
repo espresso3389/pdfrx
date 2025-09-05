@@ -1,3 +1,10 @@
+# 2.1.11
+
+- NEW: Experimental support for dynamic font installation on native platforms to handle missing fonts in PDFs ([#456](https://github.com/espresso3389/pdfrx/issues/456))
+  - Example viewer has missing font support using Noto Sans/Serif on Google Fonts (**For production use, please take care of your license integrity**)
+- iOS/macOS uses pdfium-apple-v11 (chromium/7390)
+- Updated to pdfrx_engine 0.1.14
+
 # 2.1.10
 
 - NEW: Add `dismissPdfiumWasmWarnings` to `pdfrxFlutterInitialize` to optionally hide WASM warnings in debug ([#452](https://github.com/espresso3389/pdfrx/issues/452))
