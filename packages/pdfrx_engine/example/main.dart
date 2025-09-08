@@ -55,7 +55,7 @@ Future<int> main(List<String> args) async {
       await outputImageFile.writeAsBytes(img.encodePng(image));
 
       final outputTextFile = File('$outputDir/page_$pageNumber.txt');
-      await outputTextFile.writeAsString(await page.loadText());
+      await outputTextFile.writeAsString((await page.loadText())?.fullText ?? '');
     }
 
     // Clean up

@@ -9,7 +9,8 @@ environment:
   sdk: ^3.9.0
 resolution: workspace
 
-# Add regular dependencies here.
+# Some of the dependencies are intentionally not pinned to a specific version
+# to allow for more flexibility in resolving versions when used in larger projects.
 dependencies:
   collection:
   crypto: ^3.0.6
