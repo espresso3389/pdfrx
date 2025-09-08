@@ -1,3 +1,7 @@
+# 2.1.13
+
+- FIXED: [#443](https://github.com/espresso3389/pdfrx/issues/443) `dart run pdfrx:remove_wasm_modules` failure
+
 # 2.1.12
 
 - **BREAKING**: API changes in text loading methods - `loadText()` and `loadTextCharRects()` are now integrated into `loadText()` ([#434](https://github.com/espresso3389/pdfrx/issues/434))

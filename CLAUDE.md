@@ -21,18 +21,7 @@ pdfrx is a monorepo containing two packages:
 
 ### Monorepo Management
 
-This project uses Melos for managing the multi-package repository:
-
-```bash
-# Install melos globally (if not already installed)
-dart pub global activate melos
-
-# Bootstrap the project (install dependencies for all packages)
-melos bootstrap
-
-# Run analysis on all packages
-melos analyze
-```
+This project uses pub workspace for managing the multi-package repository. All you have to do is to run `dart pub get` on somewhere in the repo directory.
 
 ### Basic Flutter Commands
 
@@ -104,7 +93,7 @@ Both packages may need to be released when changes are made:
    - Consider to add notes for new features or breaking changes
    - Notify the owner if you find any issues with the example app or documentation
 4. Update `README.md` on the repo root if needed
-5. Run `melos bootstrap` to update all dependencies
+5. Run `dart pub get` to update all dependencies
 6. Run tests to ensure everything works
    - Run `dart test` in `packages/pdfrx_engine/`
    - Run `flutter test` in `packages/pdfrx/`
@@ -192,9 +181,6 @@ dart test
 # Test pdfrx Flutter plugin
 cd packages/pdfrx
 flutter test
-
-# Run all tests using melos
-melos run test
 ```
 
 ## Platform-Specific Notes

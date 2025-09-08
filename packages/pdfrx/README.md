@@ -60,7 +60,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.1.12
+  pdfrx: ^2.1.13
 ```
 
 **Note:** You only need to add `pdfrx` to your dependencies. The `pdfrx_engine` package is automatically included as a dependency of `pdfrx`.

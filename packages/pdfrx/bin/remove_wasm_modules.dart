@@ -22,17 +22,17 @@ Future<int> main(List<String> args) async {
       }
     }
 
-    final pubspecLock = File(path.join(projectRoot, 'pubspec.lock'));
-    if (!pubspecLock.existsSync()) {
-      print('No pubspec.lock found in $projectRoot');
+    final projectPubspecYaml = File(path.join(projectRoot, 'pubspec.yaml'));
+    if (!projectPubspecYaml.existsSync()) {
+      print('No pubspec.yaml found in $projectRoot');
       return 2;
     }
 
-    final deps = await oss.listDependencies(pubspecLockPath: pubspecLock.path);
+    final deps = await oss.listDependencies(pubspecYamlPath: projectPubspecYaml.path);
     final pdfrxWasmPackage = deps.allDependencies.firstWhere((p) => p.name == 'pdfrx');
     print('Found: ${pdfrxWasmPackage.name} ${pdfrxWasmPackage.version}: ${pdfrxWasmPackage.pubspecYamlPath}');
 
-    final pubspecPath = pdfrxWasmPackage.pubspecYamlPath!;
+    final pubspecPath = pdfrxWasmPackage.pubspecYamlPath;
     final pubspecFile = File(pubspecPath);
 
     if (!pubspecFile.existsSync()) {
