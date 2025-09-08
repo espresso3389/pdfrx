@@ -16,7 +16,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../src" "${CMAKE_CURRENT_BINARY_DI
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
 
-set(PDFIUM_RELEASE chromium%2F7202)
+set(PDFIUM_RELEASE chromium%2F7390)
 set(PDFIUM_DIR ${CMAKE_BINARY_DIR}/pdfium)
 set(PDFIUM_RELEASE_DIR ${PDFIUM_DIR}/${PDFIUM_RELEASE})
 

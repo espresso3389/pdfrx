@@ -46,7 +46,7 @@ class _PdfiumDownloader {
   _PdfiumDownloader._();
 
   /// The release of pdfium to download.
-  static const pdfrxCurrentPdfiumRelease = 'chromium%2F7202';
+  static const pdfrxCurrentPdfiumRelease = 'chromium%2F7390';
 
   /// Downloads the pdfium module for the current platform and architecture.
   ///
