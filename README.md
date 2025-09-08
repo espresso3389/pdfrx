@@ -49,18 +49,7 @@ dependencies:
 
 ## Development
 
-This is a monorepo managed with [Melos](https://melos.invertase.dev/). To work with the packages:
-
-```bash
-# Install melos globally
-dart pub global activate melos
-
-# Bootstrap the project
-melos bootstrap
-
-# Run analysis on all packages
-melos analyze
-```
+This is a monorepo managed with pub workspaces. Just do `dart pub get` on some directory inside the repo to obtain all the dependencies.
 
 ## Example Application
 
