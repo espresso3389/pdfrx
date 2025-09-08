@@ -428,7 +428,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                                 for (final font in event.missingFonts) {
                                   final gf = getGoogleFontsUriFromFontQuery(font);
                                   if (gf != null) {
-                                    debugPrint('Downloading font: ${gf.faceName}, weight: ${gf.weight}');
+                                    debugPrint('Downloading font "${gf.faceName}" from ${gf.uri}...');
                                     final downloaded = (await http.get(gf.uri)).bodyBytes;
                                     debugPrint('  Downloaded ${downloaded.length} bytes');
                                     await PdfrxEntryFunctions.instance.addFontData(face: font.face, data: downloaded);
