@@ -40,7 +40,7 @@ void main() async {
 }
 ```
 
-You should call `pdfrxInitialize()` before using any PDF engine APIs to ensure the native PDFium library is properly loaded. For more information, see [pdfrx Initialization](https://github.com/espresso3389/pdfrx/wiki/pdfrx-Initialization)
+You should call `pdfrxInitialize()` before using any PDF engine APIs to ensure the native PDFium library is properly loaded. For more information, see [pdfrx Initialization](https://github.com/espresso3389/pdfrx/blob/master/doc/pdfrx-Initialization.md)
 
 ## PDF API
 

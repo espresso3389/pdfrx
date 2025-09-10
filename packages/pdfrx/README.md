@@ -80,7 +80,7 @@ Future<void> main() {
 }
 ```
 
-For more information, see [pdfrx Initialization](https://github.com/espresso3389/pdfrx/wiki/pdfrx-Initialization)
+For more information, see [pdfrx Initialization](https://github.com/espresso3389/pdfrx/blob/master/doc/pdfrx-Initialization.md)
 
 Tip: To silence debug-time WASM warnings, call `pdfrxFlutterInitialize(dismissPdfiumWasmWarnings: true)` during startup.
 
@@ -142,7 +142,7 @@ PdfViewer.asset(
 ),
 ```
 
-See [Deal with Password Protected PDF Files using PasswordProvider](https://github.com/espresso3389/pdfrx/wiki/Deal-with-Password-Protected-PDF-Files-using-PasswordProvider) for more information.
+See [Deal with Password Protected PDF Files using PasswordProvider](https://github.com/espresso3389/pdfrx/blob/master/doc/Deal-with-Password-Protected-PDF-Files-using-PasswordProvider.md) for more information.
 
 ### Text Selection
 
@@ -168,26 +168,26 @@ The text selection feature supports various customizations, such as:
 - Context Menu Customization using [PdfViewerParams.buildContextMenu](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/buildContextMenu.html)
 - Text Selection Magnifier Customization using [PdfTextSelectionParams.magnifier](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionParams/magnifier.html)
 
-For more text selection customization, see [Text Selection](https://github.com/espresso3389/pdfrx/wiki/%5B2.1.X%5D-Text-Selection).
+For more text selection customization, see [Text Selection](https://github.com/espresso3389/pdfrx/blob/master/doc/Text-Selection.md).
 
 ### PDF Feature Support
 
-- [PDF Link Handling](https://github.com/espresso3389/pdfrx/wiki/PDF-Link-Handling)
-- [Document Outline (a.k.a Bookmarks)](https://github.com/espresso3389/pdfrx/wiki/Document-Outline-(a.k.a-Bookmarks))
-- [Text Search](https://github.com/espresso3389/pdfrx/wiki/%5B2.1.X%5D-Text-Search)
+- [PDF Link Handling](https://github.com/espresso3389/pdfrx/blob/master/doc/PDF-Link-Handling.md)
+- [Document Outline (a.k.a Bookmarks)](https://github.com/espresso3389/pdfrx/blob/master/doc/Document-Outline-(a.k.a-Bookmarks).md)
+- [Text Search](https://github.com/espresso3389/pdfrx/blob/master/doc/Text-Search.md)
 
 ### Viewer Customization
 
-- [Page Layout (Horizontal Scroll View/Facing Pages)](https://github.com/espresso3389/pdfrx/wiki/Page-Layout-Customization)
-- [Showing Scroll Thumbs](https://github.com/espresso3389/pdfrx/wiki/Showing-Scroll-Thumbs)
-- [Dark/Night Mode Support](https://github.com/espresso3389/pdfrx/wiki/Dark-Night-Mode-Support)
-- [Document Loading Indicator](https://github.com/espresso3389/pdfrx/wiki/Document-Loading-Indicator)
+- [Page Layout (Horizontal Scroll View/Facing Pages)](https://github.com/espresso3389/pdfrx/blob/master/doc/Page-Layout-Customization.md)
+- [Showing Scroll Thumbs](https://github.com/espresso3389/pdfrx/blob/master/doc/Showing-Scroll-Thumbs.md)
+- [Dark/Night Mode Support](https://github.com/espresso3389/pdfrx/blob/master/doc/Dark-Night-Mode-Support.md)
+- [Document Loading Indicator](https://github.com/espresso3389/pdfrx/blob/master/doc/Document-Loading-Indicator.md)
 - [Viewer Customization using Widget Overlay](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html)
 
 ### Additional Customizations
 
-- [Double‐tap to Zoom](https://github.com/espresso3389/pdfrx/wiki/Double%E2%80%90tap-to-Zoom)
-- [Adding Page Number on Page Bottom](https://github.com/espresso3389/pdfrx/wiki/Adding-Page-Number-on-Page-Bottom)
+- [Double‐tap to Zoom](https://github.com/espresso3389/pdfrx/blob/master/doc/Double‐tap-to-Zoom.md)
+- [Adding Page Number on Page Bottom](https://github.com/espresso3389/pdfrx/blob/master/doc/Adding-Page-Number-on-Page-Bottom.md)
 - [Per-page Customization using Widget Overlay](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pageOverlaysBuilder.html)
 - [Per-page Customization using Canvas](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pagePaintCallbacks.html)
 
