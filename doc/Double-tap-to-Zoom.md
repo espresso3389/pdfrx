@@ -1,4 +1,6 @@
 
+# Double-tap to Zoom
+
 You can implement double-tap-to-zoom feature using [PdfViewerParams.viewerOverlayBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html):
 
 ```dart

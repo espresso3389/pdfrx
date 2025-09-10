@@ -1,6 +1,6 @@
-TODO: Update the contents
+# Text Selection
 
-On pdfrx 2.0.X, text selection related parameters are moved to [PdfViewerParams.textSelectionParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/textSelectionParams.html).
+On pdfrx 2.1.X, text selection related parameters are moved to [PdfViewerParams.textSelectionParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/textSelectionParams.html).
 
 Text selection feature is enabled by default and if you want to disable it, do like the following fragment:
 
