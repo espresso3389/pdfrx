@@ -186,7 +186,7 @@ For more text selection customization, see [Text Selection](https://github.com/e
 
 ### Additional Customizations
 
-- [Double‐tap to Zoom](https://github.com/espresso3389/pdfrx/blob/master/doc/Double‐tap-to-Zoom.md)
+- [Double-tap to Zoom](https://github.com/espresso3389/pdfrx/blob/master/doc/Double-tap-to-Zoom.md)
 - [Adding Page Number on Page Bottom](https://github.com/espresso3389/pdfrx/blob/master/doc/Adding-Page-Number-on-Page-Bottom.md)
 - [Per-page Customization using Widget Overlay](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pageOverlaysBuilder.html)
 - [Per-page Customization using Canvas](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pagePaintCallbacks.html)
