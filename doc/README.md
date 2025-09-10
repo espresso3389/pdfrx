@@ -10,9 +10,7 @@ Welcome to the pdfrx documentation! This guide provides comprehensive informatio
 
 ### Text Features
 - [Text Search](Text-Search.md) - Implementing text search functionality
-- [Text Search (2.1.X)]([2.1.X]-Text-Search.md) - Updated text search API for v2.1+
 - [Text Selection](Text-Selection.md) - Enabling text selection
-- [Text Selection (2.1.X)]([2.1.X]-Text-Selection.md) - Updated text selection API for v2.1+
 
 ### Navigation & Display
 - [Document Outline (Bookmarks)](Document-Outline-(a.k.a-Bookmarks).md) - Working with PDF bookmarks
