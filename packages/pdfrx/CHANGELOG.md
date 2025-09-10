@@ -1,3 +1,8 @@
+# 2.1.14
+
+- Enhance podspec script to check for existing PDFium frameworks before downloading ([#396](https://github.com/espresso3389/pdfrx/issues/396), [#460](https://github.com/espresso3389/pdfrx/issues/460))
+  - Improves build performance by avoiding redundant downloads of PDFium frameworks on iOS/macOS
+
 # 2.1.13
 
 - FIXED: [#443](https://github.com/espresso3389/pdfrx/issues/443) `dart run pdfrx:remove_wasm_modules` failure
