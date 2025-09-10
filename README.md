@@ -47,6 +47,14 @@ dependencies:
   pdfrx_engine: ^0.1.15
 ```
 
+## Documentation
+
+Comprehensive documentation is available in the [doc/](doc/) directory, including:
+- Getting started guides
+- Feature tutorials
+- Platform-specific configurations
+- Code examples
+
 ## Development
 
 This is a monorepo managed with pub workspaces. Just do `dart pub get` on some directory inside the repo to obtain all the dependencies.
