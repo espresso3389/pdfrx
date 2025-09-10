@@ -1,3 +1,5 @@
+# macOS App Sandbox Configuration
+
 For macOS, Flutter app restricts its capability by enabling [App Sandbox](https://developer.apple.com/documentation/security/app_sandbox) by default. You can change the behavior by editing your app's entitlements files depending on your configuration.
 
 - [`macos/Runner/Release.entitlements`](https://github.com/espresso3389/pdfrx/blob/master/packages/pdfrx/example/viewer/macos/Runner/Release.entitlements)

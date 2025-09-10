@@ -1,3 +1,5 @@
+# PDF Link Handling
+
 To enable links in PDF file, you should set [PdfViewerParams.linkHandlerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/linkHandlerParams.html).
 
 The following fragment handles user's tap on link:

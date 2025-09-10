@@ -1,3 +1,5 @@
+# Customizing Key Handling on PdfViewer
+
 Because [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) handles certain keys to allow users to scroll/zoom PDF view by keyboards, it may sometimes interfere with other widget's key handling, such as [TextField](https://api.flutter.dev/flutter/material/TextField-class.html)'s text input.
 
 To customize the key handling behavior, you can use [PdfViewerParams.onKey](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/onKey.html) and [PdfViewerParams.keyHandlerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/keyHandlerParams.html).

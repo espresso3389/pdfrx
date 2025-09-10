@@ -1,3 +1,5 @@
+# Text Search
+
 [TextSearcher](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html) is just a helper class that helps you to implement text searching feature on your app.
 
 The following fragment illustrates the overall usage of the [TextSearcher](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html):

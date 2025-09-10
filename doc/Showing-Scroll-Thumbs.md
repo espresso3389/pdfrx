@@ -1,3 +1,5 @@
+# Showing Scroll Thumbs
+
 By default, the viewer does never show any scroll bars nor scroll thumbs.
 You can add scroll thumbs by using [PdfViewerParams.viewerOverlayBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html):
 

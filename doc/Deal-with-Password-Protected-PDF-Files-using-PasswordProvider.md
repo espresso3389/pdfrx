@@ -1,3 +1,5 @@
+# Handling Password-Protected PDF Files
+
 To support password protected PDF files, use [passwordProvider](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPasswordProvider.html) to supply passwords interactively:
 
 ```dart
