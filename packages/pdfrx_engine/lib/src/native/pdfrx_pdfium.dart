@@ -659,8 +659,8 @@ class _PdfDocumentPdfium extends PdfDocument {
               width: last.width,
               height: last.height,
               rotation: last.rotation,
-              bbLeft: last.bbLeft,
-              bbBottom: last.bbBottom,
+              bbLeft: 0,
+              bbBottom: 0,
               isLoaded: false,
             ),
           );

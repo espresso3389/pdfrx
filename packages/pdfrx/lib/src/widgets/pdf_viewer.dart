@@ -2981,7 +2981,18 @@ class PdfTextSelectionAnchor {
 
   /// The index of the character in [page].
   ///
-  /// Please note that the index is always inclusive, even for the end anchor (B).
+  /// Please note that the index is always inclusive, even for the end anchor (B);
+  ///
+  /// When selecting `"Selection"` in `"This is a Selection."`, the index of the start anchor (A) is 10,
+  /// and the index of the end anchor (B) is 19 (not 18).
+  ///
+  /// ```
+  ///                                         A                               B
+  /// 0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15  16  17  18  19
+  /// +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  /// | T | h | i | s |   | i | s |   | a |   | S | e | l | e | c | t | i | o | n | . |
+  /// +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  /// ```
   final int index;
 
   /// The point of the anchor in the document coordinates, which is an apex of [rect] depending on
