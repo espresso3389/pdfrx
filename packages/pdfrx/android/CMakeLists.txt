@@ -76,6 +76,9 @@ set(pdfrx_bundled_libraries
 )
 
 target_include_directories(pdfrx PRIVATE ${PDFIUM_LATEST_DIR}/include)
+
 # Support 16KB page size (#365)
-target_link_options(pdfrx PRIVATE "-Wl,-z,max-page-size=16384")
+# Consistent build IDs for identical binaries (#467)
+target_link_options(pdfrx PRIVATE "-Wl,-z,max-page-size=16384,--build-id=none")
+
 target_link_libraries(pdfrx PRIVATE ${PDFIUM_LATEST_LIB_FILENAME})
