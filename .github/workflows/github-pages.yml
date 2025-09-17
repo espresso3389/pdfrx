@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
       - name: Setup Flutter
         run: |
           git clone https://github.com/flutter/flutter.git --depth 1 --branch stable ~/flutter
