@@ -13,6 +13,7 @@ import '../pdfrx_api.dart';
 import '../pdfrx_initialize_dart.dart';
 import 'http_cache_control.dart';
 import 'native_utils.dart';
+import 'pdfium_bindings.dart' as pdfium_bindings;
 
 final _rafFinalizer = Finalizer<RandomAccessFile>((raf) {
   // Attempt to close the file if it hasn't been closed explicitly.
@@ -82,6 +83,13 @@ class PdfFileCache {
       _raf = null;
       await raf.close();
     }
+  }
+
+  Future<void> deleteCacheFile() async {
+    await close();
+    try {
+      await file.delete();
+    } catch (_) {}
   }
 
   Future<void> _ensureFileOpen() async {
@@ -372,6 +380,11 @@ Future<PdfDocument> pdfDocumentFromUri(
       },
     );
   } catch (e) {
+    if (e is PdfException && e.errorCode == pdfium_bindings.FPDF_ERR_FORMAT) {
+      // the file seems broken; delete the cache file.
+      // NOTE: the trick does not work on Windows :(
+      await cache.deleteCacheFile();
+    }
     cache.close();
     httpClientWrapper.reset();
     rethrow;
@@ -463,7 +476,13 @@ Future<_DownloadResult> _downloadBlock(
   }
 
   if (isFullDownload) {
-    fileSize ??= cachedBytesSoFar;
+    if (fileSize != null) {
+      if (fileSize != cache.fileSize) {
+        throw PdfException('File size mismatch after full download: expected $fileSize, got ${cache.fileSize}');
+      }
+    } else {
+      fileSize = cachedBytesSoFar;
+    }
     await cache.initializeWithFileSize(fileSize, truncateExistingContent: false);
     await cache.setCached(0, lastBlock: cache.totalBlocks - 1);
   } else {

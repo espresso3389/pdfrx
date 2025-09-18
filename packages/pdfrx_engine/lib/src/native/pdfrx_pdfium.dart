@@ -380,16 +380,6 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     headers: headers,
   );
 
-  static bool _isPasswordError({int? error}) {
-    if (Platform.isWindows) {
-      // FIXME: Windows does not return error code correctly
-      // And we have to mimic every error is password error
-      return true;
-    }
-    error ??= pdfium.FPDF_GetLastError();
-    return error == pdfium_bindings.FPDF_ERR_PASSWORD;
-  }
-
   static Future<PdfDocument> _openByFunc(
     FutureOr<int> Function(String? password) openPdfDocument, {
     required String sourceName,
@@ -417,12 +407,35 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
           disposeCallback: disposeCallback,
         );
       }
-      if (_isPasswordError()) {
+      final error = pdfium.FPDF_GetLastError();
+      if (Platform.isWindows || error == pdfium_bindings.FPDF_ERR_PASSWORD) {
+        // FIXME: Windows does not return error code correctly; we have to mimic every error is password error
         continue;
       }
-      throw PdfException('Failed to load PDF document (FPDF_GetLastError=${pdfium.FPDF_GetLastError()}).');
+      throw PdfException('Failed to load PDF document ${_getPdfiumErrorString()}.', error);
     }
   }
+
+  static String _getPdfiumErrorString([int? error]) {
+    error ??= pdfium.FPDF_GetLastError();
+    final errStr = _errorMappings[error];
+    if (errStr != null) {
+      return '($errStr: $error)';
+    }
+    return '(FPDF_GetLastError=$error)';
+  }
+
+  static final _errorMappings = {
+    0: 'FPDF_ERR_SUCCESS',
+    1: 'FPDF_ERR_UNKNOWN',
+    2: 'FPDF_ERR_FILE',
+    3: 'FPDF_ERR_FORMAT',
+    4: 'FPDF_ERR_PASSWORD',
+    5: 'FPDF_ERR_SECURITY',
+    6: 'FPDF_ERR_PAGE',
+    7: 'FPDF_ERR_XFALOAD',
+    8: 'FPDF_ERR_XFALAYOUT',
+  };
 
   @override
   Future<void> reloadFonts() async {
