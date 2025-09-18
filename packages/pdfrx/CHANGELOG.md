@@ -1,3 +1,9 @@
+# 2.1.15
+
+- FIXED: Package.swift does not point to pdfium-apple-v11 dependencies correctly
+- More error handling logic for improved stability ([#468](https://github.com/espresso3389/pdfrx/issues/468))
+- Updated to pdfrx_engine 0.1.16
+
 # 2.1.14
 
 - Enhance podspec script to check for existing PDFium frameworks before downloading ([#396](https://github.com/espresso3389/pdfrx/issues/396), [#460](https://github.com/espresso3389/pdfrx/issues/460))
