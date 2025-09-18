@@ -1,3 +1,7 @@
+## 0.1.16
+
+- More error handling logic for improved stability ([#468](https://github.com/espresso3389/pdfrx/issues/468))
+
 ## 0.1.15
 
 - **BREAKING**: Integrated `loadText()` and `loadTextCharRects()` into a single function `loadText()` to fix crash issue ([#434](https://github.com/espresso3389/pdfrx/issues/434))
