@@ -197,6 +197,11 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   Future<void> initPdfium() => _init();
 
   @override
+  Future<T> suspendPdfiumWorkerDuringAction<T>(FutureOr<T> Function() action) async {
+    return await (await backgroundWorker).suspendDuringAction(action);
+  }
+
+  @override
   Future<PdfDocument> openAsset(
     String name, {
     PdfPasswordProvider? passwordProvider,

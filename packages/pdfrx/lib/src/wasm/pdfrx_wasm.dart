@@ -103,6 +103,12 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     });
   }
 
+  @override
+  Future<T> suspendPdfiumWorkerDuringAction<T>(FutureOr<T> Function() action) async {
+    // We don't share PDFium wasm instance with other libraries, so no need to block calls anyway
+    return await action();
+  }
+
   static String? _pdfiumWasmModulesUrlFromMetaTag() {
     final meta = web.document.querySelector('meta[name="pdfium-wasm-module-url"]') as web.HTMLMetaElement?;
     return meta?.content;

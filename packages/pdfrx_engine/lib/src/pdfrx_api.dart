@@ -1,6 +1,8 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 
 /// Pdfrx API
+/// @docImport './pdfrx_initialize_dart.dart';
+/// @docImport 'package:pdfrx/pdfrx_flutter.dart';
 library;
 
 import 'dart:async';
@@ -72,7 +74,16 @@ abstract class PdfrxEntryFunctions {
   static PdfrxEntryFunctions instance = PdfrxEntryFunctionsImpl();
 
   /// Call `FPDF_InitLibraryWithConfig` to initialize the PDFium library.
+  ///
+  /// For actual apps, call `pdfrxFlutterInitialize` (for Flutter) or [pdfrxInitialize] (for Dart only) instead of this function.
   Future<void> initPdfium();
+
+  /// This function blocks pdfrx internally calls PDFium functions during the execution of [action].
+  ///
+  /// Because PDFium is not thread-safe, if your app is calling some other libraries that potentially calls PDFium
+  /// functions, pdfrx may interfere with those calls and cause crashes or data corruption.
+  /// To avoid such problems, you can wrap the code that calls those libraries with this function.
+  Future<T> suspendPdfiumWorkerDuringAction<T>(FutureOr<T> Function() action);
 
   Future<PdfDocument> openAsset(
     String name, {
