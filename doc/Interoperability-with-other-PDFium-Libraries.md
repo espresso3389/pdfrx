@@ -95,9 +95,6 @@ class PdfProcessor {
   static Future<void> initialize() async {
     // Initialize pdfrx (which calls FPDF_InitLibraryWithConfig internally)
     pdfrxFlutterInitialize();
-
-    // The other library can now use the same PDFium instance
-    // (assuming it doesn't call FPDF_InitLibrary/FPDF_InitLibraryWithConfig again)
   }
 
   // Process PDF with the other library
@@ -127,6 +124,7 @@ pdfrx_engine provides direct access to PDFium bindings for advanced use cases. Y
 ```dart
 import 'dart:ffi';
 import 'dart:typed_data';
+import 'package:ffi/ffi.dart';
 import 'package:pdfrx/pdfrx.dart';
 // Access low-level PDFium bindings
 import 'package:pdfrx_engine/src/native/pdfium_bindings.dart';
@@ -140,11 +138,6 @@ class LowLevelPdfiumAccess {
     // Now you can use all PDFium C API functions through the bindings
     // Remember to wrap calls with suspendPdfiumWorkerDuringAction
     await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
-      // Example: Get PDFium version string
-      final versionPtr = pdfium.FPDF_GetVersionString();
-      final version = versionPtr.cast<Utf8>().toDartString();
-      print('PDFium version: $version');
-
       // You can call any PDFium function from the bindings
       // pdfium.FPDF_LoadDocument(...)
       // pdfium.FPDF_GetPageCount(...)
@@ -153,13 +146,11 @@ class LowLevelPdfiumAccess {
   }
 
   Future<Map<String, String>> extractCustomMetadata(Uint8List pdfData) async {
-    final pdfium = await loadPdfiumBindings();
-
     return await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
-      final dataPtr = calloc<Uint8>(pdfData.length);
-      dataPtr.asTypedList(pdfData.length).setAll(0, pdfData);
+      return using((arena) {
+        final dataPtr = arena.allocate<Uint8>(pdfData.length);
+        dataPtr.asTypedList(pdfData.length).setAll(0, pdfData);
 
-      try {
         // Load document using low-level API
         final doc = pdfium.FPDF_LoadMemDocument(
           dataPtr.cast(),
@@ -181,23 +172,18 @@ class LowLevelPdfiumAccess {
 
           // Get document metadata tags
           for (final tag in ['Title', 'Author', 'Subject', 'Keywords', 'Creator']) {
-            final buffer = calloc<Uint8>(256);
-            try {
-              final tagPtr = tag.toNativeUtf8();
-              final len = pdfium.FPDF_GetMetaText(
-                doc,
-                tagPtr.cast(),
-                buffer.cast(),
-                256,
-              );
-              if (len > 0) {
-                // PDFium returns UTF-16 encoded text
-                final text = buffer.cast<Utf16>().toDartString(length: (len ~/ 2) - 1);
-                metadata[tag] = text;
-              }
-              calloc.free(tagPtr);
-            } finally {
-              calloc.free(buffer);
+            final buffer = arena.allocate<Uint8>(256);
+            final tagPtr = tag.toNativeUtf8(allocator: arena);
+            final len = pdfium.FPDF_GetMetaText(
+              doc,
+              tagPtr.cast(),
+              buffer.cast(),
+              256,
+            );
+            if (len > 0) {
+              // PDFium returns UTF-16 encoded text
+              final text = buffer.cast<Utf16>().toDartString(length: (len ~/ 2) - 1);
+              metadata[tag] = text;
             }
           }
 
@@ -205,9 +191,7 @@ class LowLevelPdfiumAccess {
         } finally {
           pdfium.FPDF_CloseDocument(doc);
         }
-      } finally {
-        calloc.free(dataPtr);
-      }
+      });
     });
   }
 }
@@ -218,7 +202,7 @@ class LowLevelPdfiumAccess {
 - Import `package:pdfrx_engine/src/native/pdfium_bindings.dart` for the FFI binding definitions
 - Import `package:pdfrx_engine/src/native/pdfium.dart` for the `loadPdfiumBindings()` function
 - Always wrap PDFium calls with `suspendPdfiumWorkerDuringAction()` to prevent conflicts
-- Remember to properly manage memory (use `calloc` and `calloc.free`)
+- Remember to properly manage memory (use `Arena` for automatic memory management)
 - PDFium text APIs often return UTF-16 encoded strings
 
 ### Example 3: Batch Processing with Multiple Libraries
@@ -281,26 +265,7 @@ final result = await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringActio
 );
 ```
 
-### 3. Short Suspension Periods
-
-Keep the suspension period as short as possible to maintain pdfrx responsiveness:
-
-```dart
-// ❌ Bad - Long suspension
-await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() async {
-  final result = await otherLibrary.process(data);
-  await longRunningNonPdfiumOperation(); // Don't include this
-  return result;
-});
-
-// ✅ Good - Minimal suspension
-final result = await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(
-  () => otherLibrary.process(data)
-);
-await longRunningNonPdfiumOperation(); // Run outside suspension
-```
-
-### 4. Error Handling
+### 3. Error Handling
 
 Always handle errors appropriately:
 

@@ -65,6 +65,8 @@ await pdfrxInitialize();
 
 For more information about initialization, see [pdfrx Initialization](pdfrx-Initialization.md).
 
+**Important:** pdfrx does not support unloading PDFium. Never call `FPDF_DestroyLibrary` as it will cause undefined behavior. PDFium remains loaded for the lifetime of the application.
+
 ## Usage Examples
 
 ### Basic PDFium Function Access
