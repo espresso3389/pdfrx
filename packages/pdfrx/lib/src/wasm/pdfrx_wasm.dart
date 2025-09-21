@@ -64,7 +64,8 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
 
   bool _initialized = false;
 
-  Future<void> _init() async {
+  @override
+  Future<void> initPdfium() async {
     if (_initialized) return;
     await synchronized(() async {
       if (_initialized) return;
@@ -219,7 +220,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
 
     try {
       if (progressCallback != null) {
-        await _init();
+        await initPdfium();
         progressCallbackReg = _PdfiumWasmCallback.register(
           ((int bytesReceived, int bytesTotal) => progressCallback(bytesReceived, bytesTotal)).toJS,
         );
@@ -256,7 +257,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     required bool firstAttemptByEmptyPassword,
     required void Function()? onDispose,
   }) async {
-    await _init();
+    await initPdfium();
 
     for (int i = 0; ; i++) {
       final String? password;
@@ -286,20 +287,20 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
 
   @override
   Future<void> reloadFonts() async {
-    await _init();
+    await initPdfium();
     await _sendCommand('reloadFonts', parameters: {'dummy': true});
   }
 
   @override
   Future<void> addFontData({required String face, required Uint8List data}) async {
-    await _init();
+    await initPdfium();
     final jsData = data.buffer.toJS;
     await _sendCommand('addFontData', parameters: {'face': face, 'data': jsData}, transfer: [jsData].toJS);
   }
 
   @override
   Future<void> clearAllFontData() async {
-    await _init();
+    await initPdfium();
     await _sendCommand('clearAllFontData', parameters: {'dummy': true});
   }
 }

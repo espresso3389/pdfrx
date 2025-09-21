@@ -194,6 +194,9 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   PdfrxEntryFunctionsImpl();
 
   @override
+  Future<void> initPdfium() => _init();
+
+  @override
   Future<PdfDocument> openAsset(
     String name, {
     PdfPasswordProvider? passwordProvider,

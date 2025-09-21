@@ -71,6 +71,9 @@ class Pdfrx {
 abstract class PdfrxEntryFunctions {
   static PdfrxEntryFunctions instance = PdfrxEntryFunctionsImpl();
 
+  /// Call `FPDF_InitLibraryWithConfig` to initialize the PDFium library.
+  Future<void> initPdfium();
+
   Future<PdfDocument> openAsset(
     String name, {
     PdfPasswordProvider? passwordProvider,

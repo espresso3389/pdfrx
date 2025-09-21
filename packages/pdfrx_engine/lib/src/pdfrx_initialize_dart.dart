@@ -38,6 +38,8 @@ Future<void> pdfrxInitialize({
     Pdfrx.pdfiumModulePath = await _PdfiumDownloader.downloadAndGetPdfiumModulePath(pdfiumPath.path);
   }
 
+  await PdfrxEntryFunctions.instance.initPdfium();
+
   _isInitialized = true;
 }
 

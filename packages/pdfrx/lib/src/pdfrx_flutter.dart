@@ -59,6 +59,9 @@ void pdfrxFlutterInitialize({bool dismissPdfiumWasmWarnings = false}) {
     }();
   }
 
+  /// NOTE: it's actually async, but hopefully, it finishes quickly...
+  PdfrxEntryFunctions.instance.initPdfium();
+
   _isInitialized = true;
 }
 
