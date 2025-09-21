@@ -13,33 +13,10 @@ import 'package:synchronized/extension.dart';
 import '../pdfrx_api.dart';
 import 'native_utils.dart';
 import 'pdf_file_cache.dart';
+import 'pdfium.dart';
 import 'pdfium_bindings.dart' as pdfium_bindings;
 import 'pdfium_interop.dart';
 import 'worker.dart';
-
-/// Get the module file name for pdfium.
-String _getModuleFileName() {
-  if (Pdfrx.pdfiumModulePath != null) return Pdfrx.pdfiumModulePath!;
-  if (Platform.isAndroid) return 'libpdfium.so';
-  if (Platform.isIOS || Platform.isMacOS) return 'pdfrx.framework/pdfrx';
-  if (Platform.isWindows) return 'pdfium.dll';
-  if (Platform.isLinux) {
-    return '${File(Platform.resolvedExecutable).parent.path}/lib/libpdfium.so';
-  }
-  throw UnsupportedError('Unsupported platform');
-}
-
-DynamicLibrary _getModule() {
-  try {
-    return DynamicLibrary.open(_getModuleFileName());
-  } catch (e) {
-    // NOTE: with SwiftPM, the library is embedded in the app bundle (iOS/macOS)
-    return DynamicLibrary.process();
-  }
-}
-
-/// Loaded PDFium module.
-final pdfium = pdfium_bindings.pdfium(_getModule());
 
 Directory? _appLocalFontPath;
 

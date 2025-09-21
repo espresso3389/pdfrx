@@ -32,6 +32,7 @@ Welcome to the pdfrx documentation! This guide provides comprehensive informatio
 - [Customizing Key Handling](Customizing-Key-Handling-on-PdfViewer.md) - Keyboard shortcuts
 - [Password Protected PDFs](Deal-with-Password-Protected-PDF-Files-using-PasswordProvider.md) - Handle encrypted PDFs
 - [Overlay Builders](Deal-with-viewerOverlayBuilder-and-pageOverlaysBuilder.md) - Custom overlays
+- [Interoperability with other PDFium Libraries](Interoperability-with-other-PDFium-Libraries.md) - Using pdfrx alongside other PDFium-based libraries
 
 ## Platform-Specific
 
