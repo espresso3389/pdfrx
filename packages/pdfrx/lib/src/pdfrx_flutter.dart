@@ -14,6 +14,7 @@ bool _isInitialized = false;
 /// This function actually sets up the following functions:
 /// - [Pdfrx.loadAsset]: Loads an asset by name and returns its byte data.
 /// - [Pdfrx.getCacheDirectory]: Returns the path to the temporary directory for caching.
+/// - Call [PdfrxEntryFunctions.initPdfium] to initialize the PDFium library.
 ///
 /// For Dart (non-Flutter) programs, you should call [pdfrxInitialize] instead.
 ///

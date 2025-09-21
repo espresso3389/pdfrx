@@ -12,3 +12,6 @@ pubspec_overrides.yaml
 
 /tmp/
 **/*.exe
+
+doc/api/
+
