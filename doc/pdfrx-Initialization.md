@@ -20,6 +20,7 @@ Basically, these initialization functions do the following things:
 - Map PdfDocument [factory/interop functions](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions-class.html) to actual platform ones
 - Set [Pdfrx.loadAsset](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pdfrx/loadAsset.html) (Flutter only)
 - Download PDFium binary on-demand ([pdfrxInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html) only)
+- Call [PdfrxEntryFunctions.initPdfium](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/initPdfium.html) to initialize the PDFium library (internally calls `FPDF_InitLibraryWithConfig`)
 
 ## Cache Directory
 
@@ -34,6 +35,6 @@ Init. Func. | Underlying API | Notes
 
 For pure Dart apps, because it is typically used on desktop environments, pdfrx downloads PDFium binary if your environment does not have it.
 
-- PDFium binaries are downloaded from https://github.com/bblanchon/pdfium-binaries/releases
+- PDFium binaries are downloaded from <https://github.com/bblanchon/pdfium-binaries/releases>
 - By default, the binary is downloaded to `[TMP_DIR]/pdfrx.cache`
 - You can explicitly specify `libpdfium` shared library file path/name by `PDFIUM_PATH` environment variable

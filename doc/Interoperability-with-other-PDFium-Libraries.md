@@ -28,23 +28,9 @@ For advanced use cases, pdfrx_engine exposes direct access to PDFium's C API thr
 - Implement custom PDF processing not covered by the high-level API
 - Integrate with existing PDFium-based code
 
-To access the low-level bindings:
-
-```dart
-// Import the binding definitions and loader
-import 'package:pdfrx_engine/src/native/pdfium_bindings.dart';
-import 'package:pdfrx_engine/src/native/pdfium.dart';
-
-// Load the PDFium bindings
-final pdfium = await loadPdfiumBindings();
-
-// Use any PDFium C API function
-final version = pdfium.FPDF_GetVersionString().cast<Utf8>().toDartString();
-```
-
 **Important**: When using low-level bindings, you must:
 
-1. Initialize PDFium first using `pdfrxFlutterInitialize()` or `pdfrxInitialize()`
+1. Initialize PDFium first using `pdfrxFlutterInitialize()` or `pdfrxInitialize()` (See [pdfrx Initialization](pdfrx-Initialization.md))
 2. Wrap all PDFium calls with `suspendPdfiumWorkerDuringAction()` to prevent conflicts
 3. Properly manage memory allocation and deallocation
 
@@ -150,9 +136,6 @@ class LowLevelPdfiumAccess {
   Future<void> useDirectBindings() async {
     // Initialize PDFium through pdfrx
     await pdfrxFlutterInitialize();
-
-    // Access the PDFium bindings directly
-    final pdfium = await loadPdfiumBindings();
 
     // Now you can use all PDFium C API functions through the bindings
     // Remember to wrap calls with suspendPdfiumWorkerDuringAction
