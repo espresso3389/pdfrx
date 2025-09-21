@@ -39,7 +39,9 @@ Future<void> _init() async {
         // NOTE: m_pUserFontPaths must not be freed until FPDF_DestroyLibrary is called; on pdfrx, it's never freed.
         final fontPathArray = malloc<Pointer<Char>>(sizeOf<Pointer<Char>>() * (fontPaths.length + 1));
         for (int i = 0; i < fontPaths.length; i++) {
-          fontPathArray[i] = fontPaths[i].toNativeUtf8().cast<Char>();
+          fontPathArray[i] = fontPaths[i]
+              .toNativeUtf8()
+              .cast<Char>(); // NOTE: the block allocated by toNativeUtf8 never released
         }
         fontPathArray[fontPaths.length] = nullptr;
         config.ref.m_pUserFontPaths = fontPathArray;
