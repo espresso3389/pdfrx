@@ -66,6 +66,7 @@ class PdfViewerParams {
     this.forceReload = false,
     this.scrollPhysics,
     this.scrollPhysicsScale,
+    this.pageFit = PdfPageFit.none,
   });
 
   /// Margin around the page.
@@ -497,6 +498,8 @@ class PdfViewerParams {
   /// Scroll physics for scaling within the viewer.
   final ScrollPhysics? scrollPhysicsScale;
 
+  /// Page fit
+  final PdfPageFit pageFit;
 
   static ScrollPhysics getScrollPhysics(BuildContext context) {
     if (Platform.isAndroid) {
@@ -537,7 +540,8 @@ class PdfViewerParams {
         other.verticalCacheExtent != verticalCacheExtent ||
         other.linkHandlerParams != linkHandlerParams ||
         other.scrollPhysics != scrollPhysics ||
-        other.scrollPhysicsScale != scrollPhysicsScale;
+        other.scrollPhysicsScale != scrollPhysicsScale ||
+        other.pageFit != pageFit;
   }
 
   @override
@@ -593,7 +597,8 @@ class PdfViewerParams {
         other.keyHandlerParams == keyHandlerParams &&
         other.forceReload == forceReload &&
         other.scrollPhysics == scrollPhysics &&
-        other.scrollPhysicsScale == scrollPhysicsScale;
+        other.scrollPhysicsScale == scrollPhysicsScale &&
+        other.pageFit == pageFit;
   }
 
   @override
@@ -647,7 +652,8 @@ class PdfViewerParams {
         keyHandlerParams.hashCode ^
         forceReload.hashCode ^
         scrollPhysics.hashCode ^
-        scrollPhysicsScale.hashCode;
+        scrollPhysicsScale.hashCode ^
+        pageFit.hashCode;
   }
 }
 
@@ -691,7 +697,13 @@ typedef PdfViewerGetPageRenderingScale =
 /// - [pages] is the list of pages.
 ///   This is just a copy of the first loaded page of the document.
 /// - [params] is the viewer parameters.
-typedef PdfPageLayoutFunction = PdfPageLayout Function(List<PdfPage> pages, PdfViewerParams params);
+typedef PdfPageLayoutFunction =
+    PdfPageLayout Function(
+      List<PdfPage> pages,
+      PdfViewerParams params,
+      List<double> pageFitWidths,
+      List<double> pageFitHeights,
+    );
 
 /// Function to build viewer overlays.
 ///
@@ -793,6 +805,19 @@ enum PdfPageAnchor {
   all,
 }
 
+enum PdfPageFit {
+  /// Ensure all pages can fully fit in the view
+  fit,
+
+  /// Ensure that a page will fill the view
+  fill,
+
+  /// Let the viewer decide the best fit
+  auto,
+
+  /// No fit: minScale will be used
+  none,
+}
 
 /// Parameters to customize link handling/appearance.
 class PdfLinkHandlerParams {
