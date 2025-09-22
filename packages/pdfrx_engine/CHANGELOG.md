@@ -1,7 +1,7 @@
 ## 0.1.17
 
-- #474 Add PdfrxEntryFunctions.initPdfium to explicitly call FPDF_InitLibraryWithConfig and pdfrxInitialize/pdfrxFlutterInitialize internally call it
-- #474: Add PdfrxEntryFunctions.suspendPdfiumWorkerDuringAction
+- [#474](https://github.com/espresso3389/pdfrx/issues/474) Add PdfrxEntryFunctions.initPdfium to explicitly call FPDF_InitLibraryWithConfig and pdfrxInitialize/pdfrxFlutterInitialize internally call it
+- [#474](https://github.com/espresso3389/pdfrx/issues/474) Add PdfrxEntryFunctions.suspendPdfiumWorkerDuringAction
 - Documentation improvements for low-level PDFium bindings access/PDFium interoperability and initialization
 
 ## 0.1.16
