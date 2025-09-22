@@ -621,7 +621,7 @@ const emEnv = {
   _localtime_js: function (time, tmPtr) {
     _notImplemented('_localtime_js');
   },
-  _tzset_js: function () {},
+  _tzset_js: function () { },
   emscripten_date_now: function () {
     return Date.now();
   },
@@ -903,7 +903,7 @@ function _loadDocument(docHandle, useProgressiveLoading, onDispose) {
   } catch (e) {
     try {
       if (formHandle !== 0) Pdfium.wasmExports.FPDFDOC_ExitFormFillEnvironment(formHandle);
-    } catch (e) {}
+    } catch (e) { }
     Pdfium.wasmExports.free(formInfo);
     delete disposers[docHandle];
     onDispose();
@@ -935,12 +935,12 @@ function _loadPagesInLimitedTime(docHandle, pagesLoadedCountSoFar, maxPageCountT
       throw new Error(`FPDF_LoadPage failed (${_getErrorMessage(error)})`);
     }
 
-  const rectBuffer = Pdfium.wasmExports.malloc(4 * 4); // FS_RECTF: float[4]
-  Pdfium.wasmExports.FPDF_GetPageBoundingBox(pageHandle, rectBuffer);
-  const rect = new Float32Array(Pdfium.memory.buffer, rectBuffer, 4);
-  const bbLeft = rect[0];
-  const bbBottom = rect[3];
-  Pdfium.wasmExports.free(rectBuffer);
+    const rectBuffer = Pdfium.wasmExports.malloc(4 * 4); // FS_RECTF: float[4]
+    Pdfium.wasmExports.FPDF_GetPageBoundingBox(pageHandle, rectBuffer);
+    const rect = new Float32Array(Pdfium.memory.buffer, rectBuffer, 4);
+    const bbLeft = rect[0];
+    const bbBottom = rect[3];
+    Pdfium.wasmExports.free(rectBuffer);
 
     pages.push({
       pageIndex: i,
@@ -977,7 +977,7 @@ function closeDocument(params) {
   if (params.formHandle) {
     try {
       Pdfium.wasmExports.FPDFDOC_ExitFormFillEnvironment(params.formHandle);
-    } catch (e) {}
+    } catch (e) { }
   }
   Pdfium.wasmExports.free(params.formInfo);
   Pdfium.wasmExports.FPDF_CloseDocument(params.docHandle);
@@ -1267,6 +1267,7 @@ function _getLinkUrl(linkPage, linkIndex) {
   return url;
 }
 
+
 /**
  * @param {{docHandle: number, pageIndex: number}} params
  * @returns {Array<PdfDestLink|PdfUrlLink>}
@@ -1275,20 +1276,31 @@ function _loadAnnotLinks(params) {
   const { pageIndex, docHandle } = params;
   const pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
   const count = Pdfium.wasmExports.FPDFPage_GetAnnotCount(pageHandle);
-  const rectF = Pdfium.wasmExports.malloc(4 * 4); // float[4]
+  const rectF = Pdfium.wasmExports.malloc(4 * 4);
   const links = [];
   for (let i = 0; i < count; i++) {
     const annot = Pdfium.wasmExports.FPDFPage_GetAnnot(pageHandle, i);
     Pdfium.wasmExports.FPDFAnnot_GetRect(annot, rectF);
     const [l, t, r, b] = new Float32Array(Pdfium.memory.buffer, rectF, 4);
     const rect = [l, t > b ? t : b, r, t > b ? b : t];
+
+    const content = _getAnnotationContent(annot);
+
     const dest = _processAnnotDest(annot, docHandle);
     if (dest) {
-      links.push({ rects: [rect], dest: _pdfDestFromDest(dest, docHandle) });
+      links.push({
+        rects: [rect],
+        dest: _pdfDestFromDest(dest, docHandle),
+        annotationContent: content
+      });
     } else {
       const url = _processAnnotLink(annot, docHandle);
-      if (url) {
-        links.push({ rects: [rect], url: url });
+      if (url || content) {
+        links.push({
+          rects: [rect],
+          url: url,
+          annotationContent: content
+        });
       }
     }
     Pdfium.wasmExports.FPDFPage_CloseAnnot(annot);
@@ -1297,6 +1309,30 @@ function _loadAnnotLinks(params) {
   Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
   return links;
 }
+
+function _getAnnotationContent(annot) {
+  const contentsKey = StringUtils.allocateUTF8("Contents");
+
+  const contentLength = Pdfium.wasmExports.FPDFAnnot_GetStringValue(
+    annot, contentsKey, null, 0
+  );
+
+  let content = null;
+  if (contentLength > 0) {
+    const contentBuffer = Pdfium.wasmExports.malloc(contentLength * 2);
+    Pdfium.wasmExports.FPDFAnnot_GetStringValue(
+      annot, contentsKey, contentBuffer, contentLength
+    );
+    content = StringUtils.utf16BytesToString(
+      new Uint8Array(Pdfium.memory.buffer, contentBuffer, contentLength * 2)
+    );
+    Pdfium.wasmExports.free(contentBuffer);
+  }
+
+  StringUtils.freeUTF8(contentsKey);
+  return content;
+}
+
 
 /**
  *
