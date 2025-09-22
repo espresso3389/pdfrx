@@ -1,3 +1,10 @@
+# 2.1.16
+
+- #474 Add PdfrxEntryFunctions.initPdfium to explicitly call FPDF_InitLibraryWithConfig and pdfrxInitialize/pdfrxFlutterInitialize internally call it
+- #474: Add PdfrxEntryFunctions.suspendPdfiumWorkerDuringAction
+- Documentation improvements for low-level PDFium bindings access/PDFium interoperability and initialization
+- Updated to pdfrx_engine 0.1.17
+
 # 2.1.15
 
 - FIXED: Package.swift does not point to pdfium-apple-v11 dependencies correctly
