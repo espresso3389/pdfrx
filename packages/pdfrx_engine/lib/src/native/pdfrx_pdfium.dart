@@ -1011,6 +1011,28 @@ class _PdfPagePdfium extends PdfPage {
     return urlBuffer.cast<Utf16>().toDartString();
   }
 
+  static String? _getAnnotationContent(pdfium_bindings.FPDF_ANNOTATION annot, Arena arena) {
+    final contentLength = pdfium.FPDFAnnot_GetStringValue(
+      annot,
+      'Contents'.toNativeUtf8(allocator: arena).cast<Char>(),
+      nullptr,
+      0,
+    );
+
+    if (contentLength > 0) {
+      final contentBuffer = arena.allocate<UnsignedShort>(contentLength);
+      pdfium.FPDFAnnot_GetStringValue(
+        annot,
+        'Contents'.toNativeUtf8(allocator: arena).cast<Char>(),
+        contentBuffer,
+        contentLength,
+      );
+      return contentBuffer.cast<Utf16>().toDartString();
+    }
+
+    return null;
+  }
+
   Future<List<PdfLink>> _loadAnnotLinks() async => document.isDisposed
       ? []
       : await (await backgroundWorker).compute(
@@ -1031,13 +1053,16 @@ class _PdfPagePdfium extends PdfPage {
                   r.right,
                   r.top > r.bottom ? r.bottom : r.top,
                 ).translate(-params.bbLeft, -params.bbBottom);
+
+                final content = _getAnnotationContent(annot, arena);
+
                 final dest = _processAnnotDest(annot, document, arena);
                 if (dest != nullptr) {
-                  links.add(PdfLink([rect], dest: _pdfDestFromDest(dest, document, arena)));
+                  links.add(PdfLink([rect], dest: _pdfDestFromDest(dest, document, arena), annotationContent: content));
                 } else {
                   final uri = _processAnnotLink(annot, document, arena);
-                  if (uri != null) {
-                    links.add(PdfLink([rect], url: uri));
+                  if (uri != null || content != null) {
+                    links.add(PdfLink([rect], url: uri, annotationContent: content));
                   }
                 }
                 pdfium.FPDFPage_CloseAnnot(annot);
