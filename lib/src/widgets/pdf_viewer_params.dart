@@ -15,7 +15,6 @@ class PdfViewerParams {
     this.margin = 8.0,
     this.backgroundColor = Colors.grey,
     this.layoutPages,
-    this.normalizeMatrix,
     this.maxScale = 8.0,
     this.minScale = 0.1,
     this.useAlternativeFitScaleAsMinScale = true,
@@ -63,6 +62,7 @@ class PdfViewerParams {
     this.onKey,
     this.keyHandlerParams = const PdfViewerKeyHandlerParams(),
     this.forceReload = false,
+    this.pageFit = PdfPageFit.none,
   });
 
   /// Margin around the page.
@@ -100,32 +100,6 @@ class PdfViewerParams {
   /// ),
   /// ```
   final PdfPageLayoutFunction? layoutPages;
-
-  /// Function to normalize the matrix.
-  ///
-  /// The function is called when the matrix is changed and normally used to restrict the matrix to certain range.
-  ///
-  /// The following fragment is an example to restrict the matrix to the document size, which is almost identical to
-  /// the default behavior:
-  ///
-  /// ```dart
-  /// PdfViewerParams(
-  ///  normalizeMatrix: (matrix, viewSize, layout, controller) {
-  ///     // If the controller is not ready, just return the input matrix.
-  ///     if (controller == null || !controller.isReady) return matrix;
-  ///     final position = newValue.calcPosition(viewSize);
-  ///     final newZoom = controller.params.boundaryMargin != null
-  ///       ? newValue.zoom
-  ///       : max(newValue.zoom, controller.minScale);
-  ///     final hw = viewSize.width / 2 / newZoom;
-  ///     final hh = viewSize.height / 2 / newZoom;
-  ///     final x = position.dx.range(hw, layout.documentSize.width - hw);
-  ///     final y = position.dy.range(hh, layout.documentSize.height - hh);
-  ///     return controller.calcMatrixFor(Offset(x, y), zoom: newZoom, viewSize: viewSize);
-  ///   },
-  /// ),
-  /// ```
-  final PdfMatrixNormalizeFunction? normalizeMatrix;
 
   /// The maximum allowed scale.
   ///
@@ -514,6 +488,9 @@ class PdfViewerParams {
   /// sometimes it is useful to force reload the viewer by setting this to true.
   final bool forceReload;
 
+  /// Page fit
+  final PdfPageFit pageFit;
+
   /// Determine whether the viewer needs to be reloaded or not.
   ///
   bool doChangesRequireReload(PdfViewerParams? other) {
@@ -543,7 +520,8 @@ class PdfViewerParams {
         other.scrollByArrowKey != scrollByArrowKey ||
         other.horizontalCacheExtent != horizontalCacheExtent ||
         other.verticalCacheExtent != verticalCacheExtent ||
-        other.linkHandlerParams != linkHandlerParams;
+        other.linkHandlerParams != linkHandlerParams ||
+        other.pageFit != pageFit;
   }
 
   @override
@@ -597,7 +575,8 @@ class PdfViewerParams {
         other.perPageSelectableRegionInjector == perPageSelectableRegionInjector &&
         other.onKey == onKey &&
         other.keyHandlerParams == keyHandlerParams &&
-        other.forceReload == forceReload;
+        other.forceReload == forceReload &&
+        other.pageFit == pageFit;
   }
 
   @override
@@ -649,7 +628,8 @@ class PdfViewerParams {
         perPageSelectableRegionInjector.hashCode ^
         onKey.hashCode ^
         keyHandlerParams.hashCode ^
-        forceReload.hashCode;
+        forceReload.hashCode ^
+        pageFit.hashCode;
   }
 }
 
@@ -693,17 +673,13 @@ typedef PdfViewerGetPageRenderingScale =
 /// - [pages] is the list of pages.
 ///   This is just a copy of the first loaded page of the document.
 /// - [params] is the viewer parameters.
-typedef PdfPageLayoutFunction = PdfPageLayout Function(List<PdfPage> pages, PdfViewerParams params);
-
-/// Function to normalize the matrix.
-///
-/// The function is called when the matrix is changed and normally used to restrict the matrix to certain range.
-///
-/// Another use case is to do something when the matrix is changed.
-///
-/// If no actual matrix change is needed, just return the input matrix.
-typedef PdfMatrixNormalizeFunction =
-    Matrix4 Function(Matrix4 matrix, Size viewSize, PdfPageLayout layout, PdfViewerController? controller);
+typedef PdfPageLayoutFunction =
+    PdfPageLayout Function(
+      List<PdfPage> pages,
+      PdfViewerParams params,
+      List<double> pageFitWidths,
+      List<double> pageFitHeights,
+    );
 
 /// Function to build viewer overlays.
 ///
@@ -805,6 +781,20 @@ enum PdfPageAnchor {
   all,
 }
 
+enum PdfPageFit {
+  /// Ensure all pages can fully fit in the view
+  fit,
+
+  /// Ensure that a page will fill the view
+  fill,
+
+  /// Let the viewer decide the best fit
+  auto,
+
+  /// No fit: minScale will be used
+  none,
+}
+
 /// Parameters to customize link handling/appearance.
 class PdfLinkHandlerParams {
   const PdfLinkHandlerParams({required this.onLinkTap, this.linkColor, this.customPainter});
@@ -894,7 +884,7 @@ class PdfViewerKeyHandlerParams {
   final FocusNode? parentNode;
 
   @override
-  operator ==(covariant PdfViewerKeyHandlerParams other) {
+  bool operator ==(covariant PdfViewerKeyHandlerParams other) {
     if (identical(this, other)) return true;
 
     return other.initialDelay == initialDelay &&
