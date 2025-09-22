@@ -1465,7 +1465,7 @@ enum PdfDestCommand {
 /// Either one of [url] or [dest] is valid (not null).
 /// See [PdfPage.loadLinks].
 class PdfLink {
-  const PdfLink(this.rects, {this.url, this.dest});
+  const PdfLink(this.rects, {this.url, this.dest, this.annotationContent});
 
   /// Link URL.
   final Uri? url;
@@ -1477,6 +1477,7 @@ class PdfLink {
 
   /// Link location.
   final List<PdfRect> rects;
+  final String? annotationContent;
 
   /// Compact the link.
   ///
@@ -1484,12 +1485,12 @@ class PdfLink {
   /// [rects] is typically growable and also modifiable. The method ensures that [rects] is unmodifiable.
   /// [dest] is also compacted by calling [PdfDest.compact].
   PdfLink compact() {
-    return PdfLink(List.unmodifiable(rects), url: url, dest: dest?.compact());
+    return PdfLink(List.unmodifiable(rects), url: url, dest: dest?.compact(), annotationContent: annotationContent);
   }
 
   @override
   String toString() {
-    return 'PdfLink{${url?.toString() ?? dest?.toString()}, rects: $rects}';
+    return 'PdfLink{${url?.toString() ?? dest?.toString()}, rects: $rects, annotationContent: $annotationContent }';
   }
 
   @override

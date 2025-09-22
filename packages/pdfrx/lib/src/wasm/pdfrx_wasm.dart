@@ -515,15 +515,24 @@ class _PdfPageWasm extends PdfPage {
           (rect[3] as double) - bbBottom,
         );
       }).toList();
+
       final url = link['url'];
-      if (url is String) {
-        return PdfLink(rects, url: Uri.tryParse(url));
-      }
       final dest = link['dest'];
-      if (dest is! Map<Object?, dynamic>) {
-        throw FormatException('Unexpected link destination structure: $dest');
+      final annotationContent = link['annotationContent'] as String?;
+
+      if (url is String) {
+        return PdfLink(rects, url: Uri.tryParse(url), annotationContent: annotationContent);
       }
-      return PdfLink(rects, dest: _pdfDestFromMap(dest));
+
+      if (dest != null && dest is Map<Object?, dynamic>) {
+        return PdfLink(rects, dest: _pdfDestFromMap(dest), annotationContent: annotationContent);
+      }
+
+      if (annotationContent != null) {
+        return PdfLink(rects, annotationContent: annotationContent);
+      }
+
+      return PdfLink(rects, annotationContent: annotationContent);
     }).toList();
   }
 
