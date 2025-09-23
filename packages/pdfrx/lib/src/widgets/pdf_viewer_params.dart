@@ -70,6 +70,7 @@ class PdfViewerParams {
     this.keyHandlerParams = const PdfViewerKeyHandlerParams(),
     this.behaviorControlParams = const PdfViewerBehaviorControlParams(),
     this.forceReload = false,
+    this.scrollPhysics,
   });
 
   /// Margin around the page.
@@ -534,6 +535,9 @@ class PdfViewerParams {
   /// sometimes it is useful to force reload the viewer by setting this to true.
   final bool forceReload;
 
+   /// Scroll physics for the viewer.
+  final ScrollPhysics? scrollPhysics;
+
   /// Determine whether the viewer needs to be reloaded or not.
   ///
   bool doChangesRequireReload(PdfViewerParams? other) {
@@ -565,7 +569,8 @@ class PdfViewerParams {
         other.scrollByArrowKey != scrollByArrowKey ||
         other.horizontalCacheExtent != horizontalCacheExtent ||
         other.verticalCacheExtent != verticalCacheExtent ||
-        other.linkHandlerParams != linkHandlerParams;
+        other.linkHandlerParams != linkHandlerParams ||
+        other.scrollPhysics != scrollPhysics;
   }
 
   @override
@@ -625,7 +630,8 @@ class PdfViewerParams {
         other.onKey == onKey &&
         other.keyHandlerParams == keyHandlerParams &&
         other.behaviorControlParams == behaviorControlParams &&
-        other.forceReload == forceReload;
+        other.forceReload == forceReload &&
+        other.scrollPhysics == scrollPhysics;
   }
 
   @override
@@ -683,7 +689,8 @@ class PdfViewerParams {
         onKey.hashCode ^
         keyHandlerParams.hashCode ^
         behaviorControlParams.hashCode ^
-        forceReload.hashCode;
+        forceReload.hashCode ^
+        scrollPhysics.hashCode;
   }
 }
 
