@@ -69,7 +69,6 @@ GoogleFontsFile? getGoogleFontsUriFromFontQuery(PdfFontQuery query, {bool prefer
       PdfFontCharset.thai => _notoSerifThai,
       PdfFontCharset.hebrew => _notoSerifHebrew,
       PdfFontCharset.arabic => _notoNaskhArabic,
-      PdfFontCharset.arabic => _notoSansArabic,
       PdfFontCharset.greek ||
       PdfFontCharset.vietnamese ||
       PdfFontCharset.cyrillic ||
