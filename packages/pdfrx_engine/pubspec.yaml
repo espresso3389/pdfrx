@@ -18,15 +18,15 @@ dependencies:
   http:
   path:
   rxdart:
-  synchronized: ^3.3.1
-  vector_math: ^2.1.4
+  synchronized: ^3.4.0
+  vector_math: ^2.2.0
   archive: ^4.0.7
   image: ^4.5.4
 
 dev_dependencies:
-  ffigen: ^19.0.0
-  lints: ^5.0.0
-  test: ^1.24.0
+  ffigen: ^19.1.0
+  lints: ^6.0.0
+  test: ^1.26.2
 
 # To generate the bindings, firstly you must run the test once to download PDFium headers:
 #  dart run test

@@ -24,17 +24,17 @@ dependencies:
   path:
   path_provider: ^2.1.5
   rxdart:
-  synchronized: ^3.3.1
-  url_launcher: ^6.3.1
-  vector_math: ^2.1.4
+  synchronized: ^3.4.0
+  url_launcher: ^6.3.2
+  vector_math: ^2.2.0
   web: ^1.1.1
-  dart_pubspec_licenses: ^3.0.7
+  dart_pubspec_licenses: ^3.0.12
 
 dev_dependencies:
-  ffigen: ^19.0.0
+  ffigen: ^19.1.0
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
   archive: ^4.0.7
 
 flutter:
