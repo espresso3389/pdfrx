@@ -1,3 +1,8 @@
+# 2.1.17
+
+- FIXED: `dart run pdfrx:remove_wasm_modules` could fail with "Too many open files" during WASM cleanup ([#476](https://github.com/espresso3389/pdfrx/issues/476))
+- Updated dependencies, including pdfrx_engine 0.1.18
+
 # 2.1.16
 
 - [#474](https://github.com/espresso3389/pdfrx/issues/474) Add PdfrxEntryFunctions.initPdfium to explicitly call FPDF_InitLibraryWithConfig and pdfrxInitialize/pdfrxFlutterInitialize internally call it
