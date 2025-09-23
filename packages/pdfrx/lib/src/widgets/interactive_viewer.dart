@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:vector_math/vector_math_64.dart' show Matrix4, Quad, Vector3;
+
 import '../utils/double_extensions.dart';
 
 // Examples can assume:
@@ -589,10 +590,9 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
     /// ScrollPhysics
     /// If the ScrollPhysics is defined we apply physics (bouncing or clamping) during pan.
     if (widget.scrollPhysics != null) {
-      final physics =
-          (_gestureType == _GestureType.scale)
-              ? (widget.scrollPhysicsScale ?? widget.scrollPhysics!)
-              : widget.scrollPhysics!;
+      final physics = (_gestureType == _GestureType.scale)
+          ? (widget.scrollPhysicsScale ?? widget.scrollPhysics!)
+          : widget.scrollPhysics!;
       // current translation in scene coordinates (negative because controller stores inverse)
       final Offset currentOffset = _getMatrixTranslation(_transformer.value) * -1;
       // build scroll metrics
@@ -602,10 +602,12 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       final double proposedX = currentOffset.dx - alignedTranslation.dx;
       final double proposedY = currentOffset.dy - alignedTranslation.dy;
 
-      final double overscrollX =
-          proposedX == currentOffset.dx ? 0 : physics.applyBoundaryConditions(metricsX, proposedX); // : 0.
-      final double overscrollY =
-          proposedY == currentOffset.dy ? 0 : physics.applyBoundaryConditions(metricsY, proposedY); // : 0.
+      final double overscrollX = proposedX == currentOffset.dx
+          ? 0
+          : physics.applyBoundaryConditions(metricsX, proposedX); // : 0.
+      final double overscrollY = proposedY == currentOffset.dy
+          ? 0
+          : physics.applyBoundaryConditions(metricsY, proposedY); // : 0.
 
       // If the overscroll is zero, the ScrollPhysics (such as BouncingScrollPhysics) is
       // enabling us to go out of boundaries, so we apply physics to the translation.
@@ -629,7 +631,8 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
         return matrix.clone()..translateByDouble(dx, dy, 0, 1);
       } else {
         // correct any overscroll
-        return matrix.clone()..translateByDouble(alignedTranslation.dx + overscrollX, alignedTranslation.dy + overscrollY, 0, 1);
+        return matrix.clone()
+          ..translateByDouble(alignedTranslation.dx + overscrollX, alignedTranslation.dy + overscrollY, 0, 1);
       }
     }
 
@@ -658,8 +661,8 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
     // calculating the translation to put the viewport inside that Quad is more
     // complicated than this when rotated.
     // https://github.com/flutter/flutter/issues/57698
-    final Matrix4 correctedMatrix =
-        matrix.clone()..setTranslation(Vector3(correctedTotalTranslation.dx, correctedTotalTranslation.dy, 0.0));
+    final Matrix4 correctedMatrix = matrix.clone()
+      ..setTranslation(Vector3(correctedTotalTranslation.dx, correctedTotalTranslation.dy, 0.0));
 
     // Double check that the corrected translation fits.
     final Quad correctedViewport = _transformViewport(correctedMatrix, _viewport);
@@ -711,7 +714,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       final allowedScale = _getAllowedScale(desiredScale);
       // Early return if not allowed to zoom outside bounds
       if (allowedScale != desiredScale) {
-        return matrix.clone()..scaleByDouble(allowedScale, allowedScale, allowedScale, 1);  
+        return matrix.clone()..scaleByDouble(allowedScale, allowedScale, allowedScale, 1);
       }
 
       // Compute ratio of this update's scale to the previous update
@@ -765,13 +768,13 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
         final double newScaleY = (contentHeight + adjustedY) / contentHeight;
         final double factor = (newScaleX + newScaleY) / 2;
 
-        return matrix.clone()..scale(factor);
+        return matrix.clone()..scaleByDouble(factor, factor, factor, 1);
       } else {
         final double clampedTotalScale = clampDouble(desiredScale, widget.minScale, widget.maxScale);
         final double clampedScale = clampedTotalScale / currentScale;
 
         // Apply the scale factor to the matrix
-        return matrix.clone()..scale(clampedScale);
+        return matrix.clone()..scaleByDouble(clampedScale, clampedScale, clampedScale, 1);
       }
     } else {
       // Don't allow a scale that results in an overall scale beyond min/max
@@ -785,7 +788,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       );
       final double clampedTotalScale = clampDouble(totalScale, widget.minScale, widget.maxScale);
       final double clampedScale = clampedTotalScale / currentScale;
-      return matrix.clone()..scale(clampedScale);
+      return matrix.clone()..scaleByDouble(clampedScale, clampedScale, clampedScale, 1);
     }
   }
 
@@ -1031,11 +1034,10 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
           // want to animate the snap back to bounds
           _snapStartMatrix = _transformer.value.clone();
           final Offset pivotScene = _transformer.toScene(_snapFocalPoint);
-          final Matrix4 endMatrix =
-              _snapStartMatrix.clone()
-                ..translateByDouble(pivotScene.dx, pivotScene.dy, 0, 1)
-                ..scaleByDouble(clampedScale / endScale, clampedScale / endScale, clampedScale / endScale, 1)
-                ..translateByDouble(-pivotScene.dx, -pivotScene.dy, 0, 1);
+          final Matrix4 endMatrix = _snapStartMatrix.clone()
+            ..translateByDouble(pivotScene.dx, pivotScene.dy, 0, 1)
+            ..scaleByDouble(clampedScale / endScale, clampedScale / endScale, clampedScale / endScale, 1)
+            ..translateByDouble(-pivotScene.dx, -pivotScene.dy, 0, 1);
           _snapTargetMatrix = _matrixClamp(endMatrix);
 
           _snapController
@@ -1213,8 +1215,8 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
     // Use original boundaryMargin unless a specific one is passed for override.
     final EdgeInsets baseMargin =
         (overrideAutoAdjustBoundaries && !widget.scrollPhysicsAutoAdjustBoundaries) || boundaryMargin == null
-            ? _originalBoundaryMargin
-            : boundaryMargin;
+        ? _originalBoundaryMargin
+        : boundaryMargin;
 
     // If boundaries are infinite, provide very large finite extents to disable clamping
     if (_boundaryRect.isInfinite) {
@@ -1600,11 +1602,10 @@ Quad _transformViewport(Matrix4 matrix, Rect viewport) {
 // Find the axis aligned bounding box for the rect rotated about its center by
 // the given amount.
 Quad _getAxisAlignedBoundingBoxWithRotation(Rect rect, double rotation) {
-  final Matrix4 rotationMatrix =
-      Matrix4.identity()
-        ..translateByDouble(rect.size.width / 2, rect.size.height / 2, 0, 1)
-        ..rotateZ(rotation)
-        ..translateByDouble(-rect.size.width / 2, -rect.size.height / 2, 0, 1);
+  final Matrix4 rotationMatrix = Matrix4.identity()
+    ..translateByDouble(rect.size.width / 2, rect.size.height / 2, 0, 1)
+    ..rotateZ(rotation)
+    ..translateByDouble(-rect.size.width / 2, -rect.size.height / 2, 0, 1);
   final Quad boundariesRotated = Quad.points(
     rotationMatrix.transform3(Vector3(rect.left, rect.top, 0.0)),
     rotationMatrix.transform3(Vector3(rect.right, rect.top, 0.0)),
