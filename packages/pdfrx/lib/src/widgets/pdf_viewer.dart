@@ -868,7 +868,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   // Auto-adjust boundaries when content is smaller than the view, centering
   // the content and ensuring InteractiveViewer's scrollPhysics works when specified
-  _adjustBoundaryMargins(Size viewSize, double zoom) {
+  void _adjustBoundaryMargins(Size viewSize, double zoom) {
     if (widget.params.scrollPhysics == null) return;
 
     final boundaryMargin =
@@ -1333,7 +1333,7 @@ class _PdfViewerState extends State<PdfViewer>
     } else {
       m.translateByDouble(dx, dy, 0, 1);
     }
-    _txController.value = m;
+    _setMatrixWithBoundaryCheck(m);
     _stopInteraction();
   }
 
@@ -1343,6 +1343,19 @@ class _PdfViewerState extends State<PdfViewer>
       return widget.params.normalizeMatrix!(newValue, _viewSize!, _layout!, _controller);
     }
     return _normalizeMatrix(newValue);
+  }
+
+  /// Set matrix with boundary checking for direct manipulations (mouse wheel, scroll thumb, etc.)
+  /// This preserves InteractiveViewer's ScrollPhysics behavior while enforcing boundaries
+  /// for operations that bypass the gesture system.
+  void _setMatrixWithBoundaryCheck(Matrix4 matrix) {
+    if (widget.params.scrollPhysics != null && _viewSize != null) {
+      // When scrollPhysics is enabled, use boundary clamping for direct manipulations
+      _txController.value = _calcMatrixForClampedToNearestBoundary(matrix, viewSize: _viewSize!);
+    } else {
+      // When scrollPhysics is disabled, use existing normalization
+      _txController.value = matrix;
+    }
   }
 
   Matrix4 _normalizeMatrix(Matrix4 newValue) {
@@ -3278,6 +3291,11 @@ class PdfViewerController extends ValueListenable<Matrix4> {
 
   /// Restrict matrix to the safe range.
   Matrix4 makeMatrixInSafeRange(Matrix4 newValue) => _state._makeMatrixInSafeRange(newValue);
+
+  /// Set matrix with boundary checking for direct manipulations (mouse wheel, scroll thumb, etc.)
+  /// This preserves InteractiveViewer's ScrollPhysics behavior while enforcing boundaries
+  /// for operations that bypass the gesture system.
+  void setMatrixWithBoundaryCheck(Matrix4 matrix) => _state._setMatrixWithBoundaryCheck(matrix);
 
   double getNextZoom({bool loop = true}) => _state._findNextZoomStop(currentZoom, zoomUp: true, loop: loop);
 
