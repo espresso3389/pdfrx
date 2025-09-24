@@ -1,3 +1,7 @@
+## 0.1.20
+
+- Maintenance release to keep version alignment and ensure code integrity alongside pdfrx 2.1.19.
+
 ## 0.1.19
 
 - Remove broken docImport not to crash dartdoc ([dart-lang/dartdoc#4106](https://github.com/dart-lang/dartdoc/issues/4106))
