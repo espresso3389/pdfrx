@@ -1,3 +1,7 @@
+# 2.1.19
+
+- Maintenance release: applied `dart format` to keep code integrity with Dart 3.9/Flutter 3.29 tooling.
+
 # 2.1.18
 
 - Remove broken docImport not to crash dartdoc ([dart-lang/dartdoc#4106](https://github.com/dart-lang/dartdoc/issues/4106))
