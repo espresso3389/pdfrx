@@ -1,3 +1,7 @@
+# 2.1.18
+
+- Remove broken docImport not to crash dartdoc ([dart-lang/dartdoc#4106](https://github.com/dart-lang/dartdoc/issues/4106))
+
 # 2.1.17
 
 - FIXED: `dart run pdfrx:remove_wasm_modules` could fail with "Too many open files" during WASM cleanup ([#476](https://github.com/espresso3389/pdfrx/issues/476))
