@@ -1,0 +1,48 @@
+name: Pana Analysis
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  pana:
+    name: Run pana analysis
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package_name: pdfrx_engine
+            package_path: packages/pdfrx_engine
+            pub_command: dart pub get
+          - package_name: pdfrx
+            package_path: packages/pdfrx
+            pub_command: flutter pub get
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Setup Flutter
+        run: |
+          git clone https://github.com/flutter/flutter.git --depth 1 --branch stable ~/flutter
+          echo "$HOME/flutter/bin" >> $GITHUB_PATH
+          ~/flutter/bin/flutter channel stable
+          ~/flutter/bin/flutter doctor -v
+
+      - name: Pub get (workspace)
+        run: dart pub get
+
+      - name: Activate pana
+        run: |
+          dart pub global activate pana
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
+
+      - name: Get dependencies (${{ matrix.package_name }})
+        working-directory: ${{ matrix.package_path }}
+        run: ${{ matrix.pub_command }}
+
+      - name: Run pana (${{ matrix.package_name }})
+        working-directory: ${{ matrix.package_path }}
+        run: ~/.pub-cache/bin/pana --no-warning --exit-code-threshold 0

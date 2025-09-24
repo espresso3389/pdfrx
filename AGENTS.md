@@ -81,7 +81,8 @@ Both packages may need to be released when changes are made:
    - Don't mention CI/CD changes and `CLAUDE.md`/`AGENTS.md` related changes (unless they are significant)
 3. Update `packages/pdfrx_engine/README.md` if needed
 4. Update `README.md` on the repo root if needed
-5. Run `dart pub publish` in `packages/pdfrx_engine/`
+5. Run `pana` in `packages/pdfrx_engine` to validate code integrity
+6. Run `dart pub publish` in `packages/pdfrx_engine/`
 
 ### For pdfrx package updates
 
@@ -99,11 +100,12 @@ Both packages may need to be released when changes are made:
    - Run `flutter test` in `packages/pdfrx/`
 7. Ensure the example app builds correctly
    - Run `flutter build web --wasm` in `packages/pdfrx/example/viewer` to test the example app
-8. Commit changes with message "Release pdfrx vX.Y.Z" or "Release pdfrx_engine vX.Y.Z"
-9. Tag the commit with `git tag pdfrx-vX.Y.Z` or `git tag pdfrx_engine-vX.Y.Z`
-10. Push changes and tags to remote
-11. Run `flutter pub publish` in `packages/pdfrx/`
-12. If the changes reference GitHub issues or PRs, add comments on them notifying about the new release
+8. Run `pana` in `packages/pdfrx` (and any other packages being released) to validate code integrity
+9. Commit changes with message "Release pdfrx vX.Y.Z" or "Release pdfrx_engine vX.Y.Z"
+10. Tag the commit with `git tag pdfrx-vX.Y.Z` or `git tag pdfrx_engine-vX.Y.Z`
+11. Push changes and tags to remote
+12. Run `flutter pub publish` in `packages/pdfrx/`
+13. If the changes reference GitHub issues or PRs, add comments on them notifying about the new release
     - Use `gh issue comment` or `gh pr comment` to notify that the issue/PR has been addressed in the new release
     - If the PR references issues, please also comment on the issues
     - Follow the template below for comments (but modify it as needed):
