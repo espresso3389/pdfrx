@@ -451,7 +451,8 @@ class _PdfViewerState extends State<PdfViewer>
                       iv.InteractiveViewer(
                         transformationController: _txController,
                         constrained: false,
-                        boundaryMargin: _adjustedBoundaryMargins ??
+                        boundaryMargin:
+                            _adjustedBoundaryMargins ??
                             (widget.params.scrollPhysics == null
                                 ? const EdgeInsets.all(double.infinity)
                                 : EdgeInsets.zero),
@@ -775,7 +776,7 @@ class _PdfViewerState extends State<PdfViewer>
     final params = widget.params;
     final bmh = params.boundaryMargin?.horizontal == double.infinity ? 0 : params.boundaryMargin?.horizontal ?? 0;
     final bmv = params.boundaryMargin?.vertical == double.infinity ? 0 : params.boundaryMargin?.vertical ?? 0;
-   
+
     if (_viewSize != null) {
       final s1 = _viewSize!.width / (_layout!.documentSize.width + bmh);
       final s2 = _viewSize!.height / (_layout!.documentSize.height + bmv);
@@ -871,10 +872,9 @@ class _PdfViewerState extends State<PdfViewer>
   void _adjustBoundaryMargins(Size viewSize, double zoom) {
     if (widget.params.scrollPhysics == null) return;
 
-    final boundaryMargin =
-        widget.params.boundaryMargin == null || widget.params.boundaryMargin!.horizontal.isInfinite
-            ? EdgeInsets.zero
-            : widget.params.boundaryMargin!;
+    final boundaryMargin = widget.params.boundaryMargin == null || widget.params.boundaryMargin!.horizontal.isInfinite
+        ? EdgeInsets.zero
+        : widget.params.boundaryMargin!;
 
     final currentDocumentSize = boundaryMargin.inflateSize(_layout!.documentSize);
 
@@ -1379,7 +1379,11 @@ class _PdfViewerState extends State<PdfViewer>
     return Matrix4.compose(
       vec.Vector3(-position.dx * zoom + hw, -position.dy * zoom + hh, 0),
       vec.Quaternion.identity(),
-      vec.Vector3(zoom, zoom, zoom), // setting zoom of 1 on z caused a call to matrix.maxScaleOnAxis() to return 1 even when x and y are < 1
+      vec.Vector3(
+        zoom,
+        zoom,
+        zoom,
+      ), // setting zoom of 1 on z caused a call to matrix.maxScaleOnAxis() to return 1 even when x and y are < 1
     );
   }
 
@@ -1439,7 +1443,7 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
-  Matrix4 _calcMatrixForPage({required int pageNumber, PdfPageAnchor? anchor}) =>_calcMatrixForArea(
+  Matrix4 _calcMatrixForPage({required int pageNumber, PdfPageAnchor? anchor}) => _calcMatrixForArea(
     rect: (widget.params.boundaryMargin ?? EdgeInsets.zero).inflateRect(
       _layout!.pageLayouts[pageNumber - 1].inflate(widget.params.margin),
     ),
@@ -3406,12 +3410,11 @@ class PdfViewerController extends ValueListenable<Matrix4> {
     for (int i = 0; i < layout.pageLayouts.length; i++) {
       final page = layout.pageLayouts[i];
       if (page.intersect(viewRect).isEmpty) continue;
-       final EdgeInsets boundaryMargin =
-          params.boundaryMargin == null || params.boundaryMargin!.right == double.infinity
-              ? EdgeInsets.zero
-              : params.boundaryMargin!;
+      final EdgeInsets boundaryMargin = params.boundaryMargin == null || params.boundaryMargin!.right == double.infinity
+          ? EdgeInsets.zero
+          : params.boundaryMargin!;
       final zoom = viewSize.width / (page.width + (params.margin * 2) + boundaryMargin.horizontal);
-     
+
       // NOTE: keep the y-position but center the x-position
       final newMatrix = calcMatrixFor(Offset(page.left + page.width / 2, pos.dy), zoom: zoom);
 

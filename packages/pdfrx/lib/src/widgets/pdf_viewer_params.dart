@@ -535,7 +535,7 @@ class PdfViewerParams {
   /// sometimes it is useful to force reload the viewer by setting this to true.
   final bool forceReload;
 
-   /// Scroll physics for the viewer.
+  /// Scroll physics for the viewer.
   final ScrollPhysics? scrollPhysics;
 
   /// Determine whether the viewer needs to be reloaded or not.

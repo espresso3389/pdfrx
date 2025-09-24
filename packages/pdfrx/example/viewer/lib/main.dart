@@ -326,7 +326,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                             // during widget-tree's build process.
                             Future.delayed(const Duration(milliseconds: 200), () => controller.goTo(newMatrix));
                           }
-                        }, 
+                        },
                         viewerOverlayBuilder: (context, size, handleLinkTap) => [
                           //
                           // Example use of GestureDetector to handle custom gestures
