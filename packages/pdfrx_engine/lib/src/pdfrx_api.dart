@@ -410,6 +410,7 @@ class PdfDocumentPageStatusChangedEvent implements PdfDocumentEvent {
 
 /// Event that is triggered when the list of missing fonts in the PDF document has changed.
 class PdfDocumentMissingFontsEvent implements PdfDocumentEvent {
+  /// Create a [PdfDocumentMissingFontsEvent].
   PdfDocumentMissingFontsEvent(this.document, this.missingFonts);
 
   @override
@@ -1398,6 +1399,7 @@ class PdfTextFragmentBoundingRect {
 
 /// PDF [Explicit Destination](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=374) the page and inner-page location to jump to.
 class PdfDest {
+  /// Create a [PdfDest].
   const PdfDest(this.pageNumber, this.command, this.params);
 
   /// Page number to jump to.
@@ -1446,6 +1448,7 @@ enum PdfDestCommand {
   fitBH('fitbh'),
   fitBV('fitbv');
 
+  /// Create a [PdfDestCommand] with the specified command name.
   const PdfDestCommand(this.name);
 
   /// Command name.
