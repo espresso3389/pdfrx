@@ -1,8 +1,6 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 
 /// Pdfrx API
-/// @docImport './pdfrx_initialize_dart.dart';
-/// @docImport 'package:pdfrx/pdfrx_flutter.dart';
 library;
 
 import 'dart:async';
