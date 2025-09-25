@@ -39,3 +39,9 @@ pubspec_overrides.yaml
 .mcp.json
 
 .serena/
+
+# iOS/macOS build artifacts that change frequently
+**/ios/Podfile.lock
+**/macos/Podfile.lock
+**/ios/**/*.xcodeproj/project.pbxproj
+**/macos/**/*.xcodeproj/project.pbxproj
