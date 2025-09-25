@@ -3781,11 +3781,6 @@ extension PdfMatrix4Ext on Matrix4 {
   }
 }
 
-extension _RangeDouble<T extends num> on T {
-  /// Identical to [num.clamp] but it does nothing if [a] is larger or equal to [b].
-  T range(T a, T b) => a < b ? clamp(a, b) as T : (a + b) / 2 as T;
-}
-
 extension RectExt on Rect {
   Rect operator *(double operand) => Rect.fromLTRB(left * operand, top * operand, right * operand, bottom * operand);
 
