@@ -34,6 +34,9 @@ linter:
     sort_constructors_first: true
     always_put_required_named_parameters_first: true
     invalid_runtime_check_with_js_interop_types: true
+    type_annotate_public_apis: true
+    omit_local_variable_types: true
+    omit_obvious_local_variable_types: true
 
 
 # Additional information about this file can be found at

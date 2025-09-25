@@ -34,7 +34,7 @@ class BackgroundWorker {
     sendPort.send(receivePort.sendPort);
     late final StreamSubscription sub;
     final suspendingQueue = Queue<_ComputeParams>();
-    int suspendingLevel = 0;
+    var suspendingLevel = 0;
     sub = receivePort.listen((message) {
       if (message is _SuspendRequest) {
         suspendingLevel++;

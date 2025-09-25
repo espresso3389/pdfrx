@@ -38,7 +38,7 @@ Future<void> _init() async {
       if (fontPaths.isNotEmpty) {
         // NOTE: m_pUserFontPaths must not be freed until FPDF_DestroyLibrary is called; on pdfrx, it's never freed.
         final fontPathArray = malloc<Pointer<Char>>(sizeOf<Pointer<Char>>() * (fontPaths.length + 1));
-        for (int i = 0; i < fontPaths.length; i++) {
+        for (var i = 0; i < fontPaths.length; i++) {
           fontPathArray[i] = fontPaths[i]
               .toNativeUtf8()
               .cast<Char>(); // NOTE: the block allocated by toNativeUtf8 never released
@@ -256,7 +256,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
           size = data.length - position;
           if (size < 0) return -1;
         }
-        for (int i = 0; i < size; i++) {
+        for (var i = 0; i < size; i++) {
           buffer[i] = data[position + i];
         }
         return size;
@@ -375,7 +375,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     bool useProgressiveLoading = false,
     void Function()? disposeCallback,
   }) async {
-    for (int i = 0; ; i++) {
+    for (var i = 0; ; i++) {
       final String? password;
       if (firstAttemptByEmptyPassword && i == 0) {
         password = null;
@@ -602,7 +602,7 @@ class _PdfDocumentPdfium extends PdfDocument {
                 : min(pageCount, params.pagesCountLoadedSoFar + params.maxPageCountToLoadAdditionally!);
             final t = params.timeoutUs != null ? (Stopwatch()..start()) : null;
             final pages = <({double width, double height, int rotation, double bbLeft, double bbBottom})>[];
-            for (int i = params.pagesCountLoadedSoFar; i < end; i++) {
+            for (var i = params.pagesCountLoadedSoFar; i < end; i++) {
               final page = pdfium.FPDF_LoadPage(doc, i);
               try {
                 final rect = arena.allocate<pdfium_bindings.FS_RECTF>(sizeOf<pdfium_bindings.FS_RECTF>());
@@ -633,7 +633,7 @@ class _PdfDocumentPdfium extends PdfDocument {
       );
 
       final pages = [...pagesLoadedSoFar];
-      for (int i = 0; i < results.pages.length; i++) {
+      for (var i = 0; i < results.pages.length; i++) {
         final pageData = results.pages[i];
         pages.add(
           _PdfPagePdfium._(
@@ -651,7 +651,7 @@ class _PdfDocumentPdfium extends PdfDocument {
       final pageCountLoadedTotal = pages.length;
       if (pageCountLoadedTotal > 0) {
         final last = pages.last;
-        for (int i = pages.length; i < results.totalPageCount; i++) {
+        for (var i = pages.length; i < results.totalPageCount; i++) {
           pages.add(
             _PdfPagePdfium._(
               document: this,
@@ -890,7 +890,7 @@ class _PdfPagePdfium extends PdfPage {
 
       if ((flags & PdfPageRenderFlags.premultipliedAlpha) != 0) {
         final count = width * height;
-        for (int i = 0; i < count; i++) {
+        for (var i = 0; i < count; i++) {
           final b = resultBuffer[i * rgbaSize];
           final g = resultBuffer[i * rgbaSize + 1];
           final r = resultBuffer[i * rgbaSize + 2];
@@ -927,7 +927,7 @@ class _PdfPagePdfium extends PdfPage {
           final charCount = pdfium.FPDFText_CountChars(textPage);
           final sb = StringBuffer();
           final charRects = <PdfRect>[];
-          for (int i = 0; i < charCount; i++) {
+          for (var i = 0; i < charCount; i++) {
             sb.writeCharCode(pdfium.FPDFText_GetUnicode(textPage, i));
             pdfium.FPDFText_GetCharBox(
               textPage,
@@ -957,7 +957,7 @@ class _PdfPagePdfium extends PdfPage {
       links.addAll(await _loadWebLinks());
     }
     if (compact) {
-      for (int i = 0; i < links.length; i++) {
+      for (var i = 0; i < links.length; i++) {
         links[i] = links[i].compact();
       }
     }
@@ -1043,7 +1043,7 @@ class _PdfPagePdfium extends PdfPage {
               final count = pdfium.FPDFPage_GetAnnotCount(page);
               final rectf = arena.allocate<pdfium_bindings.FS_RECTF>(sizeOf<pdfium_bindings.FS_RECTF>());
               final links = <PdfLink>[];
-              for (int i = 0; i < count; i++) {
+              for (var i = 0; i < count; i++) {
                 final annot = pdfium.FPDFPage_GetAnnot(page, i);
                 pdfium.FPDFAnnot_GetRect(annot, rectf);
                 final r = rectf.ref;
@@ -1110,7 +1110,7 @@ class _PdfPagePdfium extends PdfPage {
         final buffer = arena.allocate<Utf8>(size);
         pdfium.FPDFAction_GetURIPath(document, action, buffer.cast<Void>(), size);
         try {
-          final String newBuffer = buffer.toDartString();
+          final newBuffer = buffer.toDartString();
           return Uri.tryParse(newBuffer);
         } catch (e) {
           return null;

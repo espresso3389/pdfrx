@@ -31,7 +31,7 @@ Future<int> main(List<String> args) async {
     print('PDF opened successfully. Pages: ${document.pages.length}');
 
     // Process each page
-    for (int i = 0; i < document.pages.length; i++) {
+    for (var i = 0; i < document.pages.length; i++) {
       final pageNumber = i + 1;
       print('Processing page $pageNumber/${document.pages.length}...');
 

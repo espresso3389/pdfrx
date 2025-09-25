@@ -152,7 +152,7 @@ class PdfTextSearcher extends Listenable {
     await controller?.useDocument((document) async {
       final textMatches = <PdfPageTextRange>[];
       final textMatchesPageStartIndex = <int>[];
-      bool first = true;
+      var first = true;
       _isSearching = true;
       _totalPageCount = document.pages.length;
       for (final page in document.pages) {
@@ -255,7 +255,7 @@ class PdfTextSearcher extends Listenable {
     final matchTextColor = controller?.params.matchTextColor ?? Colors.yellow.withAlpha(127);
     final activeMatchTextColor = controller?.params.activeMatchTextColor ?? Colors.orange.withAlpha(127);
 
-    for (int i = range.start; i < range.end; i++) {
+    for (var i = range.start; i < range.end; i++) {
       final m = _matches[i];
       final rect = m.bounds.toRect(page: page, scaledPageSize: pageRect.size).translate(pageRect.left, pageRect.top);
       canvas.drawRect(rect, Paint()..color = m == _currentMatch ? activeMatchTextColor : matchTextColor);
