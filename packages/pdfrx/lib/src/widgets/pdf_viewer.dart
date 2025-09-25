@@ -224,6 +224,7 @@ class _PdfViewerState extends State<PdfViewer>
   int? _pageNumber;
   bool _initialized = false;
   StreamSubscription<PdfDocumentEvent>? _documentSubscription;
+  final _interactiveViewerKey = GlobalKey<iv.InteractiveViewerState>();
 
   final List<double> _zoomStops = [1.0];
 
@@ -448,7 +449,8 @@ class _PdfViewerState extends State<PdfViewer>
                   onPointerHover: (event) => _handlePointerEvent(event, event.localPosition, event.kind),
                   child: Stack(
                     children: [
-                      iv.InteractiveViewer.withAnimationControl(
+                      iv.InteractiveViewer(
+                        key: _interactiveViewerKey,
                         transformationController: _txController,
                         constrained: false,
                         boundaryMargin:
@@ -623,7 +625,7 @@ class _PdfViewerState extends State<PdfViewer>
                 newPageRect.top + fracY * newPageRect.height,
               );
 
-              // preseve the position after a layout change
+              // preserve the position after a layout change
               await _goToPosition(documentOffset: newOffset, zoom: zoomTo);
             }
           } else {
@@ -640,7 +642,7 @@ class _PdfViewerState extends State<PdfViewer>
               final Matrix4 zoomPivoted = pivotScale * _txController.value;
               _clampToNearestBoundary(zoomPivoted, viewSize: viewSize);
             } else {
-              // size changes (e.g. rotation) can still cause out-of-bounds matricies
+              // size changes (e.g. rotation) can still cause out-of-bounds matrices
               // so clamp here
               _clampToNearestBoundary(_txController.value, viewSize: viewSize);
             }
@@ -663,8 +665,8 @@ class _PdfViewerState extends State<PdfViewer>
     if (_isInteractionGoingOn) return;
 
     // Stop any active animations and apply the clamped matrix
-    if (iv.InteractiveViewer.hasActiveAnimations) {
-      iv.InteractiveViewer.stopAnimations();
+    if (_interactiveViewerKey.currentState?.hasActiveAnimations == true) {
+      _interactiveViewerKey.currentState?.stopAllAnimations();
     }
 
     // Apply the clamped matrix

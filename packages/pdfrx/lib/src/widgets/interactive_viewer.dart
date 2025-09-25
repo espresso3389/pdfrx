@@ -103,55 +103,6 @@ class InteractiveViewer extends StatefulWidget {
        ),
        builder = null;
 
-  /// Create InteractiveViewer with animation control capability
-  InteractiveViewer.withAnimationControl({
-    required Widget child,
-    Key? key,
-    Clip clipBehavior = Clip.hardEdge,
-    PanAxis panAxis = PanAxis.free,
-    EdgeInsets boundaryMargin = EdgeInsets.zero,
-    bool constrained = true,
-    double maxScale = 8.0,
-    double minScale = 0.8,
-    double interactionEndFrictionCoefficient = _kDrag,
-    GestureScaleEndCallback? onInteractionEnd,
-    GestureScaleStartCallback? onInteractionStart,
-    GestureScaleUpdateCallback? onInteractionUpdate,
-    bool panEnabled = true,
-    bool scaleEnabled = true,
-    double scaleFactor = kDefaultMouseScrollToScaleFactor,
-    TransformationController? transformationController,
-    Alignment? alignment,
-    bool trackpadScrollCausesScale = false,
-    void Function(PointerScrollEvent event)? onWheelDelta,
-    ScrollPhysics? scrollPhysics,
-    ScrollPhysics? scrollPhysicsScale,
-    bool scrollPhysicsAutoAdjustBoundaries = true,
-  }) : this(
-         key: _globalKey,
-         child: child,
-         clipBehavior: clipBehavior,
-         panAxis: panAxis,
-         boundaryMargin: boundaryMargin,
-         constrained: constrained,
-         maxScale: maxScale,
-         minScale: minScale,
-         interactionEndFrictionCoefficient: interactionEndFrictionCoefficient,
-         onInteractionEnd: onInteractionEnd,
-         onInteractionStart: onInteractionStart,
-         onInteractionUpdate: onInteractionUpdate,
-         panEnabled: panEnabled,
-         scaleEnabled: scaleEnabled,
-         scaleFactor: scaleFactor,
-         transformationController: transformationController,
-         alignment: alignment,
-         trackpadScrollCausesScale: trackpadScrollCausesScale,
-         onWheelDelta: onWheelDelta,
-         scrollPhysics: scrollPhysics,
-         scrollPhysicsScale: scrollPhysicsScale,
-         scrollPhysicsAutoAdjustBoundaries: scrollPhysicsAutoAdjustBoundaries,
-       );
-
   /// Creates an InteractiveViewer for a child that is created on demand.
   ///
   /// Can be used to render a child that changes in response to the current
@@ -447,13 +398,6 @@ class InteractiveViewer extends StatefulWidget {
   // This value was eyeballed to give a feel similar to Google Photos.
   static const double _kDrag = 0.0000135;
 
-  /// GlobalKey to access the InteractiveViewer state for animation control
-  static final GlobalKey<_InteractiveViewerState> _globalKey = GlobalKey<_InteractiveViewerState>();
-
-  /// Static methods for external animation control
-  static bool get hasActiveAnimations => _globalKey.currentState?.hasActiveAnimations ?? false;
-  static void stopAnimations() => _globalKey.currentState?._stopAllAnimations();
-
   /// ScrollPhysics to use for panning
   final ScrollPhysics? scrollPhysics;
 
@@ -539,10 +483,10 @@ class InteractiveViewer extends StatefulWidget {
   }
 
   @override
-  State<InteractiveViewer> createState() => _InteractiveViewerState();
+  State<InteractiveViewer> createState() => InteractiveViewerState();
 }
 
-class _InteractiveViewerState extends State<InteractiveViewer> with TickerProviderStateMixin {
+class InteractiveViewerState extends State<InteractiveViewer> with TickerProviderStateMixin {
   // Preserve the originally provided boundaryMargin for recalculation overrides.
   late final EdgeInsets _originalBoundaryMargin = widget.boundaryMargin;
   late TransformationController _transformer = widget.transformationController ?? TransformationController();
@@ -1456,7 +1400,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       // ability to stop a in-progress pan fling is particularly important
       // when scroll physics is enabled as the duration and distance of the
       // pan can be considerable.
-      _stopAllAnimations();
+      stopAllAnimations();
     }
   }
 
@@ -1465,7 +1409,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       _controller.isAnimating || _scaleController.isAnimating || _snapController.isAnimating;
 
   /// Stop all active animations without saving state
-  void _stopAllAnimations() {
+  void stopAllAnimations() {
     // Stop pan animations
     if (_controller.isAnimating) {
       _controller.stop();
