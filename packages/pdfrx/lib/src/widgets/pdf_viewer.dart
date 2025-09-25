@@ -530,15 +530,14 @@ class _PdfViewerState extends State<PdfViewer>
     );
   }
 
-  Matrix4 _calcMatrixForClampedToNearestBoundary(Matrix4 candidate, {required Size viewSize}) {
+  Offset _calcOverscroll(Matrix4 m, {required Size viewSize}) {
     final boundaryMargin = _adjustedBoundaryMargins ?? widget.params.boundaryMargin;
-
     if (boundaryMargin == null || boundaryMargin.horizontal.isInfinite) {
-      return candidate;
+      return Offset.zero;
     }
 
     final layout = _layout!;
-    final visible = candidate.calcVisibleRect(viewSize);
+    final visible = m.calcVisibleRect(viewSize);
     var dxDoc = 0.0;
     var dyDoc = 0.0;
 
@@ -553,7 +552,15 @@ class _PdfViewerState extends State<PdfViewer>
     } else if (visible.bottom > layout.documentSize.height) {
       dyDoc = layout.documentSize.height - visible.bottom + boundaryMargin.bottom;
     }
-    return candidate.clone()..translateByDouble(-dxDoc, -dyDoc, 0, 1);
+    return Offset(dxDoc, dyDoc);
+  }
+
+  Matrix4 _calcMatrixForClampedToNearestBoundary(Matrix4 candidate, {required Size viewSize}) {
+    final overScroll = _calcOverscroll(candidate, viewSize: viewSize);
+    if (overScroll == Offset.zero) {
+      return candidate;
+    }
+    return candidate.clone()..translateByDouble(-overScroll.dx, -overScroll.dy, 0, 1);
   }
 
   void _updateLayout(Size viewSize) {
@@ -655,22 +662,24 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
-  /// Shift any overshoot back to the nearest content boundary
-  void _clampToNearestBoundary(Matrix4 candidate, {required Size viewSize}) {
-    _stopAnimationsAndClampBoundaries(candidate, viewSize: viewSize);
-  }
-
   /// Stop InteractiveViewer animations and apply boundary clamping
-  void _stopAnimationsAndClampBoundaries(Matrix4 candidate, {required Size viewSize}) {
+  void _clampToNearestBoundary(Matrix4 candidate, {required Size viewSize}) {
     if (_isInteractionGoingOn) return;
 
-    // Stop any active animations and apply the clamped matrix
-    if (_interactiveViewerKey.currentState?.hasActiveAnimations == true) {
-      _interactiveViewerKey.currentState?.stopAllAnimations();
-    }
+    _stopInteractiveViewerAnimation();
 
     // Apply the clamped matrix
     _txController.value = _calcMatrixForClampedToNearestBoundary(candidate, viewSize: viewSize);
+  }
+
+  /// Get the state of the internal [iv.InteractiveViewer].
+  iv.InteractiveViewerState? get _interactiveViewerState => _interactiveViewerKey.currentState;
+
+  /// Stop any active animations
+  void _stopInteractiveViewerAnimation() {
+    if (_interactiveViewerState?.hasActiveAnimations == true) {
+      _interactiveViewerState?.stopAllAnimations();
+    }
   }
 
   int _calcInitialPageNumber() {
@@ -826,7 +835,7 @@ class _PdfViewerState extends State<PdfViewer>
   void _goToManipulated(void Function(Matrix4 m) manipulate) {
     final m = _txController.value.clone();
     manipulate(m);
-    _txController.value = m;
+    _txController.value = _makeMatrixInSafeRange(m, forceClamp: true);
   }
 
   Rect get _visibleRect => _txController.value.calcVisibleRect(_viewSize!);
@@ -1455,58 +1464,25 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onWheelDelta(PointerScrollEvent event) {
     _startInteraction();
-    final m = _txController.value.clone();
     final dx = -event.scrollDelta.dx * widget.params.scrollByMouseWheel! / _currentZoom;
     final dy = -event.scrollDelta.dy * widget.params.scrollByMouseWheel! / _currentZoom;
+    final m = _txController.value.clone();
     if (widget.params.scrollHorizontallyByMouseWheel) {
       m.translateByDouble(dy, dx, 0, 1);
     } else {
       m.translateByDouble(dx, dy, 0, 1);
     }
-    _setMatrixWithBoundaryCheck(m);
+    _txController.value = _makeMatrixInSafeRange(m, forceClamp: true);
     _stopInteraction();
   }
 
   /// Restrict matrix to the safe range.
-  Matrix4 _makeMatrixInSafeRange(Matrix4 newValue) {
+  Matrix4 _makeMatrixInSafeRange(Matrix4 newValue, {bool forceClamp = false}) {
+    if (!forceClamp && (_layout == null || _viewSize == null || widget.params.scrollPhysics != null)) return newValue;
     if (widget.params.normalizeMatrix != null) {
       return widget.params.normalizeMatrix!(newValue, _viewSize!, _layout!, _controller);
     }
-    return _normalizeMatrix(newValue);
-  }
-
-  /// Set matrix with boundary checking for direct manipulations (mouse wheel, scroll thumb, etc.)
-  /// This preserves InteractiveViewer's ScrollPhysics behavior while enforcing boundaries
-  /// for operations that bypass the gesture system.
-  void _setMatrixWithBoundaryCheck(Matrix4 matrix) {
-    if (widget.params.scrollPhysics != null && _viewSize != null) {
-      // When scrollPhysics is enabled, use boundary clamping for direct manipulations
-      _txController.value = _calcMatrixForClampedToNearestBoundary(matrix, viewSize: _viewSize!);
-    } else {
-      // When scrollPhysics is disabled, use existing normalization
-      _txController.value = matrix;
-    }
-  }
-
-  Matrix4 _normalizeMatrix(Matrix4 newValue) {
-    final layout = _layout;
-    final viewSize = _viewSize;
-    if (layout == null || viewSize == null || widget.params.scrollPhysics != null) return newValue;
-    final position = newValue.calcPosition(viewSize);
-    final newZoom = max(newValue.zoom, minScale);
-    final hw = viewSize.width / 2 / newZoom;
-    final hh = viewSize.height / 2 / newZoom;
-
-    final boundaryMargin = widget.params.boundaryMargin ?? EdgeInsets.zero;
-    final left = boundaryMargin.left.isInfinite ? 0.0 : boundaryMargin.left;
-    final right = boundaryMargin.right.isInfinite ? 0.0 : boundaryMargin.right;
-    final top = boundaryMargin.top.isInfinite ? 0.0 : boundaryMargin.top;
-    final bottom = boundaryMargin.bottom.isInfinite ? 0.0 : boundaryMargin.bottom;
-
-    final x = position.dx.range(hw - left, layout.documentSize.width + right - hw);
-    final y = position.dy.range(hh - top, layout.documentSize.height + bottom - hh);
-
-    return _calcMatrixFor(Offset(x, y), zoom: newZoom, viewSize: viewSize); // see note in _calcMatrixFor
+    return _calcMatrixForClampedToNearestBoundary(newValue, viewSize: _viewSize!);
   }
 
   /// Calculate matrix to center the specified position.
@@ -1680,12 +1656,13 @@ class _PdfViewerState extends State<PdfViewer>
 
     try {
       if (destination == null) return; // do nothing
+      _stopInteractiveViewerAnimation();
       _animationResettingGuard++;
       _animController.reset();
       _animationResettingGuard--;
       _animGoTo = Matrix4Tween(
         begin: _txController.value,
-        end: _makeMatrixInSafeRange(destination),
+        end: _makeMatrixInSafeRange(destination, forceClamp: true),
       ).animate(_animController);
       _animGoTo!.addListener(update);
       await _animController.animateTo(1.0, duration: duration, curve: Curves.easeInOut);
@@ -3455,7 +3432,9 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   @override
   Matrix4 get value => _state._txController.value;
 
-  set value(Matrix4 newValue) => _state._txController.value = makeMatrixInSafeRange(newValue);
+  set value(Matrix4 newValue) {
+    _state._txController.value = makeMatrixInSafeRange(newValue, forceClamp: true);
+  }
 
   @override
   void addListener(ui.VoidCallback listener) => _listeners.add(listener);
@@ -3464,12 +3443,8 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   void removeListener(ui.VoidCallback listener) => _listeners.remove(listener);
 
   /// Restrict matrix to the safe range.
-  Matrix4 makeMatrixInSafeRange(Matrix4 newValue) => _state._makeMatrixInSafeRange(newValue);
-
-  /// Set matrix with boundary checking for direct manipulations (mouse wheel, scroll thumb, etc.)
-  /// This preserves InteractiveViewer's ScrollPhysics behavior while enforcing boundaries
-  /// for operations that bypass the gesture system.
-  void setMatrixWithBoundaryCheck(Matrix4 matrix) => _state._setMatrixWithBoundaryCheck(matrix);
+  Matrix4 makeMatrixInSafeRange(Matrix4 newValue, {bool forceClamp = false}) =>
+      _state._makeMatrixInSafeRange(newValue, forceClamp: forceClamp);
 
   double getNextZoom({bool loop = true}) => _state._findNextZoomStop(currentZoom, zoomUp: true, loop: loop);
 

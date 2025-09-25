@@ -88,7 +88,7 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
           final y = (_panStartOffset + details.localPosition.dy) / vh;
           final m = widget.controller.value.clone();
           m.y = -y * (all.height - view.height);
-          widget.controller.setMatrixWithBoundaryCheck(m);
+          widget.controller.value = m;
         },
       ),
     );
@@ -133,7 +133,7 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
           final x = (_panStartOffset + details.localPosition.dx) / vw;
           final m = widget.controller.value.clone();
           m.x = -x * (all.width - view.width);
-          widget.controller.setMatrixWithBoundaryCheck(m);
+          widget.controller.value = m;
         },
       ),
     );
