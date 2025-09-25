@@ -785,7 +785,11 @@ class _PdfViewerState extends State<PdfViewer>
     final pageNumber = _pageNumber ?? _gotoTargetPageNumber;
     if (pageNumber != null) {
       final rect = _layout!.pageLayouts[pageNumber - 1];
-      _alternativeFitScale = min((_viewSize!.width) / (rect.width + bmh), (_viewSize!.height) / (rect.height + bmv));
+      final m2 = params.margin * 2;
+      _alternativeFitScale = min(
+        (_viewSize!.width) / (rect.width + bmh + m2),
+        (_viewSize!.height) / (rect.height + bmv + m2),
+      );
       if (_alternativeFitScale! <= 0) {
         _alternativeFitScale = null;
       }
@@ -1366,8 +1370,15 @@ class _PdfViewerState extends State<PdfViewer>
     final newZoom = max(newValue.zoom, minScale);
     final hw = viewSize.width / 2 / newZoom;
     final hh = viewSize.height / 2 / newZoom;
-    final x = position.dx.range(hw, layout.documentSize.width - hw);
-    final y = position.dy.range(hh, layout.documentSize.height - hh);
+
+    final boundaryMargin = widget.params.boundaryMargin ?? EdgeInsets.zero;
+    final left = boundaryMargin.left.isInfinite ? 0.0 : boundaryMargin.left;
+    final right = boundaryMargin.right.isInfinite ? 0.0 : boundaryMargin.right;
+    final top = boundaryMargin.top.isInfinite ? 0.0 : boundaryMargin.top;
+    final bottom = boundaryMargin.bottom.isInfinite ? 0.0 : boundaryMargin.bottom;
+
+    final x = position.dx.range(hw - left, layout.documentSize.width + right - hw);
+    final y = position.dy.range(hh - top, layout.documentSize.height + bottom - hh);
 
     return _calcMatrixFor(Offset(x, y), zoom: newZoom, viewSize: viewSize); // see note in _calcMatrixFor
   }
