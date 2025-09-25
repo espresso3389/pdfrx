@@ -643,7 +643,7 @@ class _PdfViewerState extends State<PdfViewer>
               // size changes (e.g. rotation) can still cause out-of-bounds matricies
               // so clamp here
               _clampToNearestBoundary(_txController.value, viewSize: viewSize);
-            } 
+            }
             callOnViewerSizeChanged();
           }
         }

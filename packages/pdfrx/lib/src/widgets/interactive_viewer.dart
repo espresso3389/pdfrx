@@ -60,55 +60,6 @@ typedef InteractiveViewerWidgetBuilder = Widget Function(BuildContext context, Q
 /// {@end-tool}
 @immutable
 class InteractiveViewer extends StatefulWidget {
-
-  /// Create InteractiveViewer with animation control capability
-  InteractiveViewer.withAnimationControl({
-    required Widget child,
-    Key? key,
-    Clip clipBehavior = Clip.hardEdge,
-    PanAxis panAxis = PanAxis.free,
-    EdgeInsets boundaryMargin = EdgeInsets.zero,
-    bool constrained = true,
-    double maxScale = 8.0,
-    double minScale = 0.8,
-    double interactionEndFrictionCoefficient = _kDrag,
-    GestureScaleEndCallback? onInteractionEnd,
-    GestureScaleStartCallback? onInteractionStart,
-    GestureScaleUpdateCallback? onInteractionUpdate,
-    bool panEnabled = true,
-    bool scaleEnabled = true,
-    double scaleFactor = kDefaultMouseScrollToScaleFactor,
-    TransformationController? transformationController,
-    Alignment? alignment,
-    bool trackpadScrollCausesScale = false,
-    void Function(PointerScrollEvent event)? onWheelDelta,
-    ScrollPhysics? scrollPhysics,
-    ScrollPhysics? scrollPhysicsScale,
-    bool scrollPhysicsAutoAdjustBoundaries = true,
-  }) : this(
-    key: _globalKey,
-    child: child,
-    clipBehavior: clipBehavior,
-    panAxis: panAxis,
-    boundaryMargin: boundaryMargin,
-    constrained: constrained,
-    maxScale: maxScale,
-    minScale: minScale,
-    interactionEndFrictionCoefficient: interactionEndFrictionCoefficient,
-    onInteractionEnd: onInteractionEnd,
-    onInteractionStart: onInteractionStart,
-    onInteractionUpdate: onInteractionUpdate,
-    panEnabled: panEnabled,
-    scaleEnabled: scaleEnabled,
-    scaleFactor: scaleFactor,
-    transformationController: transformationController,
-    alignment: alignment,
-    trackpadScrollCausesScale: trackpadScrollCausesScale,
-    onWheelDelta: onWheelDelta,
-    scrollPhysics: scrollPhysics,
-    scrollPhysicsScale: scrollPhysicsScale,
-    scrollPhysicsAutoAdjustBoundaries: scrollPhysicsAutoAdjustBoundaries,
-  );
   /// Create an InteractiveViewer.
   InteractiveViewer({
     required this.child,
@@ -151,6 +102,55 @@ class InteractiveViewer extends StatefulWidget {
                  boundaryMargin.left.isFinite),
        ),
        builder = null;
+
+  /// Create InteractiveViewer with animation control capability
+  InteractiveViewer.withAnimationControl({
+    required Widget child,
+    Key? key,
+    Clip clipBehavior = Clip.hardEdge,
+    PanAxis panAxis = PanAxis.free,
+    EdgeInsets boundaryMargin = EdgeInsets.zero,
+    bool constrained = true,
+    double maxScale = 8.0,
+    double minScale = 0.8,
+    double interactionEndFrictionCoefficient = _kDrag,
+    GestureScaleEndCallback? onInteractionEnd,
+    GestureScaleStartCallback? onInteractionStart,
+    GestureScaleUpdateCallback? onInteractionUpdate,
+    bool panEnabled = true,
+    bool scaleEnabled = true,
+    double scaleFactor = kDefaultMouseScrollToScaleFactor,
+    TransformationController? transformationController,
+    Alignment? alignment,
+    bool trackpadScrollCausesScale = false,
+    void Function(PointerScrollEvent event)? onWheelDelta,
+    ScrollPhysics? scrollPhysics,
+    ScrollPhysics? scrollPhysicsScale,
+    bool scrollPhysicsAutoAdjustBoundaries = true,
+  }) : this(
+         key: _globalKey,
+         child: child,
+         clipBehavior: clipBehavior,
+         panAxis: panAxis,
+         boundaryMargin: boundaryMargin,
+         constrained: constrained,
+         maxScale: maxScale,
+         minScale: minScale,
+         interactionEndFrictionCoefficient: interactionEndFrictionCoefficient,
+         onInteractionEnd: onInteractionEnd,
+         onInteractionStart: onInteractionStart,
+         onInteractionUpdate: onInteractionUpdate,
+         panEnabled: panEnabled,
+         scaleEnabled: scaleEnabled,
+         scaleFactor: scaleFactor,
+         transformationController: transformationController,
+         alignment: alignment,
+         trackpadScrollCausesScale: trackpadScrollCausesScale,
+         onWheelDelta: onWheelDelta,
+         scrollPhysics: scrollPhysics,
+         scrollPhysicsScale: scrollPhysicsScale,
+         scrollPhysicsAutoAdjustBoundaries: scrollPhysicsAutoAdjustBoundaries,
+       );
 
   /// Creates an InteractiveViewer for a child that is created on demand.
   ///
@@ -1462,7 +1462,7 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
 
   /// Check if any animations are currently active
   bool get hasActiveAnimations =>
-    _controller.isAnimating || _scaleController.isAnimating || _snapController.isAnimating;
+      _controller.isAnimating || _scaleController.isAnimating || _snapController.isAnimating;
 
   /// Stop all active animations without saving state
   void _stopAllAnimations() {
@@ -1658,7 +1658,6 @@ class _InteractiveViewerBuilt extends StatelessWidget {
 // A classification of relevant user gestures. Each contiguous user gesture is
 // represented by exactly one _GestureType.
 enum _GestureType { pan, scale, rotate }
-
 
 // Given a velocity and drag, calculate the time at which motion will come to
 // a stop, within the margin of effectivelyMotionless.
