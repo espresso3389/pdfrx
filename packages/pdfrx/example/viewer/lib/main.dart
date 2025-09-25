@@ -312,21 +312,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         useAlternativeFitScaleAsMinScale: false,
                         maxScale: 8,
                         //scrollPhysics: const BouncingScrollPhysics(),
-                        onViewSizeChanged: (viewSize, oldViewSize, controller) {
-                          if (oldViewSize != null) {
-                            //
-                            // Calculate the matrix to keep the center position during device
-                            // screen rotation
-                            //
-                            // The most important thing here is that the transformation matrix
-                            // is not changed on the view change.
-                            final centerPosition = controller.value.calcPosition(oldViewSize);
-                            final newMatrix = controller.calcMatrixFor(centerPosition);
-                            // Don't change the matrix in sync; the callback might be called
-                            // during widget-tree's build process.
-                            Future.delayed(const Duration(milliseconds: 200), () => controller.goTo(newMatrix));
-                          }
-                        },
                         viewerOverlayBuilder: (context, size, handleLinkTap) => [
                           //
                           // Example use of GestureDetector to handle custom gestures

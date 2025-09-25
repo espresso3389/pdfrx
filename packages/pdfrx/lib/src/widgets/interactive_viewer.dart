@@ -60,6 +60,55 @@ typedef InteractiveViewerWidgetBuilder = Widget Function(BuildContext context, Q
 /// {@end-tool}
 @immutable
 class InteractiveViewer extends StatefulWidget {
+
+  /// Create InteractiveViewer with animation control capability
+  InteractiveViewer.withAnimationControl({
+    required Widget child,
+    Key? key,
+    Clip clipBehavior = Clip.hardEdge,
+    PanAxis panAxis = PanAxis.free,
+    EdgeInsets boundaryMargin = EdgeInsets.zero,
+    bool constrained = true,
+    double maxScale = 8.0,
+    double minScale = 0.8,
+    double interactionEndFrictionCoefficient = _kDrag,
+    GestureScaleEndCallback? onInteractionEnd,
+    GestureScaleStartCallback? onInteractionStart,
+    GestureScaleUpdateCallback? onInteractionUpdate,
+    bool panEnabled = true,
+    bool scaleEnabled = true,
+    double scaleFactor = kDefaultMouseScrollToScaleFactor,
+    TransformationController? transformationController,
+    Alignment? alignment,
+    bool trackpadScrollCausesScale = false,
+    void Function(PointerScrollEvent event)? onWheelDelta,
+    ScrollPhysics? scrollPhysics,
+    ScrollPhysics? scrollPhysicsScale,
+    bool scrollPhysicsAutoAdjustBoundaries = true,
+  }) : this(
+    key: _globalKey,
+    child: child,
+    clipBehavior: clipBehavior,
+    panAxis: panAxis,
+    boundaryMargin: boundaryMargin,
+    constrained: constrained,
+    maxScale: maxScale,
+    minScale: minScale,
+    interactionEndFrictionCoefficient: interactionEndFrictionCoefficient,
+    onInteractionEnd: onInteractionEnd,
+    onInteractionStart: onInteractionStart,
+    onInteractionUpdate: onInteractionUpdate,
+    panEnabled: panEnabled,
+    scaleEnabled: scaleEnabled,
+    scaleFactor: scaleFactor,
+    transformationController: transformationController,
+    alignment: alignment,
+    trackpadScrollCausesScale: trackpadScrollCausesScale,
+    onWheelDelta: onWheelDelta,
+    scrollPhysics: scrollPhysics,
+    scrollPhysicsScale: scrollPhysicsScale,
+    scrollPhysicsAutoAdjustBoundaries: scrollPhysicsAutoAdjustBoundaries,
+  );
   /// Create an InteractiveViewer.
   InteractiveViewer({
     required this.child,
@@ -397,6 +446,13 @@ class InteractiveViewer extends StatefulWidget {
   // Used as the coefficient of friction in the inertial translation animation.
   // This value was eyeballed to give a feel similar to Google Photos.
   static const double _kDrag = 0.0000135;
+
+  /// GlobalKey to access the InteractiveViewer state for animation control
+  static final GlobalKey<_InteractiveViewerState> _globalKey = GlobalKey<_InteractiveViewerState>();
+
+  /// Static methods for external animation control
+  static bool get hasActiveAnimations => _globalKey.currentState?.hasActiveAnimations ?? false;
+  static void stopAnimations() => _globalKey.currentState?._stopAllAnimations();
 
   /// ScrollPhysics to use for panning
   final ScrollPhysics? scrollPhysics;
@@ -1382,12 +1438,6 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
     }
   }
 
-  void _stopAnimation() {
-    _controller.stop();
-    _animation?.removeListener(_handleInertiaAnimation);
-    _animation = null;
-  }
-
   Simulation? _getCombinedSimulation(Simulation? simulationX, Simulation? simulationY) {
     if (simulationX == null && simulationY == null) {
       return null;
@@ -1406,9 +1456,45 @@ class _InteractiveViewerState extends State<InteractiveViewer> with TickerProvid
       // ability to stop a in-progress pan fling is particularly important
       // when scroll physics is enabled as the duration and distance of the
       // pan can be considerable.
-      _stopAnimation();
+      _stopAllAnimations();
     }
   }
+
+  /// Check if any animations are currently active
+  bool get hasActiveAnimations =>
+    _controller.isAnimating || _scaleController.isAnimating || _snapController.isAnimating;
+
+  /// Stop all active animations without saving state
+  void _stopAllAnimations() {
+    // Stop pan animations
+    if (_controller.isAnimating) {
+      _controller.stop();
+      _controller.reset();
+      _animation?.removeListener(_handleInertiaAnimation);
+      _animation = null;
+    }
+
+    // Stop scale animations
+    if (_scaleController.isAnimating) {
+      _scaleController.stop();
+      _scaleController.reset();
+      _scaleAnimation?.removeListener(_handleScaleAnimation);
+      _scaleAnimation = null;
+    }
+
+    // Stop snap animations
+    if (_snapController.isAnimating) {
+      _snapController.stop();
+      _snapController.reset();
+      _snapTargetMatrix = null;
+    }
+
+    // Clear simulations
+    simulationX = null;
+    simulationY = null;
+    combinedSimulation = null;
+  }
+
   // end ScrollPhysics
 
   // Handle inertia scale animation.
@@ -1572,6 +1658,7 @@ class _InteractiveViewerBuilt extends StatelessWidget {
 // A classification of relevant user gestures. Each contiguous user gesture is
 // represented by exactly one _GestureType.
 enum _GestureType { pan, scale, rotate }
+
 
 // Given a velocity and drag, calculate the time at which motion will come to
 // a stop, within the margin of effectivelyMotionless.
