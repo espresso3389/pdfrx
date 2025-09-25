@@ -8,8 +8,8 @@ import 'package:path/path.dart' as path;
 Future<int> main(List<String> args) async {
   try {
     // Parse arguments
-    bool revert = false;
-    String projectRoot = '.';
+    var revert = false;
+    var projectRoot = '.';
 
     for (final arg in args) {
       if (arg == '--revert' || arg == '-r') {

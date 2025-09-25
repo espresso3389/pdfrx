@@ -224,6 +224,7 @@ class _PdfViewerState extends State<PdfViewer>
   int? _pageNumber;
   bool _initialized = false;
   StreamSubscription<PdfDocumentEvent>? _documentSubscription;
+  final _interactiveViewerKey = GlobalKey<iv.InteractiveViewerState>();
 
   final List<double> _zoomStops = [1.0];
 
@@ -449,6 +450,7 @@ class _PdfViewerState extends State<PdfViewer>
                   child: Stack(
                     children: [
                       iv.InteractiveViewer(
+                        key: _interactiveViewerKey,
                         transformationController: _txController,
                         constrained: false,
                         boundaryMargin:
@@ -535,10 +537,10 @@ class _PdfViewerState extends State<PdfViewer>
       return candidate;
     }
 
-    final PdfPageLayout layout = _layout!;
-    final Rect visible = candidate.calcVisibleRect(viewSize);
-    double dxDoc = 0.0;
-    double dyDoc = 0.0;
+    final layout = _layout!;
+    final visible = candidate.calcVisibleRect(viewSize);
+    var dxDoc = 0.0;
+    var dyDoc = 0.0;
 
     if (visible.left < 0) {
       dxDoc = -visible.left - boundaryMargin.left;
@@ -557,6 +559,9 @@ class _PdfViewerState extends State<PdfViewer>
   void _updateLayout(Size viewSize) {
     if (viewSize.height <= 0) return; // For fix blank pdf when restore window from minimize on Windows
     final currentPageNumber = _guessCurrentPageNumber();
+    final oldVisibleRect = _initialized ? _visibleRect : Rect.zero;
+    final oldLayout = _layout;
+    final oldMinScale = _minScale;
     final oldSize = _viewSize;
     final isViewSizeChanged = oldSize != viewSize;
     _viewSize = viewSize;
@@ -594,8 +599,55 @@ class _PdfViewerState extends State<PdfViewer>
     } else if (isLayoutChanged || isViewSizeChanged) {
       Future.microtask(() async {
         if (mounted) {
-          await _goToPage(pageNumber: currentPageNumber ?? _calcInitialPageNumber());
-          callOnViewerSizeChanged();
+          // preserve the current zoom whilst respecting the new minScale
+          final zoomTo = _currentZoom < _minScale || _currentZoom == oldMinScale ? _minScale : _currentZoom;
+          if (isLayoutChanged) {
+            // if the layout changed, calculate the top-left position in the document
+            // before the layout change and go to that position in the new layout
+
+            if (oldLayout != null && currentPageNumber != null) {
+              // The top-left position of the screen (oldVisibleRect.topLeft) may be
+              // in the boundary margin, or a margin between pages, and it could be
+              // the current page or one of the neighboring pages
+              final hit = _getClosestPageHit(currentPageNumber, oldLayout, oldVisibleRect);
+              final pageNumber = hit?.page.pageNumber ?? currentPageNumber;
+
+              // Compute relative position within the old pageRect
+              final oldPageRect = oldLayout.pageLayouts[pageNumber - 1];
+              final newPageRect = _layout!.pageLayouts[pageNumber - 1];
+              final oldOffset = oldVisibleRect.topLeft - oldPageRect.topLeft;
+              final fracX = oldOffset.dx / oldPageRect.width;
+              final fracY = oldOffset.dy / oldPageRect.height;
+
+              // Map into new layoutRect
+              final newOffset = Offset(
+                newPageRect.left + fracX * newPageRect.width,
+                newPageRect.top + fracY * newPageRect.height,
+              );
+
+              // preserve the position after a layout change
+              await _goToPosition(documentOffset: newOffset, zoom: zoomTo);
+            }
+          } else {
+            if (zoomTo != _currentZoom) {
+              // layout hasn't changed, but size and zoom has
+              final zoomChange = zoomTo / _currentZoom;
+              final pivot = vec.Vector3(_txController.value.x, _txController.value.y, 0);
+
+              final pivotScale = Matrix4.identity()
+                ..translateByVector3(pivot)
+                ..scaleByDouble(zoomChange, zoomChange, zoomChange, 1)
+                ..translateByVector3(-pivot / zoomChange);
+
+              final Matrix4 zoomPivoted = pivotScale * _txController.value;
+              _clampToNearestBoundary(zoomPivoted, viewSize: viewSize);
+            } else {
+              // size changes (e.g. rotation) can still cause out-of-bounds matrices
+              // so clamp here
+              _clampToNearestBoundary(_txController.value, viewSize: viewSize);
+            }
+            callOnViewerSizeChanged();
+          }
         }
       });
     } else if (currentPageNumber != null && _pageNumber != currentPageNumber) {
@@ -603,8 +655,82 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
+  /// Shift any overshoot back to the nearest content boundary
+  void _clampToNearestBoundary(Matrix4 candidate, {required Size viewSize}) {
+    _stopAnimationsAndClampBoundaries(candidate, viewSize: viewSize);
+  }
+
+  /// Stop InteractiveViewer animations and apply boundary clamping
+  void _stopAnimationsAndClampBoundaries(Matrix4 candidate, {required Size viewSize}) {
+    if (_isInteractionGoingOn) return;
+
+    // Stop any active animations and apply the clamped matrix
+    if (_interactiveViewerKey.currentState?.hasActiveAnimations == true) {
+      _interactiveViewerKey.currentState?.stopAllAnimations();
+    }
+
+    // Apply the clamped matrix
+    _txController.value = _calcMatrixForClampedToNearestBoundary(candidate, viewSize: viewSize);
+  }
+
   int _calcInitialPageNumber() {
     return widget.params.calculateInitialPageNumber?.call(_document!, _controller!) ?? widget.initialPageNumber;
+  }
+
+  PdfPageHitTestResult? _getClosestPageHit(int currentPageNumber, PdfPageLayout oldLayout, ui.Rect oldVisibleRect) {
+    for (final pageIndex in <int>[currentPageNumber, currentPageNumber - 1, currentPageNumber + 1]) {
+      if (pageIndex >= 1 && pageIndex <= oldLayout.pageLayouts.length) {
+        final rec = _nudgeHitTest(oldVisibleRect.topLeft, layout: oldLayout, pageNumber: pageIndex);
+        if (rec != null) {
+          return rec.hit;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Hit-tests a point against a given layout and optional page number.
+  PdfPageHitTestResult? _hitTestWithLayout({
+    required Offset point,
+    required PdfPageLayout layout,
+    required int pageNumber,
+  }) {
+    final pages = _document?.pages;
+    if (pages == null) return null;
+    if (pageNumber >= layout.pageLayouts.length) {
+      return null;
+    }
+
+    final rect = layout.pageLayouts[pageNumber];
+    if (rect.contains(point)) {
+      final page = pages[pageNumber];
+      final local = point - rect.topLeft;
+      final pdfOffset = local.toPdfPoint(page: page, scaledPageSize: rect.size);
+      return PdfPageHitTestResult(page: page, offset: pdfOffset);
+    } else {
+      return null;
+    }
+  }
+
+  // Attempts to nudge the point on the x axis until a valid page hit is found.
+  ({Offset point, PdfPageHitTestResult hit})? _nudgeHitTest(Offset start, {PdfPageLayout? layout, int? pageNumber}) {
+    const epsViewPx = 1.0;
+    final epsDoc = epsViewPx / _currentZoom;
+
+    var tryPoint = start;
+    var tryOffset = Offset.zero;
+    final useLayout = layout;
+    for (var i = 0; i < 500; i++) {
+      final result = useLayout != null && pageNumber != null
+          ? _hitTestWithLayout(point: tryPoint, layout: useLayout, pageNumber: pageNumber)
+          : _getPdfPageHitTestResult(tryPoint, useDocumentLayoutCoordinates: true);
+      if (result != null) {
+        return (point: tryOffset, hit: result);
+      }
+      tryOffset += Offset(epsDoc, 0);
+      tryPoint = tryPoint.translate(epsDoc, 0);
+    }
+    return null;
   }
 
   void _startInteraction() {
@@ -746,7 +872,7 @@ class _PdfViewerState extends State<PdfViewer>
 
     int? pageNumber;
     double maxRatio = 0;
-    for (int i = 1; i <= _document!.pages.length; i++) {
+    for (var i = 1; i <= _document!.pages.length; i++) {
       final ratio = calcIntersectionArea(i);
       if (ratio == 0) continue;
       if (ratio > maxRatio) {
@@ -857,7 +983,7 @@ class _PdfViewerState extends State<PdfViewer>
         return _zoomStops.last;
       }
     } else {
-      for (int i = _zoomStops.length - 1; i >= 0; i--) {
+      for (var i = _zoomStops.length - 1; i >= 0; i--) {
         final z = _zoomStops[i];
         if (z < zoom && !_areZoomsAlmostIdentical(z, zoom)) return z;
       }
@@ -882,12 +1008,12 @@ class _PdfViewerState extends State<PdfViewer>
 
     final currentDocumentSize = boundaryMargin.inflateSize(_layout!.documentSize);
 
-    final double effectiveWidth = currentDocumentSize.width * zoom;
-    final double effectiveHeight = currentDocumentSize.height * zoom;
-    final double extraWidth = effectiveWidth - viewSize.width;
-    final double extraBoundaryHorizontal = extraWidth < 0 ? (-extraWidth / 2) / zoom : 0.0;
-    final double extraHeight = effectiveHeight - viewSize.height;
-    final double extraBoundaryVertical = extraHeight < 0 ? (-extraHeight / 2) / zoom : 0.0;
+    final effectiveWidth = currentDocumentSize.width * zoom;
+    final effectiveHeight = currentDocumentSize.height * zoom;
+    final extraWidth = effectiveWidth - viewSize.width;
+    final extraBoundaryHorizontal = extraWidth < 0 ? (-extraWidth / 2) / zoom : 0.0;
+    final extraHeight = effectiveHeight - viewSize.height;
+    final extraBoundaryVertical = extraHeight < 0 ? (-extraHeight / 2) / zoom : 0.0;
 
     _adjustedBoundaryMargins =
         boundaryMargin +
@@ -907,7 +1033,7 @@ class _PdfViewerState extends State<PdfViewer>
     final overlayWidgets = <Widget>[];
     final targetRect = _getCacheExtentRect();
 
-    for (int i = 0; i < _document!.pages.length; i++) {
+    for (var i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
       final intersection = rect.intersect(targetRect);
       if (intersection.isEmpty) continue;
@@ -1007,7 +1133,7 @@ class _PdfViewerState extends State<PdfViewer>
     final dropShadowPaint = widget.params.pageDropShadow?.toPaint()?..style = PaintingStyle.fill;
     cacheTargetRect ??= targetRect;
 
-    for (int i = 0; i < _document!.pages.length; i++) {
+    for (var i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
       final intersection = rect.intersect(cacheTargetRect);
       if (intersection.isEmpty) {
@@ -1162,7 +1288,7 @@ class _PdfViewerState extends State<PdfViewer>
   bool _hitTestForTextSelection(ui.Offset position) {
     if (_selPartMoving != _TextSelectionPart.free && enableSelectionHandles) return false;
     if (_document == null || _layout == null) return false;
-    for (int i = 0; i < _document!.pages.length; i++) {
+    for (var i = 0; i < _document!.pages.length; i++) {
       final pageRect = _layout!.pageLayouts[i];
       if (!pageRect.contains(position)) continue;
       final page = _document!.pages[i];
@@ -1186,7 +1312,7 @@ class _PdfViewerState extends State<PdfViewer>
 
     final pageLayout = <Rect>[];
     var y = params.margin;
-    for (int i = 0; i < pages.length; i++) {
+    for (var i = 0; i < pages.length; i++) {
       final page = pages[i];
       final rect = Rect.fromLTWH((width - page.width) / 2, y, page.width, page.height);
       pageLayout.add(rect);
@@ -1301,7 +1427,7 @@ class _PdfViewerState extends State<PdfViewer>
     final height = (inPageRect.height * scale).toInt();
     if (width < 1 || height < 1) return null;
 
-    int flags = 0;
+    var flags = 0;
     if (widget.params.limitRenderingCache) flags |= PdfPageRenderFlags.limitedImageCache;
 
     PdfImage? img;
@@ -1633,6 +1759,28 @@ class _PdfViewerState extends State<PdfViewer>
     _setCurrentPageNumber(targetPageNumber);
   }
 
+  /// Scrolls/zooms so that the specified PDF document coordinate appears at
+  /// the top-left corner of the viewport.
+  Future<void> _goToPosition({
+    required Offset documentOffset,
+    Duration duration = const Duration(milliseconds: 0),
+    double? zoom,
+  }) async {
+    // Clear any cached partial images to avoid stale tiles after
+    // going to the new matrix
+    _imageCache.releasePartialImages();
+
+    zoom = zoom ?? _currentZoom;
+    final tx = -documentOffset.dx * zoom;
+    final ty = -documentOffset.dy * zoom;
+
+    final m = Matrix4.compose(vec.Vector3(tx, ty, 0), vec.Quaternion.identity(), vec.Vector3(zoom, zoom, zoom));
+
+    _adjustBoundaryMargins(_viewSize!, zoom);
+    final clamped = _calcMatrixForClampedToNearestBoundary(m, viewSize: _viewSize!);
+    await _goTo(clamped, duration: duration);
+  }
+
   Future<void> _goToRectInsidePage({
     required int pageNumber,
     required PdfRect rect,
@@ -1670,7 +1818,7 @@ class _PdfViewerState extends State<PdfViewer>
       final r = Matrix4.inverted(_txController.value);
       offset = r.transformOffset(offset);
     }
-    for (int i = 0; i < pages.length; i++) {
+    for (var i = 0; i < pages.length; i++) {
       final page = pages[i];
       final pageRect = pageLayouts[i];
       if (pageRect.contains(offset)) {
@@ -1916,7 +2064,7 @@ class _PdfViewerState extends State<PdfViewer>
   /// [point] is in the document coordinates.
   _TextSelectionPoint? _findTextAndIndexForPoint(Offset? point, {double hitTestMargin = 8}) {
     if (point == null) return null;
-    for (int pageIndex = 0; pageIndex < _document!.pages.length; pageIndex++) {
+    for (var pageIndex = 0; pageIndex < _document!.pages.length; pageIndex++) {
       final pageRect = _layout!.pageLayouts[pageIndex];
       if (!pageRect.contains(point)) {
         continue;
@@ -1925,9 +2073,9 @@ class _PdfViewerState extends State<PdfViewer>
       final text = _getCachedTextOrDelayLoadText(pageIndex + 1, onTextLoaded: () => _updateTextSelection());
       if (text == null) continue;
       final pt = point.translate(-pageRect.left, -pageRect.top).toPdfPoint(page: page, scaledPageSize: pageRect.size);
-      double d2Min = double.infinity;
+      var d2Min = double.infinity;
       int? closestIndex;
-      for (int i = 0; i < text.charRects.length; i++) {
+      for (var i = 0; i < text.charRects.length; i++) {
         final charRect = text.charRects[i];
         if (charRect.containsPoint(pt)) {
           return _TextSelectionPoint(text, i, point);
@@ -2194,7 +2342,7 @@ class _PdfViewerState extends State<PdfViewer>
     final showContextMenuAutomatically =
         widget.params.textSelectionParams?.showContextMenuAutomatically ??
         _selectionPointerDeviceKind == PointerDeviceKind.touch;
-    bool showContextMenu = false;
+    var showContextMenu = false;
     if (_contextMenuDocumentPosition != null) {
       showContextMenu = true;
     } else if (showContextMenuAutomatically &&
@@ -2686,7 +2834,7 @@ class _PdfViewerState extends State<PdfViewer>
     }
     final selections = <PdfPageTextRange>[a.text.getRangeFromAB(a.index, a.text.charRects.length - 1)];
 
-    for (int i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
+    for (var i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
       final text = await _loadTextAsync(i);
       if (text == null || text.fullText.isEmpty) continue;
       selections.add(text.getRangeFromAB(0, text.charRects.length - 1));
@@ -2716,14 +2864,14 @@ class _PdfViewerState extends State<PdfViewer>
   Future<void> selectAllText() async {
     if (_document!.pages.isEmpty && _layout != null) return;
     PdfPageText? first;
-    for (int i = 1; i <= _document!.pages.length; i++) {
+    for (var i = 1; i <= _document!.pages.length; i++) {
       final text = await _loadTextAsync(i);
       if (text == null || text.fullText.isEmpty) continue;
       first = text;
       break;
     }
     PdfPageText? last;
-    for (int i = _document!.pages.length; i >= 1; i--) {
+    for (var i = _document!.pages.length; i >= 1; i--) {
       final text = await _loadTextAsync(i);
       if (text == null || text.fullText.isEmpty) continue;
       last = text;
@@ -2755,7 +2903,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   Future<void> selectWord(Offset offset, {PointerDeviceKind? deviceKind}) async {
-    for (int i = 0; i < _document!.pages.length; i++) {
+    for (var i = 0; i < _document!.pages.length; i++) {
       final pageRect = _layout!.pageLayouts[i];
       if (!pageRect.contains(offset)) {
         continue;
@@ -2884,6 +3032,17 @@ class _PdfPageImageCache {
     tokens.add(token);
   }
 
+  void releasePartialImages() {
+    for (final request in pageImagePartialRenderingRequests.values) {
+      request.cancel();
+    }
+    pageImagePartialRenderingRequests.clear();
+    for (final image in pageImagesPartial.values) {
+      image.image.dispose();
+    }
+    pageImagesPartial.clear();
+  }
+
   void releaseAllImages() {
     for (final timer in pageImageRenderingTimers.values) {
       timer.cancel();
@@ -2936,7 +3095,7 @@ class _PdfPageImageCache {
   }) {
     pageNumbers.sort((a, b) => dist(b).compareTo(dist(a)));
     int getBytesConsumed(ui.Image? image) => image == null ? 0 : (image.width * image.height * 4).toInt();
-    int bytesConsumed =
+    var bytesConsumed =
         pageImages.values.fold(0, (sum, e) => sum + getBytesConsumed(e.image)) +
         pageImagesPartial.values.fold(0, (sum, e) => sum + getBytesConsumed(e.image));
     for (final key in pageNumbers) {
@@ -3418,10 +3577,10 @@ class PdfViewerController extends ValueListenable<Matrix4> {
     final viewRect = visibleRect;
     final result = <PdfPageFitInfo>[];
     final pos = centerPosition;
-    for (int i = 0; i < layout.pageLayouts.length; i++) {
+    for (var i = 0; i < layout.pageLayouts.length; i++) {
       final page = layout.pageLayouts[i];
       if (page.intersect(viewRect).isEmpty) continue;
-      final EdgeInsets boundaryMargin = params.boundaryMargin == null || params.boundaryMargin!.right == double.infinity
+      final boundaryMargin = params.boundaryMargin == null || params.boundaryMargin!.right == double.infinity
           ? EdgeInsets.zero
           : params.boundaryMargin!;
       final zoom = viewSize.width / (page.width + (params.margin * 2) + boundaryMargin.horizontal);

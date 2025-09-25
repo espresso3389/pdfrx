@@ -17,12 +17,15 @@ jobs:
         include:
           - package_name: pdfrx_engine
             package_path: packages/pdfrx_engine
-            pub_command: dart pub get
           - package_name: pdfrx
             package_path: packages/pdfrx
-            pub_command: flutter pub get
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y webp
 
       - name: Setup Flutter
         run: |
@@ -33,16 +36,12 @@ jobs:
           ~/flutter/bin/flutter doctor -v
 
       - name: Pub get (workspace)
-        run: dart pub get
+        run: flutter pub get
 
       - name: Activate pana
         run: |
           dart pub global activate pana
           echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
-
-      - name: Get dependencies (${{ matrix.package_name }})
-        working-directory: ${{ matrix.package_path }}
-        run: ${{ matrix.pub_command }}
 
       - name: Run pana (${{ matrix.package_name }})
         working-directory: ${{ matrix.package_path }}

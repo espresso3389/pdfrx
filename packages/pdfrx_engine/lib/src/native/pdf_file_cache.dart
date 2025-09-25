@@ -66,7 +66,7 @@ class PdfFileCache {
   int get cachedBytes {
     if (!isInitialized) return 0;
     var countCached = 0;
-    for (int i = 0; i < totalBlocks; i++) {
+    for (var i = 0; i < totalBlocks; i++) {
       if (isCached(i)) {
         countCached++;
       }
@@ -126,7 +126,7 @@ class PdfFileCache {
 
   Future<void> setCached(int startBlock, {int? lastBlock}) async {
     lastBlock ??= startBlock;
-    for (int i = startBlock; i <= lastBlock; i++) {
+    for (var i = startBlock; i <= lastBlock; i++) {
       _cacheState[i >> 3] |= 1 << (i & 7);
     }
     await _saveCacheState();
@@ -353,8 +353,8 @@ Future<PdfDocument> pdfDocumentFromUri(
       read: (buffer, position, size) async {
         final totalSize = size;
         final end = position + size;
-        int bufferPosition = 0;
-        for (int p = position; p < end;) {
+        var bufferPosition = 0;
+        for (var p = position; p < end;) {
           final blockId = p ~/ cache!.blockSize;
           final isAvailable = cache.isCached(blockId);
           if (!isAvailable) {
@@ -452,7 +452,7 @@ Future<_DownloadResult> _downloadBlock(
   }
 
   final contentRange = response.headers['content-range'];
-  bool isFullDownload = false;
+  var isFullDownload = false;
   if (response.statusCode == 206 && contentRange != null) {
     final m = RegExp(r'bytes (\d+)-(\d+)/(\d+)').firstMatch(contentRange);
     fileSize = int.parse(m!.group(3)!);

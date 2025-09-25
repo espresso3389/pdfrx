@@ -410,6 +410,7 @@ class PdfDocumentPageStatusChangedEvent implements PdfDocumentEvent {
 
 /// Event that is triggered when the list of missing fonts in the PDF document has changed.
 class PdfDocumentMissingFontsEvent implements PdfDocumentEvent {
+  /// Create a [PdfDocumentMissingFontsEvent].
   PdfDocumentMissingFontsEvent(this.document, this.missingFonts);
 
   @override
@@ -566,12 +567,12 @@ abstract class PdfPage {
             case PdfTextDirection.ltr:
             case PdfTextDirection.rtl:
             case PdfTextDirection.unknown:
-              for (int i = wordStart; i < wordEnd; i++) {
+              for (var i = wordStart; i < wordEnd; i++) {
                 final r = inputCharRects[i];
                 outputCharRects.add(PdfRect(r.left, bounds.top, r.right, bounds.bottom));
               }
             case PdfTextDirection.vrtl:
-              for (int i = wordStart; i < wordEnd; i++) {
+              for (var i = wordStart; i < wordEnd; i++) {
                 final r = inputCharRects[i];
                 outputCharRects.add(PdfRect(bounds.left, r.top, bounds.right, r.bottom));
               }
@@ -585,7 +586,7 @@ abstract class PdfPage {
     int addWords(int start, int end, PdfTextDirection dir, PdfRect bounds) {
       final firstIndex = fragmentsTmp.length;
       final matches = _reSpaces.allMatches(inputFullText.substring(start, end));
-      int wordStart = start;
+      var wordStart = start;
       for (final match in matches) {
         final spaceStart = start + match.start;
         addWord(wordStart, spaceStart, dir, bounds);
@@ -614,7 +615,7 @@ abstract class PdfPage {
       final last = end - 1;
       var curStart = start;
       var curVec = charVec(start, Vector2(1, 0));
-      for (int next = start + 1; next < last;) {
+      for (var next = start + 1; next < last;) {
         final nextVec = charVec(next, curVec);
         if (curVec.angleTo(nextVec) > lineThreshold) {
           list.add((start: curStart, end: next + 1, dir: vector2direction(curVec)));
@@ -637,7 +638,7 @@ abstract class PdfPage {
       final dir = getLineDirection(start, end);
       final segments = splitLine(start, end).toList();
       if (segments.length >= 2) {
-        for (int i = 0; i < segments.length; i++) {
+        for (var i = 0; i < segments.length; i++) {
           final seg = segments[i];
           final bounds = inputCharRects.boundingRect(start: seg.start, end: seg.end);
           addWords(seg.start, seg.end, seg.dir, bounds);
@@ -654,7 +655,7 @@ abstract class PdfPage {
       }
     }
 
-    int lineStart = 0;
+    var lineStart = 0;
     for (final match in _reNewLine.allMatches(inputFullText)) {
       if (lineStart < match.start) {
         handleLine(lineStart, match.start, newLineEnd: match.end);
@@ -670,7 +671,7 @@ abstract class PdfPage {
     }
 
     if (rotation.index != 0) {
-      for (int i = 0; i < outputCharRects.length; i++) {
+      for (var i = 0; i < outputCharRects.length; i++) {
         outputCharRects[i] = outputCharRects[i].rotateReverse(rotation.index, this);
       }
     }
@@ -683,8 +684,8 @@ abstract class PdfPage {
       fragments: UnmodifiableListView(fragments),
     );
 
-    int start = 0;
-    for (int i = 0; i < fragmentsTmp.length; i++) {
+    var start = 0;
+    for (var i = 0; i < fragmentsTmp.length; i++) {
       final length = fragmentsTmp[i].length;
       final direction = fragmentsTmp[i].direction;
       final end = start + length;
@@ -712,7 +713,7 @@ abstract class PdfPage {
     }
 
     if (rotation.index != 0) {
-      for (int i = 0; i < input.charRects.length; i++) {
+      for (var i = 0; i < input.charRects.length; i++) {
         input.charRects[i] = input.charRects[i].rotate(rotation.index, this);
       }
     }
@@ -722,9 +723,9 @@ abstract class PdfPage {
 
     // Process the whole text
     final lnMatches = _reNewLine.allMatches(input.fullText).toList();
-    int lineStart = 0;
-    int prevEnd = 0;
-    for (int i = 0; i < lnMatches.length; i++) {
+    var lineStart = 0;
+    var prevEnd = 0;
+    for (var i = 0; i < lnMatches.length; i++) {
       lineStart = prevEnd;
       final match = lnMatches[i];
       fullText.write(input.fullText.substring(lineStart, match.start));
@@ -1153,7 +1154,7 @@ class PdfPageTextRange {
   Iterable<PdfTextFragmentBoundingRect> enumerateFragmentBoundingRects() sync* {
     final fStart = firstFragmentIndex;
     final fEnd = lastFragmentIndex;
-    for (int i = fStart; i <= fEnd; i++) {
+    for (var i = fStart; i <= fEnd; i++) {
       final f = pageText.fragments[i];
       if (f.end <= start || end <= f.index) continue;
       yield PdfTextFragmentBoundingRect(f, max(start - f.index, 0), min(end - f.index, f.length));
@@ -1398,6 +1399,7 @@ class PdfTextFragmentBoundingRect {
 
 /// PDF [Explicit Destination](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=374) the page and inner-page location to jump to.
 class PdfDest {
+  /// Create a [PdfDest].
   const PdfDest(this.pageNumber, this.command, this.params);
 
   /// Page number to jump to.
@@ -1446,6 +1448,7 @@ enum PdfDestCommand {
   fitBH('fitbh'),
   fitBV('fitbv');
 
+  /// Create a [PdfDestCommand] with the specified command name.
   const PdfDestCommand(this.name);
 
   /// Command name.
@@ -1635,7 +1638,7 @@ bool _listEquals<T>(List<T>? a, List<T>? b) {
   if (identical(a, b)) {
     return true;
   }
-  for (int index = 0; index < a.length; index += 1) {
+  for (var index = 0; index < a.length; index += 1) {
     if (a[index] != b[index]) {
       return false;
     }

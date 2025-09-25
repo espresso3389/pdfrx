@@ -265,7 +265,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
   }) async {
     await initPdfium();
 
-    for (int i = 0; ; i++) {
+    for (var i = 0; ; i++) {
       final String? password;
       if (firstAttemptByEmptyPassword && i == 0) {
         password = null;
@@ -370,7 +370,7 @@ class _PdfDocumentWasm extends PdfDocument {
   }) async {
     if (isDisposed) return;
     await synchronized(() async {
-      int firstPageIndex = pages.indexWhere((page) => !page.isLoaded);
+      var firstPageIndex = pages.indexWhere((page) => !page.isLoaded);
       if (firstPageIndex < 0) return; // All pages are already loaded
 
       for (; firstPageIndex < pages.length;) {
@@ -617,7 +617,7 @@ class _PdfPageWasm extends PdfPage {
 
     if ((flags & PdfPageRenderFlags.premultipliedAlpha) != 0) {
       final count = width * height;
-      for (int i = 0; i < count; i++) {
+      for (var i = 0; i < count; i++) {
         final b = pixels[i * 4];
         final g = pixels[i * 4 + 1];
         final r = pixels[i * 4 + 2];
