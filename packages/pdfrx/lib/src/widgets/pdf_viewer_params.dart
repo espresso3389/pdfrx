@@ -113,6 +113,8 @@ class PdfViewerParams {
   ///
   /// The function is called when the matrix is changed and normally used to restrict the matrix to certain range.
   ///
+  /// If [scrollPhysics] is non-null, this function is ignored.
+  ///
   /// The following fragment is an example to restrict the matrix to the document size, which is almost identical to
   /// the default behavior:
   ///
@@ -536,6 +538,12 @@ class PdfViewerParams {
   final bool forceReload;
 
   /// Scroll physics for the viewer.
+  ///
+  /// If null, it works like [ClampingScrollPhysics] on all platforms.
+  /// If you want bouncing effect, set this to [BouncingScrollPhysics].
+  ///
+  /// If the value is set non-null, it disables [normalizeMatrix].
+  /// If you set [boundaryMargin] to `EdgeInsets.all(double.infinity)`, it effectively disables [scrollPhysics].
   final ScrollPhysics? scrollPhysics;
 
   /// Determine whether the viewer needs to be reloaded or not.
