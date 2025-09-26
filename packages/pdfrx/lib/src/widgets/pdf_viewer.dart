@@ -268,8 +268,8 @@ class _PdfViewerState extends State<PdfViewer>
   PointerDeviceKind? _pointerDeviceKind;
 
   // boundary margins adjusted to center content that's smaller than
-  // the viewport - used by InteractiveViewer's scrollPhysics
-  EdgeInsets? _adjustedBoundaryMargins;
+  // the viewport
+  EdgeInsets _adjustedBoundaryMargins = EdgeInsets.zero;
 
   @override
   void initState() {
@@ -453,11 +453,9 @@ class _PdfViewerState extends State<PdfViewer>
                         key: _interactiveViewerKey,
                         transformationController: _txController,
                         constrained: false,
-                        boundaryMargin:
-                            _adjustedBoundaryMargins ??
-                            (widget.params.scrollPhysics == null
-                                ? const EdgeInsets.all(double.infinity)
-                                : EdgeInsets.zero),
+                        boundaryMargin: (widget.params.scrollPhysics == null
+                            ? const EdgeInsets.all(double.infinity)
+                            : _adjustedBoundaryMargins),
                         maxScale: widget.params.maxScale,
                         minScale: minScale,
                         panAxis: widget.params.panAxis,
@@ -531,8 +529,8 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   Offset _calcOverscroll(Matrix4 m, {required Size viewSize}) {
-    final boundaryMargin = _adjustedBoundaryMargins ?? widget.params.boundaryMargin;
-    if (boundaryMargin == null || boundaryMargin.horizontal.isInfinite) {
+    final boundaryMargin = _adjustedBoundaryMargins;
+    if (_edgeInsetContainsInfinite(boundaryMargin)) {
       return Offset.zero;
     }
 
@@ -541,16 +539,23 @@ class _PdfViewerState extends State<PdfViewer>
     var dxDoc = 0.0;
     var dyDoc = 0.0;
 
-    if (visible.left < 0) {
-      dxDoc = -visible.left - boundaryMargin.left;
-    } else if (visible.right > layout.documentSize.width) {
-      dxDoc = layout.documentSize.width - visible.right + boundaryMargin.right;
+    final leftBoundary = -boundaryMargin.left; // negative margin reduces allowed leftward scroll
+    final rightBoundary =
+        layout.documentSize.width + boundaryMargin.right; // negative margin reduces allowed rightward scroll
+    final topBoundary = -boundaryMargin.top; // negative margin reduces allowed upward scroll
+    final bottomBoundary =
+        layout.documentSize.height + boundaryMargin.bottom; // negative margin reduces allowed downward scroll
+
+    if (visible.left < leftBoundary) {
+      dxDoc = leftBoundary - visible.left;
+    } else if (visible.right > rightBoundary) {
+      dxDoc = rightBoundary - visible.right;
     }
 
-    if (visible.top < 0) {
-      dyDoc = -visible.top - boundaryMargin.top;
-    } else if (visible.bottom > layout.documentSize.height) {
-      dyDoc = layout.documentSize.height - visible.bottom + boundaryMargin.bottom;
+    if (visible.top < topBoundary) {
+      dyDoc = topBoundary - visible.top;
+    } else if (visible.bottom > bottomBoundary) {
+      dyDoc = bottomBoundary - visible.bottom;
     }
     return Offset(dxDoc, dyDoc);
   }
@@ -647,6 +652,7 @@ class _PdfViewerState extends State<PdfViewer>
                 ..translateByVector3(-pivot / zoomChange);
 
               final Matrix4 zoomPivoted = pivotScale * _txController.value;
+              _adjustBoundaryMargins(viewSize, zoomTo);
               _clampToNearestBoundary(zoomPivoted, viewSize: viewSize);
             } else {
               // size changes (e.g. rotation) can still cause out-of-bounds matrices
@@ -1006,17 +1012,22 @@ class _PdfViewerState extends State<PdfViewer>
 
   static bool _areZoomsAlmostIdentical(double z1, double z2) => (z1 - z2).abs() < 0.01;
 
+  bool _edgeInsetContainsInfinite(EdgeInsets? e) {
+    if (e == null) return false;
+    return e.left.isInfinite || e.right.isInfinite || e.top.isInfinite || e.bottom.isInfinite;
+  }
+
   // Auto-adjust boundaries when content is smaller than the view, centering
   // the content and ensuring InteractiveViewer's scrollPhysics works when specified
   void _adjustBoundaryMargins(Size viewSize, double zoom) {
-    if (widget.params.scrollPhysics == null) return;
+    final boundaryMargin = widget.params.boundaryMargin ?? EdgeInsets.zero;
 
-    final boundaryMargin = widget.params.boundaryMargin == null || widget.params.boundaryMargin!.horizontal.isInfinite
-        ? EdgeInsets.zero
-        : widget.params.boundaryMargin!;
+    if (_edgeInsetContainsInfinite(boundaryMargin)) {
+      _adjustedBoundaryMargins = boundaryMargin;
+      return;
+    }
 
     final currentDocumentSize = boundaryMargin.inflateSize(_layout!.documentSize);
-
     final effectiveWidth = currentDocumentSize.width * zoom;
     final effectiveHeight = currentDocumentSize.height * zoom;
     final extraWidth = effectiveWidth - viewSize.width;
@@ -1556,13 +1567,15 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
-  Matrix4 _calcMatrixForPage({required int pageNumber, PdfPageAnchor? anchor}) => _calcMatrixForArea(
-    rect: (widget.params.boundaryMargin ?? EdgeInsets.zero).inflateRect(
-      _layout!.pageLayouts[pageNumber - 1].inflate(widget.params.margin),
-    ),
-    anchor: anchor,
-    zoomMax: _currentZoom,
-  );
+  Matrix4 _calcMatrixForPage({required int pageNumber, PdfPageAnchor? anchor}) {
+    final boundaryMargin = _adjustedBoundaryMargins;
+    final pageRect = _layout!.pageLayouts[pageNumber - 1].inflate(widget.params.margin);
+
+    // If boundaryMargin is infinite, don't inflate the rect
+    final targetRect = (_edgeInsetContainsInfinite(boundaryMargin)) ? pageRect : boundaryMargin.inflateRect(pageRect);
+
+    return _calcMatrixForArea(rect: targetRect, anchor: anchor, zoomMax: _currentZoom);
+  }
 
   Rect _calcRectForRectInsidePage({required int pageNumber, required PdfRect rect}) {
     final page = _document!.pages[pageNumber - 1];
@@ -3555,9 +3568,7 @@ class PdfViewerController extends ValueListenable<Matrix4> {
     for (var i = 0; i < layout.pageLayouts.length; i++) {
       final page = layout.pageLayouts[i];
       if (page.intersect(viewRect).isEmpty) continue;
-      final boundaryMargin = params.boundaryMargin == null || params.boundaryMargin!.right == double.infinity
-          ? EdgeInsets.zero
-          : params.boundaryMargin!;
+      final boundaryMargin = _state._adjustedBoundaryMargins;
       final zoom = viewSize.width / (page.width + (params.margin * 2) + boundaryMargin.horizontal);
 
       // NOTE: keep the y-position but center the x-position
