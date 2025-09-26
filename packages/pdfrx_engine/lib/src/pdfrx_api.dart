@@ -1471,13 +1471,15 @@ class PdfLink {
   /// Link URL.
   final Uri? url;
 
-  /// Link destination.
-  ///
   /// Link destination (link to page).
   final PdfDest? dest;
 
-  /// Link location.
+  /// Link location(s) inside the associated PDF page.
+  ///
+  /// Sometimes a link can span multiple rectangles, e.g., a link across multiple lines.
   final List<PdfRect> rects;
+
+  /// Annotation content if available.
   final String? annotationContent;
 
   /// Compact the link.
