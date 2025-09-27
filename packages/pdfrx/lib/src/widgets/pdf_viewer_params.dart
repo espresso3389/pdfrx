@@ -560,8 +560,9 @@ class PdfViewerParams {
   final ScrollPhysics? scrollPhysicsScale;
 
   /// A convenience function to get platform-specific default scroll physics.
-  /// On iOS/MacOS this is `BouncingScrollPhysics()`, and on Android this is `FixedOverscrollPhysics()`, a
-  /// custom ScrollPhysics that allows fixed overscroll on pan/zoom and snapback.
+  ///
+  /// On iOS/MacOS this is [BouncingScrollPhysics], and on Android this is [FixedOverscrollPhysics], a
+  /// custom [ScrollPhysics] that allows fixed overscroll on pan/zoom and snapback.
   static ScrollPhysics getScrollPhysics(BuildContext context) {
     if (Platform.isAndroid) {
       return const FixedOverscrollPhysics();
