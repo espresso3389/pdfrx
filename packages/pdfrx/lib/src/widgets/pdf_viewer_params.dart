@@ -1407,7 +1407,7 @@ class PdfViewerKeyHandlerParams {
   final FocusNode? parentNode;
 
   @override
-  operator ==(covariant PdfViewerKeyHandlerParams other) {
+  bool operator ==(covariant PdfViewerKeyHandlerParams other) {
     if (identical(this, other)) return true;
 
     return other.autofocus == autofocus &&

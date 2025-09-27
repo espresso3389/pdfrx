@@ -56,10 +56,11 @@ class _HybridScrollSimulation extends Simulation {
   _HybridScrollSimulation({
     required ScrollMetrics position,
     required double velocity,
-    required this.tolerance,
+    required Tolerance tolerance,
     required this.maxOverscroll,
   }) : _minExtent = position.minScrollExtent,
-       _maxExtent = position.maxScrollExtent {
+       _maxExtent = position.maxScrollExtent,
+       _tolerance = tolerance {
     final currentPosition = position.pixels;
     final isOutOfBounds = currentPosition < _minExtent || currentPosition > _maxExtent;
     final isInOverscrollZone =
@@ -78,7 +79,9 @@ class _HybridScrollSimulation extends Simulation {
   final double _minExtent;
   final double _maxExtent;
   final double maxOverscroll;
-  final Tolerance tolerance;
+  @override
+  Tolerance get tolerance => _tolerance;
+  final Tolerance _tolerance;
 
   late Simulation _currentSimulation;
   bool _hasSwitchedToBouncing = false;

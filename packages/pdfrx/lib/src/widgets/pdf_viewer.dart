@@ -532,7 +532,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   Offset _calcOverscroll(Matrix4 m, {required Size viewSize}) {
     final boundaryMargin = _adjustedBoundaryMargins;
-    if (boundaryMargin?.containsInfinite == true) {
+    if (boundaryMargin.containsInfinite) {
       return Offset.zero;
     }
 
@@ -3276,7 +3276,7 @@ class PdfTextSelectionAnchor {
   }
 
   @override
-  operator ==(Object other) {
+  bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other is! PdfTextSelectionAnchor) return false;
     return rect == other.rect &&
