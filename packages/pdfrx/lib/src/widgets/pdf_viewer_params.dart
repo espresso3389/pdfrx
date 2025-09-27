@@ -548,7 +548,7 @@ class PdfViewerParams {
   /// A convenience function [getScrollPhysics] is provided to get platform-specific default scroll physics.
   /// If you want no overscroll, but still want the physics for panning to be similar to other Scrollables,
   /// you can use
-  /// [ClampingScrollPhysics()].
+  /// `ClampingScrollPhysics()`.
   ///
   /// If the value is set non-null, it disables [normalizeMatrix].
   ///
@@ -560,7 +560,7 @@ class PdfViewerParams {
   final ScrollPhysics? scrollPhysicsScale;
 
   /// A convenience function to get platform-specific default scroll physics.
-  /// On iOS/MacOS this is [BouncingScrollPhysics()], and on Android this is [FixedOverscrollPhysics()], a
+  /// On iOS/MacOS this is `BouncingScrollPhysics()`, and on Android this is `FixedOverscrollPhysics()`, a
   /// custom ScrollPhysics that allows fixed overscroll on pan/zoom and snapback.
   static ScrollPhysics getScrollPhysics(BuildContext context) {
     if (Platform.isAndroid) {
