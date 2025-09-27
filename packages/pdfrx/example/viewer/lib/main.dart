@@ -311,7 +311,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         keyHandlerParams: PdfViewerKeyHandlerParams(autofocus: true),
                         useAlternativeFitScaleAsMinScale: false,
                         maxScale: 8,
-                        //scrollPhysics: const BouncingScrollPhysics(),
+                        //scrollPhysics: PdfViewerParams.getScrollPhysics(context),
                         viewerOverlayBuilder: (context, size, handleLinkTap) => [
                           //
                           // Example use of GestureDetector to handle custom gestures
