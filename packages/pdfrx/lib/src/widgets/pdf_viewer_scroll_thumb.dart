@@ -53,8 +53,18 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
     final thumbSize = widget.thumbSize ?? const Size(25, 40);
     final view = widget.controller.visibleRect;
     final all = widget.controller.documentSize;
-    if (all.height <= view.height) return const SizedBox();
-    final y = -widget.controller.value.y / (all.height - view.height);
+    final boundaryMargin = widget.controller.params.boundaryMargin;
+
+    final effectiveDocHeight = boundaryMargin == null || boundaryMargin.vertical.isInfinite
+        ? all.height
+        : all.height + boundaryMargin.vertical;
+
+    if (effectiveDocHeight <= view.height) return const SizedBox();
+
+    final scrollRange = effectiveDocHeight - view.height;
+    final minScrollY = boundaryMargin == null || boundaryMargin.vertical.isInfinite ? 0.0 : -boundaryMargin.top;
+
+    final y = (-widget.controller.value.y - minScrollY) / scrollRange;
     final vh = view.height * widget.controller.currentZoom - thumbSize.height;
     final top = y * vh;
     return Positioned(
@@ -87,7 +97,7 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
         onPanUpdate: (details) {
           final y = (_panStartOffset + details.localPosition.dy) / vh;
           final m = widget.controller.value.clone();
-          m.y = -y * (all.height - view.height);
+          m.y = -(y * scrollRange + minScrollY);
           widget.controller.value = m;
         },
       ),
@@ -98,8 +108,18 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
     final thumbSize = widget.thumbSize ?? const Size(40, 25);
     final view = widget.controller.visibleRect;
     final all = widget.controller.documentSize;
-    if (all.width <= view.width) return const SizedBox();
-    final x = -widget.controller.value.x / (all.width - view.width);
+    final boundaryMargin = widget.controller.params.boundaryMargin;
+
+    final effectiveDocWidth = boundaryMargin == null || boundaryMargin.horizontal.isInfinite
+        ? all.width
+        : all.width + boundaryMargin.horizontal;
+
+    if (effectiveDocWidth <= view.width) return const SizedBox();
+
+    final scrollRange = effectiveDocWidth - view.width;
+    final minScrollX = boundaryMargin == null || boundaryMargin.horizontal.isInfinite ? 0.0 : -boundaryMargin.left;
+
+    final x = (-widget.controller.value.x - minScrollX) / scrollRange;
     final vw = view.width * widget.controller.currentZoom - thumbSize.width;
     final left = x * vw;
     return Positioned(
@@ -132,7 +152,7 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
         onPanUpdate: (details) {
           final x = (_panStartOffset + details.localPosition.dx) / vw;
           final m = widget.controller.value.clone();
-          m.x = -x * (all.width - view.width);
+          m.x = -(x * scrollRange + minScrollX);
           widget.controller.value = m;
         },
       ),

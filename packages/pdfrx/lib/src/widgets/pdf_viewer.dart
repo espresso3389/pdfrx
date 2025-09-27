@@ -13,6 +13,7 @@ import 'package:synchronized/extension.dart';
 import 'package:vector_math/vector_math_64.dart' as vec;
 
 import '../../pdfrx.dart';
+import '../utils/edge_insets_extensions.dart';
 import '../utils/platform.dart';
 import 'interactive_viewer.dart' as iv;
 import 'internals/pdf_error_widget.dart';
@@ -467,6 +468,7 @@ class _PdfViewerState extends State<PdfViewer>
                         interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
                         onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
                         scrollPhysics: widget.params.scrollPhysics,
+                        scrollPhysicsScale: widget.params.scrollPhysicsScale,
                         scrollPhysicsAutoAdjustBoundaries: false,
                         // PDF pages
                         child: GestureDetector(
@@ -530,7 +532,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   Offset _calcOverscroll(Matrix4 m, {required Size viewSize}) {
     final boundaryMargin = _adjustedBoundaryMargins;
-    if (_edgeInsetContainsInfinite(boundaryMargin)) {
+    if (boundaryMargin.containsInfinite) {
       return Offset.zero;
     }
 
@@ -1012,17 +1014,12 @@ class _PdfViewerState extends State<PdfViewer>
 
   static bool _areZoomsAlmostIdentical(double z1, double z2) => (z1 - z2).abs() < 0.01;
 
-  bool _edgeInsetContainsInfinite(EdgeInsets? e) {
-    if (e == null) return false;
-    return e.left.isInfinite || e.right.isInfinite || e.top.isInfinite || e.bottom.isInfinite;
-  }
-
   // Auto-adjust boundaries when content is smaller than the view, centering
   // the content and ensuring InteractiveViewer's scrollPhysics works when specified
   void _adjustBoundaryMargins(Size viewSize, double zoom) {
     final boundaryMargin = widget.params.boundaryMargin ?? EdgeInsets.zero;
 
-    if (_edgeInsetContainsInfinite(boundaryMargin)) {
+    if (boundaryMargin.containsInfinite) {
       _adjustedBoundaryMargins = boundaryMargin;
       return;
     }
@@ -1572,7 +1569,7 @@ class _PdfViewerState extends State<PdfViewer>
     final pageRect = _layout!.pageLayouts[pageNumber - 1].inflate(widget.params.margin);
 
     // If boundaryMargin is infinite, don't inflate the rect
-    final targetRect = (_edgeInsetContainsInfinite(boundaryMargin)) ? pageRect : boundaryMargin.inflateRect(pageRect);
+    final targetRect = boundaryMargin.inflateRectIfFinite(pageRect);
 
     return _calcMatrixForArea(rect: targetRect, anchor: anchor, zoomMax: _currentZoom);
   }
@@ -3279,7 +3276,7 @@ class PdfTextSelectionAnchor {
   }
 
   @override
-  operator ==(Object other) {
+  bool operator ==(Object other) {
     if (identical(this, other)) return true;
     if (other is! PdfTextSelectionAnchor) return false;
     return rect == other.rect &&
