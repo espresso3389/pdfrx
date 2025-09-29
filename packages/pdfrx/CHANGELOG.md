@@ -1,3 +1,7 @@
+# 2.1.21
+
+- FIXED: Web compatibility issue where `dart:io` was imported in public-facing code
+
 # 2.1.20
 
 - Added [PdfViewerParams.scrollPhysics](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/scrollPhysics.html) and [PdfViewerParams.scrollPhysicsScale](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/scrollPhysicsScale.html) so you can plug in custom [ScrollPhysics](https://api.flutter.dev/flutter/widgets/ScrollPhysics-class.html) for both panning and pinch-zoom interactions

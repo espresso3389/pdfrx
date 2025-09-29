@@ -101,6 +101,7 @@ Both packages may need to be released when changes are made:
 7. Ensure the example app builds correctly
    - Run `flutter build web --wasm` in `packages/pdfrx/example/viewer` to test the example app
 8. Run `pana` in `packages/pdfrx` (and any other packages being released) to validate code integrity
+   - Warn me if `pana` warns about WASM incompatibility issues
 9. Commit changes with message "Release pdfrx vX.Y.Z" or "Release pdfrx_engine vX.Y.Z"
 10. Tag the commit with `git tag pdfrx-vX.Y.Z` or `git tag pdfrx_engine-vX.Y.Z`
 11. Push changes and tags to remote
