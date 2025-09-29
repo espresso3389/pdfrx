@@ -23,6 +23,13 @@
       "type": "dart",
       "program": "packages/pdfrx/example/viewer/lib/main.dart",
       "args": ["-d", "web-server", "--wasm", "--web-port", "8080", "--web-hostname", "127.0.0.1"]
+    },
+    {
+      "name": "pdfrx:remove_wasm_modules",
+      "request": "launch",
+      "type": "dart",
+      "program": "packages/pdfrx/bin/remove_wasm_modules.dart",
+      "args": []
     }
   ]
 }
