@@ -1,3 +1,9 @@
+# 2.1.20
+
+- Added [PdfViewerParams.scrollPhysics](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/scrollPhysics.html) and [PdfViewerParams.scrollPhysicsScale](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/scrollPhysicsScale.html) so you can plug in custom [ScrollPhysics](https://api.flutter.dev/flutter/widgets/ScrollPhysics-class.html) for both panning and pinch-zoom interactions
+  - PR [#481](https://github.com/espresso3389/pdfrx/issues/481), [#482](https://github.com/espresso3389/pdfrx/issues/482), [#484](https://github.com/espresso3389/pdfrx/issues/484), [#485](https://github.com/espresso3389/pdfrx/issues/485) by [enhancient](https://github.com/enhancient)
+- FIXED: regression where `dart run pdfrx:remove_wasm_modules` failed with dart_pubspec_licenses 3.0.12 ([#443](https://github.com/espresso3389/pdfrx/issues/443)).
+
 # 2.1.19
 
 - Maintenance release: applied `dart format` to keep code integrity with Dart 3.9/Flutter 3.29 tooling.
@@ -13,8 +19,8 @@
 
 # 2.1.16
 
-- [#474](https://github.com/espresso3389/pdfrx/issues/474) Add PdfrxEntryFunctions.initPdfium to explicitly call FPDF_InitLibraryWithConfig and pdfrxInitialize/pdfrxFlutterInitialize internally call it
-- [#474](https://github.com/espresso3389/pdfrx/issues/474) Add PdfrxEntryFunctions.suspendPdfiumWorkerDuringAction
+- [#474](https://github.com/espresso3389/pdfrx/issues/474) Add [PdfrxEntryFunctions.initPdfium](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/initPdfium.html) to explicitly call FPDF_InitLibraryWithConfig and [pdfrxInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html)/[pdfrxFlutterInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) internally call it
+- [#474](https://github.com/espresso3389/pdfrx/issues/474) Add [PdfrxEntryFunctions.suspendPdfiumWorkerDuringAction](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/suspendPdfiumWorkerDuringAction.html)
 - Documentation improvements for low-level PDFium bindings access/PDFium interoperability and initialization
 - Updated to pdfrx_engine 0.1.17
 

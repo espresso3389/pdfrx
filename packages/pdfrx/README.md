@@ -60,7 +60,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.1.19
+  pdfrx: ^2.1.20
 ```
 
 **Note:** You only need to add `pdfrx` to your dependencies. The `pdfrx_engine` package is automatically included as a dependency of `pdfrx`.
@@ -130,6 +130,18 @@ For opening PDF files from various sources, there are several constructors avail
 
 You can customize the behaviors and the viewer look and feel by configuring [PdfViewerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams-class.html).
 
+```dart
+PdfViewer.asset(
+  'assets/test.pdf',
+  params: const PdfViewerParams(
+    scrollPhysics: FixedOverscrollPhysics(maxOverscroll: 120),
+    scrollPhysicsScale: BouncingScrollPhysics(),
+  ),
+);
+```
+
+The `scrollPhysics` and `scrollPhysicsScale` hooks let you plug in your own [ScrollPhysics](https://api.flutter.dev/flutter/widgets/ScrollPhysics-class.html) (or the bundled [FixedOverscrollPhysics](https://pub.dev/documentation/pdfrx/latest/pdfrx/FixedOverscrollPhysics-class.html)) to tune drag and zoom behavior per platform.
+
 ## Deal with Password Protected PDF Files
 
 ```dart
@@ -183,6 +195,7 @@ For more text selection customization, see [Text Selection](https://github.com/e
 - [Dark/Night Mode Support](https://github.com/espresso3389/pdfrx/blob/master/doc/Dark-Night-Mode-Support.md)
 - [Document Loading Indicator](https://github.com/espresso3389/pdfrx/blob/master/doc/Document-Loading-Indicator.md)
 - [Viewer Customization using Widget Overlay](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html)
+- [Custom Scroll Physics for Drag/Zoom](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/scrollPhysics.html)
 
 ### Additional Customizations
 
