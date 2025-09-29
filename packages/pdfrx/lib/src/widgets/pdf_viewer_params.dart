@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -6,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../pdfrx.dart';
+import '../utils/platform.dart';
 
 /// Viewer customization parameters.
 ///
@@ -543,12 +543,11 @@ class PdfViewerParams {
   ///
   /// If null, default InteractiveViewer physics is used on all platforms. This physics clamps to boundaries,
   /// does not allow zooming beyond the min/max scale, and flings on panning come to rest quickly relative to
-  /// Scrollables in Flutter (such as SingleChildScrollView).
+  /// Scrollables in Flutter (such as [SingleChildScrollView]).
   ///
   /// A convenience function [getScrollPhysics] is provided to get platform-specific default scroll physics.
   /// If you want no overscroll, but still want the physics for panning to be similar to other Scrollables,
-  /// you can use
-  /// `ClampingScrollPhysics()`.
+  /// you can use [ClampingScrollPhysics].
   ///
   /// If the value is set non-null, it disables [normalizeMatrix].
   ///
@@ -563,13 +562,7 @@ class PdfViewerParams {
   ///
   /// On iOS/MacOS this is [BouncingScrollPhysics], and on Android this is [FixedOverscrollPhysics], a
   /// custom [ScrollPhysics] that allows fixed overscroll on pan/zoom and snapback.
-  static ScrollPhysics getScrollPhysics(BuildContext context) {
-    if (Platform.isAndroid) {
-      return const FixedOverscrollPhysics();
-    } else {
-      return ScrollConfiguration.of(context).getScrollPhysics(context);
-    }
-  }
+  static ScrollPhysics getScrollPhysics(BuildContext context) => getScrollPhysicsOfPlatform(context);
 
   /// Determine whether the viewer needs to be reloaded or not.
   ///

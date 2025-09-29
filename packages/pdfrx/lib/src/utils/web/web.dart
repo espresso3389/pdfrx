@@ -1,6 +1,6 @@
 import 'dart:js_interop';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:web/web.dart' as web;
 
@@ -21,6 +21,17 @@ void setClipboardData(String text) {
   web.window.navigator.clipboard.writeText(text);
 }
 
+/// A convenience function to get platform-specific default scroll physics.
+///
+/// On iOS/MacOS this is [BouncingScrollPhysics], and on Android this is [FixedOverscrollPhysics], a
+/// custom [ScrollPhysics] that allows fixed overscroll on pan/zoom and snapback.
+ScrollPhysics getScrollPhysicsOfPlatform(BuildContext context) {
+  return ScrollConfiguration.of(context).getScrollPhysics(context);
+}
+
+/// Gets the cache directory path for the current platform.
+///
+/// For web, this function throws an [UnimplementedError] since there is no temporary directory available.
 Future<String> getCacheDirectory() async => throw UnimplementedError('No temporary directory available for web.');
 
 /// Override for the [PdfrxEntryFunctions] for web platforms to use WASM implementation.
