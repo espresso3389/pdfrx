@@ -562,7 +562,13 @@ class PdfViewerParams {
   ///
   /// On iOS/MacOS this is [BouncingScrollPhysics], and on Android this is [FixedOverscrollPhysics], a
   /// custom [ScrollPhysics] that allows fixed overscroll on pan/zoom and snapback.
-  static ScrollPhysics getScrollPhysics(BuildContext context) => getScrollPhysicsOfPlatform(context);
+  static ScrollPhysics getScrollPhysics(BuildContext context) {
+    if (isAndroid) {
+      return FixedOverscrollPhysics();
+    } else {
+      return ScrollConfiguration.of(context).getScrollPhysics(context);
+    }
+  }
 
   /// Determine whether the viewer needs to be reloaded or not.
   ///

@@ -8,6 +8,7 @@ import '../../../pdfrx.dart';
 import '../../wasm/pdfrx_wasm.dart';
 
 final isApple = false;
+final isAndroid = false;
 final isWindows = false;
 
 /// Whether the current platform is mobile (Android, iOS, or Fuchsia).
@@ -19,14 +20,6 @@ bool get isCommandKeyPressed => HardwareKeyboard.instance.isMetaPressed || Hardw
 /// Sets the clipboard data with the provided text.
 void setClipboardData(String text) {
   web.window.navigator.clipboard.writeText(text);
-}
-
-/// A convenience function to get platform-specific default scroll physics.
-///
-/// On iOS/MacOS this is [BouncingScrollPhysics], and on Android this is [FixedOverscrollPhysics], a
-/// custom [ScrollPhysics] that allows fixed overscroll on pan/zoom and snapback.
-ScrollPhysics getScrollPhysicsOfPlatform(BuildContext context) {
-  return ScrollConfiguration.of(context).getScrollPhysics(context);
 }
 
 /// Gets the cache directory path for the current platform.

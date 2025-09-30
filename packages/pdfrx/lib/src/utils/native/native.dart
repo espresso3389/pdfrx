@@ -1,12 +1,12 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../../pdfrx.dart';
 
 final isApple = Platform.isMacOS || Platform.isIOS;
+final isAndroid = Platform.isAndroid;
 final isWindows = Platform.isWindows;
 
 /// Whether the current platform is mobile (Android, iOS, or Fuchsia).
@@ -19,18 +19,6 @@ bool get isCommandKeyPressed =>
 /// Sets the clipboard data with the provided text.
 void setClipboardData(String text) {
   Clipboard.setData(ClipboardData(text: text));
-}
-
-/// A convenience function to get platform-specific default scroll physics.
-///
-/// On iOS/MacOS this is [BouncingScrollPhysics], and on Android this is [FixedOverscrollPhysics], a
-/// custom [ScrollPhysics] that allows fixed overscroll on pan/zoom and snapback.
-ScrollPhysics getScrollPhysicsOfPlatform(BuildContext context) {
-  if (Platform.isAndroid) {
-    return const FixedOverscrollPhysics();
-  } else {
-    return ScrollConfiguration.of(context).getScrollPhysics(context);
-  }
 }
 
 /// Gets the cache directory path for the current platform.
