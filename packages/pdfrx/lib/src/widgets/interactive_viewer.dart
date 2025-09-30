@@ -698,7 +698,7 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
     }
     assert(scale != 0.0);
 
-    // fallback to widget.scrollPhysics if widgry.scrollPhysicsScale not specified
+    // fallback to widget.scrollPhysics if widget.scrollPhysicsScale not specified
     final scrollPhysics = widget.scrollPhysicsScale ?? widget.scrollPhysics;
 
     if (scrollPhysics != null) {
