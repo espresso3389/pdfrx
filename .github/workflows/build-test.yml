@@ -3,8 +3,15 @@ name: Build Test
 on:
   push:
     branches: [ master, main ]
+    paths-ignore:
+      - '**.md'
+      - 'doc/**'
+
   pull_request:
     branches: [ master, main ]
+    paths-ignore:
+      - '**.md'
+      - 'doc/**'
   workflow_dispatch:
     inputs:
       build_android:

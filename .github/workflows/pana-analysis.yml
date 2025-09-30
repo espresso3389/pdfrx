@@ -3,8 +3,14 @@ name: Pana Analysis
 on:
   push:
     branches: [ master, main ]
+    paths-ignore:
+      - '**.md'
+      - 'doc/**'
   pull_request:
     branches: [ master, main ]
+    paths-ignore:
+      - '**.md'
+      - 'doc/**'
   workflow_dispatch:
 
 jobs:
