@@ -1472,16 +1472,29 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onWheelDelta(PointerScrollEvent event) {
     _startInteraction();
-    final dx = -event.scrollDelta.dx * widget.params.scrollByMouseWheel! / _currentZoom;
-    final dy = -event.scrollDelta.dy * widget.params.scrollByMouseWheel! / _currentZoom;
-    final m = _txController.value.clone();
-    if (widget.params.scrollHorizontallyByMouseWheel) {
-      m.translateByDouble(dy, dx, 0, 1);
-    } else {
-      m.translateByDouble(dx, dy, 0, 1);
+    try {
+      if (isApple && event.original is PointerScrollEvent) {
+        // macOS: treat horizontal wheel scroll as zoom (it's initiated by Option+Wheel)
+        final scrollEvent = event.original as PointerScrollEvent;
+        final newZoom = (_currentZoom * (pow(2, scrollEvent.scrollDelta.dx / 120))).clamp(
+          widget.params.minScale,
+          widget.params.maxScale,
+        );
+        if (_areZoomsAlmostIdentical(newZoom, _currentZoom)) return;
+        _setZoom(event.localPosition, newZoom);
+      }
+      final dx = -event.scrollDelta.dx * widget.params.scrollByMouseWheel! / _currentZoom;
+      final dy = -event.scrollDelta.dy * widget.params.scrollByMouseWheel! / _currentZoom;
+      final m = _txController.value.clone();
+      if (widget.params.scrollHorizontallyByMouseWheel) {
+        m.translateByDouble(dy, dx, 0, 1);
+      } else {
+        m.translateByDouble(dx, dy, 0, 1);
+      }
+      _txController.value = _makeMatrixInSafeRange(m, forceClamp: true);
+    } finally {
+      _stopInteraction();
     }
-    _txController.value = _makeMatrixInSafeRange(m, forceClamp: true);
-    _stopInteraction();
   }
 
   /// Restrict matrix to the safe range.
