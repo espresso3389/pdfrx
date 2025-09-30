@@ -36,28 +36,30 @@ This import provides:
 
 PDFium must be initialized before use. The high-level API handles this automatically, but when using raw bindings directly, you may need to ensure initialization.
 
+There are basically three ways to initialize PDFium:
+
+#### Manual Initialization
+
 ```dart
-//
-// Manual initialization
-//
 import 'package:pdfrx_engine/pdfrx_engine.dart'; // or import 'package:pdfrx/pdfrx.dart';
 import 'package:pdfrx_engine/src/native/pdfium.dart';
 import 'package:pdfrx_engine/src/native/pdfium_bindings.dart';
 
-// Low level initialization with PDFium's FPDF_InitLibrary
 Pdfrx.pdfiumModulePath = 'somewhere/in/your/filesystem/libpdfium.so';
 pdfium.FPDF_InitLibrary(); // or pdfium.FPDF_InitLibraryWithConfig(...)
+```
 
-//
-// Flutter app
-//
+#### Initialization for Flutter App
+
+```dart
 import 'package:pdfrx/pdfrx.dart';
 
 pdfrxFlutterInitialize();
+```
 
-//
-// Pure Dart
-//
+#### Initialization for pure Dart
+
+```dart
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 
 await pdfrxInitialize();
