@@ -1473,15 +1473,19 @@ class _PdfViewerState extends State<PdfViewer>
   void _onWheelDelta(PointerScrollEvent event) {
     _startInteraction();
     try {
-      if (isApple && event.original is PointerScrollEvent) {
-        // macOS: treat horizontal wheel scroll as zoom (it's initiated by Option+Wheel)
-        final scrollEvent = event.original as PointerScrollEvent;
-        final newZoom = (_currentZoom * (pow(2, scrollEvent.scrollDelta.dx / 120))).clamp(
-          widget.params.minScale,
-          widget.params.maxScale,
-        );
-        if (_areZoomsAlmostIdentical(newZoom, _currentZoom)) return;
-        _setZoom(event.localPosition, newZoom);
+      if (!kIsWeb) {
+        // for Web, Ctrl+wheel is already supported on the framework side and should not be handled here.
+        // on Apple platforms, Option+wheel is used instead of Ctrl+wheel.
+        if ((isApple && HardwareKeyboard.instance.isAltPressed) ||
+            (!isApple && HardwareKeyboard.instance.isControlPressed)) {
+          // NOTE: I believe that either only dx or dy is set, but I don't know which one is guaranteed to be set.
+          // So, I just add both values.
+          final zoomFactor = (event.scrollDelta.dx + event.scrollDelta.dy) / 120.0;
+          final newZoom = (_currentZoom * (pow(1.2, zoomFactor))).clamp(widget.params.minScale, widget.params.maxScale);
+          if (_areZoomsAlmostIdentical(newZoom, _currentZoom)) return;
+          _setZoom(_controller!.globalToDocument(event.position)!, newZoom, duration: Duration.zero);
+          return;
+        }
       }
       final dx = -event.scrollDelta.dx * widget.params.scrollByMouseWheel! / _currentZoom;
       final dy = -event.scrollDelta.dy * widget.params.scrollByMouseWheel! / _currentZoom;
