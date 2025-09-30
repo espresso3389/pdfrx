@@ -1474,13 +1474,11 @@ class _PdfViewerState extends State<PdfViewer>
     _startInteraction();
     try {
       if (!kIsWeb) {
-        // for Web, Ctrl+wheel is already supported on the framework side and should not be handled here.
-        // on Apple platforms, Option+wheel is used instead of Ctrl+wheel.
-        if ((isApple && HardwareKeyboard.instance.isAltPressed) ||
-            (!isApple && HardwareKeyboard.instance.isControlPressed)) {
+        // To make the behavior consistent across platforms, we only handle zooming on web via Ctrl+wheel.
+        if (HardwareKeyboard.instance.isControlPressed) {
           // NOTE: I believe that either only dx or dy is set, but I don't know which one is guaranteed to be set.
           // So, I just add both values.
-          final zoomFactor = (event.scrollDelta.dx + event.scrollDelta.dy) / 120.0;
+          var zoomFactor = -(event.scrollDelta.dx + event.scrollDelta.dy) / 120.0;
           final newZoom = (_currentZoom * (pow(1.2, zoomFactor))).clamp(widget.params.minScale, widget.params.maxScale);
           if (_areZoomsAlmostIdentical(newZoom, _currentZoom)) return;
           _setZoom(_controller!.globalToDocument(event.position)!, newZoom, duration: Duration.zero);
