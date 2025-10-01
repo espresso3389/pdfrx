@@ -1,3 +1,8 @@
+# 2.1.22
+
+- NEW: Introducing [PdfViewerController.zoomOnLocalPosition](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/zoomOnLocalPosition.html) and its variants for consistent zooming on cursor/finger position ([#486](https://github.com/espresso3389/pdfrx/issues/486), [#462](https://github.com/espresso3389/pdfrx/issues/462))
+- PdfViewer now handles Ctrl+wheel to zoom up/down ([#486](https://github.com/espresso3389/pdfrx/issues/486))
+
 # 2.1.21
 
 - FIXED: Web compatibility issue where `dart:io` was imported in public-facing code
