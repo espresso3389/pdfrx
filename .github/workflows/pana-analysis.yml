@@ -51,4 +51,4 @@ jobs:
 
       - name: Run pana (${{ matrix.package_name }})
         working-directory: ${{ matrix.package_path }}
-        run: ~/.pub-cache/bin/pana --no-warning --exit-code-threshold 0
+        run: ~/.pub-cache/bin/pana --json --no-warning --exit-code-threshold 0 | jq -e '.tags | any(. == "is:wasm-ready")'
