@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:synchronized/extension.dart';
 
@@ -11,7 +12,36 @@ import '../pdfrx.dart';
 /// [totalBytes] is the total number of bytes to download. It may be null if the total size is unknown.
 typedef PdfDocumentLoaderProgressCallback = void Function(int downloadedBytes, [int? totalBytes]);
 
-/// PdfDocumentRef controls loading of a [PdfDocument] and it also provide you with a way to use [PdfDocument]
+/// A key that identifies the source of a [PdfDocumentRef].
+///
+/// It is used to cache and share [PdfDocumentListenable] instances for [PdfDocumentRef]s that refer to the same document.
+///
+/// This class supercedes the previous [sourceName] property of [PdfDocumentRef] to provide a more flexible way to
+/// identify the source.
+class PdfDocumentRefKey {
+  PdfDocumentRefKey(this.sourceName, [Iterable<Object?> parts = const []]) : parts = List<Object?>.unmodifiable(parts);
+
+  /// A name that identifies the source of the document.
+  final String sourceName;
+
+  /// Additional parts to identify the source uniquely.
+  ///
+  /// For example, if the document is identified not only by the URI but also by some HTTP headers
+  /// (for example, authentication/authorization headers), you can include the headers in the parts.
+  final List<Object?> parts;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PdfDocumentRefKey && sourceName == other.sourceName && listEquals(parts, other.parts);
+
+  @override
+  int get hashCode => Object.hash(sourceName, const ListEquality().hash(parts));
+
+  @override
+  String toString() => 'PdfDocumentRefKey($sourceName)';
+}
+
+/// PdfDocumentRef controls loading/caching of a [PdfDocument] and it also provide you with a way to use [PdfDocument]
 /// safely in your long running async operations.
 ///
 /// There are several types of [PdfDocumentRef]s predefined:
@@ -35,15 +65,32 @@ typedef PdfDocumentLoaderProgressCallback = void Function(int downloadedBytes, [
 /// ```
 ///
 abstract class PdfDocumentRef {
-  const PdfDocumentRef({this.autoDispose = true});
+  /// Creates a new instance of [PdfDocumentRef].
+  const PdfDocumentRef({required this.key, this.autoDispose = true});
 
   /// Whether to dispose the document on reference dispose or not.
   final bool autoDispose;
 
-  /// Source name to identify the reference.
-  String get sourceName;
+  /// A name that identifies the source of the document.
+  ///
+  /// [PdfDocument] is cached based on the [PdfDocumentRefKey]. If you create multiple [PdfDocumentRef]s with the same
+  /// key, they share the same [PdfDocumentListenable] and thus the same [PdfDocument] instance.
+  ///
+  /// By default, the key is created from the source name (for example, file path or URI) of the document. But it may
+  /// be insufficient to identify the document uniquely in some cases. For example, if the document is not only
+  /// identified by the URI but also by some HTTP headers (for example, authentication/authorization headers),
+  /// you should create a custom key that includes the headers as well.
+  final PdfDocumentRefKey key;
 
-  static final _listenables = <PdfDocumentRef, PdfDocumentListenable>{};
+  /// The name that identifies the source of the document.
+  ///
+  /// This is for compatibility. Use [key] instead. See [PdfDocumentRefKey] for more info.
+  @Deprecated('For compatibility. Use key for source identification')
+  String get sourceName => key.sourceName;
+
+  static final _listenables = CanonicalizedMap<PdfDocumentRefKey, PdfDocumentRef, PdfDocumentListenable>(
+    (ref) => ref.key,
+  );
 
   /// Resolve the [PdfDocumentListenable] for this reference.
   PdfDocumentListenable resolveListenable() => _listenables.putIfAbsent(this, () => PdfDocumentListenable._(this));
@@ -63,34 +110,24 @@ abstract class PdfDocumentRef {
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
   bool get firstAttemptByEmptyPassword;
-
-  /// Classes that extends [PdfDocumentRef] should override this function to compare the equality by [sourceName]
-  /// or such.
-  @override
-  bool operator ==(Object other) => throw UnimplementedError();
-
-  /// Classes that extends [PdfDocumentRef] should override this function.
-  @override
-  int get hashCode => throw UnimplementedError();
 }
 
 /// A [PdfDocumentRef] that loads the document from asset.
 class PdfDocumentRefAsset extends PdfDocumentRef {
-  const PdfDocumentRefAsset(
+  PdfDocumentRefAsset(
     this.name, {
     this.passwordProvider,
     this.firstAttemptByEmptyPassword = true,
     super.autoDispose = true,
     this.useProgressiveLoading = true,
-  });
+    PdfDocumentRefKey? key,
+  }) : super(key: key ?? PdfDocumentRefKey(name));
 
   final String name;
   @override
   final PdfPasswordProvider? passwordProvider;
   @override
   final bool firstAttemptByEmptyPassword;
-  @override
-  String get sourceName => name;
 
   /// Whether to use progressive loading or not.
   final bool useProgressiveLoading;
@@ -102,17 +139,11 @@ class PdfDocumentRefAsset extends PdfDocumentRef {
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     useProgressiveLoading: useProgressiveLoading,
   );
-
-  @override
-  bool operator ==(Object other) => other is PdfDocumentRefAsset && name == other.name;
-
-  @override
-  int get hashCode => name.hashCode;
 }
 
 /// A [PdfDocumentRef] that loads the document from network.
 class PdfDocumentRefUri extends PdfDocumentRef {
-  const PdfDocumentRefUri(
+  PdfDocumentRefUri(
     this.uri, {
     this.passwordProvider,
     this.firstAttemptByEmptyPassword = true,
@@ -121,7 +152,8 @@ class PdfDocumentRefUri extends PdfDocumentRef {
     this.headers,
     this.withCredentials = false,
     this.useProgressiveLoading = true,
-  });
+    PdfDocumentRefKey? key,
+  }) : super(key: key ?? PdfDocumentRefKey(uri.toString()));
 
   /// The URI to load the document.
   final Uri uri;
@@ -143,9 +175,6 @@ class PdfDocumentRefUri extends PdfDocumentRef {
   final bool useProgressiveLoading;
 
   @override
-  String get sourceName => uri.toString();
-
-  @override
   Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) => PdfDocument.openUri(
     uri,
     passwordProvider: passwordProvider,
@@ -156,31 +185,24 @@ class PdfDocumentRefUri extends PdfDocumentRef {
     headers: headers,
     withCredentials: withCredentials,
   );
-
-  @override
-  bool operator ==(Object other) => other is PdfDocumentRefUri && uri == other.uri;
-
-  @override
-  int get hashCode => uri.hashCode;
 }
 
 /// A [PdfDocumentRef] that loads the document from file.
 class PdfDocumentRefFile extends PdfDocumentRef {
-  const PdfDocumentRefFile(
+  PdfDocumentRefFile(
     this.file, {
     this.passwordProvider,
     this.firstAttemptByEmptyPassword = true,
     super.autoDispose = true,
     this.useProgressiveLoading = true,
-  });
+    PdfDocumentRefKey? key,
+  }) : super(key: key ?? PdfDocumentRefKey(file));
 
   final String file;
   @override
   final PdfPasswordProvider? passwordProvider;
   @override
   final bool firstAttemptByEmptyPassword;
-  @override
-  String get sourceName => file;
 
   /// Whether to use progressive loading or not.
   final bool useProgressiveLoading;
@@ -192,28 +214,23 @@ class PdfDocumentRefFile extends PdfDocumentRef {
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     useProgressiveLoading: useProgressiveLoading,
   );
-
-  @override
-  bool operator ==(Object other) => other is PdfDocumentRefFile && file == other.file;
-
-  @override
-  int get hashCode => file.hashCode;
 }
 
 /// A [PdfDocumentRef] that loads the document from data.
 ///
 /// For [allowDataOwnershipTransfer], see [PdfDocument.openData].
 class PdfDocumentRefData extends PdfDocumentRef {
-  const PdfDocumentRefData(
+  PdfDocumentRefData(
     this.data, {
-    required this.sourceName,
+    required String sourceName,
     this.passwordProvider,
     this.firstAttemptByEmptyPassword = true,
     super.autoDispose = true,
     this.allowDataOwnershipTransfer = false,
     this.onDispose,
     this.useProgressiveLoading = true,
-  });
+    PdfDocumentRefKey? key,
+  }) : super(key: key ?? PdfDocumentRefKey(sourceName));
 
   final Uint8List data;
   @override
@@ -222,9 +239,6 @@ class PdfDocumentRefData extends PdfDocumentRef {
   final bool firstAttemptByEmptyPassword;
   final bool allowDataOwnershipTransfer;
   final void Function()? onDispose;
-
-  @override
-  final String sourceName;
 
   /// Whether to use progressive loading or not.
   final bool useProgressiveLoading;
@@ -235,31 +249,26 @@ class PdfDocumentRefData extends PdfDocumentRef {
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     useProgressiveLoading: useProgressiveLoading,
-    sourceName: sourceName,
+    sourceName: key.sourceName,
     allowDataOwnershipTransfer: allowDataOwnershipTransfer,
     onDispose: onDispose,
   );
-
-  @override
-  bool operator ==(Object other) => other is PdfDocumentRefData && sourceName == other.sourceName;
-
-  @override
-  int get hashCode => sourceName.hashCode;
 }
 
 /// A [PdfDocumentRef] that loads the document from custom source.
 class PdfDocumentRefCustom extends PdfDocumentRef {
-  const PdfDocumentRefCustom({
+  PdfDocumentRefCustom({
     required this.fileSize,
     required this.read,
-    required this.sourceName,
+    required String sourceName,
     this.passwordProvider,
     this.firstAttemptByEmptyPassword = true,
     super.autoDispose = true,
     this.maxSizeToCacheOnMemory,
     this.onDispose,
     this.useProgressiveLoading = true,
-  });
+    PdfDocumentRefKey? key,
+  }) : super(key: key ?? PdfDocumentRefKey(sourceName));
 
   final int fileSize;
   final FutureOr<int> Function(Uint8List buffer, int position, int size) read;
@@ -270,9 +279,6 @@ class PdfDocumentRefCustom extends PdfDocumentRef {
   final int? maxSizeToCacheOnMemory;
   final void Function()? onDispose;
 
-  @override
-  final String sourceName;
-
   /// Whether to use progressive loading or not.
   final bool useProgressiveLoading;
 
@@ -280,38 +286,24 @@ class PdfDocumentRefCustom extends PdfDocumentRef {
   Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) => PdfDocument.openCustom(
     read: read,
     fileSize: fileSize,
-    sourceName: sourceName,
+    sourceName: key.sourceName,
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     useProgressiveLoading: useProgressiveLoading,
     maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
     onDispose: onDispose,
   );
-
-  @override
-  bool operator ==(Object other) => other is PdfDocumentRefCustom && sourceName == other.sourceName;
-
-  @override
-  int get hashCode => sourceName.hashCode;
 }
 
 /// A [PdfDocumentRef] that directly contains [PdfDocument].
 class PdfDocumentRefDirect extends PdfDocumentRef {
-  const PdfDocumentRefDirect(this.document, {super.autoDispose = true});
+  PdfDocumentRefDirect(this.document, {super.autoDispose = true, PdfDocumentRefKey? key})
+    : super(key: key ?? PdfDocumentRefKey(document.sourceName));
 
   final PdfDocument document;
 
   @override
-  String get sourceName => document.sourceName;
-
-  @override
   Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) => Future.value(document);
-
-  @override
-  bool operator ==(Object other) => other is PdfDocumentRefDirect && sourceName == other.sourceName;
-
-  @override
-  int get hashCode => sourceName.hashCode;
 
   @override
   bool get firstAttemptByEmptyPassword => throw UnimplementedError('Not applicable for PdfDocumentRefDirect');
@@ -379,20 +371,25 @@ class PdfDocumentListenable extends Listenable {
     if (!forceReload && loadAttempted) {
       return null;
     }
+    final stopwatch = Stopwatch()..start();
     return await synchronized(() async {
       if (!forceReload && loadAttempted) return null;
       final PdfDocument document;
       PdfDownloadReport? report;
       try {
-        final stopwatch = Stopwatch()..start();
-        document = await ref.loadDocument(_progress);
-        debugPrint('PdfDocument initial load: ${ref.sourceName} (${stopwatch.elapsedMilliseconds} ms)');
+        document = await ref.loadDocument((cur, [total]) {
+          _progress(cur, total);
+          if (total != null) {
+            report = PdfDownloadReport(downloaded: cur, total: total, elapsedTime: stopwatch.elapsed);
+          }
+        });
+        debugPrint('PdfDocument initial load: ${ref.key} (${stopwatch.elapsedMilliseconds} ms)');
       } catch (err, stackTrace) {
         setError(err, stackTrace);
-        return report;
+        return report?.copyWith(elapsedTime: stopwatch.elapsed);
       }
       setDocument(document);
-      return report;
+      return report?.copyWith(elapsedTime: stopwatch.elapsed);
     });
   }
 
@@ -523,6 +520,14 @@ class PdfDownloadReport {
         other.downloaded == downloaded &&
         other.total == total &&
         other.elapsedTime == elapsedTime;
+  }
+
+  PdfDownloadReport copyWith({int? downloaded, int? total, Duration? elapsedTime}) {
+    return PdfDownloadReport(
+      downloaded: downloaded ?? this.downloaded,
+      total: total ?? this.total,
+      elapsedTime: elapsedTime ?? this.elapsedTime,
+    );
   }
 
   @override

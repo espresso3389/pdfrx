@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:ffi/ffi.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
@@ -213,13 +214,20 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     void Function()? onDispose,
   }) => _openData(
     data,
-    sourceName ?? 'memory-${data.hashCode}',
+    sourceName ?? _sourceNameFromData(data),
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     useProgressiveLoading: useProgressiveLoading,
     maxSizeToCacheOnMemory: null,
     onDispose: onDispose,
   );
+
+  /// Generates a pseudo-unique source name for the given data using its SHA-256 hash.
+  ///
+  /// This may be sometimes slow for large data, so it's better to provide a meaningful source name when possible.
+  static String _sourceNameFromData(Uint8List data) {
+    return 'data%${sha256.convert(data)}';
+  }
 
   @override
   Future<PdfDocument> openFile(
@@ -234,7 +242,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
         final doc = pdfium.FPDF_LoadDocument(params.filePath.toUtf8(arena), params.password?.toUtf8(arena) ?? nullptr);
         return doc.address;
       }, (filePath: filePath, password: password)),
-      sourceName: filePath,
+      sourceName: 'file%$filePath',
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       useProgressiveLoading: useProgressiveLoading,

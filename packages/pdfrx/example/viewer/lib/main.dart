@@ -103,7 +103,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
             return Row(
               children: [
                 if (!isMobileDevice) ...[
-                  Expanded(child: Text(_fileName(documentRef?.sourceName) ?? 'No document loaded')),
+                  Expanded(child: Text(_fileName(documentRef?.key.sourceName) ?? 'No document loaded')),
                   SizedBox(width: 10),
                   FilledButton(onPressed: () => openFile(), child: Text('Open File')),
                   SizedBox(width: 20),
@@ -198,7 +198,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                                     valueListenable: documentRef,
                                     builder: (context, documentRef, child) => Expanded(
                                       child: Text(
-                                        _fileName(documentRef?.sourceName) ?? 'No document loaded',
+                                        _fileName(documentRef?.key.sourceName) ?? 'No document loaded',
                                         softWrap: false,
                                       ),
                                     ),
@@ -606,7 +606,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       final bytes = await file.readAsBytes();
       documentRef.value = PdfDocumentRefData(
         bytes,
-        sourceName: file.name,
+        sourceName: 'web-open-file%${file.name}',
         passwordProvider: () => passwordDialog(context),
         useProgressiveLoading: useProgressiveLoading,
       );
