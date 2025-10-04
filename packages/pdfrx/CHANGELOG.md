@@ -1,3 +1,9 @@
+# 2.1.23
+
+- FIXED: WASM+Safari StringBuffer issue with workaround ([#483](https://github.com/espresso3389/pdfrx/issues/483))
+- Introduces `PdfDocumentRefKey` for more flexible `PdfDocumentRef` identification
+- Updated to pdfrx_engine 0.1.21
+
 # 2.1.22
 
 - NEW: Introducing [PdfViewerController.zoomOnLocalPosition](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/zoomOnLocalPosition.html) and its variants for consistent zooming on cursor/finger position ([#486](https://github.com/espresso3389/pdfrx/issues/486), [#462](https://github.com/espresso3389/pdfrx/issues/462))

@@ -1,3 +1,8 @@
+## 0.1.21
+
+- FIXED: WASM+Safari StringBuffer issue with workaround ([#483](https://github.com/espresso3389/pdfrx/issues/483))
+- Introduces `PdfDocumentRefKey` for more flexible `PdfDocumentRef` identification
+
 ## 0.1.20
 
 - Maintenance release to keep version alignment and ensure code integrity alongside pdfrx 2.1.19.
