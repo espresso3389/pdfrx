@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import 'package:vector_math/vector_math_64.dart' hide Colors;
 
 import './mock/pdfrx_mock.dart' if (dart.library.io) './native/pdfrx_pdfium.dart';
+import './mock/string_buffer_wrapper.dart' if (dart.library.io) './native/string_buffer_wrapper.dart';
 import 'utils/unmodifiable_list.dart';
 
 /// Class to provide Pdfrx's configuration.
@@ -506,7 +507,9 @@ abstract class PdfPage {
     final inputFullText = raw.fullText;
 
     final fragmentsTmp = <({int length, PdfTextDirection direction})>[];
-    final outputText = StringBuffer();
+
+    /// Ugly workaround for WASM+Safari StringBuffer issue (#483).
+    final outputText = createStringBufferForWorkaroundSafariWasm();
     final outputCharRects = <PdfRect>[];
 
     PdfTextDirection vector2direction(Vector2 v) {
