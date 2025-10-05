@@ -164,7 +164,7 @@ class PdfViewerParams {
 
   /// See [InteractiveViewer.boundaryMargin] for details.
   ///
-  /// The default is `EdgeInsets.all(double.infinity)`.
+  /// The default is `EdgeInsets.zero`.
   final EdgeInsets? boundaryMargin;
 
   /// Annotation rendering mode.

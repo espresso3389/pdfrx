@@ -454,9 +454,9 @@ class _PdfViewerState extends State<PdfViewer>
                         key: _interactiveViewerKey,
                         transformationController: _txController,
                         constrained: false,
-                        boundaryMargin: (widget.params.scrollPhysics == null
-                            ? const EdgeInsets.all(double.infinity)
-                            : _adjustedBoundaryMargins),
+                        boundaryMargin: widget.params.scrollPhysics == null
+                            ? const EdgeInsets.all(double.infinity) // NOTE: boundaryMargin is handled manually
+                            : _adjustedBoundaryMargins,
                         maxScale: widget.params.maxScale,
                         minScale: minScale,
                         panAxis: widget.params.panAxis,
@@ -563,6 +563,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   Matrix4 _calcMatrixForClampedToNearestBoundary(Matrix4 candidate, {required Size viewSize}) {
+    _adjustBoundaryMargins(_viewSize!, candidate.zoom);
     final overScroll = _calcOverscroll(candidate, viewSize: viewSize);
     if (overScroll == Offset.zero) {
       return candidate;
@@ -1523,8 +1524,8 @@ class _PdfViewerState extends State<PdfViewer>
       vec.Vector3(
         zoom,
         zoom,
-        zoom,
-      ), // setting zoom of 1 on z caused a call to matrix.maxScaleOnAxis() to return 1 even when x and y are < 1
+        zoom, // setting zoom of 1 on z caused a call to Matrix4.getMaxScaleOnAxis() to return 1 even when x and y are < 1
+      ),
     );
   }
 
@@ -1546,8 +1547,6 @@ class _PdfViewerState extends State<PdfViewer>
       );
 
   /// The function calculate the rectangle which should be shown in the view.
-  ///
-  /// If the rect is smaller than the view size, it will
   Rect _calcRectForArea({required Rect rect, required PdfPageAnchor anchor}) {
     final viewSize = _visibleRect.size;
     final w = min(rect.width, viewSize.width);
