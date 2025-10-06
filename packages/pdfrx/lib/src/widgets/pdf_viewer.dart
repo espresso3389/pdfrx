@@ -563,7 +563,9 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   Matrix4 _calcMatrixForClampedToNearestBoundary(Matrix4 candidate, {required Size viewSize}) {
-    _adjustBoundaryMargins(_viewSize!, candidate.zoom);
+    if (widget.params.scrollPhysics == null) {
+      _adjustBoundaryMargins(_viewSize!, candidate.zoom);
+    }
     final overScroll = _calcOverscroll(candidate, viewSize: viewSize);
     if (overScroll == Offset.zero) {
       return candidate;
