@@ -2,6 +2,13 @@
 
 This file provides guidance to AI agents and developers when working with code in this repository.
 
+## Quick Start for Agents
+
+- Keep existing user changes intact; if you notice unexpected edits you didn't make, pause and ask the user how to proceed.
+- Prefer fast, non-destructive tools (`rg`, `rg --files`, targeted tests) and run commands with an explicit `workdir`; avoid wandering `cd` commands.
+- Leave release artifacts (`CHANGELOG.md`, version numbers, tags) untouched unless the task is explicitly about publishing.
+- Default to ASCII output and add only brief clarifying comments when the code is non-obvious.
+
 ## Project Overview
 
 pdfrx is a monorepo containing two packages:
@@ -17,160 +24,75 @@ pdfrx is a monorepo containing two packages:
    - Supports iOS, Android, Windows, macOS, Linux, and Web
    - Uses PDFium for native platforms and PDFium WASM for web platforms
 
-## Development Commands
+## Command and Tooling Expectations
 
-### Monorepo Management
+- Run commands directly in the repository environment with the correct `workdir`; coordinate with the user before escalating privileges or leaving the workspace.
+- Prefer `rg`/`rg --files` for search and discovery tasks; they are significantly faster than alternatives.
+- Use Flutter/Dart tooling for formatting (`dart format`, `flutter format`) and keep the 120 character width.
+- On Windows, use `pwsh.exe -Command ...` if a command fails due to script launching quirks.
 
-This project uses pub workspace for managing the multi-package repository. All you have to do is to run `dart pub get` on somewhere in the repo directory.
+### Pub Workspace Basics
 
-### Basic Flutter Commands
+This project uses a pub workspace. Running `dart pub get` in any directory inside the repository fetches dependencies for all packages.
+
+### Common Commands
 
 ```bash
-# For the main pdfrx package
+# Flutter plugin (packages/pdfrx)
 cd packages/pdfrx
-flutter pub get          # Install dependencies
-flutter analyze          # Run static analysis
-flutter test             # Run all tests
-flutter format .         # Format code (120 char line width)
+flutter pub get
+flutter analyze
+flutter test
+flutter format .
 
-# For the pdfrx_engine package
+# Core engine (packages/pdfrx_engine)
 cd packages/pdfrx_engine
-dart pub get            # Install dependencies
-dart analyze            # Run static analysis
-dart test               # Run all tests
-dart format .           # Format code (120 char line width)
+dart pub get
+dart analyze
+dart test
+dart format .
 ```
 
-### Platform-Specific Builds
+### Platform Builds
 
 ```bash
-# Example app
 cd packages/pdfrx/example/viewer
-flutter run              # Run on connected device/emulator
-flutter build appbundle  # Build Android App Bundle
-flutter build ios        # Build iOS (requires macOS)
-flutter build web --wasm # Build for web
-flutter build linux      # Build for Linux
-flutter build windows     # Build for Windows
-flutter build macos      # Build for macOS
+flutter run
+flutter build appbundle
+flutter build ios
+flutter build web --wasm
+flutter build linux
+flutter build windows
+flutter build macos
 ```
 
-### FFI Bindings Generation (pdfrx_engine)
+### FFI Bindings (pdfrx_engine)
 
-- FFI bindings for PDFium are generated using `ffigen` in the pdfrx_engine package.
-- FFI bindings depends on the Pdfium headers which are downloaded during `dart test` on pdfrx_engine (Linux only).
+- Bindings are generated with `ffigen`.
+- Pdfium headers download automatically when `dart test` runs on Linux.
 
 ```bash
-# Run on Linux
 cd packages/pdfrx_engine
 dart test
-dart run ffigen          # Regenerate PDFium FFI bindings
+dart run ffigen
 ```
 
 ## Release Process
 
-Both packages may need to be released when changes are made:
+See `RELEASING.md` for the full checklist. Agents should avoid editing release metadata unless the task explicitly covers publishing.
 
-### For pdfrx_engine package updates
-
-1. Update version in `packages/pdfrx_engine/pubspec.yaml`
-   - Basically, if the changes are not breaking (or relatively small breaking changes), increment the patch version (X.Y.Z -> X.Y.Z+1)
-   - If there are breaking changes, increment the minor version (X.Y.Z -> X.Y+1.0)
-   - If there are major changes, increment the major version (X.Y.Z -> X+1.0.0)
-2. Update `packages/pdfrx_engine/CHANGELOG.md` with changes
-   - Don't mention CI/CD changes and `CLAUDE.md`/`AGENTS.md` related changes (unless they are significant)
-3. Update `packages/pdfrx_engine/README.md` if needed
-4. Update `README.md` on the repo root if needed
-5. Run `pana` in `packages/pdfrx_engine` to validate code integrity
-6. Run `dart pub publish` in `packages/pdfrx_engine/`
-
-### For pdfrx package updates
-
-1. Update version in `packages/pdfrx/pubspec.yaml`
-   - If pdfrx_engine was updated, update the dependency version
-2. Update `packages/pdfrx/CHANGELOG.md` with changes
-3. Update `packages/pdfrx/README.md` with new version information
-   - Changes version in example fragments
-   - Consider to add notes for new features or breaking changes
-   - Notify the owner if you find any issues with the example app or documentation
-4. Update `README.md` on the repo root if needed
-5. Run `dart pub get` to update all dependencies
-6. Run tests to ensure everything works
-   - Run `dart test` in `packages/pdfrx_engine/`
-   - Run `flutter test` in `packages/pdfrx/`
-7. Ensure the example app builds correctly
-   - Run `flutter build web --wasm` in `packages/pdfrx/example/viewer` to test the example app
-8. Run `pana` in `packages/pdfrx` (and any other packages being released) to validate code integrity
-   - Warn me if `pana` warns about WASM incompatibility issues
-9. Commit changes with message "Release pdfrx vX.Y.Z" or "Release pdfrx_engine vX.Y.Z"
-10. Tag the commit with `git tag pdfrx-vX.Y.Z` or `git tag pdfrx_engine-vX.Y.Z`
-11. Push changes and tags to remote
-12. Run `flutter pub publish` in `packages/pdfrx/`
-13. If the changes reference GitHub issues or PRs, add comments on them notifying about the new release
-    - Use `gh issue comment` or `gh pr comment` to notify that the issue/PR has been addressed in the new release
-    - If the PR references issues, please also comment on the issues
-    - Follow the template below for comments (but modify it as needed):
-
-      ```md
-      The FIX|UPDATE|SOMETHING for this issue has been released in v[x.y.z](https://pub.dev/packages/pdfrx/versions/x.y.z).
-
-      ...Fix/update summary...
-
-      Written by [AGENT SIGNATURE]
-      ```
-
-    - Focus on the release notes and what was fixed/changed rather than upgrade instructions
-    - Include a link to the changelog for the specific version
+- Never bump versions or changelog entries preemptively.
+- Surface blockers or uncertainties to the user before continuing a release flow.
 
 ## Architecture Overview
 
-### Package Architecture
+For architectural details and API surface breakdowns, refer to:
 
-The project is split into two packages with clear separation of concerns:
+- `README.md` for a high-level overview of both packages.
+- `packages/pdfrx_engine/README.md` for engine internals and FFI notes.
+- `packages/pdfrx/README.md` for Flutter plugin structure, widgets, and overlays.
 
-#### pdfrx_engine (`packages/pdfrx_engine/`)
-
-- Platform-agnostic PDF rendering engine
-- Conditional imports to support different platforms:
-  - `lib/src/native/` - Native platform implementation using PDFium via FFI
-  - `lib/src/web/` - Web implementation using PDFium WASM
-  - Platform-specific code determined at import time based on `dart:library.io` availability
-- Main exports:
-  - `pdf_api.dart` - Core PDF document interfaces
-
-#### pdfrx (`packages/pdfrx/`)
-
-- Flutter plugin built on top of pdfrx_engine
-- Contains all Flutter-specific code:
-  - Widget layer
-  - Platform channel implementations
-  - UI components and overlays
-
-### Core Components
-
-1. **Document API** (in `packages/pdfrx_engine/lib/src/pdf_api.dart`)
-   - `PdfDocument` - Main document interface
-   - `PdfPage` - Page representation
-   - `PdfDocumentRef` - Reference counting for document lifecycle
-   - Platform-agnostic interfaces implemented differently per platform
-
-2. **Widget Layer** (in `packages/pdfrx/lib/src/widgets/`)
-   - `PdfViewer` - Main viewer widget with multiple constructors
-   - `PdfPageView` - Single page display
-   - `PdfDocumentViewBuilder` - Safe document loading pattern
-   - Overlay widgets for text selection, links, search
-
-3. **Native Integration**
-   - pdfrx_engine uses Dart FFI for PDFium integration
-   - Native code in `packages/pdfrx_engine/src/pdfium_interop.cpp`
-   - Platform folders in `packages/pdfrx/` contain Flutter plugin build configurations
-
-### Key Patterns
-
-- **Factory Pattern**: `PdfDocumentFactory` creates platform-specific implementations
-- **Builder Pattern**: `PdfDocumentViewBuilder` for safe async document loading
-- **Overlay System**: Composable overlays for text, links, annotations
-- **Conditional Imports**: Web vs native determined at compile time
+These documents live alongside the code and stay in sync with implementation changes.
 
 ## Testing
 
@@ -262,12 +184,6 @@ The following guidelines should be followed when writing documentation including
   - Focus on user-facing changes, new features, bug fixes, and breaking changes
   - Use sections for different versions
   - Use bullet points for changes
-
-## Command Execution Guidelines
-
-- Run commands directly in the repository environment; do not rely on any agent sandbox when executing them.
-- If a command cannot be executed without sandboxing, pause and coordinate with the user so it runs on their machine as needed.
-- On Windows, use `pwsh.exe -Command ...` to run any commands to reduce issues caused by missing .bat/.cmd and shebang on shell-scripts
 
 ## Special Notes
 
