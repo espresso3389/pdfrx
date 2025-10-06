@@ -1606,10 +1606,22 @@ async function initializePdfium(params = {}) {
       fetchOptions.headers = params.headers;
     }
 
-    const result = await WebAssembly.instantiateStreaming(fetch(pdfiumWasmUrl, fetchOptions), {
-      env: emEnv,
-      wasi_snapshot_preview1: wasi,
-    });
+    let result;
+    try {
+      result = await WebAssembly.instantiateStreaming(fetch(pdfiumWasmUrl, fetchOptions), {
+        env: emEnv,
+        wasi_snapshot_preview1: wasi,
+      });
+    } catch (e) {
+      // Fallback for browsers that do not support instantiateStreaming
+      console.warn('%cWebAssembly.instantiateStreaming failed, falling back to ArrayBuffer instantiation. Consider to configure your server to serve wasm files as application/wasm', 'background: red; color: white', e);
+      const response = await fetch(pdfiumWasmUrl, fetchOptions);
+      const buffer = await response.arrayBuffer();
+      result = await WebAssembly.instantiate(buffer, {
+        env: emEnv,
+        wasi_snapshot_preview1: wasi,
+      });
+    }
 
     Pdfium.initWith(result.instance.exports);
     Pdfium.wasmExports.FPDF_InitLibrary();
