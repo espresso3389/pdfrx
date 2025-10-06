@@ -1,3 +1,7 @@
+# 2.1.25
+
+- FIXED: Added ArrayBuffer fallback when `WebAssembly.instantiateStreaming` fails (e.g. missing `application/wasm` MIME type) ([#405](https://github.com/espresso3389/pdfrx/issues/405), [#493](https://github.com/espresso3389/pdfrx/issues/493))
+
 # 2.1.24
 
 - FIXED: Strange zooming out behavior ([#490](https://github.com/espresso3389/pdfrx/issues/490))
