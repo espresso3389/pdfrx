@@ -1,3 +1,7 @@
+# 2.1.24
+
+- FIXED: Strange zooming out behavior ([#490](https://github.com/espresso3389/pdfrx/issues/490))
+
 # 2.1.23
 
 - FIXED: WASM+Safari StringBuffer issue with workaround ([#483](https://github.com/espresso3389/pdfrx/issues/483))
