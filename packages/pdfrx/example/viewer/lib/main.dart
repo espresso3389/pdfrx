@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:pdfrx/pdfrx.dart';
+import 'package:pdfrx_coregraphics/pdfrx_coregraphics.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'markers_view.dart';
@@ -15,6 +16,9 @@ import 'search_view.dart';
 import 'thumbnails_view.dart';
 
 void main(List<String> args) {
+  WidgetsFlutterBinding.ensureInitialized();
+  PdfrxEntryFunctions.instance = PdfrxCoreGraphicsEntryFunctions();
+  pdfrxFlutterInitialize();
   runApp(MyApp(fileOrUri: args.isNotEmpty ? args[0] : null));
 }
 

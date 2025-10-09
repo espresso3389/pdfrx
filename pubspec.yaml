@@ -4,4 +4,5 @@ environment:
 workspace:
   - packages/pdfrx
   - packages/pdfrx_engine
+  - packages/pdfrx_coregraphics
   - packages/pdfrx/example/viewer
