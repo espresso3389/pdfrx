@@ -36,12 +36,6 @@ void main() {
 After installation, use pdfrx as usual. All [`PdfDocument`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) and widget APIs continue to work, but rendering is routed
 through CoreGraphics.
 
-## Current capabilities
-
-- Document loading from files, memory buffers, and URIs
-- Page rendering with background color control and annotation drawing
-- Basic outline, text, and link support fall back to pdfrx defaults when not available
-
 ## Limitations
 
 - Incremental/custom stream loading is converted to in-memory loading
