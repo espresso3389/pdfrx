@@ -322,16 +322,16 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
 
     var rects: [[String: Double]] = []
     rects.reserveCapacity(length)
-    var charIndex = 0
-    for index in 0..<length {
-      let charCode = nsText.character(at: index)
+    var boundsIndex = 0
+    for charIndex in 0..<length {
+      let charCode = nsText.character(at: charIndex)
       if let scalar = UnicodeScalar(charCode), CharacterSet.newlines.contains(scalar) {
         rects.append(zeroRect)
         continue
       }
 
-      var bounds = page.characterBounds(at: charIndex)
-      charIndex += 1
+      let bounds = page.characterBounds(at: boundsIndex)
+      boundsIndex += 1
 
       if bounds.isNull {
         rects.append(zeroRect)
