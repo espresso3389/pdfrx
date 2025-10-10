@@ -305,5 +305,15 @@
         120
     ]
   },
+  "[swift]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "vknabel.vscode-swiftformat",
+    "editor.rulers": [
+        120
+    ]
+  },
+  "swiftformat.enable": true,
+  "swiftformat.onlyEnableOnSwiftPMProjects": false,
+  "swiftformat.onlyEnableWithConfig": false,
   "java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx2G -Xms100m -Xlog:disable"
 }

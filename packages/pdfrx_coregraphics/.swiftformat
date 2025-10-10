@@ -1,0 +1,37 @@
+# SwiftFormat configuration for pdfrx_coregraphics
+--swiftversion 5.0
+
+# Indentation
+--indent 2
+--tabwidth 2
+--xcodeindentation enabled
+
+# Spacing
+--trimwhitespace always
+--stripunusedargs closure-only
+
+# Wrapping
+--maxwidth 120
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+
+# Line breaks
+--elseposition next-line
+--guardelse next-line
+
+# Other formatting
+--self remove
+--importgrouping testable-bottom
+--commas inline
+--decimalgrouping 3,4
+--binarygrouping 4,8
+--octalgrouping 4,8
+--hexgrouping 4,8
+--fractiongrouping disabled
+--exponentgrouping disabled
+--hexliteralcase uppercase
+--ifdef no-indent
+
+# Disabled rules (if any specific rules need to be disabled)
+# --disable <rule>
