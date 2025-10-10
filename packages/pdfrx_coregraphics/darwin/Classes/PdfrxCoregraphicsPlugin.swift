@@ -306,6 +306,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       Double(destination.point.y),
     ]
     let zoom = destination.zoom
+    /// NOTE: sometimes zoom contains invalid values like NaN or Inf.
     params.append(zoom.isFinite && zoom > 0 && zoom < 10.0 ? Double(zoom) : 0.0)
     return [
       "page": pageIndex + 1,
