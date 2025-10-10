@@ -2,9 +2,9 @@ import Foundation
 import PDFKit
 
 #if os(iOS)
-import Flutter
+  import Flutter
 #elseif os(macOS)
-import FlutterMacOS
+  import FlutterMacOS
 #endif
 
 public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
@@ -43,7 +43,9 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
 
   private func openDocument(arguments: Any?, result: @escaping FlutterResult) {
     guard let args = arguments as? [String: Any] else {
-      result(FlutterError(code: "bad-arguments", message: "Invalid arguments for openDocument.", details: nil))
+      result(
+        FlutterError(
+          code: "bad-arguments", message: "Invalid arguments for openDocument.", details: nil))
       return
     }
     guard let sourceType = args["sourceType"] as? String else {
@@ -56,36 +58,50 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     switch sourceType {
     case "file":
       guard let path = args["path"] as? String else {
-        result(FlutterError(code: "missing-path", message: "File path is required for openDocument.", details: nil))
+        result(
+          FlutterError(
+            code: "missing-path", message: "File path is required for openDocument.", details: nil))
         return
       }
       document = PDFDocument(url: URL(fileURLWithPath: path))
     case "bytes":
       guard let data = args["bytes"] as? FlutterStandardTypedData else {
-        result(FlutterError(code: "missing-bytes", message: "PDF bytes are required for openDocument.", details: nil))
+        result(
+          FlutterError(
+            code: "missing-bytes", message: "PDF bytes are required for openDocument.", details: nil
+          ))
         return
       }
       document = PDFDocument(data: data.data)
     default:
-      result(FlutterError(code: "unsupported-source", message: "Unsupported sourceType \(sourceType).", details: nil))
+      result(
+        FlutterError(
+          code: "unsupported-source", message: "Unsupported sourceType \(sourceType).", details: nil
+        ))
       return
     }
 
     guard let pdfDocument = document else {
-      result(FlutterError(code: "open-failed", message: "Failed to open PDF document.", details: nil))
+      result(
+        FlutterError(code: "open-failed", message: "Failed to open PDF document.", details: nil))
       return
     }
 
     if pdfDocument.isLocked {
       let candidatePassword = password ?? ""
       if !pdfDocument.unlock(withPassword: candidatePassword) || pdfDocument.isLocked {
-        result(FlutterError(code: "wrong-password", message: "Password is required or incorrect.", details: nil))
+        result(
+          FlutterError(
+            code: "wrong-password", message: "Password is required or incorrect.", details: nil))
         return
       }
     }
 
     guard pdfDocument.pageCount > 0 else {
-      result(FlutterError(code: "empty-document", message: "PDF document does not contain any pages.", details: nil))
+      result(
+        FlutterError(
+          code: "empty-document", message: "PDF document does not contain any pages.", details: nil)
+      )
       return
     }
 
@@ -123,22 +139,29 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       let fullWidth = args["fullWidth"] as? Int,
       let fullHeight = args["fullHeight"] as? Int
     else {
-      result(FlutterError(code: "bad-arguments", message: "Invalid arguments for renderPage.", details: nil))
+      result(
+        FlutterError(
+          code: "bad-arguments", message: "Invalid arguments for renderPage.", details: nil))
       return
     }
     let handle = (handleValue as? Int64) ?? Int64((handleValue as? Int) ?? -1)
-    guard handle >= 0, let document = documents[handle], let page = document.page(at: pageIndex) else {
-      result(FlutterError(code: "unknown-document", message: "Document not found for handle \(handle).", details: nil))
+    guard handle >= 0, let document = documents[handle], let page = document.page(at: pageIndex)
+    else {
+      result(
+        FlutterError(
+          code: "unknown-document", message: "Document not found for handle \(handle).",
+          details: nil))
       return
     }
 
     let x = args["x"] as? Int ?? 0
     let y = args["y"] as? Int ?? 0
-    let backgroundColor = args["backgroundColor"] as? Int ?? 0xffffffff
+    let backgroundColor = args["backgroundColor"] as? Int ?? 0xffff_ffff
     let renderAnnotations = args["renderAnnotations"] as? Bool ?? true
 
     guard width > 0, height > 0, fullWidth > 0, fullHeight > 0 else {
-      result(FlutterError(code: "invalid-size", message: "Invalid render dimensions.", details: nil))
+      result(
+        FlutterError(code: "invalid-size", message: "Invalid render dimensions.", details: nil))
       return
     }
 
@@ -154,17 +177,21 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
         bitsPerComponent: 8,
         bytesPerRow: bytesPerRow,
         space: CGColorSpaceCreateDeviceRGB(),
-        bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+        bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue
+          | CGBitmapInfo.byteOrder32Little.rawValue
       )
     else {
-      result(FlutterError(code: "context-failure", message: "Failed to create bitmap context.", details: nil))
+      result(
+        FlutterError(
+          code: "context-failure", message: "Failed to create bitmap context.", details: nil))
       return
     }
 
     context.setBlendMode(.normal)
     context.interpolationQuality = .high
     let components = colorComponents(from: backgroundColor)
-    context.setFillColor(red: components.red, green: components.green, blue: components.blue, alpha: components.alpha)
+    context.setFillColor(
+      red: components.red, green: components.green, blue: components.blue, alpha: components.alpha)
     context.fill(CGRect(x: 0, y: 0, width: width, height: height))
 
     let bounds = page.bounds(for: .mediaBox)
@@ -182,7 +209,9 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     page.displaysAnnotations = originalDisplaysAnnotations
 
     guard let contextData = context.data else {
-      result(FlutterError(code: "render-failure", message: "Failed to access rendered bitmap.", details: nil))
+      result(
+        FlutterError(
+          code: "render-failure", message: "Failed to access rendered bitmap.", details: nil))
       return
     }
 
@@ -199,12 +228,17 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       let args = arguments as? [String: Any],
       let handleValue = args["handle"]
     else {
-      result(FlutterError(code: "bad-arguments", message: "Invalid arguments for loadOutline.", details: nil))
+      result(
+        FlutterError(
+          code: "bad-arguments", message: "Invalid arguments for loadOutline.", details: nil))
       return
     }
     let handle = (handleValue as? Int64) ?? Int64((handleValue as? Int) ?? -1)
     guard handle >= 0, let document = documents[handle] else {
-      result(FlutterError(code: "unknown-document", message: "Document not found for handle \(handle).", details: nil))
+      result(
+        FlutterError(
+          code: "unknown-document", message: "Document not found for handle \(handle).",
+          details: nil))
       return
     }
     guard let root = document.outlineRoot else {
@@ -220,12 +254,18 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       let handleValue = args["handle"],
       let pageIndex = args["pageIndex"] as? Int
     else {
-      result(FlutterError(code: "bad-arguments", message: "Invalid arguments for loadPageLinks.", details: nil))
+      result(
+        FlutterError(
+          code: "bad-arguments", message: "Invalid arguments for loadPageLinks.", details: nil))
       return
     }
     let handle = (handleValue as? Int64) ?? Int64((handleValue as? Int) ?? -1)
-    guard handle >= 0, let document = documents[handle], let page = document.page(at: pageIndex) else {
-      result(FlutterError(code: "unknown-document", message: "Document not found for handle \(handle).", details: nil))
+    guard handle >= 0, let document = documents[handle], let page = document.page(at: pageIndex)
+    else {
+      result(
+        FlutterError(
+          code: "unknown-document", message: "Document not found for handle \(handle).",
+          details: nil))
       return
     }
 
@@ -243,12 +283,18 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       let handleValue = args["handle"],
       let pageIndex = args["pageIndex"] as? Int
     else {
-      result(FlutterError(code: "bad-arguments", message: "Invalid arguments for loadPageText.", details: nil))
+      result(
+        FlutterError(
+          code: "bad-arguments", message: "Invalid arguments for loadPageText.", details: nil))
       return
     }
     let handle = (handleValue as? Int64) ?? Int64((handleValue as? Int) ?? -1)
-    guard handle >= 0, let document = documents[handle], let page = document.page(at: pageIndex) else {
-      result(FlutterError(code: "unknown-document", message: "Document not found for handle \(handle).", details: nil))
+    guard handle >= 0, let document = documents[handle], let page = document.page(at: pageIndex)
+    else {
+      result(
+        FlutterError(
+          code: "unknown-document", message: "Document not found for handle \(handle).",
+          details: nil))
       return
     }
 
@@ -257,31 +303,38 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       return
     }
 
-    if fullText.isEmpty || page.numberOfCharacters <= 0 {
+    let nsText = fullText as NSString
+    let length = nsText.length
+    if length <= 0 {
       result(["text": "", "rects": []])
       return
     }
 
-    let reportedCount = page.numberOfCharacters
-    print("Reported character count: \(page.numberOfCharacters): '\(fullText.count)'")
-    let characterCount = max(0, reportedCount)
-
-    var rects: [[String: Double]] = []
-    rects.reserveCapacity(characterCount)
-
     let mediaBounds = page.bounds(for: .mediaBox)
     let offsetX = mediaBounds.minX
     let offsetY = mediaBounds.minY
+    let zeroRect: [String: Double] = [
+      "left": 0.0,
+      "top": 0.0,
+      "right": 0.0,
+      "bottom": 0.0,
+    ]
 
-    for index in 0..<characterCount {
-      let bounds = page.characterBounds(at: index)
+    var rects: [[String: Double]] = []
+    rects.reserveCapacity(length)
+    var charIndex = 0
+    for index in 0..<length {
+      let charCode = nsText.character(at: index)
+      if let scalar = UnicodeScalar(charCode), CharacterSet.newlines.contains(scalar) {
+        rects.append(zeroRect)
+        continue
+      }
+
+      var bounds = page.characterBounds(at: charIndex)
+      charIndex += 1
+
       if bounds.isNull {
-        rects.append([
-          "left": 0.0,
-          "top": 0.0,
-          "right": 0.0,
-          "bottom": 0.0,
-        ])
+        rects.append(zeroRect)
         continue
       }
       rects.append(
@@ -333,7 +386,9 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     return nil
   }
 
-  private func annotationDestinationMap(_ annotation: PDFAnnotation, document: PDFDocument) -> [String: Any]? {
+  private func annotationDestinationMap(_ annotation: PDFAnnotation, document: PDFDocument)
+    -> [String: Any]?
+  {
     if let destination = annotation.destination {
       return destinationMap(destination, document: document)
     }
@@ -345,10 +400,13 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
 
   private func isLinkAnnotation(_ annotation: PDFAnnotation) -> Bool {
     if let subtypeValue = annotation.value(forAnnotationKey: PDFAnnotationKey.subtype) as? String {
-      let normalized = subtypeValue.trimmingCharacters(in: CharacterSet(charactersIn: "/")).lowercased()
+      let normalized = subtypeValue.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        .lowercased()
       let linkRaw = PDFAnnotationSubtype.link.rawValue
-      let linkNormalized = linkRaw.trimmingCharacters(in: CharacterSet(charactersIn: "/")).lowercased()
-      if normalized == linkNormalized || normalized == linkRaw.lowercased() || normalized == "link" {
+      let linkNormalized = linkRaw.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        .lowercased()
+      if normalized == linkNormalized || normalized == linkRaw.lowercased() || normalized == "link"
+      {
         return true
       }
     }
@@ -358,7 +416,9 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     return false
   }
 
-  private func destinationMap(_ destination: PDFDestination?, document: PDFDocument) -> [String: Any]? {
+  private func destinationMap(_ destination: PDFDestination?, document: PDFDocument) -> [String:
+    Any]?
+  {
     guard let destination = destination, let page = destination.page else {
       return nil
     }
@@ -380,7 +440,9 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     ]
   }
 
-  private func annotationLinks(on page: PDFPage, document: PDFDocument) -> ([[String: Any]], [CGRect]) {
+  private func annotationLinks(on page: PDFPage, document: PDFDocument) -> (
+    [[String: Any]], [CGRect]
+  ) {
     var links: [[String: Any]] = []
     var rects: [CGRect] = []
     for annotation in page.annotations {
@@ -403,7 +465,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       }
 
       var linkEntry: [String: Any] = [
-        "rects": annotationRects.map(rectDictionary),
+        "rects": annotationRects.map(rectDictionary)
       ]
       if let dest = dest {
         linkEntry["dest"] = dest
@@ -420,9 +482,12 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     return (links, rects)
   }
 
-  private func autodetectedLinks(on page: PDFPage, excluding occupiedRects: [CGRect]) -> [[String: Any]] {
+  private func autodetectedLinks(on page: PDFPage, excluding occupiedRects: [CGRect]) -> [[String:
+    Any]]
+  {
     guard let text = page.string, !text.isEmpty else { return [] }
-    guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+    guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+    else {
       return []
     }
 
@@ -531,7 +596,9 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       let args = arguments as? [String: Any],
       let handleValue = args["handle"]
     else {
-      result(FlutterError(code: "bad-arguments", message: "Invalid arguments for closeDocument.", details: nil))
+      result(
+        FlutterError(
+          code: "bad-arguments", message: "Invalid arguments for closeDocument.", details: nil))
       return
     }
     let handle = (handleValue as? Int64) ?? Int64((handleValue as? Int) ?? -1)
@@ -539,7 +606,9 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     result(nil)
   }
 
-  private func colorComponents(from argb: Int) -> (red: CGFloat, green: CGFloat, blue: CGFloat, alpha: CGFloat) {
+  private func colorComponents(from argb: Int) -> (
+    red: CGFloat, green: CGFloat, blue: CGFloat, alpha: CGFloat
+  ) {
     let value = UInt32(bitPattern: Int32(truncatingIfNeeded: argb))
     let alpha = CGFloat((value >> 24) & 0xff) / 255.0
     let red = CGFloat((value >> 16) & 0xff) / 255.0
@@ -549,14 +618,14 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
   }
 }
 
-private extension FlutterPluginRegistrar {
+extension FlutterPluginRegistrar {
   #if os(iOS)
-  var pdfrxCoreGraphicsMessenger: FlutterBinaryMessenger {
-    messenger()
-  }
+    fileprivate var pdfrxCoreGraphicsMessenger: FlutterBinaryMessenger {
+      messenger()
+    }
   #elseif os(macOS)
-  var pdfrxCoreGraphicsMessenger: FlutterBinaryMessenger {
-    messenger
-  }
+    fileprivate var pdfrxCoreGraphicsMessenger: FlutterBinaryMessenger {
+      messenger
+    }
   #endif
 }
