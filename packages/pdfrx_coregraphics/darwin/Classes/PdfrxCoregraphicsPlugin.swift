@@ -28,6 +28,8 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       openDocument(arguments: call.arguments, result: result)
     case "renderPage":
       renderPage(arguments: call.arguments, result: result)
+    case "loadPageText":
+      loadPageText(arguments: call.arguments, result: result)
     case "closeDocument":
       closeDocument(arguments: call.arguments, result: result)
     case "loadOutline":
@@ -233,6 +235,69 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       links.append(contentsOf: autodetectedLinks(on: page, excluding: occupiedRects))
     }
     result(links)
+  }
+
+  private func loadPageText(arguments: Any?, result: @escaping FlutterResult) {
+    guard
+      let args = arguments as? [String: Any],
+      let handleValue = args["handle"],
+      let pageIndex = args["pageIndex"] as? Int
+    else {
+      result(FlutterError(code: "bad-arguments", message: "Invalid arguments for loadPageText.", details: nil))
+      return
+    }
+    let handle = (handleValue as? Int64) ?? Int64((handleValue as? Int) ?? -1)
+    guard handle >= 0, let document = documents[handle], let page = document.page(at: pageIndex) else {
+      result(FlutterError(code: "unknown-document", message: "Document not found for handle \(handle).", details: nil))
+      return
+    }
+
+    guard let fullText = page.string else {
+      result(["text": "", "rects": []])
+      return
+    }
+
+    if fullText.isEmpty || page.numberOfCharacters <= 0 {
+      result(["text": "", "rects": []])
+      return
+    }
+
+    let reportedCount = page.numberOfCharacters
+    print("Reported character count: \(page.numberOfCharacters): '\(fullText.count)'")
+    let characterCount = max(0, reportedCount)
+
+    var rects: [[String: Double]] = []
+    rects.reserveCapacity(characterCount)
+
+    let mediaBounds = page.bounds(for: .mediaBox)
+    let offsetX = mediaBounds.minX
+    let offsetY = mediaBounds.minY
+
+    for index in 0..<characterCount {
+      let bounds = page.characterBounds(at: index)
+      if bounds.isNull {
+        rects.append([
+          "left": 0.0,
+          "top": 0.0,
+          "right": 0.0,
+          "bottom": 0.0,
+        ])
+        continue
+      }
+      rects.append(
+        [
+          "left": bounds.minX - offsetX,
+          "top": bounds.maxY - offsetY,
+          "right": bounds.maxX - offsetX,
+          "bottom": bounds.minY - offsetY,
+        ]
+      )
+    }
+
+    result([
+      "text": fullText,
+      "rects": rects,
+    ])
   }
 
   private func outlineChildren(of outline: PDFOutline, document: PDFDocument) -> [[String: Any]] {
