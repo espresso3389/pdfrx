@@ -532,12 +532,21 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       rects.reserveCapacity(quadPoints.count / 4)
       var index = 0
       while index + 3 < quadPoints.count {
+        #if os(iOS)
+        let points = [
+          quadPoints[index].cgPointValue,
+          quadPoints[index + 1].cgPointValue,
+          quadPoints[index + 2].cgPointValue,
+          quadPoints[index + 3].cgPointValue,
+        ]
+        #else
         let points = [
           quadPoints[index].pointValue,
           quadPoints[index + 1].pointValue,
           quadPoints[index + 2].pointValue,
           quadPoints[index + 3].pointValue,
         ]
+        #endif
         index += 4
         if let rect = rectangle(from: points) {
           rects.append(rect)

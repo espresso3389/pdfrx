@@ -1,6 +1,6 @@
 name: pdfrx_coregraphics
 description: CoreGraphics-backed Pdfrx engine layer for Apple platforms.
-version: 0.0.1
+version: 0.1.1
 homepage: https://github.com/espresso3389/pdfrx
 
 environment:
