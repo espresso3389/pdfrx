@@ -30,6 +30,10 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       renderPage(arguments: call.arguments, result: result)
     case "closeDocument":
       closeDocument(arguments: call.arguments, result: result)
+    case "loadOutline":
+      loadOutline(arguments: call.arguments, result: result)
+    case "loadPageLinks":
+      loadPageLinks(arguments: call.arguments, result: result)
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -186,6 +190,274 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       "height": height,
       "pixels": FlutterStandardTypedData(bytes: buffer),
     ])
+  }
+
+  private func loadOutline(arguments: Any?, result: @escaping FlutterResult) {
+    guard
+      let args = arguments as? [String: Any],
+      let handleValue = args["handle"]
+    else {
+      result(FlutterError(code: "bad-arguments", message: "Invalid arguments for loadOutline.", details: nil))
+      return
+    }
+    let handle = (handleValue as? Int64) ?? Int64((handleValue as? Int) ?? -1)
+    guard handle >= 0, let document = documents[handle] else {
+      result(FlutterError(code: "unknown-document", message: "Document not found for handle \(handle).", details: nil))
+      return
+    }
+    guard let root = document.outlineRoot else {
+      result([])
+      return
+    }
+    result(outlineChildren(of: root, document: document))
+  }
+
+  private func loadPageLinks(arguments: Any?, result: @escaping FlutterResult) {
+    guard
+      let args = arguments as? [String: Any],
+      let handleValue = args["handle"],
+      let pageIndex = args["pageIndex"] as? Int
+    else {
+      result(FlutterError(code: "bad-arguments", message: "Invalid arguments for loadPageLinks.", details: nil))
+      return
+    }
+    let handle = (handleValue as? Int64) ?? Int64((handleValue as? Int) ?? -1)
+    guard handle >= 0, let document = documents[handle], let page = document.page(at: pageIndex) else {
+      result(FlutterError(code: "unknown-document", message: "Document not found for handle \(handle).", details: nil))
+      return
+    }
+
+    var (links, occupiedRects) = annotationLinks(on: page, document: document)
+    let enableAutoLinkDetection = args["enableAutoLinkDetection"] as? Bool ?? true
+    if enableAutoLinkDetection {
+      links.append(contentsOf: autodetectedLinks(on: page, excluding: occupiedRects))
+    }
+    result(links)
+  }
+
+  private func outlineChildren(of outline: PDFOutline, document: PDFDocument) -> [[String: Any]] {
+    let count = outline.numberOfChildren
+    guard count > 0 else { return [] }
+    var nodes: [[String: Any]] = []
+    nodes.reserveCapacity(count)
+    for index in 0..<count {
+      guard let child = outline.child(at: index) else { continue }
+      nodes.append(outlineNode(child, document: document))
+    }
+    return nodes
+  }
+
+  private func outlineNode(_ node: PDFOutline, document: PDFDocument) -> [String: Any] {
+    var result: [String: Any] = [
+      "title": node.label ?? "",
+      "children": outlineChildren(of: node, document: document),
+    ]
+    if let dest = outlineDestinationMap(node, document: document) {
+      result["dest"] = dest
+    }
+    return result
+  }
+
+  private func outlineDestinationMap(_ node: PDFOutline, document: PDFDocument) -> [String: Any]? {
+    if let destination = node.destination {
+      return destinationMap(destination, document: document)
+    }
+    if let action = node.action as? PDFActionGoTo {
+      return destinationMap(action.destination, document: document)
+    }
+    return nil
+  }
+
+  private func annotationDestinationMap(_ annotation: PDFAnnotation, document: PDFDocument) -> [String: Any]? {
+    if let destination = annotation.destination {
+      return destinationMap(destination, document: document)
+    }
+    if let action = annotation.action as? PDFActionGoTo {
+      return destinationMap(action.destination, document: document)
+    }
+    return nil
+  }
+
+  private func isLinkAnnotation(_ annotation: PDFAnnotation) -> Bool {
+    if let subtypeValue = annotation.value(forAnnotationKey: PDFAnnotationKey.subtype) as? String {
+      let normalized = subtypeValue.trimmingCharacters(in: CharacterSet(charactersIn: "/")).lowercased()
+      let linkRaw = PDFAnnotationSubtype.link.rawValue
+      let linkNormalized = linkRaw.trimmingCharacters(in: CharacterSet(charactersIn: "/")).lowercased()
+      if normalized == linkNormalized || normalized == linkRaw.lowercased() || normalized == "link" {
+        return true
+      }
+    }
+    if annotation.url != nil { return true }
+    if annotation.action is PDFActionURL { return true }
+    if annotation.action is PDFActionGoTo { return true }
+    return false
+  }
+
+  private func destinationMap(_ destination: PDFDestination?, document: PDFDocument) -> [String: Any]? {
+    guard let destination = destination, let page = destination.page else {
+      return nil
+    }
+    let pageIndex = document.index(for: page)
+    if pageIndex == NSNotFound || pageIndex < 0 {
+      return nil
+    }
+    var params: [Double] = [
+      Double(destination.point.x),
+      Double(destination.point.y),
+    ]
+    let zoom = destination.zoom
+    params.append(zoom.isFinite && zoom > 0 && zoom < 10.0 ? Double(zoom) : 0.0)
+    return [
+      "page": pageIndex + 1,
+      "command": "xyz",
+      "params": params,
+    ]
+  }
+
+  private func annotationLinks(on page: PDFPage, document: PDFDocument) -> ([[String: Any]], [CGRect]) {
+    var links: [[String: Any]] = []
+    var rects: [CGRect] = []
+    for annotation in page.annotations {
+      guard isLinkAnnotation(annotation) else { continue }
+      let annotationRects = annotationRectangles(annotation)
+      guard !annotationRects.isEmpty else { continue }
+      let content = annotation.contents
+      let dest = annotationDestinationMap(annotation, document: document)
+      var urlString: String?
+      if let url = annotation.url {
+        urlString = url.absoluteString
+      } else if let actionURL = annotation.action as? PDFActionURL {
+        if let url = actionURL.url {
+          urlString = url.absoluteString
+        }
+      }
+
+      if dest == nil && urlString == nil && content == nil {
+        continue
+      }
+
+      var linkEntry: [String: Any] = [
+        "rects": annotationRects.map(rectDictionary),
+      ]
+      if let dest = dest {
+        linkEntry["dest"] = dest
+      }
+      if let urlString {
+        linkEntry["url"] = urlString
+      }
+      if let content {
+        linkEntry["annotationContent"] = content
+      }
+      links.append(linkEntry)
+      rects.append(contentsOf: annotationRects)
+    }
+    return (links, rects)
+  }
+
+  private func autodetectedLinks(on page: PDFPage, excluding occupiedRects: [CGRect]) -> [[String: Any]] {
+    guard let text = page.string, !text.isEmpty else { return [] }
+    guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+      return []
+    }
+
+    var links: [[String: Any]] = []
+    var occupied = occupiedRects
+    let fullRange = NSRange(location: 0, length: (text as NSString).length)
+    let matches = detector.matches(in: text, options: [], range: fullRange)
+
+    for match in matches {
+      guard let url = match.url else { continue }
+      guard let selection = page.selection(for: match.range) else { continue }
+      let selectionsByLine = selection.selectionsByLine()
+      let lineSelections = selectionsByLine.isEmpty ? [selection] : selectionsByLine
+      var rectDictionaries: [[String: Double]] = []
+      var rectsForMatch: [CGRect] = []
+      for lineSelection in lineSelections {
+        let bounds = lineSelection.bounds(for: page)
+        if bounds.isNull || bounds.isEmpty {
+          continue
+        }
+        if intersects(bounds, with: occupied) {
+          rectDictionaries.removeAll()
+          break
+        }
+        rectDictionaries.append(rectDictionary(bounds))
+        rectsForMatch.append(bounds)
+      }
+      guard !rectDictionaries.isEmpty else { continue }
+      links.append([
+        "rects": rectDictionaries,
+        "url": url.absoluteString,
+      ])
+      occupied.append(contentsOf: rectsForMatch)
+    }
+    return links
+  }
+
+  private func annotationRectangles(_ annotation: PDFAnnotation) -> [CGRect] {
+    let quadPoints = annotation.quadrilateralPoints
+    if let quadPoints, quadPoints.count >= 4 {
+      var rects: [CGRect] = []
+      rects.reserveCapacity(quadPoints.count / 4)
+      var index = 0
+      while index + 3 < quadPoints.count {
+        let points = [
+          quadPoints[index].pointValue,
+          quadPoints[index + 1].pointValue,
+          quadPoints[index + 2].pointValue,
+          quadPoints[index + 3].pointValue,
+        ]
+        index += 4
+        if let rect = rectangle(from: points) {
+          rects.append(rect)
+        }
+      }
+      if !rects.isEmpty {
+        return rects
+      }
+    }
+    let bounds = annotation.bounds
+    return bounds.isNull || bounds.isEmpty ? [] : [bounds]
+  }
+
+  private func rectangle(from points: [CGPoint]) -> CGRect? {
+    guard !points.isEmpty else { return nil }
+    var minX = CGFloat.greatestFiniteMagnitude
+    var minY = CGFloat.greatestFiniteMagnitude
+    var maxX = -CGFloat.greatestFiniteMagnitude
+    var maxY = -CGFloat.greatestFiniteMagnitude
+    for point in points {
+      if point.x < minX { minX = point.x }
+      if point.y < minY { minY = point.y }
+      if point.x > maxX { maxX = point.x }
+      if point.y > maxY { maxY = point.y }
+    }
+    let width = maxX - minX
+    let height = maxY - minY
+    if width <= 0 || height <= 0 {
+      return nil
+    }
+    return CGRect(x: minX, y: minY, width: width, height: height)
+  }
+
+  private func intersects(_ rect: CGRect, with others: [CGRect]) -> Bool {
+    for other in others where rect.intersects(other) {
+      return true
+    }
+    return false
+  }
+
+  private func rectDictionary(_ rect: CGRect) -> [String: Double] {
+    let left = Double(rect.minX)
+    let right = Double(rect.maxX)
+    let bottom = Double(rect.minY)
+    let top = Double(rect.maxY)
+    return [
+      "left": left,
+      "top": top,
+      "right": right,
+      "bottom": bottom,
+    ]
   }
 
   private func closeDocument(arguments: Any?, result: @escaping FlutterResult) {
