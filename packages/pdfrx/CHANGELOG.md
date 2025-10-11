@@ -1,3 +1,7 @@
+# 2.1.26
+
+- FIXED: PDF not visible initially when loading takes relatively long ([#495](https://github.com/espresso3389/pdfrx/issues/495))
+
 # 2.1.25
 
 - FIXED: Added ArrayBuffer fallback when `WebAssembly.instantiateStreaming` fails (e.g. missing `application/wasm` MIME type) ([#405](https://github.com/espresso3389/pdfrx/issues/405), [#493](https://github.com/espresso3389/pdfrx/issues/493))
