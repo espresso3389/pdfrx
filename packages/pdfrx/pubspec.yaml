@@ -28,7 +28,6 @@ dependencies:
   url_launcher: ^6.3.2
   vector_math: ^2.2.0
   web: ^1.1.1
-  dart_pubspec_licenses: ^3.0.12
 
 dev_dependencies:
   ffigen: ^19.1.0
@@ -36,6 +35,11 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   archive: ^4.0.7
+  dart_pubspec_licenses: ^3.0.12
+
+executables:
+  remove_wasm_modules:
+  remove_darwin_pdfium_modules:
 
 flutter:
   plugin:
