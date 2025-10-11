@@ -208,7 +208,7 @@ class PdfViewer extends StatefulWidget {
 
 class _PdfViewerState extends State<PdfViewer>
     with SingleTickerProviderStateMixin
-    implements PdfTextSelectionDelegate, DocumentCoordinateConverter {
+    implements PdfTextSelectionDelegate, PdfViewerCoordinateConverter {
   PdfViewerController? _controller;
   late final _txController = _PdfViewerTransformationController(this);
   late final AnimationController _animController;
@@ -3024,7 +3024,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   @override
-  DocumentCoordinateConverter get doc2local => this;
+  PdfViewerCoordinateConverter get doc2local => this;
 
   void forceRepaintAllPageImages() {
     _imageCache.cancelAllPendingRenderings();
@@ -3770,7 +3770,7 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   Offset? documentToGlobal(Offset document) => _state._documentToGlobal(document);
 
   /// Converts document coordinates to local coordinates.
-  DocumentCoordinateConverter get doc2local => _state;
+  PdfViewerCoordinateConverter get doc2local => _state;
 
   /// Provided to workaround certain widgets eating wheel events. Use with [Listener.onPointerSignal].
   void handlePointerSignalEvent(PointerSignalEvent event) {

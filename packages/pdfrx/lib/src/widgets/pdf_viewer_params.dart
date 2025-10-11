@@ -962,11 +962,11 @@ abstract class PdfTextSelectionDelegate implements PdfTextSelection {
   Future<void> selectWord(Offset position);
 
   /// Convert document coordinates to local coordinates and vice versa.
-  DocumentCoordinateConverter get doc2local;
+  PdfViewerCoordinateConverter get doc2local;
 }
 
 /// Utility class to convert document coordinates to local coordinates and vice versa.
-abstract class DocumentCoordinateConverter {
+abstract class PdfViewerCoordinateConverter {
   /// Convert a document position to a local position in the specified [context].
   Offset? offsetToLocal(BuildContext context, Offset? position);
 
