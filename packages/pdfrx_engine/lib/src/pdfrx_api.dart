@@ -76,7 +76,7 @@ abstract class PdfrxEntryFunctions {
   /// Call `FPDF_InitLibraryWithConfig` to initialize the PDFium library.
   ///
   /// For actual apps, call `pdfrxFlutterInitialize` (for Flutter) or [pdfrxInitialize] (for Dart only) instead of this function.
-  Future<void> initPdfium();
+  Future<void> init();
 
   /// This function blocks pdfrx internally calls PDFium functions during the execution of [action].
   ///

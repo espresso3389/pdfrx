@@ -17,7 +17,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   }
 
   @override
-  Future<void> initPdfium() => unimplemented();
+  Future<void> init() => unimplemented();
 
   @override
   Future<T> suspendPdfiumWorkerDuringAction<T>(FutureOr<T> Function() action) async {

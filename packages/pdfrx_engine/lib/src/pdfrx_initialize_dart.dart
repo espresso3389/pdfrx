@@ -16,7 +16,7 @@ bool _isInitialized = false;
 ///   - The function checks for the `PDFIUM_PATH` environment variable to find an existing pdfium module.
 ///   - If Pdfium module is not found, it will be downloaded from the internet.
 /// - [Pdfrx.loadAsset] is set to throw an error by default (Dart does not support assets like Flutter does).
-/// - Calls [PdfrxEntryFunctions.initPdfium] to initialize the PDFium library.
+/// - Calls [PdfrxEntryFunctions.init] to initialize the PDFium library.
 ///
 /// For Flutter, you should call `pdfrxFlutterInitialize` instead of the function.
 Future<void> pdfrxInitialize({
@@ -39,7 +39,7 @@ Future<void> pdfrxInitialize({
     Pdfrx.pdfiumModulePath = await _PdfiumDownloader.downloadAndGetPdfiumModulePath(pdfiumPath.path);
   }
 
-  await PdfrxEntryFunctions.instance.initPdfium();
+  await PdfrxEntryFunctions.instance.init();
 
   _isInitialized = true;
 }

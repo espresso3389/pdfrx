@@ -16,7 +16,7 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
   PdfrxCoreGraphicsEntryFunctions();
 
   @override
-  Future<void> initPdfium() async {
+  Future<void> init() async {
     if (_initialized) {
       return;
     }
@@ -67,7 +67,7 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
     bool useProgressiveLoading = false,
     void Function()? onDispose,
   }) async {
-    await initPdfium();
+    await init();
     sourceName ??= _sourceNameFromData(data);
     return _openWithPassword(
       passwordProvider: passwordProvider,
@@ -103,7 +103,7 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
   }) async {
-    await initPdfium();
+    await init();
     return _openWithPassword(
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
