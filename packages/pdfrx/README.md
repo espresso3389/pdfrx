@@ -117,6 +117,20 @@ To restore the WASM binaries, run the following command:
 dart run pdfrx:remove_wasm_modules --revert
 ```
 
+## Note for iOS/macOS: Using CoreGraphics Instead of PDFium
+
+For iOS and macOS apps, you can optionally use [pdfrx_coregraphics](https://pub.dev/packages/pdfrx_coregraphics) to render PDFs with Apple's native CoreGraphics/PDFKit instead of the bundled PDFium library. This can significantly reduce your app size by removing PDFium dependencies on Darwin platforms.
+
+**⚠️ Note: `pdfrx_coregraphics` is experimental and has some limitations. See the [package documentation](https://pub.dev/packages/pdfrx_coregraphics#limitations) for details.**
+
+To use CoreGraphics rendering:
+
+1. Add `pdfrx_coregraphics` to your dependencies
+2. Set the CoreGraphics entry functions before initializing pdfrx
+3. Optionally remove PDFium dependencies to reduce app size
+
+For complete installation instructions and app size reduction steps, see the [pdfrx_coregraphics README](https://pub.dev/packages/pdfrx_coregraphics).
+
 ## PdfViewer constructors
 
 For opening PDF files from various sources, there are several constructors available in [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html):
