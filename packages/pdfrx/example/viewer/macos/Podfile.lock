@@ -5,10 +5,7 @@ PODS:
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
-  - pdfrx (0.0.8):
-    - Flutter
-    - FlutterMacOS
-  - pdfrx_coregraphics (0.0.1):
+  - pdfrx (0.0.11):
     - Flutter
     - FlutterMacOS
   - url_launcher_macos (0.0.1):
@@ -19,7 +16,6 @@ DEPENDENCIES:
   - FlutterMacOS (from `Flutter/ephemeral`)
   - path_provider_foundation (from `Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin`)
   - pdfrx (from `Flutter/ephemeral/.symlinks/plugins/pdfrx/darwin`)
-  - pdfrx_coregraphics (from `Flutter/ephemeral/.symlinks/plugins/pdfrx_coregraphics/darwin`)
   - url_launcher_macos (from `Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos`)
 
 EXTERNAL SOURCES:
@@ -31,8 +27,6 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/path_provider_foundation/darwin
   pdfrx:
     :path: Flutter/ephemeral/.symlinks/plugins/pdfrx/darwin
-  pdfrx_coregraphics:
-    :path: Flutter/ephemeral/.symlinks/plugins/pdfrx_coregraphics/darwin
   url_launcher_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos
 
@@ -40,8 +34,7 @@ SPEC CHECKSUMS:
   file_selector_macos: 6280b52b459ae6c590af5d78fc35c7267a3c4b31
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
-  pdfrx: 04c7feb7d21c416d5ff89de5d7a9a35caa0c95c2
-  pdfrx_coregraphics: 3d4ab0240897ec65b4e41d0de1a51eddf7abe90d
+  pdfrx: 4d84cd0897c1a01d974258c0f2fe211b79954fa0
   url_launcher_macos: 0fba8ddabfc33ce0a9afe7c5fef5aab3d8d2d673
 
 PODFILE CHECKSUM: 9ebaf0ce3d369aaa26a9ea0e159195ed94724cf3

@@ -360,6 +360,7 @@ class _PdfViewerState extends State<PdfViewer>
       onPageLoadProgress: (pageNumber, totalPageCount, document) {
         if (document == _document && mounted) {
           debugPrint('PdfViewer: Loaded page $pageNumber of $totalPageCount in ${stopwatch.elapsedMilliseconds} ms');
+          setState(() {});
           return true;
         }
         return false;
