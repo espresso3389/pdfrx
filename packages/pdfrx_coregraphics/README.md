@@ -36,12 +36,33 @@ void main() {
 After installation, use pdfrx as usual. All [`PdfDocument`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) and widget APIs continue to work, but rendering is routed
 through CoreGraphics.
 
+## Removing PDFium Dependencies (Reducing App Size)
+
+By default, pdfrx bundles PDFium shared libraries for iOS and macOS even when using `pdfrx_coregraphics`. If you're only using the CoreGraphics backend, you can remove these PDFium dependencies to reduce your app size.
+
+Run this command from your project root:
+
+```bash
+flutter clean # if the environment is not clean
+flutter pub get
+dart run pdfrx:remove_darwin_pdfium_modules
+```
+
+This will comment out the iOS and macOS ffiPlugin configurations in pdfrx's `pubspec.yaml`, preventing PDFium binaries from being bundled with your app.
+
+To revert the changes (restore PDFium dependencies):
+
+```bash
+flutter clean # if the environment is not clean
+flutter pub get
+dart run pdfrx:remove_darwin_pdfium_modules --revert
+```
+
+After executing it, you can run `flutter build` or `flutter run` for iOS/macOS.
+
 ## Limitations
 
 - Incremental/custom stream loading is converted to in-memory loading
 - Custom font registration is not yet supported
 - In document links are always `xyz` and zoom is not reliable (or omitted) in certain situations
-- Text extraction does not cover certain scenarios like vertical texts or R-to-L texts so far
-- If you just use CoreGraphics backend only, pdfrx can work without PDFium shared library; but it is still bundled with the apps
-
-Contributions and issue reports are always welcome.
+- Text extraction does not fully cover certain scenarios like vertical texts or R-to-L texts so far
