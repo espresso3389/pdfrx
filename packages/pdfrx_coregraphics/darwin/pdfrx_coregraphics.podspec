@@ -4,7 +4,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'pdfrx_coregraphics'
-  s.version          = '0.0.1'
+  s.version          = '0.1.2'
   s.summary          = 'CoreGraphics-backed renderer for pdfrx on Apple platforms.'
   s.description      = <<-DESC
 Provides a PdfrxEntryFunctions implementation that uses PDFKit/CoreGraphics instead of PDFium.
@@ -13,7 +13,7 @@ Provides a PdfrxEntryFunctions implementation that uses PDFKit/CoreGraphics inst
   s.license          = { :type => 'BSD', :file => '../LICENSE' }
   s.author           = { 'Takashi Kawasaki' => 'espresso3389@gmail.com' }
   s.source           = { :path => '.' }
-  s.source_files     = [ 'Classes/PdfrxCoregraphicsPlugin.swift' ]
+  s.source_files     = [ 'pdfrx_coregraphics/Sources/PdfrxCoregraphicsPlugin.swift' ]
 
   s.ios.deployment_target = '13.0'
   s.ios.dependency 'Flutter'

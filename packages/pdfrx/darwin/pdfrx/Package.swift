@@ -4,8 +4,8 @@ import PackageDescription
 let package = Package(
     name: "pdfrx",
     platforms: [
-        .iOS(.v11),
-        .macOS(.v10_11)
+        .iOS(.v12),
+        .macOS(.v10_13),
     ],
     products: [
         .library(
@@ -18,7 +18,7 @@ let package = Package(
             name: "pdfrx",
             dependencies: [
                 .target(name: "pdfium", condition: .when(platforms: [.iOS])),
-                .target(name: "pdfium-macos", condition: .when(platforms: [.macOS]))
+                .target(name: "pdfium-macos", condition: .when(platforms: [.macOS])),
             ]
         ),
         .binaryTarget(
@@ -30,6 +30,6 @@ let package = Package(
             name: "pdfium-macos",
             url: "https://github.com/espresso3389/pdfrx/releases/download/pdfium-apple-v11/pdfium-macos.zip",
             checksum: "682ebbbb750fc185295e5b803f497e6ce25ab967476478253a1911977fe22c93"
-        )
+        ),
     ]
 )
