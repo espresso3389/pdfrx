@@ -1,3 +1,9 @@
+## 0.1.3
+
+- **BREAKING**: Renamed `PdfrxEntryFunctions.initPdfium()` to `PdfrxEntryFunctions.init()` for consistency
+- Updated README with documentation for `dart run pdfrx:remove_darwin_pdfium_modules` command to reduce app size
+- Updated to pdfrx_engine 0.2.0
+
 ## 0.1.2
 
 - Added Swift Package Manager (SwiftPM) support for easier integration

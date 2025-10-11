@@ -1,3 +1,9 @@
+# 2.2.0
+
+- **BREAKING**: Renamed `PdfrxEntryFunctions.initPdfium()` to `PdfrxEntryFunctions.init()` for consistency
+- NEW: Added `dart run pdfrx:remove_darwin_pdfium_modules` command to remove PDFium dependencies from iOS/macOS when using alternative backends like pdfrx_coregraphics
+- Updated to pdfrx_engine 0.2.0
+
 # 2.1.26
 
 - FIXED: PDF not visible initially when loading takes relatively long ([#495](https://github.com/espresso3389/pdfrx/issues/495))
