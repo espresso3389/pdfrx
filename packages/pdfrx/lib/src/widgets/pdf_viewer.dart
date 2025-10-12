@@ -256,6 +256,7 @@ class _PdfViewerState extends State<PdfViewer>
   _TextSelectionPart _selPartLastMoved = _TextSelectionPart.none;
 
   bool _isSelectingAllText = false;
+  bool _isSelectingAWord = false;
   PointerDeviceKind? _selectionPointerDeviceKind;
 
   Offset? _contextMenuDocumentPosition;
@@ -2382,12 +2383,31 @@ class _PdfViewerState extends State<PdfViewer>
           : null;
 
       Offset? a, b;
-      switch (Theme.of(context).platform) {
-        case TargetPlatform.fuchsia:
-        case TargetPlatform.linux:
-        case TargetPlatform.windows:
-        case TargetPlatform.macOS:
-          a = _pointerOffset;
+      if (isMobile) {
+        a = localOffset;
+        switch (_textSelA?.direction) {
+          case PdfTextDirection.ltr:
+            a ??= _anchorARect?.topLeft;
+            b = localOffset == null ? _anchorBRect?.bottomLeft : null;
+          case PdfTextDirection.rtl:
+          case PdfTextDirection.vrtl:
+            a ??= _anchorARect?.topRight;
+            b = localOffset == null ? _anchorBRect?.bottomRight : null;
+          default:
+        }
+      } else {
+        // NOTE:
+        // On Desktop, AdaptiveTextSelectionToolbar determines the context menu position by only the first anchor (a).
+        // So, we need to be careful about where to place the anchor (a).
+        if (!_isSelectingAWord && localOffset != null) {
+          a = localOffset;
+        } else {
+          // NOTE: it's still a little strange behavior when selecting a word by long-pressing on it on Desktop
+          if (_isSelectingAWord) {
+            _isSelectingAWord = false;
+            a = _anchorBRect?.bottomRight ?? _anchorARect?.center;
+          }
+          a ??= _pointerOffset;
           if (_anchorARect != null && _anchorBRect != null) {
             switch (_textSelA?.direction) {
               case PdfTextDirection.ltr:
@@ -2403,8 +2423,8 @@ class _PdfViewerState extends State<PdfViewer>
                 }
               case PdfTextDirection.rtl:
               case PdfTextDirection.vrtl:
-                final distA = (_pointerOffset - _anchorARect!.center).distanceSquared;
-                final distB = (_pointerOffset - _anchorBRect!.center).distanceSquared;
+                final distA = (a - _anchorARect!.center).distanceSquared;
+                final distB = (a - _anchorBRect!.center).distanceSquared;
                 if (distA < distB) {
                   a = _anchorARect!.bottomLeft.translate(8, 8);
                 } else {
@@ -2412,19 +2432,9 @@ class _PdfViewerState extends State<PdfViewer>
                 }
               default:
             }
+            _contextMenuDocumentPosition = offsetToDocument(context, a);
           }
-        default:
-          a = localOffset;
-          switch (_textSelA?.direction) {
-            case PdfTextDirection.ltr:
-              a ??= _anchorARect?.topLeft;
-              b = localOffset == null ? _anchorBRect?.bottomLeft : null;
-            case PdfTextDirection.rtl:
-            case PdfTextDirection.vrtl:
-              a ??= _anchorARect?.topRight;
-              b = localOffset == null ? _anchorBRect?.bottomRight : null;
-            default:
-          }
+        }
       }
 
       contextMenu = createContextMenu(a, b, _contextMenuFor);
@@ -2961,9 +2971,11 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     _selPartMoving = _TextSelectionPart.none;
-    _selPartLastMoved = _TextSelectionPart.a;
+    _selPartLastMoved = _TextSelectionPart.b;
     _isSelectingAllText = false;
     _selectionPointerDeviceKind = deviceKind;
+    _contextMenuDocumentPosition = null;
+    _isSelectingAWord = true;
     _notifyTextSelectionChange();
   }
 
