@@ -361,7 +361,6 @@ class _PdfViewerState extends State<PdfViewer>
       onPageLoadProgress: (pageNumber, totalPageCount, document) {
         if (document == _document && mounted) {
           debugPrint('PdfViewer: Loaded page $pageNumber of $totalPageCount in ${stopwatch.elapsedMilliseconds} ms');
-          setState(() {});
           return true;
         }
         return false;
@@ -598,7 +597,7 @@ class _PdfViewerState extends State<PdfViewer>
       }
     }
 
-    if (!_initialized && _layout != null && _coverScale != null && _alternativeFitScale != null) {
+    if (!_initialized && _layout != null && _coverScale != null) {
       _initialized = true;
       Future.microtask(() async {
         // forcibly calculate fit scale for the initial page
@@ -606,7 +605,12 @@ class _PdfViewerState extends State<PdfViewer>
         _calcCoverFitScale();
         _calcZoomStopTable();
         final zoom =
-            widget.params.calculateInitialZoom?.call(_document!, _controller!, _alternativeFitScale!, _coverScale!) ??
+            widget.params.calculateInitialZoom?.call(
+              _document!,
+              _controller!,
+              _alternativeFitScale ?? _coverScale!,
+              _coverScale!,
+            ) ??
             _coverScale!;
         await _setZoom(Offset.zero, zoom, duration: Duration.zero);
         await _goToPage(pageNumber: _pageNumber!, duration: Duration.zero);
