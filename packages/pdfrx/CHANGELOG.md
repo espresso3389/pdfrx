@@ -1,3 +1,7 @@
+# 2.2.1
+
+- FIXED: PDF not visible initially if `_alternativeFitScale` is null ([#495](https://github.com/espresso3389/pdfrx/issues/495))
+
 # 2.2.0
 
 - **BREAKING**: Renamed `PdfrxEntryFunctions.initPdfium()` to `PdfrxEntryFunctions.init()` for consistency
