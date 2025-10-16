@@ -453,7 +453,7 @@ Future<_DownloadResult> _downloadBlock(
 
   final contentRange = response.headers['content-range'];
   var isFullDownload = false;
-  if (response.statusCode == 206 && contentRange != null) {
+  if (contentRange != null) {
     final m = RegExp(r'bytes (\d+)-(\d+)/(\d+)').firstMatch(contentRange);
     fileSize = int.parse(m!.group(3)!);
   } else {
