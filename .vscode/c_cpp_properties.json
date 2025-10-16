@@ -6,16 +6,41 @@
     {
       "name": "Win32",
       "includePath": [
-        "${workspaceFolder}/android/.lib/include",
-        "${workspaceFolder}/iOS/Classes/*",
+        "${workspaceFolder}/packages/pdfrx/android/.lib/latest/include",
+        "${workspaceFolder}/packages/pdfrx/example/viewer/build/windows/x64/.lib/latest/include",
+        "${workspaceFolder}/packages/pdfrx/darwin/pdfrx/Sources/pdfrx",
         "${env:LOCALAPPDATA}/Android/Sdk/ndk/${ndkVersion}/sysroot/usr/include/*"
       ],
       "defines": [],
       "cStandard": "c17",
       "cppStandard": "c++17",
-      "intelliSenseMode": "linux-clang-arm64",
-      "configurationProvider": "go2sh.cmake-integration"
+      "intelliSenseMode": "msvc-x64"
+    },
+    {
+      "name": "Linux",
+      "includePath": [
+        "${workspaceFolder}/packages/pdfrx/android/.lib/latest/include",
+        "${workspaceFolder}/packages/pdfrx/example/viewer/build/linux/x64/.lib/latest/include",
+        "${workspaceFolder}/packages/pdfrx/darwin/pdfrx/Sources/pdfrx"
+      ],
+      "defines": [],
+      "cStandard": "c17",
+      "cppStandard": "c++17",
+      "intelliSenseMode": "linux-clang-arm64"
+    },
+    {
+      "name": "Mac",
+      "includePath": [
+        "${workspaceFolder}/packages/pdfrx/android/.lib/latest/include",
+        "${workspaceFolder}/packages/pdfrx/darwin/pdfium/.lib/pdfium-apple-*/macos/pdfium.xcframework/macos-arm64_x86_64/Headers",
+        "${workspaceFolder}/packages/pdfrx/darwin/pdfrx/Sources/pdfrx"
+      ],
+      "defines": [],
+      "cStandard": "c17",
+      "cppStandard": "c++17",
+      "intelliSenseMode": "macos-clang-arm64"
     }
   ],
-  "version": 4
+  "version": 4,
+  "enableConfigurationSquiggles": true
 }
