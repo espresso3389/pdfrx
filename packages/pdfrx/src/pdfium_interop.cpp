@@ -74,9 +74,18 @@ extern "C" PDFRX_EXPORT void PDFRX_INTEROP_API pdfrx_file_access_set_value(pdfrx
 #include <fpdf_edit.h>
 #include <fpdf_formfill.h>
 
+// This function is used to keep the linker from stripping out the PDFium
+// functions that are not directly referenced in this file. This is necessary
+// because we are dynamically loading the functions at runtime.
 extern "C" PDFRX_EXPORT void const *const *PDFRX_INTEROP_API pdfrx_binding()
 {
   static const void *bindings[] = {
+      // File access functions
+      reinterpret_cast<void *>(pdfrx_file_access_create),
+      reinterpret_cast<void *>(pdfrx_file_access_destroy),
+      reinterpret_cast<void *>(pdfrx_file_access_set_value),
+
+      // PDFium functions
       reinterpret_cast<void *>(FPDF_InitLibraryWithConfig),
       reinterpret_cast<void *>(FPDF_InitLibrary),
       reinterpret_cast<void *>(FPDF_DestroyLibrary),

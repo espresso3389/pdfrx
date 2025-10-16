@@ -19,7 +19,9 @@ let package = Package(
             dependencies: [
                 .target(name: "pdfium", condition: .when(platforms: [.iOS])),
                 .target(name: "pdfium-macos", condition: .when(platforms: [.macOS])),
-            ]
+            ],
+            path: ".",
+            sources: ["Sources"]
         ),
         .binaryTarget(
             name: "pdfium",
