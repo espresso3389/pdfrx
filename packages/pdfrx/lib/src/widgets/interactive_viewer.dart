@@ -1235,10 +1235,15 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
     final extraBoundaryHorizontal = extraWidth < -kOverflowTolerance ? (extraWidth.abs() / 2) : 0.0;
     final extraBoundaryVertical = extraHeight < -kOverflowTolerance ? (extraHeight.abs() / 2) : 0.0;
 
+    // When content is smaller than viewport, force centering by making min==max
     final minX = -((baseMargin.left * scale + extraBoundaryHorizontal));
-    final maxX = -((baseMargin.left * scale + extraBoundaryHorizontal)) + math.max(extraWidth, 0);
+    final maxX = extraWidth < -kOverflowTolerance
+        ? minX // Force centering
+        : -((baseMargin.left * scale + extraBoundaryHorizontal)) + extraWidth;
     final minY = -((baseMargin.top * scale + extraBoundaryVertical));
-    final maxY = -((baseMargin.bottom * scale + extraBoundaryVertical)) + math.max(extraHeight, 0);
+    final maxY = extraHeight < -kOverflowTolerance
+        ? minY // Force centering
+        : -((baseMargin.bottom * scale + extraBoundaryVertical)) + extraHeight;
     return Rect.fromLTRB(minX, minY, maxX, maxY).round10BitFrac();
   }
 
@@ -1307,7 +1312,7 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
       viewportSize: viewSize,
       scale: scale,
       boundaryMargin: widget.boundaryMargin,
-      overrideAutoAdjustBoundaries: true,
+      overrideAutoAdjustBoundaries: false, // Use adjusted boundaries to respect centering logic
     );
 
     // Ensure bounds are ordered correctly for clamp.
