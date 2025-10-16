@@ -1,5 +1,7 @@
 # Page Layout Customization
 
+> NOTE: setting [PdfViewerParams.layoutPages](https://pub.dev/documentation/pdf_render/latest/pdf_render_widgets/PdfViewerParams/layoutPages.html) dynamically does not refresh the viewer. You should call [PdfViewerController.invalidate](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/invalidate.html), [setState](https://api.flutter.dev/flutter/widgets/State/setState.html) or some equivalent function.
+
 ## Horizontal Scroll View
 
 By default, the pages are laid out vertically.

@@ -9,8 +9,8 @@ import '../utils/platform.dart';
 
 /// Viewer customization parameters.
 ///
-/// Changes to several builder functions such as [layoutPages] does not
-/// take effect until the viewer is re-layout-ed. You can relayout the viewer by calling [PdfViewerController].relayout.
+/// Changes to several functions such as [layoutPages] does not
+/// take effect until the viewer is re-layout-ed. You can relayout the viewer by calling [PdfViewerController.invalidate].
 @immutable
 class PdfViewerParams {
   const PdfViewerParams({
@@ -83,7 +83,7 @@ class PdfViewerParams {
 
   /// Function to customize the layout of the pages.
   ///
-  /// Changes to this function does not take effect until the viewer is re-layout-ed. You can relayout the viewer by calling [PdfViewerController].relayout.
+  /// Changes to this function does not take effect until the viewer is re-layout-ed. You can relayout the viewer by calling [PdfViewerController.invalidate].
   ///
   /// The following fragment is an example to layout pages horizontally with margin:
   ///
