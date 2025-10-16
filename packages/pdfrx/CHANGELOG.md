@@ -1,3 +1,7 @@
+# 2.2.2
+
+- FIXED: InteractiveViewer ScrollPhysics pinch-zoom centering issues ([#502](https://github.com/espresso3389/pdfrx/issues/502))
+
 # 2.2.1
 
 - FIXED: PDF not visible initially if `_alternativeFitScale` is null ([#495](https://github.com/espresso3389/pdfrx/issues/495))
