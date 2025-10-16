@@ -1,3 +1,7 @@
+# 2.2.3
+
+- POSSIBLE FIX: Error on `openFile()` or `openAsset()` on iOS production builds installed from AppStore/TestFlight ([#501](https://github.com/espresso3389/pdfrx/issues/501))
+
 # 2.2.2
 
 - FIXED: InteractiveViewer ScrollPhysics pinch-zoom centering issues ([#502](https://github.com/espresso3389/pdfrx/issues/502))
