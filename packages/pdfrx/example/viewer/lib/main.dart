@@ -103,7 +103,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
             return Row(
               children: [
                 if (!isMobileDevice) ...[
-                  Expanded(child: Text(_fileName(documentRef?.key.sourceName) ?? 'No document loaded')),
+                  Expanded(child: Text(_fileName(documentRef?.sourceName) ?? 'No document loaded')),
                   SizedBox(width: 10),
                   FilledButton(onPressed: () => openFile(), child: Text('Open File')),
                   SizedBox(width: 20),
@@ -198,7 +198,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                                     valueListenable: documentRef,
                                     builder: (context, documentRef, child) => Expanded(
                                       child: Text(
-                                        _fileName(documentRef?.key.sourceName) ?? 'No document loaded',
+                                        _fileName(documentRef?.sourceName) ?? 'No document loaded',
                                         softWrap: false,
                                       ),
                                     ),
@@ -309,9 +309,14 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           },
                         ),
                         keyHandlerParams: PdfViewerKeyHandlerParams(autofocus: true),
-                        useAlternativeFitScaleAsMinScale: false,
                         maxScale: 8,
-                        //scrollPhysics: PdfViewerParams.getScrollPhysics(context),
+                        fitMode: FitMode.fill,
+                        // pageDropShadow: null,
+                        margin: 10,
+                        boundaryMargin: const EdgeInsets.all(10),
+                        pageTransition: PageTransition.discrete,
+                        resetScaleOnDiscreteTransition: true,
+                        scrollPhysics: PdfViewerParams.getScrollPhysics(context),
                         viewerOverlayBuilder: (context, size, handleLinkTap) => [
                           //
                           // Example use of GestureDetector to handle custom gestures
@@ -341,28 +346,28 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                             controller: controller,
                             orientation: ScrollbarOrientation.right,
                             thumbSize: const Size(40, 25),
-                            thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
+                            /*   thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
                               color: Colors.black,
                               child: isHorizontalLayout
                                   ? null
                                   : Center(
                                       child: Text(pageNumber.toString(), style: const TextStyle(color: Colors.white)),
                                     ),
-                            ),
+                            ), */
                           ),
                           // Just a simple horizontal scroll thumb on the bottom
                           PdfViewerScrollThumb(
                             controller: controller,
                             orientation: ScrollbarOrientation.bottom,
                             thumbSize: const Size(40, 25),
-                            thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
+                            /*thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
                               color: Colors.black,
                               child: !isHorizontalLayout
                                   ? null
                                   : Center(
                                       child: Text(pageNumber.toString(), style: const TextStyle(color: Colors.white)),
                                     ),
-                            ),
+                            ), */
                           ),
                         ],
                         //
@@ -470,61 +475,31 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   /// Page reading order; true to L-to-R that is commonly used by books like manga or such
   var isRightToLeftReadingOrder = false;
 
-  /// Use the first page as cover page
-  var needCoverPage = true;
-
   late final List<PdfPageLayoutFunction?> _layoutPages = [
-    // The default layout
     null,
-    // Horizontal layout
-    (pages, params) {
+    // Horizontal layout (using built-in layout class)
+    (pages, params, helper) =>
+        SinglePagesLayout.fromPages(pages, params, helper: helper, scrollDirection: Axis.horizontal),
+
+    // Facing pages layout (using built-in layout class)
+    (pages, params, helper) => FacingPagesLayout.fromPages(
+      pages,
+      params,
+      helper: helper,
+      firstPageIsCoverPage: true,
+      isRightToLeftReadingOrder: isRightToLeftReadingOrder,
+    ),
+
+    // Custom layout example - horizontal strip layout
+    (pages, params, helper) {
       final height = pages.fold(0.0, (prev, page) => max(prev, page.height)) + params.margin * 2;
       final pageLayouts = <Rect>[];
       double x = params.margin;
       for (var page in pages) {
-        pageLayouts.add(
-          Rect.fromLTWH(
-            x,
-            (height - page.height) / 2, // center vertically
-            page.width,
-            page.height,
-          ),
-        );
+        pageLayouts.add(Rect.fromLTWH(x, (height - page.height) / 2, page.width, page.height));
         x += page.width + params.margin;
       }
       return PdfPageLayout(pageLayouts: pageLayouts, documentSize: Size(x, height));
-    },
-    // Facing pages layout
-    (pages, params) {
-      final width = pages.fold(0.0, (prev, page) => max(prev, page.width));
-
-      final pageLayouts = <Rect>[];
-      final offset = needCoverPage ? 1 : 0;
-      double y = params.margin;
-      for (int i = 0; i < pages.length; i++) {
-        final page = pages[i];
-        final pos = i + offset;
-        final isLeft = isRightToLeftReadingOrder ? (pos & 1) == 1 : (pos & 1) == 0;
-
-        final otherSide = (pos ^ 1) - offset;
-        final h = 0 <= otherSide && otherSide < pages.length ? max(page.height, pages[otherSide].height) : page.height;
-
-        pageLayouts.add(
-          Rect.fromLTWH(
-            isLeft ? width + params.margin - page.width : params.margin * 2 + width,
-            y + (h - page.height) / 2,
-            page.width,
-            page.height,
-          ),
-        );
-        if (pos & 1 == 1 || i + 1 == pages.length) {
-          y += h + params.margin;
-        }
-      }
-      return PdfPageLayout(
-        pageLayouts: pageLayouts,
-        documentSize: Size((params.margin + width) * 2 + params.margin, y),
-      );
     },
   ];
 
@@ -606,7 +581,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       final bytes = await file.readAsBytes();
       documentRef.value = PdfDocumentRefData(
         bytes,
-        sourceName: 'web-open-file%${file.name}',
+        sourceName: file.name,
         passwordProvider: () => passwordDialog(context),
         useProgressiveLoading: useProgressiveLoading,
       );

@@ -31,11 +31,11 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/url_launcher_macos/macos
 
 SPEC CHECKSUMS:
-  file_selector_macos: 6280b52b459ae6c590af5d78fc35c7267a3c4b31
+  file_selector_macos: cc3858c981fe6889f364731200d6232dac1d812d
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
-  path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
-  pdfrx: 4d84cd0897c1a01d974258c0f2fe211b79954fa0
-  url_launcher_macos: 0fba8ddabfc33ce0a9afe7c5fef5aab3d8d2d673
+  path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
+  pdfrx: 5d590cfc73b66a19231c9bff0367a5875aea32e8
+  url_launcher_macos: c82c93949963e55b228a30115bd219499a6fe404
 
 PODFILE CHECKSUM: 9ebaf0ce3d369aaa26a9ea0e159195ed94724cf3
 
