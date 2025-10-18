@@ -76,6 +76,7 @@ class InteractiveViewer extends StatefulWidget {
     this.onInteractionEnd,
     this.onInteractionStart,
     this.onInteractionUpdate,
+    this.onAnimationEnd,
     this.panEnabled = true,
     this.scaleEnabled = true,
     this.scaleFactor = kDefaultMouseScrollToScaleFactor,
@@ -124,6 +125,7 @@ class InteractiveViewer extends StatefulWidget {
     this.onInteractionEnd,
     this.onInteractionStart,
     this.onInteractionUpdate,
+    this.onAnimationEnd,
     this.panEnabled = true,
     this.scaleEnabled = true,
     this.scaleFactor = 200.0,
@@ -370,6 +372,11 @@ class InteractiveViewer extends StatefulWidget {
   ///  * [onInteractionEnd], which handles the end of the same interaction.
   final GestureScaleUpdateCallback? onInteractionUpdate;
 
+  /// Called when all animations (inertia, scale, snap) have completed.
+  ///
+  /// This is useful for triggering UI updates after zoom or pan animations finish.
+  final VoidCallback? onAnimationEnd;
+
   /// A [TransformationController] for the transformation performed on the
   /// child.
   ///
@@ -526,17 +533,18 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
   // the child.
   Rect get _boundaryRect {
     assert(_childKey.currentContext != null);
-    assert(!widget.boundaryMargin.left.isNaN);
-    assert(!widget.boundaryMargin.right.isNaN);
-    assert(!widget.boundaryMargin.top.isNaN);
-    assert(!widget.boundaryMargin.bottom.isNaN);
 
     final childRenderBox = _childKey.currentContext!.findRenderObject()! as RenderBox;
     final childSize = childRenderBox.size;
-    final boundaryRect = widget.boundaryMargin.inflateRect(Offset.zero & childSize);
+
+    final boundaryMargin = widget.boundaryMargin;
+    assert(!boundaryMargin.left.isNaN);
+    assert(!boundaryMargin.right.isNaN);
+    assert(!boundaryMargin.top.isNaN);
+    assert(!boundaryMargin.bottom.isNaN);
+
+    final boundaryRect = boundaryMargin.inflateRect(Offset.zero & childSize);
     assert(!boundaryRect.isEmpty, "InteractiveViewer's child must have nonzero dimensions.");
-    // Boundaries that are partially infinite are not allowed because Matrix4's
-    // rotation and translation methods don't handle infinites well.
     assert(
       boundaryRect.isFinite ||
           (boundaryRect.left.isInfinite &&
@@ -1045,6 +1053,7 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
             ..addListener(_animateSnap)
             ..forward(from: 0.0).then((_) {
               _snapTargetMatrix = null;
+              _checkAndNotifyAnimationEnd();
             });
           break;
         } else {
@@ -1173,6 +1182,7 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
       }
       _currentAxis = null;
       _controller.reset();
+      _checkAndNotifyAnimationEnd();
       return;
     }
     // Translate such that the resulting translation is _animation.value.
@@ -1180,21 +1190,22 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
     final translation = Offset(translationVector.x, translationVector.y);
     final translationScene = _transformer.toScene(translation);
 
+    Offset newTranslationVector;
     if (widget.scrollPhysics != null) {
       /// When using scrollPhysics, we apply a simulation rather than an animation to the offsets
       final t = _controller.lastElapsedDuration!.inMilliseconds / 1000.0;
       final simulationOffsetX = simulationX != null ? -simulationX!.x(t) : translationVector.x;
       final simulationOffsetY = simulationY != null ? -simulationY!.x(t) : translationVector.y;
-      final simulationOffset = Offset(simulationOffsetX, simulationOffsetY);
-      final simulationScene = _transformer.toScene(simulationOffset);
-      final translationChangeScene = simulationScene - translationScene;
-      _transformer.value = _matrixTranslate(_transformer.value, translationChangeScene);
+      newTranslationVector = Offset(simulationOffsetX, simulationOffsetY);
     } else {
       // Translate such that the resulting translation is _animation.value.
-      final animationScene = _transformer.toScene(_animation!.value);
-      final translationChangeScene = animationScene - translationScene;
-      _transformer.value = _matrixTranslate(_transformer.value, translationChangeScene);
+      newTranslationVector = _animation!.value;
     }
+
+    // Apply the translation
+    final newTranslationScene = _transformer.toScene(newTranslationVector);
+    final translationChangeScene = newTranslationScene - translationScene;
+    _transformer.value = _matrixTranslate(_transformer.value, translationChangeScene);
   }
 
   /// ScrollPhysics helpers
@@ -1212,7 +1223,6 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
     EdgeInsets? boundaryMargin,
     bool overrideAutoAdjustBoundaries = false,
   }) {
-    // Use original boundaryMargin unless a specific one is passed for override.
     final baseMargin =
         (overrideAutoAdjustBoundaries && !widget.scrollPhysicsAutoAdjustBoundaries) || boundaryMargin == null
         ? _originalBoundaryMargin
@@ -1222,29 +1232,41 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
     if (_boundaryRect.isInfinite) {
       return const Rect.fromLTRB(-double.maxFinite, -double.maxFinite, double.maxFinite, double.maxFinite);
     }
-    // Compute the raw boundary rect using the baseMargin, then scale it
-    final baseBoundaryRect = baseMargin.inflateRect(Offset.zero & _childSize());
-    final effectiveWidth = baseBoundaryRect.width * scale;
-    final effectiveHeight = baseBoundaryRect.height * scale;
+
+    final effectiveBoundaryRect = baseMargin.inflateRect(Offset.zero & _childSize());
+
+    final effectiveWidth = effectiveBoundaryRect.width * scale;
+    final effectiveHeight = effectiveBoundaryRect.height * scale;
 
     final extraWidth = effectiveWidth - viewportSize.width;
     final extraHeight = effectiveHeight - viewportSize.height;
 
     // Always center when content is smaller than viewport, using a small tolerance for floating imprecision.
-    const kOverflowTolerance = 0.1; // logical pixels
+    // - Dynamic boundary rects go through more transformations (layout, spacing, margins, scale)
+    // - Floating-point errors accumulate through these operations
+    // - Sub-pixel differences create janky scrolling when content nearly fills viewport
+    // - 1px is imperceptible to users but prevents false "content overflows" detection
+    final kOverflowTolerance = 0.1; // logical pixels
     final extraBoundaryHorizontal = extraWidth < -kOverflowTolerance ? (extraWidth.abs() / 2) : 0.0;
     final extraBoundaryVertical = extraHeight < -kOverflowTolerance ? (extraHeight.abs() / 2) : 0.0;
 
-    // When content is smaller than viewport, force centering by making min==max
+    // When content is smaller than viewport, center it by making min==max
     final minX = -((baseMargin.left * scale + extraBoundaryHorizontal));
     final maxX = extraWidth < -kOverflowTolerance
         ? minX // Force centering
-        : -((baseMargin.left * scale + extraBoundaryHorizontal)) + extraWidth;
+        : -((baseMargin.left * scale - extraBoundaryHorizontal)) + extraWidth;
     final minY = -((baseMargin.top * scale + extraBoundaryVertical));
     final maxY = extraHeight < -kOverflowTolerance
         ? minY // Force centering
-        : -((baseMargin.bottom * scale + extraBoundaryVertical)) + extraHeight;
-    return Rect.fromLTRB(minX, minY, maxX, maxY).round10BitFrac();
+        : -((baseMargin.top * scale - extraBoundaryVertical)) + extraHeight;
+
+    // Ensure bounds are valid (min <= max) to avoid scroll physics assertion errors
+    // This can happen due to floating point precision issues when content is centered
+    final safeMinX = math.min(minX, maxX);
+    final safeMaxX = math.max(minX, maxX);
+    final safeMinY = math.min(minY, maxY);
+    final safeMaxY = math.max(minY, maxY);
+    return Rect.fromLTRB(safeMinX, safeMinY, safeMaxX, safeMaxY).round10BitFrac();
   }
 
   // Normalize ScrollMetrics such that minScrollExtent = 0 and pixels shift accordingly.
@@ -1413,6 +1435,13 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
   bool get hasActiveAnimations =>
       _controller.isAnimating || _scaleController.isAnimating || _snapController.isAnimating;
 
+  /// Check if all animations have completed and call onAnimationEnd if needed
+  void _checkAndNotifyAnimationEnd() {
+    if (!hasActiveAnimations) {
+      widget.onAnimationEnd?.call();
+    }
+  }
+
   /// Stop all active animations without saving state
   void stopAllAnimations() {
     // Stop pan animations
@@ -1453,6 +1482,7 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
       _scaleAnimation?.removeListener(_handleScaleAnimation);
       _scaleAnimation = null;
       _scaleController.reset();
+      _checkAndNotifyAnimationEnd();
       return;
     }
     final desiredScale = _scaleAnimation!.value;
