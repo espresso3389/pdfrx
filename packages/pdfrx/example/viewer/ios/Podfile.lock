@@ -34,7 +34,7 @@ SPEC CHECKSUMS:
   file_selector_ios: f0670c1064a8c8450e38145d8043160105d0b97c
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
-  pdfrx: 5d590cfc73b66a19231c9bff0367a5875aea32e8
+  pdfrx: 8b94a416168f5da3cdff56390f6412edf92ec915
   url_launcher_ios: 5334b05cef931de560670eeae103fd3e431ac3fe
 
 PODFILE CHECKSUM: 4f1c12611da7338d21589c0b2ecd6bd20b109694
