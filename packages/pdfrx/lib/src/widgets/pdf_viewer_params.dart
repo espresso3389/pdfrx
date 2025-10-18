@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../pdfrx.dart';
-import '../utils/platform.dart';
+import '../utils/native/native.dart';
 
 /// Viewer customization parameters.
 ///
@@ -18,9 +18,10 @@ class PdfViewerParams {
     this.backgroundColor = Colors.grey,
     this.layoutPages,
     this.normalizeMatrix,
+    this.fitMode = FitMode.fit,
     this.maxScale = 8.0,
-    this.minScale = 0.1,
-    this.useAlternativeFitScaleAsMinScale = true,
+    this.minScale,
+    this.useAlternativeFitScaleAsMinScale = false,
     this.panAxis = PanAxis.free,
     this.boundaryMargin,
     this.annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
@@ -73,7 +74,12 @@ class PdfViewerParams {
     this.forceReload = false,
     this.scrollPhysics,
     this.scrollPhysicsScale,
-  });
+  }) : assert(
+         !useAlternativeFitScaleAsMinScale || fitMode == FitMode.fit,
+         'useAlternativeFitScaleAsMinScale is deprecated and forces FitMode.fit behavior, '
+         'making the fitMode parameter ($fitMode) ineffective. '
+         'Remove the useAlternativeFitScaleAsMinScale parameter to use fitMode as intended.',
+       );
 
   /// Margin around the page.
   final double margin;
@@ -139,32 +145,74 @@ class PdfViewerParams {
   /// ```
   final PdfMatrixNormalizeFunction? normalizeMatrix;
 
+  /// How pages should be fitted within the viewport.
+  ///
+  /// - [FitMode.fit]: Entire page/spread visible (may have letterboxing)
+  /// - [FitMode.fill]: Fill viewport (may crop content perpendicular to scroll direction)
+  ///
+  /// The default is [FitMode.fit].
+  final FitMode fitMode;
+
   /// The maximum allowed scale.
   ///
   /// The default is 8.0.
   final double maxScale;
 
-  /// The minimum allowed scale.
+  /// The minimum allowed scale for zooming.
   ///
-  /// The default is 0.1.
+  /// - If `null` (default): The minimum scale is automatically calculated using the layout's
+  ///   `calculateFitScale()` method with the current [fitMode], ensuring content fits appropriately.
+  /// - If a value is provided: That value is used as the explicit minimum scale.
   ///
-  /// Please note that the value is not used if [useAlternativeFitScaleAsMinScale] is true.
-  /// See [useAlternativeFitScaleAsMinScale] for the details.
-  final double minScale;
+  /// **Note:** When [useAlternativeFitScaleAsMinScale] is `true` (deprecated), it overrides this setting.
+  ///
+  /// **Examples:**
+  /// ```dart
+  /// // Automatic calculation (recommended):
+  /// PdfViewerParams(minScale: null)  // or omit entirely
+  ///
+  /// // Explicit minimum scale:
+  /// PdfViewerParams(minScale: 0.5)
+  /// ```
+  final double? minScale;
 
-  /// If true, the minimum scale is set to the calculated [PdfViewerController.alternativeFitScale].
+  /// **DEPRECATED:** Use `fitMode` and `minScale` parameters instead.
   ///
-  /// If the minimum scale is small value, it makes many pages visible inside the view and it finally
-  /// renders many pages at once. It may make the viewer to be slow or even crash due to high memory consumption.
-  /// So, it is recommended to set this to false if you want to show PDF documents with many pages.
+  /// This legacy parameter controlled whether to force `FitMode.fit` behavior for fit scale calculation.
+  /// When `true`, the fit scale is always calculated as `FitMode.fit` regardless of the `fitMode` parameter.
+  /// When `false` (now default as of v2.3.0), the fit scale respects the `fitMode` parameter.
+  ///
+  /// **Breaking change in v2.3.0:** Default changed from `true` to `false`.
+  /// If you were relying on the old default, explicitly set this to `true`.
+  ///
+  /// **Important:** Explicit `minScale` values are now always honored regardless of this flag (fixed in v2.3.0).
+  /// Previously, when this flag was `true`, explicit `minScale` values were ignored.
+  ///
+  /// **Migration:**
+  /// - If you want the old behavior: Set `useAlternativeFitScaleAsMinScale: true` explicitly.
+  /// - If you want to allow zooming out beyond the fit scale: Set `minScale: 0.1` (or desired value).
+  /// - If you want different fit modes to work correctly: Remove this parameter or set to `false` (default).
+  ///
+  /// **Example:**
+  /// ```dart
+  /// // Old code (pre-v2.3.0):
+  /// PdfViewerParams(fitMode: FitMode.fill)  // Didn't work, behaved like FitMode.fit
+  ///
+  /// // New code (v2.3.0+):
+  /// PdfViewerParams(fitMode: FitMode.fill)  // Works correctly now
+  ///
+  /// // To keep old behavior:
+  /// PdfViewerParams(fitMode: FitMode.fill, useAlternativeFitScaleAsMinScale: true)
+  /// ```
+  @Deprecated('Use fitMode parameter instead. See documentation for migration guide.')
   final bool useAlternativeFitScaleAsMinScale;
 
-  /// See [InteractiveViewer.panAxis] for details.
+  /// See [InteractiveViewer.panAxis] f or details.
   final PanAxis panAxis;
 
   /// See [InteractiveViewer.boundaryMargin] for details.
   ///
-  /// The default is `EdgeInsets.zero`.
+  /// The default is `EdgeInsets.all(double.infinity)`.
   final EdgeInsets? boundaryMargin;
 
   /// Annotation rendering mode.
@@ -577,6 +625,7 @@ class PdfViewerParams {
         forceReload ||
         other.margin != margin ||
         other.backgroundColor != backgroundColor ||
+        other.fitMode != fitMode ||
         other.maxScale != maxScale ||
         other.minScale != minScale ||
         other.useAlternativeFitScaleAsMinScale != useAlternativeFitScaleAsMinScale ||
@@ -611,6 +660,7 @@ class PdfViewerParams {
 
     return other.margin == margin &&
         other.backgroundColor == backgroundColor &&
+        other.fitMode == fitMode &&
         other.maxScale == maxScale &&
         other.minScale == minScale &&
         other.useAlternativeFitScaleAsMinScale == useAlternativeFitScaleAsMinScale &&
@@ -670,6 +720,7 @@ class PdfViewerParams {
   int get hashCode {
     return margin.hashCode ^
         backgroundColor.hashCode ^
+        fitMode.hashCode ^
         maxScale.hashCode ^
         minScale.hashCode ^
         useAlternativeFitScaleAsMinScale.hashCode ^
@@ -962,11 +1013,11 @@ abstract class PdfTextSelectionDelegate implements PdfTextSelection {
   Future<void> selectWord(Offset position);
 
   /// Convert document coordinates to local coordinates and vice versa.
-  PdfViewerCoordinateConverter get doc2local;
+  DocumentCoordinateConverter get doc2local;
 }
 
 /// Utility class to convert document coordinates to local coordinates and vice versa.
-abstract class PdfViewerCoordinateConverter {
+abstract class DocumentCoordinateConverter {
   /// Convert a document position to a local position in the specified [context].
   Offset? offsetToLocal(BuildContext context, Offset? position);
 
@@ -1175,10 +1226,26 @@ typedef PdfViewerGetPageRenderingScale =
 
 /// Function to customize the layout of the pages.
 ///
-/// - [pages] is the list of pages.
-///   This is just a copy of the first loaded page of the document.
-/// - [params] is the viewer parameters.
-typedef PdfPageLayoutFunction = PdfPageLayout Function(List<PdfPage> pages, PdfViewerParams params);
+/// **Parameters:**
+/// - [pages] - List of pages from the PDF document
+/// - [params] - Viewer parameters
+/// - [helper] - Layout helper with viewport and margin information
+///
+/// **Example:**
+/// ```dart
+/// layoutPages: (pages, params, helper) {
+///   // Use helper for viewport-aware layouts
+///   return SinglePagesLayout.fromPages(pages, params, helper: helper);
+/// }
+/// ```
+///
+/// If you have custom layout functions, add `helper` parameter:
+/// - Old: `(pages, params) => ...`
+/// - New: `(pages, params, helper) => ...`
+///
+/// The helper provides viewport size and margins for dynamic layouts.
+typedef PdfPageLayoutFunction =
+    PdfPageLayout Function(List<PdfPage> pages, PdfViewerParams params, PdfLayoutHelper helper);
 
 /// Function to normalize the matrix.
 ///
