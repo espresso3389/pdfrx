@@ -410,22 +410,6 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
     );
   }
 
-  PdfDest? _parseDest(Map<Object?, Object?>? dest) {
-    if (dest == null) {
-      return null;
-    }
-    final map = dest.cast<String, Object?>();
-    final page = map['page'] as int? ?? 1;
-    final params = (map['params'] as List<Object?>?)
-        ?.map((value) => (value as num?)?.toDouble())
-        .toList(growable: false);
-    final commandName = map['command'] as String?;
-    final command = commandName == null
-        ? PdfDestCommand.unknown
-        : PdfDestCommand.parse(commandName);
-    return PdfDest(page, command, params);
-  }
-
   @override
   bool isIdenticalDocumentHandle(Object? other) {
     return other is _CoreGraphicsPdfDocument && other.handle == handle;
@@ -614,21 +598,10 @@ class _CoreGraphicsPdfPage extends PdfPage {
                 const <PdfRect>[];
             final url = map['url'] as String?;
             final destMap = map['dest'] as Map<Object?, Object?>?;
-            final dest = destMap == null
-                ? null
-                : PdfDest(
-                    (destMap['page'] as int?) ?? pageNumber,
-                    destMap['command'] is String
-                        ? PdfDestCommand.parse(destMap['command'] as String)
-                        : PdfDestCommand.unknown,
-                    (destMap['params'] as List<Object?>?)
-                        ?.map((value) => (value as num?)?.toDouble())
-                        .toList(growable: false),
-                  );
             final link = PdfLink(
               rects,
               url: url == null ? null : Uri.tryParse(url),
-              dest: dest,
+              dest: _parseDest(destMap, defaultPageNumber: pageNumber),
               annotationContent: map['annotationContent'] as String?,
             );
             return compact ? link.compact() : link;
@@ -688,4 +661,27 @@ class _CoreGraphicsCancellationToken implements PdfPageRenderCancellationToken {
 
   @override
   bool get isCanceled => _isCanceled;
+}
+
+PdfDest? _parseDest(Map<Object?, Object?>? dest, {int defaultPageNumber = 1}) {
+  if (dest == null) return null;
+  final map = dest.cast<String, Object?>();
+  return PdfDest(
+    map['page'] as int? ?? defaultPageNumber,
+    _tryParseDestCommand(map['command'] as String?),
+    (map['params'] as List<Object?>?)
+        ?.map((value) => (value as num?)?.toDouble())
+        .toList(growable: false),
+  );
+}
+
+PdfDestCommand _tryParseDestCommand(String? commandName) {
+  try {
+    if (commandName == null) {
+      return PdfDestCommand.unknown;
+    }
+    return PdfDestCommand.parse(commandName);
+  } catch (e) {
+    return PdfDestCommand.unknown;
+  }
 }
