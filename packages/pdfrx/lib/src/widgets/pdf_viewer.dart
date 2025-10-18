@@ -1230,9 +1230,7 @@ class _PdfViewerState extends State<PdfViewer>
       return;
     }
 
-    final shouldResetScale = widget.params.resetScaleOnDiscreteTransition && isAdvancingToNewPage;
-
-    if (shouldResetScale && _viewSize != null) {
+    if (isAdvancingToNewPage && _viewSize != null) {
       // Calculate fit scale for the target page
       _calcFitScale(targetPage);
       _adjustBoundaryMargins(_viewSize!, _fitScale);
@@ -1243,7 +1241,7 @@ class _PdfViewerState extends State<PdfViewer>
     final layout = _layout;
     if (layout != null && _viewSize != null && anchor != PdfPageAnchor.center) {
       // Calculate what the scale will be for this page
-      final targetScale = shouldResetScale ? _fitScale : _currentZoom;
+      final targetScale = _fitScale;
       final isPrimaryVertical = layout.primaryAxis == Axis.vertical;
       final pageRect = layout is PdfSpreadLayout
           ? layout.getSpreadBounds(targetPage)
@@ -1263,18 +1261,14 @@ class _PdfViewerState extends State<PdfViewer>
       }
     }
 
-    final targetZoom = shouldResetScale ? _fitScale : _currentZoom;
+    final targetZoom = _fitScale;
 
     // Mark that we're transitioning pages to prevent page number updates during animation
-    if (shouldResetScale) {
-      _isTransitioningPages = true;
-    }
+    _isTransitioningPages = true;
 
     _setCurrentPageNumber(targetPage, targetZoom: targetZoom, doSetState: true);
 
-    final targetMatrix = shouldResetScale
-        ? _calcMatrixForPage(pageNumber: targetPage, anchor: effectiveAnchor, forceScale: targetZoom)
-        : _calcMatrixForPage(pageNumber: targetPage, anchor: effectiveAnchor, maintainCurrentZoom: true);
+    final targetMatrix = _calcMatrixForPage(pageNumber: targetPage, anchor: effectiveAnchor, forceScale: targetZoom);
 
     await _goTo(targetMatrix, duration: duration, curve: Curves.easeInOutCubic);
 

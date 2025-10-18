@@ -315,7 +315,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         margin: 10,
                         boundaryMargin: const EdgeInsets.all(10),
                         pageTransition: PageTransition.discrete,
-                        resetScaleOnDiscreteTransition: true,
                         scrollPhysics: PdfViewerParams.getScrollPhysics(context),
                         viewerOverlayBuilder: (context, size, handleLinkTap) => [
                           //

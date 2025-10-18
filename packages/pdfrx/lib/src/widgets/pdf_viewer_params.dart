@@ -20,7 +20,6 @@ class PdfViewerParams {
     this.normalizeMatrix,
     this.fitMode = FitMode.fit,
     this.pageTransition = PageTransition.continuous,
-    this.resetScaleOnDiscreteTransition = false,
     this.maxScale = 8.0,
     this.minScale,
     this.useAlternativeFitScaleAsMinScale = false,
@@ -182,15 +181,6 @@ class PdfViewerParams {
   ///
   /// The default is [PageTransition.continuous].
   final PageTransition pageTransition;
-
-  /// Whether to reset zoom to fit scale on discrete page transitions.
-  ///
-  /// When enabled in discrete mode, page transitions will reset the zoom level
-  /// back to fit scale (minScale). This ensures that when navigating between pages,
-  /// the viewer always returns to the default fit scale regardless of the current zoom level.
-  ///
-  /// The default is false.
-  final bool resetScaleOnDiscreteTransition;
 
   /// The maximum allowed scale.
   ///
