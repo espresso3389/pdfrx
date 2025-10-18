@@ -16,6 +16,9 @@ dependencies:
     path: ../../
   pdfrx_coregraphics:
     path: ../../../pdfrx_coregraphics
+  
+  file_picker: ^10.3.3
+  synchronized: ^3.4.0
 
 dev_dependencies:
   flutter_test:

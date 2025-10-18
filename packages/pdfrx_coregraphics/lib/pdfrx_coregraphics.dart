@@ -47,6 +47,7 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
         'Pdfrx.loadAsset is not set. Please set it before calling openAsset.',
       );
     }
+    await init();
     final data = await Pdfrx.loadAsset!(name);
     return openData(
       data,
@@ -131,6 +132,7 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
+    await init();
     final buffer = Uint8List(fileSize);
     final chunk = Uint8List(min(fileSize, 128 * 1024));
     var offset = 0;
@@ -166,6 +168,7 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
     Map<String, String>? headers,
     bool withCredentials = false,
   }) async {
+    await init();
     final clientFactory = Pdfrx.createHttpClient ?? () => http.Client();
     final client = clientFactory();
     try {

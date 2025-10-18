@@ -24,7 +24,6 @@ class PdfViewerParams {
     this.panAxis = PanAxis.free,
     this.boundaryMargin,
     this.annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
-    this.limitRenderingCache = true,
     this.pageAnchor = PdfPageAnchor.top,
     this.pageAnchorEnd = PdfPageAnchor.bottom,
     this.onePassRenderingScaleThreshold = 200 / 72,
@@ -169,12 +168,6 @@ class PdfViewerParams {
 
   /// Annotation rendering mode.
   final PdfAnnotationRenderingMode annotationRenderingMode;
-
-  /// If true, the viewer limits the rendering cache to reduce memory consumption.
-  ///
-  /// For PDFium, it internally enables `FPDF_RENDER_LIMITEDIMAGECACHE` flag on rendering
-  /// to reduce the memory consumption by image caching.
-  final bool limitRenderingCache;
 
   /// Anchor to position the page.
   final PdfPageAnchor pageAnchor;
@@ -583,7 +576,6 @@ class PdfViewerParams {
         other.panAxis != panAxis ||
         other.boundaryMargin != boundaryMargin ||
         other.annotationRenderingMode != annotationRenderingMode ||
-        other.limitRenderingCache != limitRenderingCache ||
         other.pageAnchor != pageAnchor ||
         other.pageAnchorEnd != pageAnchorEnd ||
         other.onePassRenderingScaleThreshold != onePassRenderingScaleThreshold ||
@@ -617,7 +609,6 @@ class PdfViewerParams {
         other.panAxis == panAxis &&
         other.boundaryMargin == boundaryMargin &&
         other.annotationRenderingMode == annotationRenderingMode &&
-        other.limitRenderingCache == limitRenderingCache &&
         other.pageAnchor == pageAnchor &&
         other.pageAnchorEnd == pageAnchorEnd &&
         other.onePassRenderingScaleThreshold == onePassRenderingScaleThreshold &&
@@ -676,7 +667,6 @@ class PdfViewerParams {
         panAxis.hashCode ^
         boundaryMargin.hashCode ^
         annotationRenderingMode.hashCode ^
-        limitRenderingCache.hashCode ^
         pageAnchor.hashCode ^
         pageAnchorEnd.hashCode ^
         onePassRenderingScaleThreshold.hashCode ^
@@ -1439,11 +1429,18 @@ enum PdfViewerGeneralTapType {
 /// These parameters are to tune the behavior/performance of the PDF viewer.
 class PdfViewerBehaviorControlParams {
   const PdfViewerBehaviorControlParams({
+    this.limitRenderingCache = true,
     this.trailingPageLoadingDelay = const Duration(milliseconds: kIsWeb ? 200 : 100),
     this.enableLowResolutionPagePreview = true,
     this.pageImageCachingDelay = const Duration(milliseconds: kIsWeb ? 20 : 20),
     this.partialImageLoadingDelay = const Duration(milliseconds: kIsWeb ? 100 : 0),
   });
+
+  /// If true, the viewer limits the rendering cache to reduce memory consumption.
+  ///
+  /// For PDFium, it internally enables `FPDF_RENDER_LIMITEDIMAGECACHE` flag on rendering
+  /// to reduce the memory consumption by image caching.
+  final bool limitRenderingCache;
 
   /// How long to wait before loading the trailing pages after the initial page load.
   ///
@@ -1464,6 +1461,7 @@ class PdfViewerBehaviorControlParams {
     if (identical(this, other)) return true;
 
     return other is PdfViewerBehaviorControlParams &&
+        other.limitRenderingCache == limitRenderingCache &&
         other.trailingPageLoadingDelay == trailingPageLoadingDelay &&
         other.enableLowResolutionPagePreview == enableLowResolutionPagePreview &&
         other.pageImageCachingDelay == pageImageCachingDelay &&
@@ -1472,6 +1470,7 @@ class PdfViewerBehaviorControlParams {
 
   @override
   int get hashCode =>
+      limitRenderingCache.hashCode ^
       trailingPageLoadingDelay.hashCode ^
       enableLowResolutionPagePreview.hashCode ^
       pageImageCachingDelay.hashCode ^

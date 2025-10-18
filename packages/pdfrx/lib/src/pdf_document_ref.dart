@@ -444,6 +444,7 @@ class PdfDocumentListenable extends Listenable {
   void _releaseIfNoRefs() {
     if (_listeners.isEmpty && _additionalRefs == 0) {
       PdfDocumentRef._listenables.remove(ref);
+      debugPrint('PdfDocument released: ${ref.key}');
       _release();
     }
   }

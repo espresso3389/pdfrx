@@ -20,6 +20,7 @@ import 'internals/pdf_error_widget.dart';
 import 'internals/pdf_viewer_key_handler.dart';
 import 'internals/widget_size_sniffer.dart';
 import 'pdf_page_links_overlay.dart';
+import 'pdf_page_renderer.dart';
 
 /// A widget to display PDF document.
 ///
@@ -208,7 +209,7 @@ class PdfViewer extends StatefulWidget {
 
 class _PdfViewerState extends State<PdfViewer>
     with SingleTickerProviderStateMixin
-    implements PdfTextSelectionDelegate, PdfViewerCoordinateConverter {
+    implements PdfTextSelectionDelegate, PdfViewerCoordinateConverter, PdfPageRendererDelegate {
   PdfViewerController? _controller;
   late final _txController = _PdfViewerTransformationController(this);
   late final AnimationController _animController;
@@ -229,8 +230,8 @@ class _PdfViewerState extends State<PdfViewer>
 
   final List<double> _zoomStops = [1.0];
 
-  final _imageCache = _PdfPageImageCache();
-  final _magnifierImageCache = _PdfPageImageCache();
+  late final _imageRenderer = PdfPageRenderer(delegate: this);
+  late final _magnifierImageRenderer = PdfPageRenderer(delegate: this);
 
   late final _canvasLinkPainter = _CanvasLinkPainter(this);
 
@@ -295,8 +296,8 @@ class _PdfViewerState extends State<PdfViewer>
     if (oldWidget?.documentRef == widget.documentRef) {
       if (widget.params.doChangesRequireReload(oldWidget?.params)) {
         if (widget.params.annotationRenderingMode != oldWidget?.params.annotationRenderingMode) {
-          _imageCache.releaseAllImages();
-          _magnifierImageCache.releaseAllImages();
+          _imageRenderer.releaseAllImageCache();
+          _magnifierImageRenderer.releaseAllImageCache();
         }
       }
       return;
@@ -316,8 +317,8 @@ class _PdfViewerState extends State<PdfViewer>
     _documentSubscription = null;
     _textSelectionChangedDebounceTimer?.cancel();
     _stopInteraction();
-    _imageCache.releaseAllImages();
-    _magnifierImageCache.releaseAllImages();
+    _imageRenderer.releaseAllImageCache();
+    _magnifierImageRenderer.releaseAllImageCache();
     _canvasLinkPainter.resetAll();
     _textCache.clear();
     _clearTextSelections(invalidate: false);
@@ -381,12 +382,12 @@ class _PdfViewerState extends State<PdfViewer>
     _documentSubscription?.cancel();
     _textSelectionChangedDebounceTimer?.cancel();
     _interactionEndedTimer?.cancel();
-    _imageCache.cancelAllPendingRenderings();
-    _magnifierImageCache.cancelAllPendingRenderings();
+    _imageRenderer.cancelAllPendingRequests();
+    _magnifierImageRenderer.cancelAllPendingRequests();
     _animController.dispose();
     widget.documentRef.resolveListenable().removeListener(_onDocumentChanged);
-    _imageCache.releaseAllImages();
-    _magnifierImageCache.releaseAllImages();
+    _imageRenderer.releaseAllImageCache();
+    _magnifierImageRenderer.releaseAllImageCache();
     _canvasLinkPainter.resetAll();
     _txController.removeListener(_onMatrixChanged);
     _controller?._attach(null);
@@ -399,8 +400,8 @@ class _PdfViewerState extends State<PdfViewer>
   void _onDocumentEvent(PdfDocumentEvent event) {
     if (event is PdfDocumentPageStatusChangedEvent) {
       for (final page in event.pages) {
-        _imageCache.removeCacheImagesForPage(page.pageNumber);
-        _magnifierImageCache.removeCacheImagesForPage(page.pageNumber);
+        _imageRenderer.removeImageCacheForPage(page.pageNumber);
+        _magnifierImageRenderer.removeImageCacheForPage(page.pageNumber);
       }
       _invalidate();
     }
@@ -1135,7 +1136,7 @@ class _PdfViewerState extends State<PdfViewer>
     if (!_initialized) return;
     _paintPagesCustom(
       canvas,
-      cache: _imageCache,
+      renderer: _imageRenderer,
       maxImageCacheBytes: widget.params.maxImageBytesCachedOnMemory,
       targetRect: _visibleRect,
       cacheTargetRect: _getCacheExtentRect(),
@@ -1147,7 +1148,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _paintPagesCustom(
     ui.Canvas canvas, {
-    required _PdfPageImageCache cache,
+    required PdfPageRenderer renderer,
     required int maxImageCacheBytes,
     required double scale,
     required Rect targetRect,
@@ -1164,16 +1165,16 @@ class _PdfViewerState extends State<PdfViewer>
       final intersection = rect.intersect(cacheTargetRect);
       if (intersection.isEmpty) {
         final page = _document!.pages[i];
-        cache.cancelPendingRenderings(page.pageNumber);
-        if (cache.pageImages.containsKey(i + 1)) {
+        renderer.cancelPendingRequests(page.pageNumber);
+        if (renderer.getPreviewImageForPage(i + 1) != null) {
           unusedPageList.add(i + 1);
         }
         continue;
       }
 
       final page = _document!.pages[i];
-      final previewImage = cache.pageImages[page.pageNumber];
-      final partial = cache.pageImagesPartial[page.pageNumber];
+      final previewImage = renderer.getPreviewImageForPage(page.pageNumber);
+      final partial = renderer.getPartialImageForPage(page.pageNumber);
 
       final getPageRenderingScale =
           widget.params.getPageRenderingScale ??
@@ -1222,12 +1223,12 @@ class _PdfViewerState extends State<PdfViewer>
       }
 
       if (enableLowResolutionPagePreview && (previewImage == null || previewImage.scale != previewScaleLimit)) {
-        _requestPagePreviewImageCached(cache, page, previewScaleLimit);
+        renderer.requestPreviewForPage(page, previewScaleLimit);
       }
 
       final pageScale = scale * max(rect.width / page.width, rect.height / page.height);
       if (!enableLowResolutionPagePreview || pageScale > previewScaleLimit) {
-        _requestRealSizePartialImage(cache, page, pageScale, targetRect);
+        renderer.requestPartialImageForPage(page, targetRect, pageScale);
       }
 
       if ((!enableLowResolutionPagePreview || pageScale > previewScaleLimit) && partial != null) {
@@ -1261,20 +1262,7 @@ class _PdfViewerState extends State<PdfViewer>
         }
       }
 
-      if (unusedPageList.isNotEmpty) {
-        final currentPageNumber = _pageNumber;
-        if (currentPageNumber != null && currentPageNumber > 0) {
-          final currentPage = _document!.pages[currentPageNumber - 1];
-          cache.removeCacheImagesIfCacheBytesExceedsLimit(
-            unusedPageList,
-            maxImageCacheBytes,
-            currentPage,
-            dist: (pageNumber) =>
-                (_layout!.pageLayouts[pageNumber - 1].center - _layout!.pageLayouts[currentPage.pageNumber - 1].center)
-                    .distanceSquared,
-          );
-        }
-      }
+      renderer.removeImageCacheIfCacheBytesExceedsLimit(unusedPageList, maxImageCacheBytes, targetRect);
     }
   }
 
@@ -1349,135 +1337,6 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _invalidate() => _updateStream.add(_txController.value);
-
-  Future<void> _requestPagePreviewImageCached(_PdfPageImageCache cache, PdfPage page, double scale) async {
-    final width = page.width * scale;
-    final height = page.height * scale;
-    if (width < 1 || height < 1) return;
-
-    // if this is the first time to render the page, render it immediately
-    if (!cache.pageImages.containsKey(page.pageNumber)) {
-      _cachePagePreviewImage(cache, page, width, height, scale);
-      return;
-    }
-
-    cache.pageImageRenderingTimers[page.pageNumber]?.cancel();
-    if (!mounted) return;
-    cache.pageImageRenderingTimers[page.pageNumber] = Timer(
-      widget.params.behaviorControlParams.pageImageCachingDelay,
-      () => _cachePagePreviewImage(cache, page, width, height, scale),
-    );
-  }
-
-  Future<void> _cachePagePreviewImage(
-    _PdfPageImageCache cache,
-    PdfPage page,
-    double width,
-    double height,
-    double scale,
-  ) async {
-    if (!mounted) return;
-    if (cache.pageImages[page.pageNumber]?.scale == scale) return;
-    final cancellationToken = page.createCancellationToken();
-
-    cache.addCancellationToken(page.pageNumber, cancellationToken);
-    await cache.synchronized(() async {
-      if (!mounted || cancellationToken.isCanceled) return;
-      if (cache.pageImages[page.pageNumber]?.scale == scale) return;
-      PdfImage? img;
-      try {
-        img = await page.render(
-          fullWidth: width,
-          fullHeight: height,
-          backgroundColor: 0xffffffff,
-          annotationRenderingMode: widget.params.annotationRenderingMode,
-          flags: widget.params.limitRenderingCache ? PdfPageRenderFlags.limitedImageCache : PdfPageRenderFlags.none,
-          cancellationToken: cancellationToken,
-        );
-        if (img == null || !mounted || cancellationToken.isCanceled) return;
-
-        final newImage = _PdfImageWithScale(await img.createImage(), scale);
-        cache.pageImages[page.pageNumber]?.dispose();
-        cache.pageImages[page.pageNumber] = newImage;
-        _invalidate();
-      } catch (e) {
-        return; // ignore error
-      } finally {
-        img?.dispose();
-      }
-    });
-  }
-
-  Future<void> _requestRealSizePartialImage(
-    _PdfPageImageCache cache,
-    PdfPage page,
-    double scale,
-    Rect targetRect,
-  ) async {
-    final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
-    final rect = pageRect.intersect(targetRect);
-    final prev = cache.pageImagesPartial[page.pageNumber];
-    if (prev?.rect == rect && prev?.scale == scale) return;
-    if (rect.width < 1 || rect.height < 1) return;
-
-    cache.pageImagePartialRenderingRequests[page.pageNumber]?.cancel();
-
-    final cancellationToken = page.createCancellationToken();
-    cache.pageImagePartialRenderingRequests[page.pageNumber] = _PdfPartialImageRenderingRequest(
-      Timer(widget.params.behaviorControlParams.partialImageLoadingDelay, () async {
-        if (!mounted || cancellationToken.isCanceled) return;
-        final newImage = await _createRealSizePartialImage(cache, page, scale, rect, cancellationToken);
-        if (newImage != null) {
-          cache.pageImagesPartial.remove(page.pageNumber)?.dispose();
-          cache.pageImagesPartial[page.pageNumber] = newImage;
-          _invalidate();
-        }
-      }),
-      cancellationToken,
-    );
-  }
-
-  Future<_PdfImageWithScaleAndRect?> _createRealSizePartialImage(
-    _PdfPageImageCache cache,
-    PdfPage page,
-    double scale,
-    Rect rect,
-    PdfPageRenderCancellationToken cancellationToken,
-  ) async {
-    if (!mounted || cancellationToken.isCanceled) return null;
-    final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
-    final inPageRect = rect.translate(-pageRect.left, -pageRect.top);
-    final x = (inPageRect.left * scale).toInt();
-    final y = (inPageRect.top * scale).toInt();
-    final width = (inPageRect.width * scale).toInt();
-    final height = (inPageRect.height * scale).toInt();
-    if (width < 1 || height < 1) return null;
-
-    var flags = 0;
-    if (widget.params.limitRenderingCache) flags |= PdfPageRenderFlags.limitedImageCache;
-
-    PdfImage? img;
-    try {
-      img = await page.render(
-        x: x,
-        y: y,
-        width: width,
-        height: height,
-        fullWidth: pageRect.width * scale,
-        fullHeight: pageRect.height * scale,
-        backgroundColor: 0xffffffff,
-        annotationRenderingMode: widget.params.annotationRenderingMode,
-        flags: flags,
-        cancellationToken: cancellationToken,
-      );
-      if (img == null || !mounted || cancellationToken.isCanceled) return null;
-      return _PdfImageWithScaleAndRect(await img.createImage(), scale, rect, x, y);
-    } catch (e) {
-      return null; // ignore error
-    } finally {
-      img?.dispose();
-    }
-  }
 
   void _onWheelDelta(PointerScrollEvent event) {
     _startInteraction();
@@ -1782,7 +1641,7 @@ class _PdfViewerState extends State<PdfViewer>
   }) async {
     // Clear any cached partial images to avoid stale tiles after
     // going to the new matrix
-    _imageCache.releasePartialImages();
+    _imageRenderer.releasePartialImageCache();
 
     zoom = zoom ?? _currentZoom;
     final tx = -documentOffset.dx * zoom;
@@ -2658,7 +2517,7 @@ class _PdfViewerState extends State<PdfViewer>
               canvas.translate(-rectToDraw.left, -rectToDraw.top);
               _paintPagesCustom(
                 canvas,
-                cache: _magnifierImageCache,
+                renderer: _magnifierImageRenderer,
                 maxImageCacheBytes:
                     widget.params.textSelectionParams?.magnifier?.maxImageBytesCachedOnMemory ??
                     PdfViewerSelectionMagnifierParams.defaultMaxImageBytesCachedOnMemory,
@@ -2996,6 +2855,24 @@ class _PdfViewerState extends State<PdfViewer>
     return result;
   }
 
+  //
+  // PdfPageRendererDelegate
+  //
+  @override
+  bool isAlive() => mounted;
+
+  @override
+  PdfViewerBehaviorControlParams getBehaviorControlParams() => widget.params.behaviorControlParams;
+
+  @override
+  PdfAnnotationRenderingMode getAnnotationRenderingMode() => widget.params.annotationRenderingMode;
+
+  @override
+  Rect? getPageRect(int pageNumber) => _layout?.pageLayouts[pageNumber - 1];
+
+  @override
+  void notifyPageImageUpdate(int pageNumber, bool previewUpdated) => _invalidate();
+
   @override
   Offset? offsetToLocal(BuildContext context, Offset? position) {
     if (position == null) return null;
@@ -3043,158 +2920,11 @@ class _PdfViewerState extends State<PdfViewer>
   PdfViewerCoordinateConverter get doc2local => this;
 
   void forceRepaintAllPageImages() {
-    _imageCache.cancelAllPendingRenderings();
-    _magnifierImageCache.cancelAllPendingRenderings();
-    _imageCache.releaseAllImages();
-    _magnifierImageCache.releaseAllImages();
+    _imageRenderer.cancelAllPendingRequests();
+    _magnifierImageRenderer.cancelAllPendingRequests();
+    _imageRenderer.releaseAllImageCache();
+    _magnifierImageRenderer.releaseAllImageCache();
     _invalidate();
-  }
-}
-
-class _PdfPageImageCache {
-  final pageImages = <int, _PdfImageWithScale>{};
-  final pageImageRenderingTimers = <int, Timer>{};
-  final pageImagesPartial = <int, _PdfImageWithScaleAndRect>{};
-  final cancellationTokens = <int, List<PdfPageRenderCancellationToken>>{};
-  final pageImagePartialRenderingRequests = <int, _PdfPartialImageRenderingRequest>{};
-
-  void addCancellationToken(int pageNumber, PdfPageRenderCancellationToken token) {
-    var tokens = cancellationTokens.putIfAbsent(pageNumber, () => []);
-    tokens.add(token);
-  }
-
-  void releasePartialImages() {
-    for (final request in pageImagePartialRenderingRequests.values) {
-      request.cancel();
-    }
-    pageImagePartialRenderingRequests.clear();
-    for (final image in pageImagesPartial.values) {
-      image.image.dispose();
-    }
-    pageImagesPartial.clear();
-  }
-
-  void releaseAllImages() {
-    for (final timer in pageImageRenderingTimers.values) {
-      timer.cancel();
-    }
-    pageImageRenderingTimers.clear();
-    for (final request in pageImagePartialRenderingRequests.values) {
-      request.cancel();
-    }
-    pageImagePartialRenderingRequests.clear();
-    for (final image in pageImages.values) {
-      image.image.dispose();
-    }
-    pageImages.clear();
-    for (final image in pageImagesPartial.values) {
-      image.image.dispose();
-    }
-    pageImagesPartial.clear();
-  }
-
-  void cancelPendingRenderings(int pageNumber) {
-    final tokens = cancellationTokens[pageNumber];
-    if (tokens != null) {
-      for (final token in tokens) {
-        token.cancel();
-      }
-      tokens.clear();
-    }
-  }
-
-  void cancelAllPendingRenderings() {
-    for (final pageNumber in cancellationTokens.keys) {
-      cancelPendingRenderings(pageNumber);
-    }
-    cancellationTokens.clear();
-  }
-
-  void removeCacheImagesForPage(int pageNumber) {
-    final removed = pageImages.remove(pageNumber);
-    if (removed != null) {
-      removed.image.dispose();
-    }
-    pageImagesPartial.remove(pageNumber)?.dispose();
-  }
-
-  void removeCacheImagesIfCacheBytesExceedsLimit(
-    List<int> pageNumbers,
-    int acceptableBytes,
-    PdfPage currentPage, {
-    required double Function(int pageNumber) dist,
-  }) {
-    pageNumbers.sort((a, b) => dist(b).compareTo(dist(a)));
-    int getBytesConsumed(ui.Image? image) => image == null ? 0 : (image.width * image.height * 4).toInt();
-    var bytesConsumed =
-        pageImages.values.fold(0, (sum, e) => sum + getBytesConsumed(e.image)) +
-        pageImagesPartial.values.fold(0, (sum, e) => sum + getBytesConsumed(e.image));
-    for (final key in pageNumbers) {
-      final removed = pageImages.remove(key);
-      if (removed != null) {
-        bytesConsumed -= getBytesConsumed(removed.image);
-        removed.image.dispose();
-      }
-      final removedPartial = pageImagesPartial.remove(key);
-      if (removedPartial != null) {
-        bytesConsumed -= getBytesConsumed(removedPartial.image);
-        removedPartial.dispose();
-      }
-      if (bytesConsumed <= acceptableBytes) {
-        break;
-      }
-    }
-  }
-}
-
-class _PdfPartialImageRenderingRequest {
-  _PdfPartialImageRenderingRequest(this.timer, this.cancellationToken);
-  final Timer timer;
-  final PdfPageRenderCancellationToken cancellationToken;
-
-  void cancel() {
-    timer.cancel();
-    cancellationToken.cancel();
-  }
-}
-
-class _PdfImageWithScale {
-  _PdfImageWithScale(this.image, this.scale);
-  final ui.Image image;
-  final double scale;
-
-  int get width => image.width;
-  int get height => image.height;
-
-  void dispose() {
-    image.dispose();
-  }
-}
-
-class _PdfImageWithScaleAndRect extends _PdfImageWithScale {
-  _PdfImageWithScaleAndRect(super.image, super.scale, this.rect, this.left, this.top);
-  final Rect rect;
-  final int left;
-  final int top;
-
-  int get bottom => top + height;
-  int get right => left + width;
-
-  void draw(Canvas canvas, [FilterQuality filterQuality = FilterQuality.low]) {
-    canvas.drawImageRect(
-      image,
-      Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
-      rect,
-      Paint()..filterQuality = filterQuality,
-    );
-  }
-
-  void drawNoScale(Canvas canvas, int x, int y, [FilterQuality filterQuality = FilterQuality.low]) {
-    canvas.drawImage(
-      image,
-      Offset((left - x).toDouble(), (top - y).toDouble()),
-      Paint()..filterQuality = filterQuality,
-    );
   }
 }
 
