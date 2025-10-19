@@ -265,7 +265,6 @@ class _PdfViewerState extends State<PdfViewer>
   bool _isActiveGesture = false; // True during pan/scale gestures
   bool _isActivelyZooming = false; // True only during active pinch-zoom gesture
   bool _hasActiveAnimations = false; // True when InteractiveViewer has active animations
-  bool _isTransitioningPages = false; // True during discrete page transition animation
 
   BuildContext? _contextForFocusNode;
   Offset _pointerOffset = Offset.zero;
@@ -1263,16 +1262,12 @@ class _PdfViewerState extends State<PdfViewer>
 
     final targetZoom = _fitScale;
 
-    // Mark that we're transitioning pages to prevent page number updates during animation
-    _isTransitioningPages = true;
-
     _setCurrentPageNumber(targetPage, targetZoom: targetZoom, doSetState: true);
 
     final targetMatrix = _calcMatrixForPage(pageNumber: targetPage, anchor: effectiveAnchor, forceScale: targetZoom);
 
     await _goTo(targetMatrix, duration: duration, curve: Curves.easeInOutCubic);
 
-    _isTransitioningPages = false;
     _onAnimationEnd();
   }
 
