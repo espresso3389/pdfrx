@@ -103,7 +103,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
             return Row(
               children: [
                 if (!isMobileDevice) ...[
-                  Expanded(child: Text(_fileName(documentRef?.sourceName) ?? 'No document loaded')),
+                  Expanded(child: Text(_fileName(documentRef?.key.sourceName) ?? 'No document loaded')),
                   SizedBox(width: 10),
                   FilledButton(onPressed: () => openFile(), child: Text('Open File')),
                   SizedBox(width: 20),
@@ -198,7 +198,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                                     valueListenable: documentRef,
                                     builder: (context, documentRef, child) => Expanded(
                                       child: Text(
-                                        _fileName(documentRef?.sourceName) ?? 'No document loaded',
+                                        _fileName(documentRef?.key.sourceName) ?? 'No document loaded',
                                         softWrap: false,
                                       ),
                                     ),
@@ -312,7 +312,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         maxScale: 8,
                         //fitMode: FitMode.fill,
                         pageTransition: PageTransition.discrete,
-                        scrollPhysics: PdfViewerParams.getScrollPhysics(context),
+                        // scrollPhysics: PdfViewerParams.getScrollPhysics(context),
                         viewerOverlayBuilder: (context, size, handleLinkTap) => [
                           //
                           // Example use of GestureDetector to handle custom gestures
@@ -342,28 +342,28 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                             controller: controller,
                             orientation: ScrollbarOrientation.right,
                             thumbSize: const Size(40, 25),
-                            /*   thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
+                            thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
                               color: Colors.black,
                               child: isHorizontalLayout
                                   ? null
                                   : Center(
                                       child: Text(pageNumber.toString(), style: const TextStyle(color: Colors.white)),
                                     ),
-                            ), */
+                            ),
                           ),
                           // Just a simple horizontal scroll thumb on the bottom
                           PdfViewerScrollThumb(
                             controller: controller,
                             orientation: ScrollbarOrientation.bottom,
                             thumbSize: const Size(40, 25),
-                            /*thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
+                            thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
                               color: Colors.black,
                               child: !isHorizontalLayout
                                   ? null
                                   : Center(
                                       child: Text(pageNumber.toString(), style: const TextStyle(color: Colors.white)),
                                     ),
-                            ), */
+                            ),
                           ),
                         ],
                         //

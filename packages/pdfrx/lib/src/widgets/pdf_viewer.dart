@@ -664,7 +664,7 @@ class _PdfViewerState extends State<PdfViewer>
               _document!,
               _controller!,
               _calculateScaleForMode(FitMode.fit), // fitZoom (was _alternativeFitScale)
-              _calculateScaleForMode(FitMode.cover), // coverZoom (was _coverScale)
+              _calculateScaleForMode(FitMode.fill), // coverZoom (was _coverScale)**
             ) ??
             _getInitialZoom();
         await _setZoom(Offset.zero, zoom, duration: Duration.zero);
