@@ -1745,15 +1745,10 @@ class _PdfViewerState extends State<PdfViewer>
         documentSize: newDocSize,
         spreadLayouts: newSpreadLayouts,
         pageToSpreadIndex: layout.pageToSpreadIndex,
-        primaryAxis: layout.primaryAxis,
       );
     }
 
-    return _DiscretePdfPageLayout(
-      pageLayouts: newPageLayouts,
-      documentSize: newDocSize,
-      primaryAxis: layout.primaryAxis,
-    );
+    return _DiscretePdfPageLayout(pageLayouts: newPageLayouts, documentSize: newDocSize);
   }
 
   /// Returns the boundary rect for discrete mode (current page/spread bounds).
@@ -5069,10 +5064,7 @@ class _CanvasLinkPainter {
 
 /// Wrapper layout for discrete mode single page layouts with viewport spacing.
 class _DiscretePdfPageLayout extends PdfPageLayout {
-  _DiscretePdfPageLayout({required super.pageLayouts, required super.documentSize, required this.primaryAxis});
-
-  @override
-  final Axis primaryAxis;
+  _DiscretePdfPageLayout({required super.pageLayouts, required super.documentSize});
 }
 
 /// Wrapper layout for discrete mode spread layouts with viewport spacing.
@@ -5082,9 +5074,5 @@ class _DiscretePdfSpreadLayout extends PdfSpreadLayout {
     required super.documentSize,
     required super.spreadLayouts,
     required super.pageToSpreadIndex,
-    required this.primaryAxis,
   });
-
-  @override
-  final Axis primaryAxis;
 }
