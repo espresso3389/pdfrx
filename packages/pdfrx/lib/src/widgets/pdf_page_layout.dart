@@ -2,8 +2,10 @@
 // This file is part of pdfrx.
 
 import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+
 import '../../pdfrx.dart';
 
 /// Helper class to hold layout calculation results.
@@ -570,8 +572,8 @@ class PdfPageLayout {
 /// - Page 1 (cover): spread 0
 /// - Pages 2-3: spread 1
 /// - Pages 4-5: spread 2
-/// - pageToSpreadIndex = [0, 1, 1, 2, 2, ...]  (0-based: index 0 = page 1)
-/// - spreadLayouts = [Rect(cover bounds), Rect(pages 2-3 bounds), Rect(pages 4-5 bounds), ...]
+/// - `pageToSpreadIndex = [0, 1, 1, 2, 2, ...]` (0-based: index 0 = page 1)
+/// - `spreadLayouts = [Rect(cover bounds), Rect(pages 2-3 bounds), Rect(pages 4-5 bounds), ...]`
 abstract class PdfSpreadLayout extends PdfPageLayout {
   PdfSpreadLayout({
     required super.pageLayouts,

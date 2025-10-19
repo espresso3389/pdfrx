@@ -236,7 +236,7 @@ class PdfViewerParams {
   @Deprecated('Use fitMode parameter instead. See documentation for migration guide.')
   final bool useAlternativeFitScaleAsMinScale;
 
-  /// See [InteractiveViewer.panAxis] f or details.
+  /// See [InteractiveViewer.panAxis] for details.
   final PanAxis panAxis;
 
   /// See [InteractiveViewer.boundaryMargin] for details.
@@ -854,6 +854,7 @@ class PdfTextSelectionParams {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is PdfTextSelectionParams &&
+        other.enabled == enabled &&
         other.buildSelectionHandle == buildSelectionHandle &&
         other.onTextSelectionChange == onTextSelectionChange &&
         other.enableSelectionHandles == enableSelectionHandles &&
@@ -863,6 +864,7 @@ class PdfTextSelectionParams {
 
   @override
   int get hashCode =>
+      enabled.hashCode ^
       buildSelectionHandle.hashCode ^
       onTextSelectionChange.hashCode ^
       enableSelectionHandles.hashCode ^
@@ -983,7 +985,7 @@ enum PdfViewerPart {
 /// State of the text selection anchor handle.
 enum PdfViewerTextSelectionAnchorHandleState { normal, hover, dragging }
 
-/// Function to build the  text  selection anchor handle.
+/// Function to build the text selection anchor handle.
 typedef PdfViewerTextSelectionAnchorHandleBuilder =
     Widget? Function(
       BuildContext context,
