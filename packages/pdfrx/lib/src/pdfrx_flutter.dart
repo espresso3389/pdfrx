@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show WidgetsFlutterBinding;
 import 'package:flutter/services.dart';
 
 import '../pdfrx.dart';
@@ -22,6 +23,8 @@ bool _isInitialized = false;
 /// You can disable these warnings by setting [dismissPdfiumWasmWarnings] to true.
 void pdfrxFlutterInitialize({bool dismissPdfiumWasmWarnings = false}) {
   if (_isInitialized) return;
+
+  WidgetsFlutterBinding.ensureInitialized();
 
   if (pdfrxEntryFunctionsOverride != null) {
     PdfrxEntryFunctions.instance = pdfrxEntryFunctionsOverride!;
