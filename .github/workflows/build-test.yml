@@ -90,6 +90,10 @@ jobs:
   ios:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_ios }}
     runs-on: macos-latest
+    strategy:
+      matrix:
+        package_manager: [cocoapods, swiftpm]
+    name: ios-${{ matrix.package_manager }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
@@ -101,11 +105,19 @@ jobs:
           ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
 
+      - name: Configure package manager
+        run: |
+          if [ "${{ matrix.package_manager }}" = "swiftpm" ]; then
+            ~/flutter/bin/flutter config --enable-swift-package-manager
+          else
+            ~/flutter/bin/flutter config --no-enable-swift-package-manager
+          fi
+
       - name: Install dependencies
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
 
-      - name: Build iOS (no signing)
+      - name: Build iOS (no signing) - ${{ matrix.package_manager }}
         working-directory: packages/pdfrx/example/viewer
         run: flutter build ios --debug --no-codesign --verbose
 
@@ -113,6 +125,10 @@ jobs:
   macos:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_macos }}
     runs-on: macos-latest
+    strategy:
+      matrix:
+        package_manager: [cocoapods, swiftpm]
+    name: macos-${{ matrix.package_manager }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
@@ -124,11 +140,19 @@ jobs:
           ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
 
+      - name: Configure package manager
+        run: |
+          if [ "${{ matrix.package_manager }}" = "swiftpm" ]; then
+            ~/flutter/bin/flutter config --enable-swift-package-manager
+          else
+            ~/flutter/bin/flutter config --no-enable-swift-package-manager
+          fi
+
       - name: Install dependencies
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
 
-      - name: Build macOS
+      - name: Build macOS - ${{ matrix.package_manager }}
         working-directory: packages/pdfrx/example/viewer
         run: flutter build macos --debug --verbose
 
