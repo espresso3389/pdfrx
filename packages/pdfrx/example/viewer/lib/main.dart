@@ -475,7 +475,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     null,
     // Horizontal layout (using built-in layout class)
     (pages, params, helper) =>
-        SinglePagesLayout.fromPages(pages, params, helper: helper, scrollDirection: Axis.horizontal),
+        SequentialPagesLayout.fromPages(pages, params, helper: helper, scrollDirection: Axis.horizontal),
 
     // Facing pages layout (using built-in layout class)
     (pages, params, helper) => FacingPagesLayout.fromPages(
