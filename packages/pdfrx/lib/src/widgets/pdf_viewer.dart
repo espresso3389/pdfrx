@@ -1474,7 +1474,7 @@ class _PdfViewerState extends State<PdfViewer>
     // Calculate both fit and cover scales to provide good zoom stops
     // even when only one fitMode is selected
     final fitScale = _calculateScaleForMode(FitMode.fit);
-    final coverScale = _calculateScaleForMode(FitMode.cover);
+    final coverScale = _calculateScaleForMode(FitMode.fill);
 
     // Use the primary scale based on current fitMode (or legacy behavior)
     final primaryScale = _fitScale;
