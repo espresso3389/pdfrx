@@ -766,20 +766,21 @@ class FacingPagesLayout extends PdfSpreadLayout {
     PdfLayoutHelper? helper,
     bool firstPageIsCoverPage = false,
     bool isRightToLeftReadingOrder = false,
-    double gutter = 4.0, // gap between left/right pages
+    double? gutter, // gap between left/right pages
+    bool singlePagesFillAvailableWidth = true,
+    bool independentPageScaling = true,
   }) {
+    final effectiveGutter = gutter ?? params.margin;
+
     if (pages.isEmpty) {
       return FacingPagesLayout(pageLayouts: [], documentSize: Size.zero, spreadLayouts: [], pageToSpreadIndex: []);
     }
 
-    // For fit/fill/cover modes with viewport scaling, we need helper
-    final scaleToViewport =
-        params.fitMode == FitMode.fit || params.fitMode == FitMode.fill || params.fitMode == FitMode.cover;
     assert(
-      !scaleToViewport || helper != null,
+      !independentPageScaling || helper != null,
       'FitMode.${params.fitMode.name} requires PdfLayoutHelper for FacingPagesLayout.',
     );
-    if (scaleToViewport && helper == null) {
+    if (independentPageScaling && helper == null) {
       return FacingPagesLayout(pageLayouts: [], documentSize: Size.zero, spreadLayouts: [], pageToSpreadIndex: []);
     }
 
@@ -791,22 +792,71 @@ class FacingPagesLayout extends PdfSpreadLayout {
     var pageIndex = 0;
 
     // Available space for content
-    final availableWidth = scaleToViewport ? helper!.availableWidth : 0.0;
-    final availableHeight = scaleToViewport ? helper!.availableHeight : 0.0;
+    final double availableWidth;
+    final double availableHeight;
+    final double maxPageWidth; // Max width of any page (for non-independent scaling)
+
+    if (independentPageScaling) {
+      availableWidth = helper!.availableWidth;
+      availableHeight = helper.availableHeight;
+      maxPageWidth = 0.0; // Not used when scaling independently
+    } else {
+      // For non-independent scaling, find the maximum page width
+      maxPageWidth = pages.fold(0.0, (prev, page) => max(prev, page.width));
+      availableWidth = 0.0; // Not used when not scaling independently
+      availableHeight = 0.0; // Not used when not scaling independently
+    }
 
     // Handle cover page if needed
     if (firstPageIsCoverPage && pages.isNotEmpty) {
       final coverPage = pages[0];
-      final coverSize = scaleToViewport
+
+      // Determine target width based on singlePagesFillAvailableWidth setting
+      final coverTargetWidth = singlePagesFillAvailableWidth ? availableWidth : (availableWidth - effectiveGutter) / 2;
+
+      final coverSize = independentPageScaling
           ? _calculatePageSize(
               page: coverPage,
-              targetWidth: availableWidth,
+              targetWidth: coverTargetWidth,
               availableHeight: availableHeight,
               fitMode: params.fitMode,
             )
           : Size(coverPage.width, coverPage.height);
 
-      final coverX = scaleToViewport ? params.margin + (availableWidth - coverSize.width) / 2 : params.margin;
+      // Position cover page based on RTL and fill setting
+      // RTL: cover on left, LTR: cover on right (when not filling full width)
+      final double coverX;
+      if (independentPageScaling) {
+        if (singlePagesFillAvailableWidth) {
+          // Center the page in available width
+          coverX = params.margin + (availableWidth - coverSize.width) / 2;
+        } else {
+          // Position on left (RTL) or right (LTR)
+          if (isRightToLeftReadingOrder) {
+            // RTL: cover page on left
+            coverX = params.margin;
+          } else {
+            // LTR: cover page on right
+            coverX = params.margin + (availableWidth - coverSize.width);
+          }
+        }
+      } else {
+        // Legacy mode: position cover page using maxPageWidth centering
+        if (singlePagesFillAvailableWidth) {
+          // Center in document width
+          coverX = params.margin + (maxPageWidth * 2 + params.margin - coverSize.width) / 2;
+        } else {
+          // Position in one half based on RTL
+          if (isRightToLeftReadingOrder) {
+            // RTL: cover page on left side (right-aligned within left half)
+            coverX = params.margin + (maxPageWidth - coverSize.width);
+          } else {
+            // LTR: cover page on right side (left-aligned within right half)
+            coverX = params.margin * 2 + maxPageWidth;
+          }
+        }
+      }
+
       pageLayouts.add(Rect.fromLTWH(coverX, y, coverSize.width, coverSize.height));
       pageToSpreadIndex[0] = spreadIndex; // Page 1 is at index 0
       spreadLayouts.add(pageLayouts.last);
@@ -822,35 +872,114 @@ class FacingPagesLayout extends PdfSpreadLayout {
       final rightPageIndex = pageIndex + 1;
       final rightPage = rightPageIndex < pages.length ? pages[rightPageIndex] : null;
 
+      // Determine if this is the last page and it's a single page
+      final isLastPageSingle = rightPage == null;
+
       // Calculate page dimensions
-      final leftSize = scaleToViewport
+      // For last single page, use singlePagesFillAvailableWidth to determine width
+      final leftTargetWidth = independentPageScaling
+          ? (isLastPageSingle && singlePagesFillAvailableWidth
+                ? availableWidth
+                : (availableWidth - effectiveGutter) / 2)
+          : 0.0;
+
+      final leftSize = independentPageScaling
           ? _calculatePageSize(
               page: leftPage,
-              targetWidth: rightPage != null ? (availableWidth - gutter) / 2 : availableWidth,
+              targetWidth: leftTargetWidth,
               availableHeight: availableHeight,
               fitMode: params.fitMode,
             )
           : Size(leftPage.width, leftPage.height);
 
-      final rightSize = rightPage != null && scaleToViewport
+      final rightSize = rightPage != null && independentPageScaling
           ? _calculatePageSize(
               page: rightPage,
-              targetWidth: (availableWidth - gutter) / 2,
+              targetWidth: (availableWidth - effectiveGutter) / 2,
               availableHeight: availableHeight,
               fitMode: params.fitMode,
             )
           : Size(rightPage?.width ?? 0.0, rightPage?.height ?? 0.0);
 
-      // Calculate spread dimensions
-      final spreadWidth = rightPage != null ? leftSize.width + gutter + rightSize.width : leftSize.width;
+      // Calculate spread dimensions and positioning
+      final double spreadWidth;
       final spreadHeight = max(leftSize.height, rightSize.height);
-      final spreadX = scaleToViewport ? params.margin + (availableWidth - spreadWidth) / 2 : params.margin;
+
+      // Determine spread X position
+      final double spreadX;
+      if (independentPageScaling) {
+        spreadWidth = rightPage != null ? leftSize.width + effectiveGutter + rightSize.width : leftSize.width;
+        if (rightPage != null) {
+          // Two-page spread: center it
+          spreadX = params.margin + (availableWidth - spreadWidth) / 2;
+        } else {
+          // Single last page
+          if (singlePagesFillAvailableWidth) {
+            // Fill full width: center the page
+            spreadX = params.margin + (availableWidth - spreadWidth) / 2;
+          } else {
+            // Don't fill full width: position based on RTL
+            if (isRightToLeftReadingOrder) {
+              // RTL: last page on right
+              spreadX = params.margin + (availableWidth - spreadWidth);
+            } else {
+              // LTR: last page on left
+              spreadX = params.margin;
+            }
+          }
+        }
+      } else {
+        // Legacy mode: spread width is based on two max-width slots
+        spreadWidth = rightPage != null ? maxPageWidth * 2 + params.margin : leftSize.width;
+        // Legacy mode: spread starts at left margin
+        // The individual page positions will be calculated relative to maxPageWidth
+        spreadX = params.margin;
+      }
 
       spreadLayouts.add(Rect.fromLTWH(spreadX, y, spreadWidth, spreadHeight));
 
       // Layout pages within spread (RTL vs LTR)
-      final leftX = isRightToLeftReadingOrder && rightPage != null ? spreadX + rightSize.width + gutter : spreadX;
-      final rightX = isRightToLeftReadingOrder ? spreadX : spreadX + leftSize.width + gutter;
+      final double leftX;
+      final double rightX;
+
+      if (!independentPageScaling) {
+        // Legacy facing pages layout: pages are centered relative to maxPageWidth
+        // Document width = (margin + maxPageWidth) * 2 + margin
+        if (rightPage != null) {
+          // Two-page spread
+          // Left pages: maxPageWidth + margin - page.width (right-aligned within left half)
+          // Right pages: margin * 2 + maxPageWidth (left-aligned within right half)
+          if (isRightToLeftReadingOrder) {
+            // RTL: right page on left (right-aligned), left page on right (left-aligned)
+            rightX = params.margin + (maxPageWidth - rightSize.width);
+            leftX = params.margin * 2 + maxPageWidth;
+          } else {
+            // LTR: left page on left (right-aligned), right page on right (left-aligned)
+            leftX = params.margin + (maxPageWidth - leftSize.width);
+            rightX = params.margin * 2 + maxPageWidth;
+          }
+        } else {
+          // Single last page
+          if (singlePagesFillAvailableWidth) {
+            // Center in document width
+            leftX = params.margin + (maxPageWidth * 2 + params.margin - leftSize.width) / 2;
+          } else {
+            // Position in one half based on RTL
+            if (isRightToLeftReadingOrder) {
+              // RTL: last page on right side (left-aligned within right half)
+              leftX = params.margin * 2 + maxPageWidth;
+            } else {
+              // LTR: last page on left side (right-aligned within left half)
+              leftX = params.margin + (maxPageWidth - leftSize.width);
+            }
+          }
+          rightX = 0; // Not used for single pages
+        }
+      } else {
+        // Original behavior for independentPageScaling = true
+        leftX = isRightToLeftReadingOrder && rightPage != null ? spreadX + rightSize.width + effectiveGutter : spreadX;
+        rightX = isRightToLeftReadingOrder ? spreadX : spreadX + leftSize.width + effectiveGutter;
+      }
 
       pageLayouts.add(Rect.fromLTWH(leftX, y + (spreadHeight - leftSize.height) / 2, leftSize.width, leftSize.height));
       pageToSpreadIndex[pageIndex] = spreadIndex; // 0-based indexing
@@ -868,8 +997,14 @@ class FacingPagesLayout extends PdfSpreadLayout {
     }
 
     // Calculate document width based on content
-    final maxSpreadRight = spreadLayouts.fold(0.0, (maximum, rect) => max(maximum, rect.right));
-    final documentWidth = maxSpreadRight + params.margin;
+    final double documentWidth;
+    if (independentPageScaling) {
+      final maxSpreadRight = spreadLayouts.fold(0.0, (maximum, rect) => max(maximum, rect.right));
+      documentWidth = maxSpreadRight + params.margin;
+    } else {
+      // Legacy mode: document width = (margin + maxPageWidth) * 2 + margin
+      documentWidth = (params.margin + maxPageWidth) * 2 + params.margin;
+    }
 
     return FacingPagesLayout(
       pageLayouts: pageLayouts,
