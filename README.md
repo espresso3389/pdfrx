@@ -45,7 +45,7 @@ Add `pdfrx` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.2.3
+  pdfrx: ^2.2.4
 ```
 
 ### For Pure Dart Applications
@@ -54,7 +54,7 @@ Add `pdfrx_engine` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pdfrx_engine: ^0.1.21
+  pdfrx_engine: ^0.2.1
 ```
 
 ## Documentation

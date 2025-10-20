@@ -1,3 +1,7 @@
+## 0.2.1
+
+- FIXED: Handle servers that return 200 instead of 206 for content-range requests ([#468](https://github.com/espresso3389/pdfrx/issues/468))
+
 ## 0.2.0
 
 - **BREAKING**: Renamed `PdfrxEntryFunctions.initPdfium()` to `PdfrxEntryFunctions.init()` for consistency

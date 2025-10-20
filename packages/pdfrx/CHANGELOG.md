@@ -1,3 +1,8 @@
+# 2.2.4
+
+- FIXED: SwiftPM/pod package structure updates for iOS/macOS ([#501](https://github.com/espresso3389/pdfrx/issues/501))
+- Updated to pdfrx_engine 0.2.1
+
 # 2.2.3
 
 - POSSIBLE FIX: Error on `openFile()` or `openAsset()` on iOS production builds installed from AppStore/TestFlight ([#501](https://github.com/espresso3389/pdfrx/issues/501))
