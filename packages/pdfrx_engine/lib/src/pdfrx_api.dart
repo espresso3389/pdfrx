@@ -68,6 +68,8 @@ class Pdfrx {
   /// For Flutter, `pdfrxFlutterInitialize` should be called explicitly or implicitly before using this class.
   /// For Dart only, you can set this function to obtain the cache directory from your own file system.
   static FutureOr<String> Function()? getCacheDirectory;
+
+  static Map<String, int>? pdfiumNativeBindings;
 }
 
 abstract class PdfrxEntryFunctions {
@@ -145,6 +147,23 @@ abstract class PdfrxEntryFunctions {
 
   /// Clear all font data added by [addFontData].
   Future<void> clearAllFontData();
+
+  /// Backend in use.
+  PdfrxBackend get backend;
+}
+
+enum PdfrxBackend {
+  /// PDFium backend.
+  pdfium,
+
+  /// PDFium WebAssembly backend for Web platform.
+  pdfiumWasm,
+
+  /// pdfKit (CoreGraphics) backend for Apple platforms.
+  pdfKit,
+
+  /// Mock backend for testing.
+  mock,
 }
 
 /// Callback function to notify download progress.

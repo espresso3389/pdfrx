@@ -317,6 +317,9 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     await init();
     await _sendCommand('clearAllFontData', parameters: {'dummy': true});
   }
+
+  @override
+  PdfrxBackend get backend => PdfrxBackend.pdfiumWasm;
 }
 
 class _PdfDocumentWasm extends PdfDocument {

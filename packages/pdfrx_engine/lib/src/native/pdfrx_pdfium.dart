@@ -16,26 +16,27 @@ import 'native_utils.dart';
 import 'pdf_file_cache.dart';
 import 'pdfium.dart';
 import 'pdfium_bindings.dart' as pdfium_bindings;
-import 'pdfium_interop.dart';
+import 'pdfium_interop.dart' as file_access_helpers;
 import 'worker.dart';
 
 Directory? _appLocalFontPath;
 
 bool _initialized = false;
+final _initSync = Object();
 
 /// Initializes PDFium library.
 Future<void> _init() async {
   if (_initialized) return;
-  await pdfium.synchronized(() async {
+  await _initSync.synchronized(() async {
     if (_initialized) return;
 
     _appLocalFontPath = await getCacheDirectory('pdfrx.fonts');
 
-    await using((arena) {
+    (await backgroundWorker).computeWithArena((arena, params) {
       final config = arena.allocate<pdfium_bindings.FPDF_LIBRARY_CONFIG>(sizeOf<pdfium_bindings.FPDF_LIBRARY_CONFIG>());
       config.ref.version = 2;
 
-      final fontPaths = [?_appLocalFontPath?.path, ...Pdfrx.fontPaths];
+      final fontPaths = [?params.appLocalFontPath?.path, ...params.fontPaths];
       if (fontPaths.isNotEmpty) {
         // NOTE: m_pUserFontPaths must not be freed until FPDF_DestroyLibrary is called; on pdfrx, it's never freed.
         final fontPathArray = malloc<Pointer<Char>>(sizeOf<Pointer<Char>>() * (fontPaths.length + 1));
@@ -54,7 +55,7 @@ Future<void> _init() async {
       config.ref.m_v8EmbedderSlot = 0;
       pdfium.FPDF_InitLibraryWithConfig(config);
       _initialized = true;
-    });
+    }, (appLocalFontPath: _appLocalFontPath, fontPaths: Pdfrx.fontPaths));
   });
 
   await _initializeFontEnvironment();
@@ -327,7 +328,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     }
 
     // Otherwise, load the file on demand
-    final fa = FileAccess(fileSize, read);
+    final fa = file_access_helpers.FileAccess(fileSize, read);
     try {
       return _openByFunc(
         (password) async => (await backgroundWorker).computeWithArena(
@@ -454,6 +455,9 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
       // ignored
     }
   }
+
+  @override
+  PdfrxBackend get backend => PdfrxBackend.pdfium;
 }
 
 extension _FpdfUtf8StringExt on String {

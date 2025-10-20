@@ -8,8 +8,8 @@
       "includePath": [
         "${workspaceFolder}/packages/pdfrx/android/.lib/latest/include",
         "${workspaceFolder}/packages/pdfrx/example/viewer/build/windows/x64/.lib/latest/include",
-        "${workspaceFolder}/packages/pdfrx/darwin/pdfrx/Sources/pdfrx",
-        "${env:LOCALAPPDATA}/Android/Sdk/ndk/${ndkVersion}/sysroot/usr/include/*"
+        "${workspaceFolder}/packages/pdfrx/src",
+        "${env.LOCALAPPDATA}/Android/Sdk/ndk/${ndkVersion}/sysroot/usr/include/*"
       ],
       "defines": [],
       "cStandard": "c17",
@@ -21,7 +21,7 @@
       "includePath": [
         "${workspaceFolder}/packages/pdfrx/android/.lib/latest/include",
         "${workspaceFolder}/packages/pdfrx/example/viewer/build/linux/x64/.lib/latest/include",
-        "${workspaceFolder}/packages/pdfrx/darwin/pdfrx/Sources/pdfrx"
+        "${workspaceFolder}/packages/pdfrx/src"
       ],
       "defines": [],
       "cStandard": "c17",
@@ -32,8 +32,10 @@
       "name": "Mac",
       "includePath": [
         "${workspaceFolder}/packages/pdfrx/android/.lib/latest/include",
-        "${workspaceFolder}/packages/pdfrx/darwin/pdfium/.lib/pdfium-apple-*/macos/pdfium.xcframework/macos-arm64_x86_64/Headers",
-        "${workspaceFolder}/packages/pdfrx/darwin/pdfrx/Sources/pdfrx"
+        "${workspaceFolder}/packages/pdfrx/darwin/pdfrx/Sources/interop",
+        "${workspaceFolder}/packages/pdfrx/src",
+        "${workspaceFolder}/packages/pdfrx/darwin/pdfium/.lib/**",
+        "${workspaceFolder}/packages/pdfrx/example/viewer/build/**"
       ],
       "defines": [],
       "cStandard": "c17",

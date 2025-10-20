@@ -84,4 +84,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
 
   @override
   Future<void> clearAllFontData() => unimplemented();
+
+  @override
+  PdfrxBackend get backend => PdfrxBackend.mock;
 }

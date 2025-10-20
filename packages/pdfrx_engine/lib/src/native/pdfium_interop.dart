@@ -7,39 +7,50 @@ import 'dart:typed_data';
 
 import 'pdfium_bindings.dart';
 
-String _getModuleFileName() {
-  if (Platform.isAndroid) return 'libpdfrx.so';
-  if (Platform.isIOS || Platform.isMacOS) return 'pdfrx.framework/pdfrx';
-  if (Platform.isWindows) return 'pdfrx.dll';
-  if (Platform.isLinux) {
-    return '${File(Platform.resolvedExecutable).parent.path}/lib/libpdfrx.so';
-  }
-  throw UnsupportedError('Unsupported platform');
-}
+typedef InteropLookupFunction = Pointer<T> Function<T extends NativeType>(String symbolName);
 
-DynamicLibrary _getModule() {
-  try {
+final class PdfrxFileAccessHelpers {
+  PdfrxFileAccessHelpers() : lookup = PdfrxFileAccessHelpers._lookupDefault;
+  PdfrxFileAccessHelpers.fromLookup(this.lookup);
+
+  final InteropLookupFunction lookup;
+
+  static String _getModuleFileName() {
+    if (Platform.isAndroid) return 'libpdfrx.so';
+    if (Platform.isIOS || Platform.isMacOS) return 'pdfrx.framework/pdfrx';
+    if (Platform.isWindows) return 'pdfrx.dll';
+    if (Platform.isLinux) {
+      return '${File(Platform.resolvedExecutable).parent.path}/lib/libpdfrx.so';
+    }
+    throw UnsupportedError('Unsupported platform');
+  }
+
+  static DynamicLibrary _getModule() {
+    if (Platform.isIOS || Platform.isMacOS) {
+      return DynamicLibrary.process();
+    }
     return DynamicLibrary.open(_getModuleFileName());
-  } catch (e) {
-    // NOTE: with SwiftPM, the library is embedded in the app bundle (iOS/macOS)
-    return DynamicLibrary.process();
   }
+
+  static final _interopLib = _getModule();
+
+  static Pointer<T> _lookupDefault<T extends NativeType>(String symbolName) => _interopLib.lookup<T>(symbolName);
+
+  late final _pdfrx_file_access_create =
+      Pointer<NativeFunction<IntPtr Function(UnsignedLong, IntPtr, IntPtr)>>.fromAddress(
+        lookup<NativeFunction<IntPtr Function(UnsignedLong, IntPtr, IntPtr)>>('pdfrx_file_access_create').address,
+      ).asFunction<int Function(int, int, int)>();
+
+  late final _pdfrx_file_access_destroy = Pointer<NativeFunction<Void Function(IntPtr)>>.fromAddress(
+    lookup<NativeFunction<Void Function(IntPtr)>>('pdfrx_file_access_destroy').address,
+  ).asFunction<void Function(int)>();
+
+  late final _pdfrx_file_access_set_value = Pointer<NativeFunction<Void Function(IntPtr, IntPtr)>>.fromAddress(
+    lookup<NativeFunction<Void Function(IntPtr, IntPtr)>>('pdfrx_file_access_set_value').address,
+  ).asFunction<void Function(int, int)>();
 }
 
-final interopLib = _getModule();
-
-final _pdfrx_file_access_create = interopLib
-    .lookupFunction<IntPtr Function(UnsignedLong, IntPtr, IntPtr), int Function(int, int, int)>(
-      'pdfrx_file_access_create',
-    );
-
-final _pdfrx_file_access_destroy = interopLib.lookupFunction<Void Function(IntPtr), void Function(int)>(
-  'pdfrx_file_access_destroy',
-);
-
-final _pdfrx_file_access_set_value = interopLib.lookupFunction<Void Function(IntPtr, IntPtr), void Function(int, int)>(
-  'pdfrx_file_access_set_value',
-);
+PdfrxFileAccessHelpers interop = PdfrxFileAccessHelpers();
 
 typedef _NativeFileReadCallable = NativeCallable<Void Function(IntPtr, IntPtr, Pointer<Uint8>, IntPtr)>;
 
@@ -48,18 +59,18 @@ class FileAccess {
     void readNative(int param, int position, Pointer<Uint8> buffer, int size) async {
       try {
         final readSize = await read(buffer.asTypedList(size), position, size);
-        _pdfrx_file_access_set_value(_fileAccess, readSize);
+        interop._pdfrx_file_access_set_value(_fileAccess, readSize);
       } catch (e) {
-        _pdfrx_file_access_set_value(_fileAccess, -1);
+        interop._pdfrx_file_access_set_value(_fileAccess, -1);
       }
     }
 
     _nativeCallable = _NativeFileReadCallable.listener(readNative);
-    _fileAccess = _pdfrx_file_access_create(fileSize, _nativeCallable.nativeFunction.address, 0);
+    _fileAccess = interop._pdfrx_file_access_create(fileSize, _nativeCallable.nativeFunction.address, 0);
   }
 
   void dispose() {
-    _pdfrx_file_access_destroy(_fileAccess);
+    interop._pdfrx_file_access_destroy(_fileAccess);
     _nativeCallable.close();
   }
 

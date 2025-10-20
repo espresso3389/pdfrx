@@ -21,7 +21,7 @@ bool _isInitialized = false;
 ///
 /// The function shows PDFium WASM module warnings in debug mode by default.
 /// You can disable these warnings by setting [dismissPdfiumWasmWarnings] to true.
-void pdfrxFlutterInitialize({bool dismissPdfiumWasmWarnings = false}) {
+Future<void> pdfrxFlutterInitialize({bool dismissPdfiumWasmWarnings = false}) async {
   if (_isInitialized) return;
 
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,8 +35,6 @@ void pdfrxFlutterInitialize({bool dismissPdfiumWasmWarnings = false}) {
     return asset.buffer.asUint8List();
   };
   Pdfrx.getCacheDirectory ??= getCacheDirectory;
-
-  platformInitialize();
 
   // Checking pdfium.wasm availability for Web and debug builds.
   if (kDebugMode && !dismissPdfiumWasmWarnings) {
@@ -64,7 +62,7 @@ void pdfrxFlutterInitialize({bool dismissPdfiumWasmWarnings = false}) {
   }
 
   /// NOTE: it's actually async, but hopefully, it finishes quickly...
-  PdfrxEntryFunctions.instance.init();
+  await platformInitialize();
 
   _isInitialized = true;
 }

@@ -220,6 +220,9 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
     // Custom font registration is not currently supported by the CoreGraphics bridge.
   }
 
+  @override
+  PdfrxBackend get backend => PdfrxBackend.pdfKit;
+
   Future<PdfDocument> _openWithPassword({
     required PdfPasswordProvider? passwordProvider,
     required bool firstAttemptByEmptyPassword,

@@ -26,7 +26,6 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:pdfrx_coregraphics/pdfrx_coregraphics.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
   PdfrxEntryFunctions.instance = PdfrxCoreGraphicsEntryFunctions();
   pdfrxFlutterInitialize();
   runApp(const MyApp());

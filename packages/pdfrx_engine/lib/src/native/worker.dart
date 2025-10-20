@@ -6,6 +6,7 @@ import 'dart:isolate';
 import 'package:ffi/ffi.dart';
 
 import '../pdfrx_api.dart';
+import 'apple_direct_lookup.dart';
 
 typedef PdfrxComputeCallback<M, R> = FutureOr<R> Function(M message);
 
@@ -24,7 +25,9 @@ class BackgroundWorker {
     // propagate the pdfium module path to the worker
     worker.compute((params) {
       Pdfrx.pdfiumModulePath = params.modulePath;
-    }, (modulePath: Pdfrx.pdfiumModulePath));
+      Pdfrx.pdfiumNativeBindings = params.bindings;
+      setupAppleDirectLookupIfApplicable();
+    }, (modulePath: Pdfrx.pdfiumModulePath, bindings: Pdfrx.pdfiumNativeBindings));
 
     return worker;
   }
