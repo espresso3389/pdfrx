@@ -2216,7 +2216,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   PdfPageLayout _layoutPages(List<PdfPage> pages, PdfViewerParams params, PdfLayoutHelper helper) {
-    return SinglePagesLayout.fromPages(pages, params, helper: helper);
+    return SequentialPagesLayout.fromPages(pages, params, helper: helper);
   }
 
   void _invalidate() => _updateStream.add(_txController.value);

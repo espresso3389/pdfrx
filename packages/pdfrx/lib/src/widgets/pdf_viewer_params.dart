@@ -1270,7 +1270,7 @@ typedef PdfViewerGetPageRenderingScale =
 /// ```dart
 /// layoutPages: (pages, params, helper) {
 ///   // Use helper for viewport-aware layouts
-///   return SinglePagesLayout.fromPages(pages, params, helper: helper);
+///   return SequentialPagesLayout.fromPages(pages, params, helper: helper);
 /// }
 /// ```
 ///

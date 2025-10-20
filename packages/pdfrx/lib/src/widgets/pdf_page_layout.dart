@@ -132,7 +132,7 @@ class PdfPageLayout {
   /// height >= width, otherwise [Axis.horizontal].
   ///
   /// Subclasses can override this to use explicit scroll direction instead.
-  /// For example, [SinglePagesLayout] overrides to use its scroll direction parameter.
+  /// For example, [SequentialPagesLayout] overrides to use its scroll direction parameter.
   ///
   /// Determines the direction of scrolling and page layout.
   final Axis primaryAxis;
@@ -671,7 +671,7 @@ abstract class PdfSpreadLayout extends PdfPageLayout {
   int get hashCode => Object.hash(super.hashCode, Object.hashAll(spreadLayouts), Object.hashAll(pageToSpreadIndex));
 }
 
-/// Single pages layout implementation supporting both vertical and horizontal scrolling.
+/// Sequential pages layout implementation supporting both vertical and horizontal scrolling.
 ///
 /// This layout displays pages one after another in either a vertical or horizontal
 /// scrolling direction. The scroll direction is specified when creating the layout.
@@ -680,33 +680,33 @@ abstract class PdfSpreadLayout extends PdfPageLayout {
 /// ```dart
 /// // Vertical scrolling (default)
 /// layoutPages: (pages, params, {viewport}) =>
-///   SinglePagesLayout.fromPages(pages, params, helper: helper),
+///   SequentialPagesLayout.fromPages(pages, params, helper: helper),
 ///
 /// // Horizontal scrolling
 /// layoutPages: (pages, params, {viewport}) =>
-///   SinglePagesLayout.fromPages(
+///   SequentialPagesLayout.fromPages(
 ///     pages,
 ///     params,
 ///     helper: helper,
 ///     scrollDirection: Axis.horizontal,
 ///   ),
 /// ```
-class SinglePagesLayout extends PdfPageLayout {
-  SinglePagesLayout({required super.pageLayouts, required super.documentSize, required this.scrollDirection});
+class SequentialPagesLayout extends PdfPageLayout {
+  SequentialPagesLayout({required super.pageLayouts, required super.documentSize, required this.scrollDirection});
 
-  /// Create a single pages layout from pages and parameters.
+  /// Create a sequential pages layout from pages and parameters.
   ///
   /// The [scrollDirection] parameter determines whether pages scroll vertically (default)
   /// or horizontally.
-  factory SinglePagesLayout.fromPages(
+  factory SequentialPagesLayout.fromPages(
     List<PdfPage> pages,
     PdfViewerParams params, {
     PdfLayoutHelper? helper,
     Axis scrollDirection = Axis.vertical,
   }) {
-    final layout = SinglePagesLayout(pageLayouts: [], documentSize: Size.zero, scrollDirection: scrollDirection);
+    final layout = SequentialPagesLayout(pageLayouts: [], documentSize: Size.zero, scrollDirection: scrollDirection);
     final result = layout.layoutBuilder(pages, params, helper: helper);
-    return SinglePagesLayout(
+    return SequentialPagesLayout(
       pageLayouts: result.pageLayouts,
       documentSize: result.documentSize,
       scrollDirection: scrollDirection,
@@ -721,7 +721,7 @@ class SinglePagesLayout extends PdfPageLayout {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    if (other is! SinglePagesLayout) return false;
+    if (other is! SequentialPagesLayout) return false;
     return super == other && scrollDirection == other.scrollDirection;
   }
 
@@ -730,7 +730,7 @@ class SinglePagesLayout extends PdfPageLayout {
 
   @override
   LayoutResult layoutBuilder(List<PdfPage> pages, PdfViewerParams params, {PdfLayoutHelper? helper}) {
-    assert(helper != null, 'SinglePagesLayout requires PdfLayoutHelper for fit modes other than none or cover');
+    assert(helper != null, 'SequentialPagesLayout requires PdfLayoutHelper for fit modes other than none or cover');
     final pageSizes = PdfPageLayout.calculatePageSizes(
       pages: pages,
       fitMode: params.fitMode,
