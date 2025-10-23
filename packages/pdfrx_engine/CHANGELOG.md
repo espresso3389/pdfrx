@@ -1,3 +1,9 @@
+## 0.2.2
+
+- Experimental support for Apple platforms direct symbol lookup to address TestFlight/App Store symbol lookup issues ([#501](https://github.com/espresso3389/pdfrx/issues/501))
+- Added `PdfrxBackend` enum to identify which PDF backend is being used
+- Internal refactoring to support lookup-based function loading on iOS/macOS
+
 ## 0.2.1
 
 - FIXED: Handle servers that return 200 instead of 206 for content-range requests ([#468](https://github.com/espresso3389/pdfrx/issues/468))

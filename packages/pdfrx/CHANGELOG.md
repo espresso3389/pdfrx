@@ -1,3 +1,9 @@
+# 2.2.5
+
+- Experimental iOS/macOS direct symbol lookup to address SwiftPM TestFlight/App Store symbol lookup issues ([#501](https://github.com/espresso3389/pdfrx/issues/501))
+- `pdfrxFlutterInitialize()` now internally calls `WidgetsFlutterBinding.ensureInitialized()` - no need to call it explicitly
+- Updated to pdfrx_engine 0.2.2
+
 # 2.2.4
 
 - FIXED: SwiftPM/pod package structure updates for iOS/macOS ([#501](https://github.com/espresso3389/pdfrx/issues/501))
