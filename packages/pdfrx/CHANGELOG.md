@@ -1,3 +1,8 @@
+# 2.2.6
+
+- Added configurable timeout parameter to `openUri` and `pdfDocumentFromUri` functions ([#509](https://github.com/espresso3389/pdfrx/pull/509))
+- Updated to pdfrx_engine 0.2.3
+
 # 2.2.5
 
 - Experimental iOS/macOS direct symbol lookup to address SwiftPM TestFlight/App Store symbol lookup issues ([#501](https://github.com/espresso3389/pdfrx/issues/501))

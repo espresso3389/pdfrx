@@ -1,3 +1,7 @@
+## 0.1.6
+
+- Updated to pdfrx_engine 0.2.3
+
 ## 0.1.5
 
 - Fixed destination handling issues where some PDF destinations could not be processed correctly
