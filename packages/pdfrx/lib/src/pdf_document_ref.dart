@@ -154,6 +154,7 @@ class PdfDocumentRefUri extends PdfDocumentRef {
     this.preferRangeAccess = false,
     this.headers,
     this.withCredentials = false,
+    this.timeout,
     this.useProgressiveLoading = true,
     PdfDocumentRefKey? key,
   }) : super(key: key ?? PdfDocumentRefKey(uri.toString()));
@@ -174,6 +175,9 @@ class PdfDocumentRefUri extends PdfDocumentRef {
   /// Whether to include credentials in the request (Only supported on Web).
   final bool withCredentials;
 
+  /// Timeout duration for loading the document. (Only supported on non-Web platforms).
+  final Duration? timeout;
+
   /// Whether to use progressive loading or not.
   final bool useProgressiveLoading;
 
@@ -189,6 +193,7 @@ class PdfDocumentRefUri extends PdfDocumentRef {
       preferRangeAccess: preferRangeAccess,
       headers: headers,
       withCredentials: withCredentials,
+      timeout: timeout,
     );
   }
 }

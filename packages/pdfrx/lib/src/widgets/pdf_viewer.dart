@@ -33,10 +33,10 @@ import 'pdf_page_links_overlay.dart';
 class PdfViewer extends StatefulWidget {
   /// Create [PdfViewer] from a [PdfDocumentRef].
   ///
-  /// [documentRef] is the [PdfDocumentRef].
-  /// [controller] is the controller to control the viewer.
-  /// [params] is the parameters to customize the viewer.
-  /// [initialPageNumber] is the page number to show initially.
+  /// - [documentRef] is the [PdfDocumentRef].
+  /// - [controller] is the controller to control the viewer.
+  /// - [params] is the parameters to customize the viewer.
+  /// - [initialPageNumber] is the page number to show initially.
   const PdfViewer(
     this.documentRef, {
     super.key,
@@ -47,13 +47,13 @@ class PdfViewer extends StatefulWidget {
 
   /// Create [PdfViewer] from an asset.
   ///
-  /// [assetName] is the asset name.
-  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// - [assetName] is the asset name.
+  /// - [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
-  /// [controller] is the controller to control the viewer.
-  /// [params] is the parameters to customize the viewer.
-  /// [initialPageNumber] is the page number to show initially.
+  /// - [controller] is the controller to control the viewer.
+  /// - [params] is the parameters to customize the viewer.
+  /// - [initialPageNumber] is the page number to show initially.
   PdfViewer.asset(
     String assetName, {
     PdfPasswordProvider? passwordProvider,
@@ -72,13 +72,13 @@ class PdfViewer extends StatefulWidget {
 
   /// Create [PdfViewer] from a file.
   ///
-  /// [path] is the file path.
-  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// - [path] is the file path.
+  /// - [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
-  /// [controller] is the controller to control the viewer.
-  /// [params] is the parameters to customize the viewer.
-  /// [initialPageNumber] is the page number to show initially.
+  /// - [controller] is the controller to control the viewer.
+  /// - [params] is the parameters to customize the viewer.
+  /// - [initialPageNumber] is the page number to show initially.
   PdfViewer.file(
     String path, {
     PdfPasswordProvider? passwordProvider,
@@ -97,16 +97,17 @@ class PdfViewer extends StatefulWidget {
 
   /// Create [PdfViewer] from a URI.
   ///
-  /// [uri] is the URI.
-  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// - [uri] is the URI.
+  /// - [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
-  /// [controller] is the controller to control the viewer.
-  /// [params] is the parameters to customize the viewer.
-  /// [initialPageNumber] is the page number to show initially.
-  /// [preferRangeAccess] to prefer range access to download the PDF. The default is false. (Not supported on Web).
-  /// [headers] is used to specify additional HTTP headers especially for authentication/authorization.
-  /// [withCredentials] is used to specify whether to include credentials in the request (Only supported on Web).
+  /// - [controller] is the controller to control the viewer.
+  /// - [params] is the parameters to customize the viewer.
+  /// - [initialPageNumber] is the page number to show initially.
+  /// - [preferRangeAccess] to prefer range access to download the PDF. The default is false. (Not supported on Web).
+  /// - [headers] is used to specify additional HTTP headers especially for authentication/authorization.
+  /// - [withCredentials] is used to specify whether to include credentials in the request (Only supported on Web).
+  /// - [timeout] is the timeout duration for loading the document. (Only supported on non-Web platforms).
   PdfViewer.uri(
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
@@ -119,6 +120,7 @@ class PdfViewer extends StatefulWidget {
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
+    Duration? timeout,
   }) : documentRef = PdfDocumentRefUri(
          uri,
          passwordProvider: passwordProvider,
@@ -127,19 +129,20 @@ class PdfViewer extends StatefulWidget {
          preferRangeAccess: preferRangeAccess,
          headers: headers,
          withCredentials: withCredentials,
+         timeout: timeout,
        );
 
   /// Create [PdfViewer] from a byte data.
   ///
-  /// [data] is the byte data.
-  /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
+  /// - [data] is the byte data.
+  /// - [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
   /// unique for each source, the viewer may not work correctly.
-  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// - [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
-  /// [controller] is the controller to control the viewer.
-  /// [params] is the parameters to customize the viewer.
-  /// [initialPageNumber] is the page number to show initially.
+  /// - [controller] is the controller to control the viewer.
+  /// - [params] is the parameters to customize the viewer.
+  /// - [initialPageNumber] is the page number to show initially.
   PdfViewer.data(
     Uint8List data, {
     required String sourceName,
@@ -160,16 +163,16 @@ class PdfViewer extends StatefulWidget {
 
   /// Create [PdfViewer] from a custom source.
   ///
-  /// [fileSize] is the size of the PDF file.
-  /// [read] is the function to read the PDF file.
-  /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
+  /// - [fileSize] is the size of the PDF file.
+  /// - [read] is the function to read the PDF file.
+  /// - [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
   /// unique for each source, the viewer may not work correctly.
-  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// - [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
-  /// [controller] is the controller to control the viewer.
-  /// [params] is the parameters to customize the viewer.
-  /// [initialPageNumber] is the page number to show initially.
+  /// - [controller] is the controller to control the viewer.
+  /// - [params] is the parameters to customize the viewer.
+  /// - [initialPageNumber] is the page number to show initially.
   PdfViewer.custom({
     required int fileSize,
     required FutureOr<int> Function(Uint8List buffer, int position, int size) read,
