@@ -72,7 +72,16 @@ class Pdfrx {
   static Map<String, int>? pdfiumNativeBindings;
 }
 
+/// The class is used to implement Pdfrx's backend functions.
+///
+/// In normal usage, you should use [PdfDocument]'s static functions to open PDF files instead of using this class directly.
+///
+/// [pdfrx_coregraphics](https://pub.dev/packages/pdfrx_coregraphics) provide an alternative implementation of this
+/// class for Apple platforms.
 abstract class PdfrxEntryFunctions {
+  /// Singleton instance of [PdfrxEntryFunctions].
+  ///
+  /// [PdfDocument] internally calls this instance to open PDF files.
   static PdfrxEntryFunctions instance = PdfrxEntryFunctionsImpl();
 
   /// Call `FPDF_InitLibraryWithConfig` to initialize the PDFium library.
@@ -87,6 +96,7 @@ abstract class PdfrxEntryFunctions {
   /// To avoid such problems, you can wrap the code that calls those libraries with this function.
   Future<T> suspendPdfiumWorkerDuringAction<T>(FutureOr<T> Function() action);
 
+  /// See [PdfDocument.openAsset].
   Future<PdfDocument> openAsset(
     String name, {
     PdfPasswordProvider? passwordProvider,
@@ -94,6 +104,7 @@ abstract class PdfrxEntryFunctions {
     bool useProgressiveLoading = false,
   });
 
+  /// See [PdfDocument.openData].
   Future<PdfDocument> openData(
     Uint8List data, {
     PdfPasswordProvider? passwordProvider,
@@ -104,6 +115,7 @@ abstract class PdfrxEntryFunctions {
     void Function()? onDispose,
   });
 
+  /// See [PdfDocument.openFile].
   Future<PdfDocument> openFile(
     String filePath, {
     PdfPasswordProvider? passwordProvider,
@@ -111,6 +123,7 @@ abstract class PdfrxEntryFunctions {
     bool useProgressiveLoading = false,
   });
 
+  /// See [PdfDocument.openCustom].
   Future<PdfDocument> openCustom({
     required FutureOr<int> Function(Uint8List buffer, int position, int size) read,
     required int fileSize,
@@ -122,6 +135,7 @@ abstract class PdfrxEntryFunctions {
     void Function()? onDispose,
   });
 
+  /// See [PdfDocument.openUri].
   Future<PdfDocument> openUri(
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
@@ -153,18 +167,26 @@ abstract class PdfrxEntryFunctions {
   PdfrxBackend get backend;
 }
 
+/// Pdfrx backend types.
 enum PdfrxBackend {
   /// PDFium backend.
   pdfium,
 
   /// PDFium WebAssembly backend for Web platform.
+  ///
+  /// The implementation for this is provided by [pdfrx](https://pub.dev/packages/pdfrx) package.
   pdfiumWasm,
 
   /// pdfKit (CoreGraphics) backend for Apple platforms.
+  ///
+  /// The implementation for this is provided by [pdfrx_coregraphics](https://pub.dev/packages/pdfrx_coregraphics) package.
   pdfKit,
 
-  /// Mock backend for testing.
+  /// Mock backend for internal consistency.
   mock,
+
+  /// Unknown backend.
+  unknown,
 }
 
 /// Callback function to notify download progress.
