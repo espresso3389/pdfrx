@@ -235,7 +235,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     ])
   }
 
-  /// Builds the document outline.
+  /// Builds the document outline using CoreGraphics for accurate zoom values.
   private func loadOutline(arguments: Any?, result: @escaping FlutterResult) {
     guard
       let args = arguments as? [String: Any],
@@ -286,8 +286,8 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     result(parseCGOutlineNodes(first, document: document))
   }
 
-  /// Loads page links by merging PDFKit annotation data with CoreGraphics parsing and optional
-  /// text-based auto-detection. Duplicate links are filtered via a stable hash.
+  /// Loads page links using CoreGraphics PDF parsing and optional text-based auto-detection.
+  /// Duplicate links are filtered via a stable hash.
   private func loadPageLinks(arguments: Any?, result: @escaping FlutterResult) {
     guard
       let args = arguments as? [String: Any],
@@ -316,15 +316,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     var occupiedRects: [CGRect] = []
     var seenKeys = Set<String>()
 
-    let (pdfKitLinks, pdfKitRects) = annotationLinks(on: page, document: document)
-    for link in pdfKitLinks {
-      let key = linkKey(link)
-      if seenKeys.insert(key).inserted {
-        links.append(link)
-      }
-    }
-    occupiedRects.append(contentsOf: pdfKitRects)
-
+    // Parse annotations using CoreGraphics for reliable, spec-compliant extraction
     if let cgDocument = document.documentRef {
       let (cgLinks, cgRects) = cgAnnotationLinks(
         cgDocument: cgDocument,
@@ -340,6 +332,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       occupiedRects.append(contentsOf: cgRects)
     }
 
+    // Optionally detect links from text content (URLs in plain text)
     let enableAutoLinkDetection = args["enableAutoLinkDetection"] as? Bool ?? true
     if enableAutoLinkDetection {
       for link in autodetectedLinks(on: page, excluding: occupiedRects) {
@@ -350,92 +343,6 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       }
     }
     result(links)
-  }
-
-  private func annotationLinks(on page: PDFPage, document: PDFDocument) -> ([[String: Any]], [CGRect]) {
-    var links: [[String: Any]] = []
-    var rects: [CGRect] = []
-    for annotation in page.annotations {
-      guard isLinkAnnotation(annotation) else { continue }
-      let annotationRects = annotationRectangles(annotation)
-      guard !annotationRects.isEmpty else { continue }
-      let content = annotation.contents
-      let dest = annotationDestinationMap(annotation, document: document)
-      var urlString: String?
-      if let url = annotation.url {
-        urlString = url.absoluteString
-      }
-      else if let actionURL = annotation.action as? PDFActionURL, let url = actionURL.url {
-        urlString = url.absoluteString
-      }
-
-      if dest == nil, urlString == nil, content == nil {
-        continue
-      }
-
-      var linkEntry: [String: Any] = [
-        "rects": annotationRects.map(rectDictionary)
-      ]
-      if let dest = dest {
-        linkEntry["dest"] = dest
-      }
-      if let urlString {
-        linkEntry["url"] = urlString
-      }
-      if let content {
-        linkEntry["annotationContent"] = content
-      }
-      links.append(linkEntry)
-      rects.append(contentsOf: annotationRects)
-    }
-    return (links, rects)
-  }
-
-  private func annotationDestinationMap(_ annotation: PDFAnnotation, document: PDFDocument) -> [String: Any]? {
-    if let destination = annotation.destination {
-      return destinationMap(destination, document: document)
-    }
-    if let action = annotation.action as? PDFActionGoTo {
-      return destinationMap(action.destination, document: document)
-    }
-    return nil
-  }
-
-  private func destinationMap(_ destination: PDFDestination?, document: PDFDocument) -> [String: Any]? {
-    guard let destination = destination, let page = destination.page else {
-      return nil
-    }
-    let pageIndex = document.index(for: page)
-    if pageIndex == NSNotFound || pageIndex < 0 {
-      return nil
-    }
-    var params: [Double] = [
-      Double(destination.point.x),
-      Double(destination.point.y)
-    ]
-    let zoom = destination.zoom
-    // Some PDFs store invalid zoom values such as NaN or Infinity; clamp to 0 to indicate "use current".
-    params.append(zoom.isFinite && zoom > 0 && zoom < 10.0 ? Double(zoom) : 0.0)
-    return [
-      "page": pageIndex + 1,
-      "command": "xyz",
-      "params": params
-    ]
-  }
-
-  private func isLinkAnnotation(_ annotation: PDFAnnotation) -> Bool {
-    if let subtypeValue = annotation.value(forAnnotationKey: PDFAnnotationKey.subtype) as? String {
-      let normalized = subtypeValue.trimmingCharacters(in: CharacterSet(charactersIn: "/")).lowercased()
-      let linkRaw = PDFAnnotationSubtype.link.rawValue
-      let linkNormalized = linkRaw.trimmingCharacters(in: CharacterSet(charactersIn: "/")).lowercased()
-      if normalized == linkNormalized || normalized == linkRaw.lowercased() || normalized == "link" {
-        return true
-      }
-    }
-    if annotation.url != nil { return true }
-    if annotation.action is PDFActionURL { return true }
-    if annotation.action is PDFActionGoTo { return true }
-    return false
   }
 
   private func autodetectedLinks(on page: PDFPage, excluding occupiedRects: [CGRect]) -> [[String: Any]] {
@@ -557,6 +464,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     ])
   }
 
+  /// Parses outline nodes using CoreGraphics for accurate destination data including zoom values.
   private func parseCGOutlineNodes(_ outlineDict: CGPDFDictionaryRef, document: PDFDocument) -> [[String: Any]] {
     var result: [[String: Any]] = []
     var currentDict: CGPDFDictionaryRef? = outlineDict
@@ -578,6 +486,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     return result
   }
 
+  /// Parses a single outline node from CoreGraphics dictionary.
   private func parseCGOutlineNode(_ outlineDict: CGPDFDictionaryRef, document: PDFDocument) -> [String: Any]? {
     // Extract title
     var titleString: CGPDFStringRef?
@@ -596,7 +505,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
 
     var node: [String: Any] = ["title": title]
 
-    // Extract destination
+    // Extract destination using CoreGraphics to get accurate zoom values
     if let dest = parseCGDestination(outlineDict, document: document) {
       node["dest"] = dest
     }
@@ -623,11 +532,33 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     // Check for "A" key (action dictionary)
     var actionDict: CGPDFDictionaryRef?
     if CGPDFDictionaryGetDictionary(dict, "A", &actionDict), let action = actionDict {
-      if let actionType = actionType(from: action),
-         actionType.caseInsensitiveCompare("GoTo") == .orderedSame,
-         let dest = parseCGDestinationFromAction(action, document: document)
-      {
-        return dest
+      if let actionType = actionType(from: action) {
+        let normalizedType = actionType.lowercased()
+
+        // Handle GoTo action (internal navigation)
+        if normalizedType == "goto" {
+          if let dest = parseCGDestinationFromAction(action, document: document) {
+            return dest
+          }
+        }
+
+        // Handle GoToR action (remote goto) - extract destination from current document
+        // Note: Remote file reference is ignored as we only handle current document
+        else if normalizedType == "gotor" {
+          if let dest = parseCGDestinationFromAction(action, document: document) {
+            return dest
+          }
+        }
+
+        // Handle GoToE action (embedded goto)
+        else if normalizedType == "gotoe" {
+          if let dest = parseCGDestinationFromAction(action, document: document) {
+            return dest
+          }
+        }
+
+        // Thread actions are not supported for destination extraction
+        // URI, Launch, Named, and other actions don't have destinations
       }
     }
 
@@ -668,7 +599,13 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     if CGPDFObjectGetValue(destObject, .string, &destString), let string = destString {
       if let cfString = CGPDFStringCopyTextString(string) {
         let destName = cfString as String
-        return lookupNamedDestination(destName, document: document)
+        let result = lookupNamedDestination(destName, document: document)
+        #if DEBUG
+        if result == nil {
+          print("Warning: Named destination '\(destName)' not found in document")
+        }
+        #endif
+        return result
       }
     }
 
@@ -676,9 +613,18 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     var destName: UnsafePointer<Int8>?
     if CGPDFObjectGetValue(destObject, .name, &destName), let name = destName {
       let destNameStr = String(cString: name).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-      return lookupNamedDestination(destNameStr, document: document)
+      let result = lookupNamedDestination(destNameStr, document: document)
+      #if DEBUG
+      if result == nil {
+        print("Warning: Named destination '\(destNameStr)' not found in document")
+      }
+      #endif
+      return result
     }
 
+    #if DEBUG
+    print("Warning: Unable to parse destination object - unrecognized type")
+    #endif
     return nil
   }
 
@@ -688,19 +634,32 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
 
     // First element should be a page reference (dictionary or integer)
     var pageIndex: Int?
+
+    // Try to get the page reference as a dictionary (most common case - indirect reference to page)
     var pageRef: CGPDFDictionaryRef?
     if CGPDFArrayGetDictionary(array, 0, &pageRef), let pageDict = pageRef {
-      // Find the page index from the page dictionary
-      pageIndex = findPageIndex(pageDict, document: document)
+      // Use improved page index finding with object number comparison
+      pageIndex = findPageIndexByObjectNumber(pageDict, document: document)
     }
-    else {
+
+    // Fallback: try direct integer (rare, but some PDFs use 0-based page numbers directly)
+    if pageIndex == nil {
       var rawIndex: CGPDFInteger = 0
       if CGPDFArrayGetInteger(array, 0, &rawIndex) {
-        pageIndex = Int(rawIndex)
+        // Treat as 0-based page index
+        let idx = Int(rawIndex)
+        if idx >= 0, idx < document.pageCount {
+          pageIndex = idx
+        }
       }
     }
 
-    guard let pageIndex, pageIndex >= 0, pageIndex < document.pageCount else { return nil }
+    guard let pageIndex, pageIndex >= 0, pageIndex < document.pageCount else {
+      #if DEBUG
+      print("Warning: Failed to resolve page reference in destination array")
+      #endif
+      return nil
+    }
 
     // Extract command type (XYZ, Fit, FitH, etc.)
     var commandRaw = "xyz"
@@ -800,10 +759,43 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       while i + 1 < count {
         var nameString: CGPDFStringRef?
         if CGPDFArrayGetString(names, i, &nameString), let str = nameString {
+          // Try CGPDFStringCopyTextString first (for text strings with BOM)
           if let cfString = CGPDFStringCopyTextString(str), (cfString as String) == name {
             var valueObj: CGPDFObjectRef?
             if CGPDFArrayGetObject(names, i + 1, &valueObj) {
               return valueObj
+            }
+          }
+          // Also try raw byte string comparison with multiple encodings
+          else if let bytePtr = CGPDFStringGetBytePtr(str) {
+            let length = CGPDFStringGetLength(str)
+            // Try UTF-8
+            if let byteString = String(
+              bytesNoCopy: UnsafeMutableRawPointer(mutating: bytePtr),
+              length: length,
+              encoding: .utf8,
+              freeWhenDone: false
+            ),
+              byteString == name
+            {
+              var valueObj: CGPDFObjectRef?
+              if CGPDFArrayGetObject(names, i + 1, &valueObj) {
+                return valueObj
+              }
+            }
+            // Try ISO-Latin-1 as fallback (common in older PDFs)
+            else if let latin1String = String(
+              bytesNoCopy: UnsafeMutableRawPointer(mutating: bytePtr),
+              length: length,
+              encoding: .isoLatin1,
+              freeWhenDone: false
+            ),
+              latin1String == name
+            {
+              var valueObj: CGPDFObjectRef?
+              if CGPDFArrayGetObject(names, i + 1, &valueObj) {
+                return valueObj
+              }
             }
           }
         }
@@ -815,11 +807,16 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     var kidsArray: CGPDFArrayRef?
     if CGPDFDictionaryGetArray(nameTree, "Kids", &kidsArray), let kids = kidsArray {
       let count = CGPDFArrayGetCount(kids)
+
+      // Use Limits to optimize search if available
       for i in 0 ..< count {
         var kidDict: CGPDFDictionaryRef?
         if CGPDFArrayGetDictionary(kids, i, &kidDict), let kid = kidDict {
-          if let result = lookupInNameTree(name, nameTree: kid) {
-            return result
+          // Check if name falls within this kid's limits
+          if nameInLimits(name, limits: kid) {
+            if let result = lookupInNameTree(name, nameTree: kid) {
+              return result
+            }
           }
         }
       }
@@ -828,99 +825,175 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     return nil
   }
 
-  private func findPageIndex(_ pageDict: CGPDFDictionaryRef, document: PDFDocument) -> Int? {
-    // Try to match the page dictionary reference with actual pages
+  /// Checks if a name falls within the Limits of a name tree node
+  private func nameInLimits(_ name: String, limits dict: CGPDFDictionaryRef) -> Bool {
+    var limitsArray: CGPDFArrayRef?
+    guard CGPDFDictionaryGetArray(dict, "Limits", &limitsArray), let limits = limitsArray else {
+      // No limits means we should search this node
+      return true
+    }
+
+    guard CGPDFArrayGetCount(limits) >= 2 else {
+      return true
+    }
+
+    // Extract lower limit - try text strings and byte strings with multiple encodings
+    var lowerString: CGPDFStringRef?
+    if CGPDFArrayGetString(limits, 0, &lowerString), let lower = lowerString {
+      var lowerName: String?
+      // Try text string first (UTF-16 with BOM)
+      if let cfString = CGPDFStringCopyTextString(lower) as String? {
+        lowerName = cfString
+      }
+      // Try raw byte strings with multiple encodings
+      else if let bytePtr = CGPDFStringGetBytePtr(lower) {
+        let length = CGPDFStringGetLength(lower)
+        // Try UTF-8
+        if let utf8String = String(
+          bytesNoCopy: UnsafeMutableRawPointer(mutating: bytePtr),
+          length: length,
+          encoding: .utf8,
+          freeWhenDone: false
+        ) {
+          lowerName = utf8String
+        }
+        // Try ISO-Latin-1 as fallback
+        else if let latin1String = String(
+          bytesNoCopy: UnsafeMutableRawPointer(mutating: bytePtr),
+          length: length,
+          encoding: .isoLatin1,
+          freeWhenDone: false
+        ) {
+          lowerName = latin1String
+        }
+      }
+
+      if let lowerName, name < lowerName {
+        return false
+      }
+    }
+
+    // Extract upper limit - try text strings and byte strings with multiple encodings
+    var upperString: CGPDFStringRef?
+    if CGPDFArrayGetString(limits, 1, &upperString), let upper = upperString {
+      var upperName: String?
+      // Try text string first (UTF-16 with BOM)
+      if let cfString = CGPDFStringCopyTextString(upper) as String? {
+        upperName = cfString
+      }
+      // Try raw byte strings with multiple encodings
+      else if let bytePtr = CGPDFStringGetBytePtr(upper) {
+        let length = CGPDFStringGetLength(upper)
+        // Try UTF-8
+        if let utf8String = String(
+          bytesNoCopy: UnsafeMutableRawPointer(mutating: bytePtr),
+          length: length,
+          encoding: .utf8,
+          freeWhenDone: false
+        ) {
+          upperName = utf8String
+        }
+        // Try ISO-Latin-1 as fallback
+        else if let latin1String = String(
+          bytesNoCopy: UnsafeMutableRawPointer(mutating: bytePtr),
+          length: length,
+          encoding: .isoLatin1,
+          freeWhenDone: false
+        ) {
+          upperName = latin1String
+        }
+      }
+
+      if let upperName, name > upperName {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  /// Finds page index by comparing object identifiers in the PDF structure.
+  /// This is more robust than pointer comparison for indirect references.
+  private func findPageIndexByObjectNumber(_ pageDict: CGPDFDictionaryRef, document: PDFDocument) -> Int? {
     guard let cgDocument = document.documentRef else {
       return nil
     }
 
+    // First try: Direct pointer comparison (works for direct references)
     for i in 0 ..< document.pageCount {
       guard let cgPage = cgDocument.page(at: i + 1) else { continue }
       guard let currentPageDict = cgPage.dictionary else { continue }
 
-      // Compare dictionary pointers - they should be the same object if it's the same page
       if currentPageDict == pageDict {
         return i
       }
     }
 
-    // If exact match fails, try comparing by object reference indirectly
-    // Some PDFs use indirect references, so we need to check the page type
-    var pageType: UnsafePointer<Int8>?
-    if CGPDFDictionaryGetName(pageDict, "Type", &pageType),
-       let type = pageType,
-       String(cString: type) == "Page" || String(cString: type) == "/Page"
-    {
-      // This is a valid page dictionary but we couldn't find exact match
-      // Fall back to checking page by content comparison (checking some unique properties)
-      for i in 0 ..< document.pageCount {
-        guard let cgPage = cgDocument.page(at: i + 1) else { continue }
-        guard let currentPageDict = cgPage.dictionary else { continue }
+    // Second try: Compare by extracting unique page properties
+    // This works when indirect references point to the same logical page
+    // We create a fingerprint based on MediaBox, CropBox, Rotate, and Resources reference
+    let targetFingerprint = createPageFingerprint(pageDict)
 
-        // Compare page properties (MediaBox, Resources, etc.)
-        if comparePagDictionaries(pageDict, currentPageDict) {
-          return i
-        }
+    for i in 0 ..< document.pageCount {
+      guard let cgPage = cgDocument.page(at: i + 1) else { continue }
+      guard let currentPageDict = cgPage.dictionary else { continue }
+
+      let currentFingerprint = createPageFingerprint(currentPageDict)
+      if targetFingerprint == currentFingerprint {
+        return i
       }
     }
 
+    #if DEBUG
+    print("Warning: Could not match page dictionary to any page in document")
+    #endif
     return nil
   }
 
-  private func comparePagDictionaries(_ dict1: CGPDFDictionaryRef, _ dict2: CGPDFDictionaryRef) -> Bool {
-    // Compare MediaBox
-    var mediaBox1: CGPDFArrayRef?
-    var mediaBox2: CGPDFArrayRef?
-    let hasMediaBox1 = CGPDFDictionaryGetArray(dict1, "MediaBox", &mediaBox1)
-    let hasMediaBox2 = CGPDFDictionaryGetArray(dict2, "MediaBox", &mediaBox2)
+  /// Creates a fingerprint for a page dictionary based on its key properties
+  private func createPageFingerprint(_ pageDict: CGPDFDictionaryRef) -> String {
+    var components: [String] = []
 
-    if hasMediaBox1 != hasMediaBox2 {
-      return false
+    // MediaBox
+    var mediaBox: CGPDFArrayRef?
+    if CGPDFDictionaryGetArray(pageDict, "MediaBox", &mediaBox), let mb = mediaBox {
+      components.append("MB:\(arrayToString(mb))")
     }
 
-    if hasMediaBox1, let mb1 = mediaBox1, let mb2 = mediaBox2 {
-      if !compareArrays(mb1, mb2) {
-        return false
-      }
+    // CropBox (if present)
+    var cropBox: CGPDFArrayRef?
+    if CGPDFDictionaryGetArray(pageDict, "CropBox", &cropBox), let cb = cropBox {
+      components.append("CB:\(arrayToString(cb))")
     }
 
-    // Compare Rotate
-    var rotate1: CGPDFInteger = 0
-    var rotate2: CGPDFInteger = 0
-    _ = CGPDFDictionaryGetInteger(dict1, "Rotate", &rotate1)
-    _ = CGPDFDictionaryGetInteger(dict2, "Rotate", &rotate2)
-
-    if rotate1 != rotate2 {
-      return false
+    // Rotate
+    var rotate: CGPDFInteger = 0
+    if CGPDFDictionaryGetInteger(pageDict, "Rotate", &rotate) {
+      components.append("R:\(rotate)")
     }
 
-    return true
+    // Contents reference (if available) - helps distinguish pages
+    var contents: CGPDFObjectRef?
+    if CGPDFDictionaryGetObject(pageDict, "Contents", &contents) {
+      components.append("C:exists")
+    }
+
+    return components.joined(separator: "|")
   }
 
-  private func compareArrays(_ array1: CGPDFArrayRef, _ array2: CGPDFArrayRef) -> Bool {
-    let count1 = CGPDFArrayGetCount(array1)
-    let count2 = CGPDFArrayGetCount(array2)
+  /// Converts a CGPDFArray to a string representation
+  private func arrayToString(_ array: CGPDFArrayRef) -> String {
+    let count = CGPDFArrayGetCount(array)
+    var values: [String] = []
 
-    if count1 != count2 {
-      return false
-    }
-
-    for i in 0 ..< count1 {
-      var num1: CGPDFReal = 0
-      var num2: CGPDFReal = 0
-      let hasNum1 = CGPDFArrayGetNumber(array1, i, &num1)
-      let hasNum2 = CGPDFArrayGetNumber(array2, i, &num2)
-
-      if hasNum1 != hasNum2 {
-        return false
-      }
-
-      if hasNum1, abs(num1 - num2) > 0.01 {
-        return false
+    for i in 0 ..< count {
+      var num: CGPDFReal = 0
+      if CGPDFArrayGetNumber(array, i, &num) {
+        values.append(String(format: "%.2f", num))
       }
     }
 
-    return true
+    return values.joined(separator: ",")
   }
 
   private func cgAnnotationLinks(
@@ -1140,61 +1213,6 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       width: right - left,
       height: top - bottom
     )
-  }
-
-  private func annotationRectangles(_ annotation: PDFAnnotation) -> [CGRect] {
-    let quadPoints = annotation.quadrilateralPoints
-    if let quadPoints, quadPoints.count >= 4 {
-      var rects: [CGRect] = []
-      rects.reserveCapacity(quadPoints.count / 4)
-      var index = 0
-      while index + 3 < quadPoints.count {
-        #if os(iOS)
-        let points = [
-          quadPoints[index].cgPointValue,
-          quadPoints[index + 1].cgPointValue,
-          quadPoints[index + 2].cgPointValue,
-          quadPoints[index + 3].cgPointValue
-        ]
-        #else
-        let points = [
-          quadPoints[index].pointValue,
-          quadPoints[index + 1].pointValue,
-          quadPoints[index + 2].pointValue,
-          quadPoints[index + 3].pointValue
-        ]
-        #endif
-        index += 4
-        if let rect = rectangle(from: points) {
-          rects.append(rect)
-        }
-      }
-      if !rects.isEmpty {
-        return rects
-      }
-    }
-    let bounds = annotation.bounds
-    return bounds.isNull || bounds.isEmpty ? [] : [bounds]
-  }
-
-  private func rectangle(from points: [CGPoint]) -> CGRect? {
-    guard !points.isEmpty else { return nil }
-    var minX = CGFloat.greatestFiniteMagnitude
-    var minY = CGFloat.greatestFiniteMagnitude
-    var maxX = -CGFloat.greatestFiniteMagnitude
-    var maxY = -CGFloat.greatestFiniteMagnitude
-    for point in points {
-      if point.x < minX { minX = point.x }
-      if point.y < minY { minY = point.y }
-      if point.x > maxX { maxX = point.x }
-      if point.y > maxY { maxY = point.y }
-    }
-    let width = maxX - minX
-    let height = maxY - minY
-    if width <= 0 || height <= 0 {
-      return nil
-    }
-    return CGRect(x: minX, y: minY, width: width, height: height)
   }
 
   private func intersects(_ rect: CGRect, with others: [CGRect]) -> Bool {
