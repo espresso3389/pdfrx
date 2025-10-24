@@ -296,7 +296,9 @@ Future<PdfDocument> pdfDocumentFromUri(
   bool useRangeAccess = true,
   Map<String, String>? headers,
   Duration? timeout,
+  PdfrxEntryFunctions? entryFunctions,
 }) async {
+  entryFunctions ??= PdfrxEntryFunctions.instance;
   progressCallback?.call(0);
   cache ??= await PdfFileCache.fromUri(uri);
   final httpClientWrapper = _HttpClientWrapper(Pdfrx.createHttpClient ?? () => http.Client());
@@ -315,10 +317,11 @@ Future<PdfDocument> pdfDocumentFromUri(
         timeout: timeout,
       );
       if (result.isFullDownload) {
-        return await PdfDocument.openFile(
+        return await entryFunctions.openFile(
           cache.filePath,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+          useProgressiveLoading: useProgressiveLoading,
         );
       }
     } else {
@@ -342,7 +345,7 @@ Future<PdfDocument> pdfDocumentFromUri(
         if (result.isFullDownload || result.notModified) {
           cache.close(); // close the cache file before opening it.
           httpClientWrapper.reset();
-          return await PdfDocument.openFile(
+          return await entryFunctions.openFile(
             cache.filePath,
             passwordProvider: passwordProvider,
             firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -352,7 +355,7 @@ Future<PdfDocument> pdfDocumentFromUri(
       }
     }
 
-    return await PdfDocument.openCustom(
+    return await entryFunctions.openCustom(
       read: (buffer, position, size) async {
         final totalSize = size;
         final end = position + size;
@@ -361,7 +364,15 @@ Future<PdfDocument> pdfDocumentFromUri(
           final blockId = p ~/ cache!.blockSize;
           final isAvailable = cache.isCached(blockId);
           if (!isAvailable) {
-            await _downloadBlock(httpClientWrapper, uri, cache, progressCallback, blockId, headers: headers, timeout: timeout);
+            await _downloadBlock(
+              httpClientWrapper,
+              uri,
+              cache,
+              progressCallback,
+              blockId,
+              headers: headers,
+              timeout: timeout,
+            );
           }
           final readEnd = min(p + size, (blockId + 1) * cache.blockSize);
           final sizeToRead = readEnd - p;

@@ -228,6 +228,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
+    Duration? timeout,
   }) async {
     _PdfiumWasmCallback? progressCallbackReg;
     void cleanupCallbacks() => progressCallbackReg?.unregister();

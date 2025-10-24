@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:pdfrx_engine/pdfrx_engine.dart';
+// ignore: implementation_imports
+import 'package:pdfrx_engine/src/native/pdf_file_cache.dart';
 
 const _kPasswordErrorCode = 'wrong-password';
 
@@ -167,43 +167,18 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
-  }) async {
-    await init();
-    final clientFactory = Pdfrx.createHttpClient ?? () => http.Client();
-    final client = clientFactory();
-    try {
-      final request = http.Request('GET', uri);
-      if (headers != null && headers.isNotEmpty) {
-        request.headers.addAll(headers);
-      }
-      final response = await client.send(request);
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw PdfException(
-          'Failed to download PDF from $uri (HTTP ${response.statusCode}).',
-        );
-      }
-      final total = response.contentLength;
-      progressCallback?.call(0, total);
-
-      final builder = BytesBuilder(copy: false);
-      var downloaded = 0;
-      await for (final chunk in response.stream) {
-        builder.add(chunk);
-        downloaded += chunk.length;
-        progressCallback?.call(downloaded, total);
-      }
-      final data = builder.takeBytes();
-      return openData(
-        data,
-        passwordProvider: passwordProvider,
-        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-        useProgressiveLoading: useProgressiveLoading,
-        sourceName: uri.toString(),
-      );
-    } finally {
-      client.close();
-    }
-  }
+    Duration? timeout,
+  }) => pdfDocumentFromUri(
+    uri,
+    passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
+    progressCallback: progressCallback,
+    useRangeAccess: preferRangeAccess,
+    headers: headers,
+    timeout: timeout,
+    entryFunctions: this,
+  );
 
   @override
   Future<void> reloadFonts() async {

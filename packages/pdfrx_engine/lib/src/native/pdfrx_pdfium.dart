@@ -376,6 +376,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     useRangeAccess: preferRangeAccess,
     headers: headers,
     timeout: timeout,
+    entryFunctions: this,
   );
 
   static Future<PdfDocument> _openByFunc(

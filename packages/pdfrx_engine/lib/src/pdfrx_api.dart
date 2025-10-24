@@ -351,6 +351,8 @@ abstract class PdfDocument {
   /// [headers] is used to specify additional HTTP headers especially for authentication/authorization.
   ///
   /// [withCredentials] is used to specify whether to include credentials in the request (Only supported on Web).
+  ///
+  /// [timeout] is used to specify the timeout duration for each HTTP request (Only supported on non-Web platforms).
   static Future<PdfDocument> openUri(
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
@@ -360,6 +362,7 @@ abstract class PdfDocument {
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
+    Duration? timeout,
   }) => PdfrxEntryFunctions.instance.openUri(
     uri,
     passwordProvider: passwordProvider,
@@ -369,6 +372,7 @@ abstract class PdfDocument {
     preferRangeAccess: preferRangeAccess,
     headers: headers,
     withCredentials: withCredentials,
+    timeout: timeout,
   );
 
   /// Load pages progressively.
