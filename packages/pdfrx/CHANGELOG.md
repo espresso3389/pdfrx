@@ -1,3 +1,7 @@
+# 2.2.7
+
+- `PdfViewer.uri` now supports timeout parameter ([#508](https://github.com/espresso3389/pdfrx/issues/508))
+
 # 2.2.6
 
 - Added configurable timeout parameter to `openUri` and `pdfDocumentFromUri` functions ([#509](https://github.com/espresso3389/pdfrx/pull/509))
