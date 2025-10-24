@@ -35,7 +35,6 @@ pdfium_bindings.pdfium get pdfium {
 }
 
 set pdfium(pdfium_bindings.pdfium value) {
-  //print('Debug: Overriding pdfium bindings');
   _pdfium = value;
 }
 
@@ -44,9 +43,8 @@ typedef PdfrxNativeFunctionLookup<T extends ffi.NativeType> = ffi.Pointer<T> Fun
 PdfrxNativeFunctionLookup<T>? createPdfrxNativeFunctionLookup<T extends ffi.NativeType>() {
   if (Pdfrx.pdfiumNativeBindings != null) {
     final bindings = Pdfrx.pdfiumNativeBindings!;
-    ffi.Pointer<T> lookup<T extends ffi.NativeType>(String symbolName) {
+    ffi.Pointer<T> lookup(String symbolName) {
       final ptr = bindings[symbolName];
-      //print('Lookup symbol: $symbolName -> $ptr');
       if (ptr == null) throw Exception('Failed to find binding for $symbolName');
       return ffi.Pointer<T>.fromAddress(ptr);
     }
