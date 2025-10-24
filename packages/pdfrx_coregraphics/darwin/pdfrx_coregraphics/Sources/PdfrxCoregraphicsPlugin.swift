@@ -594,6 +594,16 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       return parseDestinationArray(array, document: document)
     }
 
+    // Try dictionary-type destination (indirect destination reference with /D key)
+    var destDict: CGPDFDictionaryRef?
+    if CGPDFObjectGetValue(destObject, .dictionary, &destDict), let dict = destDict {
+      // The dictionary should contain a /D key with the actual destination array
+      var actualDestObject: CGPDFObjectRef?
+      if CGPDFDictionaryGetObject(dict, "D", &actualDestObject), let actualDest = actualDestObject {
+        return parseCGDestinationObject(actualDest, document: document)
+      }
+    }
+
     // Try string-type destination (named destination)
     var destString: CGPDFStringRef?
     if CGPDFObjectGetValue(destObject, .string, &destString), let string = destString {

@@ -676,7 +676,11 @@ PdfDest? _parseDest(Map<Object?, Object?>? dest, {int defaultPageNumber = 1}) {
     map['page'] as int? ?? defaultPageNumber,
     _tryParseDestCommand(map['command'] as String?),
     (map['params'] as List<Object?>?)
-        ?.map((value) => (value as num?)?.toDouble())
+        ?.map((value) {
+          if (value == null) return null;
+          if (value is num) return value.toDouble();
+          return null;
+        })
         .toList(growable: false),
   );
 }
