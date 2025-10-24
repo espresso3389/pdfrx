@@ -131,6 +131,7 @@ abstract class PdfrxEntryFunctions {
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
+    Duration? timeout,
   });
 
   /// Reload the fonts.

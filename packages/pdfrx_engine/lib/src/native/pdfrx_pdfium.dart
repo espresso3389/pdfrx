@@ -366,6 +366,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
+    Duration? timeout,
   }) => pdfDocumentFromUri(
     uri,
     passwordProvider: passwordProvider,
@@ -374,6 +375,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     progressCallback: progressCallback,
     useRangeAccess: preferRangeAccess,
     headers: headers,
+    timeout: timeout,
   );
 
   static Future<PdfDocument> _openByFunc(

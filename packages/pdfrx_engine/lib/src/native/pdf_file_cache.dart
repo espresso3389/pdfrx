@@ -295,6 +295,7 @@ Future<PdfDocument> pdfDocumentFromUri(
   PdfDownloadProgressCallback? progressCallback,
   bool useRangeAccess = true,
   Map<String, String>? headers,
+  Duration? timeout,
 }) async {
   progressCallback?.call(0);
   cache ??= await PdfFileCache.fromUri(uri);
@@ -311,6 +312,7 @@ Future<PdfDocument> pdfDocumentFromUri(
         0,
         useRangeAccess: useRangeAccess,
         headers: headers,
+        timeout: timeout,
       );
       if (result.isFullDownload) {
         return await PdfDocument.openFile(
@@ -333,6 +335,7 @@ Future<PdfDocument> pdfDocumentFromUri(
           addCacheControlHeaders: true,
           useRangeAccess: useRangeAccess,
           headers: headers,
+          timeout: timeout,
         );
         // cached file has expired
         // if the file has fully downloaded again or has not been modified
@@ -358,7 +361,7 @@ Future<PdfDocument> pdfDocumentFromUri(
           final blockId = p ~/ cache!.blockSize;
           final isAvailable = cache.isCached(blockId);
           if (!isAvailable) {
-            await _downloadBlock(httpClientWrapper, uri, cache, progressCallback, blockId, headers: headers);
+            await _downloadBlock(httpClientWrapper, uri, cache, progressCallback, blockId, headers: headers, timeout: timeout);
           }
           final readEnd = min(p + size, (blockId + 1) * cache.blockSize);
           final sizeToRead = readEnd - p;
@@ -419,6 +422,7 @@ Future<_DownloadResult> _downloadBlock(
   bool addCacheControlHeaders = false,
   bool useRangeAccess = true,
   Map<String, String>? headers,
+  Duration? timeout,
 }) => httpClientWrapper.synchronized(() async {
   int? fileSize;
   final blockOffset = blockId * cache.blockSize;
@@ -431,7 +435,7 @@ Future<_DownloadResult> _downloadBlock(
     });
   late final http.StreamedResponse response;
   try {
-    response = await httpClientWrapper.client.send(request).timeout(Duration(seconds: 5));
+    response = await httpClientWrapper.client.send(request).timeout(timeout ?? const Duration(seconds: 5));
   } on TimeoutException {
     httpClientWrapper.reset();
     rethrow;
