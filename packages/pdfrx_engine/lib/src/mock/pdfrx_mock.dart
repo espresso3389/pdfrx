@@ -74,6 +74,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
+    Duration? timeout,
   }) => unimplemented();
 
   @override
