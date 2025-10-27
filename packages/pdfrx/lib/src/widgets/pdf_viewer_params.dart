@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../pdfrx.dart';
-import '../utils/native/native.dart';
+import '../utils/platform.dart';
 
 /// Viewer customization parameters.
 ///
