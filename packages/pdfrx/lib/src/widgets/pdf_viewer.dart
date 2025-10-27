@@ -914,9 +914,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onAnimationEnd() {
     // Check if all animations have completed
-    final ivState = _interactiveViewerKey.currentState;
-    final hasAnimations =
-        (ivState != null && (ivState as dynamic).hasActiveAnimations == true) || _animController.isAnimating;
+    final hasAnimations = (_interactiveViewerState?.hasActiveAnimations == true) || _animController.isAnimating;
 
     if (!hasAnimations) {
       // Animations complete, clear flags
