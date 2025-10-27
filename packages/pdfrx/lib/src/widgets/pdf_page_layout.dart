@@ -574,7 +574,7 @@ class PdfPageLayout {
 /// - Pages 4-5: spread 2
 /// - `pageToSpreadIndex = [0, 1, 1, 2, 2, ...]` (0-based: index 0 = page 1)
 /// - `spreadLayouts = [Rect(cover bounds), Rect(pages 2-3 bounds), Rect(pages 4-5 bounds), ...]`
-abstract class PdfSpreadLayout extends PdfPageLayout {
+class PdfSpreadLayout extends PdfPageLayout {
   PdfSpreadLayout({
     required super.pageLayouts,
     required super.documentSize,
@@ -601,8 +601,8 @@ abstract class PdfSpreadLayout extends PdfPageLayout {
     return spreadLayouts[pageToSpreadIndex[pageNumber - 1]];
   }
 
-  /// Get the page range (first, last) for the spread containing pageNumber.
-  ({int first, int last}) getPageRange(int pageNumber) {
+  /// Get the page range for the spread containing pageNumber.
+  PdfPageRange getPageRange(int pageNumber) {
     final spreadIndex = pageToSpreadIndex[pageNumber - 1];
     var first = -1;
     var last = -1;
@@ -612,14 +612,14 @@ abstract class PdfSpreadLayout extends PdfPageLayout {
         last = i + 1; // Convert to 1-based
       }
     }
-    return (first: first, last: last);
+    return PdfPageRange(first, last);
   }
 
   /// Get the first page number of the spread containing pageNumber.
-  int getSpreadFirstPage(int pageNumber) => getPageRange(pageNumber).first;
+  int getSpreadFirstPage(int pageNumber) => getPageRange(pageNumber).firstPageNumber;
 
   /// Get the last page number of the spread containing pageNumber.
-  int getSpreadLastPage(int pageNumber) => getPageRange(pageNumber).last;
+  int getSpreadLastPage(int pageNumber) => getPageRange(pageNumber).lastPageNumber;
 
   /// Get the first page number of a spread by its index.
   int? getFirstPageOfSpread(int spreadIndex) {
@@ -1046,4 +1046,43 @@ Size _calculatePageSize({
     final scale = targetWidth / page.width;
     return Size(targetWidth, page.height * scale);
   }
+}
+
+/// Represents a range of pages in the PDF document.
+@immutable
+class PdfPageRange {
+  /// Creates a page range from [firstPageNumber] to [lastPageNumber], inclusive.
+  const PdfPageRange(this.firstPageNumber, this.lastPageNumber);
+
+  /// Creates a page range representing a single page.
+  const PdfPageRange.single(int pageNumber) : firstPageNumber = pageNumber, lastPageNumber = pageNumber;
+
+  /// 1-based page number of first page in range.
+  ///
+  /// [firstPageNumber] is always <= [lastPageNumber]. They can be equal for a single-page range.
+  final int firstPageNumber;
+
+  /// 1-based page number of last page in range.
+  ///
+  /// [lastPageNumber] is always >= [firstPageNumber]. They can be equal for a single-page range.
+  /// As "last" implies, this is inclusive.
+  final int lastPageNumber;
+
+  /// Returns a string representation of the page range.
+  ///
+  /// If the range is a single page, returns just that page number (e.g., "5").
+  /// If the range spans multiple pages, returns in "start-last" format (e.g., "3-7").
+  String get label => firstPageNumber == lastPageNumber ? '$firstPageNumber' : '$firstPageNumber-$lastPageNumber';
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is PdfPageRange && firstPageNumber == other.firstPageNumber && lastPageNumber == other.lastPageNumber;
+  }
+
+  @override
+  int get hashCode => Object.hash(firstPageNumber, lastPageNumber);
+
+  @override
+  String toString() => 'PdfPageRange($label)';
 }

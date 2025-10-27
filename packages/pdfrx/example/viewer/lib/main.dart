@@ -311,7 +311,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         keyHandlerParams: PdfViewerKeyHandlerParams(autofocus: true),
                         maxScale: 8,
                         //fitMode: FitMode.fill,
-                        pageTransition: PageTransition.discrete,
+                        //pageTransition: PageTransition.discrete,
                         // scrollPhysics: PdfViewerParams.getScrollPhysics(context),
                         viewerOverlayBuilder: (context, size, handleLinkTap) => [
                           //
@@ -342,12 +342,12 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                             controller: controller,
                             orientation: ScrollbarOrientation.right,
                             thumbSize: const Size(40, 25),
-                            thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
+                            thumbBuilder: (context, thumbSize, showRange, pageRange, controller) => Container(
                               color: Colors.black,
                               child: isHorizontalLayout
                                   ? null
                                   : Center(
-                                      child: Text(pageNumber.toString(), style: const TextStyle(color: Colors.white)),
+                                      child: Text(pageRange?.label ?? '', style: const TextStyle(color: Colors.white)),
                                     ),
                             ),
                           ),
@@ -356,12 +356,12 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                             controller: controller,
                             orientation: ScrollbarOrientation.bottom,
                             thumbSize: const Size(40, 25),
-                            thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
+                            thumbBuilder: (context, thumbSize, showRange, pageRange, controller) => Container(
                               color: Colors.black,
                               child: !isHorizontalLayout
                                   ? null
                                   : Center(
-                                      child: Text(pageNumber.toString(), style: const TextStyle(color: Colors.white)),
+                                      child: Text(pageRange?.label ?? '', style: const TextStyle(color: Colors.white)),
                                     ),
                             ),
                           ),

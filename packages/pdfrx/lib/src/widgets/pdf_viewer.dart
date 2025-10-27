@@ -221,7 +221,7 @@ class _PdfViewerState extends State<PdfViewer>
   static const _defaultMinScale = 0.1;
   double _fitScale = _defaultMinScale; // Scale calculated based on fitMode for page positioning
   int? _pageNumber;
-  ({int first, int last})? _visiblePageRange;
+  PdfPageRange? _visiblePageRange;
   bool _initialized = false;
   StreamSubscription<PdfDocumentEvent>? _documentSubscription;
   final _interactiveViewerKey = GlobalKey<iv.InteractiveViewerState>();
@@ -1292,43 +1292,43 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
+  double _calcPageIntersectionPercentage(int pageNumber, Rect visibleRect) {
+    final rect = _layout!.pageLayouts[pageNumber - 1];
+    final intersection = rect.intersect(visibleRect);
+    if (intersection.isEmpty) return 0;
+    final area = intersection.width * intersection.height;
+    return area / (rect.width * rect.height);
+  }
+
+  static const double _kPageIntersectionThreshold = 0.2;
+
   int? _guessCurrentPageNumber() {
     if (_layout == null || _viewSize == null) {
       _visiblePageRange = null;
       return null;
     }
+    final visibleRect = _visibleRect;
     if (widget.params.calculateCurrentPageNumber != null) {
-      final pageNumber = widget.params.calculateCurrentPageNumber!(_visibleRect, _layout!.pageLayouts, _controller!);
-      _updateVisiblePageRange();
+      final pageNumber = widget.params.calculateCurrentPageNumber!(visibleRect, _layout!.pageLayouts, _controller!);
+      _updateVisiblePageRange(visibleRect);
       return pageNumber;
     }
 
-    final visibleRect = _visibleRect;
-    final layout = _layout!;
-
     // Calculate visible page range (any page with any intersection)
-    _updateVisiblePageRange();
-
-    double calcPageIntersectionArea(int pageNumber) {
-      final rect = layout.pageLayouts[pageNumber - 1];
-      final intersection = rect.intersect(visibleRect);
-      if (intersection.isEmpty) return 0;
-      final area = intersection.width * intersection.height;
-      return area / (rect.width * rect.height);
-    }
+    _updateVisiblePageRange(visibleRect);
 
     if (_gotoTargetPageNumber != null &&
         _gotoTargetPageNumber! > 0 &&
         _gotoTargetPageNumber! <= _document!.pages.length) {
-      final ratio = calcPageIntersectionArea(_gotoTargetPageNumber!);
-      if (ratio > .2) return _gotoTargetPageNumber;
+      final ratio = _calcPageIntersectionPercentage(_gotoTargetPageNumber!, visibleRect);
+      if (ratio > _kPageIntersectionThreshold) return _gotoTargetPageNumber;
     }
     _gotoTargetPageNumber = null;
 
     int? pageNumber;
     double maxRatio = 0;
     for (var i = 1; i <= _document!.pages.length; i++) {
-      final ratio = calcPageIntersectionArea(i);
+      final ratio = _calcPageIntersectionPercentage(i, visibleRect);
       if (ratio == 0) continue;
       if (ratio > maxRatio) {
         maxRatio = ratio;
@@ -1339,28 +1339,24 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   /// Calculate the range of all pages that have any intersection with the visible viewport.
-  void _updateVisiblePageRange() {
+  void _updateVisiblePageRange(Rect visibleRect) {
     if (_layout == null || _document == null) {
       _visiblePageRange = null;
       return;
     }
 
-    final visibleRect = _visibleRect;
-    final layout = _layout!;
     int? firstVisible;
     int? lastVisible;
-
     for (var i = 1; i <= _document!.pages.length; i++) {
-      final rect = layout.pageLayouts[i - 1];
-      final intersection = rect.intersect(visibleRect);
-      if (!intersection.isEmpty) {
+      final ratio = _calcPageIntersectionPercentage(i, visibleRect);
+      if (ratio > _kPageIntersectionThreshold) {
         firstVisible ??= i;
         lastVisible = i;
       }
     }
 
     if (firstVisible != null && lastVisible != null) {
-      _visiblePageRange = (first: firstVisible, last: lastVisible);
+      _visiblePageRange = PdfPageRange(firstVisible, lastVisible);
     } else {
       _visiblePageRange = null;
     }
@@ -1562,9 +1558,7 @@ class _PdfViewerState extends State<PdfViewer>
         if (processedPages.contains(pageNum)) continue;
 
         // Get all pages in this spread
-        final (:first, :last) = layout.getPageRange(pageNum);
-        final firstPage = first;
-        final lastPage = last;
+        final range = layout.getPageRange(pageNum);
         final spreadBounds = layout.getSpreadBounds(pageNum);
 
         // Calculate scale for this spread
@@ -1602,7 +1596,7 @@ class _PdfViewerState extends State<PdfViewer>
         final crossAxisSpreadContentStart = viewportPaddingCross + (margin * spreadScale);
 
         // Position all pages in this spread
-        for (var p = firstPage; p <= lastPage; p++) {
+        for (var p = range.firstPageNumber; p <= range.lastPageNumber; p++) {
           final pageRect = layout.pageLayouts[p - 1];
           final scaledPageWidth = pageRect.width * spreadScale;
           final scaledPageHeight = pageRect.height * spreadScale;
@@ -1733,7 +1727,7 @@ class _PdfViewerState extends State<PdfViewer>
         newSpreadLayouts.add(Rect.fromLTRB(minLeft, minTop, maxRight, maxBottom));
       }
 
-      return _DiscretePdfSpreadLayout(
+      return PdfSpreadLayout(
         pageLayouts: newPageLayouts,
         documentSize: newDocSize,
         spreadLayouts: newSpreadLayouts,
@@ -1741,7 +1735,7 @@ class _PdfViewerState extends State<PdfViewer>
       );
     }
 
-    return _DiscretePdfPageLayout(pageLayouts: newPageLayouts, documentSize: newDocSize);
+    return PdfPageLayout(pageLayouts: newPageLayouts, documentSize: newDocSize);
   }
 
   /// Returns the boundary rect for discrete mode (current page/spread bounds).
@@ -2035,8 +2029,8 @@ class _PdfViewerState extends State<PdfViewer>
           (_isActivelyZooming || _hasActiveAnimations)) {
         final layout = _layout;
         if (layout is PdfSpreadLayout) {
-          final (:first, :last) = layout.getPageRange(_pageNumber!);
-          shouldSkipForDiscrete = i + 1 < first || i + 1 > last;
+          final range = layout.getPageRange(_pageNumber!);
+          shouldSkipForDiscrete = i + 1 < range.firstPageNumber || i + 1 > range.lastPageNumber;
         } else {
           shouldSkipForDiscrete = i + 1 != _pageNumber;
         }
@@ -4452,7 +4446,7 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// Returns null if no pages are visible.
   /// This is useful for displaying page ranges in UI elements like scroll thumbs,
   /// especially when zoomed out or using spread layouts where multiple pages are visible.
-  ({int first, int last})? get visiblePageRange => _state._visiblePageRange;
+  PdfPageRange? get visiblePageRange => _state._visiblePageRange;
 
   /// The document reference associated to the [PdfViewer].
   PdfDocumentRef get documentRef => _state.widget.documentRef;
@@ -5053,19 +5047,4 @@ class _CanvasLinkPainter {
       }
     }
   }
-}
-
-/// Wrapper layout for discrete mode single page layouts with viewport spacing.
-class _DiscretePdfPageLayout extends PdfPageLayout {
-  _DiscretePdfPageLayout({required super.pageLayouts, required super.documentSize});
-}
-
-/// Wrapper layout for discrete mode spread layouts with viewport spacing.
-class _DiscretePdfSpreadLayout extends PdfSpreadLayout {
-  _DiscretePdfSpreadLayout({
-    required super.pageLayouts,
-    required super.documentSize,
-    required super.spreadLayouts,
-    required super.pageToSpreadIndex,
-  });
 }
