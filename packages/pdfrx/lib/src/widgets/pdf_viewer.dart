@@ -1742,7 +1742,7 @@ class _PdfViewerState extends State<PdfViewer>
   /// Used by boundaryProvider to restrict scrolling to current page.
   Rect? _getDiscreteBoundaryRect(Rect visibleRect, Size childSize) {
     final layout = _layout;
-    final currentPage = _pageNumber;
+    final currentPage = _gotoTargetPageNumber ?? _pageNumber;
 
     if (layout == null || currentPage == null || currentPage < 1 || currentPage > layout.pageLayouts.length) {
       return null;
