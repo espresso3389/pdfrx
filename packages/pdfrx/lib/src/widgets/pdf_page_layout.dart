@@ -20,13 +20,8 @@ class LayoutResult {
 /// Bundles viewport size with boundary and content margins, providing
 /// convenient getters for calculating available space and inflating dimensions.
 ///
-/// **Example usage:**
 /// ```dart
-/// final helper = PdfLayoutHelper(
-///   viewportSize: viewportSize,
-///   boundaryMargin: params.boundaryMargin,
-///   margin: params.margin,
-/// );
+/// final helper = PdfLayoutHelper.fromParams(params, viewSize: viewSize);
 ///
 /// // Get available space for content
 /// final width = helper.availableWidth;
@@ -35,10 +30,14 @@ class LayoutResult {
 /// // Add margins to content dimensions
 /// final totalWidth = helper.widthWithMargins(contentWidth);
 /// ```
+@immutable
 class PdfLayoutHelper {
-  const PdfLayoutHelper({required this.viewportSize, this.boundaryMargin, this.margin = 0.0});
+  const PdfLayoutHelper({required this.viewSize, this.boundaryMargin, this.margin = 0.0});
 
-  final Size viewportSize;
+  PdfLayoutHelper.fromParams(PdfViewerParams params, {required Size viewSize})
+    : this(viewSize: viewSize, boundaryMargin: params.boundaryMargin, margin: params.margin);
+
+  final Size viewSize;
   final EdgeInsets? boundaryMargin;
   final double margin;
 
@@ -54,16 +53,16 @@ class PdfLayoutHelper {
 
   /// Available width after subtracting boundary margins and content margins (margin * 2).
   double get availableWidth {
-    return viewportSize.width - boundaryMarginHorizontal - margin * 2;
+    return viewSize.width - boundaryMarginHorizontal - margin * 2;
   }
 
   /// Available height after subtracting boundary margins and content margins (margin * 2).
   double get availableHeight {
-    return viewportSize.height - boundaryMarginVertical - margin * 2;
+    return viewSize.height - boundaryMarginVertical - margin * 2;
   }
 
-  double get viewportWidth => viewportSize.width;
-  double get viewportHeight => viewportSize.height;
+  double get viewportWidth => viewSize.width;
+  double get viewportHeight => viewSize.height;
 
   /// Add horizontal boundary margin and content margins to a content width.
   double widthWithMargins(double contentWidth) {

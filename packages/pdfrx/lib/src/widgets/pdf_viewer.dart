@@ -1364,11 +1364,7 @@ class _PdfViewerState extends State<PdfViewer>
       return false;
     }
 
-    final helper = PdfLayoutHelper(
-      viewportSize: _viewSize ?? Size.zero,
-      boundaryMargin: widget.params.boundaryMargin,
-      margin: widget.params.margin,
-    );
+    final helper = PdfLayoutHelper.fromParams(widget.params, viewSize: _viewSize ?? Size.zero);
     var newLayout = (widget.params.layoutPages ?? _layoutPages)(_document!.pages, widget.params, helper);
 
     // In discrete mode, add spacing between pages to fill viewport and prevent neighboring pages from showing
@@ -1409,11 +1405,7 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     final params = widget.params;
-    final helper = PdfLayoutHelper(
-      viewportSize: _viewSize!,
-      boundaryMargin: params.boundaryMargin,
-      margin: params.margin,
-    );
+    final helper = PdfLayoutHelper.fromParams(params, viewSize: _viewSize!);
 
     return _layout!.calculateFitScale(helper, mode);
   }
@@ -1426,11 +1418,7 @@ class _PdfViewerState extends State<PdfViewer>
       return;
     }
 
-    final helper = PdfLayoutHelper(
-      viewportSize: _viewSize!,
-      boundaryMargin: params.boundaryMargin,
-      margin: params.margin,
-    );
+    final helper = PdfLayoutHelper.fromParams(params, viewSize: _viewSize!);
 
     final effectivePageNumber = pageNumber ?? _pageNumber ?? _gotoTargetPageNumber;
 
