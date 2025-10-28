@@ -676,9 +676,7 @@ class _PdfViewerState extends State<PdfViewer>
           // Check if page fits in viewport on primary axis
           final layout = _layout!;
           final isPrimaryVertical = layout.primaryAxis == Axis.vertical;
-          final pageRect = layout is PdfSpreadLayout
-              ? layout.getSpreadBounds(_pageNumber!)
-              : layout.pageLayouts[_pageNumber! - 1];
+          final pageRect = layout.getSpreadBounds(_pageNumber!);
           final pageSize = isPrimaryVertical ? pageRect.height : pageRect.width;
           final viewportSize = isPrimaryVertical ? _viewSize!.height : _viewSize!.width;
           final pageFitsInViewport = pageSize * zoom <= viewportSize;
@@ -1053,14 +1051,14 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     final snapAnchor = _getSnapAnchor(
-      targetPage: targetPage,
-      currentPage: currentPage,
+      targetPageNumber: targetPage,
+      currentPageNumber: currentPage,
       layout: layout,
       isPrimaryVertical: isPrimaryVertical,
       endRect: endRect,
     );
 
-    await _snapToPage(targetPage, anchor: snapAnchor, currentPage: currentPage);
+    await _snapToPage(targetPage, anchor: snapAnchor, currentPageNumber: currentPage);
   }
 
   /// Checks if viewport is at a page boundary in the given direction.
@@ -1105,16 +1103,14 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// Determines the snap anchor based on target page and current position.
   PdfPageAnchor _getSnapAnchor({
-    required int targetPage,
-    required int currentPage,
+    required int targetPageNumber,
+    required int currentPageNumber,
     required PdfPageLayout layout,
     required bool isPrimaryVertical,
     required Rect endRect,
   }) {
     // Check if page/spread overflows on primary and cross axes at current zoom
-    final pageRect = layout is PdfSpreadLayout
-        ? layout.getSpreadBounds(targetPage)
-        : layout.pageLayouts[targetPage - 1];
+    final pageRect = layout.getSpreadBounds(targetPageNumber);
 
     final pagePrimarySize = isPrimaryVertical ? pageRect.height : pageRect.width;
     final pageCrossSize = isPrimaryVertical ? pageRect.width : pageRect.height;
@@ -1130,7 +1126,7 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     // Page overflows on at least one axis
-    if (targetPage == currentPage) {
+    if (targetPageNumber == currentPageNumber) {
       // Staying on current page - snap to nearest edge
       final pageCenter = isPrimaryVertical
           ? (pageRect.top + pageRect.bottom) / 2
@@ -1153,13 +1149,13 @@ class _PdfViewerState extends State<PdfViewer>
       if (isPrimaryVertical) {
         // If cross overflows, anchor to top-left/bottom-left instead of top-center/bottom-center
         return crossOverflows
-            ? (targetPage > currentPage ? PdfPageAnchor.topLeft : PdfPageAnchor.bottomLeft)
-            : (targetPage > currentPage ? PdfPageAnchor.topCenter : PdfPageAnchor.bottomCenter);
+            ? (targetPageNumber > currentPageNumber ? PdfPageAnchor.topLeft : PdfPageAnchor.bottomLeft)
+            : (targetPageNumber > currentPageNumber ? PdfPageAnchor.topCenter : PdfPageAnchor.bottomCenter);
       } else {
         // If cross overflows, anchor to top-left/top-right instead of center-left/center-right
         return crossOverflows
-            ? (targetPage > currentPage ? PdfPageAnchor.topLeft : PdfPageAnchor.topRight)
-            : (targetPage > currentPage ? PdfPageAnchor.centerLeft : PdfPageAnchor.centerRight);
+            ? (targetPageNumber > currentPageNumber ? PdfPageAnchor.topLeft : PdfPageAnchor.topRight)
+            : (targetPageNumber > currentPageNumber ? PdfPageAnchor.centerLeft : PdfPageAnchor.centerRight);
       }
     }
   }
@@ -1168,40 +1164,37 @@ class _PdfViewerState extends State<PdfViewer>
   ///
   /// Transitions to whichever page has the most visible area on the primary axis.
   /// This works correctly at any zoom level, including when zoomed in.
-  int _getTargetPageBasedOnThreshold(int currentPage, double scrollDelta, bool isPrimaryVertical) {
+  int _getTargetPageBasedOnThreshold(int currentPageNumber, double scrollDelta, bool isPrimaryVertical) {
     final layout = _layout!;
     final visibleRect = _txController.value.calcVisibleRect(_viewSize!);
 
     // Calculate visible area for current page and adjacent pages
-    final currentPageBounds = layout is PdfSpreadLayout
-        ? layout.getSpreadBounds(currentPage)
-        : layout.pageLayouts[currentPage - 1];
-
+    final currentPageBounds = layout.getSpreadBounds(currentPageNumber);
     final currentPageVisibleArea = _calcPageIntersectionArea(visibleRect, currentPageBounds, isPrimaryVertical);
 
     // Check previous page (if exists)
     double prevPageVisibleArea = 0;
-    if (currentPage > 1) {
-      final prevPageBounds = layout.pageLayouts[currentPage - 2];
+    if (currentPageNumber >= 2) {
+      final prevPageBounds = layout.pageLayouts[currentPageNumber - 2];
       prevPageVisibleArea = _calcPageIntersectionArea(visibleRect, prevPageBounds, isPrimaryVertical);
     }
 
     // Check next page (if exists)
     double nextPageVisibleArea = 0;
-    if (currentPage < layout.pageLayouts.length) {
-      final nextPageBounds = layout.pageLayouts[currentPage];
+    if (currentPageNumber < layout.pageLayouts.length) {
+      final nextPageBounds = layout.pageLayouts[currentPageNumber];
       nextPageVisibleArea = _calcPageIntersectionArea(visibleRect, nextPageBounds, isPrimaryVertical);
     }
 
     // Transition to the page with the most visible area
     if (prevPageVisibleArea > currentPageVisibleArea && prevPageVisibleArea > nextPageVisibleArea) {
-      return _getAdjacentPage(currentPage, layout, -1);
+      return _getAdjacentPage(currentPageNumber, layout, -1);
     } else if (nextPageVisibleArea > currentPageVisibleArea && nextPageVisibleArea > prevPageVisibleArea) {
-      return _getAdjacentPage(currentPage, layout, 1);
+      return _getAdjacentPage(currentPageNumber, layout, 1);
     }
 
     // Current page has most visible area - snap back to current page
-    return currentPage;
+    return currentPageNumber;
   }
 
   /// Calculate the visible intersection area on the primary axis between visible rect and page bounds.
@@ -1216,11 +1209,11 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   /// Snaps to the target page/spread with animation.
-  Future<void> _snapToPage(int targetPage, {required PdfPageAnchor anchor, int? currentPage}) async {
+  Future<void> _snapToPage(int targetPageNumber, {required PdfPageAnchor anchor, int? currentPageNumber}) async {
     final duration = const Duration(milliseconds: 400);
 
     // Only reset scale when advancing to a different page, not when snapping back to current page
-    final isAdvancingToNewPage = currentPage != null && targetPage != currentPage;
+    final isAdvancingToNewPage = currentPageNumber != null && targetPageNumber != currentPageNumber;
 
     if (!isAdvancingToNewPage) {
       // let InteractiveViewer's scroll physics handle snap back to current page
@@ -1229,7 +1222,7 @@ class _PdfViewerState extends State<PdfViewer>
 
     if (isAdvancingToNewPage && _viewSize != null) {
       // Calculate fit scale for the target page
-      _calcFitScale(targetPage);
+      _calcFitScale(targetPageNumber);
       _adjustBoundaryMargins(_viewSize!, _fitScale);
     }
 
@@ -1240,9 +1233,7 @@ class _PdfViewerState extends State<PdfViewer>
       // Calculate what the scale will be for this page
       final targetScale = _fitScale;
       final isPrimaryVertical = layout.primaryAxis == Axis.vertical;
-      final pageRect = layout is PdfSpreadLayout
-          ? layout.getSpreadBounds(targetPage)
-          : layout.pageLayouts[targetPage - 1];
+      final pageRect = layout.getSpreadBounds(targetPageNumber);
 
       final pagePrimarySize = isPrimaryVertical ? pageRect.height : pageRect.width;
       final pageCrossSize = isPrimaryVertical ? pageRect.width : pageRect.height;
@@ -1260,9 +1251,13 @@ class _PdfViewerState extends State<PdfViewer>
 
     final targetZoom = _fitScale;
 
-    _setCurrentPageNumber(targetPage, targetZoom: targetZoom, doSetState: true);
+    _setCurrentPageNumber(targetPageNumber, targetZoom: targetZoom, doSetState: true);
 
-    final targetMatrix = _calcMatrixForPage(pageNumber: targetPage, anchor: effectiveAnchor, forceScale: targetZoom);
+    final targetMatrix = _calcMatrixForPage(
+      pageNumber: targetPageNumber,
+      anchor: effectiveAnchor,
+      forceScale: targetZoom,
+    );
 
     await _goTo(targetMatrix, duration: duration, curve: Curves.easeInOutCubic);
 
@@ -1742,16 +1737,17 @@ class _PdfViewerState extends State<PdfViewer>
   /// Used by boundaryProvider to restrict scrolling to current page.
   Rect? _getDiscreteBoundaryRect(Rect visibleRect, Size childSize) {
     final layout = _layout;
-    final currentPage = _gotoTargetPageNumber ?? _pageNumber;
+    final currentPageNumber = _gotoTargetPageNumber ?? _pageNumber;
 
-    if (layout == null || currentPage == null || currentPage < 1 || currentPage > layout.pageLayouts.length) {
+    if (layout == null ||
+        currentPageNumber == null ||
+        currentPageNumber < 1 ||
+        currentPageNumber > layout.pageLayouts.length) {
       return null;
     }
 
     // Get base page/spread bounds
-    final baseBounds = layout is PdfSpreadLayout
-        ? layout.getSpreadBounds(currentPage)
-        : layout.pageLayouts[currentPage - 1];
+    final baseBounds = layout.getSpreadBounds(currentPageNumber);
 
     // Add margin
     var result = baseBounds.inflate(widget.params.margin);
@@ -1822,8 +1818,8 @@ class _PdfViewerState extends State<PdfViewer>
       final extensionDistance = viewportPrimarySize * extensionRatio;
 
       // Extend to previous page (if exists and should extend)
-      if (shouldExtendToPrev && currentPage > 1) {
-        final prevPageBounds = layout.pageLayouts[currentPage - 2];
+      if (shouldExtendToPrev && currentPageNumber > 1) {
+        final prevPageBounds = layout.pageLayouts[currentPageNumber - 2];
         if (isPrimaryVertical) {
           // Extend upward
           final newTop = max(prevPageBounds.top, result.top - extensionDistance);
@@ -1836,8 +1832,8 @@ class _PdfViewerState extends State<PdfViewer>
       }
 
       // Extend to next page (if exists and should extend)
-      if (shouldExtendToNext && currentPage < layout.pageLayouts.length) {
-        final nextPageBounds = layout.pageLayouts[currentPage];
+      if (shouldExtendToNext && currentPageNumber < layout.pageLayouts.length) {
+        final nextPageBounds = layout.pageLayouts[currentPageNumber];
         if (isPrimaryVertical) {
           // Extend downward
           final newBottom = min(nextPageBounds.bottom, result.bottom + extensionDistance);
@@ -1860,20 +1856,25 @@ class _PdfViewerState extends State<PdfViewer>
     // Discrete mode: restrict scrolling to current page/spread only
     if (widget.params.pageTransition == PageTransition.discrete) {
       final layout = _layout;
-      final currentPage = _pageNumber;
+      final currentPageNumber = _pageNumber;
 
-      if (layout == null || currentPage == null || currentPage < 1 || currentPage > layout.pageLayouts.length) {
+      if (layout == null ||
+          currentPageNumber == null ||
+          currentPageNumber < 1 ||
+          currentPageNumber > layout.pageLayouts.length) {
         _adjustedBoundaryMargins = boundaryMargin;
         return;
       }
 
-      // Get current page or spread bounds
-      Rect pageBounds;
-      if (layout is PdfSpreadLayout) {
-        pageBounds = layout.getSpreadBounds(currentPage);
-      } else {
-        pageBounds = layout.getPageRectWithMargins(currentPage);
-      }
+      // TODO: should we need _implicit margins if not SpreadLayout?
+      // If we don't need it, I once remove getPageRectWithMargins function.
+      // Rect pageBounds;
+      // if (layout is PdfSpreadLayout) {
+      //   pageBounds = layout.getSpreadBounds(currentPageNumber);
+      // } else {
+      //   pageBounds = layout.getPageRectWithMargins(currentPageNumber);
+      // }
+      final pageBounds = layout.getSpreadBounds(currentPageNumber);
 
       var left = -pageBounds.left;
       var top = -pageBounds.top;
@@ -2504,9 +2505,7 @@ class _PdfViewerState extends State<PdfViewer>
   /// Gets the effective page bounds for a given page, including margins.
   /// Optionally includes boundary margins for positioning purposes.
   Rect _getEffectivePageBounds(int pageNumber, PdfPageLayout layout, {PdfPageAnchor? anchor}) {
-    final baseRect = layout is PdfSpreadLayout && widget.params.pageTransition == PageTransition.discrete
-        ? layout.getSpreadBounds(pageNumber)
-        : layout.pageLayouts[pageNumber - 1];
+    final baseRect = layout.getSpreadBounds(pageNumber);
 
     var result = baseRect.inflate(widget.params.margin);
 

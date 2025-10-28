@@ -106,7 +106,7 @@ class PdfLayoutHelper {
 class PdfPageLayout {
   PdfPageLayout({required this.pageLayouts, required this.documentSize})
     : primaryAxis = documentSize.height >= documentSize.width ? Axis.vertical : Axis.horizontal {
-    margin = impliedMargin();
+    _impliedMargin = _calcImpliedMargin();
   }
 
   /// Page rectangles positioned within the document coordinate space.
@@ -120,7 +120,7 @@ class PdfPageLayout {
 
   /// Total document size including content margins.
   ///
-  /// This is the size of the scrollable content area and includes [margin] spacing
+  /// This is the size of the scrollable content area and includes [_impliedMargin] spacing
   /// on all sides. Does NOT include boundary margins - those are handled separately
   /// at the viewport level.
   ///
@@ -139,11 +139,18 @@ class PdfPageLayout {
 
   /// Content margin around the document edges.
   ///
-  /// Calculated automatically via [impliedMargin] based on the spacing
+  /// Calculated automatically via [_calcImpliedMargin] based on the spacing
   /// between page dimensions and document size.
   ///
   /// See [getPageRectWithMargins] to get page bounds including margins.
-  late double margin;
+  late double _impliedMargin;
+
+  /// Get the spread bounds for a given page number.
+  ///
+  /// For single page layouts, this simply returns the page bounds.
+  Rect getSpreadBounds(int pageNumber) {
+    return pageLayouts[pageNumber - 1];
+  }
 
   /// Each layout implements its own calculation logic.
   /// Optional [helper] can be used for fit mode calculations.
@@ -158,18 +165,25 @@ class PdfPageLayout {
   /// For single page layouts, this is the maximum page width.
   /// For spread layouts, this can be overridden to return the maximum spread width.
   double getMaxWidth({bool withMargins = false}) =>
-      pageLayouts.fold(0.0, (maximum, rect) => max(maximum, rect.width)) + (withMargins ? margin * 2 : 0);
+      pageLayouts.fold(0.0, (maximum, rect) => max(maximum, rect.width)) + (withMargins ? _impliedMargin * 2 : 0);
+
+  /// Gets the maximum height across all layout units.
+  /// For single page layouts, this is the maximum page height.
+  /// For spread layouts, this can be overridden to return the maximum spread height.
+  double getMaxHeight({bool withMargins = false}) =>
+      pageLayouts.fold(0.0, (maximum, rect) => max(maximum, rect.height)) + (withMargins ? _impliedMargin * 2 : 0);
 
   /// Calculates the implied margin based on document size and max page dimensions.
   /// This assumes pages are centered within the document size.
-  double impliedMargin() => primaryAxis == Axis.vertical
+  double _calcImpliedMargin() => primaryAxis == Axis.vertical
       ? (documentSize.width - getMaxWidth()) / 2
       : (documentSize.height - getMaxHeight()) / 2;
 
-  Rect getPageRectWithMargins(int pageNumber) {
+  Rect getPageRectWithMargins(int pageNumber, {double? margin}) {
     if (pageNumber < 1 || pageNumber > pageLayouts.length) {
       throw RangeError('Invalid page number $pageNumber');
     }
+    margin ??= _impliedMargin;
     final pageRect = pageLayouts[pageNumber - 1];
     return Rect.fromLTWH(
       pageRect.left - margin,
@@ -178,12 +192,6 @@ class PdfPageLayout {
       pageRect.height + margin * 2,
     );
   }
-
-  /// Gets the maximum height across all layout units.
-  /// For single page layouts, this is the maximum page height.
-  /// For spread layouts, this can be overridden to return the maximum spread height.
-  double getMaxHeight({bool withMargins = false}) =>
-      pageLayouts.fold(0.0, (maximum, rect) => max(maximum, rect.height)) + (withMargins ? margin * 2 : 0);
 
   /// Gets the dimensions for a specific page number.
   /// For single page layouts, returns the page dimensions.
@@ -194,7 +202,7 @@ class PdfPageLayout {
       return null;
     }
     final pageRect = pageLayouts[pageNumber - 1];
-    return pageRect.size + (withMargins ? Offset(margin * 2, margin * 2) : Offset.zero);
+    return pageRect.size + (withMargins ? Offset(_impliedMargin * 2, _impliedMargin * 2) : Offset.zero);
   }
 
   /// Calculates page sizes based on fit mode and scroll direction, to enable independent
@@ -593,10 +601,8 @@ class PdfSpreadLayout extends PdfPageLayout {
   /// - Example: `pageToSpreadIndex[0]` = spread index for page 1
   final List<int> pageToSpreadIndex;
 
-  /// Get the spread index for a given page number.
-  int getSpreadIndex(int pageNumber) => pageToSpreadIndex[pageNumber - 1];
-
   /// Get the spread bounds for a given page number.
+  @override
   Rect getSpreadBounds(int pageNumber) {
     return spreadLayouts[pageToSpreadIndex[pageNumber - 1]];
   }
@@ -641,21 +647,21 @@ class PdfSpreadLayout extends PdfPageLayout {
       return null;
     }
     final spreadBounds = getSpreadBounds(pageNumber);
-    return spreadBounds.size + (withMargins ? Offset(margin * 2, margin * 2) : Offset.zero);
+    return spreadBounds.size + (withMargins ? Offset(_impliedMargin * 2, _impliedMargin * 2) : Offset.zero);
   }
 
   /// Gets the maximum spread width across all spreads.
   @override
   double getMaxWidth({bool withMargins = false}) {
     final maxWidthNoMargins = spreadLayouts.fold(0.0, (maximum, rect) => max(maximum, rect.width));
-    return maxWidthNoMargins + (withMargins ? margin * 2 : 0);
+    return maxWidthNoMargins + (withMargins ? _impliedMargin * 2 : 0);
   }
 
   /// Gets the maximum spread height across all spreads.
   @override
   double getMaxHeight({bool withMargins = false}) {
     final maxHeightNoMargins = spreadLayouts.fold(0.0, (maximum, rect) => max(maximum, rect.height));
-    return maxHeightNoMargins + (withMargins ? margin * 2 : 0);
+    return maxHeightNoMargins + (withMargins ? _impliedMargin * 2 : 0);
   }
 
   @override

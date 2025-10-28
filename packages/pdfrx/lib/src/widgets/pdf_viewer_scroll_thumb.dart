@@ -147,6 +147,7 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
 
     final x = (-widget.controller.value.x - minScrollX) / scrollRange;
     final vw = view.width * widget.controller.currentZoom - thumbSize.width;
+
     final left = x * vw;
     return Positioned(
       top: widget.orientation == ScrollbarOrientation.top ? widget.margin : null,
