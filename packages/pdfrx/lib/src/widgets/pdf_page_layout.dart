@@ -114,8 +114,6 @@ class PdfPageLayout {
   /// Each rect represents a page's position and size. The rects include positioning
   /// with spacing between pages, but the rect dimensions themselves are
   /// the page sizes WITHOUT margins added to width/height.
-  ///
-  /// Use [getPageRectWithMargins] to get a page rect with margins included.
   final List<Rect> pageLayouts;
 
   /// Total document size including content margins.
@@ -141,15 +139,16 @@ class PdfPageLayout {
   ///
   /// Calculated automatically via [_calcImpliedMargin] based on the spacing
   /// between page dimensions and document size.
-  ///
-  /// See [getPageRectWithMargins] to get page bounds including margins.
   late double _impliedMargin;
 
   /// Get the spread bounds for a given page number.
   ///
   /// For single page layouts, this simply returns the page bounds.
-  Rect getSpreadBounds(int pageNumber) {
-    return pageLayouts[pageNumber - 1];
+  Rect getSpreadBounds(int pageNumber, {bool withMargins = false}) {
+    if (pageNumber < 1 || pageNumber > pageLayouts.length) {
+      throw RangeError('Invalid page number $pageNumber');
+    }
+    return pageLayouts[pageNumber - 1].inflate(withMargins ? _impliedMargin : 0);
   }
 
   /// Each layout implements its own calculation logic.
@@ -179,30 +178,8 @@ class PdfPageLayout {
       ? (documentSize.width - getMaxWidth()) / 2
       : (documentSize.height - getMaxHeight()) / 2;
 
-  Rect getPageRectWithMargins(int pageNumber, {double? margin}) {
-    if (pageNumber < 1 || pageNumber > pageLayouts.length) {
-      throw RangeError('Invalid page number $pageNumber');
-    }
-    margin ??= _impliedMargin;
-    final pageRect = pageLayouts[pageNumber - 1];
-    return Rect.fromLTWH(
-      pageRect.left - margin,
-      pageRect.top - margin,
-      pageRect.width + margin * 2,
-      pageRect.height + margin * 2,
-    );
-  }
-
-  /// Gets the dimensions for a specific page number.
-  /// For single page layouts, returns the page dimensions.
-  /// For spread layouts, should return the spread dimensions containing the page.
-  /// Returns null if pageNumber is invalid.
-  Size? getPageDimensions(int pageNumber, {bool withMargins = false}) {
-    if (pageNumber < 1 || pageNumber > pageLayouts.length) {
-      return null;
-    }
-    final pageRect = pageLayouts[pageNumber - 1];
-    return pageRect.size + (withMargins ? Offset(_impliedMargin * 2, _impliedMargin * 2) : Offset.zero);
+  bool _isPageNumberValid(int? pageNumber) {
+    return pageNumber != null && pageNumber >= 1 && pageNumber <= pageLayouts.length;
   }
 
   /// Calculates page sizes based on fit mode and scroll direction, to enable independent
@@ -509,9 +486,9 @@ class PdfPageLayout {
       final double width;
       final double height;
 
-      if (pageTransition == PageTransition.discrete && pageNumber != null && getPageDimensions(pageNumber) != null) {
-        final dimensions = getPageDimensions(pageNumber);
-        width = dimensions!.width;
+      if (pageTransition == PageTransition.discrete && _isPageNumberValid(pageNumber)) {
+        final dimensions = getSpreadBounds(pageNumber!).size;
+        width = dimensions.width;
         height = dimensions.height;
         // For discrete, add margins since page dimensions don't include them
         final widthWithMargins = width + helper.margin * 2 + helper.boundaryMarginHorizontal;
@@ -533,9 +510,9 @@ class PdfPageLayout {
     final double width;
     final double height;
 
-    if (pageTransition == PageTransition.discrete && pageNumber != null && getPageDimensions(pageNumber) != null) {
-      final dimensions = getPageDimensions(pageNumber);
-      width = dimensions!.width;
+    if (pageTransition == PageTransition.discrete && _isPageNumberValid(pageNumber)) {
+      final dimensions = getSpreadBounds(pageNumber!).size;
+      width = dimensions.width;
       height = dimensions.height;
     } else {
       width = getMaxWidth();
@@ -603,8 +580,11 @@ class PdfSpreadLayout extends PdfPageLayout {
 
   /// Get the spread bounds for a given page number.
   @override
-  Rect getSpreadBounds(int pageNumber) {
-    return spreadLayouts[pageToSpreadIndex[pageNumber - 1]];
+  Rect getSpreadBounds(int pageNumber, {bool withMargins = false}) {
+    if (pageNumber < 1 || pageNumber > pageLayouts.length) {
+      throw RangeError('Invalid page number $pageNumber');
+    }
+    return spreadLayouts[pageToSpreadIndex[pageNumber - 1]].inflate(withMargins ? _impliedMargin : 0);
   }
 
   /// Get the page range for the spread containing pageNumber.
@@ -638,16 +618,6 @@ class PdfSpreadLayout extends PdfPageLayout {
       }
     }
     return null;
-  }
-
-  /// Gets the spread dimensions for a page number
-  @override
-  Size? getPageDimensions(int pageNumber, {bool withMargins = false}) {
-    if (pageNumber < 1 || pageNumber > pageToSpreadIndex.length) {
-      return null;
-    }
-    final spreadBounds = getSpreadBounds(pageNumber);
-    return spreadBounds.size + (withMargins ? Offset(_impliedMargin * 2, _impliedMargin * 2) : Offset.zero);
   }
 
   /// Gets the maximum spread width across all spreads.
