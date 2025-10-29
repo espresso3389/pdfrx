@@ -32,50 +32,64 @@ class LayoutResult {
 /// ```
 @immutable
 class PdfLayoutHelper {
+  /// Creates a layout helper with specified parameters.
   const PdfLayoutHelper({required this.viewSize, this.boundaryMargin, this.margin = 0.0});
 
+  /// Creates a layout helper from viewer parameters.
   PdfLayoutHelper.fromParams(PdfViewerParams params, {required Size viewSize})
     : this(viewSize: viewSize, boundaryMargin: params.boundaryMargin, margin: params.margin);
 
+  /// Viewport size.
   final Size viewSize;
+
+  /// Boundary margin around the viewport.
   final EdgeInsets? boundaryMargin;
+
+  /// Content margin around the document edges.
   final double margin;
 
-  /// Horizontal boundary margin (0 if infinite or null).
+  /// Horizontal boundary margin
+  ///
+  /// 0 if infinite or null.
   double get boundaryMarginHorizontal {
     return boundaryMargin?.horizontal == double.infinity ? 0 : boundaryMargin?.horizontal ?? 0;
   }
 
-  /// Vertical boundary margin (0 if infinite or null).
+  /// Vertical boundary margin.
+  ///
+  /// 0 if infinite or null.
   double get boundaryMarginVertical {
     return boundaryMargin?.vertical == double.infinity ? 0 : boundaryMargin?.vertical ?? 0;
   }
 
-  /// Available width after subtracting boundary margins and content margins (margin * 2).
+  /// Available width after subtracting boundary margins and content margins (`margin * 2`).
   double get availableWidth {
     return viewSize.width - boundaryMarginHorizontal - margin * 2;
   }
 
-  /// Available height after subtracting boundary margins and content margins (margin * 2).
+  /// Available height after subtracting boundary margins and content margins (`margin * 2`).
   double get availableHeight {
     return viewSize.height - boundaryMarginVertical - margin * 2;
   }
 
-  double get viewportWidth => viewSize.width;
-  double get viewportHeight => viewSize.height;
+  /// Viewport width.
+  double get viewWidth => viewSize.width;
+
+  /// Viewport height.
+  double get viewHeight => viewSize.height;
 
   /// Add horizontal boundary margin and content margins to a content width.
-  double widthWithMargins(double contentWidth) {
+  double getWidthWithMargins(double contentWidth) {
     return contentWidth + boundaryMarginHorizontal + margin * 2;
   }
 
   /// Add vertical boundary margin and content margins to a content height.
-  double heightWithMargins(double contentHeight) {
+  double getHeightWithMargins(double contentHeight) {
     return contentHeight + boundaryMarginVertical + margin * 2;
   }
 }
 
-/// Defines page layout.
+/// Base class for PDF page layouts.
 ///
 /// **Simple usage (backward compatible):**
 /// Create instances directly with pre-computed page layouts:
@@ -93,7 +107,7 @@ class PdfLayoutHelper {
 /// 3. Override [calculateFitScale] for custom scaling logic
 ///
 /// **Document size and margin handling:**
-/// Use [PdfLayoutHelper.widthWithMargins] and [PdfLayoutHelper.heightWithMargins] to properly
+/// Use [PdfLayoutHelper.getWidthWithMargins] and [PdfLayoutHelper.getHeightWithMargins] to properly
 /// include both boundary margins and content margins in your document size calculations.
 /// The helper handles the complexity of margin application so you don't have to.
 ///
@@ -120,7 +134,6 @@ class PdfPageLayout {
   /// This is the size of the scrollable content area and includes [_impliedMargin] spacing
   /// on all sides. Does NOT include boundary margins - those are handled separately
   /// at the viewport level.
-  ///
   final Size documentSize;
 
   /// The primary scroll axis for this layout.
@@ -269,15 +282,15 @@ class PdfPageLayout {
 
     for (var i = 0; i < pages.length; i++) {
       final page = pages[i];
-      final widthWithMargins = helper.widthWithMargins(page.width);
-      final heightWithMargins = helper.heightWithMargins(page.height);
+      final widthWithMargins = helper.getWidthWithMargins(page.width);
+      final heightWithMargins = helper.getHeightWithMargins(page.height);
 
       final crossAxisScale = scrollAxis == Axis.vertical
-          ? helper.viewportWidth / widthWithMargins
-          : helper.viewportHeight / heightWithMargins;
+          ? helper.viewWidth / widthWithMargins
+          : helper.viewHeight / heightWithMargins;
       final primaryAxisScale = scrollAxis == Axis.vertical
-          ? helper.viewportHeight / heightWithMargins
-          : helper.viewportWidth / widthWithMargins;
+          ? helper.viewHeight / heightWithMargins
+          : helper.viewWidth / widthWithMargins;
 
       // For fill mode: always constrained by cross-axis
       // For fit mode: only if cross-axis is the limiting factor
@@ -355,19 +368,19 @@ class PdfPageLayout {
     // Both margins and boundaryMargins are in PDF points and scale with the content
     // So we need: scale = viewport / (pageSize + margin*2 + boundaryMargin)
     // This ensures: (pageSize + margin*2 + boundaryMargin) * scale = viewport
-    final widthWithMargins = helper.widthWithMargins(width);
-    final heightWithMargins = helper.heightWithMargins(height);
+    final widthWithMargins = helper.getWidthWithMargins(width);
+    final heightWithMargins = helper.getHeightWithMargins(height);
 
     switch (mode) {
       case FitMode.fit:
         // Scale to fit viewport (letterbox) - content + all margins must fit
-        return min(helper.viewportWidth / widthWithMargins, helper.viewportHeight / heightWithMargins);
+        return min(helper.viewWidth / widthWithMargins, helper.viewHeight / heightWithMargins);
 
       case FitMode.fill:
         // Scale to fill cross-axis - content + all margins on cross-axis must fit
         return scrollAxis == Axis.vertical
-            ? helper.viewportWidth / widthWithMargins
-            : helper.viewportHeight / heightWithMargins;
+            ? helper.viewWidth / widthWithMargins
+            : helper.viewHeight / heightWithMargins;
 
       case FitMode.cover:
         // Cover mode not supported at page level - requires full document dimensions
@@ -492,7 +505,7 @@ class PdfPageLayout {
         // For discrete, add margins since page dimensions don't include them
         final widthWithMargins = width + helper.margin * 2 + helper.boundaryMarginHorizontal;
         final heightWithMargins = height + helper.margin * 2 + helper.boundaryMarginVertical;
-        return max(helper.viewportWidth / widthWithMargins, helper.viewportHeight / heightWithMargins);
+        return max(helper.viewWidth / widthWithMargins, helper.viewHeight / heightWithMargins);
       } else {
         // Continuous mode uses document dimensions (which already include margin * 2)
         // This matches legacy _coverScale calculation: viewport / (documentSize + boundaryMargin)
@@ -500,7 +513,7 @@ class PdfPageLayout {
         height = documentSize.height;
         final widthWithMargins = width + helper.boundaryMarginHorizontal;
         final heightWithMargins = height + helper.boundaryMarginVertical;
-        return max(helper.viewportWidth / widthWithMargins, helper.viewportHeight / heightWithMargins);
+        return max(helper.viewWidth / widthWithMargins, helper.viewHeight / heightWithMargins);
       }
     }
 

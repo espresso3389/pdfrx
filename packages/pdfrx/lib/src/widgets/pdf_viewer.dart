@@ -1543,7 +1543,7 @@ class _PdfViewerState extends State<PdfViewer>
   /// For spread layouts, positions spreads as units rather than individual pages.
   PdfPageLayout _addDiscreteSpacing(PdfPageLayout layout, PdfLayoutHelper helper) {
     final isPrimaryVertical = layout.primaryAxis == Axis.vertical;
-    final viewportSize = isPrimaryVertical ? helper.viewportHeight : helper.viewportWidth;
+    final viewportSize = isPrimaryVertical ? helper.viewHeight : helper.viewWidth;
     final margin = widget.params.margin;
 
     final newPageLayouts = <Rect>[];
@@ -1587,7 +1587,7 @@ class _PdfViewerState extends State<PdfViewer>
         final crossAxisSpreadSizeWithMargins = isPrimaryVertical
             ? scaledSpreadWidthWithMargins
             : scaledSpreadHeightWithMargins;
-        final crossAxisViewport = isPrimaryVertical ? helper.viewportWidth : helper.viewportHeight;
+        final crossAxisViewport = isPrimaryVertical ? helper.viewWidth : helper.viewHeight;
 
         // Calculate viewport padding on cross-axis
         final viewportPaddingCross = max(0.0, (crossAxisViewport - crossAxisSpreadSizeWithMargins) / 2);
@@ -1651,8 +1651,8 @@ class _PdfViewerState extends State<PdfViewer>
         );
 
         // Get page size on primary axis, scaled to final rendered size
-        final scaledPageWidthWithMargins = (helper.widthWithMargins(pageRect.width)) * pageScale;
-        final scaledPageHeightWithMargins = (helper.heightWithMargins(pageRect.height)) * pageScale;
+        final scaledPageWidthWithMargins = (helper.getWidthWithMargins(pageRect.width)) * pageScale;
+        final scaledPageHeightWithMargins = (helper.getHeightWithMargins(pageRect.height)) * pageScale;
         final pageSizeWithMargins = isPrimaryVertical ? scaledPageHeightWithMargins : scaledPageWidthWithMargins;
 
         // Calculate slot size: if page+margins fits in viewport, use viewport to add centering padding
@@ -1670,7 +1670,7 @@ class _PdfViewerState extends State<PdfViewer>
         final crossAxisPageSizeWithMargins = isPrimaryVertical
             ? scaledPageWidthWithMargins
             : scaledPageHeightWithMargins;
-        final crossAxisViewport = isPrimaryVertical ? helper.viewportWidth : helper.viewportHeight;
+        final crossAxisViewport = isPrimaryVertical ? helper.viewWidth : helper.viewHeight;
 
         // Calculate viewport padding on cross-axis
         final viewportPaddingCross = max(0.0, (crossAxisViewport - crossAxisPageSizeWithMargins) / 2);
@@ -1692,7 +1692,7 @@ class _PdfViewerState extends State<PdfViewer>
 
     // Calculate new document size
     // On cross-axis, use viewport size to accommodate centered pages with different aspect ratios
-    final crossAxisViewportSize = isPrimaryVertical ? helper.viewportWidth : helper.viewportHeight;
+    final crossAxisViewportSize = isPrimaryVertical ? helper.viewWidth : helper.viewHeight;
 
     // Also consider the maximum page extent on cross-axis to ensure no clipping
     final maxCrossAxisExtent = newPageLayouts.fold(0.0, (max, rect) {
