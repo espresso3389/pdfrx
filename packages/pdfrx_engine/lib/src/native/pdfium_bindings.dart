@@ -5780,6 +5780,33 @@ late final _FPDFPage_InsertObjectPtr = _lookup<
     ffi.NativeFunction<ffi.Void Function(FPDF_PAGE , FPDF_PAGEOBJECT )>>('FPDFPage_InsertObject');
 late final _FPDFPage_InsertObject = _FPDFPage_InsertObjectPtr.asFunction<void Function(FPDF_PAGE , FPDF_PAGEOBJECT )>();
 
+/// Insert |page_object| into |page| at the specified |index|.
+/// 
+/// page        - handle to a page
+/// page_object - handle to a page object as previously obtained by
+/// FPDFPageObj_CreateNew{Path|Rect}() or
+/// FPDFPageObj_New{Text|Image}Obj(). Ownership of the object
+/// is transferred back to PDFium.
+/// index       - the index position to insert the object at. If index equals
+/// the current object count, the object will be appended to the
+/// end. If index is greater than the object count, the function
+/// will fail and return false.
+/// 
+/// Returns true if successful.
+int FPDFPage_InsertObjectAtIndex(FPDF_PAGE page,
+FPDF_PAGEOBJECT page_object,
+int index,
+) {
+  return _FPDFPage_InsertObjectAtIndex(page,
+page_object,
+index,
+);
+}
+
+late final _FPDFPage_InsertObjectAtIndexPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE , FPDF_PAGEOBJECT , ffi.Size )>>('FPDFPage_InsertObjectAtIndex');
+late final _FPDFPage_InsertObjectAtIndex = _FPDFPage_InsertObjectAtIndexPtr.asFunction<int Function(FPDF_PAGE , FPDF_PAGEOBJECT , int )>();
+
 /// Experimental API.
 /// Remove |page_object| from |page|.
 /// 
@@ -8207,6 +8234,216 @@ late final _FPDFFormObj_RemoveObjectPtr = _lookup<
     ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , FPDF_PAGEOBJECT )>>('FPDFFormObj_RemoveObject');
 late final _FPDFFormObj_RemoveObject = _FPDFFormObj_RemoveObjectPtr.asFunction<int Function(FPDF_PAGEOBJECT , FPDF_PAGEOBJECT )>();
 
+/// Experimental API.
+/// Import pages to a FPDF_DOCUMENT.
+/// 
+/// dest_doc     - The destination document for the pages.
+/// src_doc      - The document to be imported.
+/// page_indices - An array of page indices to be imported. The first page is
+/// zero. If |page_indices| is NULL, all pages from |src_doc|
+/// are imported.
+/// length       - The length of the |page_indices| array.
+/// index        - The page index at which to insert the first imported page
+/// into |dest_doc|. The first page is zero.
+/// 
+/// Returns TRUE on success. Returns FALSE if any pages in |page_indices| is
+/// invalid.
+int FPDF_ImportPagesByIndex(FPDF_DOCUMENT dest_doc,
+FPDF_DOCUMENT src_doc,
+ffi.Pointer<ffi.Int> page_indices,
+int length,
+int index,
+) {
+  return _FPDF_ImportPagesByIndex(dest_doc,
+src_doc,
+page_indices,
+length,
+index,
+);
+}
+
+late final _FPDF_ImportPagesByIndexPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_DOCUMENT , ffi.Pointer<ffi.Int> , ffi.UnsignedLong , ffi.Int )>>('FPDF_ImportPagesByIndex');
+late final _FPDF_ImportPagesByIndex = _FPDF_ImportPagesByIndexPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_DOCUMENT , ffi.Pointer<ffi.Int> , int , int )>();
+
+/// Import pages to a FPDF_DOCUMENT.
+/// 
+/// dest_doc  - The destination document for the pages.
+/// src_doc   - The document to be imported.
+/// pagerange - A page range string, Such as "1,3,5-7". The first page is one.
+/// If |pagerange| is NULL, all pages from |src_doc| are imported.
+/// index     - The page index at which to insert the first imported page into
+/// |dest_doc|. The first page is zero.
+/// 
+/// Returns TRUE on success. Returns FALSE if any pages in |pagerange| is
+/// invalid or if |pagerange| cannot be read.
+int FPDF_ImportPages(FPDF_DOCUMENT dest_doc,
+FPDF_DOCUMENT src_doc,
+FPDF_BYTESTRING pagerange,
+int index,
+) {
+  return _FPDF_ImportPages(dest_doc,
+src_doc,
+pagerange,
+index,
+);
+}
+
+late final _FPDF_ImportPagesPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_DOCUMENT , FPDF_BYTESTRING , ffi.Int )>>('FPDF_ImportPages');
+late final _FPDF_ImportPages = _FPDF_ImportPagesPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_DOCUMENT , FPDF_BYTESTRING , int )>();
+
+/// Experimental API.
+/// Create a new document from |src_doc|.  The pages of |src_doc| will be
+/// combined to provide |num_pages_on_x_axis x num_pages_on_y_axis| pages per
+/// |output_doc| page.
+/// 
+/// src_doc             - The document to be imported.
+/// output_width        - The output page width in PDF "user space" units.
+/// output_height       - The output page height in PDF "user space" units.
+/// num_pages_on_x_axis - The number of pages on X Axis.
+/// num_pages_on_y_axis - The number of pages on Y Axis.
+/// 
+/// Return value:
+/// A handle to the created document, or NULL on failure.
+/// 
+/// Comments:
+/// number of pages per page = num_pages_on_x_axis * num_pages_on_y_axis
+FPDF_DOCUMENT FPDF_ImportNPagesToOne(FPDF_DOCUMENT src_doc,
+double output_width,
+double output_height,
+int num_pages_on_x_axis,
+int num_pages_on_y_axis,
+) {
+  return _FPDF_ImportNPagesToOne(src_doc,
+output_width,
+output_height,
+num_pages_on_x_axis,
+num_pages_on_y_axis,
+);
+}
+
+late final _FPDF_ImportNPagesToOnePtr = _lookup<
+    ffi.NativeFunction<FPDF_DOCUMENT Function(FPDF_DOCUMENT , ffi.Float , ffi.Float , ffi.Size , ffi.Size )>>('FPDF_ImportNPagesToOne');
+late final _FPDF_ImportNPagesToOne = _FPDF_ImportNPagesToOnePtr.asFunction<FPDF_DOCUMENT Function(FPDF_DOCUMENT , double , double , int , int )>();
+
+/// Experimental API.
+/// Create a template to generate form xobjects from |src_doc|'s page at
+/// |src_page_index|, for use in |dest_doc|.
+/// 
+/// Returns a handle on success, or NULL on failure. Caller owns the newly
+/// created object.
+FPDF_XOBJECT FPDF_NewXObjectFromPage(FPDF_DOCUMENT dest_doc,
+FPDF_DOCUMENT src_doc,
+int src_page_index,
+) {
+  return _FPDF_NewXObjectFromPage(dest_doc,
+src_doc,
+src_page_index,
+);
+}
+
+late final _FPDF_NewXObjectFromPagePtr = _lookup<
+    ffi.NativeFunction<FPDF_XOBJECT Function(FPDF_DOCUMENT , FPDF_DOCUMENT , ffi.Int )>>('FPDF_NewXObjectFromPage');
+late final _FPDF_NewXObjectFromPage = _FPDF_NewXObjectFromPagePtr.asFunction<FPDF_XOBJECT Function(FPDF_DOCUMENT , FPDF_DOCUMENT , int )>();
+
+/// Experimental API.
+/// Close an FPDF_XOBJECT handle created by FPDF_NewXObjectFromPage().
+/// FPDF_PAGEOBJECTs created from the FPDF_XOBJECT handle are not affected.
+void FPDF_CloseXObject(FPDF_XOBJECT xobject,
+) {
+  return _FPDF_CloseXObject(xobject,
+);
+}
+
+late final _FPDF_CloseXObjectPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_XOBJECT )>>('FPDF_CloseXObject');
+late final _FPDF_CloseXObject = _FPDF_CloseXObjectPtr.asFunction<void Function(FPDF_XOBJECT )>();
+
+/// Experimental API.
+/// Create a new form object from an FPDF_XOBJECT object.
+/// 
+/// Returns a new form object on success, or NULL on failure. Caller owns the
+/// newly created object.
+FPDF_PAGEOBJECT FPDF_NewFormObjectFromXObject(FPDF_XOBJECT xobject,
+) {
+  return _FPDF_NewFormObjectFromXObject(xobject,
+);
+}
+
+late final _FPDF_NewFormObjectFromXObjectPtr = _lookup<
+    ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_XOBJECT )>>('FPDF_NewFormObjectFromXObject');
+late final _FPDF_NewFormObjectFromXObject = _FPDF_NewFormObjectFromXObjectPtr.asFunction<FPDF_PAGEOBJECT Function(FPDF_XOBJECT )>();
+
+/// Copy the viewer preferences from |src_doc| into |dest_doc|.
+/// 
+/// dest_doc - Document to write the viewer preferences into.
+/// src_doc  - Document to read the viewer preferences from.
+/// 
+/// Returns TRUE on success.
+int FPDF_CopyViewerPreferences(FPDF_DOCUMENT dest_doc,
+FPDF_DOCUMENT src_doc,
+) {
+  return _FPDF_CopyViewerPreferences(dest_doc,
+src_doc,
+);
+}
+
+late final _FPDF_CopyViewerPreferencesPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_DOCUMENT )>>('FPDF_CopyViewerPreferences');
+late final _FPDF_CopyViewerPreferences = _FPDF_CopyViewerPreferencesPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_DOCUMENT )>();
+
+/// Function: FPDF_SaveAsCopy
+/// Saves the copy of specified document in custom way.
+/// Parameters:
+/// document        -   Handle to document, as returned by
+/// FPDF_LoadDocument() or FPDF_CreateNewDocument().
+/// pFileWrite      -   A pointer to a custom file write structure.
+/// flags           -   Flags above that affect how the PDF gets saved.
+/// Pass in 0 when there are no flags.
+/// Return value:
+/// TRUE for succeed, FALSE for failed.
+int FPDF_SaveAsCopy(FPDF_DOCUMENT document,
+ffi.Pointer<FPDF_FILEWRITE> pFileWrite,
+int flags,
+) {
+  return _FPDF_SaveAsCopy(document,
+pFileWrite,
+flags,
+);
+}
+
+late final _FPDF_SaveAsCopyPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , ffi.Pointer<FPDF_FILEWRITE> , FPDF_DWORD )>>('FPDF_SaveAsCopy');
+late final _FPDF_SaveAsCopy = _FPDF_SaveAsCopyPtr.asFunction<int Function(FPDF_DOCUMENT , ffi.Pointer<FPDF_FILEWRITE> , int )>();
+
+/// Function: FPDF_SaveWithVersion
+/// Same as FPDF_SaveAsCopy(), except the file version of the
+/// saved document can be specified by the caller.
+/// Parameters:
+/// document        -   Handle to document.
+/// pFileWrite      -   A pointer to a custom file write structure.
+/// flags           -   The creating flags.
+/// fileVersion     -   The PDF file version. File version: 14 for 1.4,
+/// 15 for 1.5, ...
+/// Return value:
+/// TRUE if succeed, FALSE if failed.
+int FPDF_SaveWithVersion(FPDF_DOCUMENT document,
+ffi.Pointer<FPDF_FILEWRITE> pFileWrite,
+int flags,
+int fileVersion,
+) {
+  return _FPDF_SaveWithVersion(document,
+pFileWrite,
+flags,
+fileVersion,
+);
+}
+
+late final _FPDF_SaveWithVersionPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , ffi.Pointer<FPDF_FILEWRITE> , FPDF_DWORD , ffi.Int )>>('FPDF_SaveWithVersion');
+late final _FPDF_SaveWithVersion = _FPDF_SaveWithVersionPtr.asFunction<int Function(FPDF_DOCUMENT , ffi.Pointer<FPDF_FILEWRITE> , int , int )>();
+
 /// Function: FPDF_GetDefaultTTFMap
 /// Returns a pointer to the default character set to TT Font name map. The
 /// map is an array of FPDF_CharsetFontMap structs, with its end indicated
@@ -8291,7 +8528,7 @@ late final _FPDF_AddInstalledFont = _FPDF_AddInstalledFontPtr.asFunction<void Fu
 /// Function: FPDF_SetSystemFontInfo
 /// Set the system font info interface into PDFium
 /// Parameters:
-/// pFontInfo       -   Pointer to a FPDF_SYSFONTINFO structure
+/// font_info       -   Pointer to a FPDF_SYSFONTINFO structure
 /// Return Value:
 /// None
 /// Comments:
@@ -8301,9 +8538,9 @@ late final _FPDF_AddInstalledFont = _FPDF_AddInstalledFontPtr.asFunction<void Fu
 /// 
 /// Call this with NULL to tell PDFium to stop using a previously set
 /// |FPDF_SYSFONTINFO|.
-void FPDF_SetSystemFontInfo(ffi.Pointer<FPDF_SYSFONTINFO> pFontInfo,
+void FPDF_SetSystemFontInfo(ffi.Pointer<FPDF_SYSFONTINFO> font_info,
 ) {
-  return _FPDF_SetSystemFontInfo(pFontInfo,
+  return _FPDF_SetSystemFontInfo(font_info,
 );
 }
 
@@ -8335,15 +8572,15 @@ late final _FPDF_GetDefaultSystemFontInfo = _FPDF_GetDefaultSystemFontInfoPtr.as
 /// Function: FPDF_FreeDefaultSystemFontInfo
 /// Free a default system font info interface
 /// Parameters:
-/// pFontInfo       -   Pointer to a FPDF_SYSFONTINFO structure
+/// font_info       -   Pointer to a FPDF_SYSFONTINFO structure
 /// Return Value:
 /// None
 /// Comments:
 /// This function should be called on the output from
 /// FPDF_GetDefaultSystemFontInfo() once it is no longer needed.
-void FPDF_FreeDefaultSystemFontInfo(ffi.Pointer<FPDF_SYSFONTINFO> pFontInfo,
+void FPDF_FreeDefaultSystemFontInfo(ffi.Pointer<FPDF_SYSFONTINFO> font_info,
 ) {
-  return _FPDF_FreeDefaultSystemFontInfo(pFontInfo,
+  return _FPDF_FreeDefaultSystemFontInfo(font_info,
 );
 }
 
@@ -9832,6 +10069,32 @@ final class FPDF_IMAGEOBJ_METADATA extends ffi.Struct{
 
 }
 
+/// Structure for custom file write
+final class FPDF_FILEWRITE_ extends ffi.Struct{
+  /// Version number of the interface. Currently must be 1.
+  @ffi.Int()
+  external int version;
+
+  /// Method: WriteBlock
+  /// Output a block of data in your custom way.
+  /// Interface Version:
+  /// 1
+  /// Implementation Required:
+  /// Yes
+  /// Comments:
+  /// Called by function FPDF_SaveDocument
+  /// Parameters:
+  /// pThis       -   Pointer to the structure itself
+  /// pData       -   Pointer to a buffer to output
+  /// size        -   The size of the buffer.
+  /// Return value:
+  /// Should be non-zero if successful, zero for error.
+  external ffi.Pointer<ffi.NativeFunction<ffi.Int Function(ffi.Pointer<FPDF_FILEWRITE_> pThis, ffi.Pointer<ffi.Void> pData, ffi.UnsignedLong size)>> WriteBlock;
+
+}
+
+/// Structure for custom file write
+typedef FPDF_FILEWRITE = FPDF_FILEWRITE_;
 /// Interface: FPDF_SYSFONTINFO
 /// Interface for getting system font information and font mapping
 final class _FPDF_SYSFONTINFO extends ffi.Struct{
@@ -10606,6 +10869,15 @@ const int FPDF_PRINTMODE_POSTSCRIPT3_TYPE42 = 7;
 
 
 const int FPDF_PRINTMODE_POSTSCRIPT3_TYPE42_PASSTHROUGH = 8;
+
+
+const int FPDF_INCREMENTAL = 1;
+
+
+const int FPDF_NO_INCREMENTAL = 2;
+
+
+const int FPDF_REMOVE_SECURITY = 3;
 
 
 const int FXFONT_ANSI_CHARSET = 0;

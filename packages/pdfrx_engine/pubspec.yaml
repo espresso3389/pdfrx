@@ -42,6 +42,8 @@ ffigen:
       - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_text.h"
       - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_doc.h"
       - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_edit.h"
+      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_ppo.h"
+      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_save.h"
       - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_formfill.h"
       - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_sysfontinfo.h"
     include-directives:
