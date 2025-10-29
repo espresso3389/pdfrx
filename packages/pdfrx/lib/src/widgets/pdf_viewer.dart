@@ -863,6 +863,7 @@ class _PdfViewerState extends State<PdfViewer>
   double? _interactionStartScale;
   int? _interactionStartPage;
   bool _hadScaleChangeInInteraction = false;
+  Offset _lastPanDelta = Offset.zero;
 
   Future<void> _onInteractionEnd(ScaleEndDetails details) async {
     _isActiveGesture = false;
@@ -892,11 +893,15 @@ class _PdfViewerState extends State<PdfViewer>
       _interactionStartScale = _currentZoom;
       _interactionStartPage = _pageNumber;
       _hadScaleChangeInInteraction = false; // Reset for new interaction
+      _lastPanDelta = Offset.zero; // Reset pan delta for new interaction
     }
     widget.params.onInteractionStart?.call(details);
   }
 
   void _onInteractionUpdate(ScaleUpdateDetails details) {
+    // Track pan delta for boundary extension logic
+    _lastPanDelta = details.focalPointDelta;
+
     // Track if scale changed during the interaction
     if (widget.params.pageTransition == PageTransition.discrete && _interactionStartScale != null) {
       final currentScale = _currentZoom;
@@ -1036,14 +1041,26 @@ class _PdfViewerState extends State<PdfViewer>
     // Determine target page based on fling velocity or drag threshold
     int targetPage;
     if (hasSignificantVelocity) {
-      // Flutter velocity: positive = finger down/right → content up/left → previous page
-      final velocityDirection = scrollVelocity > 0 ? -1 : 1;
+      // Check if velocity direction matches drag direction to detect snapback
+      // scrollDelta: positive = viewport moved down/right, negative = viewport moved up/left
+      // scrollVelocity: positive = finger moving down/right → viewport moves opposite direction
+      // So we need to INVERT velocity to get viewport movement direction
+      final dragDirection = scrollDelta > 0 ? 1 : (scrollDelta < 0 ? -1 : 0);
+      final velocityDirection = scrollVelocity > 0
+          ? -1
+          : 1; // INVERTED: positive velocity = viewport moves up (previous page)
 
-      // Only advance if at boundary when fling started
-      if (_isAtBoundary(startRect, currentPage, layout, isPrimaryVertical, velocityDirection)) {
-        targetPage = _getAdjacentPage(currentPage, layout, velocityDirection);
+      // If velocity contradicts drag direction, this is likely a snapback - ignore velocity
+      if (dragDirection != 0 && dragDirection != velocityDirection) {
+        targetPage = _getTargetPageBasedOnThreshold(currentPage, scrollDelta, isPrimaryVertical);
       } else {
-        return; // Not at boundary - let InteractiveViewer handle fling
+        // Velocity matches drag direction - use velocity for page transition
+        // Only advance if at boundary when fling started
+        if (_isAtBoundary(startRect, currentPage, layout, isPrimaryVertical, velocityDirection)) {
+          targetPage = _getAdjacentPage(currentPage, layout, velocityDirection);
+        } else {
+          return; // Not at boundary - let InteractiveViewer handle fling
+        }
       }
     } else {
       // No fling - use visible page area threshold
@@ -1790,14 +1807,12 @@ class _PdfViewerState extends State<PdfViewer>
 
     // Extend boundaries into adjacent pages during pan gestures
     // This allows smooth page transitions when panning on the primary axis
-    if (_isActiveGesture && !_hadScaleChangeInInteraction && !_isActivelyZooming && _viewSize != null) {
+    final shouldExtendBoundaries =
+        _isActiveGesture && !_hadScaleChangeInInteraction && !_isActivelyZooming && _viewSize != null;
+
+    if (shouldExtendBoundaries) {
       final isPrimaryVertical = layout.primaryAxis == Axis.vertical;
       const extensionRatio = 0.5; // Extend 50% into adjacent pages
-
-      // During active drag gestures, always extend boundaries to allow deliberate page transitions.
-      // Fling-based transitions are controlled separately in _handleDiscretePageTransition.
-      final shouldExtendToPrev = true;
-      final shouldExtendToNext = true;
 
       final viewportPrimarySize = isPrimaryVertical ? _viewSize!.height : _viewSize!.width;
 
@@ -1805,30 +1820,41 @@ class _PdfViewerState extends State<PdfViewer>
       // This ensures proper extension even when viewport is much larger than page (discrete mode with spacing)
       final extensionDistance = viewportPrimarySize * extensionRatio;
 
+      // Determine swipe direction to only extend boundaries in the direction being swiped
+      // This prevents unwanted scrolling beyond document boundaries on first/last pages
+      var shouldExtendToPrev = true;
+      var shouldExtendToNext = true;
+
+      final panDelta = isPrimaryVertical ? _lastPanDelta.dy : _lastPanDelta.dx;
+
+      if (currentPageNumber == 1) {
+        // First page: only extend upward/leftward if user is panning down/right
+        // This allows smooth transition toward page 2 but prevents scrolling before page 1
+        shouldExtendToPrev = panDelta < 0;
+      } else if (currentPageNumber == layout.pageLayouts.length) {
+        // Last page: only extend downward/rightward if user is panning up/left
+        // This allows smooth transition toward previous page but prevents scrolling after last page
+        shouldExtendToNext = panDelta > 0;
+      }
+
       // Extend to previous page (if exists and should extend)
-      if (shouldExtendToPrev && currentPageNumber > 1) {
-        final prevPageBounds = layout.pageLayouts[currentPageNumber - 2];
+      if (shouldExtendToPrev) {
         if (isPrimaryVertical) {
-          // Extend upward
-          final newTop = max(prevPageBounds.top, result.top - extensionDistance);
+          final newTop = result.top - extensionDistance;
           result = Rect.fromLTRB(result.left, newTop, result.right, result.bottom);
         } else {
-          // Extend leftward
-          final newLeft = max(prevPageBounds.left, result.left - extensionDistance);
+          final newLeft = result.left - extensionDistance;
           result = Rect.fromLTRB(newLeft, result.top, result.right, result.bottom);
         }
       }
 
       // Extend to next page (if exists and should extend)
-      if (shouldExtendToNext && currentPageNumber < layout.pageLayouts.length) {
-        final nextPageBounds = layout.pageLayouts[currentPageNumber];
+      if (shouldExtendToNext) {
         if (isPrimaryVertical) {
-          // Extend downward
-          final newBottom = min(nextPageBounds.bottom, result.bottom + extensionDistance);
+          final newBottom = result.bottom + extensionDistance;
           result = Rect.fromLTRB(result.left, result.top, result.right, newBottom);
         } else {
-          // Extend rightward
-          final newRight = min(nextPageBounds.right, result.right + extensionDistance);
+          final newRight = result.right + extensionDistance;
           result = Rect.fromLTRB(result.left, result.top, newRight, result.bottom);
         }
       }
