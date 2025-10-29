@@ -1428,17 +1428,13 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _calcFitScale([int? pageNumber]) {
-    final params = widget.params;
-
     if (_viewSize == null || _layout == null) {
       _fitScale = _defaultMinScale;
       return;
     }
 
-    final helper = PdfLayoutHelper.fromParams(params, viewSize: _viewSize!);
-
+    final helper = PdfLayoutHelper.fromParams(widget.params, viewSize: _viewSize!);
     final effectivePageNumber = pageNumber ?? _pageNumber ?? _gotoTargetPageNumber;
-
     if (widget.params.useAlternativeFitScaleAsMinScale) {
       // Legacy useAlternativeFitScaleAsMinScale behavior (deprecated)
       // This maps to FitMode.fit (show whole page)
@@ -1454,7 +1450,7 @@ class _PdfViewerState extends State<PdfViewer>
       // In continuous mode, calculate for the entire document
       _fitScale = _layout!.calculateFitScale(
         helper,
-        params.fitMode,
+        widget.params.fitMode,
         pageTransition: widget.params.pageTransition,
         pageNumber: effectivePageNumber,
       );
