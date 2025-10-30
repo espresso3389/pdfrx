@@ -148,6 +148,9 @@ abstract class PdfrxEntryFunctions {
     Duration? timeout,
   });
 
+  /// See [PdfDocument.createNew].
+  Future<PdfDocument> createNew({required String sourceName});
+
   /// Reload the fonts.
   Future<void> reloadFonts();
 
@@ -311,6 +314,13 @@ abstract class PdfDocument {
     allowDataOwnershipTransfer: allowDataOwnershipTransfer,
     onDispose: onDispose,
   );
+
+  /// Creating a new empty PDF document.
+  ///
+  /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
+  /// unique for each source, the viewer may not work correctly.
+  static Future<PdfDocument> createNew({required String sourceName}) =>
+      PdfrxEntryFunctions.instance.createNew(sourceName: sourceName);
 
   /// Opening the PDF from custom source.
   ///

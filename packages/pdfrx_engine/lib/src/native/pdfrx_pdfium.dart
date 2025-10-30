@@ -416,6 +416,20 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     }
   }
 
+  @override
+  Future<PdfDocument> createNew({required String sourceName}) async {
+    await _init();
+    final doc = await (await backgroundWorker).compute((params) {
+      return pdfium.FPDF_CreateNewDocument().address;
+    }, null);
+    return _PdfDocumentPdfium.fromPdfDocument(
+      pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
+      sourceName: sourceName,
+      useProgressiveLoading: false,
+      disposeCallback: null,
+    );
+  }
+
   static String _getPdfiumErrorString([int? error]) {
     error ??= pdfium.FPDF_GetLastError();
     final errStr = _errorMappings[error];

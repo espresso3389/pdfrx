@@ -181,6 +181,13 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
   );
 
   @override
+  Future<PdfDocument> createNew({required String sourceName}) async {
+    throw UnimplementedError(
+      'createNew() is not implemented for CoreGraphics backend.',
+    );
+  }
+
+  @override
   Future<void> reloadFonts() async {
     // CoreGraphics reuses system font registrations; nothing to do.
   }

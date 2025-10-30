@@ -301,6 +301,17 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
   }
 
   @override
+  Future<PdfDocument> createNew({required String sourceName}) async {
+    await init();
+    final result = await _sendCommand('createNewDocument');
+    final errorCode = (result['errorCode'] as num?)?.toInt();
+    if (errorCode != null) {
+      throw StateError('Failed to create new document: ${result['errorCodeStr']} ($errorCode)');
+    }
+    return _PdfDocumentWasm._(result, sourceName: sourceName, disposeCallback: null);
+  }
+
+  @override
   Future<void> reloadFonts() async {
     await init();
     await _sendCommand('reloadFonts', parameters: {'dummy': true});

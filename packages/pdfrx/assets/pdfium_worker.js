@@ -1824,11 +1824,21 @@ function encodePdf(params) {
 }
 
 /**
+ * Create a new empty PDF document
+ * @returns {PdfDocument|PdfError}
+ */
+function createNewDocument() {
+  const docHandle = Pdfium.wasmExports.FPDF_CreateNewDocument();
+  return _loadDocument(docHandle, false, () => {});
+}
+
+/**
  * Functions that can be called from the main thread
  */
 const functions = {
   loadDocumentFromUrl,
   loadDocumentFromData,
+  createNewDocument,
   loadPagesProgressively,
   closeDocument,
   loadOutline,
