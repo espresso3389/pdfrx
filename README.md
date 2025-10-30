@@ -1,26 +1,28 @@
 # pdfrx
 
-This repository contains three Dart/Flutter packages for PDF rendering and viewing:
+This repository contains three Dart/Flutter packages for PDF rendering, viewing, and manipulation:
 
 ## Packages
 
 ### [pdfrx_engine](packages/pdfrx_engine/)
 
-A platform-agnostic PDF rendering API built on top of PDFium.
+A platform-agnostic PDF rendering and manipulation API built on top of PDFium.
 
 - Pure Dart package (no Flutter dependencies)
-- Provides low-level PDF document API
+- Provides low-level PDF document API for viewing and editing
+- Supports page re-arrangement, PDF combining, and document manipulation
 - Can be used in CLI applications or non-Flutter Dart projects
 - Supports all platforms: Android, iOS, Windows, macOS, Linux
 
 ### [pdfrx](packages/pdfrx/)
 
-A cross-platform PDF viewer plugin for Flutter.
+A cross-platform PDF viewer and manipulation plugin for Flutter.
 
 - Flutter plugin with UI widgets
 - Built on top of pdfrx_engine
 - Provides high-level viewer widgets and overlays
 - Includes text selection, search, zoom controls, and more
+- Supports PDF editing features like page manipulation and document combining
 
 ### [pdfrx_coregraphics](packages/pdfrx_coregraphics/)
 
@@ -33,8 +35,8 @@ A cross-platform PDF viewer plugin for Flutter.
 
 ## When to Use Which Package
 
-- **Use `pdfrx`** if you're building a Flutter application and need PDF viewing capabilities with UI
-- **Use `pdfrx_engine`** if you need PDF rendering without Flutter dependencies (e.g., server-side PDF processing, CLI tools)
+- **Use `pdfrx`** if you're building a Flutter application and need PDF viewing and manipulation capabilities with UI
+- **Use `pdfrx_engine`** if you need PDF rendering and manipulation without Flutter dependencies (e.g., server-side PDF processing, CLI tools, PDF combining utilities)
 - **Use `pdfrx_coregraphics`** (experimental) if you want to use CoreGraphics/PDFKit instead of PDFium on iOS/macOS
 
 ## Getting Started
