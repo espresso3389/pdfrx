@@ -29,13 +29,16 @@ Welcome to the pdfrx documentation! This guide provides comprehensive informatio
 
 ### Advanced Topics
 
-- [PDF Page Manipulation](PDF-Page-Manipulation.md) - Re-arrange, combine, and extract PDF pages
 - [Customizing Key Handling](Customizing-Key-Handling-on-PdfViewer.md) - Keyboard shortcuts
 - [Password Protected PDFs](Deal-with-Password-Protected-PDF-Files-using-PasswordProvider.md) - Handle encrypted PDFs
 - [Overlay Builders](Deal-with-viewerOverlayBuilder-and-pageOverlaysBuilder.md) - Custom overlays
 - [Loading Fonts Dynamically](Loading-Fonts-Dynamically.md) - Add custom fonts
 - [Low-Level PDFium Bindings Access](Low-Level-PDFium-Bindings-Access.md) - Using PDFium function directly
 - [Interoperability with other PDFium Libraries](Interoperability-with-other-PDFium-Libraries.md) - Using pdfrx alongside other PDFium-based libraries
+
+### PDF Editing
+
+- [PDF Page Manipulation](PDF-Page-Manipulation.md) - Re-arrange, combine, and extract PDF pages
 
 ## Platform-Specific
 
