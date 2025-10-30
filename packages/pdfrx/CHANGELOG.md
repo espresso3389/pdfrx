@@ -1,3 +1,9 @@
+# 2.2.8
+
+- NEW: `PdfDocument` now supports page re-arrangement and accepts `PdfPage` instances from other documents, enabling PDF combine/merge functionality
+- Added `pdf_combine` app example demonstrating PDF merging capabilities
+- Updated to pdfrx_engine 0.2.4
+
 # 2.2.7
 
 - `PdfViewer.uri` now supports timeout parameter ([#508](https://github.com/espresso3389/pdfrx/issues/508))

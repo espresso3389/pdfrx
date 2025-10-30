@@ -1,3 +1,9 @@
+## 0.2.4
+
+- NEW: `PdfDocument` now supports page re-arrangement and accepts `PdfPage` instances from other documents, enabling PDF combine/merge functionality
+- Added additional PDFium functions for page manipulation
+- FIXED: Type parameter 'T' shadowing issue in pdfium.dart
+
 ## 0.2.3
 
 - Added configurable timeout parameter to `openUri` and `pdfDocumentFromUri` functions ([#509](https://github.com/espresso3389/pdfrx/pull/509))
