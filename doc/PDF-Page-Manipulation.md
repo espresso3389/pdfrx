@@ -46,6 +46,30 @@ doc1.pages = [
 final combinedPdf = await doc1.encodePdf();
 ```
 
+### The assemble() Function
+
+When you combine pages from multiple documents, the resulting document maintains references to the source documents. The `assemble()` function re-organizes the document to be self-contained, removing dependencies on other `PdfDocument` instances:
+
+```dart
+// After combining pages from multiple documents
+doc1.pages = [...doc1.pages, ...doc2.pages, ...doc3.pages];
+
+// Assemble to make doc1 independent
+await doc1.assemble();
+
+// Now you can safely dispose doc2 and doc3
+doc2.dispose();
+doc3.dispose();
+
+// doc1 is still valid and can be encoded later
+final bytes = await doc1.encodePdf();
+```
+
+**Important Notes:**
+- `assemble()` is automatically called by `encodePdf()`, so you don't need to call it explicitly before encoding
+- Call `assemble()` explicitly when you want to release source documents early to free memory
+- After calling `assemble()`, the document becomes independent and source documents can be safely disposed
+
 ### Encoding to PDF
 
 After manipulating pages, use `encodePdf()` to generate the final PDF file:
@@ -54,6 +78,8 @@ After manipulating pages, use `encodePdf()` to generate the final PDF file:
 final pdfBytes = await document.encodePdf();
 await File('output.pdf').writeAsBytes(pdfBytes);
 ```
+
+Note: `encodePdf()` automatically calls `assemble()` internally, so the document will be self-contained in the output.
 
 ## Basic Examples
 
@@ -145,14 +171,19 @@ Future<void> combinePdfs() async {
     ...doc3.pages,  // All pages from doc3
   ];
 
-  // Generate the combined PDF
+  // Assemble to make doc1 independent and release doc2/doc3 early
+  await doc1.assemble();
+
+  // Now safe to dispose source documents to free memory
+  doc2.dispose();
+  doc3.dispose();
+
+  // Generate the combined PDF (assemble is called again internally, but that's OK)
   final bytes = await doc1.encodePdf();
   await File('combined.pdf').writeAsBytes(bytes);
 
   // Clean up
   doc1.dispose();
-  doc2.dispose();
-  doc3.dispose();
 }
 ```
 
@@ -175,11 +206,14 @@ Future<void> selectiveCombine() async {
     doc2.pages[3],      // Page 4 from doc2
   ];
 
+  // Assemble and release doc2 early
+  await doc1.assemble();
+  doc2.dispose();
+
   final bytes = await doc1.encodePdf();
   await File('selective.pdf').writeAsBytes(bytes);
 
   doc1.dispose();
-  doc2.dispose();
 }
 ```
 
@@ -269,6 +303,45 @@ try {
 }
 ```
 
+### Using assemble() for Early Memory Release
+
+When combining pages from multiple large documents, use `assemble()` to release source documents early:
+
+```dart
+Future<void> efficientCombine() async {
+  // Open source documents
+  final doc1 = await PdfDocument.openFile('large1.pdf');
+  final doc2 = await PdfDocument.openFile('large2.pdf');
+  final doc3 = await PdfDocument.openFile('large3.pdf');
+
+  try {
+    // Combine pages
+    doc1.pages = [...doc1.pages, ...doc2.pages, ...doc3.pages];
+
+    // Assemble to make doc1 independent
+    await doc1.assemble();
+
+    // Immediately dispose source documents to free memory
+    doc2.dispose();
+    doc3.dispose();
+
+    // doc1 can still be used and encoded later
+    // Do other processing...
+
+    final bytes = await doc1.encodePdf();
+    await File('output.pdf').writeAsBytes(bytes);
+  } finally {
+    doc1.dispose();
+  }
+}
+```
+
+**Benefits of using assemble():**
+- Reduces memory footprint when working with large PDFs
+- Allows early disposal of source documents
+- Prevents holding references to potentially large source documents
+- Especially useful when processing multiple PDFs in sequence
+
 ### Reference Counting Pattern
 
 When sharing pages across documents in complex scenarios, consider implementing reference counting:
@@ -326,21 +399,30 @@ if (pageIndex >= 0 && pageIndex < doc.pages.length) {
 }
 ```
 
-### Encoding Performance
+### Encoding and Assembly Performance
 
-`encodePdf()` can be resource-intensive for large documents:
+Both `assemble()` and `encodePdf()` can be resource-intensive for large documents:
 
 ```dart
 // Show loading indicator for large documents
 setState(() => isGenerating = true);
 
 try {
+  // Assemble can take time with many pages
+  await document.assemble();
+
+  // Encoding also takes time
   final bytes = await document.encodePdf();
   // ... save bytes ...
 } finally {
   setState(() => isGenerating = false);
 }
 ```
+
+**Performance Tips:**
+- `assemble()` processes all pages and consolidates the document structure
+- Call `assemble()` once; subsequent calls are safe but unnecessary
+- `encodePdf()` calls `assemble()` internally, so you can skip explicit calls if encoding immediately
 
 ### Original Document Preservation
 
@@ -399,12 +481,19 @@ class PdfMerger {
       // Set combined pages on first document
       documents.first.pages = allPages;
 
+      // Assemble to make the first document independent
+      await documents.first.assemble();
+
+      // Dispose all source documents except the first one
+      for (var i = 1; i < documents.length; i++) {
+        documents[i].dispose();
+      }
+
       // Generate result
       return await documents.first.encodePdf();
     } finally {
-      for (final doc in documents) {
-        doc.dispose();
-      }
+      // Clean up the combined document
+      documents.first.dispose();
     }
   }
 }
