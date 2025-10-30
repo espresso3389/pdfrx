@@ -401,9 +401,10 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onDocumentEvent(PdfDocumentEvent event) {
     if (event is PdfDocumentPageStatusChangedEvent) {
-      for (final page in event.pages) {
-        _imageCache.removeCacheImagesForPage(page.pageNumber);
-        _magnifierImageCache.removeCacheImagesForPage(page.pageNumber);
+      // TODO: we can reuse images for moved pages
+      for (final change in event.changes.entries) {
+        _imageCache.removeCacheImagesForPage(change.key);
+        _magnifierImageCache.removeCacheImagesForPage(change.key);
       }
       _invalidate();
     }

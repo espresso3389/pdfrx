@@ -395,6 +395,30 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
   bool isIdenticalDocumentHandle(Object? other) {
     return other is _CoreGraphicsPdfDocument && other.handle == handle;
   }
+
+  @override
+  set pages(List<PdfPage> value) {
+    throw UnimplementedError(
+      'Setting pages is not implemented for CoreGraphics backend.',
+    );
+  }
+
+  @override
+  Future<bool> assemble() async {
+    throw UnimplementedError(
+      'assemble() is not implemented for CoreGraphics backend.',
+    );
+  }
+
+  @override
+  Future<Uint8List> encodePdf({
+    bool incremental = false,
+    bool removeSecurity = false,
+  }) async {
+    throw UnimplementedError(
+      'encodePdf() is not implemented for CoreGraphics backend.',
+    );
+  }
 }
 
 class _CoreGraphicsPdfPage extends PdfPage {

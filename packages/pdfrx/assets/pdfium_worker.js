@@ -1508,6 +1508,322 @@ function clearAllFontData() {
 }
 
 /**
+ * Assemble the document (apply page manipulations if any)
+ * @param {{docHandle: number, pageIndices: number[]|undefined, importedPages: Object.<number, {docHandle: number, pageNumber: number}>|undefined}} params
+ * @returns {{modified: boolean}}
+ */
+function assemble(params) {
+  const { docHandle, pageIndices, importedPages } = params;
+
+  // If no page indices specified, no modifications needed
+  if (!pageIndices || pageIndices.length === 0) {
+    return { modified: false };
+  }
+
+  const originalLength = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
+
+  // Check if there are any changes
+  let hasChanges = pageIndices.length !== originalLength;
+  if (!hasChanges) {
+    for (let i = 0; i < pageIndices.length; i++) {
+      if (pageIndices[i] !== i) {
+        hasChanges = true;
+        break;
+      }
+    }
+  }
+
+  if (!hasChanges) {
+    return { modified: false };
+  }
+
+  // Perform the shuffle using the PDFium page manipulation functions
+  _shuffleInPlaceAccordingToIndices(docHandle, pageIndices, originalLength, importedPages);
+
+  return { modified: true };
+}
+
+/**
+ * Internal class to track page tokens during shuffling
+ */
+class _ArrayOfItemsToken {
+  /**
+   * @param {number|null} originalIndex
+   * @param {boolean} isOriginal
+   */
+  constructor(originalIndex, isOriginal) {
+    this.originalIndex = originalIndex;
+    this.isOriginal = isOriginal;
+  }
+}
+
+/**
+ * Shuffle pages in place according to the given list of resulting item indices
+ * @param {number} docHandle Document handle
+ * @param {number[]} resultingItemIndices Array of page indices representing the desired order
+ * @param {number} originalLength Original number of pages
+ * @param {Object.<number, {docHandle: number, pageNumber: number}>|undefined} importedPages Map of negative indices to import info
+ */
+function _shuffleInPlaceAccordingToIndices(docHandle, resultingItemIndices, originalLength, importedPages) {
+  if (resultingItemIndices.length === 0) {
+    if (originalLength > 0) {
+      _removePages(docHandle, 0, originalLength);
+    }
+    return;
+  }
+
+  const tokens = [];
+  for (let i = 0; i < originalLength; i++) {
+    tokens.push(new _ArrayOfItemsToken(i, true));
+  }
+
+  // Count usage of each original page
+  const usageCounts = new Array(originalLength).fill(0);
+  for (let i = 0; i < resultingItemIndices.length; i++) {
+    const index = resultingItemIndices[i];
+    if (index >= 0) {
+      if (index >= originalLength) {
+        throw new Error(`resultingItemIndices[${i}] = ${index} is out of range for current length ${originalLength}`);
+      }
+      usageCounts[index]++;
+    }
+  }
+
+  // Remove unused pages (from end to beginning to maintain indices)
+  for (let i = originalLength - 1; i >= 0; i--) {
+    if (usageCounts[i] === 0) {
+      _removePages(docHandle, i, 1);
+      tokens.splice(i, 1);
+    }
+  }
+
+  const placedCounts = new Array(originalLength).fill(0);
+  let currentIndex = 0;
+
+  while (currentIndex < resultingItemIndices.length) {
+    if (currentIndex > tokens.length) {
+      throw new Error(`Destination index ${currentIndex} is out of range for current length ${tokens.length}.`);
+    }
+
+    const target = resultingItemIndices[currentIndex];
+    if (target >= 0) {
+      const isFirst = placedCounts[target] === 0;
+      if (isFirst) {
+        // Find the original page
+        let fromIndex = -1;
+        for (let i = 0; i < tokens.length; i++) {
+          if (tokens[i].originalIndex === target && tokens[i].isOriginal) {
+            fromIndex = i;
+            break;
+          }
+        }
+        if (fromIndex === -1) {
+          throw new Error(`Item at index ${target} could not be found for initial placement.`);
+        }
+
+        // Try to find consecutive pages to move as a chunk
+        let chunkLength = 1;
+        while (currentIndex + chunkLength < resultingItemIndices.length && fromIndex + chunkLength < tokens.length) {
+          const nextTarget = resultingItemIndices[currentIndex + chunkLength];
+          if (nextTarget < 0 || placedCounts[nextTarget] > 0) break;
+          const nextToken = tokens[fromIndex + chunkLength];
+          if (!nextToken.isOriginal || nextToken.originalIndex !== nextTarget) break;
+          chunkLength++;
+        }
+
+        let placementIndex = currentIndex;
+        if (fromIndex !== currentIndex) {
+          const removalIndices = [];
+          for (let offset = 0; offset < chunkLength; offset++) {
+            removalIndices.push(fromIndex + offset);
+          }
+
+          _movePages(docHandle, fromIndex, currentIndex, chunkLength);
+
+          // Update tokens
+          const removedTokens = [];
+          for (let i = removalIndices.length - 1; i >= 0; i--) {
+            removedTokens.unshift(tokens.splice(removalIndices[i], 1)[0]);
+          }
+
+          let insertIndex = currentIndex;
+          for (const index of removalIndices) {
+            if (index < currentIndex) {
+              insertIndex--;
+            }
+          }
+          if (insertIndex < 0) insertIndex = 0;
+          if (insertIndex > tokens.length) insertIndex = tokens.length;
+          tokens.splice(insertIndex, 0, ...removedTokens);
+          placementIndex = insertIndex;
+        }
+
+        for (let offset = 0; offset < chunkLength; offset++) {
+          const token = tokens[placementIndex + offset];
+          if (token.originalIndex !== null) {
+            placedCounts[token.originalIndex]++;
+          }
+        }
+        currentIndex += chunkLength;
+        continue;
+      } else {
+        // Duplicate page
+        let sourceIndex = -1;
+        for (let i = 0; i < tokens.length; i++) {
+          if (tokens[i].originalIndex === target) {
+            sourceIndex = i;
+            break;
+          }
+        }
+        if (sourceIndex === -1) {
+          throw new Error(`Item at index ${target} could not be found for duplication.`);
+        }
+        _duplicatePages(docHandle, sourceIndex, currentIndex, 1);
+        tokens.splice(currentIndex, 0, new _ArrayOfItemsToken(target, false));
+        placedCounts[target]++;
+      }
+    } else {
+      // Negative index means importing from another document
+      if (!importedPages || !importedPages[target]) {
+        throw new Error(`Imported page info not found for negative index ${target}`);
+      }
+      const importInfo = importedPages[target];
+      _insertImportedPage(docHandle, importInfo.docHandle, importInfo.pageNumber, currentIndex);
+      tokens.splice(currentIndex, 0, new _ArrayOfItemsToken(null, false));
+    }
+    currentIndex++;
+  }
+
+  const expectedLength = resultingItemIndices.length;
+  if (tokens.length > expectedLength) {
+    const extra = tokens.length - expectedLength;
+    _removePages(docHandle, expectedLength, extra);
+    tokens.splice(expectedLength, extra);
+  } else if (tokens.length < expectedLength) {
+    throw new Error(`Internal length mismatch after shuffling (expected ${expectedLength}, got ${tokens.length}).`);
+  }
+}
+
+/**
+ * Move pages within a document
+ * @param {number} docHandle Document handle
+ * @param {number} fromIndex Starting index of pages to move
+ * @param {number} toIndex Destination index
+ * @param {number} count Number of pages to move
+ */
+function _movePages(docHandle, fromIndex, toIndex, count) {
+  const pageIndices = Pdfium.wasmExports.malloc(count * 4); // Int32 array
+  const pageIndicesView = new Int32Array(Pdfium.memory.buffer, pageIndices, count);
+  for (let i = 0; i < count; i++) {
+    pageIndicesView[i] = fromIndex + i;
+  }
+  Pdfium.wasmExports.FPDF_MovePages(docHandle, pageIndices, count, toIndex);
+  Pdfium.wasmExports.free(pageIndices);
+}
+
+/**
+ * Remove pages from a document
+ * @param {number} docHandle Document handle
+ * @param {number} index Starting index
+ * @param {number} count Number of pages to remove
+ */
+function _removePages(docHandle, index, count) {
+  for (let i = count - 1; i >= 0; i--) {
+    Pdfium.wasmExports.FPDFPage_Delete(docHandle, index + i);
+  }
+}
+
+/**
+ * Duplicate pages within a document
+ * @param {number} docHandle Document handle
+ * @param {number} fromIndex Index of page to duplicate
+ * @param {number} toIndex Destination index for the duplicate
+ * @param {number} count Number of pages to duplicate
+ */
+function _duplicatePages(docHandle, fromIndex, toIndex, count) {
+  const pageIndices = Pdfium.wasmExports.malloc(count * 4); // Int32 array
+  const pageIndicesView = new Int32Array(Pdfium.memory.buffer, pageIndices, count);
+  for (let i = 0; i < count; i++) {
+    pageIndicesView[i] = fromIndex + i;
+  }
+  Pdfium.wasmExports.FPDF_ImportPagesByIndex(docHandle, docHandle, pageIndices, count, toIndex);
+  Pdfium.wasmExports.free(pageIndices);
+}
+
+/**
+ * Insert a page from another document
+ * @param {number} destDocHandle Destination document handle
+ * @param {number} srcDocHandle Source document handle
+ * @param {number} srcPageIndex Source page index (0-based)
+ * @param {number} destIndex Destination index
+ */
+function _insertImportedPage(destDocHandle, srcDocHandle, srcPageIndex, destIndex) {
+  const pageIndices = Pdfium.wasmExports.malloc(4); // Int32 for one page
+  const pageIndicesView = new Int32Array(Pdfium.memory.buffer, pageIndices, 1);
+  pageIndicesView[0] = srcPageIndex;
+  Pdfium.wasmExports.FPDF_ImportPagesByIndex(destDocHandle, srcDocHandle, pageIndices, 1, destIndex);
+  Pdfium.wasmExports.free(pageIndices);
+}
+
+/**
+ * Encode PDF document to bytes
+ * @param {{docHandle: number, incremental: boolean, removeSecurity: boolean}} params
+ * @returns {{data: ArrayBuffer}}
+ */
+function encodePdf(params) {
+  const { docHandle, incremental = false, removeSecurity = false } = params;
+
+  const chunks = [];
+
+  // Create a callback function that will be called by PDFium to write data
+  const writeCallback = Pdfium.addFunction((pThis, pData, size) => {
+    void pThis; // Suppress unused parameter warning
+    const chunk = new Uint8Array(Pdfium.memory.buffer, pData, size);
+    chunks.push(new Uint8Array(chunk)); // Copy the data
+    return size;
+  }, 'iiii');
+
+  try {
+    const fileWriteSize = 8; // sizeof(FPDF_FILEWRITE): version(4) + WriteBlock(4)
+    const fileWrite = Pdfium.wasmExports.malloc(fileWriteSize);
+    const fileWriteView = new Int32Array(Pdfium.memory.buffer, fileWrite, 2);
+    fileWriteView[0] = 1; // version
+    fileWriteView[1] = writeCallback; // WriteBlock function pointer
+
+    // Determine flags based on parameters
+    let flags;
+    if (removeSecurity) {
+      flags = 3; // FPDF_SAVE_NO_SECURITY(3)
+    } else {
+      flags = incremental ? 1 : 2; // FPDF_INCREMENTAL(1) or FPDF_NO_INCREMENTAL(2)
+    }
+
+    const result = Pdfium.wasmExports.FPDF_SaveAsCopy(docHandle, fileWrite, flags);
+    Pdfium.wasmExports.free(fileWrite);
+
+    if (!result) {
+      throw new Error('FPDF_SaveAsCopy failed');
+    }
+
+    // Combine all chunks into a single ArrayBuffer
+    const totalSize = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const combined = new Uint8Array(totalSize);
+    let offset = 0;
+    for (const chunk of chunks) {
+      combined.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    return {
+      result: { data: combined.buffer },
+      transfer: [combined.buffer],
+    };
+  } finally {
+    Pdfium.removeFunction(writeCallback);
+  }
+}
+
+/**
  * Functions that can be called from the main thread
  */
 const functions = {
@@ -1524,6 +1840,8 @@ const functions = {
   reloadFonts,
   addFontData,
   clearAllFontData,
+  assemble,
+  encodePdf,
 };
 
 /**

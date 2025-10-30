@@ -326,7 +326,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
 class _PdfDocumentWasm extends PdfDocument {
   _PdfDocumentWasm._(this.document, {required super.sourceName, this.disposeCallback})
     : permissions = parsePermissions(document) {
-    pages = parsePages(this, document['pages'] as List<dynamic>);
+    _pages = parsePages(this, document['pages'] as List<dynamic>);
     updateMissingFonts(document['missingFonts']);
   }
 
@@ -402,7 +402,8 @@ class _PdfDocumentWasm extends PdfDocument {
         }
 
         if (!subject.isClosed) {
-          subject.add(PdfDocumentPageStatusChangedEvent(this, pagesLoaded));
+          final changes = {for (var p in pagesLoaded) p.pageNumber: PdfPageStatusModified()};
+          subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
         }
 
         updateMissingFonts(result['missingFonts']);
@@ -417,8 +418,49 @@ class _PdfDocumentWasm extends PdfDocument {
     });
   }
 
+  late List<PdfPage> _pages;
+
   @override
-  late final List<PdfPage> pages;
+  List<PdfPage> get pages => _pages;
+
+  @override
+  set pages(Iterable<PdfPage> newPages) {
+    final pagesList = <PdfPage>[];
+    final changes = <int, PdfPageStatusChange>{};
+
+    for (final newPage in newPages) {
+      if (pagesList.length < _pages.length) {
+        final old = _pages[pagesList.length];
+        if (identical(newPage, old)) {
+          pagesList.add(newPage);
+          continue;
+        }
+      }
+
+      final newPageNumber = pagesList.length + 1;
+      final oldPageIndex = _pages.indexWhere((p) => identical(p, newPage));
+      if (oldPageIndex != -1) {
+        pagesList.add(newPage);
+        changes[newPageNumber] = PdfPageStatusChange.moved(oldPageNumber: oldPageIndex + 1);
+        continue;
+      }
+
+      if (newPage is! _PdfPageWasm && newPage is! _PdfPageImported) {
+        throw ArgumentError('Unsupported PdfPage instances found at [${pagesList.length}]', 'newPages');
+      }
+
+      if (newPage.document != this || newPage.pageNumber != newPageNumber) {
+        final imported = _PdfPageImported._(imported: newPage, pageNumber: newPageNumber);
+        pagesList.add(imported);
+        changes[newPageNumber] = PdfPageStatusChange.modified;
+      } else {
+        pagesList.add(newPage);
+      }
+    }
+
+    _pages = pagesList;
+    subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+  }
 
   void updateMissingFonts(Map<dynamic, dynamic>? missingFonts) {
     if (missingFonts == null || missingFonts.isEmpty) {
@@ -465,6 +507,59 @@ class _PdfDocumentWasm extends PdfDocument {
           ),
         )
         .toList();
+  }
+
+  @override
+  Future<bool> assemble() async {
+    // Build the indices and imported pages map
+    final indices = <int>[];
+    final importedPages = <int, Map<String, dynamic>>{};
+    var modifiedCount = 0;
+
+    for (var i = 0; i < pages.length; i++) {
+      final page = pages[i];
+      if (page is _PdfPageImported) {
+        final wasmPage = page.imported as _PdfPageWasm;
+        indices.add(-i);
+        importedPages[-i] = {
+          'docHandle': wasmPage.document.document['docHandle'],
+          'pageNumber': wasmPage.pageNumber - 1, // 0-based
+        };
+        modifiedCount++;
+      } else if (page is _PdfPageWasm) {
+        indices.add(page.pageNumber - 1);
+        if (page.pageNumber - 1 != i) {
+          modifiedCount++;
+        }
+      }
+    }
+
+    if (modifiedCount == 0) {
+      // No changes
+      return false;
+    }
+
+    final result = await _sendCommand(
+      'assemble',
+      parameters: {
+        'docHandle': document['docHandle'],
+        'pageIndices': indices,
+        if (importedPages.isNotEmpty) 'importedPages': importedPages,
+      },
+    );
+
+    return result['modified'] as bool;
+  }
+
+  @override
+  Future<Uint8List> encodePdf({bool incremental = false, bool removeSecurity = false}) async {
+    await assemble();
+    final result = await _sendCommand(
+      'encodePdf',
+      parameters: {'docHandle': document['docHandle'], 'incremental': incremental, 'removeSecurity': removeSecurity},
+    );
+    final bb = result['data'] as ByteBuffer;
+    return Uint8List.view(bb.asByteData().buffer, 0, bb.lengthInBytes);
   }
 }
 
@@ -657,6 +752,67 @@ class PdfImageWeb extends PdfImage {
   final Uint8List pixels;
   @override
   void dispose() {}
+}
+
+/// A PDF page that is imported from another document or position.
+class _PdfPageImported extends PdfPage {
+  _PdfPageImported._({required PdfPage imported, required this.pageNumber})
+    : imported = imported is _PdfPageImported ? imported.imported : imported; // Unwrap nested imports
+
+  /// The imported page
+  final PdfPage imported;
+  @override
+  final int pageNumber;
+
+  @override
+  PdfPageRenderCancellationToken createCancellationToken() => imported.createCancellationToken();
+
+  @override
+  PdfDocument get document => imported.document;
+
+  @override
+  double get height => imported.height;
+
+  @override
+  bool get isLoaded => imported.isLoaded;
+
+  @override
+  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) =>
+      imported.loadLinks(compact: compact, enableAutoLinkDetection: enableAutoLinkDetection);
+
+  @override
+  Future<PdfPageRawText?> loadText() => imported.loadText();
+
+  @override
+  Future<PdfImage?> render({
+    int x = 0,
+    int y = 0,
+    int? width,
+    int? height,
+    double? fullWidth,
+    double? fullHeight,
+    int? backgroundColor,
+    PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
+    int flags = PdfPageRenderFlags.none,
+    PdfPageRenderCancellationToken? cancellationToken,
+  }) => imported.render(
+    x: x,
+    y: y,
+    width: width,
+    height: height,
+    fullWidth: fullWidth,
+    fullHeight: fullHeight,
+    backgroundColor: backgroundColor,
+    annotationRenderingMode: annotationRenderingMode,
+    flags: flags,
+    cancellationToken: cancellationToken,
+  );
+
+  @override
+  PdfPageRotation get rotation => imported.rotation;
+
+  @override
+  double get width => imported.width;
 }
 
 PdfDest? _pdfDestFromMap(dynamic dest) {

@@ -413,7 +413,18 @@ abstract class PdfDocument {
   });
 
   /// Pages.
+  ///
+  /// The list is unmodifiable; you cannot add, remove, or replace pages directly.
+  /// To modify the pages, use [pages] setter to set a new list of pages.
   List<PdfPage> get pages;
+
+  /// Set pages.
+  ///
+  /// You can add [PdfPage] instances from any [PdfDocument] instances and the resulting document works correctly
+  /// if the referenced [PdfDocument] instances are alive; it's your responsibility to manage the lifetime of those
+  /// instances. To make the document independent from the source documents, you should call [assemble] after setting
+  /// the pages.
+  set pages(List<PdfPage> value);
 
   /// Load outline (a.k.a. bookmark).
   Future<List<PdfOutlineNode>> loadOutline();
@@ -422,6 +433,18 @@ abstract class PdfDocument {
   ///
   /// It does not mean the document contents (or the document files) are identical.
   bool isIdenticalDocumentHandle(Object? other);
+
+  /// Assemble the document after modifying pages.
+  ///
+  /// You should call this function after modifying [pages] to make the document consistent and independent from
+  /// the other source documents. If [pages] contains pages from other documents, those documents must be alive
+  /// until this function returns.
+  Future<bool> assemble();
+
+  /// Save the PDF document.
+  ///
+  /// This function internally calls [assemble] before encoding the PDF.
+  Future<Uint8List> encodePdf({bool incremental = false, bool removeSecurity = false});
 }
 
 typedef PdfPageLoadingCallback<T> = FutureOr<bool> Function(int currentPageNumber, int totalPageCount, T? data);
@@ -444,7 +467,7 @@ abstract class PdfDocumentEvent {
 
 /// Event that is triggered when the status of PDF document pages has changed.
 class PdfDocumentPageStatusChangedEvent implements PdfDocumentEvent {
-  PdfDocumentPageStatusChangedEvent(this.document, this.pages);
+  PdfDocumentPageStatusChangedEvent(this.document, {required this.changes});
 
   @override
   PdfDocumentEventType get type => PdfDocumentEventType.pageStatusChanged;
@@ -453,7 +476,55 @@ class PdfDocumentPageStatusChangedEvent implements PdfDocumentEvent {
   final PdfDocument document;
 
   /// The pages that have changed.
-  final List<PdfPage> pages;
+  ///
+  /// The map is from page number (1-based) to it's status change.
+  final Map<int, PdfPageStatusChange> changes;
+}
+
+/// Base class for PDF page status change.
+abstract class PdfPageStatusChange {
+  const PdfPageStatusChange();
+
+  /// Create [PdfPageStatusMoved].
+  static PdfPageStatusChange moved({required int oldPageNumber}) => PdfPageStatusMoved(oldPageNumber: oldPageNumber);
+
+  /// Return [PdfPageStatusModified].
+  static const modified = PdfPageStatusModified();
+}
+
+/// Event that is triggered when a PDF page is moved inside the same document.
+class PdfPageStatusMoved extends PdfPageStatusChange {
+  const PdfPageStatusMoved({required this.oldPageNumber});
+  final int oldPageNumber;
+
+  @override
+  int get hashCode => oldPageNumber.hashCode;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is PdfPageStatusMoved && other.oldPageNumber == oldPageNumber;
+  }
+
+  @override
+  String toString() => 'PdfPageStatusMoved(oldPageNumber: $oldPageNumber)';
+}
+
+/// Event that is triggered when a PDF page is modified or newly added.
+class PdfPageStatusModified extends PdfPageStatusChange {
+  const PdfPageStatusModified();
+
+  @override
+  int get hashCode => 0;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is PdfPageStatusModified;
+  }
+
+  @override
+  String toString() => 'PdfPageStatusModified()';
 }
 
 /// Event that is triggered when the list of missing fonts in the PDF document has changed.
