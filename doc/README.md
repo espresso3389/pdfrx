@@ -29,6 +29,7 @@ Welcome to the pdfrx documentation! This guide provides comprehensive informatio
 
 ### Advanced Topics
 
+- [PDF Page Manipulation](PDF-Page-Manipulation.md) - Re-arrange, combine, and extract PDF pages
 - [Customizing Key Handling](Customizing-Key-Handling-on-PdfViewer.md) - Keyboard shortcuts
 - [Password Protected PDFs](Deal-with-Password-Protected-PDF-Files-using-PasswordProvider.md) - Handle encrypted PDFs
 - [Overlay Builders](Deal-with-viewerOverlayBuilder-and-pageOverlaysBuilder.md) - Custom overlays
