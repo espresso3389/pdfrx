@@ -946,6 +946,21 @@ extension PdfPageWithRotationExtension on PdfPage {
   PdfPage rotated180() => rotatedBy(PdfPageRotation.clockwise180);
 }
 
+/// Extension to add page renumbering capability to [PdfPage].
+///
+/// This is used internally when assembling documents, but can also be used manually.
+extension PdfPageRenumberedExtension on PdfPage {
+  /// Renumbers a page with the specified page number.
+  ///
+  /// See usage example in [PdfPageRenumberedExtension].
+  PdfPage withPageNumber(int pageNumber) {
+    if (pageNumber == this.pageNumber) {
+      return this; // No page number change needed
+    }
+    return PdfPageRenumbered(this, pageNumber: pageNumber);
+  }
+}
+
 /// Proxy interface for [PdfPage].
 ///
 /// Used for creating proxy pages that modify behavior of the base page.
@@ -956,17 +971,104 @@ abstract class PdfPageProxy implements PdfPage {
 /// Extension to unwrap [PdfPageProxy] on [PdfPage].
 extension PdfPageProxyExtension on PdfPage {
   /// Unwrap the page to get the base page of type [T].
+  ///
+  /// If the base page of type [T] is not found, returns null.
   T? unwrap<T extends PdfPage>() {
     final pThis = this;
     if (pThis is T) return pThis;
     if (pThis is PdfPageProxy) return pThis.basePage.unwrap();
     return null;
   }
+
+  /// Unwrap the page until [stopCondition] is met.
+  ///
+  /// If the condition is met, returns null.
+  PdfPage? unwrapUntil(bool Function(PdfPage page) stopCondition) {
+    var current = this;
+    while (true) {
+      if (stopCondition(current)) return current;
+      if (current is PdfPageProxy) {
+        current = current.basePage;
+      } else {
+        return null;
+      }
+    }
+  }
+}
+
+/// PDF page wrapper that renumbers the page number.
+class PdfPageRenumbered implements PdfPageProxy {
+  PdfPageRenumbered(PdfPage basePage, {required this.pageNumber})
+    : basePage = basePage.unwrapUntil((p) => p is! PdfPageRenumbered)!;
+
+  @override
+  final PdfPage basePage;
+
+  @override
+  final int pageNumber;
+
+  @override
+  PdfPageRenderCancellationToken createCancellationToken() => basePage.createCancellationToken();
+
+  @override
+  PdfDocument get document => basePage.document;
+
+  @override
+  PdfPageRotation get rotation => basePage.rotation;
+
+  @override
+  double get width => basePage.width;
+
+  @override
+  double get height => basePage.height;
+
+  @override
+  bool get isLoaded => basePage.isLoaded;
+
+  @override
+  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) =>
+      basePage.loadLinks(compact: compact, enableAutoLinkDetection: enableAutoLinkDetection);
+
+  @override
+  Future<PdfPageRawText?> loadText() => basePage.loadText();
+
+  @override
+  Future<PdfImage?> render({
+    int x = 0,
+    int y = 0,
+    int? width,
+    int? height,
+    double? fullWidth,
+    double? fullHeight,
+    int? backgroundColor,
+    PdfPageRotation? rotationOverride,
+    PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
+    int flags = PdfPageRenderFlags.none,
+    PdfPageRenderCancellationToken? cancellationToken,
+  }) => basePage.render(
+    x: x,
+    y: y,
+    width: width,
+    height: height,
+    fullWidth: fullWidth,
+    fullHeight: fullHeight,
+    backgroundColor: backgroundColor,
+    annotationRenderingMode: annotationRenderingMode,
+    flags: flags,
+    cancellationToken: cancellationToken,
+    rotationOverride: rotationOverride,
+  );
+
+  @override
+  Future<PdfPageText> loadStructuredText() => basePage.loadStructuredText();
+
+  @override
+  Future<PdfPageRawText?> _loadFormattedText() => basePage._loadFormattedText();
 }
 
 /// PDF page wrapper that applies an absolute rotation to the base page.
 class PdfPageRotated implements PdfPageProxy {
-  PdfPageRotated(this.basePage, this.rotation);
+  PdfPageRotated(PdfPage basePage, this.rotation) : basePage = basePage.unwrapUntil((p) => p is! PdfPageRotated)!;
 
   @override
   final PdfPage basePage;

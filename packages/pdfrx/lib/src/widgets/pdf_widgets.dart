@@ -119,6 +119,7 @@ class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
     widget.documentRef.resolveListenable()
       ..addListener(_onDocumentChanged)
       ..load();
+    _onDocumentChanged();
   }
 
   @override
@@ -150,7 +151,9 @@ class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
         }
       });
       document?.loadPagesProgressively();
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 
@@ -284,7 +287,7 @@ class _PdfPageViewState extends State<PdfPageView> {
     _eventSubscription?.cancel();
     _eventSubscription = widget.document?.events.listen((event) {
       if (event is PdfDocumentPageStatusChangedEvent) {
-        if (event.changes[widget.pageNumber] == PdfPageStatusChange.modified) {
+        if (event.changes.keys.contains(widget.pageNumber)) {
           _clearCache();
         }
       }

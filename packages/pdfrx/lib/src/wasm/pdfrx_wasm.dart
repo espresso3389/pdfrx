@@ -436,42 +436,34 @@ class _PdfDocumentWasm extends PdfDocument {
 
   @override
   set pages(Iterable<PdfPage> newPages) {
-    final pagesList = <PdfPage>[];
+    final pages = <PdfPage>[];
     final changes = <int, PdfPageStatusChange>{};
 
     for (final newPage in newPages) {
-      if (pagesList.length < _pages.length) {
-        final old = _pages[pagesList.length];
+      if (pages.length < _pages.length) {
+        final old = _pages[pages.length];
         if (identical(newPage, old)) {
-          pagesList.add(newPage);
+          pages.add(newPage);
           continue;
         }
       }
 
-      final newPageNumber = pagesList.length + 1;
+      if (newPage.unwrap<_PdfPageWasm>() == null) {
+        throw ArgumentError('Unsupported PdfPage instances found at [${pages.length}]', 'newPages');
+      }
+
+      final newPageNumber = pages.length + 1;
+      pages.add(newPage.withPageNumber(newPageNumber));
+
       final oldPageIndex = _pages.indexWhere((p) => identical(p, newPage));
       if (oldPageIndex != -1) {
-        pagesList.add(newPage);
         changes[newPageNumber] = PdfPageStatusChange.moved(oldPageNumber: oldPageIndex + 1);
-        continue;
-      }
-
-      // Unwrap PdfPageRotated to get the base page
-      final unwrappedPage = newPage.unwrap<_PdfPageWasm>() ?? newPage.unwrap<_PdfPageImported>();
-      if (unwrappedPage == null) {
-        throw ArgumentError('Unsupported PdfPage instances found at [${pagesList.length}]', 'newPages');
-      }
-
-      if (unwrappedPage.document != this || unwrappedPage.pageNumber != newPageNumber) {
-        final imported = _PdfPageImported._(basePage: newPage, pageNumber: newPageNumber);
-        pagesList.add(imported);
-        changes[newPageNumber] = PdfPageStatusChange.modified;
       } else {
-        pagesList.add(newPage);
+        changes[newPageNumber] = PdfPageStatusChange.modified;
       }
     }
 
-    _pages = pagesList;
+    _pages = pages;
     subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
   }
 
@@ -777,72 +769,6 @@ class PdfImageWeb extends PdfImage {
   final Uint8List pixels;
   @override
   void dispose() {}
-}
-
-/// A PDF page that is imported from another document or position.
-class _PdfPageImported extends PdfPageProxy {
-  _PdfPageImported._({required this.basePage, required this.pageNumber});
-
-  /// The imported page
-  @override
-  final PdfPage basePage;
-  @override
-  final int pageNumber;
-
-  @override
-  PdfPageRenderCancellationToken createCancellationToken() => basePage.createCancellationToken();
-
-  @override
-  PdfDocument get document => basePage.document;
-
-  @override
-  PdfPageRotation get rotation => basePage.rotation;
-
-  @override
-  double get width => basePage.width;
-
-  @override
-  double get height => basePage.height;
-
-  @override
-  bool get isLoaded => basePage.isLoaded;
-
-  @override
-  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) =>
-      basePage.loadLinks(compact: compact, enableAutoLinkDetection: enableAutoLinkDetection);
-
-  @override
-  Future<PdfPageRawText?> loadText() => basePage.loadText();
-
-  @override
-  Future<PdfImage?> render({
-    int x = 0,
-    int y = 0,
-    int? width,
-    int? height,
-    double? fullWidth,
-    double? fullHeight,
-    int? backgroundColor,
-    PdfPageRotation? rotationOverride,
-    PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
-    int flags = PdfPageRenderFlags.none,
-    PdfPageRenderCancellationToken? cancellationToken,
-  }) => basePage.render(
-    x: x,
-    y: y,
-    width: width,
-    height: height,
-    fullWidth: fullWidth,
-    fullHeight: fullHeight,
-    backgroundColor: backgroundColor,
-    rotationOverride: rotationOverride,
-    annotationRenderingMode: annotationRenderingMode,
-    flags: flags,
-    cancellationToken: cancellationToken,
-  );
-
-  @override
-  Future<PdfPageText> loadStructuredText() => basePage.loadStructuredText();
 }
 
 PdfDest? _pdfDestFromMap(dynamic dest) {

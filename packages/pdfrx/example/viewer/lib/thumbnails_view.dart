@@ -27,9 +27,11 @@ class ThumbnailsView extends StatelessWidget {
                     child: Column(
                       children: [
                         SizedBox(
+                          key: ValueKey('thumb_${document!.hashCode}_$index'),
                           height: 220,
                           child: InkWell(
                             onTap: () => controller!.goToPage(pageNumber: index + 1, anchor: PdfPageAnchor.top),
+                            onDoubleTap: () => onDoubleTap(document, index + 1),
                             child: PdfPageView(document: document, pageNumber: index + 1, alignment: Alignment.center),
                           ),
                         ),
@@ -41,5 +43,11 @@ class ThumbnailsView extends StatelessWidget {
               ),
             ),
     );
+  }
+
+  void onDoubleTap(PdfDocument document, int pageNumber) {
+    final pages = document.pages.toList();
+    //pages[pageNumber - 1] = pages[pageNumber - 1].rotatedCCW90();
+    document.pages = pages..removeAt(pageNumber - 1);
   }
 }

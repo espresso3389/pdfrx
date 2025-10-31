@@ -719,19 +719,17 @@ class _PdfDocumentPdfium extends PdfDocument {
         }
       }
 
-      final newPageNumber = pages.length + 1;
-      final oldPageIndex = _pages.indexWhere((p) => identical(p, newPage));
-      if (oldPageIndex != -1) {
-        pages.add(newPage);
-        changes[newPageNumber] = PdfPageStatusChange.moved(oldPageNumber: oldPageIndex + 1);
-        continue;
-      }
-
-      if (newPage.pdfium == null) {
+      if (newPage.unwrap<_PdfPagePdfium>() == null) {
         throw ArgumentError('Unsupported PdfPage instances found at [${pages.length}]', 'newPages');
       }
-      if (newPage.document != this || newPage.pageNumber != newPageNumber) {
-        pages.add(_PdfPageImported._(basePage: newPage, pageNumber: newPageNumber));
+
+      final newPageNumber = pages.length + 1;
+      pages.add(newPage.withPageNumber(newPageNumber));
+
+      final oldPageIndex = _pages.indexWhere((p) => identical(p, newPage));
+      if (oldPageIndex != -1) {
+        changes[newPageNumber] = PdfPageStatusChange.moved(oldPageNumber: oldPageIndex + 1);
+      } else {
         changes[newPageNumber] = PdfPageStatusChange.modified;
       }
     }
@@ -842,7 +840,7 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
     var modifiedCount = 0;
     for (var i = 0; i < document.pages.length; i++) {
       final page = document.pages[i];
-      final pdfiumPage = page.pdfium!;
+      final pdfiumPage = page.unwrap<_PdfPagePdfium>()!;
       // if rotation is different, we need to modify the page
       if (page.rotation.index != pdfiumPage.rotation.index) {
         rotations.add(page.rotation.index);
@@ -1330,83 +1328,6 @@ class _PdfPagePdfium extends PdfPage {
     final bottom = buffer[3] - bbBottom;
     return PdfRect(left, top, right, bottom);
   }
-}
-
-extension _PdfPagePdfiumExtension on PdfPage {
-  /// The final underlying [_PdfPagePdfium] if this page is backed by PDFium.
-  _PdfPagePdfium? get pdfium => unwrap<_PdfPagePdfium>();
-
-  /// The imported page wrapper if this page is an imported page.
-  _PdfPageImported? get imported => unwrap<_PdfPageImported>();
-
-  /// The rotated page wrapper if this page is a rotated page.
-  PdfPageRotated? get rotated => unwrap<PdfPageRotated>();
-}
-
-/// A PDF page that is imported from another document.
-class _PdfPageImported implements PdfPageProxy {
-  _PdfPageImported._({required this.basePage, required this.pageNumber});
-
-  @override
-  final PdfPage basePage;
-
-  @override
-  final int pageNumber;
-
-  @override
-  PdfPageRenderCancellationToken createCancellationToken() => basePage.createCancellationToken();
-
-  @override
-  PdfDocument get document => basePage.document;
-
-  @override
-  double get height => basePage.height;
-
-  @override
-  bool get isLoaded => basePage.isLoaded;
-
-  @override
-  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) =>
-      basePage.loadLinks(compact: compact, enableAutoLinkDetection: enableAutoLinkDetection);
-
-  @override
-  Future<PdfPageRawText?> loadText() => basePage.loadText();
-
-  @override
-  Future<PdfImage?> render({
-    int x = 0,
-    int y = 0,
-    int? width,
-    int? height,
-    double? fullWidth,
-    double? fullHeight,
-    int? backgroundColor,
-    PdfPageRotation? rotationOverride,
-    PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
-    int flags = PdfPageRenderFlags.none,
-    PdfPageRenderCancellationToken? cancellationToken,
-  }) => basePage.render(
-    x: x,
-    y: y,
-    width: width,
-    height: height,
-    fullWidth: fullWidth,
-    fullHeight: fullHeight,
-    backgroundColor: backgroundColor,
-    annotationRenderingMode: annotationRenderingMode,
-    flags: flags,
-    cancellationToken: cancellationToken,
-    rotationOverride: rotationOverride,
-  );
-
-  @override
-  Future<PdfPageText> loadStructuredText() => basePage.loadStructuredText();
-
-  @override
-  PdfPageRotation get rotation => basePage.rotation;
-
-  @override
-  double get width => basePage.width;
 }
 
 class PdfPageRenderCancellationTokenPdfium extends PdfPageRenderCancellationToken {
