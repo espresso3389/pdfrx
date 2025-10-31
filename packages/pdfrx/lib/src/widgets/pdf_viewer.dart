@@ -640,7 +640,7 @@ class _PdfViewerState extends State<PdfViewer>
     _adjustBoundaryMargins(viewSize, candidate.zoom);
 
     // Get the effective page bounds (includes margins and boundary margins)
-    final effectiveBounds = _getEffectivePageBounds(pageNumber, layout, anchor: PdfPageAnchor.all);
+    final effectiveBounds = _getEffectivePageBounds(pageNumber, layout);
     // Use spread bounds (without layout-applied margins) for comparison
     final pageRect = layout.getSpreadBounds(pageNumber);
 
@@ -1241,12 +1241,7 @@ class _PdfViewerState extends State<PdfViewer>
   bool _isAtBoundary(Rect visibleRect, int pageNumber, PdfPageLayout layout, bool isPrimaryVertical, int direction) {
     final isMovingForward = direction > 0;
 
-    // Determine anchor based on direction to include boundary margins
-    final anchor = isMovingForward
-        ? (isPrimaryVertical ? PdfPageAnchor.bottomLeft : PdfPageAnchor.topRight)
-        : (isPrimaryVertical ? PdfPageAnchor.topLeft : PdfPageAnchor.topLeft);
-
-    final pageRect = _getEffectivePageBounds(pageNumber, layout, anchor: anchor);
+    final pageRect = _getEffectivePageBounds(pageNumber, layout);
     final currentScale = _txController.value.getMaxScaleOnAxis();
     // Increase tolerance for clamping physics - user may not be able to get exactly to the boundary
     const baseTolerance = 10; // pixels in screen space
@@ -2585,49 +2580,29 @@ class _PdfViewerState extends State<PdfViewer>
     return _fitScale;
   }
 
-  Matrix4 _calcMatrixForRect(
-    Rect rect, {
-    double? zoomMax,
-    double? margin,
-    bool maintainCurrentZoom = false,
-    bool forceZoomMax = false,
-  }) {
+  Matrix4 _calcMatrixForRect(Rect rect, {double? zoomMax, double? margin}) {
     margin ??= 0;
 
-    final double zoom;
-    if (maintainCurrentZoom && _currentZoom > 0) {
-      // Use existing zoom for positioning only
-      zoom = _currentZoom;
-    } else if (forceZoomMax && zoomMax != null) {
-      // Force the zoomMax value (used in discrete mode with resetScale)
-      zoom = zoomMax;
-    } else {
-      // Calculate zoom to fit rect
-      var calculatedZoom = min(
-        (_viewSize!.width - margin * 2) / rect.width,
-        (_viewSize!.height - margin * 2) / rect.height,
-      );
-      if (zoomMax != null && calculatedZoom > zoomMax) calculatedZoom = zoomMax;
-      zoom = calculatedZoom;
+    // Calculate zoom to fit rect in viewport with margins
+    var calculatedZoom = min(
+      (_viewSize!.width - margin * 2) / rect.width,
+      (_viewSize!.height - margin * 2) / rect.height,
+    );
+
+    // Clamp to zoomMax if provided
+    if (zoomMax != null && calculatedZoom > zoomMax) {
+      calculatedZoom = zoomMax;
     }
 
-    return _calcMatrixFor(rect.center, zoom: zoom, viewSize: _viewSize!);
+    return _calcMatrixFor(rect.center, zoom: calculatedZoom, viewSize: _viewSize!);
   }
 
-  Matrix4 _calcMatrixForArea({
-    required Rect rect,
-    double? zoomMax,
-    double? margin,
-    PdfPageAnchor? anchor,
-    bool maintainCurrentZoom = false,
-    bool forceZoomMax = false,
-  }) => _calcMatrixForRect(
-    _calcRectForArea(rect: rect, anchor: anchor ?? widget.params.pageAnchor),
-    zoomMax: zoomMax,
-    margin: margin,
-    maintainCurrentZoom: maintainCurrentZoom,
-    forceZoomMax: forceZoomMax,
-  );
+  Matrix4 _calcMatrixForArea({required Rect rect, double? zoomMax, double? margin, PdfPageAnchor? anchor}) =>
+      _calcMatrixForRect(
+        _calcRectForArea(rect: rect, anchor: anchor ?? widget.params.pageAnchor),
+        zoomMax: zoomMax,
+        margin: margin,
+      );
 
   /// The function calculate the rectangle which should be shown in the view.
   ///
@@ -2673,13 +2648,13 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// Gets the effective page bounds for a given page, including margins.
   /// Optionally includes boundary margins for positioning purposes.
-  Rect _getEffectivePageBounds(int pageNumber, PdfPageLayout layout, {PdfPageAnchor? anchor}) {
+  Rect _getEffectivePageBounds(int pageNumber, PdfPageLayout layout, {bool includingBoundaryMargins = true}) {
     final baseRect = layout.getSpreadBounds(pageNumber);
 
     var result = baseRect.inflate(widget.params.margin);
 
     // Add boundary margins for positioning when appropriate
-    if (anchor != null) {
+    if (includingBoundaryMargins) {
       if (widget.params.pageTransition == PageTransition.continuous) {
         // Continuous mode: apply boundary margins on cross-axis throughout,
         // and on primary axis only at document ends
@@ -2711,27 +2686,30 @@ class _PdfViewerState extends State<PdfViewer>
         result = userBoundaryMargin.inflateRectIfFinite(result);
       }
     }
-
     return result;
   }
 
   Matrix4 _calcMatrixForPage({
     required int pageNumber,
     PdfPageAnchor? anchor,
-    double? zoomMax,
-    bool maintainCurrentZoom = false,
     double? forceScale,
+    bool maintainCurrentZoom = false,
   }) {
     final layout = _layout!;
-    final targetRect = _getEffectivePageBounds(pageNumber, layout, anchor: anchor);
+    final targetRect = _getEffectivePageBounds(pageNumber, layout);
 
-    return _calcMatrixForArea(
-      rect: targetRect,
-      anchor: anchor,
-      zoomMax: forceScale ?? zoomMax ?? _currentZoom,
-      maintainCurrentZoom: forceScale == null && maintainCurrentZoom,
-      forceZoomMax: forceScale != null,
-    );
+    // Simple priority: forceScale > maintainCurrentZoom > calculate fit
+    final double zoom;
+    if (forceScale != null) {
+      zoom = forceScale;
+    } else if (maintainCurrentZoom) {
+      zoom = _currentZoom;
+    } else {
+      // Calculate zoom to fit page in viewport
+      zoom = min(_viewSize!.width / targetRect.width, _viewSize!.height / targetRect.height);
+    }
+
+    return _calcMatrixForArea(rect: targetRect, anchor: anchor, zoomMax: zoom);
   }
 
   Rect _calcRectForRectInsidePage({required int pageNumber, required PdfRect rect}) {
@@ -2890,7 +2868,7 @@ class _PdfViewerState extends State<PdfViewer>
     required int pageNumber,
     PdfPageAnchor? anchor,
     Duration duration = const Duration(milliseconds: 200),
-    bool maintainCurrentZoom = false,
+    bool maintainCurrentZoom = true,
     double? forceScale,
   }) async {
     final pageCount = _document!.pages.length;

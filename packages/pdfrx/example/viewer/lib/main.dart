@@ -309,10 +309,11 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           },
                         ),
                         keyHandlerParams: PdfViewerKeyHandlerParams(autofocus: true),
+                        minScale: 0.2,
                         maxScale: 8,
                         margin: 10,
                         boundaryMargin: EdgeInsets.all(10),
-                        fitMode: FitMode.fill,
+                        fitMode: FitMode.fit,
                         pageTransition: PageTransition.discrete,
                         scrollPhysics: PdfViewerParams.getScrollPhysics(context),
                         viewerOverlayBuilder: (context, size, handleLinkTap) => [
