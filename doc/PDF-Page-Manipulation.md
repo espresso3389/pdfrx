@@ -79,6 +79,7 @@ doc1.dispose();
 ```
 
 **Important Notes:**
+
 - [PdfDocument.assemble](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/assemble.html) is automatically called by [PdfDocument.encodePdf](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/encodePdf.html), so you don't need to call it explicitly before encoding
 - Call [PdfDocument.assemble](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/assemble.html) explicitly when you want to release source documents early to free memory
 - After calling [PdfDocument.assemble](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/assemble.html), the document becomes independent and source documents can be safely disposed
@@ -101,6 +102,7 @@ dart run pdfrx_engine:pdfcombine -o output.pdf doc1.pdf doc2.pdf -- a[1-3] b a[4
 ```
 
 Key features:
+
 - Flexible page specification syntax
 - Support for page ranges (`[1-10]`) and individual pages (`[1,3,5]`)
 - Can interleave pages from multiple documents
@@ -111,6 +113,7 @@ Key features:
 The [pdf_combine](../packages/pdfrx/example/pdf_combine/) Flutter app provides a visual interface for combining PDFs:
 
 Key features:
+
 - Drag-and-drop interface for page re-arrangement
 - Visual thumbnails of PDF pages
 - Support for multiple source documents

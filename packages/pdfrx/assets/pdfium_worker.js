@@ -619,7 +619,18 @@ const emEnv = {
     tm[8] = 0; // gmtoff
   },
   _localtime_js: function (time, tmPtr) {
-    _notImplemented('_localtime_js');
+    time = Number(time);
+    const date = new Date(time * 1000);
+    const tm = new Int32Array(Pdfium.memory.buffer, tmPtr, 9);
+    tm[0] = date.getSeconds();
+    tm[1] = date.getMinutes();
+    tm[2] = date.getHours();
+    tm[3] = date.getDate();
+    tm[4] = date.getMonth();
+    tm[5] = date.getFullYear() - 1900;
+    tm[6] = date.getDay();
+    tm[7] = 0; // dst
+    tm[8] = 0; // gmtoff
   },
   _tzset_js: function () { },
   emscripten_date_now: function () {

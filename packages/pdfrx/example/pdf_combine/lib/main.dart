@@ -21,22 +21,14 @@ class PdfCombineApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'PDF Combine',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple), useMaterial3: true),
       home: const PdfCombinePage(),
     );
   }
 }
 
 class PageItem {
-  PageItem({
-    required this.documentId,
-    required this.documentName,
-    required this.pageIndex,
-    required this.page,
-  });
+  PageItem({required this.documentId, required this.documentName, required this.pageIndex, required this.page});
 
   /// Unique ID for the document
   final int documentId;
@@ -66,9 +58,7 @@ class DocumentManager {
     final docId = _nextDocId++;
     final doc = await PdfDocument.openFile(
       filePath,
-      passwordProvider: passwordProvider != null
-          ? () => passwordProvider!(docId, name)
-          : null,
+      passwordProvider: passwordProvider != null ? () => passwordProvider!(docId, name) : null,
     );
     _documents[docId] = doc;
     _pageRefCounts[docId] = 0;
@@ -113,9 +103,7 @@ class PdfCombinePage extends StatefulWidget {
 }
 
 class _PdfCombinePageState extends State<PdfCombinePage> {
-  late final _docManager = DocumentManager(
-    (docId, name) => passwordDialog(name, context),
-  );
+  late final _docManager = DocumentManager((docId, name) => passwordDialog(name, context));
   final _pages = <PageItem>[];
   final _scrollController = ScrollController();
   bool _isLoading = false;
@@ -148,22 +136,13 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
         if (doc != null) {
           for (var i = 0; i < doc.pages.length; i++) {
             _docManager.addReference(docId);
-            _pages.add(
-              PageItem(
-                documentId: docId,
-                documentName: file.name,
-                pageIndex: i,
-                page: doc.pages[i],
-              ),
-            );
+            _pages.add(PageItem(documentId: docId, documentName: file.name, pageIndex: i, page: doc.pages[i]));
           }
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error loading PDF: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading PDF: $e')));
       }
     } finally {
       if (mounted) {
@@ -184,16 +163,11 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
 
   Future<void> _navigateToPreview() async {
     if (_pages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add some pages first')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please add some pages first')));
       return;
     }
 
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => OutputPreviewPage(pages: _pages)),
-    );
+    await Navigator.push(context, MaterialPageRoute(builder: (context) => OutputPreviewPage(pages: _pages)));
   }
 
   Widget _disableDraggingOnChild(Widget child) {
@@ -219,11 +193,7 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
         title: const Text('PDF Combine'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: _pickPdfFiles,
-            tooltip: 'Add PDF files',
-          ),
+          IconButton(icon: const Icon(Icons.add), onPressed: _pickPdfFiles, tooltip: 'Add PDF files'),
           const SizedBox(width: 8),
           FilledButton.icon(
             onPressed: _pages.isEmpty ? null : _navigateToPreview,
@@ -240,15 +210,10 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
               child: Text.rich(
                 TextSpan(
                   children: [
-                    TextSpan(
-                      text: 'Tap the following button to add PDF files!\n\n',
-                    ),
+                    TextSpan(text: 'Tap the following button to add PDF files!\n\n'),
                     WidgetSpan(
                       alignment: PlaceholderAlignment.middle,
-                      child: IconButton.filled(
-                        icon: Icon(Icons.add),
-                        onPressed: () => _pickPdfFiles(),
-                      ),
+                      child: IconButton.filled(icon: Icon(Icons.add), onPressed: () => _pickPdfFiles()),
                     ),
                   ],
                 ),
@@ -285,7 +250,7 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
                   child: AnimatedReorderableGridView(
                     items: _pages,
                     isSameItem: (a, b) => a.id == b.id,
-                    itemBuilder: (BuildContext context, int index) {
+                    itemBuilder: (context, index) {
                       final pageItem = _pages[index];
                       return _PageThumbnail(
                         key: ValueKey(pageItem.id),
@@ -295,16 +260,13 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
                         dragDisabler: _disableDraggingOnChild,
                       );
                     },
-                    sliverGridDelegate:
-                        SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                        ),
+                    sliverGridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: crossAxisCount),
                     insertDuration: const Duration(milliseconds: 300),
                     removeDuration: const Duration(milliseconds: 300),
                     dragStartDelay: _isTouchDevice || _disableDragging
                         ? const Duration(milliseconds: 200)
                         : Duration.zero,
-                    onReorder: (int oldIndex, int newIndex) {
+                    onReorder: (oldIndex, newIndex) {
                       setState(() {
                         final removed = _pages.removeAt(oldIndex);
                         _pages.insert(newIndex, removed);
@@ -321,11 +283,11 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
 /// Widget for displaying a page thumbnail in the grid
 class _PageThumbnail extends StatelessWidget {
   const _PageThumbnail({
-    super.key,
     required this.page,
     required this.onRemove,
     required this.currentIndex,
     required this.dragDisabler,
+    super.key,
   });
 
   final PdfPage page;
@@ -342,10 +304,7 @@ class _PageThumbnail extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.all(4.0),
-            child: PdfPageView(
-              document: page.document,
-              pageNumber: page.pageNumber,
-            ),
+            child: PdfPageView(document: page.document, pageNumber: page.pageNumber),
           ),
           // Delete button
           Positioned(
@@ -373,7 +332,7 @@ class _PageThumbnail extends StatelessWidget {
 }
 
 class OutputPreviewPage extends StatefulWidget {
-  const OutputPreviewPage({super.key, required this.pages});
+  const OutputPreviewPage({required this.pages, super.key});
 
   final List<PageItem> pages;
 
@@ -397,9 +356,8 @@ class _OutputPreviewPageState extends State<OutputPreviewPage> {
     });
 
     try {
-      // Create a new document using the first page's document as base
-      final firstPageDoc = widget.pages.first.page.document;
-      final combinedDoc = firstPageDoc;
+      // Create a new PDF document
+      final combinedDoc = await PdfDocument.createNew(sourceName: 'combined.pdf');
 
       // Set all selected pages
       combinedDoc.pages = widget.pages.map((item) => item.page).toList();
@@ -418,18 +376,14 @@ class _OutputPreviewPageState extends State<OutputPreviewPage> {
         setState(() {
           _isGenerating = false;
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error generating PDF: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error generating PDF: $e')));
       }
     }
   }
 
   Future<void> _savePdf() async {
     if (_outputPdfBytes == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('PDF not ready yet')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PDF not ready yet')));
       return;
     }
 
@@ -438,9 +392,7 @@ class _OutputPreviewPageState extends State<OutputPreviewPage> {
       await savePdf(_outputPdfBytes!, suggestedName: 'output_$timestamp.pdf');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error saving PDF: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error saving PDF: $e')));
       }
     }
   }
@@ -464,11 +416,7 @@ class _OutputPreviewPageState extends State<OutputPreviewPage> {
           ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Generating combined PDF...'),
-                ],
+                children: [CircularProgressIndicator(), SizedBox(height: 16), Text('Generating combined PDF...')],
               ),
             )
           : _outputPdfBytes == null
@@ -490,12 +438,7 @@ class _OutputPreviewPageState extends State<OutputPreviewPage> {
                     ],
                   ),
                 ),
-                Expanded(
-                  child: PdfViewer.data(
-                    _outputPdfBytes!,
-                    sourceName: 'combined.pdf',
-                  ),
-                ),
+                Expanded(child: PdfViewer.data(_outputPdfBytes!, sourceName: 'combined.pdf')),
               ],
             ),
     );
@@ -518,14 +461,8 @@ Future<String?> passwordDialog(String name, BuildContext context) async {
           onSubmitted: (value) => Navigator.of(context).pop(value),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(null),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(textController.text),
-            child: const Text('OK'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(null), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(textController.text), child: const Text('OK')),
         ],
       );
     },
