@@ -5,7 +5,7 @@ import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
 
-import '../pdfrx_api.dart';
+import '../pdfrx.dart';
 import 'apple_direct_lookup.dart';
 
 typedef PdfrxComputeCallback<M, R> = FutureOr<R> Function(M message);

@@ -406,6 +406,9 @@ class _PdfViewerState extends State<PdfViewer>
         _imageCache.removeCacheImagesForPage(change.key);
         _magnifierImageCache.removeCacheImagesForPage(change.key);
       }
+      _canvasLinkPainter.resetAll();
+      _textCache.clear();
+      _clearTextSelections(invalidate: false);
       _invalidate();
     }
   }

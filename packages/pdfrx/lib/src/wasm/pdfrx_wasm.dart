@@ -5,6 +5,8 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:crypto/crypto.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
+// ignore: implementation_imports
+import 'package:pdfrx_engine/src/pdf_page_proxies.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
 import 'package:web/web.dart' as web;

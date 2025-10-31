@@ -9,7 +9,10 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:synchronized/extension.dart';
 
-import '../pdfrx_api.dart';
+import '../pdf_exception.dart';
+import '../pdfrx.dart';
+import '../pdfrx_document.dart';
+import '../pdfrx_entry_functions.dart';
 import '../pdfrx_initialize_dart.dart';
 import 'http_cache_control.dart';
 import 'native_utils.dart';

@@ -1,6 +1,6 @@
 import 'dart:ffi' as ffi;
 
-import '../pdfrx_api.dart';
+import '../pdfrx.dart';
 import 'pdfium.dart' as pdfium_native;
 import 'pdfium_bindings.dart' as pdfium_bindings;
 import 'pdfium_interop.dart' as file_access_helpers;

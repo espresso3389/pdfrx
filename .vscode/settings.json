@@ -64,6 +64,7 @@
     "FILEATTACHMENT",
     "FILEHANDLER",
     "FILEIDTYPE",
+    "FILEWRITE",
     "fillmode",
     "findwhat",
     "FITBH",

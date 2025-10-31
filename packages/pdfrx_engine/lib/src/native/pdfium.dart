@@ -3,7 +3,7 @@ import 'dart:ffi' as ffi;
 import 'dart:ffi';
 import 'dart:io';
 
-import '../pdfrx_api.dart';
+import '../pdfrx.dart';
 import 'pdfium_bindings.dart' as pdfium_bindings;
 
 /// Get the module file name for pdfium.
