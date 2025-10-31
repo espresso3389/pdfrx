@@ -190,6 +190,8 @@ class PdfPageLayout {
       ? (documentSize.width - getMaxWidth()) / 2
       : (documentSize.height - getMaxHeight()) / 2;
 
+  double get impliedMargin => _impliedMargin;
+
   bool _isPageNumberValid(int? pageNumber) {
     return pageNumber != null && pageNumber >= 1 && pageNumber <= pageLayouts.length;
   }

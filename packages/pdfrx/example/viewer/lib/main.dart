@@ -310,9 +310,11 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                         ),
                         keyHandlerParams: PdfViewerKeyHandlerParams(autofocus: true),
                         maxScale: 8,
-                        //fitMode: FitMode.fill,
-                        //pageTransition: PageTransition.discrete,
-                        // scrollPhysics: PdfViewerParams.getScrollPhysics(context),
+                        margin: 10,
+                        boundaryMargin: EdgeInsets.all(10),
+                        fitMode: FitMode.fill,
+                        pageTransition: PageTransition.discrete,
+                        scrollPhysics: PdfViewerParams.getScrollPhysics(context),
                         viewerOverlayBuilder: (context, size, handleLinkTap) => [
                           //
                           // Example use of GestureDetector to handle custom gestures
