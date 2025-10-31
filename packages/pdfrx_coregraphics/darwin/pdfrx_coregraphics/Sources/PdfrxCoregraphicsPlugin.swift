@@ -145,7 +145,8 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       let width = args["width"] as? Int,
       let height = args["height"] as? Int,
       let fullWidth = args["fullWidth"] as? Int,
-      let fullHeight = args["fullHeight"] as? Int
+      let fullHeight = args["fullHeight"] as? Int,
+      let rotation = args["rotation"] as? Int
     else {
       result(
         FlutterError(
@@ -210,6 +211,8 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     let scaleY = CGFloat(fullHeight) / bounds.height
     let pdfX = CGFloat(x)
     let pdfBottom = CGFloat(fullHeight - (y + height))
+
+    // FIXME: We should handle page rotation here properly
 
     context.translateBy(x: -pdfX, y: -pdfBottom)
     context.scaleBy(x: scaleX, y: scaleY)

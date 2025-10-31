@@ -608,6 +608,7 @@ abstract class PdfPage {
     double? fullWidth,
     double? fullHeight,
     int? backgroundColor,
+    PdfPageRotation? rotationOverride,
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
@@ -894,6 +895,132 @@ abstract class PdfPage {
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true});
 }
 
+/// Extension to add rotation capability to [PdfPage].
+extension PdfPageWithRotationExtension on PdfPage {
+  /// Returns a proxy page with the specified absolute rotation.
+  ///
+  /// The rotation replaces the page's native rotation from the PDF.
+  /// The proxy page maintains all functionality of the original page but with transformed
+  /// coordinates for text, links, and rendering.
+  ///
+  /// Example:
+  /// ```dart
+  /// // Set a page to 90 degrees clockwise rotation
+  /// final rotatedPage = page.withRotation(PdfPageRotation.clockwise90);
+  ///
+  /// // Use it like a normal page
+  /// print('${rotatedPage.width} x ${rotatedPage.height}');
+  /// final image = await rotatedPage.render();
+  /// ```
+  PdfPage withRotation(PdfPageRotation rotation) {
+    if (rotation == this.rotation) {
+      return this; // No rotation change needed
+    }
+    return PdfPageRotated(this, rotation);
+  }
+}
+
+/// Proxy interface for [PdfPage].
+///
+/// Used for creating proxy pages that modify behavior of the base page.
+abstract class PdfPageProxy implements PdfPage {
+  PdfPage get basePage;
+}
+
+/// Extension to unwrap [PdfPageProxy] on [PdfPage].
+extension PdfPageProxyExtension on PdfPage {
+  /// Unwrap the page to get the base page of type [T].
+  T? unwrap<T extends PdfPage>() {
+    final pThis = this;
+    if (pThis is T) return pThis;
+    if (pThis is PdfPageProxy) return pThis.basePage.unwrap();
+    return null;
+  }
+}
+
+/// PDF page wrapper that applies an absolute rotation to the base page.
+class PdfPageRotated implements PdfPageProxy {
+  PdfPageRotated(this.basePage, this.rotation);
+
+  @override
+  final PdfPage basePage;
+
+  // Override rotation to return the effective rotation
+  @override
+  final PdfPageRotation rotation;
+
+  /// Check if dimensions need to be swapped (for 90° or 270° rotations).
+  /// This is relative to the source page's rotation.
+  bool get _swapWH => shouldSwapWH(rotation);
+
+  bool shouldSwapWH(PdfPageRotation rotation) => ((rotation.index - basePage.rotation.index) & 1) == 1;
+
+  // Delegate basic properties
+  @override
+  PdfDocument get document => basePage.document;
+
+  @override
+  int get pageNumber => basePage.pageNumber;
+
+  @override
+  bool get isLoaded => basePage.isLoaded;
+
+  // Swap width/height if additional rotation is 90° or 270°
+  @override
+  double get width => _swapWH ? basePage.height : basePage.width;
+
+  @override
+  double get height => _swapWH ? basePage.width : basePage.height;
+
+  // Override render to pass the effective rotation as rotationOverride
+  @override
+  Future<PdfImage?> render({
+    int x = 0,
+    int y = 0,
+    int? width,
+    int? height,
+    double? fullWidth,
+    double? fullHeight,
+    int? backgroundColor,
+    PdfPageRotation? rotationOverride,
+    PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
+    int flags = PdfPageRenderFlags.none,
+    PdfPageRenderCancellationToken? cancellationToken,
+  }) {
+    return basePage.render(
+      x: x,
+      y: y,
+      width: width,
+      height: height,
+      fullWidth: fullWidth,
+      fullHeight: fullHeight,
+      backgroundColor: backgroundColor,
+      rotationOverride: rotationOverride ?? rotation,
+      annotationRenderingMode: annotationRenderingMode,
+      flags: flags,
+      cancellationToken: cancellationToken,
+    );
+  }
+
+  // All other methods just delegate - text/links work correctly because they use `rotation` property
+  @override
+  PdfPageRenderCancellationToken createCancellationToken() => basePage.createCancellationToken();
+
+  @override
+  Future<PdfPageRawText?> loadText() => basePage.loadText();
+
+  @override
+  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) =>
+      basePage.loadLinks(compact: compact, enableAutoLinkDetection: enableAutoLinkDetection);
+
+  // Text methods don't depend on rotation - just delegate to source
+  @override
+  Future<PdfPageText> loadStructuredText() => basePage.loadStructuredText();
+
+  @override
+  Future<PdfPageRawText?> _loadFormattedText() => basePage._loadFormattedText();
+}
+
 /// PDF's raw text and its associated character bounding boxes.
 class PdfPageRawText {
   PdfPageRawText(this.fullText, this.charRects);
@@ -917,6 +1044,14 @@ class PdfPageRawText {
 
 /// Page rotation.
 enum PdfPageRotation { none, clockwise90, clockwise180, clockwise270 }
+
+extension PdfPageRotationEnumExtension on PdfPageRotation {
+  /// Get counter-clockwise 90 degree rotation value from the current rotation.
+  PdfPageRotation get rotateCCW90 => PdfPageRotation.values[(index + 3) % 4];
+
+  /// Get clockwise 90 degree rotation value from the current rotation.
+  PdfPageRotation get rotateCW90 => PdfPageRotation.values[(index + 1) % 4];
+}
 
 /// Annotation rendering mode.
 enum PdfAnnotationRenderingMode {

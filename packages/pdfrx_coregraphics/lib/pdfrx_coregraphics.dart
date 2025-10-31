@@ -473,6 +473,7 @@ class _CoreGraphicsPdfPage extends PdfPage {
     double? fullWidth,
     double? fullHeight,
     int? backgroundColor,
+    PdfPageRotation? rotationOverride,
     PdfAnnotationRenderingMode annotationRenderingMode =
         PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
@@ -507,6 +508,9 @@ class _CoreGraphicsPdfPage extends PdfPage {
             'fullWidth': targetFullWidth,
             'fullHeight': targetFullHeight,
             'backgroundColor': backgroundColor ?? 0xffffffff,
+            'rotation': rotationOverride != null
+                ? (rotationOverride.index - rotation.index + 4) & 3
+                : 0,
             'flags': flags,
             'renderAnnotations':
                 annotationRenderingMode != PdfAnnotationRenderingMode.none,

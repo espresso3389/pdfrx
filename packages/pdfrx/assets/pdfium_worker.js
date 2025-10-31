@@ -1072,6 +1072,7 @@ function closePage(params) {
  * fullWidth: number,
  * fullHeight: number,
  * backgroundColor: number,
+ * rotation: number,
  * annotationRenderingMode: number,
  * flags: number,
  * formHandle: number
@@ -1094,6 +1095,7 @@ function renderPage(params) {
     fullWidth = width,
     fullHeight = height,
     backgroundColor,
+    rotation,
     annotationRenderingMode = 0,
     flags = 0,
     formHandle,
@@ -1130,10 +1132,10 @@ function renderPage(params) {
 
     const pdfiumFlags =
       (flags & 0xffff) | (annotationRenderingMode !== PdfAnnotationRenderingMode_none ? FPDF_ANNOT : 0);
-    Pdfium.wasmExports.FPDF_RenderPageBitmap(bitmap, pageHandle, -x, -y, fullWidth, fullHeight, 0, pdfiumFlags);
+    Pdfium.wasmExports.FPDF_RenderPageBitmap(bitmap, pageHandle, -x, -y, fullWidth, fullHeight, rotation, pdfiumFlags);
 
     if (formHandle && annotationRenderingMode == PdfAnnotationRenderingMode_annotationAndForms) {
-      Pdfium.wasmExports.FPDF_FFLDraw(formHandle, bitmap, pageHandle, -x, -y, fullWidth, fullHeight, 0, flags);
+      Pdfium.wasmExports.FPDF_FFLDraw(formHandle, bitmap, pageHandle, -x, -y, fullWidth, fullHeight, rotation, flags);
     }
     const src = new Uint8Array(Pdfium.memory.buffer, bufferPtr, bufferSize);
     let copiedBuffer = new ArrayBuffer(bufferSize);
@@ -1520,11 +1522,11 @@ function clearAllFontData() {
 
 /**
  * Assemble the document (apply page manipulations if any)
- * @param {{docHandle: number, pageIndices: number[]|undefined, importedPages: Object.<number, {docHandle: number, pageNumber: number}>|undefined}} params
+ * @param {{docHandle: number, pageIndices: number[]|undefined, importedPages: Object.<number, {docHandle: number, pageNumber: number}>|undefined, rotations: (number|null)[]|undefined}} params
  * @returns {{modified: boolean}}
  */
 function assemble(params) {
-  const { docHandle, pageIndices, importedPages } = params;
+  const { docHandle, pageIndices, importedPages, rotations } = params;
 
   // If no page indices specified, no modifications needed
   if (!pageIndices || pageIndices.length === 0) {
@@ -1544,12 +1546,34 @@ function assemble(params) {
     }
   }
 
+  // Check for rotation changes
+  if (!hasChanges && rotations) {
+    for (let i = 0; i < rotations.length; i++) {
+      if (rotations[i] != null) {
+        hasChanges = true;
+        break;
+      }
+    }
+  }
+
   if (!hasChanges) {
     return { modified: false };
   }
 
   // Perform the shuffle using the PDFium page manipulation functions
   _shuffleInPlaceAccordingToIndices(docHandle, pageIndices, originalLength, importedPages);
+
+  // Apply rotations if specified
+  if (rotations) {
+    for (let i = 0; i < rotations.length; i++) {
+      const rotation = rotations[i];
+      if (rotation != null) {
+        const page = Pdfium.wasmExports.FPDF_LoadPage(docHandle, i);
+        Pdfium.wasmExports.FPDFPage_SetRotation(page, rotation);
+        Pdfium.wasmExports.FPDF_ClosePage(page);
+      }
+    }
+  }
 
   return { modified: true };
 }

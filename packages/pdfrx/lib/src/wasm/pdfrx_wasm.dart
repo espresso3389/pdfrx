@@ -456,12 +456,14 @@ class _PdfDocumentWasm extends PdfDocument {
         continue;
       }
 
-      if (newPage is! _PdfPageWasm && newPage is! _PdfPageImported) {
+      // Unwrap PdfPageRotated to get the base page
+      final unwrappedPage = newPage.unwrap<_PdfPageWasm>() ?? newPage.unwrap<_PdfPageImported>();
+      if (unwrappedPage == null) {
         throw ArgumentError('Unsupported PdfPage instances found at [${pagesList.length}]', 'newPages');
       }
 
-      if (newPage.document != this || newPage.pageNumber != newPageNumber) {
-        final imported = _PdfPageImported._(imported: newPage, pageNumber: newPageNumber);
+      if (unwrappedPage.document != this || unwrappedPage.pageNumber != newPageNumber) {
+        final imported = _PdfPageImported._(basePage: newPage, pageNumber: newPageNumber);
         pagesList.add(imported);
         changes[newPageNumber] = PdfPageStatusChange.modified;
       } else {
@@ -522,29 +524,38 @@ class _PdfDocumentWasm extends PdfDocument {
 
   @override
   Future<bool> assemble() async {
-    // Build the indices and imported pages map
+    // Build the indices, imported pages map, and rotations
     final indices = <int>[];
     final importedPages = <int, Map<String, dynamic>>{};
+    final rotations = <int?>[];
     var modifiedCount = 0;
 
     for (var i = 0; i < pages.length; i++) {
       final page = pages[i];
-      if (page is _PdfPageImported) {
-        final wasmPage = page.imported as _PdfPageWasm;
-        indices.add(-(i + 1));
-        importedPages[-(i + 1)] = {
+      final wasmPage = page.unwrap<_PdfPageWasm>()!;
+      // if rotation is different, we need to modify the page
+      if (page.rotation.index != wasmPage.rotation.index) {
+        rotations.add(page.rotation.index);
+        modifiedCount++;
+      } else {
+        rotations.add(null);
+      }
+      if (page.document != this) {
+        // the page is from another document; need to import
+        final importId = -(i + 1);
+        indices.add(importId);
+        importedPages[importId] = {
           'docHandle': wasmPage.document.document['docHandle'],
           'pageNumber': wasmPage.pageNumber - 1, // 0-based
         };
         modifiedCount++;
-      } else if (page is _PdfPageWasm) {
-        indices.add(page.pageNumber - 1);
-        if (page.pageNumber - 1 != i) {
+      } else {
+        indices.add(wasmPage.pageNumber - 1);
+        if (wasmPage.pageNumber - 1 != i) {
           modifiedCount++;
         }
       }
     }
-
     if (modifiedCount == 0) {
       // No changes
       return false;
@@ -555,6 +566,7 @@ class _PdfDocumentWasm extends PdfDocument {
       parameters: {
         'docHandle': document['docHandle'],
         'pageIndices': indices,
+        'rotations': rotations,
         if (importedPages.isNotEmpty) 'importedPages': importedPages,
       },
     );
@@ -702,6 +714,7 @@ class _PdfPageWasm extends PdfPage {
     double? fullWidth,
     double? fullHeight,
     int? backgroundColor,
+    PdfPageRotation? rotationOverride,
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
@@ -725,6 +738,7 @@ class _PdfPageWasm extends PdfPage {
         'fullWidth': fullWidth,
         'fullHeight': fullHeight,
         'backgroundColor': backgroundColor,
+        'rotation': rotationOverride != null ? (rotationOverride.index - rotation.index + 4) & 3 : 0,
         'annotationRenderingMode': annotationRenderingMode.index,
         'flags': flags,
         'formHandle': document.document['formHandle'],
@@ -766,33 +780,39 @@ class PdfImageWeb extends PdfImage {
 }
 
 /// A PDF page that is imported from another document or position.
-class _PdfPageImported extends PdfPage {
-  _PdfPageImported._({required PdfPage imported, required this.pageNumber})
-    : imported = imported is _PdfPageImported ? imported.imported : imported; // Unwrap nested imports
+class _PdfPageImported extends PdfPageProxy {
+  _PdfPageImported._({required this.basePage, required this.pageNumber});
 
   /// The imported page
-  final PdfPage imported;
+  @override
+  final PdfPage basePage;
   @override
   final int pageNumber;
 
   @override
-  PdfPageRenderCancellationToken createCancellationToken() => imported.createCancellationToken();
+  PdfPageRenderCancellationToken createCancellationToken() => basePage.createCancellationToken();
 
   @override
-  PdfDocument get document => imported.document;
+  PdfDocument get document => basePage.document;
 
   @override
-  double get height => imported.height;
+  PdfPageRotation get rotation => basePage.rotation;
 
   @override
-  bool get isLoaded => imported.isLoaded;
+  double get width => basePage.width;
+
+  @override
+  double get height => basePage.height;
+
+  @override
+  bool get isLoaded => basePage.isLoaded;
 
   @override
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) =>
-      imported.loadLinks(compact: compact, enableAutoLinkDetection: enableAutoLinkDetection);
+      basePage.loadLinks(compact: compact, enableAutoLinkDetection: enableAutoLinkDetection);
 
   @override
-  Future<PdfPageRawText?> loadText() => imported.loadText();
+  Future<PdfPageRawText?> loadText() => basePage.loadText();
 
   @override
   Future<PdfImage?> render({
@@ -803,10 +823,11 @@ class _PdfPageImported extends PdfPage {
     double? fullWidth,
     double? fullHeight,
     int? backgroundColor,
+    PdfPageRotation? rotationOverride,
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
-  }) => imported.render(
+  }) => basePage.render(
     x: x,
     y: y,
     width: width,
@@ -814,16 +835,14 @@ class _PdfPageImported extends PdfPage {
     fullWidth: fullWidth,
     fullHeight: fullHeight,
     backgroundColor: backgroundColor,
+    rotationOverride: rotationOverride,
     annotationRenderingMode: annotationRenderingMode,
     flags: flags,
     cancellationToken: cancellationToken,
   );
 
   @override
-  PdfPageRotation get rotation => imported.rotation;
-
-  @override
-  double get width => imported.width;
+  Future<PdfPageText> loadStructuredText() => basePage.loadStructuredText();
 }
 
 PdfDest? _pdfDestFromMap(dynamic dest) {

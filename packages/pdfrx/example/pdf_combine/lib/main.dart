@@ -28,7 +28,13 @@ class PdfCombineApp extends StatelessWidget {
 }
 
 class PageItem {
-  PageItem({required this.documentId, required this.documentName, required this.pageIndex, required this.page});
+  PageItem({
+    required this.documentId,
+    required this.documentName,
+    required this.pageIndex,
+    required this.page,
+    this.rotationOverride,
+  });
 
   /// Unique ID for the document
   final int documentId;
@@ -42,7 +48,27 @@ class PageItem {
   /// The PDF page
   final PdfPage page;
 
+  /// Rotation override for the page
+  final PdfPageRotation? rotationOverride;
+
   String get id => '${documentId}_$pageIndex';
+
+  PageItem copyWith({PdfPage? page, PdfPageRotation? rotationOverride}) {
+    return PageItem(
+      documentId: documentId,
+      documentName: documentName,
+      pageIndex: pageIndex,
+      page: page ?? this.page,
+      rotationOverride: rotationOverride ?? this.rotationOverride,
+    );
+  }
+
+  PdfPage createProxy() {
+    if (rotationOverride != null) {
+      return page.withRotation(rotationOverride!);
+    }
+    return page;
+  }
 }
 
 /// Manages loaded PDF documents and tracks page usage
@@ -161,6 +187,13 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
     });
   }
 
+  void _rotatePageLeft(int index) {
+    setState(() {
+      final page = _pages[index];
+      _pages[index] = page.copyWith(rotationOverride: (page.rotationOverride ?? page.page.rotation).rotateCCW90);
+    });
+  }
+
   Future<void> _navigateToPreview() async {
     if (_pages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please add some pages first')));
@@ -255,7 +288,9 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
                       return _PageThumbnail(
                         key: ValueKey(pageItem.id),
                         page: pageItem.page,
+                        rotationOverride: pageItem.rotationOverride,
                         onRemove: () => _removePage(index),
+                        onRotateLeft: () => _rotatePageLeft(index),
                         currentIndex: index,
                         dragDisabler: _disableDraggingOnChild,
                       );
@@ -285,13 +320,17 @@ class _PageThumbnail extends StatelessWidget {
   const _PageThumbnail({
     required this.page,
     required this.onRemove,
+    required this.onRotateLeft,
     required this.currentIndex,
     required this.dragDisabler,
+    this.rotationOverride,
     super.key,
   });
 
   final PdfPage page;
+  final PdfPageRotation? rotationOverride;
   final VoidCallback onRemove;
+  final VoidCallback onRotateLeft;
   final int currentIndex;
   final Widget Function(Widget child) dragDisabler;
 
@@ -304,7 +343,11 @@ class _PageThumbnail extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.all(4.0),
-            child: PdfPageView(document: page.document, pageNumber: page.pageNumber),
+            child: PdfPageView(
+              document: page.document,
+              pageNumber: page.pageNumber,
+              rotationOverride: rotationOverride,
+            ),
           ),
           // Delete button
           Positioned(
@@ -320,6 +363,25 @@ class _PageThumbnail extends StatelessWidget {
                   child: const Padding(
                     padding: EdgeInsets.all(4),
                     child: Icon(Icons.close, color: Colors.white, size: 20),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Rotate left button
+          Positioned(
+            top: 45,
+            right: 4,
+            child: dragDisabler(
+              Material(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  onTap: onRotateLeft,
+                  borderRadius: BorderRadius.circular(20),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(Icons.rotate_90_degrees_ccw, color: Colors.white, size: 20),
                   ),
                 ),
               ),
@@ -360,7 +422,7 @@ class _OutputPreviewPageState extends State<OutputPreviewPage> {
       final combinedDoc = await PdfDocument.createNew(sourceName: 'combined.pdf');
 
       // Set all selected pages
-      combinedDoc.pages = widget.pages.map((item) => item.page).toList();
+      combinedDoc.pages = widget.pages.map((item) => item.createProxy()).toList();
 
       // Encode to PDF
       final bytes = await combinedDoc.encodePdf();
