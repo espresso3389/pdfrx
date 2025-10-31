@@ -184,41 +184,18 @@ Future<int> main(List<String> args) async {
 
     // Open all PDF documents
     final documents = <String, PdfDocument>{};
+    PdfDocument? outputDoc;
     try {
       for (final entry in fileMap.entries) {
         print('Opening ${entry.value}...');
         documents[entry.key] = await PdfDocument.openFile(entry.value);
       }
 
-      // Create a new document by combining pages
-      print('');
+      // Combine pages from all specifications
       print('Combining pages...');
-      final firstSpec = pageSpecs.first;
-      final firstDoc = documents[firstSpec.fileId]!;
-      final firstPages = firstSpec.pages ?? List.generate(firstDoc.pages.length, (i) => i + 1);
-
-      // Validate page numbers
-      for (final pageNum in firstPages) {
-        if (pageNum < 1 || pageNum > firstDoc.pages.length) {
-          print('Error: Page $pageNum out of range for file ${firstSpec.fileId} (has ${firstDoc.pages.length} pages)');
-          return 1;
-        }
-      }
-
-      // Start with pages from the first specification
       final combinedPages = <PdfPage>[];
-      for (final pageNum in firstPages) {
-        combinedPages.add(firstDoc.pages[pageNum - 1]);
-        print('  Adding page $pageNum from ${firstSpec.fileId}');
-      }
 
-      // Create a new document from the first set of pages
-      final outputDoc = firstDoc;
-      outputDoc.pages = combinedPages;
-
-      // Add pages from remaining specifications
-      for (var i = 1; i < pageSpecs.length; i++) {
-        final spec = pageSpecs[i];
+      for (final spec in pageSpecs) {
         final doc = documents[spec.fileId]!;
         final pages = spec.pages ?? List.generate(doc.pages.length, (i) => i + 1);
 
@@ -234,12 +211,13 @@ Future<int> main(List<String> args) async {
           combinedPages.add(doc.pages[pageNum - 1]);
           print('  Adding page $pageNum from ${spec.fileId}');
         }
-        outputDoc.pages = combinedPages;
       }
 
       // Encode and save the combined PDF
       print('');
       print('Saving to $outputFile...');
+      outputDoc = await PdfDocument.createNew(sourceName: outputFile);
+      outputDoc.pages = combinedPages;
       final pdfData = await outputDoc.encodePdf();
       await File(outputFile).writeAsBytes(pdfData);
 
@@ -251,6 +229,7 @@ Future<int> main(List<String> args) async {
       for (final doc in documents.values) {
         doc.dispose();
       }
+      outputDoc?.dispose();
     }
   } catch (e, stackTrace) {
     print('Error: $e');

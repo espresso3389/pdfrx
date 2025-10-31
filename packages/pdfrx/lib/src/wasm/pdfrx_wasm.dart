@@ -531,8 +531,8 @@ class _PdfDocumentWasm extends PdfDocument {
       final page = pages[i];
       if (page is _PdfPageImported) {
         final wasmPage = page.imported as _PdfPageWasm;
-        indices.add(-i);
-        importedPages[-i] = {
+        indices.add(-(i + 1));
+        importedPages[-(i + 1)] = {
           'docHandle': wasmPage.document.document['docHandle'],
           'pageNumber': wasmPage.pageNumber - 1, // 0-based
         };

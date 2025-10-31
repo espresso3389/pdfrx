@@ -844,8 +844,8 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
       final page = document.pages[i];
       if (page is _PdfPageImported) {
         final pdfiumPage = page.imported as _PdfPagePdfium;
-        indices.add(-i);
-        items[-i] = (document: pdfiumPage.document.document.address, pageNumber: pdfiumPage.pageNumber);
+        indices.add(-(i + 1));
+        items[-(i + 1)] = (document: pdfiumPage.document.document.address, pageNumber: pdfiumPage.pageNumber);
         modifiedCount++;
         continue;
       } else if (page is _PdfPagePdfium) {
