@@ -2707,13 +2707,13 @@ class _PdfViewerState extends State<PdfViewer>
           params.textSelectionDelegate.hasSelectedText)
         ContextMenuButtonItem(
           onPressed: () => params.textSelectionDelegate.copyTextSelection(),
-          label: 'Copy',
+          label: _l10n(PdfViewerL10nKey.copy),
           type: ContextMenuButtonType.copy,
         ),
       if (params.isTextSelectionEnabled && !params.textSelectionDelegate.isSelectingAllText)
         ContextMenuButtonItem(
           onPressed: () => params.textSelectionDelegate.selectAllText(),
-          label: 'Select All',
+          label: _l10n(PdfViewerL10nKey.selectAll),
           type: ContextMenuButtonType.selectAll,
         ),
     ];
@@ -3052,6 +3052,22 @@ class _PdfViewerState extends State<PdfViewer>
     _imageCache.releaseAllImages();
     _magnifierImageCache.releaseAllImages();
     _invalidate();
+  }
+
+  /// Get the localized string for the given key.
+  ///
+  /// If a custom localization delegate is provided in the widget parameters, it will be used.
+  /// Otherwise, default English strings will be returned.
+  String _l10n(PdfViewerL10nKey key, [List<Object>? args]) {
+    var result = widget.params.l10nDelegate?.call(key, args);
+    if (result != null) return result;
+
+    switch (key) {
+      case PdfViewerL10nKey.copy:
+        return 'Copy';
+      case PdfViewerL10nKey.selectAll:
+        return 'Select All';
+    }
   }
 }
 
