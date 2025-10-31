@@ -2567,16 +2567,15 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// The minimum zoom ratio allowed.
   double get minScale {
-    // Always honor explicit minScale first
+    // In discrete mode, prevent zooming out below fit scale
+    if (widget.params.pageTransition == PageTransition.discrete) {
+      return _fitScale;
+    }
+
     if (widget.params.minScale != null) {
       return widget.params.minScale!;
     }
-    // Legacy behavior: use fitScale as minimum when flag is true
-    if (widget.params.useAlternativeFitScaleAsMinScale) {
-      return _fitScale;
-    }
-    // Modern behavior: use fitScale as minimum (matches fitMode)
-    // This ensures that when fitMode is set, the minimum scale respects it
+
     return _fitScale;
   }
 
