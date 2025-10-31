@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import '../pdfrx_engine.dart' show Pdfrx;
 import './mock/pdfrx_mock.dart' if (dart.library.io) './native/pdfrx_pdfium.dart';
 import 'pdfrx.dart' show Pdfrx;
 import 'pdfrx_document.dart';

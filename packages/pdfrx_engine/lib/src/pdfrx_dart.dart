@@ -1,6 +1,6 @@
 import 'package:image/image.dart';
 
-import '../pdfrx_engine.dart';
+import 'pdf_page.dart';
 
 extension PdfImageDartExt on PdfImage {
   /// Create [Image] (of [image package](https://pub.dev/packages/image)) from the rendered image.

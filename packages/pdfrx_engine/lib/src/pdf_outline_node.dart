@@ -1,6 +1,5 @@
-import '../pdfrx_engine.dart' show PdfDocument;
 import 'pdf_dest.dart';
-import 'pdfrx_document.dart' show PdfDocument;
+import 'pdfrx_document.dart';
 import 'utils/list_equals.dart';
 
 /// Outline (a.k.a. Bookmark) node in PDF document.

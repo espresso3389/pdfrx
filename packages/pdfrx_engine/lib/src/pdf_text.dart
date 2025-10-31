@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:collection/collection.dart';
 
-import '../pdfrx_engine.dart' show PdfPage;
+import 'pdf_page.dart';
 import 'pdf_rect.dart';
 import 'utils/list_equals.dart';
 

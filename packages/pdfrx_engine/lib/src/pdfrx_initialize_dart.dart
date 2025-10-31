@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:http/http.dart' as http;
 
-import '../pdfrx_engine.dart';
+import 'pdfrx.dart';
+import 'pdfrx_entry_functions.dart';
 
 bool _isInitialized = false;
 

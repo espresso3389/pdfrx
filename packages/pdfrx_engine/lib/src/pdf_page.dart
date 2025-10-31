@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
-import '../pdfrx_engine.dart' show PdfLink;
-import 'pdf_link.dart' show PdfLink;
+import 'pdf_link.dart';
 import 'pdf_page_proxies.dart';
 import 'pdf_text.dart';
 import 'pdf_text_formatter.dart';

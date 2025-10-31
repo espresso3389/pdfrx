@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as path;
 
-import '../../pdfrx_engine.dart';
+import '../pdfrx.dart';
 
 /// Helper function to get the cache directory for a specific purpose and name.
 Future<Directory> getCacheDirectory(
