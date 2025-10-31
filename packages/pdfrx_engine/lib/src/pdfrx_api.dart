@@ -801,12 +801,6 @@ abstract class PdfPage {
       handleLine(lineStart, inputFullText.length);
     }
 
-    if (rotation.index != 0) {
-      for (var i = 0; i < outputCharRects.length; i++) {
-        outputCharRects[i] = outputCharRects[i].rotateReverse(rotation.index, this);
-      }
-    }
-
     final fragments = <PdfPageTextFragment>[];
     final text = PdfPageText(
       pageNumber: pageNumber,
@@ -841,12 +835,6 @@ abstract class PdfPage {
     final input = await loadText();
     if (input == null) {
       return null;
-    }
-
-    if (rotation.index != 0) {
-      for (var i = 0; i < input.charRects.length; i++) {
-        input.charRects[i] = input.charRects[i].rotate(rotation.index, this);
-      }
     }
 
     final fullText = StringBuffer();
