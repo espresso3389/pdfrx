@@ -1,3 +1,4 @@
+/// PDF font query parameters.
 class PdfFontQuery {
   const PdfFontQuery({
     required this.face,

@@ -1,4 +1,4 @@
-import 'package:vector_math/vector_math_64.dart' hide Colors;
+import 'package:vector_math/vector_math_64.dart';
 
 import 'pdf_page.dart';
 

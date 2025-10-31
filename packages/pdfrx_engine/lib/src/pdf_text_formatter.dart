@@ -1,10 +1,10 @@
 import 'dart:collection';
 
-import 'package:vector_math/vector_math_64.dart' hide Colors;
+import 'package:vector_math/vector_math_64.dart';
 
 import './mock/string_buffer_wrapper.dart' if (dart.library.io) './native/string_buffer_wrapper.dart';
 import 'pdf_page.dart';
-import 'pdf_page_proxies.dart' show PdfPageProxy;
+import 'pdf_page_proxies.dart';
 import 'pdf_rect.dart';
 import 'pdf_text.dart';
 import 'utils/unmodifiable_list.dart';
