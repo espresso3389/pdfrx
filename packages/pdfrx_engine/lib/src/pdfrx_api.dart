@@ -896,28 +896,54 @@ abstract class PdfPage {
 }
 
 /// Extension to add rotation capability to [PdfPage].
+///
+/// Use these functions to create rotated pages when reorganizing or combining PDFs.
+///
+/// The following example shows how to fix page orientations:
+///
+/// ```dart
+/// final doc = await PdfDocument.openFile('document.pdf');
+/// doc.pages = [
+///   doc.pages[0],
+///   doc.pages[1].rotatedTo(PdfPageRotation.clockwise90),
+///   doc.pages[2].rotatedBy(PdfPageRotation.clockwise90),
+///   doc.pages[3].rotatedCW90(),
+/// ];
+/// await File('fixed.pdf').writeAsBytes(await doc.encodePdf());
+/// ```
 extension PdfPageWithRotationExtension on PdfPage {
-  /// Returns a proxy page with the specified absolute rotation.
+  /// Rotates a page with the specified rotation.
   ///
-  /// The rotation replaces the page's native rotation from the PDF.
-  /// The proxy page maintains all functionality of the original page but with transformed
-  /// coordinates for text, links, and rendering.
-  ///
-  /// Example:
-  /// ```dart
-  /// // Set a page to 90 degrees clockwise rotation
-  /// final rotatedPage = page.withRotation(PdfPageRotation.clockwise90);
-  ///
-  /// // Use it like a normal page
-  /// print('${rotatedPage.width} x ${rotatedPage.height}');
-  /// final image = await rotatedPage.render();
-  /// ```
-  PdfPage withRotation(PdfPageRotation rotation) {
+  /// See usage example in [PdfPageWithRotationExtension].
+  PdfPage rotatedTo(PdfPageRotation rotation) {
     if (rotation == this.rotation) {
       return this; // No rotation change needed
     }
     return PdfPageRotated(this, rotation);
   }
+
+  /// Rotates a page with rotation added to the current rotation.
+  ///
+  /// See usage example in [PdfPageWithRotationExtension].
+  PdfPage rotatedBy(PdfPageRotation delta) {
+    final newRotation = PdfPageRotation.values[(rotation.index + delta.index) & 3];
+    return rotatedTo(newRotation);
+  }
+
+  /// Rotates a page clockwise by 90 degrees.
+  ///
+  /// See usage example in [PdfPageWithRotationExtension].
+  PdfPage rotatedCW90() => rotatedBy(PdfPageRotation.clockwise90);
+
+  /// Rotates a page counter-clockwise by 90 degrees.
+  ///
+  /// See usage example in [PdfPageWithRotationExtension].
+  PdfPage rotatedCCW90() => rotatedBy(PdfPageRotation.clockwise270);
+
+  /// Rotates a page clockwise by 180 degrees.
+  ///
+  /// Returns newly created [PdfPageProxy] that applies the rotation.
+  PdfPage rotated180() => rotatedBy(PdfPageRotation.clockwise180);
 }
 
 /// Proxy interface for [PdfPage].
@@ -1051,6 +1077,12 @@ extension PdfPageRotationEnumExtension on PdfPageRotation {
 
   /// Get clockwise 90 degree rotation value from the current rotation.
   PdfPageRotation get rotateCW90 => PdfPageRotation.values[(index + 1) % 4];
+
+  /// Get 180 degree rotation value from the current rotation.
+  PdfPageRotation get rotate180 => PdfPageRotation.values[(index + 2) % 4];
+
+  /// Add two rotations.
+  PdfPageRotation operator +(PdfPageRotation other) => PdfPageRotation.values[(index + other.index) % 4];
 }
 
 /// Annotation rendering mode.

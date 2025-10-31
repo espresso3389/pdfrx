@@ -65,7 +65,7 @@ class PageItem {
 
   PdfPage createProxy() {
     if (rotationOverride != null) {
-      return page.withRotation(rotationOverride!);
+      return page.rotatedTo(rotationOverride!);
     }
     return page;
   }

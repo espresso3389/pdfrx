@@ -10,6 +10,7 @@ The page manipulation feature allows you to:
 - Combine pages from multiple PDF documents into one
 - Extract specific pages from a document
 - Duplicate pages within a document
+- Rotate pages to different orientations
 - Create new PDF documents from selected pages
 
 ## Key Concepts
@@ -43,6 +44,28 @@ doc1.pages = [
   doc2.pages[1],      // Page 2 from doc2
 ];
 ```
+
+### Page Rotation
+
+The [PdfPageWithRotationExtension](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageWithRotationExtension.html) provides several page rotation methods to apply rotation to pages when manipulating PDF documents.
+
+```dart
+final doc = await PdfDocument.openFile('document.pdf');
+
+// Use the rotated page in page manipulation
+doc.pages = [
+  doc.pages[0],          // Page 2 with original rotation
+  doc.pages[1],          // Page 2 with original rotation
+  doc.pages[2].rotatedCW90(), // Page 3 rotated right
+];
+```
+
+Technically, the functions on [PdfPageWithRotationExtension](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageWithRotationExtension.html) creates a ([PdfPageProxy](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageProxy-class.html)) with the specified rotation, which can be used in page manipulation operations.
+
+**Important Notes:**
+
+- If the specified rotation matches the page's current rotation, the original page is returned unchanged
+- The proxy page can be used in any context where a regular [PdfPage](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage-class.html) is expected
 
 ### Encoding to PDF
 
