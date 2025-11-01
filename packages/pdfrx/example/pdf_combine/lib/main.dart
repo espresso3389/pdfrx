@@ -6,6 +6,7 @@ import 'package:animated_reorderable_list/animated_reorderable_list.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 import 'save_helper_web.dart' if (dart.library.io) 'save_helper_io.dart';
 
@@ -91,6 +92,17 @@ class DocumentManager {
     return docId;
   }
 
+  Future<int> loadDocumentFromBytes(String name, Uint8List bytes) async {
+    final docId = _nextDocId++;
+    final doc = await PdfDocument.openData(
+      bytes,
+      passwordProvider: passwordProvider != null ? () => passwordProvider!(docId, name) : null,
+    );
+    _documents[docId] = doc;
+    _pageRefCounts[docId] = 0;
+    return docId;
+  }
+
   PdfDocument? getDocument(int docId) => _documents[docId];
 
   void addReference(int docId) {
@@ -135,6 +147,7 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
   bool _isLoading = false;
   bool _disableDragging = false;
   bool _isTouchDevice = true;
+  bool _isDraggingOver = false;
 
   @override
   void dispose() {
@@ -157,12 +170,18 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
 
     try {
       for (final file in files) {
-        final docId = await _docManager.loadDocument(file.name, file.path);
-        final doc = _docManager.getDocument(docId);
-        if (doc != null) {
-          for (var i = 0; i < doc.pages.length; i++) {
-            _docManager.addReference(docId);
-            _pages.add(PageItem(documentId: docId, documentName: file.name, pageIndex: i, page: doc.pages[i]));
+        try {
+          final docId = await _docManager.loadDocument(file.name, file.path);
+          final doc = _docManager.getDocument(docId);
+          if (doc != null) {
+            for (var i = 0; i < doc.pages.length; i++) {
+              _docManager.addReference(docId);
+              _pages.add(PageItem(documentId: docId, documentName: file.name, pageIndex: i, page: doc.pages[i]));
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading "${file.name}": $e')));
           }
         }
       }
@@ -177,6 +196,68 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
         });
       }
     }
+  }
+
+  int _droppedCount = 0;
+
+  Future<void> _loadDropFiles(DropSession session) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      for (final item in session.items) {
+        try {
+          final file = await _loadDataFromSessionItem(item, Formats.pdf);
+          if (file != null) {
+            ++_droppedCount;
+            final fileName = file.fileName ?? 'dropped_file_$_droppedCount.pdf';
+            final docId = await _docManager.loadDocumentFromBytes(fileName, file.data);
+            final doc = _docManager.getDocument(docId);
+            if (doc != null) {
+              for (var i = 0; i < doc.pages.length; i++) {
+                _docManager.addReference(docId);
+                _pages.add(PageItem(documentId: docId, documentName: fileName, pageIndex: i, page: doc.pages[i]));
+              }
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading dropped file: $e')));
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading PDF: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<({String? fileName, Uint8List data})?> _loadDataFromSessionItem(DropItem item, FileFormat format) async {
+    final reader = item.dataReader!;
+    if (!reader.canProvide(format)) {
+      return null;
+    }
+    var fileName = await reader.getSuggestedName();
+    final completer = Completer<Uint8List>();
+    try {
+      final result = reader.getFile(format, (file) async {
+        completer.complete(await file.readAll());
+      });
+      if (result == null) {
+        completer.completeError(Exception('Not supported format: $format'));
+      }
+    } catch (e) {
+      completer.completeError(e);
+    }
+    return (fileName: fileName, data: await completer.future);
   }
 
   void _removePage(int index) {
@@ -236,81 +317,142 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
           const SizedBox(width: 16),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _pages.isEmpty
-          ? Center(
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(text: 'Tap the following button to add PDF files!\n\n'),
-                    WidgetSpan(
-                      alignment: PlaceholderAlignment.middle,
-                      child: IconButton.filled(icon: Icon(Icons.add), onPressed: () => _pickPdfFiles()),
+      body: DropRegion(
+        formats: Formats.standardFormats,
+        hitTestBehavior: HitTestBehavior.opaque,
+        onDropOver: (event) {
+          if (event.session.items.any((item) => item.canProvide(Formats.fileUri))) {
+            setState(() {
+              _isDraggingOver = true;
+            });
+            return DropOperation.copy;
+          }
+          return DropOperation.none;
+        },
+        onDropLeave: (event) {
+          setState(() {
+            _isDraggingOver = false;
+          });
+        },
+        onPerformDrop: (event) async {
+          await _loadDropFiles(event.session);
+          setState(() {
+            _isDraggingOver = false;
+          });
+        },
+        child: Stack(
+          children: [
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _pages.isEmpty
+                ? Center(
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'Tap the following button to add PDF files or drag & drop PDF files here!\n\n',
+                          ),
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: IconButton.filled(icon: Icon(Icons.add), onPressed: () => _pickPdfFiles()),
+                          ),
+                        ],
+                      ),
+                      style: TextStyle(fontSize: 20),
+                      textAlign: TextAlign.center,
                     ),
-                  ],
-                ),
-                style: TextStyle(fontSize: 20),
-                textAlign: TextAlign.center,
-              ),
-            )
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                final w = constraints.maxWidth;
-                final int crossAxisCount;
-                if (w < 120) {
-                  crossAxisCount = 1;
-                } else if (w < 400) {
-                  crossAxisCount = 2;
-                } else if (w < 800) {
-                  crossAxisCount = 3;
-                } else if (w < 1200) {
-                  crossAxisCount = 4;
-                } else {
-                  crossAxisCount = w ~/ 300;
-                }
-                return Listener(
-                  onPointerMove: (event) {
-                    setState(() {
-                      _isTouchDevice = event.kind == PointerDeviceKind.touch;
-                    });
-                  },
-                  onPointerHover: (event) {
-                    setState(() {
-                      _isTouchDevice = event.kind == PointerDeviceKind.touch;
-                    });
-                  },
-                  child: AnimatedReorderableGridView(
-                    items: _pages,
-                    isSameItem: (a, b) => a.id == b.id,
-                    itemBuilder: (context, index) {
-                      final pageItem = _pages[index];
-                      return _PageThumbnail(
-                        key: ValueKey(pageItem.id),
-                        page: pageItem.page,
-                        rotationOverride: pageItem.rotationOverride,
-                        onRemove: () => _removePage(index),
-                        onRotateLeft: () => _rotatePageLeft(index),
-                        currentIndex: index,
-                        dragDisabler: _disableDraggingOnChild,
+                  )
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final w = constraints.maxWidth;
+                      final int crossAxisCount;
+                      if (w < 120) {
+                        crossAxisCount = 1;
+                      } else if (w < 400) {
+                        crossAxisCount = 2;
+                      } else if (w < 800) {
+                        crossAxisCount = 3;
+                      } else if (w < 1200) {
+                        crossAxisCount = 4;
+                      } else {
+                        crossAxisCount = w ~/ 300;
+                      }
+                      return Listener(
+                        onPointerMove: (event) {
+                          setState(() {
+                            _isTouchDevice = event.kind == PointerDeviceKind.touch;
+                          });
+                        },
+                        onPointerHover: (event) {
+                          setState(() {
+                            _isTouchDevice = event.kind == PointerDeviceKind.touch;
+                          });
+                        },
+                        child: AnimatedReorderableGridView(
+                          items: _pages,
+                          isSameItem: (a, b) => a.id == b.id,
+                          itemBuilder: (context, index) {
+                            final pageItem = _pages[index];
+                            return _PageThumbnail(
+                              key: ValueKey(pageItem.id),
+                              page: pageItem.page,
+                              rotationOverride: pageItem.rotationOverride,
+                              onRemove: () => _removePage(index),
+                              onRotateLeft: () => _rotatePageLeft(index),
+                              currentIndex: index,
+                              dragDisabler: _disableDraggingOnChild,
+                            );
+                          },
+                          sliverGridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: crossAxisCount),
+                          insertDuration: const Duration(milliseconds: 300),
+                          removeDuration: const Duration(milliseconds: 300),
+                          dragStartDelay: _isTouchDevice || _disableDragging
+                              ? const Duration(milliseconds: 200)
+                              : Duration.zero,
+                          onReorder: (oldIndex, newIndex) {
+                            setState(() {
+                              final removed = _pages.removeAt(oldIndex);
+                              _pages.insert(newIndex, removed);
+                            });
+                          },
+                        ),
                       );
                     },
-                    sliverGridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: crossAxisCount),
-                    insertDuration: const Duration(milliseconds: 300),
-                    removeDuration: const Duration(milliseconds: 300),
-                    dragStartDelay: _isTouchDevice || _disableDragging
-                        ? const Duration(milliseconds: 200)
-                        : Duration.zero,
-                    onReorder: (oldIndex, newIndex) {
-                      setState(() {
-                        final removed = _pages.removeAt(oldIndex);
-                        _pages.insert(newIndex, removed);
-                      });
-                    },
                   ),
-                );
-              },
-            ),
+            if (_isDraggingOver)
+              Container(
+                color: Colors.blue.withValues(alpha: 0.1),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 3,
+                        strokeAlign: BorderSide.strokeAlignInside,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.file_upload, size: 64, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Drop PDF files here',
+                          style: Theme.of(
+                            context,
+                          ).textTheme.headlineSmall?.copyWith(color: Theme.of(context).colorScheme.primary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
