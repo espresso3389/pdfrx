@@ -666,9 +666,7 @@ class _PdfViewerState extends State<PdfViewer>
       return candidate;
     }
 
-    // Convert document space offset to screen space (multiply by zoom)
-    final zoom = candidate.zoom;
-    return candidate.clone()..translateByDouble(-dxDoc * zoom, -dyDoc * zoom, 0, 1);
+    return candidate.clone()..translateByDouble(-dxDoc, -dyDoc, 0, 1);
   }
 
   void _updateLayout(Size viewSize) {
@@ -752,90 +750,86 @@ class _PdfViewerState extends State<PdfViewer>
         callOnViewerSizeChanged();
       });
     } else if (isLayoutChanged || isViewSizeChanged) {
-      Future.microtask(() async {
-        if (mounted) {
-          // Preserve the visual page size by comparing actual page dimensions in layouts
-          double zoomTo;
-          if (_currentZoom < _fitScale || _currentZoom == oldFitScale) {
-            // User was at fit scale or below minimum - use new fit scale
-            zoomTo = _fitScale;
-          } else if (oldLayout != null && currentPageNumber != null && _layout != null) {
-            // Calculate zoom to maintain same visual page size
-            // Visual size = pageRect.size * zoom, so we scale zoom by page size ratio
-            final oldPageRect = oldLayout.pageLayouts[currentPageNumber - 1];
-            final newPageRect = _layout!.pageLayouts[currentPageNumber - 1];
+      // Handle layout/size changes synchronously to prevent flash
+      // Preserve the visual page size by comparing actual page dimensions in layouts
+      double zoomTo;
+      if (_currentZoom < _fitScale || _currentZoom == oldFitScale) {
+        // User was at fit scale or below minimum - use new fit scale
+        zoomTo = _fitScale;
+      } else if (oldLayout != null && currentPageNumber != null && _layout != null) {
+        // Calculate zoom to maintain same visual page size
+        // Visual size = pageRect.size * zoom, so we scale zoom by page size ratio
+        final oldPageRect = oldLayout.pageLayouts[currentPageNumber - 1];
+        final newPageRect = _layout!.pageLayouts[currentPageNumber - 1];
 
-            // Use the primary axis size to determine scaling
-            final isPrimaryVertical = _layout!.primaryAxis == Axis.vertical;
-            final oldPageSize = isPrimaryVertical ? oldPageRect.height : oldPageRect.width;
-            final newPageSize = isPrimaryVertical ? newPageRect.height : newPageRect.width;
+        // Use the primary axis size to determine scaling
+        final isPrimaryVertical = _layout!.primaryAxis == Axis.vertical;
+        final oldPageSize = isPrimaryVertical ? oldPageRect.height : oldPageRect.width;
+        final newPageSize = isPrimaryVertical ? newPageRect.height : newPageRect.width;
 
-            if (newPageSize > 0) {
-              final calculatedZoom = _currentZoom * (oldPageSize / newPageSize);
-              // Clamp to min/max scale constraints
-              zoomTo = calculatedZoom.clamp(minScale, widget.params.maxScale);
-            } else {
-              zoomTo = _currentZoom;
-            }
-          } else {
-            zoomTo = _currentZoom;
-          }
-
-          if (isLayoutChanged) {
-            // if the layout changed, calculate the top-left position in the document
-            // before the layout change and go to that position in the new layout
-
-            if (oldLayout != null && currentPageNumber != null) {
-              // Get the hit point in PDF page coordinates (stable across layout changes)
-
-              final hit = _getClosestPageHit(currentPageNumber, oldLayout, oldVisibleRect);
-
-              Offset newOffset;
-              if (hit == null) {
-                // Hit is null - top left was in margin area
-                // Use the page's top-left as the reference point
-                newOffset = _layout!.pageLayouts[currentPageNumber - 1].topLeft;
-                print(
-                  "no hit: page ${currentPageNumber} -> $newOffset pagerect: ${_layout!.pageLayouts[currentPageNumber - 1]}",
-                );
-              } else {
-                // Got a valid hit - convert PDF coordinates to new layout
-                newOffset = hit.offset.toOffsetInDocument(
-                  page: hit.page,
-                  pageRect: _layout!.pageLayouts[hit.page.pageNumber - 1],
-                );
-                print(
-                  "hit: ${hit.offset} ${hit.page.pageNumber} -> $newOffset pagerect: ${_layout!.pageLayouts[hit.page.pageNumber - 1]}",
-                );
-              }
-
-              // preserve the position after a layout change
-              // Pass pageNumber and boundary information to enable margin snapping
-              await _goToPosition(documentOffset: newOffset, zoom: zoomTo, pageNumber: currentPageNumber);
-            }
-          } else {
-            if (zoomTo != _currentZoom) {
-              // layout hasn't changed, but size and zoom has
-              final zoomChange = zoomTo / _currentZoom;
-              final pivot = vec.Vector3(_txController.value.x, _txController.value.y, 0);
-
-              final pivotScale = Matrix4.identity()
-                ..translateByVector3(pivot)
-                ..scaleByDouble(zoomChange, zoomChange, zoomChange, 1)
-                ..translateByVector3(-pivot / zoomChange);
-
-              final Matrix4 zoomPivoted = pivotScale * _txController.value;
-              _adjustBoundaryMargins(viewSize, zoomTo);
-              _clampToNearestBoundary(zoomPivoted, viewSize: viewSize);
-            } else {
-              // size changes (e.g. rotation) can still cause out-of-bounds matrices
-              // so clamp here
-              _clampToNearestBoundary(_txController.value, viewSize: viewSize);
-            }
-            callOnViewerSizeChanged();
-          }
+        if (newPageSize > 0) {
+          final calculatedZoom = _currentZoom * (oldPageSize / newPageSize);
+          // Clamp to min/max scale constraints
+          zoomTo = calculatedZoom.clamp(minScale, widget.params.maxScale);
+        } else {
+          zoomTo = _currentZoom;
         }
-      });
+      } else {
+        zoomTo = _currentZoom;
+      }
+
+      if (isLayoutChanged) {
+        // if the layout changed, calculate the top-left position in the document
+        // before the layout change and go to that position in the new layout
+
+        if (oldLayout != null && currentPageNumber != null) {
+          // Get the hit point in PDF page coordinates (stable across layout changes)
+
+          final hit = _getClosestPageHit(currentPageNumber, oldLayout, oldVisibleRect);
+
+          Offset newOffset;
+          if (hit == null) {
+            // Hit is null - top left was in margin area
+            // Use the page's top-left as the reference point
+            newOffset = _layout!.pageLayouts[currentPageNumber - 1].topLeft;
+            print("no hit: oldVisibleRect.topLeft ${oldVisibleRect.topLeft} ");
+          } else {
+            // Got a valid hit - convert PDF coordinates to new layout
+            newOffset = hit.offset.toOffsetInDocument(
+              page: hit.page,
+              pageRect: _layout!.pageLayouts[hit.page.pageNumber - 1],
+            );
+            print(
+              "hit: ${hit.offset} ${hit.page.pageNumber} -> $newOffset pagerect: ${_layout!.pageLayouts[hit.page.pageNumber - 1]}",
+            );
+          }
+
+          // preserve the position after a layout change
+          // Call _goToPosition without await - with Duration.zero it completes synchronously
+          // This ensures the matrix is updated before the widget rebuilds, preventing flash
+          _goToPosition(documentOffset: newOffset, zoom: zoomTo, pageNumber: currentPageNumber);
+        }
+      } else {
+        if (zoomTo != _currentZoom) {
+          // layout hasn't changed, but size and zoom has
+          final zoomChange = zoomTo / _currentZoom;
+          final pivot = vec.Vector3(_txController.value.x, _txController.value.y, 0);
+
+          final pivotScale = Matrix4.identity()
+            ..translateByVector3(pivot)
+            ..scaleByDouble(zoomChange, zoomChange, zoomChange, 1)
+            ..translateByVector3(-pivot / zoomChange);
+
+          final Matrix4 zoomPivoted = pivotScale * _txController.value;
+          _adjustBoundaryMargins(viewSize, zoomTo);
+          _clampToNearestBoundary(zoomPivoted, viewSize: viewSize);
+        } else {
+          // size changes (e.g. rotation) can still cause out-of-bounds matrices
+          // so clamp here
+          _clampToNearestBoundary(_txController.value, viewSize: viewSize);
+        }
+        callOnViewerSizeChanged();
+      }
     } else if (currentPageNumber != null && _pageNumber != currentPageNumber) {
       // In discrete mode, only allow page changes via _snapToPage (not guessed page number)
       // Exception: during initialization when _pageNumber is null
@@ -2922,7 +2916,6 @@ class _PdfViewerState extends State<PdfViewer>
     _adjustBoundaryMargins(_viewSize!, zoom);
 
     // Apply margin snapping if page number and boundary info are provided
-    // DISABLED: Margin snapping conflicts with zoom-to-maintain-page-size during rotation
     final marginAdjusted = pageNumber != null
         ? _calcMatrixForMarginSnappedToNearestBoundary(m, pageNumber: pageNumber, viewSize: _viewSize!)
         : m;
