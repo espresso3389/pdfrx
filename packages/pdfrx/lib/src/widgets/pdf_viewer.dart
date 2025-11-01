@@ -792,15 +792,11 @@ class _PdfViewerState extends State<PdfViewer>
             // Hit is null - top left was in margin area
             // Use the page's top-left as the reference point
             newOffset = _layout!.pageLayouts[currentPageNumber - 1].topLeft;
-            print("no hit: oldVisibleRect.topLeft ${oldVisibleRect.topLeft} ");
           } else {
             // Got a valid hit - convert PDF coordinates to new layout
             newOffset = hit.offset.toOffsetInDocument(
               page: hit.page,
               pageRect: _layout!.pageLayouts[hit.page.pageNumber - 1],
-            );
-            print(
-              "hit: ${hit.offset} ${hit.page.pageNumber} -> $newOffset pagerect: ${_layout!.pageLayouts[hit.page.pageNumber - 1]}",
             );
           }
 
@@ -1065,7 +1061,6 @@ class _PdfViewerState extends State<PdfViewer>
       }
     }
     widget.params.onInteractionUpdate?.call(details);
-    print("x:${_txController.value.x} y:${_txController.value.y}");
   }
 
   void _onAnimationEnd() {
@@ -1821,7 +1816,6 @@ class _PdfViewerState extends State<PdfViewer>
 
         // Page content starts at: padding + scaled margin
         final crossAxisPageContentStart = viewportPaddingCross /*+ (margin * pageScale) */;
-        print('_addDiscreteSpacing: scaledPageWidth=$scaledPageWidth');
         final newRect = isPrimaryVertical
             ? Rect.fromLTWH(crossAxisPageContentStart, pageContentStart, scaledPageWidth, scaledPageHeight)
             : Rect.fromLTWH(pageContentStart, crossAxisPageContentStart, scaledPageWidth, scaledPageHeight);
@@ -2815,7 +2809,6 @@ class _PdfViewerState extends State<PdfViewer>
       await _animController.animateTo(1.0, duration: duration, curve: curve);
     } finally {
       _animGoTo?.removeListener(update);
-      print("_goTo: completed x:${_txController.value.x} y:${_txController.value.y}");
     }
   }
 
@@ -2910,7 +2903,6 @@ class _PdfViewerState extends State<PdfViewer>
     zoom = zoom ?? _currentZoom;
     final tx = -documentOffset.dx * zoom;
     final ty = -documentOffset.dy * zoom;
-    print("_goToPosition: tx:$tx ty:$ty zoom:$zoom (docOffset:$documentOffset)");
     final m = Matrix4.compose(vec.Vector3(tx, ty, 0), vec.Quaternion.identity(), vec.Vector3(zoom, zoom, zoom));
 
     _adjustBoundaryMargins(_viewSize!, zoom);
