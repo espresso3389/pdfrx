@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
+import 'file_data.dart';
 import 'save_helper_web.dart' if (dart.library.io) 'save_helper_io.dart';
 
 void main() {
@@ -76,28 +77,41 @@ class PageItem {
 class DocumentManager {
   DocumentManager(this.passwordProvider);
 
-  final FutureOr<String?> Function(int docId, String name)? passwordProvider;
+  final FutureOr<String?> Function(String name)? passwordProvider;
   final Map<int, PdfDocument> _documents = {};
   final Map<int, int> _pageRefCounts = {};
   int _nextDocId = 0;
 
   Future<int> loadDocument(String name, String filePath) async {
-    final docId = _nextDocId++;
     final doc = await PdfDocument.openFile(
       filePath,
-      passwordProvider: passwordProvider != null ? () => passwordProvider!(docId, name) : null,
+      passwordProvider: passwordProvider != null ? () => passwordProvider!(name) : null,
     );
+    final docId = _nextDocId++;
     _documents[docId] = doc;
     _pageRefCounts[docId] = 0;
     return docId;
   }
 
   Future<int> loadDocumentFromBytes(String name, Uint8List bytes) async {
+    PdfDocument doc;
+    try {
+      doc = await PdfDocument.openData(
+        bytes,
+        passwordProvider: passwordProvider != null ? () => passwordProvider!(name) : null,
+      );
+    } catch (e) {
+      final image = await decodeImageFromList(bytes);
+      final width = image.width * 300 / 72;
+      final height = image.height * 300 / 72;
+      final pdfImage = PdfImage.createFromBgraData(
+        (await image.toByteData(format: ImageByteFormat.rawRgba))!.buffer.asUint8List(),
+        width: image.width,
+        height: image.height,
+      );
+      doc = await PdfDocument.createFromImage(pdfImage, width: width, height: height, sourceName: name);
+    }
     final docId = _nextDocId++;
-    final doc = await PdfDocument.openData(
-      bytes,
-      passwordProvider: passwordProvider != null ? () => passwordProvider!(docId, name) : null,
-    );
     _documents[docId] = doc;
     _pageRefCounts[docId] = 0;
     return docId;
@@ -141,7 +155,7 @@ class PdfCombinePage extends StatefulWidget {
 }
 
 class _PdfCombinePageState extends State<PdfCombinePage> {
-  late final _docManager = DocumentManager((docId, name) => passwordDialog(name, context));
+  late final _docManager = DocumentManager((name) => passwordDialog(name, context));
   final _pages = <PageItem>[];
   final _scrollController = ScrollController();
   bool _isLoading = false;
@@ -163,101 +177,54 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
       ],
     );
     if (files.isEmpty) return;
+    await _processFiles(FileIterator.fromXFileList(files));
+  }
 
+  int _fileId = 0;
+
+  Future<void> _processFiles(FileIterator provider) async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      for (final file in files) {
+      await provider.iterateFiles((fileData) async {
         try {
-          final docId = await _docManager.loadDocument(file.name, file.path);
+          final filePath = fileData.filePath;
+          final int docId;
+          final String fileName;
+          if (filePath != null && filePath.toLowerCase().endsWith('.pdf')) {
+            docId = await _docManager.loadDocument(filePath, filePath);
+            fileName = filePath.split('/').last;
+          } else {
+            fileName = 'document_${++_fileId}';
+            docId = await _docManager.loadDocumentFromBytes(fileName, await fileData.loadData());
+          }
+
           final doc = _docManager.getDocument(docId);
           if (doc != null) {
             for (var i = 0; i < doc.pages.length; i++) {
               _docManager.addReference(docId);
-              _pages.add(PageItem(documentId: docId, documentName: file.name, pageIndex: i, page: doc.pages[i]));
+              _pages.add(PageItem(documentId: docId, documentName: fileName, pageIndex: i, page: doc.pages[i]));
             }
           }
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading "${file.name}": $e')));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading PDF": $e')));
           }
         }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading PDF: $e')));
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  int _droppedCount = 0;
-
-  Future<void> _loadDropFiles(DropSession session) async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      for (final item in session.items) {
-        try {
-          final file = await _loadDataFromSessionItem(item, Formats.pdf);
-          if (file != null) {
-            ++_droppedCount;
-            final fileName = file.fileName ?? 'dropped_file_$_droppedCount.pdf';
-            final docId = await _docManager.loadDocumentFromBytes(fileName, file.data);
-            final doc = _docManager.getDocument(docId);
-            if (doc != null) {
-              for (var i = 0; i < doc.pages.length; i++) {
-                _docManager.addReference(docId);
-                _pages.add(PageItem(documentId: docId, documentName: fileName, pageIndex: i, page: doc.pages[i]));
-              }
-            }
-          }
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading dropped file: $e')));
-          }
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading PDF: $e')));
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<({String? fileName, Uint8List data})?> _loadDataFromSessionItem(DropItem item, FileFormat format) async {
-    final reader = item.dataReader!;
-    if (!reader.canProvide(format)) {
-      return null;
-    }
-    var fileName = await reader.getSuggestedName();
-    final completer = Completer<Uint8List>();
-    try {
-      final result = reader.getFile(format, (file) async {
-        completer.complete(await file.readAll());
       });
-      if (result == null) {
-        completer.completeError(Exception('Not supported format: $format'));
-      }
     } catch (e) {
-      completer.completeError(e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading PDF: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
-    return (fileName: fileName, data: await completer.future);
   }
 
   void _removePage(int index) {
@@ -334,12 +301,7 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
             _isDraggingOver = false;
           });
         },
-        onPerformDrop: (event) async {
-          await _loadDropFiles(event.session);
-          setState(() {
-            _isDraggingOver = false;
-          });
-        },
+        onPerformDrop: (event) => _processFiles(FileIterator.fromDropSession(event.session)),
         child: Stack(
           children: [
             _isLoading
@@ -404,8 +366,8 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
                             );
                           },
                           sliverGridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: crossAxisCount),
-                          insertDuration: const Duration(milliseconds: 300),
-                          removeDuration: const Duration(milliseconds: 300),
+                          insertDuration: const Duration(milliseconds: 100),
+                          removeDuration: const Duration(milliseconds: 100),
                           dragStartDelay: _isTouchDevice || _disableDragging
                               ? const Duration(milliseconds: 200)
                               : Duration.zero,
