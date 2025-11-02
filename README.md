@@ -10,7 +10,7 @@ A platform-agnostic PDF rendering and manipulation API built on top of PDFium.
 
 - Pure Dart package (no Flutter dependencies)
 - Provides low-level PDF document API for viewing and editing
-- Supports page re-arrangement, PDF combining, and document manipulation
+- Supports page re-arrangement, PDF combining, image import, and document manipulation
 - Can be used in CLI applications or non-Flutter Dart projects
 - Supports all platforms: Android, iOS, Windows, macOS, Linux
 
@@ -22,7 +22,7 @@ A cross-platform PDF viewer and manipulation plugin for Flutter.
 - Built on top of pdfrx_engine
 - Provides high-level viewer widgets and overlays
 - Includes text selection, search, zoom controls, and more
-- Supports PDF editing features like page manipulation and document combining
+- Supports PDF editing features like page manipulation, document combining, and image import
 
 ### [pdfrx_coregraphics](packages/pdfrx_coregraphics/)
 

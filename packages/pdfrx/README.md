@@ -2,11 +2,11 @@
 
 [![Build Test](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml/badge.svg)](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml)
 
-[pdfrx](https://pub.dartlang.org/packages/pdfrx) is a rich and fast PDF viewer and manipulation plugin for Flutter. It provides ready-to-use widgets for displaying and editing PDF documents in your Flutter applications.
+[pdfrx](https://pub.dartlang.org/packages/pdfrx) is a rich and fast PDF viewer and manipulation plugin for Flutter. It provides ready-to-use widgets for displaying and editing PDF documents, including page manipulation, document combining, and image import in your Flutter applications.
 
 This plugin is built on top of [pdfrx_engine](https://pub.dartlang.org/packages/pdfrx_engine), which handles the low-level PDF rendering and manipulation using [PDFium](https://pdfium.googlesource.com/pdfium/). The separation allows for a clean architecture where:
 
-- **pdfrx** (this package) - Provides Flutter widgets, UI components, platform integration, and PDF editing features
+- **pdfrx** (this package) - Provides Flutter widgets, UI components, platform integration, and PDF editing features (page manipulation, combining, image import)
 - **pdfrx_engine** - Handles PDF parsing, rendering, and manipulation without Flutter dependencies
 
 The plugin supports Android, iOS, Windows, macOS, Linux, and Web.

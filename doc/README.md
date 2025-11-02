@@ -39,6 +39,7 @@ Welcome to the pdfrx documentation! This guide provides comprehensive informatio
 ### PDF Editing
 
 - [PDF Page Manipulation](PDF-Page-Manipulation.md) - Re-arrange, combine, and extract PDF pages
+- [Importing Images to PDF](Importing-Images-to-PDF.md) - Convert images to PDF and insert images into PDFs
 
 ## Platform-Specific
 

@@ -15,6 +15,47 @@ The page manipulation feature allows you to:
 
 ## Key Concepts
 
+### Creating PDF Documents for Page Manipulation
+
+There are multiple ways to create a [PdfDocument](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) for page manipulation:
+
+#### Using Existing PDF Files
+
+When you open an existing PDF file using methods like [PdfDocument.openFile](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openFile.html) or [PdfDocument.openData](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openData.html), the document inherits all settings from the original PDF, including:
+
+- Security settings and encryption
+- Document metadata
+- PDF version and features
+- Form fields and annotations
+
+```dart
+// Open existing PDF - inherits all original settings
+final doc = await PdfDocument.openFile('document.pdf');
+```
+
+This is useful when you want to preserve the original PDF's properties while manipulating its pages.
+
+#### Creating New PDF Documents with PdfDocument.createNew
+
+[PdfDocument.createNew](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/createNew.html) creates a completely new, empty PDF document from scratch without inheriting any settings:
+
+```dart
+// Create a brand new empty PDF
+final newDoc = await PdfDocument.createNew(sourceName: 'combined.pdf');
+
+// Add pages from other documents
+newDoc.pages = [doc1.pages[0], doc2.pages[1], doc3.pages[2]];
+
+// Encode to PDF bytes
+final pdfBytes = await newDoc.encodePdf();
+```
+
+**Use cases for PdfDocument.createNew:**
+
+- Combining pages from multiple PDFs without inheriting any security or metadata settings
+- Creating a clean PDF document without any legacy properties
+- Building PDFs programmatically where you want full control over document properties
+
 ### PdfDocument.pages Property
 
 The [PdfDocument.pages](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/pages.html) property is both readable and writable:
