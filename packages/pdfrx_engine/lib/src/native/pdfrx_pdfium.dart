@@ -463,6 +463,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
         final bufferList = memBuffer.asTypedList(params.pixels.length);
         bufferList.setAll(0, params.pixels);
 
+        final imageObj = pdfium.FPDFPageObj_NewImageObj(document);
         final bitmap = pdfium.FPDFBitmap_CreateEx(
           params.pixelWidth,
           params.pixelHeight,
@@ -470,24 +471,14 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
           memBuffer.cast<Void>(),
           params.pixelWidth * 4,
         );
-        final imageObj = pdfium.FPDFPageObj_NewImageObj(document);
         pdfium.FPDFImageObj_SetBitmap(newPages, 1, imageObj, bitmap);
+        pdfium.FPDFBitmap_Destroy(bitmap);
 
-        final scaleX = params.width / params.pixelWidth;
-        final scaleY = -params.height / params.pixelHeight;
-        pdfium.FPDFImageObj_SetMatrix(
-          imageObj,
-          scaleX, //        a: horizontal scaling
-          0, //             b: vertical skewing
-          0, //             c: horizontal skewing
-          -scaleY, //       d: vertical scaling (negative to flip Y-axis)
-          0, //             e: horizontal translation
-          params.height, // f: vertical translation (move to top after flip
-        );
+        pdfium.FPDFImageObj_SetMatrix(imageObj, params.width, 0, 0, params.height, 0, 0);
         pdfium.FPDFPage_InsertObject(newPage, imageObj); // imageObj is now owned by the page
+
         pdfium.FPDFPage_GenerateContent(newPage);
         pdfium.FPDF_ClosePage(newPage);
-        pdfium.FPDFBitmap_Destroy(bitmap);
         return document.address;
       },
       (

@@ -1,15 +1,14 @@
 import 'dart:async';
-import 'dart:typed_data';
-import 'dart:ui';
+import 'dart:ui' as ui;
 
 import 'package:animated_reorderable_list/animated_reorderable_list.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
-import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
-import 'file_data.dart';
-import 'save_helper_web.dart' if (dart.library.io) 'save_helper_io.dart';
+import 'helper_web.dart' if (dart.library.io) 'save_helper_io.dart';
 
 void main() {
   pdfrxFlutterInitialize();
@@ -93,24 +92,55 @@ class DocumentManager {
     return docId;
   }
 
+  /// Load image bytes as a PDF document
+  ///
+  /// [assumedDpi] is the assumed DPI of the image for size calculation.
+  /// Typically, JPEG files may have DPI information in their metadata, but it's almost always 96-dpi or such
+  /// and thus results in very large PDF pages. Therefore, we use an assumed DPI of 300 by default.
+  Future<PdfDocument> _loadImageAsPdf(Uint8List bytes, String name, {double assumedDpi = 300}) async {
+    ui.Image? imageOpened;
+    PdfImage? pdfImage;
+    try {
+      /// NOTE: we should firstly try to open as image, because PDFium on Windows could not determine whether
+      /// the input bytes are PDF or not correctly in some cases.
+      final image = imageOpened = await decodeImageFromList(bytes);
+      final width = image.width * 72 / assumedDpi;
+      final height = image.height * 72 / assumedDpi;
+      pdfImage = await image.toPdfImage();
+      imageOpened.dispose();
+      imageOpened = null;
+      return await PdfDocument.createFromImage(pdfImage, width: width, height: height, sourceName: name);
+    } finally {
+      imageOpened?.dispose();
+      pdfImage?.dispose();
+    }
+  }
+
+  Future<PdfDocument> _loadPdf(Uint8List bytes, String name) async {
+    return await PdfDocument.openData(
+      bytes,
+      passwordProvider: passwordProvider != null ? () => passwordProvider!(name) : null,
+    );
+  }
+
   Future<int> loadDocumentFromBytes(String name, Uint8List bytes) async {
     PdfDocument doc;
-    try {
-      doc = await PdfDocument.openData(
-        bytes,
-        passwordProvider: passwordProvider != null ? () => passwordProvider!(name) : null,
-      );
-    } catch (e) {
-      final image = await decodeImageFromList(bytes);
-      final width = image.width * 300 / 72;
-      final height = image.height * 300 / 72;
-      final pdfImage = PdfImage.createFromBgraData(
-        (await image.toByteData(format: ImageByteFormat.rawRgba))!.buffer.asUint8List(),
-        width: image.width,
-        height: image.height,
-      );
-      doc = await PdfDocument.createFromImage(pdfImage, width: width, height: height, sourceName: name);
+    if (isWindowsDesktop) {
+      try {
+        /// NOTE: we should firstly try to open as image, because PDFium on Windows could not determine whether
+        /// the input bytes are PDF or not correctly in some cases.
+        doc = await _loadImageAsPdf(bytes, name);
+      } catch (e) {
+        doc = await _loadPdf(bytes, name);
+      }
+    } else {
+      try {
+        doc = await _loadPdf(bytes, name);
+      } catch (e) {
+        doc = await _loadImageAsPdf(bytes, name);
+      }
     }
+
     final docId = _nextDocId++;
     _documents[docId] = doc;
     _pageRefCounts[docId] = 0;
@@ -174,31 +204,32 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
     final files = await openFiles(
       acceptedTypeGroups: [
         XTypeGroup(label: 'PDFs', extensions: ['pdf']),
+        XTypeGroup(label: 'Images', extensions: ['jpg', 'jpeg', 'png', 'bmp', 'gif', 'tiff', 'webp']),
       ],
     );
     if (files.isEmpty) return;
-    await _processFiles(FileIterator.fromXFileList(files));
+    await _processFiles(files);
   }
 
   int _fileId = 0;
 
-  Future<void> _processFiles(FileIterator provider) async {
+  Future<void> _processFiles(List<XFile> files) async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      await provider.iterateFiles((fileData) async {
+      for (final file in files) {
         try {
-          final filePath = fileData.filePath;
+          final filePath = file.path;
           final int docId;
           final String fileName;
-          if (filePath != null && filePath.toLowerCase().endsWith('.pdf')) {
+          if (filePath.toLowerCase().endsWith('.pdf')) {
             docId = await _docManager.loadDocument(filePath, filePath);
             fileName = filePath.split('/').last;
           } else {
             fileName = 'document_${++_fileId}';
-            docId = await _docManager.loadDocumentFromBytes(fileName, await fileData.loadData());
+            docId = await _docManager.loadDocumentFromBytes(fileName, await file.readAsBytes());
           }
 
           final doc = _docManager.getDocument(docId);
@@ -213,7 +244,7 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading PDF": $e')));
           }
         }
-      });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error loading PDF: $e')));
@@ -284,24 +315,18 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
           const SizedBox(width: 16),
         ],
       ),
-      body: DropRegion(
-        formats: Formats.standardFormats,
-        hitTestBehavior: HitTestBehavior.opaque,
-        onDropOver: (event) {
-          if (event.session.items.any((item) => item.canProvide(Formats.fileUri))) {
-            setState(() {
-              _isDraggingOver = true;
-            });
-            return DropOperation.copy;
-          }
-          return DropOperation.none;
+      body: DropTarget(
+        onDragEntered: (event) {
+          setState(() {
+            _isDraggingOver = true;
+          });
         },
-        onDropLeave: (event) {
+        onDragExited: (event) {
           setState(() {
             _isDraggingOver = false;
           });
         },
-        onPerformDrop: (event) => _processFiles(FileIterator.fromDropSession(event.session)),
+        onDragDone: (event) => _processFiles(event.files),
         child: Stack(
           children: [
             _isLoading
@@ -342,12 +367,12 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
                       return Listener(
                         onPointerMove: (event) {
                           setState(() {
-                            _isTouchDevice = event.kind == PointerDeviceKind.touch;
+                            _isTouchDevice = event.kind == ui.PointerDeviceKind.touch;
                           });
                         },
                         onPointerHover: (event) {
                           setState(() {
-                            _isTouchDevice = event.kind == PointerDeviceKind.touch;
+                            _isTouchDevice = event.kind == ui.PointerDeviceKind.touch;
                           });
                         },
                         child: AnimatedReorderableGridView(
@@ -367,7 +392,7 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
                           },
                           sliverGridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: crossAxisCount),
                           insertDuration: const Duration(milliseconds: 100),
-                          removeDuration: const Duration(milliseconds: 100),
+                          removeDuration: const Duration(milliseconds: 300),
                           dragStartDelay: _isTouchDevice || _disableDragging
                               ? const Duration(milliseconds: 200)
                               : Duration.zero,

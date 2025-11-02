@@ -24,8 +24,7 @@ dependencies:
   path_provider: ^2.1.5
   animated_reorderable_list: ^1.3.0
   web: ^1.1.1
-  super_drag_and_drop: ^0.9.1
-  super_clipboard: ^0.9.1
+  desktop_drop: ^0.7.0
 
 dev_dependencies:
   flutter_test:

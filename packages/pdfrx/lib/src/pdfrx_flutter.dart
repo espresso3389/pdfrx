@@ -83,6 +83,19 @@ extension PdfImageExt on PdfImage {
   }
 }
 
+extension ImageExt on Image {
+  /// Convert [Image] to [PdfImage].
+  Future<PdfImage> toPdfImage() async {
+    final rgba = (await toByteData(format: ImageByteFormat.rawRgba))!.buffer.asUint8List();
+    for (var i = 0; i < rgba.length; i += 4) {
+      final r = rgba[i];
+      rgba[i] = rgba[i + 2];
+      rgba[i + 2] = r;
+    }
+    return PdfImage.createFromBgraData(rgba, width: width, height: height);
+  }
+}
+
 extension PdfRectExt on PdfRect {
   /// Convert to [Rect] in Flutter coordinate.
   /// [page] is the page to convert the rectangle.
