@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 // ignore: implementation_imports
 import 'package:pdfrx_engine/src/native/pdf_file_cache.dart';
+// ignore: implementation_imports
+import 'package:pdfrx_engine/src/pdf_page_proxies.dart';
 
 const _kPasswordErrorCode = 'wrong-password';
 
@@ -182,8 +184,49 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
 
   @override
   Future<PdfDocument> createNew({required String sourceName}) async {
-    throw UnimplementedError(
-      'createNew() is not implemented for CoreGraphics backend.',
+    await init();
+    final result = await _channel.invokeMapMethod<Object?, Object?>(
+      'createNewDocument',
+      {'sourceName': sourceName},
+    );
+    if (result == null) {
+      throw const PdfException('Failed to create empty PDF document.');
+    }
+    return _CoreGraphicsPdfDocument.fromPlatformMap(
+      channel: _channel,
+      result: result,
+      sourceName: sourceName,
+      useProgressiveLoading: false,
+      onDispose: null,
+    );
+  }
+
+  @override
+  Future<PdfDocument> createFromImage(
+    PdfImage image, {
+    required double width,
+    required double height,
+    required String sourceName,
+  }) async {
+    await init();
+    final result = await _channel
+        .invokeMapMethod<Object?, Object?>('createDocumentFromImage', {
+          'pixels': image.pixels,
+          'pixelWidth': image.width,
+          'pixelHeight': image.height,
+          'width': width,
+          'height': height,
+          'sourceName': sourceName,
+        });
+    if (result == null) {
+      throw const PdfException('Failed to create PDF document from image.');
+    }
+    return _CoreGraphicsPdfDocument.fromPlatformMap(
+      channel: _channel,
+      result: result,
+      sourceName: sourceName,
+      useProgressiveLoading: false,
+      onDispose: null,
     );
   }
 
@@ -404,10 +447,40 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
   }
 
   @override
-  set pages(List<PdfPage> value) {
-    throw UnimplementedError(
-      'Setting pages is not implemented for CoreGraphics backend.',
-    );
+  set pages(List<PdfPage> newPages) {
+    final pages = <PdfPage>[];
+    final changes = <int, PdfPageStatusChange>{};
+    for (final newPage in newPages) {
+      if (pages.length < _pages.length) {
+        final old = _pages[pages.length];
+        if (identical(newPage, old)) {
+          pages.add(newPage);
+          continue;
+        }
+      }
+
+      if (newPage.unwrap<_CoreGraphicsPdfPage>() == null) {
+        throw ArgumentError(
+          'Unsupported PdfPage instances found at [${pages.length}]',
+          'newPages',
+        );
+      }
+
+      final newPageNumber = pages.length + 1;
+      pages.add(newPage.withPageNumber(newPageNumber));
+
+      final oldPageIndex = _pages.indexWhere((p) => identical(p, newPage));
+      if (oldPageIndex != -1) {
+        changes[newPageNumber] = PdfPageStatusChange.moved(
+          oldPageNumber: oldPageIndex + 1,
+        );
+      } else {
+        changes[newPageNumber] = PdfPageStatusChange.modified;
+      }
+    }
+
+    _pages = pages;
+    subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
   }
 
   @override

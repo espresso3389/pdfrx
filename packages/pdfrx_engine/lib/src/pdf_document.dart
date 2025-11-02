@@ -116,6 +116,19 @@ abstract class PdfDocument {
   static Future<PdfDocument> createNew({required String sourceName}) =>
       PdfrxEntryFunctions.instance.createNew(sourceName: sourceName);
 
+  /// Creating a PDF document from an image.
+  ///
+  /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
+  /// unique for each source, the viewer may not work correctly.
+  /// [width] and [height] are the dimensions of the image in PDF units (1/72 inch).
+  /// [image] is the PDF image to create the document from.
+  static Future<PdfDocument> createFromImage(
+    PdfImage image, {
+    required double width,
+    required double height,
+    required String sourceName,
+  }) => PdfrxEntryFunctions.instance.createFromImage(image, width: width, height: height, sourceName: sourceName);
+
   /// Opening the PDF from custom source.
   ///
   /// On Flutter Web, this function is not supported and throws an exception.

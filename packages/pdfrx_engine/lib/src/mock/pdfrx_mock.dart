@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import '../pdfrx_document.dart';
+import '../pdf_document.dart';
+import '../pdf_page.dart';
 import '../pdfrx_entry_functions.dart';
 
 /// This is an empty implementation of [PdfrxEntryFunctions] that just throws [UnimplementedError].
@@ -80,6 +81,14 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
 
   @override
   Future<PdfDocument> createNew({required String sourceName}) => unimplemented();
+
+  @override
+  Future<PdfDocument> createFromImage(
+    PdfImage image, {
+    required double width,
+    required double height,
+    required String sourceName,
+  }) => unimplemented();
 
   @override
   Future<void> reloadFonts() => unimplemented();

@@ -1,8 +1,8 @@
+import 'pdf_document.dart';
 import 'pdf_link.dart';
 import 'pdf_page.dart';
 import 'pdf_text.dart';
 import 'pdf_text_formatter.dart';
-import 'pdfrx_document.dart';
 
 /// Proxy interface for [PdfPage].
 ///

@@ -12,6 +12,7 @@ import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
 
 import '../pdf_dest.dart';
+import '../pdf_document.dart';
 import '../pdf_document_event.dart';
 import '../pdf_exception.dart';
 import '../pdf_font_query.dart';
@@ -24,7 +25,6 @@ import '../pdf_permissions.dart';
 import '../pdf_rect.dart';
 import '../pdf_text.dart';
 import '../pdfrx.dart';
-import '../pdfrx_document.dart';
 import '../pdfrx_entry_functions.dart';
 import '../utils/shuffle_in_place.dart';
 import 'native_utils.dart';
@@ -436,6 +436,69 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     final doc = await (await backgroundWorker).compute((params) {
       return pdfium.FPDF_CreateNewDocument().address;
     }, null);
+    return _PdfDocumentPdfium.fromPdfDocument(
+      pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
+      sourceName: sourceName,
+      useProgressiveLoading: false,
+      disposeCallback: null,
+    );
+  }
+
+  @override
+  Future<PdfDocument> createFromImage(
+    PdfImage image, {
+    required double width,
+    required double height,
+    required String sourceName,
+  }) async {
+    await _init();
+    final doc = await (await backgroundWorker).computeWithArena(
+      (arena, params) {
+        final document = pdfium.FPDF_CreateNewDocument();
+        final newPage = pdfium.FPDFPage_New(document, 0, params.width, params.height);
+        final newPages = arena.allocate<pdfium_bindings.FPDF_PAGE>(sizeOf<Pointer<pdfium_bindings.FPDF_PAGE>>());
+        newPages.value = newPage;
+
+        final memBuffer = arena.allocate<Uint8>(params.pixels.length);
+        final bufferList = memBuffer.asTypedList(params.pixels.length);
+        bufferList.setAll(0, params.pixels);
+
+        final bitmap = pdfium.FPDFBitmap_CreateEx(
+          params.pixelWidth,
+          params.pixelHeight,
+          pdfium_bindings.FPDFBitmap_BGRA,
+          memBuffer.cast<Void>(),
+          params.pixelWidth * 4,
+        );
+        final imageObj = pdfium.FPDFPageObj_NewImageObj(document);
+        pdfium.FPDFImageObj_SetBitmap(newPages, 1, imageObj, bitmap);
+
+        final scaleX = params.width / params.pixelWidth;
+        final scaleY = -params.height / params.pixelHeight;
+        pdfium.FPDFImageObj_SetMatrix(
+          imageObj,
+          scaleX, //        a: horizontal scaling
+          0, //             b: vertical skewing
+          0, //             c: horizontal skewing
+          -scaleY, //       d: vertical scaling (negative to flip Y-axis)
+          0, //             e: horizontal translation
+          params.height, // f: vertical translation (move to top after flip
+        );
+        pdfium.FPDFPage_InsertObject(newPage, imageObj); // imageObj is now owned by the page
+        pdfium.FPDFPage_GenerateContent(newPage);
+        pdfium.FPDF_ClosePage(newPage);
+        pdfium.FPDFBitmap_Destroy(bitmap);
+        return document.address;
+      },
+      (
+        pixels: image.pixels,
+        pixelWidth: image.width,
+        pixelHeight: image.height,
+        width: width,
+        height: height,
+        sourceName: sourceName,
+      ),
+    );
     return _PdfDocumentPdfium.fromPdfDocument(
       pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
       sourceName: sourceName,

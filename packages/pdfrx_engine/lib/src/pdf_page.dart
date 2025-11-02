@@ -1,10 +1,10 @@
 import 'dart:typed_data';
 
+import 'pdf_document.dart';
 import 'pdf_link.dart';
 import 'pdf_page_proxies.dart';
 import 'pdf_text.dart';
 import 'pdf_text_formatter.dart';
-import 'pdfrx_document.dart';
 
 /// Handles a PDF page in [PdfDocument].
 ///

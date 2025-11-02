@@ -1,6 +1,6 @@
+import 'pdf_document.dart';
 import 'pdf_font_query.dart';
 import 'pdf_page_status_change.dart';
-import 'pdfrx_document.dart';
 
 /// PDF document event types.
 enum PdfDocumentEventType {

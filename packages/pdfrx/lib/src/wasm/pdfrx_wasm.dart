@@ -314,6 +314,33 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
   }
 
   @override
+  Future<PdfDocument> createFromImage(
+    PdfImage image, {
+    required double width,
+    required double height,
+    required String sourceName,
+  }) async {
+    await init();
+    final jsPixels = image.pixels.buffer.toJS;
+    final result = await _sendCommand(
+      'createDocumentFromImage',
+      parameters: {
+        'pixels': jsPixels,
+        'pixelWidth': image.width,
+        'pixelHeight': image.height,
+        'width': width,
+        'height': height,
+      },
+      transfer: [jsPixels].toJS,
+    );
+    final errorCode = (result['errorCode'] as num?)?.toInt();
+    if (errorCode != null) {
+      throw StateError('Failed to create document from image: ${result['errorCodeStr']} ($errorCode)');
+    }
+    return _PdfDocumentWasm._(result, sourceName: sourceName, disposeCallback: null);
+  }
+
+  @override
   Future<void> reloadFonts() async {
     await init();
     await _sendCommand('reloadFonts', parameters: {'dummy': true});
