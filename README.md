@@ -71,12 +71,28 @@ Comprehensive documentation is available in the [doc/](doc/) directory, includin
 
 This is a monorepo managed with pub workspaces. Just do `dart pub get` on some directory inside the repo to obtain all the dependencies.
 
-## Example Application
+## Example Applications
 
-The example viewer application is located in `packages/pdfrx/example/viewer/`. It demonstrates the full capabilities of the pdfrx Flutter plugin.
+### PDF Viewer
+
+The example viewer application is located in [packages/pdfrx/example/viewer/](packages/pdfrx/example/viewer/). It demonstrates the full capabilities of the pdfrx Flutter plugin.
 
 ```bash
 cd packages/pdfrx/example/viewer
+flutter run
+```
+
+### PDF Combine
+
+The [packages/pdfrx/example/pdf_combine/](packages/pdfrx/example/pdf_combine/) application demonstrates PDF page manipulation and combining features:
+
+- Drag-and-drop interface for page re-arrangement
+- Visual thumbnails of PDF pages
+- Support for combining multiple PDF documents
+- Platform file drag-and-drop support
+
+```bash
+cd packages/pdfrx/example/pdf_combine
 flutter run
 ```
 
