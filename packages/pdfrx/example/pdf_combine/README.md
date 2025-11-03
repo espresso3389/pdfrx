@@ -40,7 +40,7 @@ The app uses the [`PdfDocument.createFromImage()`](https://pub.dev/documentation
 ## Running the App
 
 ```bash
-cd packages/pdfrx/example/pdfcombine
+cd packages/pdfrx/example/pdf_combine
 flutter run -d linux   # or macos, windows
 flutter run -d chrome  # for Web
 ```
