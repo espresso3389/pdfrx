@@ -9,11 +9,11 @@ on:
       - 'doc/**'
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    # NOTE: This workflow automatically update gh-pages branch and it requires write permissions
-    permissions:
-      contents: write
+    strategy:
+      matrix:
+        example: [viewer, pdf_combine]
 
     steps:
       - name: Checkout repository
@@ -38,12 +38,157 @@ jobs:
         run: flutter pub get
       - name: Build Flutter Web App (WASM)
         run: |
-          cd packages/pdfrx/example/viewer/
-          flutter build web --wasm --release --dart-define=GITHUB_COMMIT=$GITHUB_SHA --dart-define=PDFRX_VERSION=$PDFRX_VERSION
-          sed -i \
-            -e 's|<base href="/">|<base href="/pdfrx/">|' \
-            -e "s/__CONFIGS__/pdfrx=${PDFRX_VERSION},commit=${GITHUB_SHA},flutter=${FLUTTER_VERSION}/g" \
-            build/web/index.html
+          cd packages/pdfrx/example/${{ matrix.example }}/
+          flutter build web --wasm --release --base-href "/pdfrx/${{ matrix.example }}/" --dart-define=GITHUB_COMMIT=$GITHUB_SHA --dart-define=PDFRX_VERSION=$PDFRX_VERSION
+          sed -i "s/__CONFIGS__/pdfrx=${PDFRX_VERSION},commit=${GITHUB_SHA},flutter=${FLUTTER_VERSION}/g" build/web/index.html
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.example }}-web
+          path: packages/pdfrx/example/${{ matrix.example }}/build/web/
+          retention-days: 1
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    # NOTE: This workflow automatically update gh-pages branch and it requires write permissions
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      - name: Prepare deployment directory
+        run: |
+          mkdir -p deploy_temp
+
+          # Copy each example to its subdirectory
+          cp -r artifacts/viewer-web deploy_temp/viewer
+          cp -r artifacts/pdf_combine-web deploy_temp/pdf_combine
+
+          # Extract version info from artifact
+          VERSION_INFO=$(grep 'pdfrx-configs' artifacts/viewer-web/index.html | sed 's/.*content="\([^"]*\)".*/\1/')
+          PDFRX_VERSION=$(echo "$VERSION_INFO" | sed 's/.*pdfrx=\([^,]*\).*/\1/')
+          FLUTTER_VERSION=$(echo "$VERSION_INFO" | sed 's/.*flutter=\([^,]*\).*/\1/')
+          echo "PDFRX_VERSION=$PDFRX_VERSION" >> $GITHUB_ENV
+          echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $GITHUB_ENV
+
+          # Create root index.html
+          cat > deploy_temp/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta name="pdfrx-configs" content="__CONFIGS__">
+            <title>pdfrx - Flutter PDF Library</title>
+            <style>
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                max-width: 800px;
+                margin: 50px auto;
+                padding: 20px;
+                line-height: 1.6;
+              }
+              h1 {
+                color: #333;
+                border-bottom: 2px solid #0175c2;
+                padding-bottom: 10px;
+              }
+              .examples {
+                display: grid;
+                gap: 20px;
+                margin-top: 30px;
+              }
+              .example-card {
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 20px;
+                transition: box-shadow 0.3s;
+              }
+              .example-card:hover {
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+              }
+              .example-card h2 {
+                margin-top: 0;
+                color: #0175c2;
+              }
+              .example-card a {
+                display: inline-block;
+                margin-top: 10px;
+                padding: 10px 20px;
+                background: #0175c2;
+                color: white;
+                text-decoration: none;
+                border-radius: 4px;
+              }
+              .example-card a:hover {
+                background: #015a94;
+              }
+              .footer {
+                margin-top: 50px;
+                text-align: center;
+                color: #666;
+                font-size: 0.9em;
+              }
+              .version-info {
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid #ddd;
+                font-size: 0.85em;
+                color: #888;
+              }
+              .version-info a {
+                color: #0175c2;
+                text-decoration: none;
+              }
+              .version-info a:hover {
+                text-decoration: underline;
+              }
+            </style>
+          </head>
+          <body>
+            <h1>pdfrx - Flutter PDF Library</h1>
+            <p>A powerful and flexible PDF viewer and manipulation library for Flutter.</p>
+
+            <div class="examples">
+              <div class="example-card">
+                <h2>PDF Viewer</h2>
+                <p>A full-featured PDF viewer with zoom, pan, text selection, and more.</p>
+                <a href="viewer/">Launch Viewer Demo</a>
+              </div>
+
+              <div class="example-card">
+                <h2>PDF Combine</h2>
+                <p>Combine multiple PDF files into a single document.</p>
+                <a href="pdf_combine/">Launch PDF Combine Demo</a>
+              </div>
+            </div>
+
+            <div class="footer">
+              <p>
+                <a href="https://github.com/espresso3389/pdfrx" target="_blank">GitHub Repository</a> |
+                <a href="https://pub.dev/packages/pdfrx" target="_blank">pub.dev Package</a>
+              </p>
+              <p class="version-info">
+                pdfrx: __PDFRX_VERSION__ | commit: <a href="https://github.com/espresso3389/pdfrx/commit/__COMMIT__" target="_blank">__COMMIT_SHORT__</a> | Flutter: __FLUTTER_VERSION__
+              </p>
+            </div>
+          </body>
+          </html>
+          EOF
+
+          # Add version info to index.html
+          COMMIT_SHORT=${GITHUB_SHA:0:7}
+          sed -i "s/__CONFIGS__/pdfrx=${PDFRX_VERSION},commit=${GITHUB_SHA},flutter=${FLUTTER_VERSION}/g" deploy_temp/index.html
+          sed -i "s/__PDFRX_VERSION__/${PDFRX_VERSION}/g" deploy_temp/index.html
+          sed -i "s/__COMMIT__/${GITHUB_SHA}/g" deploy_temp/index.html
+          sed -i "s/__COMMIT_SHORT__/${COMMIT_SHORT}/g" deploy_temp/index.html
+          sed -i "s/__FLUTTER_VERSION__/${FLUTTER_VERSION}/g" deploy_temp/index.html
       - name: Configure Git for deployment
         run: |
           git config user.email "action@github.com"
@@ -51,7 +196,7 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.TOKEN_FOR_GHPAGE_DEPLOYMENT }}@github.com/${{ github.repository }}.git
       - name: Deploy to GitHub Pages using subtree push
         run: |
-          git add -f packages/pdfrx/example/viewer/build/web
+          git add -f deploy_temp
           git commit -m "$PDFRX_VERSION $GITHUB_SHA"
-          git subtree split --prefix packages/pdfrx/example/viewer/build/web -b tmp
+          git subtree split --prefix deploy_temp -b tmp
           git push -f origin tmp:gh-pages
