@@ -442,17 +442,17 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
                                       IconButton(
                                         icon: Icon(
                                           Icons.file_open,
-                                          size: 64,
+                                          size: 56,
                                           color: Theme.of(context).colorScheme.primary,
                                         ),
                                         onPressed: () => _pickFiles(),
                                       ),
                                       const SizedBox(height: 16),
                                       Text(
-                                        'Open PDF files',
-                                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                          color: Theme.of(context).colorScheme.primary,
-                                        ),
+                                        'Add PDF files...',
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.primary),
                                       ),
                                     ],
                                   ),
@@ -660,6 +660,9 @@ class _OutputPreviewPageState extends State<OutputPreviewPage> {
     try {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       await savePdf(_outputPdfBytes!, suggestedName: 'output_$timestamp.pdf');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('File downloaded successfully.')));
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error saving PDF: $e')));
