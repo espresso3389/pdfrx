@@ -1,7 +1,6 @@
 import 'dart:js_interop';
 import 'dart:typed_data';
 
-import 'package:web/helpers.dart';
 import 'package:web/web.dart' as web;
 
 Future<void> savePdf(Uint8List bytes, {String? suggestedName, bool openInNewTab = false}) async {
@@ -54,7 +53,7 @@ Future<JpegData> compressImageToJpeg(
   context.drawImage(webCodec, 0, 0, size.width, size.height);
   final encodedBlob = await offScreenCanvas
       .convertToBlob(
-        ImageEncodeOptions()
+        web.ImageEncodeOptions()
           ..type = 'image/jpeg'
           ..quality = quality / 100,
       )
