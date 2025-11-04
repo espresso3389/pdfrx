@@ -16,6 +16,7 @@ import '../pdf_document.dart';
 import '../pdf_document_event.dart';
 import '../pdf_exception.dart';
 import '../pdf_font_query.dart';
+import '../pdf_image.dart';
 import '../pdf_link.dart';
 import '../pdf_outline_node.dart';
 import '../pdf_page.dart';

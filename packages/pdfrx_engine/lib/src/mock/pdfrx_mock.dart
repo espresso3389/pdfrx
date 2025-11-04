@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import '../pdf_document.dart';
-import '../pdf_page.dart';
+import '../pdf_image.dart';
 import '../pdfrx_entry_functions.dart';
 
 /// This is an empty implementation of [PdfrxEntryFunctions] that just throws [UnimplementedError].

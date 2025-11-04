@@ -75,10 +75,35 @@ extension PdfPageExt on PdfPage {
 extension PdfImageExt on PdfImage {
   /// Create [Image] from the rendered image.
   ///
+  /// [pixelSizeThreshold] specifies the maximum allowed pixel size (width or height).
+  /// If the image exceeds this size, it will be downscaled to fit within the threshold
+  /// while maintaining the aspect ratio.
+  ///
   /// The returned [Image] must be disposed of when no longer needed.
-  Future<Image> createImage() {
+  Future<Image> createImage({int? pixelSizeThreshold}) {
+    int? targetWidth;
+    int? targetHeight;
+    if (pixelSizeThreshold != null && (width > pixelSizeThreshold || height > pixelSizeThreshold)) {
+      final aspectRatio = width / height;
+      if (width >= height) {
+        targetWidth = pixelSizeThreshold;
+        targetHeight = (pixelSizeThreshold / aspectRatio).round();
+      } else {
+        targetHeight = pixelSizeThreshold;
+        targetWidth = (pixelSizeThreshold * aspectRatio).round();
+      }
+    }
+
     final comp = Completer<Image>();
-    decodeImageFromPixels(pixels, width, height, PixelFormat.bgra8888, (image) => comp.complete(image));
+    decodeImageFromPixels(
+      pixels,
+      width,
+      height,
+      PixelFormat.bgra8888,
+      (image) => comp.complete(image),
+      targetWidth: targetWidth,
+      targetHeight: targetHeight,
+    );
     return comp.future;
   }
 }

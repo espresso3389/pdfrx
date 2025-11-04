@@ -8,6 +8,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'pdf_document_event.dart';
+import 'pdf_image.dart';
 import 'pdf_outline_node.dart';
 import 'pdf_page.dart';
 import 'pdf_permissions.dart';
@@ -118,10 +119,10 @@ abstract class PdfDocument {
 
   /// Creating a PDF document from an image.
   ///
+  /// [image] is the PDF image to create the document from.
+  /// [width] and [height] are the dimensions of the image in PDF units (1/72 inch).
   /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
   /// unique for each source, the viewer may not work correctly.
-  /// [width] and [height] are the dimensions of the image in PDF units (1/72 inch).
-  /// [image] is the PDF image to create the document from.
   static Future<PdfDocument> createFromImage(
     PdfImage image, {
     required double width,

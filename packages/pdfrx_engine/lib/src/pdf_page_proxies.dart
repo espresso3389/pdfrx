@@ -1,4 +1,5 @@
 import 'pdf_document.dart';
+import 'pdf_image.dart';
 import 'pdf_link.dart';
 import 'pdf_page.dart';
 import 'pdf_text.dart';

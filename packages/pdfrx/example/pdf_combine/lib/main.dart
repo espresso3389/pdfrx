@@ -28,8 +28,17 @@ class PdfCombineApp extends StatelessWidget {
   }
 }
 
-class PageItem {
-  PageItem({
+abstract class PageItem {
+  String get id;
+}
+
+class PageItemAdd extends PageItem {
+  @override
+  String get id => '##add_item##';
+}
+
+class PdfPageItem extends PageItem {
+  PdfPageItem({
     required this.documentId,
     required this.documentName,
     required this.pageIndex,
@@ -52,10 +61,11 @@ class PageItem {
   /// Rotation override for the page
   final PdfPageRotation? rotationOverride;
 
+  @override
   String get id => '${documentId}_$pageIndex';
 
-  PageItem copyWith({PdfPage? page, PdfPageRotation? rotationOverride}) {
-    return PageItem(
+  PdfPageItem copyWith({PdfPage? page, PdfPageRotation? rotationOverride}) {
+    return PdfPageItem(
       documentId: documentId,
       documentName: documentName,
       pageIndex: pageIndex,
@@ -94,18 +104,32 @@ class DocumentManager {
 
   /// Load image bytes as a PDF document
   ///
-  /// [assumedDpi] is the assumed DPI of the image for size calculation.
-  /// Typically, JPEG files may have DPI information in their metadata, but it's almost always 96-dpi or such
-  /// and thus results in very large PDF pages. Therefore, we use an assumed DPI of 300 by default.
-  Future<PdfDocument> _loadImageAsPdf(Uint8List bytes, String name, {double assumedDpi = 300}) async {
+  /// The image will be placed on a PDF page sized to fit within [fitWidth] x [fitHeight] points,
+  /// maintaining the aspect ratio. The default page size is A4 (595 x 842 points).
+  Future<PdfDocument> _loadImageAsPdf(
+    Uint8List bytes,
+    String name, {
+    double fitWidth = 595,
+    double fitHeight = 842,
+    int pixelSizeThreshold = 2000,
+  }) async {
     ui.Image? imageOpened;
     PdfImage? pdfImage;
     try {
-      /// NOTE: we should firstly try to open as image, because PDFium on Windows could not determine whether
-      /// the input bytes are PDF or not correctly in some cases.
-      final image = imageOpened = await decodeImageFromList(bytes);
-      final width = image.width * 72 / assumedDpi;
-      final height = image.height * 72 / assumedDpi;
+      final (:image, :origWidth, :origHeight) = await _decodeImage(bytes, pixelSizeThreshold: pixelSizeThreshold);
+      imageOpened = image;
+      final double width, height;
+      final aspectRatio = origWidth / origHeight;
+      if (origWidth <= fitWidth && origHeight <= fitHeight) {
+        width = origWidth.toDouble();
+        height = origHeight.toDouble();
+      } else if (aspectRatio >= fitWidth / fitHeight) {
+        width = fitWidth;
+        height = fitWidth / aspectRatio;
+      } else {
+        height = fitHeight;
+        width = fitHeight * aspectRatio;
+      }
       pdfImage = await image.toPdfImage();
       imageOpened.dispose();
       imageOpened = null;
@@ -114,6 +138,40 @@ class DocumentManager {
       imageOpened?.dispose();
       pdfImage?.dispose();
     }
+  }
+
+  Future<({ui.Image image, int origWidth, int origHeight})> _decodeImage(
+    Uint8List bytes, {
+    int pixelSizeThreshold = 2000,
+  }) async {
+    final ui.ImmutableBuffer buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+    final wh = <int>[];
+    final ui.Codec codec = await PaintingBinding.instance.instantiateImageCodecWithSize(
+      buffer,
+      getTargetSize: (w, h) {
+        wh.addAll([w, h]);
+        if (w > pixelSizeThreshold || h > pixelSizeThreshold) {
+          final aspectRatio = w / h;
+          if (w >= h) {
+            final targetWidth = pixelSizeThreshold;
+            final targetHeight = (pixelSizeThreshold / aspectRatio).round();
+            return ui.TargetImageSize(width: targetWidth, height: targetHeight);
+          } else {
+            final targetHeight = pixelSizeThreshold;
+            final targetWidth = (pixelSizeThreshold * aspectRatio).round();
+            return ui.TargetImageSize(width: targetWidth, height: targetHeight);
+          }
+        }
+        return ui.TargetImageSize(width: w, height: h);
+      },
+    );
+    final ui.FrameInfo frameInfo;
+    try {
+      frameInfo = await codec.getNextFrame();
+    } finally {
+      codec.dispose();
+    }
+    return (image: frameInfo.image, origWidth: wh[0], origHeight: wh[1]);
   }
 
   Future<PdfDocument> _loadPdf(Uint8List bytes, String name) async {
@@ -236,7 +294,7 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
           if (doc != null) {
             for (var i = 0; i < doc.pages.length; i++) {
               _docManager.addReference(docId);
-              _pages.add(PageItem(documentId: docId, documentName: fileName, pageIndex: i, page: doc.pages[i]));
+              _pages.add(PdfPageItem(documentId: docId, documentName: fileName, pageIndex: i, page: doc.pages[i]));
             }
           }
         } catch (e) {
@@ -260,15 +318,17 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
 
   void _removePage(int index) {
     setState(() {
-      final pageItem = _pages[index];
+      final page = _pages[index];
+      if (page is! PdfPageItem) return;
       _pages.removeAt(index);
-      _docManager.removeReference(pageItem.documentId);
+      _docManager.removeReference(page.documentId);
     });
   }
 
   void _rotatePageLeft(int index) {
     setState(() {
       final page = _pages[index];
+      if (page is! PdfPageItem) return;
       _pages[index] = page.copyWith(rotationOverride: (page.rotationOverride ?? page.page.rotation).rotateCCW90);
     });
   }
@@ -279,7 +339,12 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
       return;
     }
 
-    await Navigator.push(context, MaterialPageRoute(builder: (context) => OutputPreviewPage(pages: _pages)));
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OutputPreviewPage(pages: _pages.whereType<PdfPageItem>().cast<PdfPageItem>().toList()),
+      ),
+    );
   }
 
   Widget _disableDraggingOnChild(Widget child) {
@@ -378,6 +443,18 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
                           isSameItem: (a, b) => a.id == b.id,
                           itemBuilder: (context, index) {
                             final pageItem = _pages[index];
+                            if (pageItem is! PdfPageItem) {
+                              return Card(
+                                color: Theme.of(context).colorScheme.primaryContainer,
+                                child: Center(
+                                  child: IconButton.filled(
+                                    icon: const Icon(Icons.add),
+                                    onPressed: _pickFiles,
+                                    tooltip: 'Add PDF files',
+                                  ),
+                                ),
+                              );
+                            }
                             return _PageThumbnail(
                               key: ValueKey(pageItem.id),
                               page: pageItem.page,
@@ -523,7 +600,7 @@ class _PageThumbnail extends StatelessWidget {
 class OutputPreviewPage extends StatefulWidget {
   const OutputPreviewPage({required this.pages, super.key});
 
-  final List<PageItem> pages;
+  final List<PdfPageItem> pages;
 
   @override
   State<OutputPreviewPage> createState() => _OutputPreviewPageState();

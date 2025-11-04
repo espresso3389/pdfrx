@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
 
-Future<void> savePdf(Uint8List bytes, {String? suggestedName, bool openInNewTab = true}) async {
+Future<void> savePdf(Uint8List bytes, {String? suggestedName, bool openInNewTab = false}) async {
   final blob = web.Blob([bytes].jsify() as JSArray<web.BlobPart>, web.BlobPropertyBag(type: 'application/pdf'));
 
   final url = web.URL.createObjectURL(blob);
