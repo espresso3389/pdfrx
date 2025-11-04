@@ -1,8 +1,8 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:jpeg_encode/jpeg_encode.dart';
 import 'package:share_plus/share_plus.dart';
@@ -51,9 +51,16 @@ Future<JpegData> compressImageToJpeg(
   );
   final frameInfo = await codec.getNextFrame();
   final rgba = (await frameInfo.image.toByteData(format: ui.ImageByteFormat.rawRgba))!.buffer.asUint8List();
-  final byteData = JpegEncoder().compress(rgba, frameInfo.image.width, frameInfo.image.height, quality);
+  final byteData = await _jpegEncodeAsync(rgba, frameInfo.image.width, frameInfo.image.height, quality);
   codec.dispose();
   return JpegData(byteData.buffer.asUint8List(), frameInfo.image.width, frameInfo.image.height);
+}
+
+Future<Uint8List> _jpegEncodeAsync(Uint8List rgba, int width, int height, int quality) async {
+  return await compute((jpegParams) {
+    final (rgba, width, height, quality) = jpegParams;
+    return JpegEncoder().compress(rgba, width, height, quality);
+  }, (rgba, width, height, quality));
 }
 
 final isWindowsDesktop = Platform.isWindows;
