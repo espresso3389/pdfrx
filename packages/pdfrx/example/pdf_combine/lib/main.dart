@@ -132,9 +132,6 @@ class DocumentManager {
       final rawRgba = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
       final jpegData = JpegEncoder().compress(rawRgba!.buffer.asUint8List(), image.width, image.height, jpegQuality);
       return await PdfDocument.createFromJpegData(jpegData, width: width, height: height, sourceName: name);
-    } catch (e) {
-      print('Error creating PDF from JPEG: $e');
-      rethrow;
     } finally {
       image.dispose();
     }
