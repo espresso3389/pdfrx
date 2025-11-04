@@ -6,7 +6,6 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:jpeg_encode/jpeg_encode.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import 'helper_web.dart' if (dart.library.io) 'helper_io.dart';
@@ -107,6 +106,9 @@ class DocumentManager {
   ///
   /// The image will be placed on a PDF page sized to fit within [fitWidth] x [fitHeight] points,
   /// maintaining the aspect ratio. The default page size is A4 (595 x 842 points).
+  /// [pixelSizeThreshold] specifies the maximum allowed pixel size (width or height) for the image;
+  /// if the image exceeds this size, it will be downscaled to fit within the threshold while maintaining the aspect ratio.
+  /// [jpegQuality] specifies the JPEG compression quality (1-100).
   Future<PdfDocument> _loadImageAsPdf(
     Uint8List bytes,
     String name, {
@@ -115,60 +117,38 @@ class DocumentManager {
     int pixelSizeThreshold = 2000,
     int jpegQuality = 90,
   }) async {
-    final (:image, :origWidth, :origHeight) = await _decodeImage(bytes, pixelSizeThreshold: pixelSizeThreshold);
-    try {
-      final double width, height;
-      final aspectRatio = origWidth / origHeight;
-      if (origWidth <= fitWidth && origHeight <= fitHeight) {
-        width = origWidth.toDouble();
-        height = origHeight.toDouble();
-      } else if (aspectRatio >= fitWidth / fitHeight) {
-        width = fitWidth;
-        height = fitWidth / aspectRatio;
-      } else {
-        height = fitHeight;
-        width = fitHeight * aspectRatio;
-      }
-      final rawRgba = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      final jpegData = JpegEncoder().compress(rawRgba!.buffer.asUint8List(), image.width, image.height, jpegQuality);
-      return await PdfDocument.createFromJpegData(jpegData, width: width, height: height, sourceName: name);
-    } finally {
-      image.dispose();
-    }
-  }
-
-  Future<({ui.Image image, int origWidth, int origHeight})> _decodeImage(
-    Uint8List bytes, {
-    int pixelSizeThreshold = 2000,
-  }) async {
-    final ui.ImmutableBuffer buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
-    final wh = <int>[];
-    final ui.Codec codec = await PaintingBinding.instance.instantiateImageCodecWithSize(
-      buffer,
-      getTargetSize: (w, h) {
-        wh.addAll([w, h]);
-        if (w > pixelSizeThreshold || h > pixelSizeThreshold) {
-          final aspectRatio = w / h;
-          if (w >= h) {
-            final targetWidth = pixelSizeThreshold;
-            final targetHeight = (pixelSizeThreshold / aspectRatio).round();
-            return ui.TargetImageSize(width: targetWidth, height: targetHeight);
-          } else {
-            final targetHeight = pixelSizeThreshold;
-            final targetWidth = (pixelSizeThreshold * aspectRatio).round();
-            return ui.TargetImageSize(width: targetWidth, height: targetHeight);
-          }
+    final jpegData = await compressImageToJpeg(
+      bytes,
+      calculateTargetSize: (origWidth, origHeight) {
+        final aspectRatio = origWidth / origHeight;
+        if (origWidth <= pixelSizeThreshold && origHeight <= pixelSizeThreshold) {
+          return (width: origWidth, height: origHeight);
+        } else if (aspectRatio >= 1) {
+          final targetWidth = pixelSizeThreshold;
+          final targetHeight = (pixelSizeThreshold / aspectRatio).round();
+          return (width: targetWidth, height: targetHeight);
+        } else {
+          final targetHeight = pixelSizeThreshold;
+          final targetWidth = (pixelSizeThreshold * aspectRatio).round();
+          return (width: targetWidth, height: targetHeight);
         }
-        return ui.TargetImageSize(width: w, height: h);
       },
+      quality: jpegQuality,
     );
-    final ui.FrameInfo frameInfo;
-    try {
-      frameInfo = await codec.getNextFrame();
-    } finally {
-      codec.dispose();
+
+    final double width, height;
+    final aspectRatio = jpegData.width / jpegData.height;
+    if (jpegData.width <= fitWidth && jpegData.height <= fitHeight) {
+      width = jpegData.width.toDouble();
+      height = jpegData.height.toDouble();
+    } else if (aspectRatio >= fitWidth / fitHeight) {
+      width = fitWidth;
+      height = fitWidth / aspectRatio;
+    } else {
+      height = fitHeight;
+      width = fitHeight * aspectRatio;
     }
-    return (image: frameInfo.image, origWidth: wh[0], origHeight: wh[1]);
+    return await PdfDocument.createFromJpegData(jpegData.data, width: width, height: height, sourceName: name);
   }
 
   Future<PdfDocument> _loadPdf(Uint8List bytes, String name) async {

@@ -1,7 +1,10 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:file_selector/file_selector.dart';
+import 'package:flutter/material.dart';
+import 'package:jpeg_encode/jpeg_encode.dart';
 import 'package:share_plus/share_plus.dart';
 
 Future<void> savePdf(Uint8List bytes, {String? suggestedName}) async {
@@ -21,6 +24,36 @@ Future<void> savePdf(Uint8List bytes, {String? suggestedName}) async {
     final file = File(savePath.path);
     await file.writeAsBytes(bytes);
   }
+}
+
+typedef CalculateTargetSize = ({int width, int height}) Function(int originalWidth, int originalHeight);
+
+class JpegData {
+  const JpegData(this.data, this.width, this.height);
+  final Uint8List data;
+  final int width;
+  final int height;
+}
+
+Future<JpegData> compressImageToJpeg(
+  Uint8List imageData, {
+  CalculateTargetSize? calculateTargetSize,
+  int quality = 90,
+}) async {
+  calculateTargetSize ??= (w, h) => (width: w, height: h);
+  final ui.ImmutableBuffer buffer = await ui.ImmutableBuffer.fromUint8List(imageData);
+  final codec = await PaintingBinding.instance.instantiateImageCodecWithSize(
+    buffer,
+    getTargetSize: (w, h) {
+      final size = calculateTargetSize!(w, h);
+      return ui.TargetImageSize(width: size.width, height: size.height);
+    },
+  );
+  final frameInfo = await codec.getNextFrame();
+  final rgba = (await frameInfo.image.toByteData(format: ui.ImageByteFormat.rawRgba))!.buffer.asUint8List();
+  final byteData = JpegEncoder().compress(rgba, frameInfo.image.width, frameInfo.image.height, quality);
+  codec.dispose();
+  return JpegData(byteData.buffer.asUint8List(), frameInfo.image.width, frameInfo.image.height);
 }
 
 final isWindowsDesktop = Platform.isWindows;
