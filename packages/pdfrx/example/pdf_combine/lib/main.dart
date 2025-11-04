@@ -32,10 +32,12 @@ abstract class PageItem {
   String get id;
 }
 
-class PageItemAdd extends PageItem {
+class PageItemsTrailer extends PageItem {
   @override
-  String get id => '##add_item##';
+  String get id => '##trailer##';
 }
+
+final _pageItemsTrailer = PageItemsTrailer();
 
 class PdfPageItem extends PageItem {
   PdfPageItem({
@@ -221,7 +223,7 @@ class PdfCombinePage extends StatefulWidget {
 
 class _PdfCombinePageState extends State<PdfCombinePage> {
   late final _docManager = DocumentManager((name) => passwordDialog(name, context));
-  final _pages = <PageItem>[];
+  final _pages = <PageItem>[_pageItemsTrailer];
   final _scrollController = ScrollController();
   bool _isLoading = false;
   bool _disableDragging = false;
@@ -271,7 +273,13 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
           if (doc != null) {
             for (var i = 0; i < doc.pages.length; i++) {
               _docManager.addReference(docId);
-              _pages.add(PdfPageItem(documentId: docId, documentName: fileName, pageIndex: i, page: doc.pages[i]));
+              _pages.insert(
+                _pages.length - 1,
+                PdfPageItem(documentId: docId, documentName: fileName, pageIndex: i, page: doc.pages[i]),
+              );
+              if (mounted) {
+                setState(() {});
+              }
             }
           }
         } catch (e) {
@@ -347,7 +355,6 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
         title: const Text('PDF Combine'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
-          IconButton(icon: const Icon(Icons.add), onPressed: _pickFiles, tooltip: 'Add PDF files'),
           const SizedBox(width: 8),
           FilledButton.icon(
             onPressed: _pages.isEmpty ? null : _navigateToPreview,
@@ -371,93 +378,113 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
         onDragDone: (event) => _processFiles(event.files),
         child: Stack(
           children: [
-            _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _pages.isEmpty
-                ? Center(
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(text: 'Add/Drag-and-Drop PDF files here!\n\n'),
-                          WidgetSpan(
-                            alignment: PlaceholderAlignment.middle,
-                            child: IconButton.filled(icon: Icon(Icons.add), onPressed: () => _pickFiles()),
-                          ),
-                        ],
+            if (!_isDraggingOver && _pages.length == 1)
+              Container(
+                color: Colors.blue.withValues(alpha: 0.1),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.file_open, size: 64, color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Or Drop PDF files here',
+                        style: Theme.of(
+                          context,
+                        ).textTheme.headlineSmall?.copyWith(color: Theme.of(context).colorScheme.primary),
                       ),
-                      style: TextStyle(fontSize: 20),
-                      textAlign: TextAlign.center,
-                    ),
-                  )
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      final w = constraints.maxWidth;
-                      final int crossAxisCount;
-                      if (w < 120) {
-                        crossAxisCount = 1;
-                      } else if (w < 400) {
-                        crossAxisCount = 2;
-                      } else if (w < 800) {
-                        crossAxisCount = 3;
-                      } else if (w < 1200) {
-                        crossAxisCount = 4;
-                      } else {
-                        crossAxisCount = w ~/ 300;
-                      }
-                      return Listener(
-                        onPointerMove: (event) {
-                          setState(() {
-                            _isTouchDevice = event.kind == ui.PointerDeviceKind.touch;
-                          });
-                        },
-                        onPointerHover: (event) {
-                          setState(() {
-                            _isTouchDevice = event.kind == ui.PointerDeviceKind.touch;
-                          });
-                        },
-                        child: AnimatedReorderableGridView(
-                          items: _pages,
-                          isSameItem: (a, b) => a.id == b.id,
-                          itemBuilder: (context, index) {
-                            final pageItem = _pages[index];
-                            if (pageItem is! PdfPageItem) {
-                              return Card(
-                                color: Theme.of(context).colorScheme.primaryContainer,
-                                child: Center(
-                                  child: IconButton.filled(
-                                    icon: const Icon(Icons.add),
-                                    onPressed: _pickFiles,
-                                    tooltip: 'Add PDF files',
+                    ],
+                  ),
+                ),
+              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final w = constraints.maxWidth;
+                final int crossAxisCount;
+                if (w < 120) {
+                  crossAxisCount = 1;
+                } else if (w < 400) {
+                  crossAxisCount = 2;
+                } else if (w < 800) {
+                  crossAxisCount = 3;
+                } else if (w < 1200) {
+                  crossAxisCount = 4;
+                } else {
+                  crossAxisCount = w ~/ 300;
+                }
+                return Listener(
+                  onPointerMove: (event) {
+                    setState(() {
+                      _isTouchDevice = event.kind == ui.PointerDeviceKind.touch;
+                    });
+                  },
+                  onPointerHover: (event) {
+                    setState(() {
+                      _isTouchDevice = event.kind == ui.PointerDeviceKind.touch;
+                    });
+                  },
+                  child: AnimatedReorderableGridView(
+                    items: _pages,
+                    nonDraggableItems: [_pageItemsTrailer],
+                    lockedItems: [_pageItemsTrailer],
+                    isSameItem: (a, b) => a.id == b.id,
+                    itemBuilder: (context, index) {
+                      final pageItem = _pages[index];
+                      if (pageItem is! PdfPageItem) {
+                        return Card(
+                          key: ValueKey(pageItem.id),
+                          child: Center(
+                            child: _isLoading
+                                ? const CircularProgressIndicator()
+                                : Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.file_open,
+                                          size: 64,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                        onPressed: () => _pickFiles(),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      Text(
+                                        'Open PDF files',
+                                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              );
-                            }
-                            return _PageThumbnail(
-                              key: ValueKey(pageItem.id),
-                              page: pageItem.page,
-                              rotationOverride: pageItem.rotationOverride,
-                              onRemove: () => _removePage(index),
-                              onRotateLeft: () => _rotatePageLeft(index),
-                              currentIndex: index,
-                              dragDisabler: _disableDraggingOnChild,
-                            );
-                          },
-                          sliverGridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: crossAxisCount),
-                          insertDuration: const Duration(milliseconds: 100),
-                          removeDuration: const Duration(milliseconds: 300),
-                          dragStartDelay: _isTouchDevice || _disableDragging
-                              ? const Duration(milliseconds: 200)
-                              : Duration.zero,
-                          onReorder: (oldIndex, newIndex) {
-                            setState(() {
-                              final removed = _pages.removeAt(oldIndex);
-                              _pages.insert(newIndex, removed);
-                            });
-                          },
-                        ),
+                          ),
+                        );
+                      }
+                      return _PageThumbnail(
+                        key: ValueKey(pageItem.id),
+                        page: pageItem.page,
+                        rotationOverride: pageItem.rotationOverride,
+                        onRemove: () => _removePage(index),
+                        onRotateLeft: () => _rotatePageLeft(index),
+                        currentIndex: index,
+                        dragDisabler: _disableDraggingOnChild,
                       );
                     },
+                    sliverGridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: crossAxisCount),
+                    insertDuration: const Duration(milliseconds: 100),
+                    removeDuration: const Duration(milliseconds: 300),
+                    dragStartDelay: _isTouchDevice || _disableDragging
+                        ? const Duration(milliseconds: 200)
+                        : Duration.zero,
+                    onReorder: (oldIndex, newIndex) {
+                      setState(() {
+                        final removed = _pages.removeAt(oldIndex);
+                        _pages.insert(newIndex, removed);
+                      });
+                    },
                   ),
+                );
+              },
+            ),
             if (_isDraggingOver)
               Container(
                 color: Colors.blue.withValues(alpha: 0.1),
@@ -476,7 +503,7 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.file_upload, size: 64, color: Theme.of(context).colorScheme.primary),
+                        Icon(Icons.file_download, size: 64, color: Theme.of(context).colorScheme.primary),
                         const SizedBox(height: 16),
                         Text(
                           'Drop PDF files here',
