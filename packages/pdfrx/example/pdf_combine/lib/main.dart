@@ -200,11 +200,11 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
     super.dispose();
   }
 
-  Future<void> _pickPdfFiles() async {
+  Future<void> _pickFiles() async {
     final files = await openFiles(
       acceptedTypeGroups: [
         XTypeGroup(label: 'PDFs', extensions: ['pdf']),
-        XTypeGroup(label: 'Images', extensions: ['jpg', 'jpeg', 'png', 'bmp', 'gif', 'tiff', 'webp']),
+        XTypeGroup(label: 'Images', extensions: ['jpg', 'jpeg', 'png', 'bmp', 'gif', 'webp']),
       ],
     );
     if (files.isEmpty) return;
@@ -305,7 +305,7 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
         title: const Text('PDF Combine'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
-          IconButton(icon: const Icon(Icons.add), onPressed: _pickPdfFiles, tooltip: 'Add PDF files'),
+          IconButton(icon: const Icon(Icons.add), onPressed: _pickFiles, tooltip: 'Add PDF files'),
           const SizedBox(width: 8),
           FilledButton.icon(
             onPressed: _pages.isEmpty ? null : _navigateToPreview,
@@ -336,12 +336,10 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
                     child: Text.rich(
                       TextSpan(
                         children: [
-                          TextSpan(
-                            text: 'Tap the following button to add PDF files or drag & drop PDF files here!\n\n',
-                          ),
+                          TextSpan(text: 'Add/Drag-and-Drop PDF files here!\n\n'),
                           WidgetSpan(
                             alignment: PlaceholderAlignment.middle,
-                            child: IconButton.filled(icon: Icon(Icons.add), onPressed: () => _pickPdfFiles()),
+                            child: IconButton.filled(icon: Icon(Icons.add), onPressed: () => _pickFiles()),
                           ),
                         ],
                       ),
