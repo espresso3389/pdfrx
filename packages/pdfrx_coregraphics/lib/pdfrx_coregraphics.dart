@@ -202,24 +202,24 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
   }
 
   @override
-  Future<PdfDocument> createFromImage(
-    PdfImage image, {
+  Future<PdfDocument> createFromJpegData(
+    Uint8List jpegData, {
     required double width,
     required double height,
     required String sourceName,
   }) async {
     await init();
-    final result = await _channel
-        .invokeMapMethod<Object?, Object?>('createDocumentFromImage', {
-          'pixels': image.pixels,
-          'pixelWidth': image.width,
-          'pixelHeight': image.height,
-          'width': width,
-          'height': height,
-          'sourceName': sourceName,
-        });
+    final result = await _channel.invokeMapMethod<Object?, Object?>(
+      'createDocumentFromJpegData',
+      {
+        'jpegData': jpegData,
+        'width': width,
+        'height': height,
+        'sourceName': sourceName,
+      },
+    );
     if (result == null) {
-      throw const PdfException('Failed to create PDF document from image.');
+      throw const PdfException('Failed to create PDF document from JPEG data.');
     }
     return _CoreGraphicsPdfDocument.fromPlatformMap(
       channel: _channel,

@@ -446,57 +446,53 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   }
 
   @override
-  Future<PdfDocument> createFromImage(
-    PdfImage image, {
+  Future<PdfDocument> createFromJpegData(
+    Uint8List jpegData, {
     required double width,
     required double height,
     required String sourceName,
   }) async {
     await _init();
-    final doc = await (await backgroundWorker).computeWithArena(
-      (arena, params) {
-        final document = pdfium.FPDF_CreateNewDocument();
-        final newPage = pdfium.FPDFPage_New(document, 0, params.width, params.height);
-        final newPages = arena.allocate<pdfium_bindings.FPDF_PAGE>(sizeOf<Pointer<pdfium_bindings.FPDF_PAGE>>());
-        newPages.value = newPage;
+    final dataBuffer = malloc<Uint8>(jpegData.length);
+    try {
+      dataBuffer.asTypedList(jpegData.length).setAll(0, jpegData);
+      final doc = await (await backgroundWorker).computeWithArena(
+        (arena, params) {
+          final document = pdfium.FPDF_CreateNewDocument();
+          final newPage = pdfium.FPDFPage_New(document, 0, params.width, params.height);
+          final newPages = arena.allocate<pdfium_bindings.FPDF_PAGE>(sizeOf<Pointer<pdfium_bindings.FPDF_PAGE>>());
+          newPages.value = newPage;
 
-        final memBuffer = arena.allocate<Uint8>(params.pixels.length);
-        final bufferList = memBuffer.asTypedList(params.pixels.length);
-        bufferList.setAll(0, params.pixels);
+          final imageObj = pdfium.FPDFPageObj_NewImageObj(document);
 
-        final imageObj = pdfium.FPDFPageObj_NewImageObj(document);
-        final bitmap = pdfium.FPDFBitmap_CreateEx(
-          params.pixelWidth,
-          params.pixelHeight,
-          pdfium_bindings.FPDFBitmap_BGRA,
-          memBuffer.cast<Void>(),
-          params.pixelWidth * 4,
-        );
-        pdfium.FPDFImageObj_SetBitmap(newPages, 1, imageObj, bitmap);
-        pdfium.FPDFBitmap_Destroy(bitmap);
+          final fa = _FileAccess.fromDataBuffer(Pointer<Void>.fromAddress(dataBuffer.address), jpegData.length);
+          pdfium.FPDFImageObj_LoadJpegFileInline(newPages, 1, imageObj, fa.fileAccess);
+          fa.dispose();
 
-        pdfium.FPDFImageObj_SetMatrix(imageObj, params.width, 0, 0, params.height, 0, 0);
-        pdfium.FPDFPage_InsertObject(newPage, imageObj); // imageObj is now owned by the page
+          pdfium.FPDFImageObj_SetMatrix(imageObj, params.width, 0, 0, params.height, 0, 0);
+          pdfium.FPDFPage_InsertObject(newPage, imageObj); // image is now owned by the page
 
-        pdfium.FPDFPage_GenerateContent(newPage);
-        pdfium.FPDF_ClosePage(newPage);
-        return document.address;
-      },
-      (
-        pixels: image.pixels,
-        pixelWidth: image.width,
-        pixelHeight: image.height,
-        width: width,
-        height: height,
+          pdfium.FPDFPage_GenerateContent(newPage);
+          pdfium.FPDF_ClosePage(newPage);
+          return document.address;
+        },
+        (
+          dataBuffer: dataBuffer.address,
+          dataLength: jpegData.length,
+          width: width,
+          height: height,
+          sourceName: sourceName,
+        ),
+      );
+      return _PdfDocumentPdfium.fromPdfDocument(
+        pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
         sourceName: sourceName,
-      ),
-    );
-    return _PdfDocumentPdfium.fromPdfDocument(
-      pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
-      sourceName: sourceName,
-      useProgressiveLoading: false,
-      disposeCallback: null,
-    );
+        useProgressiveLoading: false,
+        disposeCallback: null,
+      );
+    } finally {
+      malloc.free(dataBuffer);
+    }
   }
 
   static String _getPdfiumErrorString([int? error]) {
@@ -1458,4 +1454,60 @@ PdfDest? _pdfDestFromDest(pdfium_bindings.FPDF_DEST dest, pdfium_bindings.FPDF_D
     return PdfDest(pageIndex + 1, PdfDestCommand.values[type], List.generate(pul.value, (index) => values[index]));
   }
   return null;
+}
+
+/// Native callable type for `FPDF_FILEACCESS.m_GetBlock`
+typedef _NativeFileReadCallable =
+    NativeCallable<
+      Int Function(Pointer<Void> param, UnsignedLong position, Pointer<UnsignedChar> pBuf, UnsignedLong size)
+    >;
+
+/// Manages `FPDF_FILEACCESS` structure and its associated native callable.
+class _FileAccess {
+  _FileAccess._(this.fileAccess, this._nativeReadCallable);
+
+  final Pointer<pdfium_bindings.FPDF_FILEACCESS> fileAccess;
+  final _NativeFileReadCallable? _nativeReadCallable;
+
+  static _FileAccess fromDataBuffer(Pointer<Void> bufferPtr, int length) {
+    _NativeFileReadCallable? nativeReadCallable;
+    Pointer<pdfium_bindings.FPDF_FILEACCESS>? fileAccessToRelease;
+    try {
+      final fileAccess = fileAccessToRelease = malloc<pdfium_bindings.FPDF_FILEACCESS>();
+      fileAccess.ref.m_FileLen = length;
+
+      nativeReadCallable = _NativeFileReadCallable.isolateLocal((
+        Pointer<Void> param,
+        int position,
+        Pointer<UnsignedChar> pBuf,
+        int size,
+      ) {
+        final dataPtr = bufferPtr.offset(position);
+        final toCopy = min(size, length - position);
+        if (toCopy <= 0) {
+          return 0;
+        }
+        pBuf.cast<Uint8>().asTypedList(toCopy).setAll(0, dataPtr.cast<Uint8>().asTypedList(toCopy));
+        return toCopy;
+      }, exceptionalReturn: 0);
+
+      fileAccess.ref.m_GetBlock = nativeReadCallable.nativeFunction;
+      final result = _FileAccess._(fileAccess, nativeReadCallable);
+      nativeReadCallable = null;
+      fileAccessToRelease = null;
+      return result;
+    } catch (e) {
+      rethrow;
+    } finally {
+      nativeReadCallable?.close();
+      if (fileAccessToRelease != null) {
+        malloc.free(fileAccessToRelease);
+      }
+    }
+  }
+
+  void dispose() {
+    malloc.free(fileAccess);
+    _nativeReadCallable?.close();
+  }
 }

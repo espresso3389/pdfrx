@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import './mock/pdfrx_mock.dart' if (dart.library.io) './native/pdfrx_pdfium.dart';
 import 'pdf_document.dart';
-import 'pdf_image.dart';
 import 'pdfrx.dart';
 
 /// The class is used to implement Pdfrx's backend functions.
@@ -85,9 +84,9 @@ abstract class PdfrxEntryFunctions {
   /// See [PdfDocument.createNew].
   Future<PdfDocument> createNew({required String sourceName});
 
-  /// See [PdfDocument.createFromImage].
-  Future<PdfDocument> createFromImage(
-    PdfImage image, {
+  /// See [PdfDocument.createFromJpegData].
+  Future<PdfDocument> createFromJpegData(
+    Uint8List jpegData, {
     required double width,
     required double height,
     required String sourceName,

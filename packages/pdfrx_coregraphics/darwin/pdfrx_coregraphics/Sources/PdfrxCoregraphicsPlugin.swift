@@ -30,8 +30,8 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       openDocument(arguments: call.arguments, result: result)
     case "createNewDocument":
       createNewDocument(arguments: call.arguments, result: result)
-    case "createDocumentFromImage":
-      createDocumentFromImage(arguments: call.arguments, result: result)
+    case "createDocumentFromJpegData":
+      createDocumentFromJpegData(arguments: call.arguments, result: result)
     case "renderPage":
       renderPage(arguments: call.arguments, result: result)
     case "loadPageText":
@@ -164,88 +164,125 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     ])
   }
 
-  /// Creates a PDF document from BGRA8888 image data
-  private func createDocumentFromImage(arguments: Any?, result: @escaping FlutterResult) {
+  /// Creates a PDF document from JPEG data
+  private func createDocumentFromJpegData(arguments: Any?, result: @escaping FlutterResult) {
     guard let args = arguments as? [String: Any] else {
       result(
         FlutterError(
-          code: "bad-arguments", message: "Invalid arguments for createDocumentFromImage.", details: nil
+          code: "bad-arguments", message: "Invalid arguments for createDocumentFromJpegData.", details: nil
         ))
       return
     }
 
-    guard
-      let pixels = args["pixels"] as? FlutterStandardTypedData,
-      let pixelWidth = args["pixelWidth"] as? Int,
-      let pixelHeight = args["pixelHeight"] as? Int,
-      let width = args["width"] as? Double,
-      let height = args["height"] as? Double
-    else {
+    guard let jpegData = args["jpegData"] as? FlutterStandardTypedData else {
       result(
         FlutterError(
-          code: "bad-arguments", message: "Missing required parameters for createDocumentFromImage.", details: nil
+          code: "missing-jpeg-data", message: "JPEG data is required.", details: nil
         ))
       return
     }
 
-    // Create a CGContext from BGRA pixel data
-    let pixelData = pixels.data
-    let bytesPerPixel = 4
-    let bytesPerRow = pixelWidth * bytesPerPixel
-    let expectedDataSize = bytesPerRow * pixelHeight
-
-    guard pixelData.count == expectedDataSize else {
+    guard let width = args["width"] as? Double, width > 0 else {
       result(
         FlutterError(
-          code: "invalid-data", message: "Pixel data size mismatch. Expected \(expectedDataSize) bytes, got \(pixelData.count).", details: nil
+          code: "invalid-width", message: "Valid width is required.", details: nil
         ))
       return
     }
 
-    // Create a mutable copy of pixel data since CGContext requires mutable data
-    var mutablePixelData = pixelData
-
-    guard
-      let context = mutablePixelData.withUnsafeMutableBytes({ (ptr: UnsafeMutableRawBufferPointer) -> CGContext? in
-        CGContext(
-          data: ptr.baseAddress,
-          width: pixelWidth,
-          height: pixelHeight,
-          bitsPerComponent: 8,
-          bytesPerRow: bytesPerRow,
-          space: CGColorSpaceCreateDeviceRGB(),
-          bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
-        )
-      })
-    else {
+    guard let height = args["height"] as? Double, height > 0 else {
       result(
         FlutterError(
-          code: "context-failure", message: "Failed to create bitmap context from image data.", details: nil
+          code: "invalid-height", message: "Valid height is required.", details: nil
         ))
       return
     }
 
-    guard let cgImage = context.makeImage() else {
+    // Create an empty PDF document
+    guard let pdfDocument = PDFDocument() else {
       result(
         FlutterError(
-          code: "image-failure", message: "Failed to create CGImage from context.", details: nil
+          code: "pdf-document-failure", message: "Failed to create PDFDocument.", details: nil
         ))
       return
     }
 
-    // Create a PDF document using NSMutableData to capture the output
+    // Create a PDF page with the specified dimensions
+    let pageRect = CGRect(x: 0, y: 0, width: width, height: height)
+    guard let pdfPage = PDFPage() else {
+      result(
+        FlutterError(
+          code: "pdf-page-failure", message: "Failed to create PDF page.", details: nil
+        ))
+      return
+    }
+    pdfPage.setBounds(pageRect, for: .mediaBox)
+
+    // Create image from JPEG data
+    #if os(iOS)
+    guard let image = UIImage(data: jpegData.data) else {
+      result(
+        FlutterError(
+          code: "invalid-jpeg", message: "Failed to decode JPEG data.", details: nil
+        ))
+      return
+    }
+    guard let cgImage = image.cgImage else {
+      result(
+        FlutterError(
+          code: "invalid-image", message: "Failed to get CGImage from JPEG.", details: nil
+        ))
+      return
+    }
+    #elseif os(macOS)
+    guard let image = NSImage(data: jpegData.data) else {
+      result(
+        FlutterError(
+          code: "invalid-jpeg", message: "Failed to decode JPEG data.", details: nil
+        ))
+      return
+    }
+    guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+      result(
+        FlutterError(
+          code: "invalid-image", message: "Failed to get CGImage from JPEG.", details: nil
+        ))
+      return
+    }
+    #endif
+
+    // Draw the image on the page using CoreGraphics
+    let context = CGContext(
+      data: nil,
+      width: Int(width),
+      height: Int(height),
+      bitsPerComponent: 8,
+      bytesPerRow: 0,
+      space: CGColorSpaceCreateDeviceRGB(),
+      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    )
+
+    guard let ctx = context else {
+      result(
+        FlutterError(
+          code: "context-failure", message: "Failed to create graphics context.", details: nil
+        ))
+      return
+    }
+
+    // Create a mutable data to hold the PDF content
     let pdfData = NSMutableData()
-    var mediaBox = CGRect(x: 0, y: 0, width: width, height: height)
-
-    guard let dataConsumer = CGDataConsumer(data: pdfData) else {
+    guard let pdfConsumer = CGDataConsumer(data: pdfData) else {
       result(
         FlutterError(
-          code: "data-consumer-failure", message: "Failed to create PDF data consumer.", details: nil
+          code: "consumer-failure", message: "Failed to create PDF data consumer.", details: nil
         ))
       return
     }
 
-    guard let pdfContext = CGContext(consumer: dataConsumer, mediaBox: &mediaBox, nil) else {
+    // Create a PDF context to generate the page
+    var mediaBox = pageRect
+    guard let pdfContext = CGContext(consumer: pdfConsumer, mediaBox: &mediaBox, nil) else {
       result(
         FlutterError(
           code: "pdf-context-failure", message: "Failed to create PDF context.", details: nil
@@ -253,23 +290,16 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       return
     }
 
-    // Begin PDF page
     pdfContext.beginPDFPage(nil)
-
-    // Draw the image to fill the entire page
-    pdfContext.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-
-    // End PDF page
+    pdfContext.draw(cgImage, in: pageRect)
     pdfContext.endPDFPage()
-
-    // Close the PDF context
     pdfContext.closePDF()
 
-    // Create PDFDocument from data
-    guard let pdfDocument = PDFDocument(data: pdfData) else {
+    // Create PDFDocument from generated data
+    guard let resultDocument = PDFDocument(data: pdfData as Data) else {
       result(
         FlutterError(
-          code: "pdf-document-failure", message: "Failed to create PDFDocument from generated PDF data.", details: nil
+          code: "pdf-creation-failure", message: "Failed to create PDF document from image.", details: nil
         ))
       return
     }
@@ -277,10 +307,11 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     // Register the document
     let handle = nextHandle
     nextHandle += 1
-    documents[handle] = pdfDocument
+    documents[handle] = resultDocument
 
+    // Build page info
     var pageInfos: [[String: Any]] = []
-    if let page = pdfDocument.page(at: 0) {
+    if let page = resultDocument.page(at: 0) {
       let bounds = page.bounds(for: .mediaBox)
       pageInfos.append([
         "width": Double(bounds.width),

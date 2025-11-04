@@ -6,9 +6,10 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:jpeg_encode/jpeg_encode.dart';
 import 'package:pdfrx/pdfrx.dart';
 
-import 'helper_web.dart' if (dart.library.io) 'save_helper_io.dart';
+import 'helper_web.dart' if (dart.library.io) 'helper_io.dart';
 
 void main() {
   pdfrxFlutterInitialize();
@@ -112,12 +113,10 @@ class DocumentManager {
     double fitWidth = 595,
     double fitHeight = 842,
     int pixelSizeThreshold = 2000,
+    int jpegQuality = 90,
   }) async {
-    ui.Image? imageOpened;
-    PdfImage? pdfImage;
+    final (:image, :origWidth, :origHeight) = await _decodeImage(bytes, pixelSizeThreshold: pixelSizeThreshold);
     try {
-      final (:image, :origWidth, :origHeight) = await _decodeImage(bytes, pixelSizeThreshold: pixelSizeThreshold);
-      imageOpened = image;
       final double width, height;
       final aspectRatio = origWidth / origHeight;
       if (origWidth <= fitWidth && origHeight <= fitHeight) {
@@ -130,13 +129,14 @@ class DocumentManager {
         height = fitHeight;
         width = fitHeight * aspectRatio;
       }
-      pdfImage = await image.toPdfImage();
-      imageOpened.dispose();
-      imageOpened = null;
-      return await PdfDocument.createFromImage(pdfImage, width: width, height: height, sourceName: name);
+      final rawRgba = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      final jpegData = JpegEncoder().compress(rawRgba!.buffer.asUint8List(), image.width, image.height, jpegQuality);
+      return await PdfDocument.createFromJpegData(jpegData, width: width, height: height, sourceName: name);
+    } catch (e) {
+      print('Error creating PDF from JPEG: $e');
+      rethrow;
     } finally {
-      imageOpened?.dispose();
-      pdfImage?.dispose();
+      image.dispose();
     }
   }
 

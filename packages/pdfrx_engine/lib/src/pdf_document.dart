@@ -8,7 +8,6 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'pdf_document_event.dart';
-import 'pdf_image.dart';
 import 'pdf_outline_node.dart';
 import 'pdf_page.dart';
 import 'pdf_permissions.dart';
@@ -117,18 +116,18 @@ abstract class PdfDocument {
   static Future<PdfDocument> createNew({required String sourceName}) =>
       PdfrxEntryFunctions.instance.createNew(sourceName: sourceName);
 
-  /// Creating a PDF document from an image.
+  /// Creating a PDF document from JPEG data.
   ///
-  /// [image] is the PDF image to create the document from.
+  /// [jpegData] is the JPEG encoded image data.
   /// [width] and [height] are the dimensions of the image in PDF units (1/72 inch).
   /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
   /// unique for each source, the viewer may not work correctly.
-  static Future<PdfDocument> createFromImage(
-    PdfImage image, {
+  static Future<PdfDocument> createFromJpegData(
+    Uint8List jpegData, {
     required double width,
     required double height,
     required String sourceName,
-  }) => PdfrxEntryFunctions.instance.createFromImage(image, width: width, height: height, sourceName: sourceName);
+  }) => PdfrxEntryFunctions.instance.createFromJpegData(jpegData, width: width, height: height, sourceName: sourceName);
 
   /// Opening the PDF from custom source.
   ///
