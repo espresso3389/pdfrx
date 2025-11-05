@@ -2186,7 +2186,14 @@ class _PdfViewerState extends State<PdfViewer>
       final builder = widget.params.textSelectionParams?.buildSelectionHandle ?? _buildDefaultSelectionHandle;
 
       if (_textSelA != null) {
-        final offset = widget.params.textSelectionParams?.handleOffset?.call(_textSelA!) ?? Offset.zero;
+        final state = _selPartMoving == _TextSelectionPart.a
+            ? PdfViewerTextSelectionAnchorHandleState.dragging
+            : _hoverOn == _TextSelectionPart.a
+            ? PdfViewerTextSelectionAnchorHandleState.hover
+            : PdfViewerTextSelectionAnchorHandleState.normal;
+        final offset =
+            widget.params.textSelectionParams?.calcSelectionHandleOffset?.call(context, _textSelA!, state) ??
+            Offset.zero;
         switch (_textSelA!.direction) {
           case PdfTextDirection.ltr:
           case PdfTextDirection.unknown:
@@ -2199,18 +2206,17 @@ class _PdfViewerState extends State<PdfViewer>
             aLeft = rectA.right + offset.dx;
             aBottom = viewSize.height - rectA.top - offset.dy;
         }
-        anchorA = builder(
-          context,
-          _textSelA!,
-          _selPartMoving == _TextSelectionPart.a
-              ? PdfViewerTextSelectionAnchorHandleState.dragging
-              : _hoverOn == _TextSelectionPart.a
-              ? PdfViewerTextSelectionAnchorHandleState.hover
-              : PdfViewerTextSelectionAnchorHandleState.normal,
-        );
+        anchorA = builder(context, _textSelA!, state);
       }
       if (_textSelB != null) {
-        final offset = widget.params.textSelectionParams?.handleOffset?.call(_textSelB!) ?? Offset.zero;
+        final state = _selPartMoving == _TextSelectionPart.b
+            ? PdfViewerTextSelectionAnchorHandleState.dragging
+            : _hoverOn == _TextSelectionPart.b
+            ? PdfViewerTextSelectionAnchorHandleState.hover
+            : PdfViewerTextSelectionAnchorHandleState.normal;
+        final offset =
+            widget.params.textSelectionParams?.calcSelectionHandleOffset?.call(context, _textSelB!, state) ??
+            Offset.zero;
         switch (_textSelB!.direction) {
           case PdfTextDirection.ltr:
           case PdfTextDirection.unknown:
@@ -2223,15 +2229,7 @@ class _PdfViewerState extends State<PdfViewer>
             bRight = viewSize.width - rectB.left - offset.dx;
             bTop = rectB.bottom + offset.dy;
         }
-        anchorB = builder(
-          context,
-          _textSelB!,
-          _selPartMoving == _TextSelectionPart.b
-              ? PdfViewerTextSelectionAnchorHandleState.dragging
-              : _hoverOn == _TextSelectionPart.b
-              ? PdfViewerTextSelectionAnchorHandleState.hover
-              : PdfViewerTextSelectionAnchorHandleState.normal,
-        );
+        anchorB = builder(context, _textSelB!, state);
       }
     } else {
       _anchorARect = _anchorBRect = null;
