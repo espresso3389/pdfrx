@@ -2177,7 +2177,7 @@ class _PdfViewerState extends State<PdfViewer>
       return contextMenuIfNeeded();
     }
 
-    double? aLeft, aTop, aRight, aBottom;
+    double? aLeft, aRight, aBottom;
     double? bLeft, bTop, bRight;
     Widget? anchorA, anchorB;
 
@@ -2478,7 +2478,6 @@ class _PdfViewerState extends State<PdfViewer>
       if (anchorA != null)
         Positioned(
           left: aLeft,
-          top: aTop,
           right: aRight,
           bottom: aBottom,
           child: MouseRegion(
