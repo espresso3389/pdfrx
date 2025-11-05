@@ -2186,17 +2186,18 @@ class _PdfViewerState extends State<PdfViewer>
       final builder = widget.params.textSelectionParams?.buildSelectionHandle ?? _buildDefaultSelectionHandle;
 
       if (_textSelA != null) {
+        final offset = widget.params.textSelectionParams?.handleOffset?.call(_textSelA!) ?? Offset.zero;
         switch (_textSelA!.direction) {
           case PdfTextDirection.ltr:
           case PdfTextDirection.unknown:
-            aRight = viewSize.width - rectA.left;
-            aBottom = viewSize.height - rectA.top;
+            aRight = viewSize.width - rectA.left - offset.dx;
+            aBottom = viewSize.height - rectA.top - offset.dy;
           case PdfTextDirection.rtl:
-            aLeft = rectA.right;
-            aBottom = viewSize.height - rectA.top;
+            aLeft = rectA.right + offset.dx;
+            aBottom = viewSize.height - rectA.top - offset.dy;
           case PdfTextDirection.vrtl:
-            aLeft = rectA.right;
-            aBottom = viewSize.height - rectA.top;
+            aLeft = rectA.right + offset.dx;
+            aBottom = viewSize.height - rectA.top - offset.dy;
         }
         anchorA = builder(
           context,
@@ -2209,17 +2210,18 @@ class _PdfViewerState extends State<PdfViewer>
         );
       }
       if (_textSelB != null) {
+        final offset = widget.params.textSelectionParams?.handleOffset?.call(_textSelB!) ?? Offset.zero;
         switch (_textSelB!.direction) {
           case PdfTextDirection.ltr:
           case PdfTextDirection.unknown:
-            bLeft = rectB.right;
-            bTop = rectB.bottom;
+            bLeft = rectB.right + offset.dx;
+            bTop = rectB.bottom + offset.dy;
           case PdfTextDirection.rtl:
-            bRight = viewSize.width - rectB.left;
-            bTop = rectB.bottom;
+            bRight = viewSize.width - rectB.left - offset.dx;
+            bTop = rectB.bottom + offset.dy;
           case PdfTextDirection.vrtl:
-            bRight = viewSize.width - rectB.left;
-            bTop = rectB.bottom;
+            bRight = viewSize.width - rectB.left - offset.dx;
+            bTop = rectB.bottom + offset.dy;
         }
         anchorB = builder(
           context,
