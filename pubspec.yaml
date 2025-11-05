@@ -6,3 +6,4 @@ workspace:
   - packages/pdfrx_engine
   - packages/pdfrx_coregraphics
   - packages/pdfrx/example/viewer
+  - packages/pdfrx/example/pdf_combine

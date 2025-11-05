@@ -1,5 +1,7 @@
-/// @docImport '../pdfrx_api.dart';
 library;
+
+import '../pdfrx.dart';
+import '../pdfrx_entry_functions.dart';
 
 /// Initializes the Pdfrx library for Dart.
 ///

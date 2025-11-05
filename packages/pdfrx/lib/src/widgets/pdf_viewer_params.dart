@@ -70,6 +70,7 @@ class PdfViewerParams {
     this.onKey,
     this.keyHandlerParams = const PdfViewerKeyHandlerParams(),
     this.behaviorControlParams = const PdfViewerBehaviorControlParams(),
+    this.l10nDelegate,
     this.forceReload = false,
     this.scrollPhysics,
     this.scrollPhysicsScale,
@@ -528,7 +529,11 @@ class PdfViewerParams {
   /// Parameters to customize key handling.
   final PdfViewerKeyHandlerParams keyHandlerParams;
 
+  /// Parameters to control viewer behaviors.
   final PdfViewerBehaviorControlParams behaviorControlParams;
+
+  /// Delegate for localization.
+  final PdfViewerL10nDelegate? l10nDelegate;
 
   /// Force reload the viewer.
   ///
@@ -662,6 +667,7 @@ class PdfViewerParams {
         other.onKey == onKey &&
         other.keyHandlerParams == keyHandlerParams &&
         other.behaviorControlParams == behaviorControlParams &&
+        other.l10nDelegate == l10nDelegate &&
         other.forceReload == forceReload &&
         other.scrollPhysics == scrollPhysics;
   }
@@ -721,6 +727,7 @@ class PdfViewerParams {
         onKey.hashCode ^
         keyHandlerParams.hashCode ^
         behaviorControlParams.hashCode ^
+        l10nDelegate.hashCode ^
         forceReload.hashCode ^
         scrollPhysics.hashCode;
   }
@@ -1476,4 +1483,21 @@ class PdfViewerBehaviorControlParams {
       enableLowResolutionPagePreview.hashCode ^
       pageImageCachingDelay.hashCode ^
       partialImageLoadingDelay.hashCode;
+}
+
+/// Delegate for localization.
+///
+/// The [key] is the localization key. See [PdfViewerL10nKey] for more details.
+/// The [args] are the arguments for the localization string.
+///
+/// If the function returns null, the default localization string will be used.
+typedef PdfViewerL10nDelegate = String? Function(PdfViewerL10nKey key, [List<Object?>? args]);
+
+/// Localization keys for the PDF viewer.
+enum PdfViewerL10nKey {
+  /// "Copy" action label.
+  copy,
+
+  /// "Select All" action label.
+  selectAll,
 }

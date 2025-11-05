@@ -16,21 +16,21 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../src" "${CMAKE_CURRENT_BINARY_DI
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
 
-set(PDFIUM_RELEASE chromium%2F7390)
+set(PDFIUM_RELEASE chromium%2F7506)
 set(PDFIUM_DIR ${CMAKE_BINARY_DIR}/pdfium)
 set(PDFIUM_RELEASE_DIR ${PDFIUM_DIR}/${PDFIUM_RELEASE})
 
 file(MAKE_DIRECTORY ${PDFIUM_RELEASE_DIR})
 
 # Determine target processor name for Windows
-# IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
+IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
     SET(CPU_NAME "x64")
-# ELSEIF(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
-#     SET(CPU_NAME "arm64")
-# ELSE()
-#     MESSAGE(FATAL_ERROR "Unsupported Windows architecture \"${CMAKE_SYSTEM_PROCESSOR}\". Only AMD64 and ARM64 are supported.")
-# ENDIF()
-# message( STATUS "Target Windows CPU Name: ${CPU_NAME}" )
+ELSEIF(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
+    SET(CPU_NAME "arm64")
+ELSE()
+    MESSAGE(FATAL_ERROR "Unsupported Windows architecture \"${CMAKE_SYSTEM_PROCESSOR}\". Only AMD64 and ARM64 are supported.")
+ENDIF()
+message( STATUS "Target Windows CPU Name: ${CPU_NAME}" )
 
 set(PDFIUM_PLATFORM "win")
 set(PDFIUM_LIB_FILENAME "pdfium.dll")

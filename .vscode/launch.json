@@ -25,6 +25,12 @@
       "args": ["-d", "web-server", "--wasm", "--web-port", "8080", "--web-hostname", "127.0.0.1"]
     },
     {
+      "name": "PDF Combine",
+      "request": "launch",
+      "type": "dart",
+      "program": "packages/pdfrx/example/pdf_combine/lib/main.dart"
+    },
+    {
       "name": "pdfrx:remove_wasm_modules",
       "request": "launch",
       "type": "dart",

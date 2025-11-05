@@ -38,7 +38,7 @@ final _focusObject = <Object>{};
 ///
 /// For Web, this function currently setup "contextmenu" event listener to prevent the default context menu from
 /// appearing on right-click.
-void platformInitialize() {
+Future<void> platformInitialize() async {
   web.document.addEventListener(
     'contextmenu',
     ((web.Event event) {
@@ -51,6 +51,7 @@ void platformInitialize() {
       }
     }).toJS,
   );
+  await PdfrxEntryFunctions.instance.init();
 }
 
 /// Reports focus changes for the Web platform to handle right-click context menus.

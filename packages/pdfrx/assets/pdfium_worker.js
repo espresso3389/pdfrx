@@ -619,7 +619,18 @@ const emEnv = {
     tm[8] = 0; // gmtoff
   },
   _localtime_js: function (time, tmPtr) {
-    _notImplemented('_localtime_js');
+    time = Number(time);
+    const date = new Date(time * 1000);
+    const tm = new Int32Array(Pdfium.memory.buffer, tmPtr, 9);
+    tm[0] = date.getSeconds();
+    tm[1] = date.getMinutes();
+    tm[2] = date.getHours();
+    tm[3] = date.getDate();
+    tm[4] = date.getMonth();
+    tm[5] = date.getFullYear() - 1900;
+    tm[6] = date.getDay();
+    tm[7] = 0; // dst
+    tm[8] = 0; // gmtoff
   },
   _tzset_js: function () { },
   emscripten_date_now: function () {
@@ -1061,6 +1072,7 @@ function closePage(params) {
  * fullWidth: number,
  * fullHeight: number,
  * backgroundColor: number,
+ * rotation: number,
  * annotationRenderingMode: number,
  * flags: number,
  * formHandle: number
@@ -1083,6 +1095,7 @@ function renderPage(params) {
     fullWidth = width,
     fullHeight = height,
     backgroundColor,
+    rotation,
     annotationRenderingMode = 0,
     flags = 0,
     formHandle,
@@ -1119,10 +1132,10 @@ function renderPage(params) {
 
     const pdfiumFlags =
       (flags & 0xffff) | (annotationRenderingMode !== PdfAnnotationRenderingMode_none ? FPDF_ANNOT : 0);
-    Pdfium.wasmExports.FPDF_RenderPageBitmap(bitmap, pageHandle, -x, -y, fullWidth, fullHeight, 0, pdfiumFlags);
+    Pdfium.wasmExports.FPDF_RenderPageBitmap(bitmap, pageHandle, -x, -y, fullWidth, fullHeight, rotation, pdfiumFlags);
 
     if (formHandle && annotationRenderingMode == PdfAnnotationRenderingMode_annotationAndForms) {
-      Pdfium.wasmExports.FPDF_FFLDraw(formHandle, bitmap, pageHandle, -x, -y, fullWidth, fullHeight, 0, flags);
+      Pdfium.wasmExports.FPDF_FFLDraw(formHandle, bitmap, pageHandle, -x, -y, fullWidth, fullHeight, rotation, flags);
     }
     const src = new Uint8Array(Pdfium.memory.buffer, bufferPtr, bufferSize);
     let copiedBuffer = new ArrayBuffer(bufferSize);
@@ -1508,11 +1521,523 @@ function clearAllFontData() {
 }
 
 /**
+ * Assemble the document (apply page manipulations if any)
+ * @param {{docHandle: number, pageIndices: number[]|undefined, importedPages: Object.<number, {docHandle: number, pageNumber: number}>|undefined, rotations: (number|null)[]|undefined}} params
+ * @returns {{modified: boolean}}
+ */
+function assemble(params) {
+  const { docHandle, pageIndices, importedPages, rotations } = params;
+
+  // If no page indices specified, no modifications needed
+  if (!pageIndices || pageIndices.length === 0) {
+    return { modified: false };
+  }
+
+  const originalLength = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
+
+  // Check if there are any changes
+  let hasChanges = pageIndices.length !== originalLength;
+  if (!hasChanges) {
+    for (let i = 0; i < pageIndices.length; i++) {
+      if (pageIndices[i] !== i) {
+        hasChanges = true;
+        break;
+      }
+    }
+  }
+
+  // Check for rotation changes
+  if (!hasChanges && rotations) {
+    for (let i = 0; i < rotations.length; i++) {
+      if (rotations[i] != null) {
+        hasChanges = true;
+        break;
+      }
+    }
+  }
+
+  if (!hasChanges) {
+    return { modified: false };
+  }
+
+  // Perform the shuffle using the PDFium page manipulation functions
+  _shuffleInPlaceAccordingToIndices(docHandle, pageIndices, originalLength, importedPages);
+
+  // Apply rotations if specified
+  if (rotations) {
+    for (let i = 0; i < rotations.length; i++) {
+      const rotation = rotations[i];
+      if (rotation != null) {
+        const page = Pdfium.wasmExports.FPDF_LoadPage(docHandle, i);
+        Pdfium.wasmExports.FPDFPage_SetRotation(page, rotation);
+        Pdfium.wasmExports.FPDF_ClosePage(page);
+      }
+    }
+  }
+
+  return { modified: true };
+}
+
+/**
+ * Internal class to track page tokens during shuffling
+ */
+class _ArrayOfItemsToken {
+  /**
+   * @param {number|null} originalIndex
+   * @param {boolean} isOriginal
+   */
+  constructor(originalIndex, isOriginal) {
+    this.originalIndex = originalIndex;
+    this.isOriginal = isOriginal;
+  }
+}
+
+/**
+ * Shuffle pages in place according to the given list of resulting item indices
+ * @param {number} docHandle Document handle
+ * @param {number[]} resultingItemIndices Array of page indices representing the desired order
+ * @param {number} originalLength Original number of pages
+ * @param {Object.<number, {docHandle: number, pageNumber: number}>|undefined} importedPages Map of negative indices to import info
+ */
+function _shuffleInPlaceAccordingToIndices(docHandle, resultingItemIndices, originalLength, importedPages) {
+  if (resultingItemIndices.length === 0) {
+    if (originalLength > 0) {
+      _removePages(docHandle, 0, originalLength);
+    }
+    return;
+  }
+
+  const tokens = [];
+  for (let i = 0; i < originalLength; i++) {
+    tokens.push(new _ArrayOfItemsToken(i, true));
+  }
+
+  // Count usage of each original page
+  const usageCounts = new Array(originalLength).fill(0);
+  for (let i = 0; i < resultingItemIndices.length; i++) {
+    const index = resultingItemIndices[i];
+    if (index >= 0) {
+      if (index >= originalLength) {
+        throw new Error(`resultingItemIndices[${i}] = ${index} is out of range for current length ${originalLength}`);
+      }
+      usageCounts[index]++;
+    }
+  }
+
+  // Remove unused pages (from end to beginning to maintain indices)
+  for (let i = originalLength - 1; i >= 0; i--) {
+    if (usageCounts[i] === 0) {
+      _removePages(docHandle, i, 1);
+      tokens.splice(i, 1);
+    }
+  }
+
+  const placedCounts = new Array(originalLength).fill(0);
+  let currentIndex = 0;
+
+  while (currentIndex < resultingItemIndices.length) {
+    if (currentIndex > tokens.length) {
+      throw new Error(`Destination index ${currentIndex} is out of range for current length ${tokens.length}.`);
+    }
+
+    const target = resultingItemIndices[currentIndex];
+    if (target >= 0) {
+      const isFirst = placedCounts[target] === 0;
+      if (isFirst) {
+        // Find the original page
+        let fromIndex = -1;
+        for (let i = 0; i < tokens.length; i++) {
+          if (tokens[i].originalIndex === target && tokens[i].isOriginal) {
+            fromIndex = i;
+            break;
+          }
+        }
+        if (fromIndex === -1) {
+          throw new Error(`Item at index ${target} could not be found for initial placement.`);
+        }
+
+        // Try to find consecutive pages to move as a chunk
+        let chunkLength = 1;
+        while (currentIndex + chunkLength < resultingItemIndices.length && fromIndex + chunkLength < tokens.length) {
+          const nextTarget = resultingItemIndices[currentIndex + chunkLength];
+          if (nextTarget < 0 || placedCounts[nextTarget] > 0) break;
+          const nextToken = tokens[fromIndex + chunkLength];
+          if (!nextToken.isOriginal || nextToken.originalIndex !== nextTarget) break;
+          chunkLength++;
+        }
+
+        let placementIndex = currentIndex;
+        if (fromIndex !== currentIndex) {
+          const removalIndices = [];
+          for (let offset = 0; offset < chunkLength; offset++) {
+            removalIndices.push(fromIndex + offset);
+          }
+
+          _movePages(docHandle, fromIndex, currentIndex, chunkLength);
+
+          // Update tokens
+          const removedTokens = [];
+          for (let i = removalIndices.length - 1; i >= 0; i--) {
+            removedTokens.unshift(tokens.splice(removalIndices[i], 1)[0]);
+          }
+
+          let insertIndex = currentIndex;
+          for (const index of removalIndices) {
+            if (index < currentIndex) {
+              insertIndex--;
+            }
+          }
+          if (insertIndex < 0) insertIndex = 0;
+          if (insertIndex > tokens.length) insertIndex = tokens.length;
+          tokens.splice(insertIndex, 0, ...removedTokens);
+          placementIndex = insertIndex;
+        }
+
+        for (let offset = 0; offset < chunkLength; offset++) {
+          const token = tokens[placementIndex + offset];
+          if (token.originalIndex !== null) {
+            placedCounts[token.originalIndex]++;
+          }
+        }
+        currentIndex += chunkLength;
+        continue;
+      } else {
+        // Duplicate page
+        let sourceIndex = -1;
+        for (let i = 0; i < tokens.length; i++) {
+          if (tokens[i].originalIndex === target) {
+            sourceIndex = i;
+            break;
+          }
+        }
+        if (sourceIndex === -1) {
+          throw new Error(`Item at index ${target} could not be found for duplication.`);
+        }
+        _duplicatePages(docHandle, sourceIndex, currentIndex, 1);
+        tokens.splice(currentIndex, 0, new _ArrayOfItemsToken(target, false));
+        placedCounts[target]++;
+      }
+    } else {
+      // Negative index means importing from another document
+      if (!importedPages || !importedPages[target]) {
+        throw new Error(`Imported page info not found for negative index ${target}`);
+      }
+      const importInfo = importedPages[target];
+      _insertImportedPage(docHandle, importInfo.docHandle, importInfo.pageNumber, currentIndex);
+      tokens.splice(currentIndex, 0, new _ArrayOfItemsToken(null, false));
+    }
+    currentIndex++;
+  }
+
+  const expectedLength = resultingItemIndices.length;
+  if (tokens.length > expectedLength) {
+    const extra = tokens.length - expectedLength;
+    _removePages(docHandle, expectedLength, extra);
+    tokens.splice(expectedLength, extra);
+  } else if (tokens.length < expectedLength) {
+    throw new Error(`Internal length mismatch after shuffling (expected ${expectedLength}, got ${tokens.length}).`);
+  }
+}
+
+/**
+ * Move pages within a document
+ * @param {number} docHandle Document handle
+ * @param {number} fromIndex Starting index of pages to move
+ * @param {number} toIndex Destination index
+ * @param {number} count Number of pages to move
+ */
+function _movePages(docHandle, fromIndex, toIndex, count) {
+  const pageIndices = Pdfium.wasmExports.malloc(count * 4); // Int32 array
+  const pageIndicesView = new Int32Array(Pdfium.memory.buffer, pageIndices, count);
+  for (let i = 0; i < count; i++) {
+    pageIndicesView[i] = fromIndex + i;
+  }
+  Pdfium.wasmExports.FPDF_MovePages(docHandle, pageIndices, count, toIndex);
+  Pdfium.wasmExports.free(pageIndices);
+}
+
+/**
+ * Remove pages from a document
+ * @param {number} docHandle Document handle
+ * @param {number} index Starting index
+ * @param {number} count Number of pages to remove
+ */
+function _removePages(docHandle, index, count) {
+  for (let i = count - 1; i >= 0; i--) {
+    Pdfium.wasmExports.FPDFPage_Delete(docHandle, index + i);
+  }
+}
+
+/**
+ * Duplicate pages within a document
+ * @param {number} docHandle Document handle
+ * @param {number} fromIndex Index of page to duplicate
+ * @param {number} toIndex Destination index for the duplicate
+ * @param {number} count Number of pages to duplicate
+ */
+function _duplicatePages(docHandle, fromIndex, toIndex, count) {
+  const pageIndices = Pdfium.wasmExports.malloc(count * 4); // Int32 array
+  const pageIndicesView = new Int32Array(Pdfium.memory.buffer, pageIndices, count);
+  for (let i = 0; i < count; i++) {
+    pageIndicesView[i] = fromIndex + i;
+  }
+  Pdfium.wasmExports.FPDF_ImportPagesByIndex(docHandle, docHandle, pageIndices, count, toIndex);
+  Pdfium.wasmExports.free(pageIndices);
+}
+
+/**
+ * Insert a page from another document
+ * @param {number} destDocHandle Destination document handle
+ * @param {number} srcDocHandle Source document handle
+ * @param {number} srcPageIndex Source page index (0-based)
+ * @param {number} destIndex Destination index
+ */
+function _insertImportedPage(destDocHandle, srcDocHandle, srcPageIndex, destIndex) {
+  const pageIndices = Pdfium.wasmExports.malloc(4); // Int32 for one page
+  const pageIndicesView = new Int32Array(Pdfium.memory.buffer, pageIndices, 1);
+  pageIndicesView[0] = srcPageIndex;
+  Pdfium.wasmExports.FPDF_ImportPagesByIndex(destDocHandle, srcDocHandle, pageIndices, 1, destIndex);
+  Pdfium.wasmExports.free(pageIndices);
+}
+
+/**
+ * Encode PDF document to bytes
+ * @param {{docHandle: number, incremental: boolean, removeSecurity: boolean}} params
+ * @returns {{data: ArrayBuffer}}
+ */
+function encodePdf(params) {
+  const { docHandle, incremental = false, removeSecurity = false } = params;
+
+  const chunks = [];
+
+  // Create a callback function that will be called by PDFium to write data
+  const writeCallback = Pdfium.addFunction((pThis, pData, size) => {
+    void pThis; // Suppress unused parameter warning
+    const chunk = new Uint8Array(Pdfium.memory.buffer, pData, size);
+    chunks.push(new Uint8Array(chunk)); // Copy the data
+    return size;
+  }, 'iiii');
+
+  try {
+    const fileWriteSize = 8; // sizeof(FPDF_FILEWRITE): version(4) + WriteBlock(4)
+    const fileWrite = Pdfium.wasmExports.malloc(fileWriteSize);
+    const fileWriteView = new Int32Array(Pdfium.memory.buffer, fileWrite, 2);
+    fileWriteView[0] = 1; // version
+    fileWriteView[1] = writeCallback; // WriteBlock function pointer
+
+    // Determine flags based on parameters
+    let flags;
+    if (removeSecurity) {
+      flags = 3; // FPDF_SAVE_NO_SECURITY(3)
+    } else {
+      flags = incremental ? 1 : 2; // FPDF_INCREMENTAL(1) or FPDF_NO_INCREMENTAL(2)
+    }
+
+    const result = Pdfium.wasmExports.FPDF_SaveAsCopy(docHandle, fileWrite, flags);
+    Pdfium.wasmExports.free(fileWrite);
+
+    if (!result) {
+      throw new Error('FPDF_SaveAsCopy failed');
+    }
+
+    // Combine all chunks into a single ArrayBuffer
+    const totalSize = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const combined = new Uint8Array(totalSize);
+    let offset = 0;
+    for (const chunk of chunks) {
+      combined.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    return {
+      result: { data: combined.buffer },
+      transfer: [combined.buffer],
+    };
+  } finally {
+    Pdfium.removeFunction(writeCallback);
+  }
+}
+
+/**
+ * Create a new empty PDF document
+ * @returns {PdfDocument|PdfError}
+ */
+function createNewDocument() {
+  const docHandle = Pdfium.wasmExports.FPDF_CreateNewDocument();
+  return _loadDocument(docHandle, false, () => {});
+}
+
+/**
+ * Create a PDF document from JPEG data
+ * @param {Object} params Parameters object
+ * @param {ArrayBuffer} params.jpegData JPEG image data
+ * @param {number} params.width Page width in PDF units
+ * @param {number} params.height Page height in PDF units
+ * @returns {PdfDocument|PdfError}
+ */
+function createDocumentFromJpegData(params) {
+  const { jpegData, width, height } = params;
+
+  if (!jpegData || !(jpegData instanceof ArrayBuffer)) {
+    return { errorCode: -1, errorCodeStr: 'Invalid JPEG data' };
+  }
+  if (typeof width !== 'number' || width <= 0) {
+    return { errorCode: -1, errorCodeStr: 'Invalid width' };
+  }
+  if (typeof height !== 'number' || height <= 0) {
+    return { errorCode: -1, errorCodeStr: 'Invalid height' };
+  }
+
+  // Create a new PDF document
+  const docHandle = Pdfium.wasmExports.FPDF_CreateNewDocument();
+  if (!docHandle) {
+    return { errorCode: -1, errorCodeStr: 'Failed to create PDF document' };
+  }
+
+  // Create a new page
+  const pageHandle = Pdfium.wasmExports.FPDFPage_New(docHandle, 0, width, height);
+  if (!pageHandle) {
+    Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+    return { errorCode: -1, errorCodeStr: 'Failed to create PDF page' };
+  }
+
+  // Create an image object
+  const imageObj = Pdfium.wasmExports.FPDFPageObj_NewImageObj(docHandle);
+  if (!imageObj) {
+    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+    Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+    return { errorCode: -1, errorCodeStr: 'Failed to create image object' };
+  }
+
+  // Create a FPDF_FILEACCESS structure in WASM memory
+  const fileAccessSize = 12; // sizeof(FPDF_FILEACCESS) - 3 pointers (each 4 bytes in wasm32)
+  const fileAccessPtr = Pdfium.wasmExports.malloc(fileAccessSize);
+  if (!fileAccessPtr) {
+    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+    Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+    return { errorCode: -1, errorCodeStr: 'Failed to allocate file access structure' };
+  }
+
+  // Set up file access structure
+  const fa = new Uint32Array(Pdfium.memory.buffer, fileAccessPtr, fileAccessSize >> 2);
+  fa[0] = jpegData.byteLength; // m_FileLen
+  const getBlockCallback = (param, position, pBuf, size) => {
+    const toCopy = Math.min(size, jpegData.byteLength - position);
+    const src = new Uint8Array(jpegData, position, toCopy);
+    const dst = new Uint8Array(Pdfium.memory.buffer, pBuf, toCopy);
+    dst.set(src);
+    return toCopy;
+  };
+  const callbackIndex = Pdfium.addFunction(getBlockCallback, 'iiiii');
+  fa[1] = callbackIndex; // m_GetBlock function pointer
+
+  // Allocate page array (pointer to single page handle)
+  const pageArrayPtr = Pdfium.wasmExports.malloc(4);
+  if (!pageArrayPtr) {
+    Pdfium.removeFunction(callbackIndex);
+    Pdfium.wasmExports.free(fileAccessPtr);
+    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+    Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+    return { errorCode: -1, errorCodeStr: 'Failed to allocate page array' };
+  }
+  new Int32Array(Pdfium.memory.buffer, pageArrayPtr, 1)[0] = pageHandle;
+
+  // Load JPEG data into the image object
+  const loadResult = Pdfium.wasmExports.FPDFImageObj_LoadJpegFileInline(
+    pageArrayPtr,
+    1,
+    imageObj,
+    fileAccessPtr
+  );
+  Pdfium.wasmExports.free(pageArrayPtr);
+  Pdfium.removeFunction(callbackIndex);
+  Pdfium.wasmExports.free(fileAccessPtr);
+
+  if (!loadResult) {
+    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+    Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+    return { errorCode: -1, errorCodeStr: 'Failed to load JPEG data into image object' };
+  }
+
+  // Set image transformation matrix to fill the page
+  const setMatrixResult = Pdfium.wasmExports.FPDFImageObj_SetMatrix(
+    imageObj,
+    width,  // a (horizontal scaling)
+    0,      // b (horizontal skewing)
+    0,      // c (vertical skewing)
+    height, // d (vertical scaling)
+    0,      // e (horizontal translation)
+    0       // f (vertical translation)
+  );
+
+  if (!setMatrixResult) {
+    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+    Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+    return { errorCode: -1, errorCodeStr: 'Failed to set image matrix' };
+  }
+
+  // Insert the image object into the page
+  Pdfium.wasmExports.FPDFPage_InsertObject(pageHandle, imageObj);
+
+  // Generate page content
+  const generateResult = Pdfium.wasmExports.FPDFPage_GenerateContent(pageHandle);
+  if (!generateResult) {
+    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+    Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+    return { errorCode: -1, errorCodeStr: 'Failed to generate page content' };
+  }
+
+  // Close the page (transfers ownership to document)
+  Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+
+  // Load and return the document
+  return _loadDocument(docHandle, false, () => {});
+}
+
+/**
+ * Set pixel data for an image object
+ * @param {number} pageHandle Page handle
+ * @param {number} imageObj Image object handle
+ * @param {ArrayBuffer} pixels BGRA8888 pixel data
+ * @param {number} pixelWidth Image width in pixels
+ * @param {number} pixelHeight Image height in pixels
+ * @returns {PdfDocument|PdfError}
+ */
+function _setImageObjPixels(pageHandle, imageObj, pixels, pixelWidth, pixelHeight) {
+  const pixelDataPtr = Pdfium.wasmExports.malloc(pixels.byteLength);
+  if (!pixelDataPtr) throw new Error('Failed to allocate memory for image pixels');
+  new Uint8Array(Pdfium.memory.buffer, pixelDataPtr, pixels.byteLength).set(new Uint8Array(pixels));
+  const FPDFBitmap_BGRA = 4;
+  const bitmapHandle = Pdfium.wasmExports.FPDFBitmap_CreateEx(
+    pixelWidth,
+    pixelHeight,
+    FPDFBitmap_BGRA,
+    pixelDataPtr,
+    pixelWidth * 4
+  );
+  if (!bitmapHandle) {
+    Pdfium.wasmExports.free(pixelDataPtr);
+    throw new Error('Failed to create bitmap for image object');
+  }
+  const pageArrayPtr = Pdfium.wasmExports.malloc(4); // Allocate space for one pointer
+  new Int32Array(Pdfium.memory.buffer, pageArrayPtr, 1)[0] = pageHandle;
+  const result = Pdfium.wasmExports.FPDFImageObj_SetBitmap(pageArrayPtr, 1, imageObj, bitmapHandle);
+  Pdfium.wasmExports.free(pageArrayPtr);
+  Pdfium.wasmExports.free(pixelDataPtr);
+  Pdfium.wasmExports.FPDFBitmap_Destroy(bitmapHandle);
+  if (!result) {
+    throw new Error('Failed to set bitmap for image object');
+  }
+}
+
+/**
  * Functions that can be called from the main thread
  */
 const functions = {
   loadDocumentFromUrl,
   loadDocumentFromData,
+  createNewDocument,
+  createDocumentFromJpegData,
   loadPagesProgressively,
   closeDocument,
   loadOutline,
@@ -1524,6 +2049,8 @@ const functions = {
   reloadFonts,
   addFontData,
   clearAllFontData,
+  assemble,
+  encodePdf,
 };
 
 /**

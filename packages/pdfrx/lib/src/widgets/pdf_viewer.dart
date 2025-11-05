@@ -33,10 +33,10 @@ import 'pdf_page_links_overlay.dart';
 class PdfViewer extends StatefulWidget {
   /// Create [PdfViewer] from a [PdfDocumentRef].
   ///
-  /// [documentRef] is the [PdfDocumentRef].
-  /// [controller] is the controller to control the viewer.
-  /// [params] is the parameters to customize the viewer.
-  /// [initialPageNumber] is the page number to show initially.
+  /// - [documentRef] is the [PdfDocumentRef].
+  /// - [controller] is the controller to control the viewer.
+  /// - [params] is the parameters to customize the viewer.
+  /// - [initialPageNumber] is the page number to show initially.
   const PdfViewer(
     this.documentRef, {
     super.key,
@@ -47,13 +47,13 @@ class PdfViewer extends StatefulWidget {
 
   /// Create [PdfViewer] from an asset.
   ///
-  /// [assetName] is the asset name.
-  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// - [assetName] is the asset name.
+  /// - [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
-  /// [controller] is the controller to control the viewer.
-  /// [params] is the parameters to customize the viewer.
-  /// [initialPageNumber] is the page number to show initially.
+  /// - [controller] is the controller to control the viewer.
+  /// - [params] is the parameters to customize the viewer.
+  /// - [initialPageNumber] is the page number to show initially.
   PdfViewer.asset(
     String assetName, {
     PdfPasswordProvider? passwordProvider,
@@ -72,13 +72,13 @@ class PdfViewer extends StatefulWidget {
 
   /// Create [PdfViewer] from a file.
   ///
-  /// [path] is the file path.
-  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// - [path] is the file path.
+  /// - [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
-  /// [controller] is the controller to control the viewer.
-  /// [params] is the parameters to customize the viewer.
-  /// [initialPageNumber] is the page number to show initially.
+  /// - [controller] is the controller to control the viewer.
+  /// - [params] is the parameters to customize the viewer.
+  /// - [initialPageNumber] is the page number to show initially.
   PdfViewer.file(
     String path, {
     PdfPasswordProvider? passwordProvider,
@@ -97,16 +97,17 @@ class PdfViewer extends StatefulWidget {
 
   /// Create [PdfViewer] from a URI.
   ///
-  /// [uri] is the URI.
-  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// - [uri] is the URI.
+  /// - [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
-  /// [controller] is the controller to control the viewer.
-  /// [params] is the parameters to customize the viewer.
-  /// [initialPageNumber] is the page number to show initially.
-  /// [preferRangeAccess] to prefer range access to download the PDF. The default is false. (Not supported on Web).
-  /// [headers] is used to specify additional HTTP headers especially for authentication/authorization.
-  /// [withCredentials] is used to specify whether to include credentials in the request (Only supported on Web).
+  /// - [controller] is the controller to control the viewer.
+  /// - [params] is the parameters to customize the viewer.
+  /// - [initialPageNumber] is the page number to show initially.
+  /// - [preferRangeAccess] to prefer range access to download the PDF. The default is false. (Not supported on Web).
+  /// - [headers] is used to specify additional HTTP headers especially for authentication/authorization.
+  /// - [withCredentials] is used to specify whether to include credentials in the request (Only supported on Web).
+  /// - [timeout] is the timeout duration for loading the document. (Only supported on non-Web platforms).
   PdfViewer.uri(
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
@@ -119,6 +120,7 @@ class PdfViewer extends StatefulWidget {
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
+    Duration? timeout,
   }) : documentRef = PdfDocumentRefUri(
          uri,
          passwordProvider: passwordProvider,
@@ -127,19 +129,20 @@ class PdfViewer extends StatefulWidget {
          preferRangeAccess: preferRangeAccess,
          headers: headers,
          withCredentials: withCredentials,
+         timeout: timeout,
        );
 
   /// Create [PdfViewer] from a byte data.
   ///
-  /// [data] is the byte data.
-  /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
+  /// - [data] is the byte data.
+  /// - [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
   /// unique for each source, the viewer may not work correctly.
-  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// - [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
-  /// [controller] is the controller to control the viewer.
-  /// [params] is the parameters to customize the viewer.
-  /// [initialPageNumber] is the page number to show initially.
+  /// - [controller] is the controller to control the viewer.
+  /// - [params] is the parameters to customize the viewer.
+  /// - [initialPageNumber] is the page number to show initially.
   PdfViewer.data(
     Uint8List data, {
     required String sourceName,
@@ -160,16 +163,16 @@ class PdfViewer extends StatefulWidget {
 
   /// Create [PdfViewer] from a custom source.
   ///
-  /// [fileSize] is the size of the PDF file.
-  /// [read] is the function to read the PDF file.
-  /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
+  /// - [fileSize] is the size of the PDF file.
+  /// - [read] is the function to read the PDF file.
+  /// - [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
   /// unique for each source, the viewer may not work correctly.
-  /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
-  /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
+  /// - [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
+  /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
-  /// [controller] is the controller to control the viewer.
-  /// [params] is the parameters to customize the viewer.
-  /// [initialPageNumber] is the page number to show initially.
+  /// - [controller] is the controller to control the viewer.
+  /// - [params] is the parameters to customize the viewer.
+  /// - [initialPageNumber] is the page number to show initially.
   PdfViewer.custom({
     required int fileSize,
     required FutureOr<int> Function(Uint8List buffer, int position, int size) read,
@@ -244,7 +247,7 @@ class _PdfViewerState extends State<PdfViewer>
   final double _hitTestMargin = 3.0;
 
   /// The starting/ending point of the text selection.
-  _TextSelectionPoint? _selA, _selB;
+  _PdfTextSelectionPoint? _selA, _selB;
   Offset? _textSelectAnchor;
 
   /// [_textSelA] is the rectangle of the first character in the selected paragraph and
@@ -400,10 +403,14 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onDocumentEvent(PdfDocumentEvent event) {
     if (event is PdfDocumentPageStatusChangedEvent) {
-      for (final page in event.pages) {
-        _imageCache.removeCacheImagesForPage(page.pageNumber);
-        _magnifierImageCache.removeCacheImagesForPage(page.pageNumber);
+      // TODO: we can reuse images for moved pages
+      for (final change in event.changes.entries) {
+        _imageCache.removeCacheImagesForPage(change.key);
+        _magnifierImageCache.removeCacheImagesForPage(change.key);
       }
+      _canvasLinkPainter.resetAll();
+      _textCache.clear();
+      _clearTextSelections(invalidate: false);
       _invalidate();
     }
   }
@@ -2165,7 +2172,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   /// [point] is in the document coordinates.
-  _TextSelectionPoint? _findTextAndIndexForPoint(Offset? point, {double hitTestMargin = 8}) {
+  _PdfTextSelectionPoint? _findTextAndIndexForPoint(Offset? point, {double hitTestMargin = 8}) {
     if (point == null) return null;
     for (var pageIndex = 0; pageIndex < _document!.pages.length; pageIndex++) {
       final pageRect = _layout!.pageLayouts[pageIndex];
@@ -2181,7 +2188,7 @@ class _PdfViewerState extends State<PdfViewer>
       for (var i = 0; i < text.charRects.length; i++) {
         final charRect = text.charRects[i];
         if (charRect.containsPoint(pt)) {
-          return _TextSelectionPoint(text, i, point);
+          return _PdfTextSelectionPoint(text, i);
         }
         final d2 = charRect.distanceSquaredTo(pt);
         if (d2 < d2Min) {
@@ -2190,7 +2197,7 @@ class _PdfViewerState extends State<PdfViewer>
         }
       }
       if (closestIndex != null && d2Min <= hitTestMargin * hitTestMargin) {
-        return _TextSelectionPoint(text, closestIndex, point);
+        return _PdfTextSelectionPoint(text, closestIndex);
       }
     }
     return null;
@@ -2786,13 +2793,13 @@ class _PdfViewerState extends State<PdfViewer>
           params.textSelectionDelegate.hasSelectedText)
         ContextMenuButtonItem(
           onPressed: () => params.textSelectionDelegate.copyTextSelection(),
-          label: 'Copy',
+          label: _l10n(PdfViewerL10nKey.copy),
           type: ContextMenuButtonType.copy,
         ),
       if (params.isTextSelectionEnabled && !params.textSelectionDelegate.isSelectingAllText)
         ContextMenuButtonItem(
           onPressed: () => params.textSelectionDelegate.selectAllText(),
-          label: 'Select All',
+          label: _l10n(PdfViewerL10nKey.selectAll),
           type: ContextMenuButtonType.selectAll,
         ),
     ];
@@ -2903,6 +2910,23 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   Future<void> clearTextSelection() async => _clearTextSelections();
+
+  void _setTextSelection(_PdfTextSelectionPoint a, _PdfTextSelectionPoint b) {
+    if (!a.isValid || !b.isValid) {
+      throw ArgumentError('Both selection points must be valid.');
+    }
+    _selA = a;
+    _selB = b;
+    if (_selA! > _selB!) {
+      final temp = _selA;
+      _selA = _selB;
+      _selB = temp;
+    }
+    _textSelA = _textSelB = null;
+    _contextMenuDocumentPosition = null;
+    _isSelectingAllText = false;
+    _updateTextSelection();
+  }
 
   PdfPageTextRange? _loadTextSelectionForPageNumber(int pageNumber) {
     final a = _selA;
@@ -3035,16 +3059,8 @@ class _PdfViewerState extends State<PdfViewer>
       }
       final range = PdfPageTextRange(pageText: text, start: f.index, end: f.end);
       final selectionRect = f.bounds.toRectInDocument(page: page, pageRect: pageRect);
-      _selA = _TextSelectionPoint(
-        text,
-        f.index,
-        text.charRects[f.index].center.toOffsetInDocument(page: page, pageRect: pageRect),
-      );
-      _selB = _TextSelectionPoint(
-        text,
-        f.end - 1,
-        text.charRects[f.end - 1].center.toOffsetInDocument(page: page, pageRect: pageRect),
-      );
+      _selA = _PdfTextSelectionPoint(text, f.index);
+      _selB = _PdfTextSelectionPoint(text, f.end - 1);
       _textSelA = PdfTextSelectionAnchor(
         selectionRect,
         range.pageText.getFragmentForTextIndex(range.start)?.direction ?? PdfTextDirection.ltr,
@@ -3131,6 +3147,22 @@ class _PdfViewerState extends State<PdfViewer>
     _imageCache.releaseAllImages();
     _magnifierImageCache.releaseAllImages();
     _invalidate();
+  }
+
+  /// Get the localized string for the given key.
+  ///
+  /// If a custom localization delegate is provided in the widget parameters, it will be used.
+  /// Otherwise, default English strings will be returned.
+  String _l10n(PdfViewerL10nKey key, [List<Object>? args]) {
+    var result = widget.params.l10nDelegate?.call(key, args);
+    if (result != null) return result;
+
+    switch (key) {
+      case PdfViewerL10nKey.copy:
+        return 'Copy';
+      case PdfViewerL10nKey.selectAll:
+        return 'Select All';
+    }
   }
 }
 
@@ -3295,43 +3327,51 @@ class _PdfViewerTransformationController extends TransformationController {
 /// What selection part is moving by mouse-dragging/finger-panning.
 enum _TextSelectionPart { none, free, a, b }
 
+/// Represents a point in the text selection.
+/// It contains the [PdfPageText] and the index of the character in that text.
 @immutable
-class _TextSelectionPoint {
-  const _TextSelectionPoint(this.text, this.index, this.point);
+class _PdfTextSelectionPoint {
+  const _PdfTextSelectionPoint(this.text, this.index);
+
+  /// The page text associated with this selection point.
   final PdfPageText text;
+
+  /// The index of the character in the [text].
   final int index;
-  final Offset point;
+
+  /// Whether the index is valid in the [text].
+  bool get isValid => index >= 0 && index < text.charRects.length;
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    if (other is! _TextSelectionPoint) return false;
-    return text == other.text && index == other.index && point == other.point;
+    if (other is! _PdfTextSelectionPoint) return false;
+    return text == other.text && index == other.index;
   }
 
-  bool operator <(_TextSelectionPoint other) {
+  bool operator <(_PdfTextSelectionPoint other) {
     if (text.pageNumber != other.text.pageNumber) {
       return text.pageNumber < other.text.pageNumber;
     }
     return index < other.index;
   }
 
-  bool operator >(_TextSelectionPoint other) => !(this <= other);
+  bool operator >(_PdfTextSelectionPoint other) => !(this <= other);
 
-  bool operator <=(_TextSelectionPoint other) {
+  bool operator <=(_PdfTextSelectionPoint other) {
     if (text.pageNumber != other.text.pageNumber) {
       return text.pageNumber < other.text.pageNumber;
     }
     return index <= other.index;
   }
 
-  bool operator >=(_TextSelectionPoint other) => !(this < other);
+  bool operator >=(_PdfTextSelectionPoint other) => !(this < other);
 
   @override
-  int get hashCode => text.hashCode ^ index.hashCode ^ point.hashCode;
+  int get hashCode => text.hashCode ^ index.hashCode;
 
   @override
-  String toString() => '$_TextSelectionPoint(text: $text, index: $index, point: $point)';
+  String toString() => '$_PdfTextSelectionPoint(text: $text, index: $index)';
 }
 
 /// Represents the anchor point of the text selection.

@@ -15,7 +15,7 @@ Add the package to your Flutter app:
 ```yaml
 dependencies:
   pdfrx: ^2.2.0
-  pdfrx_coregraphics: ^0.1.3
+  pdfrx_coregraphics: ^0.1.5
 ```
 
 Set the CoreGraphics entry functions before initializing pdfrx:
@@ -26,7 +26,6 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:pdfrx_coregraphics/pdfrx_coregraphics.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
   PdfrxEntryFunctions.instance = PdfrxCoreGraphicsEntryFunctions();
   pdfrxFlutterInitialize();
   runApp(const MyApp());

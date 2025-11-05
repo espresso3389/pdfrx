@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:pdfrx_engine/pdfrx_engine.dart';
+// ignore: implementation_imports
+import 'package:pdfrx_engine/src/native/pdf_file_cache.dart';
+// ignore: implementation_imports
+import 'package:pdfrx_engine/src/pdf_page_proxies.dart';
 
 const _kPasswordErrorCode = 'wrong-password';
 
@@ -47,6 +49,7 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
         'Pdfrx.loadAsset is not set. Please set it before calling openAsset.',
       );
     }
+    await init();
     final data = await Pdfrx.loadAsset!(name);
     return openData(
       data,
@@ -131,6 +134,7 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
+    await init();
     final buffer = Uint8List(fileSize);
     final chunk = Uint8List(min(fileSize, 128 * 1024));
     var offset = 0;
@@ -165,41 +169,65 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
-  }) async {
-    final clientFactory = Pdfrx.createHttpClient ?? () => http.Client();
-    final client = clientFactory();
-    try {
-      final request = http.Request('GET', uri);
-      if (headers != null && headers.isNotEmpty) {
-        request.headers.addAll(headers);
-      }
-      final response = await client.send(request);
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw PdfException(
-          'Failed to download PDF from $uri (HTTP ${response.statusCode}).',
-        );
-      }
-      final total = response.contentLength;
-      progressCallback?.call(0, total);
+    Duration? timeout,
+  }) => pdfDocumentFromUri(
+    uri,
+    passwordProvider: passwordProvider,
+    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
+    progressCallback: progressCallback,
+    useRangeAccess: preferRangeAccess,
+    headers: headers,
+    timeout: timeout,
+    entryFunctions: this,
+  );
 
-      final builder = BytesBuilder(copy: false);
-      var downloaded = 0;
-      await for (final chunk in response.stream) {
-        builder.add(chunk);
-        downloaded += chunk.length;
-        progressCallback?.call(downloaded, total);
-      }
-      final data = builder.takeBytes();
-      return openData(
-        data,
-        passwordProvider: passwordProvider,
-        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-        useProgressiveLoading: useProgressiveLoading,
-        sourceName: uri.toString(),
-      );
-    } finally {
-      client.close();
+  @override
+  Future<PdfDocument> createNew({required String sourceName}) async {
+    await init();
+    final result = await _channel.invokeMapMethod<Object?, Object?>(
+      'createNewDocument',
+      {'sourceName': sourceName},
+    );
+    if (result == null) {
+      throw const PdfException('Failed to create empty PDF document.');
     }
+    return _CoreGraphicsPdfDocument.fromPlatformMap(
+      channel: _channel,
+      result: result,
+      sourceName: sourceName,
+      useProgressiveLoading: false,
+      onDispose: null,
+    );
+  }
+
+  @override
+  Future<PdfDocument> createFromJpegData(
+    Uint8List jpegData, {
+    required double width,
+    required double height,
+    required String sourceName,
+  }) async {
+    await init();
+    final result = await _channel.invokeMapMethod<Object?, Object?>(
+      'createDocumentFromJpegData',
+      {
+        'jpegData': jpegData,
+        'width': width,
+        'height': height,
+        'sourceName': sourceName,
+      },
+    );
+    if (result == null) {
+      throw const PdfException('Failed to create PDF document from JPEG data.');
+    }
+    return _CoreGraphicsPdfDocument.fromPlatformMap(
+      channel: _channel,
+      result: result,
+      sourceName: sourceName,
+      useProgressiveLoading: false,
+      onDispose: null,
+    );
   }
 
   @override
@@ -219,6 +247,9 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
   Future<void> clearAllFontData() async {
     // Custom font registration is not currently supported by the CoreGraphics bridge.
   }
+
+  @override
+  PdfrxBackend get backend => PdfrxBackend.pdfKit;
 
   Future<PdfDocument> _openWithPassword({
     required PdfPasswordProvider? passwordProvider,
@@ -410,25 +441,63 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
     );
   }
 
-  PdfDest? _parseDest(Map<Object?, Object?>? dest) {
-    if (dest == null) {
-      return null;
-    }
-    final map = dest.cast<String, Object?>();
-    final page = map['page'] as int? ?? 1;
-    final params = (map['params'] as List<Object?>?)
-        ?.map((value) => (value as num?)?.toDouble())
-        .toList(growable: false);
-    final commandName = map['command'] as String?;
-    final command = commandName == null
-        ? PdfDestCommand.unknown
-        : PdfDestCommand.parse(commandName);
-    return PdfDest(page, command, params);
-  }
-
   @override
   bool isIdenticalDocumentHandle(Object? other) {
     return other is _CoreGraphicsPdfDocument && other.handle == handle;
+  }
+
+  @override
+  set pages(List<PdfPage> newPages) {
+    final pages = <PdfPage>[];
+    final changes = <int, PdfPageStatusChange>{};
+    for (final newPage in newPages) {
+      if (pages.length < _pages.length) {
+        final old = _pages[pages.length];
+        if (identical(newPage, old)) {
+          pages.add(newPage);
+          continue;
+        }
+      }
+
+      if (newPage.unwrap<_CoreGraphicsPdfPage>() == null) {
+        throw ArgumentError(
+          'Unsupported PdfPage instances found at [${pages.length}]',
+          'newPages',
+        );
+      }
+
+      final newPageNumber = pages.length + 1;
+      pages.add(newPage.withPageNumber(newPageNumber));
+
+      final oldPageIndex = _pages.indexWhere((p) => identical(p, newPage));
+      if (oldPageIndex != -1) {
+        changes[newPageNumber] = PdfPageStatusChange.moved(
+          oldPageNumber: oldPageIndex + 1,
+        );
+      } else {
+        changes[newPageNumber] = PdfPageStatusChange.modified;
+      }
+    }
+
+    _pages = pages;
+    subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+  }
+
+  @override
+  Future<bool> assemble() async {
+    throw UnimplementedError(
+      'assemble() is not implemented for CoreGraphics backend.',
+    );
+  }
+
+  @override
+  Future<Uint8List> encodePdf({
+    bool incremental = false,
+    bool removeSecurity = false,
+  }) async {
+    throw UnimplementedError(
+      'encodePdf() is not implemented for CoreGraphics backend.',
+    );
   }
 }
 
@@ -477,6 +546,7 @@ class _CoreGraphicsPdfPage extends PdfPage {
     double? fullWidth,
     double? fullHeight,
     int? backgroundColor,
+    PdfPageRotation? rotationOverride,
     PdfAnnotationRenderingMode annotationRenderingMode =
         PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
@@ -511,6 +581,9 @@ class _CoreGraphicsPdfPage extends PdfPage {
             'fullWidth': targetFullWidth,
             'fullHeight': targetFullHeight,
             'backgroundColor': backgroundColor ?? 0xffffffff,
+            'rotation': rotationOverride != null
+                ? (rotationOverride.index - rotation.index + 4) & 3
+                : 0,
             'flags': flags,
             'renderAnnotations':
                 annotationRenderingMode != PdfAnnotationRenderingMode.none,
@@ -614,21 +687,10 @@ class _CoreGraphicsPdfPage extends PdfPage {
                 const <PdfRect>[];
             final url = map['url'] as String?;
             final destMap = map['dest'] as Map<Object?, Object?>?;
-            final dest = destMap == null
-                ? null
-                : PdfDest(
-                    (destMap['page'] as int?) ?? pageNumber,
-                    destMap['command'] is String
-                        ? PdfDestCommand.parse(destMap['command'] as String)
-                        : PdfDestCommand.unknown,
-                    (destMap['params'] as List<Object?>?)
-                        ?.map((value) => (value as num?)?.toDouble())
-                        .toList(growable: false),
-                  );
             final link = PdfLink(
               rects,
               url: url == null ? null : Uri.tryParse(url),
-              dest: dest,
+              dest: _parseDest(destMap, defaultPageNumber: pageNumber),
               annotationContent: map['annotationContent'] as String?,
             );
             return compact ? link.compact() : link;
@@ -688,4 +750,31 @@ class _CoreGraphicsCancellationToken implements PdfPageRenderCancellationToken {
 
   @override
   bool get isCanceled => _isCanceled;
+}
+
+PdfDest? _parseDest(Map<Object?, Object?>? dest, {int defaultPageNumber = 1}) {
+  if (dest == null) return null;
+  final map = dest.cast<String, Object?>();
+  return PdfDest(
+    map['page'] as int? ?? defaultPageNumber,
+    _tryParseDestCommand(map['command'] as String?),
+    (map['params'] as List<Object?>?)
+        ?.map((value) {
+          if (value == null) return null;
+          if (value is num) return value.toDouble();
+          return null;
+        })
+        .toList(growable: false),
+  );
+}
+
+PdfDestCommand _tryParseDestCommand(String? commandName) {
+  try {
+    if (commandName == null) {
+      return PdfDestCommand.unknown;
+    }
+    return PdfDestCommand.parse(commandName);
+  } catch (e) {
+    return PdfDestCommand.unknown;
+  }
 }

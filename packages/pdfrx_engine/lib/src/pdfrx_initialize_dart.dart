@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:http/http.dart' as http;
 
-import '../pdfrx_engine.dart';
+import 'pdfrx.dart';
+import 'pdfrx_entry_functions.dart';
 
 bool _isInitialized = false;
 
@@ -49,7 +50,7 @@ class _PdfiumDownloader {
   _PdfiumDownloader._();
 
   /// The release of pdfium to download.
-  static const pdfrxCurrentPdfiumRelease = 'chromium%2F7390';
+  static const pdfrxCurrentPdfiumRelease = 'chromium%2F7506';
 
   /// Downloads the pdfium module for the current platform and architecture.
   ///
