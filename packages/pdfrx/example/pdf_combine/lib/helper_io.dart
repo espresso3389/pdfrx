@@ -41,7 +41,7 @@ Future<JpegData> compressImageToJpeg(
   int quality = 90,
 }) async {
   calculateTargetSize ??= (w, h) => (width: w, height: h);
-  final ui.ImmutableBuffer buffer = await ui.ImmutableBuffer.fromUint8List(imageData);
+  final buffer = await ui.ImmutableBuffer.fromUint8List(imageData);
   final codec = await PaintingBinding.instance.instantiateImageCodecWithSize(
     buffer,
     getTargetSize: (w, h) {
