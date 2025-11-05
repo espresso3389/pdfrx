@@ -741,6 +741,7 @@ class PdfTextSelectionParams {
     this.enableSelectionHandles,
     this.showContextMenuAutomatically,
     this.buildSelectionHandle,
+    this.handleOffset,
     this.onTextSelectionChange,
     this.magnifier,
   });
@@ -767,6 +768,12 @@ class PdfTextSelectionParams {
   /// - If the function is null, the default anchor handle will be used.
   final PdfViewerTextSelectionAnchorHandleBuilder? buildSelectionHandle;
 
+  /// Optional callback to calculate the offset for the anchor handles.
+  ///
+  /// This callback is called for each anchor handle to determine the offset
+  /// to apply to the handle's default position. If null, defaults to [Offset.zero].
+  final PdfViewerHandleOffsetCallback? handleOffset;
+
   /// Function to be notified when the text selection is changed.
   final PdfViewerTextSelectionChangeCallback? onTextSelectionChange;
 
@@ -778,6 +785,7 @@ class PdfTextSelectionParams {
     if (identical(this, other)) return true;
     return other is PdfTextSelectionParams &&
         other.buildSelectionHandle == buildSelectionHandle &&
+        other.handleOffset == handleOffset &&
         other.onTextSelectionChange == onTextSelectionChange &&
         other.enableSelectionHandles == enableSelectionHandles &&
         other.showContextMenuAutomatically == showContextMenuAutomatically &&
@@ -787,6 +795,7 @@ class PdfTextSelectionParams {
   @override
   int get hashCode =>
       buildSelectionHandle.hashCode ^
+      handleOffset.hashCode ^
       onTextSelectionChange.hashCode ^
       enableSelectionHandles.hashCode ^
       showContextMenuAutomatically.hashCode ^
@@ -913,6 +922,17 @@ typedef PdfViewerTextSelectionAnchorHandleBuilder =
       PdfTextSelectionAnchor anchor,
       PdfViewerTextSelectionAnchorHandleState state,
     );
+
+/// Function to calculate the offset for an anchor handle.
+///
+/// This callback is called for each anchor handle to determine the offset
+/// to apply to the handle's default position.
+///
+/// The callback receives the [PdfTextSelectionAnchor] and should return an [Offset]
+/// that positions the handle widget relative to the anchor point:
+/// - For anchor A (LTR): default anchor point is text's top-left, widget's bottom-right
+/// - For anchor B (LTR): default anchor point is text's bottom-right, widget's top-left
+typedef PdfViewerHandleOffsetCallback = Offset Function(PdfTextSelectionAnchor anchor);
 
 /// Function to be notified when the text selection is changed.
 ///
