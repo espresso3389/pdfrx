@@ -1,3 +1,29 @@
+# 2.2.8
+
+- NEW: `PdfDocument` now supports page re-arrangement and accepts `PdfPage` instances from other documents, enabling PDF combine/merge functionality
+- Added `pdf_combine` app example demonstrating PDF merging capabilities
+- Updated to pdfrx_engine 0.2.4
+
+# 2.2.7
+
+- `PdfViewer.uri` now supports timeout parameter ([#508](https://github.com/espresso3389/pdfrx/issues/508))
+
+# 2.2.6
+
+- Added configurable timeout parameter to `openUri` and `pdfDocumentFromUri` functions ([#509](https://github.com/espresso3389/pdfrx/pull/509))
+- Updated to pdfrx_engine 0.2.3
+
+# 2.2.5
+
+- Experimental iOS/macOS direct symbol lookup to address SwiftPM TestFlight/App Store symbol lookup issues ([#501](https://github.com/espresso3389/pdfrx/issues/501))
+- `pdfrxFlutterInitialize()` now internally calls `WidgetsFlutterBinding.ensureInitialized()` - no need to call it explicitly
+- Updated to pdfrx_engine 0.2.2
+
+# 2.2.4
+
+- FIXED: SwiftPM/pod package structure updates for iOS/macOS ([#501](https://github.com/espresso3389/pdfrx/issues/501))
+- Updated to pdfrx_engine 0.2.1
+
 # 2.2.3
 
 - POSSIBLE FIX: Error on `openFile()` or `openAsset()` on iOS production builds installed from AppStore/TestFlight ([#501](https://github.com/espresso3389/pdfrx/issues/501))

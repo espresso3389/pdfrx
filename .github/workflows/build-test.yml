@@ -44,11 +44,11 @@ on:
         required: false
         type: boolean
         default: true
-      # build_windows_arm64:
-      #   description: 'Build Windows ARM64'
-      #   required: false
-      #   type: boolean
-      #   default: true
+      build_windows_arm64:
+        description: 'Build Windows ARM64'
+        required: false
+        type: boolean
+        default: true
       build_web:
         description: 'Build Web'
         required: false
@@ -90,6 +90,10 @@ jobs:
   ios:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_ios }}
     runs-on: macos-latest
+    strategy:
+      matrix:
+        package_manager: [cocoapods, swiftpm]
+    name: ios-${{ matrix.package_manager }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
@@ -101,11 +105,19 @@ jobs:
           ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
 
+      - name: Configure package manager
+        run: |
+          if [ "${{ matrix.package_manager }}" = "swiftpm" ]; then
+            ~/flutter/bin/flutter config --enable-swift-package-manager
+          else
+            ~/flutter/bin/flutter config --no-enable-swift-package-manager
+          fi
+
       - name: Install dependencies
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
 
-      - name: Build iOS (no signing)
+      - name: Build iOS (no signing) - ${{ matrix.package_manager }}
         working-directory: packages/pdfrx/example/viewer
         run: flutter build ios --debug --no-codesign --verbose
 
@@ -113,6 +125,10 @@ jobs:
   macos:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_macos }}
     runs-on: macos-latest
+    strategy:
+      matrix:
+        package_manager: [cocoapods, swiftpm]
+    name: macos-${{ matrix.package_manager }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
@@ -124,11 +140,19 @@ jobs:
           ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
 
+      - name: Configure package manager
+        run: |
+          if [ "${{ matrix.package_manager }}" = "swiftpm" ]; then
+            ~/flutter/bin/flutter config --enable-swift-package-manager
+          else
+            ~/flutter/bin/flutter config --no-enable-swift-package-manager
+          fi
+
       - name: Install dependencies
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
 
-      - name: Build macOS
+      - name: Build macOS - ${{ matrix.package_manager }}
         working-directory: packages/pdfrx/example/viewer
         run: flutter build macos --debug --verbose
 
@@ -213,30 +237,27 @@ jobs:
         run: C:\flutter\bin\flutter.bat build windows --debug --verbose
 
   # Windows ARM64 build (requires ARM64 runner or cross-compilation)
-  # windows-arm64:
-  #   if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_windows_arm64 }}
-  #   runs-on: windows-11-arm
-  #   continue-on-error: true  # ARM64 build might fail on x64 runners
-  #   steps:
-  #     - uses: actions/checkout@v4
+  windows-arm64:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_windows_arm64 }}
+    runs-on: windows-11-arm
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
-  #     - name: Setup Flutter
-  #       shell: pwsh
-  #       run: |
-  #         git clone https://github.com/flutter/flutter.git --depth 1 --branch stable C:\flutter
-  #         echo "C:\flutter\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-  #         C:\flutter\bin\flutter.bat config --no-enable-android
-  #         C:\flutter\bin\flutter.bat channel stable
-  #         C:\flutter\bin\flutter.bat doctor -v
-  #     - name: Monorepo setup
-  #       run: ~/flutter/bin/dart pub get
-  #     - name: Install dependencies
-  #       working-directory: packages/pdfrx/example/viewer
-  #       run: C:\flutter\bin\flutter.bat pub get
+      - name: Setup Flutter (master branch for ARM64 support)
+        shell: pwsh
+        run: |
+          git clone https://github.com/flutter/flutter.git --depth 1 C:\flutter
+          echo "C:\flutter\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          C:\flutter\bin\flutter.bat config --no-enable-android
+          C:\flutter\bin\flutter.bat doctor -v
 
-  #     - name: Build Windows ARM64
-  #       working-directory: packages/pdfrx/example/viewer
-  #       run: C:\flutter\bin\flutter.bat build windows --debug --verbose
+      - name: Install dependencies
+        working-directory: packages/pdfrx/example/viewer
+        run: C:\flutter\bin\flutter.bat pub get
+
+      - name: Build Windows ARM64
+        working-directory: packages/pdfrx/example/viewer
+        run: C:\flutter\bin\flutter.bat build windows --debug --verbose
 
   # Web build
   web:

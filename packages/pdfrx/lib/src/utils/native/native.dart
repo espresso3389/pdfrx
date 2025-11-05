@@ -1,7 +1,10 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
+// ignore: implementation_imports
+import 'package:pdfrx_engine/src/native/apple_direct_lookup.dart';
 
 import '../../../pdfrx.dart';
 
@@ -32,7 +35,19 @@ PdfrxEntryFunctions? get pdfrxEntryFunctionsOverride => null;
 /// Initializes the Pdfrx library for native platforms.
 ///
 /// This function is here to maintain a consistent API with web and other platforms.
-void platformInitialize() {}
+Future<void> platformInitialize() async {
+  if (PdfrxEntryFunctions.instance.backend == PdfrxBackend.pdfium && isApple) {
+    await _enableAppleDirectBindings();
+  }
+  await PdfrxEntryFunctions.instance.init();
+}
+
+Future<void> _enableAppleDirectBindings() async {
+  debugPrint('pdfrx: Enabling direct bindings for iOS/macOS platforms...');
+  final channel = MethodChannel('pdfrx');
+  Pdfrx.pdfiumNativeBindings = (await channel.invokeMethod('loadBindings') as Map).cast<String, int>();
+  setupAppleDirectLookupIfApplicable();
+}
 
 /// Reports focus changes for the Web platform to handle right-click context menus.
 ///

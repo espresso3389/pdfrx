@@ -133,12 +133,15 @@ class PdfDocumentRefAsset extends PdfDocumentRef {
   final bool useProgressiveLoading;
 
   @override
-  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) => PdfDocument.openAsset(
-    name,
-    passwordProvider: passwordProvider,
-    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-    useProgressiveLoading: useProgressiveLoading,
-  );
+  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) async {
+    await pdfrxFlutterInitialize();
+    return await PdfDocument.openAsset(
+      name,
+      passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      useProgressiveLoading: useProgressiveLoading,
+    );
+  }
 }
 
 /// A [PdfDocumentRef] that loads the document from network.
@@ -151,6 +154,7 @@ class PdfDocumentRefUri extends PdfDocumentRef {
     this.preferRangeAccess = false,
     this.headers,
     this.withCredentials = false,
+    this.timeout,
     this.useProgressiveLoading = true,
     PdfDocumentRefKey? key,
   }) : super(key: key ?? PdfDocumentRefKey(uri.toString()));
@@ -171,20 +175,27 @@ class PdfDocumentRefUri extends PdfDocumentRef {
   /// Whether to include credentials in the request (Only supported on Web).
   final bool withCredentials;
 
+  /// Timeout duration for loading the document. (Only supported on non-Web platforms).
+  final Duration? timeout;
+
   /// Whether to use progressive loading or not.
   final bool useProgressiveLoading;
 
   @override
-  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) => PdfDocument.openUri(
-    uri,
-    passwordProvider: passwordProvider,
-    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-    useProgressiveLoading: useProgressiveLoading,
-    progressCallback: progressCallback,
-    preferRangeAccess: preferRangeAccess,
-    headers: headers,
-    withCredentials: withCredentials,
-  );
+  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) async {
+    await pdfrxFlutterInitialize();
+    return await PdfDocument.openUri(
+      uri,
+      passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      useProgressiveLoading: useProgressiveLoading,
+      progressCallback: progressCallback,
+      preferRangeAccess: preferRangeAccess,
+      headers: headers,
+      withCredentials: withCredentials,
+      timeout: timeout,
+    );
+  }
 }
 
 /// A [PdfDocumentRef] that loads the document from file.
@@ -208,12 +219,15 @@ class PdfDocumentRefFile extends PdfDocumentRef {
   final bool useProgressiveLoading;
 
   @override
-  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) => PdfDocument.openFile(
-    file,
-    passwordProvider: passwordProvider,
-    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-    useProgressiveLoading: useProgressiveLoading,
-  );
+  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) async {
+    await pdfrxFlutterInitialize();
+    return await PdfDocument.openFile(
+      file,
+      passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      useProgressiveLoading: useProgressiveLoading,
+    );
+  }
 }
 
 /// A [PdfDocumentRef] that loads the document from data.
@@ -244,15 +258,18 @@ class PdfDocumentRefData extends PdfDocumentRef {
   final bool useProgressiveLoading;
 
   @override
-  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) => PdfDocument.openData(
-    data,
-    passwordProvider: passwordProvider,
-    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-    useProgressiveLoading: useProgressiveLoading,
-    sourceName: key.sourceName,
-    allowDataOwnershipTransfer: allowDataOwnershipTransfer,
-    onDispose: onDispose,
-  );
+  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) async {
+    await pdfrxFlutterInitialize();
+    return await PdfDocument.openData(
+      data,
+      passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      useProgressiveLoading: useProgressiveLoading,
+      sourceName: key.sourceName,
+      allowDataOwnershipTransfer: allowDataOwnershipTransfer,
+      onDispose: onDispose,
+    );
+  }
 }
 
 /// A [PdfDocumentRef] that loads the document from custom source.
@@ -283,19 +300,26 @@ class PdfDocumentRefCustom extends PdfDocumentRef {
   final bool useProgressiveLoading;
 
   @override
-  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) => PdfDocument.openCustom(
-    read: read,
-    fileSize: fileSize,
-    sourceName: key.sourceName,
-    passwordProvider: passwordProvider,
-    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-    useProgressiveLoading: useProgressiveLoading,
-    maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
-    onDispose: onDispose,
-  );
+  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) async {
+    await pdfrxFlutterInitialize();
+    return await PdfDocument.openCustom(
+      read: read,
+      fileSize: fileSize,
+      sourceName: key.sourceName,
+      passwordProvider: passwordProvider,
+      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+      useProgressiveLoading: useProgressiveLoading,
+      maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
+      onDispose: onDispose,
+    );
+  }
 }
 
 /// A [PdfDocumentRef] that directly contains [PdfDocument].
+///
+/// It's useful when you already have a [PdfDocument] instance and want to use it as a [PdfDocumentRef]
+/// but sometimes it breaks the lifecycle management of [PdfDocument] on [PdfDocumentRef] and you had better
+/// use [PdfDocumentRefByLoader] if possible.
 class PdfDocumentRefDirect extends PdfDocumentRef {
   PdfDocumentRefDirect(this.document, {super.autoDispose = true, PdfDocumentRefKey? key})
     : super(key: key ?? PdfDocumentRefKey(document.sourceName));
@@ -310,6 +334,26 @@ class PdfDocumentRefDirect extends PdfDocumentRef {
 
   @override
   PdfPasswordProvider? get passwordProvider => throw UnimplementedError('Not applicable for PdfDocumentRefDirect');
+}
+
+/// A [PdfDocumentRef] that loads the document using a custom loader function.
+///
+/// The loader function is called when the document is really needed to be loaded and the [PdfDocument] will be closed
+/// automatically when the reference is disposed if [autoDispose] is true.
+class PdfDocumentRefByLoader extends PdfDocumentRef {
+  PdfDocumentRefByLoader(this.loader, {required super.key, super.autoDispose = true});
+
+  /// The loader function to load the document.
+  final Future<PdfDocument> Function(PdfDocumentLoaderProgressCallback progressCallback) loader;
+
+  @override
+  Future<PdfDocument> loadDocument(PdfDocumentLoaderProgressCallback progressCallback) => loader(progressCallback);
+
+  @override
+  bool get firstAttemptByEmptyPassword => throw UnimplementedError('Not applicable for PdfDocumentRefByLoader');
+
+  @override
+  PdfPasswordProvider? get passwordProvider => throw UnimplementedError('Not applicable for PdfDocumentRefByLoader');
 }
 
 /// The class is used to load the referenced document and notify the listeners.

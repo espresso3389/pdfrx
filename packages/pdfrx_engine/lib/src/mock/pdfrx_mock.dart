@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import '../../pdfrx_engine.dart';
+import '../pdf_document.dart';
+import '../pdfrx_entry_functions.dart';
 
 /// This is an empty implementation of [PdfrxEntryFunctions] that just throws [UnimplementedError].
 ///
@@ -74,6 +75,18 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     bool preferRangeAccess = false,
     Map<String, String>? headers,
     bool withCredentials = false,
+    Duration? timeout,
+  }) => unimplemented();
+
+  @override
+  Future<PdfDocument> createNew({required String sourceName}) => unimplemented();
+
+  @override
+  Future<PdfDocument> createFromJpegData(
+    Uint8List jpegData, {
+    required double width,
+    required double height,
+    required String sourceName,
   }) => unimplemented();
 
   @override
@@ -84,4 +97,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
 
   @override
   Future<void> clearAllFontData() => unimplemented();
+
+  @override
+  PdfrxBackend get backend => PdfrxBackend.mock;
 }

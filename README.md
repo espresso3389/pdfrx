@@ -1,26 +1,28 @@
 # pdfrx
 
-This repository contains three Dart/Flutter packages for PDF rendering and viewing:
+This repository contains three Dart/Flutter packages for PDF rendering, viewing, and manipulation:
 
 ## Packages
 
 ### [pdfrx_engine](packages/pdfrx_engine/)
 
-A platform-agnostic PDF rendering API built on top of PDFium.
+A platform-agnostic PDF rendering and manipulation API built on top of PDFium.
 
 - Pure Dart package (no Flutter dependencies)
-- Provides low-level PDF document API
+- Provides low-level PDF document API for viewing and editing
+- Supports page re-arrangement, PDF combining, image import, and document manipulation
 - Can be used in CLI applications or non-Flutter Dart projects
 - Supports all platforms: Android, iOS, Windows, macOS, Linux
 
 ### [pdfrx](packages/pdfrx/)
 
-A cross-platform PDF viewer plugin for Flutter.
+A cross-platform PDF viewer and manipulation plugin for Flutter.
 
 - Flutter plugin with UI widgets
 - Built on top of pdfrx_engine
 - Provides high-level viewer widgets and overlays
 - Includes text selection, search, zoom controls, and more
+- Supports PDF editing features like page manipulation, document combining, and image import
 
 ### [pdfrx_coregraphics](packages/pdfrx_coregraphics/)
 
@@ -33,8 +35,8 @@ A cross-platform PDF viewer plugin for Flutter.
 
 ## When to Use Which Package
 
-- **Use `pdfrx`** if you're building a Flutter application and need PDF viewing capabilities with UI
-- **Use `pdfrx_engine`** if you need PDF rendering without Flutter dependencies (e.g., server-side PDF processing, CLI tools)
+- **Use `pdfrx`** if you're building a Flutter application and need PDF viewing and manipulation capabilities with UI
+- **Use `pdfrx_engine`** if you need PDF rendering and manipulation without Flutter dependencies (e.g., server-side PDF processing, CLI tools, PDF combining utilities)
 - **Use `pdfrx_coregraphics`** (experimental) if you want to use CoreGraphics/PDFKit instead of PDFium on iOS/macOS
 
 ## Getting Started
@@ -45,7 +47,7 @@ Add `pdfrx` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.2.3
+  pdfrx: ^2.2.8
 ```
 
 ### For Pure Dart Applications
@@ -54,7 +56,7 @@ Add `pdfrx_engine` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pdfrx_engine: ^0.1.21
+  pdfrx_engine: ^0.2.4
 ```
 
 ## Documentation
@@ -69,12 +71,28 @@ Comprehensive documentation is available in the [doc/](doc/) directory, includin
 
 This is a monorepo managed with pub workspaces. Just do `dart pub get` on some directory inside the repo to obtain all the dependencies.
 
-## Example Application
+## Example Applications
 
-The example viewer application is located in `packages/pdfrx/example/viewer/`. It demonstrates the full capabilities of the pdfrx Flutter plugin.
+### PDF Viewer
+
+The example viewer application is located in [packages/pdfrx/example/viewer/](packages/pdfrx/example/viewer/). It demonstrates the full capabilities of the pdfrx Flutter plugin.
 
 ```bash
 cd packages/pdfrx/example/viewer
+flutter run
+```
+
+### PDF Combine
+
+The [packages/pdfrx/example/pdf_combine/](packages/pdfrx/example/pdf_combine/) application demonstrates PDF page manipulation and combining features:
+
+- Drag-and-drop interface for page re-arrangement
+- Visual thumbnails of PDF pages
+- Support for combining multiple PDF documents
+- Platform file drag-and-drop support
+
+```bash
+cd packages/pdfrx/example/pdf_combine
 flutter run
 ```
 

@@ -2,12 +2,12 @@
 
 [![Build Test](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml/badge.svg)](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml)
 
-[pdfrx](https://pub.dartlang.org/packages/pdfrx) is a rich and fast PDF viewer plugin for Flutter. It provides ready-to-use widgets for displaying PDF documents in your Flutter applications.
+[pdfrx](https://pub.dartlang.org/packages/pdfrx) is a rich and fast PDF viewer and manipulation plugin for Flutter. It provides ready-to-use widgets for displaying and editing PDF documents, including page manipulation, document combining, and image import in your Flutter applications.
 
-This plugin is built on top of [pdfrx_engine](https://pub.dartlang.org/packages/pdfrx_engine), which handles the low-level PDF rendering using [PDFium](https://pdfium.googlesource.com/pdfium/). The separation allows for a clean architecture where:
+This plugin is built on top of [pdfrx_engine](https://pub.dartlang.org/packages/pdfrx_engine), which handles the low-level PDF rendering and manipulation using [PDFium](https://pdfium.googlesource.com/pdfium/). The separation allows for a clean architecture where:
 
-- **pdfrx** (this package) - Provides Flutter widgets, UI components, and platform integration
-- **pdfrx_engine** - Handles PDF parsing and rendering without Flutter dependencies
+- **pdfrx** (this package) - Provides Flutter widgets, UI components, platform integration, and PDF editing features (page manipulation, combining, image import)
+- **pdfrx_engine** - Handles PDF parsing, rendering, and manipulation without Flutter dependencies
 
 The plugin supports Android, iOS, Windows, macOS, Linux, and Web.
 
@@ -60,7 +60,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.2.3
+  pdfrx: ^2.2.8
 ```
 
 **Note:** You only need to add `pdfrx` to your dependencies. The `pdfrx_engine` package is automatically included as a dependency of `pdfrx`.

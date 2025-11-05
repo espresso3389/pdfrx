@@ -36,6 +36,11 @@ Welcome to the pdfrx documentation! This guide provides comprehensive informatio
 - [Low-Level PDFium Bindings Access](Low-Level-PDFium-Bindings-Access.md) - Using PDFium function directly
 - [Interoperability with other PDFium Libraries](Interoperability-with-other-PDFium-Libraries.md) - Using pdfrx alongside other PDFium-based libraries
 
+### PDF Editing
+
+- [PDF Page Manipulation](PDF-Page-Manipulation.md) - Re-arrange, combine, and extract PDF pages
+- [Importing Images to PDF](Importing-Images-to-PDF.md) - Convert images to PDF and insert images into PDFs
+
 ## Platform-Specific
 
 - [macOS: App Sandbox]([macOS]-Deal-with-App-Sandbox.md) - macOS sandbox configuration
