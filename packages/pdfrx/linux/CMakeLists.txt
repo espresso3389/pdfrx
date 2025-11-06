@@ -21,10 +21,6 @@ ELSE()
 ENDIF()
 message( STATUS "Target CPU Name: ${CPU_NAME}" )
 
-# Invoke the build for native code shared with the other target platforms.
-# This can be changed to accommodate different builds.
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../src" "${CMAKE_CURRENT_BINARY_DIR}/shared")
-
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
@@ -85,12 +81,6 @@ file(CREATE_LINK ${PDFIUM_LIBS_DIR} ${PDFIUM_LATEST_DIR} SYMBOLIC)
 # This list could contain prebuilt libraries, or libraries created by an
 # external build triggered from this build file.
 set(pdfrx_bundled_libraries
-  # Defined in ../src/CMakeLists.txt.
-  # This can be changed to accommodate different builds.
-  $<TARGET_FILE:pdfrx>
   ${PDFIUM_LATEST_LIB_FILENAME}
   PARENT_SCOPE
 )
-
-target_include_directories(pdfrx INTERFACE PRIVATE ${PDFIUM_LATEST_DIR}/include)
-target_link_libraries(pdfrx PRIVATE ${PDFIUM_LATEST_LIB_FILENAME})

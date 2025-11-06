@@ -157,6 +157,7 @@
     "POLYLINE",
     "PRINTERMARK",
     "PRINTMODE",
+    "Pthread",
     "pubspec",
     "QUADPOINTSF",
     "RADIOBUTTON",

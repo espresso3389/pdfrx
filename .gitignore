@@ -45,3 +45,5 @@ pubspec_overrides.yaml
 **/macos/Podfile.lock
 **/ios/**/*.xcodeproj/project.pbxproj
 **/macos/**/*.xcodeproj/project.pbxproj
+
+build/ios/

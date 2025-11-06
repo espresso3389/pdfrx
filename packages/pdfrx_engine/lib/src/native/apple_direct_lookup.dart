@@ -3,7 +3,6 @@ import 'dart:ffi' as ffi;
 import '../pdfrx.dart';
 import 'pdfium.dart' as pdfium_native;
 import 'pdfium_bindings.dart' as pdfium_bindings;
-import 'pdfium_interop.dart' as file_access_helpers;
 
 /// Sets up direct lookup for Apple platforms if applicable.
 ///
@@ -22,6 +21,5 @@ void setupAppleDirectLookupIfApplicable() {
 
     //print('Loading PDFium bindings via direct interop...');
     pdfium_native.pdfium = pdfium_bindings.pdfium.fromLookup(lookup);
-    file_access_helpers.interop = file_access_helpers.PdfrxFileAccessHelpers.fromLookup(lookup);
   }
 }

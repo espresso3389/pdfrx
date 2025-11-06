@@ -4,10 +4,6 @@ cmake_minimum_required(VERSION 3.18.1)
 set(PROJECT_NAME "pdfrx")
 project(${PROJECT_NAME} LANGUAGES CXX)
 
-# Invoke the build for native code shared with the other target platforms.
-# This can be changed to accommodate different builds.
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../src" "${CMAKE_CURRENT_BINARY_DIR}/shared")
-
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
@@ -68,17 +64,6 @@ file(REMOVE ${PDFIUM_LATEST_DIR})
 file(CREATE_LINK ${PDFIUM_LIBS_DIR} ${PDFIUM_LATEST_DIR} SYMBOLIC)
 
 set(pdfrx_bundled_libraries
-  # Defined in ../src/CMakeLists.txt.
-  # This can be changed to accommodate different builds.
-  $<TARGET_FILE:pdfrx>
   ${PDFIUM_LATEST_LIB_FILENAME}
   PARENT_SCOPE
 )
-
-target_include_directories(pdfrx PRIVATE ${PDFIUM_LATEST_DIR}/include)
-
-# Support 16KB page size (#365)
-# Consistent build IDs for identical binaries (#467)
-target_link_options(pdfrx PRIVATE "-Wl,-z,max-page-size=16384,--build-id=none")
-
-target_link_libraries(pdfrx PRIVATE ${PDFIUM_LATEST_LIB_FILENAME})

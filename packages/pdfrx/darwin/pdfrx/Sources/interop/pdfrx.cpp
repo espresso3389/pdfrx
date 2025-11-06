@@ -1,7 +1,4 @@
-// Relative import to be able to reuse the C sources.
-// See the comment in ../{projectName}}.podspec for more information.
-#include "../../../../src/pdfium_interop.cpp"
-
+// PDFium bindings for Darwin (iOS/macOS)
 #include <fpdf_doc.h>
 #include <fpdf_annot.h>
 #include <fpdf_text.h>
@@ -9,20 +6,22 @@
 #include <fpdf_ppo.h>
 #include <fpdf_save.h>
 #include <fpdf_formfill.h>
+#include <fpdf_sysfontinfo.h>
+
+#if defined(__APPLE__)
+#define PDFRX_EXPORT __attribute__((visibility("default"))) __attribute__((used))
+#else
+#define PDFRX_EXPORT
+#endif
 
 // This function is used to keep the linker from stripping out the PDFium
 // functions that are not directly referenced in this file. This is necessary
-// because we are dynamically loading the functions at runtime.
-extern "C" PDFRX_EXPORT void const *const *PDFRX_INTEROP_API pdfrx_binding()
+// because we are dynamically loading the functions at runtime via DynamicLibrary.
+extern "C" PDFRX_EXPORT void const *const * pdfrx_binding()
 {
 #define KEEP_FUNC(func) reinterpret_cast<const void *>(#func), reinterpret_cast<const void *>(func)
 
   static void const * const bindings[] = {
-      // File access functions
-      KEEP_FUNC(pdfrx_file_access_create),
-      KEEP_FUNC(pdfrx_file_access_destroy),
-      KEEP_FUNC(pdfrx_file_access_set_value),
-
       // PDFium functions
       KEEP_FUNC(FPDF_InitLibraryWithConfig),
       KEEP_FUNC(FPDF_InitLibrary),
