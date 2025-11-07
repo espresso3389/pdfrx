@@ -1423,12 +1423,14 @@ typedef PdfViewerOnKeyCallback =
 /// please refer to the documentation of [Focus] widget.
 class PdfViewerKeyHandlerParams {
   const PdfViewerKeyHandlerParams({
+    this.enabled = true,
     this.autofocus = false,
     this.canRequestFocus = true,
     this.focusNode,
     this.parentNode,
   });
 
+  final bool enabled;
   final bool autofocus;
   final bool canRequestFocus;
   final FocusNode? focusNode;
@@ -1438,14 +1440,16 @@ class PdfViewerKeyHandlerParams {
   bool operator ==(covariant PdfViewerKeyHandlerParams other) {
     if (identical(this, other)) return true;
 
-    return other.autofocus == autofocus &&
+    return other.enabled == enabled &&
+        other.autofocus == autofocus &&
         other.canRequestFocus == canRequestFocus &&
         other.focusNode == focusNode &&
         other.parentNode == parentNode;
   }
 
   @override
-  int get hashCode => autofocus.hashCode ^ canRequestFocus.hashCode ^ focusNode.hashCode ^ parentNode.hashCode;
+  int get hashCode =>
+      enabled.hashCode ^ autofocus.hashCode ^ canRequestFocus.hashCode ^ focusNode.hashCode ^ parentNode.hashCode;
 }
 
 enum PdfViewerGeneralTapType {
