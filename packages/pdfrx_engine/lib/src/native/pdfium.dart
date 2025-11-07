@@ -8,7 +8,6 @@ import 'pdfium_bindings.dart' as pdfium_bindings;
 
 /// Get the module file name for pdfium.
 String _getModuleFileName() {
-  if (Pdfrx.pdfiumModulePath != null) return Pdfrx.pdfiumModulePath!;
   if (Platform.isAndroid) return 'libpdfium.so';
   if (Platform.isWindows) return 'pdfium.dll';
   if (Platform.isLinux) {
@@ -18,8 +17,12 @@ String _getModuleFileName() {
 }
 
 DynamicLibrary _getModule() {
+  // If the module path is explicitly specified, use it.
+  if (Pdfrx.pdfiumModulePath != null) {
+    return DynamicLibrary.open(Pdfrx.pdfiumModulePath!);
+  }
+  // For iOS/macOS, we assume pdfium is already loaded (or statically linked) in the process.
   if (Platform.isIOS || Platform.isMacOS) {
-    // For iOS and macOS, we assume pdfium is already loaded (or statically linked) in the process.
     return DynamicLibrary.process();
   }
   return DynamicLibrary.open(_getModuleFileName());
