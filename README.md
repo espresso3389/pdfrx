@@ -39,6 +39,10 @@ A cross-platform PDF viewer and manipulation plugin for Flutter.
 - **Use `pdfrx_engine`** if you need PDF rendering and manipulation without Flutter dependencies (e.g., server-side PDF processing, CLI tools, PDF combining utilities)
 - **Use `pdfrx_coregraphics`** (experimental) if you want to use CoreGraphics/PDFKit instead of PDFium on iOS/macOS
 
+## Performance Considerations
+
+After `pdfrx` is first initialized, memory from Pdfium will not be cleaned up until the application terminates. [#430](Please see https://github.com/espresso3389/pdfrx/issues/430) and [#184](https://github.com/espresso3389/pdfrx/issues/184) for more info.
+
 ## Getting Started
 
 ### For Flutter Applications
