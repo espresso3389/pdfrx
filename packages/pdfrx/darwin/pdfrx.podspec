@@ -34,16 +34,36 @@ Pod::Spec.new do |s|
   s.swift_version = '5.0'
 
   s.prepare_command = <<-CMD
+    HASH_FILE=".pdfium_hash"
+    EXPECTED_HASH="#{PDFIUM_HASH}"
+
+    # Check if we need to download/update
+    NEEDS_DOWNLOAD=false
     if [ ! -d "PDFium.xcframework" ]; then
+      echo "PDFium xcframework not found"
+      NEEDS_DOWNLOAD=true
+    elif [ ! -f "$HASH_FILE" ]; then
+      echo "Hash file not found, will re-download"
+      NEEDS_DOWNLOAD=true
+    elif [ "$(cat $HASH_FILE)" != "$EXPECTED_HASH" ]; then
+      echo "PDFium version mismatch, will update"
+      NEEDS_DOWNLOAD=true
+    fi
+
+    if [ "$NEEDS_DOWNLOAD" = true ]; then
+      # Clean up old version if exists
+      rm -rf PDFium.xcframework
+      rm -f "$HASH_FILE"
+
       echo "Downloading PDFium xcframework..."
       curl -L -o pdfium.zip "#{PDFIUM_URL}"
 
       echo "Verifying ZIP file hash..."
       ACTUAL_HASH=$(shasum -a 256 pdfium.zip | awk '{print $1}')
 
-      if [ "$ACTUAL_HASH" != "#{PDFIUM_HASH}" ]; then
+      if [ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]; then
         echo "Error: Hash mismatch!"
-        echo "Expected: #{PDFIUM_HASH}"
+        echo "Expected: $EXPECTED_HASH"
         echo "Actual:   $ACTUAL_HASH"
         rm pdfium.zip
         exit 1
@@ -52,9 +72,13 @@ Pod::Spec.new do |s|
 
       unzip -q pdfium.zip
       rm pdfium.zip
+
+      # Store hash for future version checks
+      echo "$EXPECTED_HASH" > "$HASH_FILE"
+
       echo "PDFium xcframework downloaded successfully"
     else
-      echo "PDFium xcframework already exists, skipping download"
+      echo "PDFium xcframework is up to date"
     fi
   CMD
 end

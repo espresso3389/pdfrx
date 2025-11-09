@@ -46,3 +46,5 @@ build/
 *.zip
 
 doc/api/
+
+.pdfium_hash
