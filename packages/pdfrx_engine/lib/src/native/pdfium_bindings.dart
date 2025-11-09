@@ -1368,6 +1368,4558 @@ late final _FPDF_GetXFAPacketContentPtr = _lookup<
     ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , ffi.Int , ffi.Pointer<ffi.Void> , ffi.UnsignedLong , ffi.Pointer<ffi.UnsignedLong> )>>('FPDF_GetXFAPacketContent');
 late final _FPDF_GetXFAPacketContent = _FPDF_GetXFAPacketContentPtr.asFunction<int Function(FPDF_DOCUMENT , int , ffi.Pointer<ffi.Void> , int , ffi.Pointer<ffi.UnsignedLong> )>();
 
+/// Experimental API.
+/// Function: FPDF_GetSignatureCount
+/// Get total number of signatures in the document.
+/// Parameters:
+/// document    -   Handle to document. Returned by FPDF_LoadDocument().
+/// Return value:
+/// Total number of signatures in the document on success, -1 on error.
+int FPDF_GetSignatureCount(FPDF_DOCUMENT document,
+) {
+  return _FPDF_GetSignatureCount(document,
+);
+}
+
+late final _FPDF_GetSignatureCountPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_DOCUMENT )>>('FPDF_GetSignatureCount');
+late final _FPDF_GetSignatureCount = _FPDF_GetSignatureCountPtr.asFunction<int Function(FPDF_DOCUMENT )>();
+
+/// Experimental API.
+/// Function: FPDF_GetSignatureObject
+/// Get the Nth signature of the document.
+/// Parameters:
+/// document    -   Handle to document. Returned by FPDF_LoadDocument().
+/// index       -   Index into the array of signatures of the document.
+/// Return value:
+/// Returns the handle to the signature, or NULL on failure. The caller
+/// does not take ownership of the returned FPDF_SIGNATURE. Instead, it
+/// remains valid until FPDF_CloseDocument() is called for the document.
+FPDF_SIGNATURE FPDF_GetSignatureObject(FPDF_DOCUMENT document,
+int index,
+) {
+  return _FPDF_GetSignatureObject(document,
+index,
+);
+}
+
+late final _FPDF_GetSignatureObjectPtr = _lookup<
+    ffi.NativeFunction<FPDF_SIGNATURE Function(FPDF_DOCUMENT , ffi.Int )>>('FPDF_GetSignatureObject');
+late final _FPDF_GetSignatureObject = _FPDF_GetSignatureObjectPtr.asFunction<FPDF_SIGNATURE Function(FPDF_DOCUMENT , int )>();
+
+/// Experimental API.
+/// Function: FPDFSignatureObj_GetContents
+/// Get the contents of a signature object.
+/// Parameters:
+/// signature   -   Handle to the signature object. Returned by
+/// FPDF_GetSignatureObject().
+/// buffer      -   The address of a buffer that receives the contents.
+/// length      -   The size, in bytes, of |buffer|.
+/// Return value:
+/// Returns the number of bytes in the contents on success, 0 on error.
+/// 
+/// For public-key signatures, |buffer| is either a DER-encoded PKCS#1 binary or
+/// a DER-encoded PKCS#7 binary. If |length| is less than the returned length, or
+/// |buffer| is NULL, |buffer| will not be modified.
+int FPDFSignatureObj_GetContents(FPDF_SIGNATURE signature,
+ffi.Pointer<ffi.Void> buffer,
+int length,
+) {
+  return _FPDFSignatureObj_GetContents(signature,
+buffer,
+length,
+);
+}
+
+late final _FPDFSignatureObj_GetContentsPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_SIGNATURE , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDFSignatureObj_GetContents');
+late final _FPDFSignatureObj_GetContents = _FPDFSignatureObj_GetContentsPtr.asFunction<int Function(FPDF_SIGNATURE , ffi.Pointer<ffi.Void> , int )>();
+
+/// Experimental API.
+/// Function: FPDFSignatureObj_GetByteRange
+/// Get the byte range of a signature object.
+/// Parameters:
+/// signature   -   Handle to the signature object. Returned by
+/// FPDF_GetSignatureObject().
+/// buffer      -   The address of a buffer that receives the
+/// byte range.
+/// length      -   The size, in ints, of |buffer|.
+/// Return value:
+/// Returns the number of ints in the byte range on
+/// success, 0 on error.
+/// 
+/// |buffer| is an array of pairs of integers (starting byte offset,
+/// length in bytes) that describes the exact byte range for the digest
+/// calculation. If |length| is less than the returned length, or
+/// |buffer| is NULL, |buffer| will not be modified.
+int FPDFSignatureObj_GetByteRange(FPDF_SIGNATURE signature,
+ffi.Pointer<ffi.Int> buffer,
+int length,
+) {
+  return _FPDFSignatureObj_GetByteRange(signature,
+buffer,
+length,
+);
+}
+
+late final _FPDFSignatureObj_GetByteRangePtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_SIGNATURE , ffi.Pointer<ffi.Int> , ffi.UnsignedLong )>>('FPDFSignatureObj_GetByteRange');
+late final _FPDFSignatureObj_GetByteRange = _FPDFSignatureObj_GetByteRangePtr.asFunction<int Function(FPDF_SIGNATURE , ffi.Pointer<ffi.Int> , int )>();
+
+/// Experimental API.
+/// Function: FPDFSignatureObj_GetSubFilter
+/// Get the encoding of the value of a signature object.
+/// Parameters:
+/// signature   -   Handle to the signature object. Returned by
+/// FPDF_GetSignatureObject().
+/// buffer      -   The address of a buffer that receives the encoding.
+/// length      -   The size, in bytes, of |buffer|.
+/// Return value:
+/// Returns the number of bytes in the encoding name (including the
+/// trailing NUL character) on success, 0 on error.
+/// 
+/// The |buffer| is always encoded in 7-bit ASCII. If |length| is less than the
+/// returned length, or |buffer| is NULL, |buffer| will not be modified.
+int FPDFSignatureObj_GetSubFilter(FPDF_SIGNATURE signature,
+ffi.Pointer<ffi.Char> buffer,
+int length,
+) {
+  return _FPDFSignatureObj_GetSubFilter(signature,
+buffer,
+length,
+);
+}
+
+late final _FPDFSignatureObj_GetSubFilterPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_SIGNATURE , ffi.Pointer<ffi.Char> , ffi.UnsignedLong )>>('FPDFSignatureObj_GetSubFilter');
+late final _FPDFSignatureObj_GetSubFilter = _FPDFSignatureObj_GetSubFilterPtr.asFunction<int Function(FPDF_SIGNATURE , ffi.Pointer<ffi.Char> , int )>();
+
+/// Experimental API.
+/// Function: FPDFSignatureObj_GetReason
+/// Get the reason (comment) of the signature object.
+/// Parameters:
+/// signature   -   Handle to the signature object. Returned by
+/// FPDF_GetSignatureObject().
+/// buffer      -   The address of a buffer that receives the reason.
+/// length      -   The size, in bytes, of |buffer|.
+/// Return value:
+/// Returns the number of bytes in the reason on success, 0 on error.
+/// 
+/// Regardless of the platform, the |buffer| is always in UTF-16LE encoding. The
+/// string is terminated by a UTF16 NUL character. If |length| is less than the
+/// returned length, or |buffer| is NULL, |buffer| will not be modified.
+int FPDFSignatureObj_GetReason(FPDF_SIGNATURE signature,
+ffi.Pointer<ffi.Void> buffer,
+int length,
+) {
+  return _FPDFSignatureObj_GetReason(signature,
+buffer,
+length,
+);
+}
+
+late final _FPDFSignatureObj_GetReasonPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_SIGNATURE , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDFSignatureObj_GetReason');
+late final _FPDFSignatureObj_GetReason = _FPDFSignatureObj_GetReasonPtr.asFunction<int Function(FPDF_SIGNATURE , ffi.Pointer<ffi.Void> , int )>();
+
+/// Experimental API.
+/// Function: FPDFSignatureObj_GetTime
+/// Get the time of signing of a signature object.
+/// Parameters:
+/// signature   -   Handle to the signature object. Returned by
+/// FPDF_GetSignatureObject().
+/// buffer      -   The address of a buffer that receives the time.
+/// length      -   The size, in bytes, of |buffer|.
+/// Return value:
+/// Returns the number of bytes in the encoding name (including the
+/// trailing NUL character) on success, 0 on error.
+/// 
+/// The |buffer| is always encoded in 7-bit ASCII. If |length| is less than the
+/// returned length, or |buffer| is NULL, |buffer| will not be modified.
+/// 
+/// The format of time is expected to be D:YYYYMMDDHHMMSS+XX'YY', i.e. it's
+/// percision is seconds, with timezone information. This value should be used
+/// only when the time of signing is not available in the (PKCS#7 binary)
+/// signature.
+int FPDFSignatureObj_GetTime(FPDF_SIGNATURE signature,
+ffi.Pointer<ffi.Char> buffer,
+int length,
+) {
+  return _FPDFSignatureObj_GetTime(signature,
+buffer,
+length,
+);
+}
+
+late final _FPDFSignatureObj_GetTimePtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_SIGNATURE , ffi.Pointer<ffi.Char> , ffi.UnsignedLong )>>('FPDFSignatureObj_GetTime');
+late final _FPDFSignatureObj_GetTime = _FPDFSignatureObj_GetTimePtr.asFunction<int Function(FPDF_SIGNATURE , ffi.Pointer<ffi.Char> , int )>();
+
+/// Experimental API.
+/// Function: FPDFSignatureObj_GetDocMDPPermission
+/// Get the DocMDP permission of a signature object.
+/// Parameters:
+/// signature   -   Handle to the signature object. Returned by
+/// FPDF_GetSignatureObject().
+/// Return value:
+/// Returns the permission (1, 2 or 3) on success, 0 on error.
+int FPDFSignatureObj_GetDocMDPPermission(FPDF_SIGNATURE signature,
+) {
+  return _FPDFSignatureObj_GetDocMDPPermission(signature,
+);
+}
+
+late final _FPDFSignatureObj_GetDocMDPPermissionPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedInt Function(FPDF_SIGNATURE )>>('FPDFSignatureObj_GetDocMDPPermission');
+late final _FPDFSignatureObj_GetDocMDPPermission = _FPDFSignatureObj_GetDocMDPPermissionPtr.asFunction<int Function(FPDF_SIGNATURE )>();
+
+/// Function: FPDF_GetDefaultTTFMap
+/// Returns a pointer to the default character set to TT Font name map. The
+/// map is an array of FPDF_CharsetFontMap structs, with its end indicated
+/// by a { -1, NULL } entry.
+/// Parameters:
+/// None.
+/// Return Value:
+/// Pointer to the Charset Font Map.
+/// Note:
+/// Once FPDF_GetDefaultTTFMapCount() and FPDF_GetDefaultTTFMapEntry() are no
+/// longer experimental, this API will be marked as deprecated.
+/// See https://crbug.com/348468114
+ffi.Pointer<FPDF_CharsetFontMap> FPDF_GetDefaultTTFMap() {
+  return _FPDF_GetDefaultTTFMap();
+}
+
+late final _FPDF_GetDefaultTTFMapPtr = _lookup<
+    ffi.NativeFunction<ffi.Pointer<FPDF_CharsetFontMap> Function()>>('FPDF_GetDefaultTTFMap');
+late final _FPDF_GetDefaultTTFMap = _FPDF_GetDefaultTTFMapPtr.asFunction<ffi.Pointer<FPDF_CharsetFontMap> Function()>();
+
+/// Experimental API.
+/// 
+/// Function: FPDF_GetDefaultTTFMapCount
+/// Returns the number of entries in the default character set to TT Font name
+/// map.
+/// Parameters:
+/// None.
+/// Return Value:
+/// The number of entries in the map.
+int FPDF_GetDefaultTTFMapCount() {
+  return _FPDF_GetDefaultTTFMapCount();
+}
+
+late final _FPDF_GetDefaultTTFMapCountPtr = _lookup<
+    ffi.NativeFunction<ffi.Size Function()>>('FPDF_GetDefaultTTFMapCount');
+late final _FPDF_GetDefaultTTFMapCount = _FPDF_GetDefaultTTFMapCountPtr.asFunction<int Function()>();
+
+/// Experimental API.
+/// 
+/// Function: FPDF_GetDefaultTTFMapEntry
+/// Returns an entry in the default character set to TT Font name map.
+/// Parameters:
+/// index    -   The index to the entry in the map to retrieve.
+/// Return Value:
+/// A pointer to the entry, if it is in the map, or NULL if the index is out
+/// of bounds.
+ffi.Pointer<FPDF_CharsetFontMap> FPDF_GetDefaultTTFMapEntry(int index,
+) {
+  return _FPDF_GetDefaultTTFMapEntry(index,
+);
+}
+
+late final _FPDF_GetDefaultTTFMapEntryPtr = _lookup<
+    ffi.NativeFunction<ffi.Pointer<FPDF_CharsetFontMap> Function(ffi.Size )>>('FPDF_GetDefaultTTFMapEntry');
+late final _FPDF_GetDefaultTTFMapEntry = _FPDF_GetDefaultTTFMapEntryPtr.asFunction<ffi.Pointer<FPDF_CharsetFontMap> Function(int )>();
+
+/// Function: FPDF_AddInstalledFont
+/// Add a system font to the list in PDFium.
+/// Comments:
+/// This function is only called during the system font list building
+/// process.
+/// Parameters:
+/// mapper          -   Opaque pointer to Foxit font mapper
+/// face            -   The font face name
+/// charset         -   Font character set. See above defined constants.
+/// Return Value:
+/// None.
+void FPDF_AddInstalledFont(ffi.Pointer<ffi.Void> mapper,
+ffi.Pointer<ffi.Char> face,
+int charset,
+) {
+  return _FPDF_AddInstalledFont(mapper,
+face,
+charset,
+);
+}
+
+late final _FPDF_AddInstalledFontPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void> , ffi.Pointer<ffi.Char> , ffi.Int )>>('FPDF_AddInstalledFont');
+late final _FPDF_AddInstalledFont = _FPDF_AddInstalledFontPtr.asFunction<void Function(ffi.Pointer<ffi.Void> , ffi.Pointer<ffi.Char> , int )>();
+
+/// Function: FPDF_SetSystemFontInfo
+/// Set the system font info interface into PDFium
+/// Parameters:
+/// font_info       -   Pointer to a FPDF_SYSFONTINFO structure
+/// Return Value:
+/// None
+/// Comments:
+/// Platform support implementation should implement required methods of
+/// FFDF_SYSFONTINFO interface, then call this function during PDFium
+/// initialization process.
+/// 
+/// Call this with NULL to tell PDFium to stop using a previously set
+/// |FPDF_SYSFONTINFO|.
+void FPDF_SetSystemFontInfo(ffi.Pointer<FPDF_SYSFONTINFO> font_info,
+) {
+  return _FPDF_SetSystemFontInfo(font_info,
+);
+}
+
+late final _FPDF_SetSystemFontInfoPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(ffi.Pointer<FPDF_SYSFONTINFO> )>>('FPDF_SetSystemFontInfo');
+late final _FPDF_SetSystemFontInfo = _FPDF_SetSystemFontInfoPtr.asFunction<void Function(ffi.Pointer<FPDF_SYSFONTINFO> )>();
+
+/// Function: FPDF_GetDefaultSystemFontInfo
+/// Get default system font info interface for current platform
+/// Parameters:
+/// None
+/// Return Value:
+/// Pointer to a FPDF_SYSFONTINFO structure describing the default
+/// interface, or NULL if the platform doesn't have a default interface.
+/// Application should call FPDF_FreeDefaultSystemFontInfo to free the
+/// returned pointer.
+/// Comments:
+/// For some platforms, PDFium implements a default version of system
+/// font info interface. The default implementation can be passed to
+/// FPDF_SetSystemFontInfo().
+ffi.Pointer<FPDF_SYSFONTINFO> FPDF_GetDefaultSystemFontInfo() {
+  return _FPDF_GetDefaultSystemFontInfo();
+}
+
+late final _FPDF_GetDefaultSystemFontInfoPtr = _lookup<
+    ffi.NativeFunction<ffi.Pointer<FPDF_SYSFONTINFO> Function()>>('FPDF_GetDefaultSystemFontInfo');
+late final _FPDF_GetDefaultSystemFontInfo = _FPDF_GetDefaultSystemFontInfoPtr.asFunction<ffi.Pointer<FPDF_SYSFONTINFO> Function()>();
+
+/// Function: FPDF_FreeDefaultSystemFontInfo
+/// Free a default system font info interface
+/// Parameters:
+/// font_info       -   Pointer to a FPDF_SYSFONTINFO structure
+/// Return Value:
+/// None
+/// Comments:
+/// This function should be called on the output from
+/// FPDF_GetDefaultSystemFontInfo() once it is no longer needed.
+void FPDF_FreeDefaultSystemFontInfo(ffi.Pointer<FPDF_SYSFONTINFO> font_info,
+) {
+  return _FPDF_FreeDefaultSystemFontInfo(font_info,
+);
+}
+
+late final _FPDF_FreeDefaultSystemFontInfoPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(ffi.Pointer<FPDF_SYSFONTINFO> )>>('FPDF_FreeDefaultSystemFontInfo');
+late final _FPDF_FreeDefaultSystemFontInfo = _FPDF_FreeDefaultSystemFontInfoPtr.asFunction<void Function(ffi.Pointer<FPDF_SYSFONTINFO> )>();
+
+/// Experimental API.
+/// Get the number of JavaScript actions in |document|.
+/// 
+/// document - handle to a document.
+/// 
+/// Returns the number of JavaScript actions in |document| or -1 on error.
+int FPDFDoc_GetJavaScriptActionCount(FPDF_DOCUMENT document,
+) {
+  return _FPDFDoc_GetJavaScriptActionCount(document,
+);
+}
+
+late final _FPDFDoc_GetJavaScriptActionCountPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_DOCUMENT )>>('FPDFDoc_GetJavaScriptActionCount');
+late final _FPDFDoc_GetJavaScriptActionCount = _FPDFDoc_GetJavaScriptActionCountPtr.asFunction<int Function(FPDF_DOCUMENT )>();
+
+/// Experimental API.
+/// Get the JavaScript action at |index| in |document|.
+/// 
+/// document - handle to a document.
+/// index    - the index of the requested JavaScript action.
+/// 
+/// Returns the handle to the JavaScript action, or NULL on failure.
+/// Caller owns the returned handle and must close it with
+/// FPDFDoc_CloseJavaScriptAction().
+FPDF_JAVASCRIPT_ACTION FPDFDoc_GetJavaScriptAction(FPDF_DOCUMENT document,
+int index,
+) {
+  return _FPDFDoc_GetJavaScriptAction(document,
+index,
+);
+}
+
+late final _FPDFDoc_GetJavaScriptActionPtr = _lookup<
+    ffi.NativeFunction<FPDF_JAVASCRIPT_ACTION Function(FPDF_DOCUMENT , ffi.Int )>>('FPDFDoc_GetJavaScriptAction');
+late final _FPDFDoc_GetJavaScriptAction = _FPDFDoc_GetJavaScriptActionPtr.asFunction<FPDF_JAVASCRIPT_ACTION Function(FPDF_DOCUMENT , int )>();
+
+/// javascript - Handle to a JavaScript action.
+void FPDFDoc_CloseJavaScriptAction(FPDF_JAVASCRIPT_ACTION javascript,
+) {
+  return _FPDFDoc_CloseJavaScriptAction(javascript,
+);
+}
+
+late final _FPDFDoc_CloseJavaScriptActionPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_JAVASCRIPT_ACTION )>>('FPDFDoc_CloseJavaScriptAction');
+late final _FPDFDoc_CloseJavaScriptAction = _FPDFDoc_CloseJavaScriptActionPtr.asFunction<void Function(FPDF_JAVASCRIPT_ACTION )>();
+
+/// Experimental API.
+/// Get the name from the |javascript| handle. |buffer| is only modified if
+/// |buflen| is longer than the length of the name. On errors, |buffer| is
+/// unmodified and the returned length is 0.
+/// 
+/// javascript - handle to an JavaScript action.
+/// buffer     - buffer for holding the name, encoded in UTF-16LE.
+/// buflen     - length of the buffer in bytes.
+/// 
+/// Returns the length of the JavaScript action name in bytes.
+int FPDFJavaScriptAction_GetName(FPDF_JAVASCRIPT_ACTION javascript,
+ffi.Pointer<FPDF_WCHAR> buffer,
+int buflen,
+) {
+  return _FPDFJavaScriptAction_GetName(javascript,
+buffer,
+buflen,
+);
+}
+
+late final _FPDFJavaScriptAction_GetNamePtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_JAVASCRIPT_ACTION , ffi.Pointer<FPDF_WCHAR> , ffi.UnsignedLong )>>('FPDFJavaScriptAction_GetName');
+late final _FPDFJavaScriptAction_GetName = _FPDFJavaScriptAction_GetNamePtr.asFunction<int Function(FPDF_JAVASCRIPT_ACTION , ffi.Pointer<FPDF_WCHAR> , int )>();
+
+/// Experimental API.
+/// Get the script from the |javascript| handle. |buffer| is only modified if
+/// |buflen| is longer than the length of the script. On errors, |buffer| is
+/// unmodified and the returned length is 0.
+/// 
+/// javascript - handle to an JavaScript action.
+/// buffer     - buffer for holding the name, encoded in UTF-16LE.
+/// buflen     - length of the buffer in bytes.
+/// 
+/// Returns the length of the JavaScript action name in bytes.
+int FPDFJavaScriptAction_GetScript(FPDF_JAVASCRIPT_ACTION javascript,
+ffi.Pointer<FPDF_WCHAR> buffer,
+int buflen,
+) {
+  return _FPDFJavaScriptAction_GetScript(javascript,
+buffer,
+buflen,
+);
+}
+
+late final _FPDFJavaScriptAction_GetScriptPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_JAVASCRIPT_ACTION , ffi.Pointer<FPDF_WCHAR> , ffi.UnsignedLong )>>('FPDFJavaScriptAction_GetScript');
+late final _FPDFJavaScriptAction_GetScript = _FPDFJavaScriptAction_GetScriptPtr.asFunction<int Function(FPDF_JAVASCRIPT_ACTION , ffi.Pointer<FPDF_WCHAR> , int )>();
+
+/// Function: FPDFText_LoadPage
+/// Prepare information about all characters in a page.
+/// Parameters:
+/// page    -   Handle to the page. Returned by FPDF_LoadPage function
+/// (in FPDFVIEW module).
+/// Return value:
+/// A handle to the text page information structure.
+/// NULL if something goes wrong.
+/// Comments:
+/// Application must call FPDFText_ClosePage to release the text page
+/// information.
+FPDF_TEXTPAGE FPDFText_LoadPage(FPDF_PAGE page,
+) {
+  return _FPDFText_LoadPage(page,
+);
+}
+
+late final _FPDFText_LoadPagePtr = _lookup<
+    ffi.NativeFunction<FPDF_TEXTPAGE Function(FPDF_PAGE )>>('FPDFText_LoadPage');
+late final _FPDFText_LoadPage = _FPDFText_LoadPagePtr.asFunction<FPDF_TEXTPAGE Function(FPDF_PAGE )>();
+
+/// Function: FPDFText_ClosePage
+/// Release all resources allocated for a text page information
+/// structure.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// Return Value:
+/// None.
+void FPDFText_ClosePage(FPDF_TEXTPAGE text_page,
+) {
+  return _FPDFText_ClosePage(text_page,
+);
+}
+
+late final _FPDFText_ClosePagePtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_TEXTPAGE )>>('FPDFText_ClosePage');
+late final _FPDFText_ClosePage = _FPDFText_ClosePagePtr.asFunction<void Function(FPDF_TEXTPAGE )>();
+
+/// Function: FPDFText_CountChars
+/// Get number of characters in a page.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// Return value:
+/// Number of characters in the page. Return -1 for error.
+/// Generated characters, like additional space characters, new line
+/// characters, are also counted.
+/// Comments:
+/// Characters in a page form a "stream", inside the stream, each
+/// character has an index.
+/// We will use the index parameters in many of FPDFTEXT functions. The
+/// first character in the page
+/// has an index value of zero.
+int FPDFText_CountChars(FPDF_TEXTPAGE text_page,
+) {
+  return _FPDFText_CountChars(text_page,
+);
+}
+
+late final _FPDFText_CountCharsPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE )>>('FPDFText_CountChars');
+late final _FPDFText_CountChars = _FPDFText_CountCharsPtr.asFunction<int Function(FPDF_TEXTPAGE )>();
+
+/// Function: FPDFText_GetUnicode
+/// Get Unicode of a character in a page.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// index       -   Zero-based index of the character.
+/// Return value:
+/// The Unicode of the particular character.
+/// If a character is not encoded in Unicode and Foxit engine can't
+/// convert to Unicode,
+/// the return value will be zero.
+int FPDFText_GetUnicode(FPDF_TEXTPAGE text_page,
+int index,
+) {
+  return _FPDFText_GetUnicode(text_page,
+index,
+);
+}
+
+late final _FPDFText_GetUnicodePtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedInt Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_GetUnicode');
+late final _FPDFText_GetUnicode = _FPDFText_GetUnicodePtr.asFunction<int Function(FPDF_TEXTPAGE , int )>();
+
+/// Experimental API.
+/// Function: FPDFText_GetTextObject
+/// Get the FPDF_PAGEOBJECT associated with a given character.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// index       -   Zero-based index of the character.
+/// Return value:
+/// The associated text object for the character at |index|, or NULL on
+/// error. The returned text object, if non-null, is of type
+/// |FPDF_PAGEOBJ_TEXT|. The caller does not own the returned object.
+FPDF_PAGEOBJECT FPDFText_GetTextObject(FPDF_TEXTPAGE text_page,
+int index,
+) {
+  return _FPDFText_GetTextObject(text_page,
+index,
+);
+}
+
+late final _FPDFText_GetTextObjectPtr = _lookup<
+    ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_GetTextObject');
+late final _FPDFText_GetTextObject = _FPDFText_GetTextObjectPtr.asFunction<FPDF_PAGEOBJECT Function(FPDF_TEXTPAGE , int )>();
+
+/// Experimental API.
+/// Function: FPDFText_IsGenerated
+/// Get if a character in a page is generated by PDFium.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// index       -   Zero-based index of the character.
+/// Return value:
+/// 1 if the character is generated by PDFium.
+/// 0 if the character is not generated by PDFium.
+/// -1 if there was an error.
+int FPDFText_IsGenerated(FPDF_TEXTPAGE text_page,
+int index,
+) {
+  return _FPDFText_IsGenerated(text_page,
+index,
+);
+}
+
+late final _FPDFText_IsGeneratedPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_IsGenerated');
+late final _FPDFText_IsGenerated = _FPDFText_IsGeneratedPtr.asFunction<int Function(FPDF_TEXTPAGE , int )>();
+
+/// Experimental API.
+/// Function: FPDFText_IsHyphen
+/// Get if a character in a page is a hyphen.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// index       -   Zero-based index of the character.
+/// Return value:
+/// 1 if the character is a hyphen.
+/// 0 if the character is not a hyphen.
+/// -1 if there was an error.
+int FPDFText_IsHyphen(FPDF_TEXTPAGE text_page,
+int index,
+) {
+  return _FPDFText_IsHyphen(text_page,
+index,
+);
+}
+
+late final _FPDFText_IsHyphenPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_IsHyphen');
+late final _FPDFText_IsHyphen = _FPDFText_IsHyphenPtr.asFunction<int Function(FPDF_TEXTPAGE , int )>();
+
+/// Experimental API.
+/// Function: FPDFText_HasUnicodeMapError
+/// Get if a character in a page has an invalid unicode mapping.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// index       -   Zero-based index of the character.
+/// Return value:
+/// 1 if the character has an invalid unicode mapping.
+/// 0 if the character has no known unicode mapping issues.
+/// -1 if there was an error.
+int FPDFText_HasUnicodeMapError(FPDF_TEXTPAGE text_page,
+int index,
+) {
+  return _FPDFText_HasUnicodeMapError(text_page,
+index,
+);
+}
+
+late final _FPDFText_HasUnicodeMapErrorPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_HasUnicodeMapError');
+late final _FPDFText_HasUnicodeMapError = _FPDFText_HasUnicodeMapErrorPtr.asFunction<int Function(FPDF_TEXTPAGE , int )>();
+
+/// Function: FPDFText_GetFontSize
+/// Get the font size of a particular character.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// index       -   Zero-based index of the character.
+/// Return value:
+/// The font size of the particular character, measured in points (about
+/// 1/72 inch). This is the typographic size of the font (so called
+/// "em size").
+double FPDFText_GetFontSize(FPDF_TEXTPAGE text_page,
+int index,
+) {
+  return _FPDFText_GetFontSize(text_page,
+index,
+);
+}
+
+late final _FPDFText_GetFontSizePtr = _lookup<
+    ffi.NativeFunction<ffi.Double Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_GetFontSize');
+late final _FPDFText_GetFontSize = _FPDFText_GetFontSizePtr.asFunction<double Function(FPDF_TEXTPAGE , int )>();
+
+/// Experimental API.
+/// Function: FPDFText_GetFontInfo
+/// Get the font name and flags of a particular character.
+/// Parameters:
+/// text_page - Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// index     - Zero-based index of the character.
+/// buffer    - A buffer receiving the font name.
+/// buflen    - The length of |buffer| in bytes.
+/// flags     - Optional pointer to an int receiving the font flags.
+/// These flags should be interpreted per PDF spec 1.7
+/// Section 5.7.1 Font Descriptor Flags.
+/// Return value:
+/// On success, return the length of the font name, including the
+/// trailing NUL character, in bytes. If this length is less than or
+/// equal to |length|, |buffer| is set to the font name, |flags| is
+/// set to the font flags. |buffer| is in UTF-8 encoding. Return 0 on
+/// failure.
+int FPDFText_GetFontInfo(FPDF_TEXTPAGE text_page,
+int index,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
+ffi.Pointer<ffi.Int> flags,
+) {
+  return _FPDFText_GetFontInfo(text_page,
+index,
+buffer,
+buflen,
+flags,
+);
+}
+
+late final _FPDFText_GetFontInfoPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<ffi.Void> , ffi.UnsignedLong , ffi.Pointer<ffi.Int> )>>('FPDFText_GetFontInfo');
+late final _FPDFText_GetFontInfo = _FPDFText_GetFontInfoPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<ffi.Void> , int , ffi.Pointer<ffi.Int> )>();
+
+/// Experimental API.
+/// Function: FPDFText_GetFontWeight
+/// Get the font weight of a particular character.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// index       -   Zero-based index of the character.
+/// Return value:
+/// On success, return the font weight of the particular character. If
+/// |text_page| is invalid, if |index| is out of bounds, or if the
+/// character's text object is undefined, return -1.
+int FPDFText_GetFontWeight(FPDF_TEXTPAGE text_page,
+int index,
+) {
+  return _FPDFText_GetFontWeight(text_page,
+index,
+);
+}
+
+late final _FPDFText_GetFontWeightPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_GetFontWeight');
+late final _FPDFText_GetFontWeight = _FPDFText_GetFontWeightPtr.asFunction<int Function(FPDF_TEXTPAGE , int )>();
+
+/// Experimental API.
+/// Function: FPDFText_GetFillColor
+/// Get the fill color of a particular character.
+/// Parameters:
+/// text_page      -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// index          -   Zero-based index of the character.
+/// R              -   Pointer to an unsigned int number receiving the
+/// red value of the fill color.
+/// G              -   Pointer to an unsigned int number receiving the
+/// green value of the fill color.
+/// B              -   Pointer to an unsigned int number receiving the
+/// blue value of the fill color.
+/// A              -   Pointer to an unsigned int number receiving the
+/// alpha value of the fill color.
+/// Return value:
+/// Whether the call succeeded. If false, |R|, |G|, |B| and |A| are
+/// unchanged.
+int FPDFText_GetFillColor(FPDF_TEXTPAGE text_page,
+int index,
+ffi.Pointer<ffi.UnsignedInt> R,
+ffi.Pointer<ffi.UnsignedInt> G,
+ffi.Pointer<ffi.UnsignedInt> B,
+ffi.Pointer<ffi.UnsignedInt> A,
+) {
+  return _FPDFText_GetFillColor(text_page,
+index,
+R,
+G,
+B,
+A,
+);
+}
+
+late final _FPDFText_GetFillColorPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>>('FPDFText_GetFillColor');
+late final _FPDFText_GetFillColor = _FPDFText_GetFillColorPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>();
+
+/// Experimental API.
+/// Function: FPDFText_GetStrokeColor
+/// Get the stroke color of a particular character.
+/// Parameters:
+/// text_page      -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// index          -   Zero-based index of the character.
+/// R              -   Pointer to an unsigned int number receiving the
+/// red value of the stroke color.
+/// G              -   Pointer to an unsigned int number receiving the
+/// green value of the stroke color.
+/// B              -   Pointer to an unsigned int number receiving the
+/// blue value of the stroke color.
+/// A              -   Pointer to an unsigned int number receiving the
+/// alpha value of the stroke color.
+/// Return value:
+/// Whether the call succeeded. If false, |R|, |G|, |B| and |A| are
+/// unchanged.
+int FPDFText_GetStrokeColor(FPDF_TEXTPAGE text_page,
+int index,
+ffi.Pointer<ffi.UnsignedInt> R,
+ffi.Pointer<ffi.UnsignedInt> G,
+ffi.Pointer<ffi.UnsignedInt> B,
+ffi.Pointer<ffi.UnsignedInt> A,
+) {
+  return _FPDFText_GetStrokeColor(text_page,
+index,
+R,
+G,
+B,
+A,
+);
+}
+
+late final _FPDFText_GetStrokeColorPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>>('FPDFText_GetStrokeColor');
+late final _FPDFText_GetStrokeColor = _FPDFText_GetStrokeColorPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>();
+
+/// Experimental API.
+/// Function: FPDFText_GetCharAngle
+/// Get character rotation angle.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// index       -   Zero-based index of the character.
+/// Return Value:
+/// On success, return the angle value in radian. Value will always be
+/// greater or equal to 0. If |text_page| is invalid, or if |index| is
+/// out of bounds, then return -1.
+double FPDFText_GetCharAngle(FPDF_TEXTPAGE text_page,
+int index,
+) {
+  return _FPDFText_GetCharAngle(text_page,
+index,
+);
+}
+
+late final _FPDFText_GetCharAnglePtr = _lookup<
+    ffi.NativeFunction<ffi.Float Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_GetCharAngle');
+late final _FPDFText_GetCharAngle = _FPDFText_GetCharAnglePtr.asFunction<double Function(FPDF_TEXTPAGE , int )>();
+
+/// Function: FPDFText_GetCharBox
+/// Get bounding box of a particular character.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// index       -   Zero-based index of the character.
+/// left        -   Pointer to a double number receiving left position
+/// of the character box.
+/// right       -   Pointer to a double number receiving right position
+/// of the character box.
+/// bottom      -   Pointer to a double number receiving bottom position
+/// of the character box.
+/// top         -   Pointer to a double number receiving top position of
+/// the character box.
+/// Return Value:
+/// On success, return TRUE and fill in |left|, |right|, |bottom|, and
+/// |top|. If |text_page| is invalid, or if |index| is out of bounds,
+/// then return FALSE, and the out parameters remain unmodified.
+/// Comments:
+/// All positions are measured in PDF "user space".
+int FPDFText_GetCharBox(FPDF_TEXTPAGE text_page,
+int index,
+ffi.Pointer<ffi.Double> left,
+ffi.Pointer<ffi.Double> right,
+ffi.Pointer<ffi.Double> bottom,
+ffi.Pointer<ffi.Double> top,
+) {
+  return _FPDFText_GetCharBox(text_page,
+index,
+left,
+right,
+bottom,
+top,
+);
+}
+
+late final _FPDFText_GetCharBoxPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>>('FPDFText_GetCharBox');
+late final _FPDFText_GetCharBox = _FPDFText_GetCharBoxPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>();
+
+/// Experimental API.
+/// Function: FPDFText_GetLooseCharBox
+/// Get a "loose" bounding box of a particular character, i.e., covering
+/// the entire glyph bounds, without taking the actual glyph shape into
+/// account.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// index       -   Zero-based index of the character.
+/// rect        -   Pointer to a FS_RECTF receiving the character box.
+/// Return Value:
+/// On success, return TRUE and fill in |rect|. If |text_page| is
+/// invalid, or if |index| is out of bounds, then return FALSE, and the
+/// |rect| out parameter remains unmodified.
+/// Comments:
+/// All positions are measured in PDF "user space".
+int FPDFText_GetLooseCharBox(FPDF_TEXTPAGE text_page,
+int index,
+ffi.Pointer<FS_RECTF> rect,
+) {
+  return _FPDFText_GetLooseCharBox(text_page,
+index,
+rect,
+);
+}
+
+late final _FPDFText_GetLooseCharBoxPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<FS_RECTF> )>>('FPDFText_GetLooseCharBox');
+late final _FPDFText_GetLooseCharBox = _FPDFText_GetLooseCharBoxPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<FS_RECTF> )>();
+
+/// Experimental API.
+/// Function: FPDFText_GetMatrix
+/// Get the effective transformation matrix for a particular character.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage().
+/// index       -   Zero-based index of the character.
+/// matrix      -   Pointer to a FS_MATRIX receiving the transformation
+/// matrix.
+/// Return Value:
+/// On success, return TRUE and fill in |matrix|. If |text_page| is
+/// invalid, or if |index| is out of bounds, or if |matrix| is NULL,
+/// then return FALSE, and |matrix| remains unmodified.
+int FPDFText_GetMatrix(FPDF_TEXTPAGE text_page,
+int index,
+ffi.Pointer<FS_MATRIX> matrix,
+) {
+  return _FPDFText_GetMatrix(text_page,
+index,
+matrix,
+);
+}
+
+late final _FPDFText_GetMatrixPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<FS_MATRIX> )>>('FPDFText_GetMatrix');
+late final _FPDFText_GetMatrix = _FPDFText_GetMatrixPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<FS_MATRIX> )>();
+
+/// Function: FPDFText_GetCharOrigin
+/// Get origin of a particular character.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// index       -   Zero-based index of the character.
+/// x           -   Pointer to a double number receiving x coordinate of
+/// the character origin.
+/// y           -   Pointer to a double number receiving y coordinate of
+/// the character origin.
+/// Return Value:
+/// Whether the call succeeded. If false, x and y are unchanged.
+/// Comments:
+/// All positions are measured in PDF "user space".
+int FPDFText_GetCharOrigin(FPDF_TEXTPAGE text_page,
+int index,
+ffi.Pointer<ffi.Double> x,
+ffi.Pointer<ffi.Double> y,
+) {
+  return _FPDFText_GetCharOrigin(text_page,
+index,
+x,
+y,
+);
+}
+
+late final _FPDFText_GetCharOriginPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>>('FPDFText_GetCharOrigin');
+late final _FPDFText_GetCharOrigin = _FPDFText_GetCharOriginPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>();
+
+/// Function: FPDFText_GetCharIndexAtPos
+/// Get the index of a character at or nearby a certain position on the
+/// page.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// x           -   X position in PDF "user space".
+/// y           -   Y position in PDF "user space".
+/// xTolerance  -   An x-axis tolerance value for character hit
+/// detection, in point units.
+/// yTolerance  -   A y-axis tolerance value for character hit
+/// detection, in point units.
+/// Return Value:
+/// The zero-based index of the character at, or nearby the point (x,y).
+/// If there is no character at or nearby the point, return value will
+/// be -1. If an error occurs, -3 will be returned.
+int FPDFText_GetCharIndexAtPos(FPDF_TEXTPAGE text_page,
+double x,
+double y,
+double xTolerance,
+double yTolerance,
+) {
+  return _FPDFText_GetCharIndexAtPos(text_page,
+x,
+y,
+xTolerance,
+yTolerance,
+);
+}
+
+late final _FPDFText_GetCharIndexAtPosPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Double , ffi.Double , ffi.Double , ffi.Double )>>('FPDFText_GetCharIndexAtPos');
+late final _FPDFText_GetCharIndexAtPos = _FPDFText_GetCharIndexAtPosPtr.asFunction<int Function(FPDF_TEXTPAGE , double , double , double , double )>();
+
+/// Function: FPDFText_GetText
+/// Extract unicode text string from the page.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// start_index -   Index for the start characters.
+/// count       -   Number of UCS-2 values to be extracted.
+/// result      -   A buffer (allocated by application) receiving the
+/// extracted UCS-2 values. The buffer must be able to
+/// hold `count` UCS-2 values plus a terminator.
+/// Return Value:
+/// Number of characters written into the result buffer, including the
+/// trailing terminator.
+/// Comments:
+/// This function ignores characters without UCS-2 representations.
+/// It considers all characters on the page, even those that are not
+/// visible when the page has a cropbox. To filter out the characters
+/// outside of the cropbox, use FPDF_GetPageBoundingBox() and
+/// FPDFText_GetCharBox().
+int FPDFText_GetText(FPDF_TEXTPAGE text_page,
+int start_index,
+int count,
+ffi.Pointer<ffi.UnsignedShort> result,
+) {
+  return _FPDFText_GetText(text_page,
+start_index,
+count,
+result,
+);
+}
+
+late final _FPDFText_GetTextPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Int , ffi.Int , ffi.Pointer<ffi.UnsignedShort> )>>('FPDFText_GetText');
+late final _FPDFText_GetText = _FPDFText_GetTextPtr.asFunction<int Function(FPDF_TEXTPAGE , int , int , ffi.Pointer<ffi.UnsignedShort> )>();
+
+/// Function: FPDFText_CountRects
+/// Counts number of rectangular areas occupied by a segment of text,
+/// and caches the result for subsequent FPDFText_GetRect() calls.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// start_index -   Index for the start character.
+/// count       -   Number of characters, or -1 for all remaining.
+/// Return value:
+/// Number of rectangles, 0 if text_page is null, or -1 on bad
+/// start_index.
+/// Comments:
+/// This function, along with FPDFText_GetRect can be used by
+/// applications to detect the position on the page for a text segment,
+/// so proper areas can be highlighted. The FPDFText_* functions will
+/// automatically merge small character boxes into bigger one if those
+/// characters are on the same line and use same font settings.
+int FPDFText_CountRects(FPDF_TEXTPAGE text_page,
+int start_index,
+int count,
+) {
+  return _FPDFText_CountRects(text_page,
+start_index,
+count,
+);
+}
+
+late final _FPDFText_CountRectsPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Int , ffi.Int )>>('FPDFText_CountRects');
+late final _FPDFText_CountRects = _FPDFText_CountRectsPtr.asFunction<int Function(FPDF_TEXTPAGE , int , int )>();
+
+/// Function: FPDFText_GetRect
+/// Get a rectangular area from the result generated by
+/// FPDFText_CountRects.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// rect_index  -   Zero-based index for the rectangle.
+/// left        -   Pointer to a double value receiving the rectangle
+/// left boundary.
+/// top         -   Pointer to a double value receiving the rectangle
+/// top boundary.
+/// right       -   Pointer to a double value receiving the rectangle
+/// right boundary.
+/// bottom      -   Pointer to a double value receiving the rectangle
+/// bottom boundary.
+/// Return Value:
+/// On success, return TRUE and fill in |left|, |top|, |right|, and
+/// |bottom|. If |text_page| is invalid then return FALSE, and the out
+/// parameters remain unmodified. If |text_page| is valid but
+/// |rect_index| is out of bounds, then return FALSE and set the out
+/// parameters to 0.
+int FPDFText_GetRect(FPDF_TEXTPAGE text_page,
+int rect_index,
+ffi.Pointer<ffi.Double> left,
+ffi.Pointer<ffi.Double> top,
+ffi.Pointer<ffi.Double> right,
+ffi.Pointer<ffi.Double> bottom,
+) {
+  return _FPDFText_GetRect(text_page,
+rect_index,
+left,
+top,
+right,
+bottom,
+);
+}
+
+late final _FPDFText_GetRectPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>>('FPDFText_GetRect');
+late final _FPDFText_GetRect = _FPDFText_GetRectPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>();
+
+/// Function: FPDFText_GetBoundedText
+/// Extract unicode text within a rectangular boundary on the page.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// left        -   Left boundary.
+/// top         -   Top boundary.
+/// right       -   Right boundary.
+/// bottom      -   Bottom boundary.
+/// buffer      -   Caller-allocated buffer to receive UTF-16 values.
+/// buflen      -   Number of UTF-16 values (not bytes) that `buffer`
+/// is capable of holding.
+/// Return Value:
+/// If buffer is NULL or buflen is zero, return number of UTF-16
+/// values (not bytes) of text present within the rectangle, excluding
+/// a terminating NUL. Generally you should pass a buffer at least one
+/// larger than this if you want a terminating NUL, which will be
+/// provided if space is available. Otherwise, return number of UTF-16
+/// values copied into the buffer, including the terminating NUL when
+/// space for it is available.
+/// Comment:
+/// If the buffer is too small, as much text as will fit is copied into
+/// it. May return a split surrogate in that case.
+int FPDFText_GetBoundedText(FPDF_TEXTPAGE text_page,
+double left,
+double top,
+double right,
+double bottom,
+ffi.Pointer<ffi.UnsignedShort> buffer,
+int buflen,
+) {
+  return _FPDFText_GetBoundedText(text_page,
+left,
+top,
+right,
+bottom,
+buffer,
+buflen,
+);
+}
+
+late final _FPDFText_GetBoundedTextPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Pointer<ffi.UnsignedShort> , ffi.Int )>>('FPDFText_GetBoundedText');
+late final _FPDFText_GetBoundedText = _FPDFText_GetBoundedTextPtr.asFunction<int Function(FPDF_TEXTPAGE , double , double , double , double , ffi.Pointer<ffi.UnsignedShort> , int )>();
+
+/// Function: FPDFText_FindStart
+/// Start a search.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// findwhat    -   A unicode match pattern.
+/// flags       -   Option flags.
+/// start_index -   Start from this character. -1 for end of the page.
+/// Return Value:
+/// A handle for the search context. FPDFText_FindClose must be called
+/// to release this handle.
+FPDF_SCHHANDLE FPDFText_FindStart(FPDF_TEXTPAGE text_page,
+FPDF_WIDESTRING findwhat,
+int flags,
+int start_index,
+) {
+  return _FPDFText_FindStart(text_page,
+findwhat,
+flags,
+start_index,
+);
+}
+
+late final _FPDFText_FindStartPtr = _lookup<
+    ffi.NativeFunction<FPDF_SCHHANDLE Function(FPDF_TEXTPAGE , FPDF_WIDESTRING , ffi.UnsignedLong , ffi.Int )>>('FPDFText_FindStart');
+late final _FPDFText_FindStart = _FPDFText_FindStartPtr.asFunction<FPDF_SCHHANDLE Function(FPDF_TEXTPAGE , FPDF_WIDESTRING , int , int )>();
+
+/// Function: FPDFText_FindNext
+/// Search in the direction from page start to end.
+/// Parameters:
+/// handle      -   A search context handle returned by
+/// FPDFText_FindStart.
+/// Return Value:
+/// Whether a match is found.
+int FPDFText_FindNext(FPDF_SCHHANDLE handle,
+) {
+  return _FPDFText_FindNext(handle,
+);
+}
+
+late final _FPDFText_FindNextPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_SCHHANDLE )>>('FPDFText_FindNext');
+late final _FPDFText_FindNext = _FPDFText_FindNextPtr.asFunction<int Function(FPDF_SCHHANDLE )>();
+
+/// Function: FPDFText_FindPrev
+/// Search in the direction from page end to start.
+/// Parameters:
+/// handle      -   A search context handle returned by
+/// FPDFText_FindStart.
+/// Return Value:
+/// Whether a match is found.
+int FPDFText_FindPrev(FPDF_SCHHANDLE handle,
+) {
+  return _FPDFText_FindPrev(handle,
+);
+}
+
+late final _FPDFText_FindPrevPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_SCHHANDLE )>>('FPDFText_FindPrev');
+late final _FPDFText_FindPrev = _FPDFText_FindPrevPtr.asFunction<int Function(FPDF_SCHHANDLE )>();
+
+/// Function: FPDFText_GetSchResultIndex
+/// Get the starting character index of the search result.
+/// Parameters:
+/// handle      -   A search context handle returned by
+/// FPDFText_FindStart.
+/// Return Value:
+/// Index for the starting character.
+int FPDFText_GetSchResultIndex(FPDF_SCHHANDLE handle,
+) {
+  return _FPDFText_GetSchResultIndex(handle,
+);
+}
+
+late final _FPDFText_GetSchResultIndexPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_SCHHANDLE )>>('FPDFText_GetSchResultIndex');
+late final _FPDFText_GetSchResultIndex = _FPDFText_GetSchResultIndexPtr.asFunction<int Function(FPDF_SCHHANDLE )>();
+
+/// Function: FPDFText_GetSchCount
+/// Get the number of matched characters in the search result.
+/// Parameters:
+/// handle      -   A search context handle returned by
+/// FPDFText_FindStart.
+/// Return Value:
+/// Number of matched characters.
+int FPDFText_GetSchCount(FPDF_SCHHANDLE handle,
+) {
+  return _FPDFText_GetSchCount(handle,
+);
+}
+
+late final _FPDFText_GetSchCountPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_SCHHANDLE )>>('FPDFText_GetSchCount');
+late final _FPDFText_GetSchCount = _FPDFText_GetSchCountPtr.asFunction<int Function(FPDF_SCHHANDLE )>();
+
+/// Function: FPDFText_FindClose
+/// Release a search context.
+/// Parameters:
+/// handle      -   A search context handle returned by
+/// FPDFText_FindStart.
+/// Return Value:
+/// None.
+void FPDFText_FindClose(FPDF_SCHHANDLE handle,
+) {
+  return _FPDFText_FindClose(handle,
+);
+}
+
+late final _FPDFText_FindClosePtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_SCHHANDLE )>>('FPDFText_FindClose');
+late final _FPDFText_FindClose = _FPDFText_FindClosePtr.asFunction<void Function(FPDF_SCHHANDLE )>();
+
+/// Function: FPDFLink_LoadWebLinks
+/// Prepare information about weblinks in a page.
+/// Parameters:
+/// text_page   -   Handle to a text page information structure.
+/// Returned by FPDFText_LoadPage function.
+/// Return Value:
+/// A handle to the page's links information structure, or
+/// NULL if something goes wrong.
+/// Comments:
+/// Weblinks are those links implicitly embedded in PDF pages. PDF also
+/// has a type of annotation called "link" (FPDFTEXT doesn't deal with
+/// that kind of link). FPDFTEXT weblink feature is useful for
+/// automatically detecting links in the page contents. For example,
+/// things like "https://www.example.com" will be detected, so
+/// applications can allow user to click on those characters to activate
+/// the link, even the PDF doesn't come with link annotations.
+/// 
+/// FPDFLink_CloseWebLinks must be called to release resources.
+FPDF_PAGELINK FPDFLink_LoadWebLinks(FPDF_TEXTPAGE text_page,
+) {
+  return _FPDFLink_LoadWebLinks(text_page,
+);
+}
+
+late final _FPDFLink_LoadWebLinksPtr = _lookup<
+    ffi.NativeFunction<FPDF_PAGELINK Function(FPDF_TEXTPAGE )>>('FPDFLink_LoadWebLinks');
+late final _FPDFLink_LoadWebLinks = _FPDFLink_LoadWebLinksPtr.asFunction<FPDF_PAGELINK Function(FPDF_TEXTPAGE )>();
+
+/// Function: FPDFLink_CountWebLinks
+/// Count number of detected web links.
+/// Parameters:
+/// link_page   -   Handle returned by FPDFLink_LoadWebLinks.
+/// Return Value:
+/// Number of detected web links.
+int FPDFLink_CountWebLinks(FPDF_PAGELINK link_page,
+) {
+  return _FPDFLink_CountWebLinks(link_page,
+);
+}
+
+late final _FPDFLink_CountWebLinksPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGELINK )>>('FPDFLink_CountWebLinks');
+late final _FPDFLink_CountWebLinks = _FPDFLink_CountWebLinksPtr.asFunction<int Function(FPDF_PAGELINK )>();
+
+/// Function: FPDFLink_GetURL
+/// Fetch the URL information for a detected web link.
+/// Parameters:
+/// link_page   -   Handle returned by FPDFLink_LoadWebLinks.
+/// link_index  -   Zero-based index for the link.
+/// buffer      -   A unicode buffer for the result.
+/// buflen      -   Number of 16-bit code units (not bytes) for the
+/// buffer, including an additional terminator.
+/// Return Value:
+/// If |buffer| is NULL or |buflen| is zero, return the number of 16-bit
+/// code units (not bytes) needed to buffer the result (an additional
+/// terminator is included in this count).
+/// Otherwise, copy the result into |buffer|, truncating at |buflen| if
+/// the result is too large to fit, and return the number of 16-bit code
+/// units actually copied into the buffer (the additional terminator is
+/// also included in this count).
+/// If |link_index| does not correspond to a valid link, then the result
+/// is an empty string.
+int FPDFLink_GetURL(FPDF_PAGELINK link_page,
+int link_index,
+ffi.Pointer<ffi.UnsignedShort> buffer,
+int buflen,
+) {
+  return _FPDFLink_GetURL(link_page,
+link_index,
+buffer,
+buflen,
+);
+}
+
+late final _FPDFLink_GetURLPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGELINK , ffi.Int , ffi.Pointer<ffi.UnsignedShort> , ffi.Int )>>('FPDFLink_GetURL');
+late final _FPDFLink_GetURL = _FPDFLink_GetURLPtr.asFunction<int Function(FPDF_PAGELINK , int , ffi.Pointer<ffi.UnsignedShort> , int )>();
+
+/// Function: FPDFLink_CountRects
+/// Count number of rectangular areas for the link.
+/// Parameters:
+/// link_page   -   Handle returned by FPDFLink_LoadWebLinks.
+/// link_index  -   Zero-based index for the link.
+/// Return Value:
+/// Number of rectangular areas for the link.  If |link_index| does
+/// not correspond to a valid link, then 0 is returned.
+int FPDFLink_CountRects(FPDF_PAGELINK link_page,
+int link_index,
+) {
+  return _FPDFLink_CountRects(link_page,
+link_index,
+);
+}
+
+late final _FPDFLink_CountRectsPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGELINK , ffi.Int )>>('FPDFLink_CountRects');
+late final _FPDFLink_CountRects = _FPDFLink_CountRectsPtr.asFunction<int Function(FPDF_PAGELINK , int )>();
+
+/// Function: FPDFLink_GetRect
+/// Fetch the boundaries of a rectangle for a link.
+/// Parameters:
+/// link_page   -   Handle returned by FPDFLink_LoadWebLinks.
+/// link_index  -   Zero-based index for the link.
+/// rect_index  -   Zero-based index for a rectangle.
+/// left        -   Pointer to a double value receiving the rectangle
+/// left boundary.
+/// top         -   Pointer to a double value receiving the rectangle
+/// top boundary.
+/// right       -   Pointer to a double value receiving the rectangle
+/// right boundary.
+/// bottom      -   Pointer to a double value receiving the rectangle
+/// bottom boundary.
+/// Return Value:
+/// On success, return TRUE and fill in |left|, |top|, |right|, and
+/// |bottom|. If |link_page| is invalid or if |link_index| does not
+/// correspond to a valid link, then return FALSE, and the out
+/// parameters remain unmodified.
+int FPDFLink_GetRect(FPDF_PAGELINK link_page,
+int link_index,
+int rect_index,
+ffi.Pointer<ffi.Double> left,
+ffi.Pointer<ffi.Double> top,
+ffi.Pointer<ffi.Double> right,
+ffi.Pointer<ffi.Double> bottom,
+) {
+  return _FPDFLink_GetRect(link_page,
+link_index,
+rect_index,
+left,
+top,
+right,
+bottom,
+);
+}
+
+late final _FPDFLink_GetRectPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGELINK , ffi.Int , ffi.Int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>>('FPDFLink_GetRect');
+late final _FPDFLink_GetRect = _FPDFLink_GetRectPtr.asFunction<int Function(FPDF_PAGELINK , int , int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>();
+
+/// Experimental API.
+/// Function: FPDFLink_GetTextRange
+/// Fetch the start char index and char count for a link.
+/// Parameters:
+/// link_page         -   Handle returned by FPDFLink_LoadWebLinks.
+/// link_index        -   Zero-based index for the link.
+/// start_char_index  -   pointer to int receiving the start char index
+/// char_count        -   pointer to int receiving the char count
+/// Return Value:
+/// On success, return TRUE and fill in |start_char_index| and
+/// |char_count|. if |link_page| is invalid or if |link_index| does
+/// not correspond to a valid link, then return FALSE and the out
+/// parameters remain unmodified.
+int FPDFLink_GetTextRange(FPDF_PAGELINK link_page,
+int link_index,
+ffi.Pointer<ffi.Int> start_char_index,
+ffi.Pointer<ffi.Int> char_count,
+) {
+  return _FPDFLink_GetTextRange(link_page,
+link_index,
+start_char_index,
+char_count,
+);
+}
+
+late final _FPDFLink_GetTextRangePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGELINK , ffi.Int , ffi.Pointer<ffi.Int> , ffi.Pointer<ffi.Int> )>>('FPDFLink_GetTextRange');
+late final _FPDFLink_GetTextRange = _FPDFLink_GetTextRangePtr.asFunction<int Function(FPDF_PAGELINK , int , ffi.Pointer<ffi.Int> , ffi.Pointer<ffi.Int> )>();
+
+/// Function: FPDFLink_CloseWebLinks
+/// Release resources used by weblink feature.
+/// Parameters:
+/// link_page   -   Handle returned by FPDFLink_LoadWebLinks.
+/// Return Value:
+/// None.
+void FPDFLink_CloseWebLinks(FPDF_PAGELINK link_page,
+) {
+  return _FPDFLink_CloseWebLinks(link_page,
+);
+}
+
+late final _FPDFLink_CloseWebLinksPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_PAGELINK )>>('FPDFLink_CloseWebLinks');
+late final _FPDFLink_CloseWebLinks = _FPDFLink_CloseWebLinksPtr.asFunction<void Function(FPDF_PAGELINK )>();
+
+/// Get the character index in |text_page| internal character list.
+/// 
+/// text_page  - a text page information structure.
+/// nTextIndex - index of the text returned from FPDFText_GetText().
+/// 
+/// Returns the index of the character in internal character list. -1 for error.
+int FPDFText_GetCharIndexFromTextIndex(FPDF_TEXTPAGE text_page,
+int nTextIndex,
+) {
+  return _FPDFText_GetCharIndexFromTextIndex(text_page,
+nTextIndex,
+);
+}
+
+late final _FPDFText_GetCharIndexFromTextIndexPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_GetCharIndexFromTextIndex');
+late final _FPDFText_GetCharIndexFromTextIndex = _FPDFText_GetCharIndexFromTextIndexPtr.asFunction<int Function(FPDF_TEXTPAGE , int )>();
+
+/// Get the text index in |text_page| internal character list.
+/// 
+/// text_page  - a text page information structure.
+/// nCharIndex - index of the character in internal character list.
+/// 
+/// Returns the index of the text returned from FPDFText_GetText(). -1 for error.
+int FPDFText_GetTextIndexFromCharIndex(FPDF_TEXTPAGE text_page,
+int nCharIndex,
+) {
+  return _FPDFText_GetTextIndexFromCharIndex(text_page,
+nCharIndex,
+);
+}
+
+late final _FPDFText_GetTextIndexFromCharIndexPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_GetTextIndexFromCharIndex');
+late final _FPDFText_GetTextIndexFromCharIndex = _FPDFText_GetTextIndexFromCharIndexPtr.asFunction<int Function(FPDF_TEXTPAGE , int )>();
+
+/// Experimental API.
+/// Function: FPDF_RenderPageBitmapWithColorScheme_Start
+/// Start to render page contents to a device independent bitmap
+/// progressively with a specified color scheme for the content.
+/// Parameters:
+/// bitmap       -   Handle to the device independent bitmap (as the
+/// output buffer). Bitmap handle can be created by
+/// FPDFBitmap_Create function.
+/// page         -   Handle to the page as returned by FPDF_LoadPage
+/// function.
+/// start_x      -   Left pixel position of the display area in the
+/// bitmap coordinate.
+/// start_y      -   Top pixel position of the display area in the
+/// bitmap coordinate.
+/// size_x       -   Horizontal size (in pixels) for displaying the
+/// page.
+/// size_y       -   Vertical size (in pixels) for displaying the page.
+/// rotate       -   Page orientation: 0 (normal), 1 (rotated 90
+/// degrees clockwise), 2 (rotated 180 degrees),
+/// 3 (rotated 90 degrees counter-clockwise).
+/// flags        -   0 for normal display, or combination of flags
+/// defined in fpdfview.h. With FPDF_ANNOT flag, it
+/// renders all annotations that does not require
+/// user-interaction, which are all annotations except
+/// widget and popup annotations.
+/// color_scheme -   Color scheme to be used in rendering the |page|.
+/// If null, this function will work similar to
+/// FPDF_RenderPageBitmap_Start().
+/// pause        -   The IFSDK_PAUSE interface. A callback mechanism
+/// allowing the page rendering process.
+/// Return value:
+/// Rendering Status. See flags for progressive process status for the
+/// details.
+int FPDF_RenderPageBitmapWithColorScheme_Start(FPDF_BITMAP bitmap,
+FPDF_PAGE page,
+int start_x,
+int start_y,
+int size_x,
+int size_y,
+int rotate,
+int flags,
+ffi.Pointer<FPDF_COLORSCHEME> color_scheme,
+ffi.Pointer<IFSDK_PAUSE> pause,
+) {
+  return _FPDF_RenderPageBitmapWithColorScheme_Start(bitmap,
+page,
+start_x,
+start_y,
+size_x,
+size_y,
+rotate,
+flags,
+color_scheme,
+pause,
+);
+}
+
+late final _FPDF_RenderPageBitmapWithColorScheme_StartPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_BITMAP , FPDF_PAGE , ffi.Int , ffi.Int , ffi.Int , ffi.Int , ffi.Int , ffi.Int , ffi.Pointer<FPDF_COLORSCHEME> , ffi.Pointer<IFSDK_PAUSE> )>>('FPDF_RenderPageBitmapWithColorScheme_Start');
+late final _FPDF_RenderPageBitmapWithColorScheme_Start = _FPDF_RenderPageBitmapWithColorScheme_StartPtr.asFunction<int Function(FPDF_BITMAP , FPDF_PAGE , int , int , int , int , int , int , ffi.Pointer<FPDF_COLORSCHEME> , ffi.Pointer<IFSDK_PAUSE> )>();
+
+/// Function: FPDF_RenderPageBitmap_Start
+/// Start to render page contents to a device independent bitmap
+/// progressively.
+/// Parameters:
+/// bitmap      -   Handle to the device independent bitmap (as the
+/// output buffer). Bitmap handle can be created by
+/// FPDFBitmap_Create().
+/// page        -   Handle to the page, as returned by FPDF_LoadPage().
+/// start_x     -   Left pixel position of the display area in the
+/// bitmap coordinates.
+/// start_y     -   Top pixel position of the display area in the bitmap
+/// coordinates.
+/// size_x      -   Horizontal size (in pixels) for displaying the page.
+/// size_y      -   Vertical size (in pixels) for displaying the page.
+/// rotate      -   Page orientation: 0 (normal), 1 (rotated 90 degrees
+/// clockwise), 2 (rotated 180 degrees), 3 (rotated 90
+/// degrees counter-clockwise).
+/// flags       -   0 for normal display, or combination of flags
+/// defined in fpdfview.h. With FPDF_ANNOT flag, it
+/// renders all annotations that does not require
+/// user-interaction, which are all annotations except
+/// widget and popup annotations.
+/// pause       -   The IFSDK_PAUSE interface.A callback mechanism
+/// allowing the page rendering process
+/// Return value:
+/// Rendering Status. See flags for progressive process status for the
+/// details.
+int FPDF_RenderPageBitmap_Start(FPDF_BITMAP bitmap,
+FPDF_PAGE page,
+int start_x,
+int start_y,
+int size_x,
+int size_y,
+int rotate,
+int flags,
+ffi.Pointer<IFSDK_PAUSE> pause,
+) {
+  return _FPDF_RenderPageBitmap_Start(bitmap,
+page,
+start_x,
+start_y,
+size_x,
+size_y,
+rotate,
+flags,
+pause,
+);
+}
+
+late final _FPDF_RenderPageBitmap_StartPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_BITMAP , FPDF_PAGE , ffi.Int , ffi.Int , ffi.Int , ffi.Int , ffi.Int , ffi.Int , ffi.Pointer<IFSDK_PAUSE> )>>('FPDF_RenderPageBitmap_Start');
+late final _FPDF_RenderPageBitmap_Start = _FPDF_RenderPageBitmap_StartPtr.asFunction<int Function(FPDF_BITMAP , FPDF_PAGE , int , int , int , int , int , int , ffi.Pointer<IFSDK_PAUSE> )>();
+
+/// Function: FPDF_RenderPage_Continue
+/// Continue rendering a PDF page.
+/// Parameters:
+/// page        -   Handle to the page, as returned by FPDF_LoadPage().
+/// pause       -   The IFSDK_PAUSE interface (a callback mechanism
+/// allowing the page rendering process to be paused
+/// before it's finished). This can be NULL if you
+/// don't want to pause.
+/// Return value:
+/// The rendering status. See flags for progressive process status for
+/// the details.
+int FPDF_RenderPage_Continue(FPDF_PAGE page,
+ffi.Pointer<IFSDK_PAUSE> pause,
+) {
+  return _FPDF_RenderPage_Continue(page,
+pause,
+);
+}
+
+late final _FPDF_RenderPage_ContinuePtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGE , ffi.Pointer<IFSDK_PAUSE> )>>('FPDF_RenderPage_Continue');
+late final _FPDF_RenderPage_Continue = _FPDF_RenderPage_ContinuePtr.asFunction<int Function(FPDF_PAGE , ffi.Pointer<IFSDK_PAUSE> )>();
+
+/// Function: FPDF_RenderPage_Close
+/// Release the resource allocate during page rendering. Need to be
+/// called after finishing rendering or
+/// cancel the rendering.
+/// Parameters:
+/// page        -   Handle to the page, as returned by FPDF_LoadPage().
+/// Return value:
+/// None.
+void FPDF_RenderPage_Close(FPDF_PAGE page,
+) {
+  return _FPDF_RenderPage_Close(page,
+);
+}
+
+late final _FPDF_RenderPage_ClosePtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_PAGE )>>('FPDF_RenderPage_Close');
+late final _FPDF_RenderPage_Close = _FPDF_RenderPage_ClosePtr.asFunction<void Function(FPDF_PAGE )>();
+
+/// Create a new PDF document.
+/// 
+/// Returns a handle to a new document, or NULL on failure.
+FPDF_DOCUMENT FPDF_CreateNewDocument() {
+  return _FPDF_CreateNewDocument();
+}
+
+late final _FPDF_CreateNewDocumentPtr = _lookup<
+    ffi.NativeFunction<FPDF_DOCUMENT Function()>>('FPDF_CreateNewDocument');
+late final _FPDF_CreateNewDocument = _FPDF_CreateNewDocumentPtr.asFunction<FPDF_DOCUMENT Function()>();
+
+/// Create a new PDF page.
+/// 
+/// document   - handle to document.
+/// page_index - suggested 0-based index of the page to create. If it is larger
+/// than document's current last index(L), the created page index
+/// is the next available index -- L+1.
+/// width      - the page width in points.
+/// height     - the page height in points.
+/// 
+/// Returns the handle to the new page or NULL on failure.
+/// 
+/// The page should be closed with FPDF_ClosePage() when finished as
+/// with any other page in the document.
+FPDF_PAGE FPDFPage_New(FPDF_DOCUMENT document,
+int page_index,
+double width,
+double height,
+) {
+  return _FPDFPage_New(document,
+page_index,
+width,
+height,
+);
+}
+
+late final _FPDFPage_NewPtr = _lookup<
+    ffi.NativeFunction<FPDF_PAGE Function(FPDF_DOCUMENT , ffi.Int , ffi.Double , ffi.Double )>>('FPDFPage_New');
+late final _FPDFPage_New = _FPDFPage_NewPtr.asFunction<FPDF_PAGE Function(FPDF_DOCUMENT , int , double , double )>();
+
+/// Delete the page at |page_index|.
+/// 
+/// document   - handle to document.
+/// page_index - the index of the page to delete.
+void FPDFPage_Delete(FPDF_DOCUMENT document,
+int page_index,
+) {
+  return _FPDFPage_Delete(document,
+page_index,
+);
+}
+
+late final _FPDFPage_DeletePtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_DOCUMENT , ffi.Int )>>('FPDFPage_Delete');
+late final _FPDFPage_Delete = _FPDFPage_DeletePtr.asFunction<void Function(FPDF_DOCUMENT , int )>();
+
+/// Experimental API.
+/// Move the given pages to a new index position.
+/// 
+/// page_indices     - the ordered list of pages to move. No duplicates allowed.
+/// page_indices_len - the number of elements in |page_indices|
+/// dest_page_index  - the new index position to which the pages in
+/// |page_indices| are moved.
+/// 
+/// Returns TRUE on success. If it returns FALSE, the document may be left in an
+/// indeterminate state.
+/// 
+/// Example: The PDF document starts out with pages [A, B, C, D], with indices
+/// [0, 1, 2, 3].
+/// 
+/// >  Move(doc, [3, 2], 2, 1); // returns true
+/// >  // The document has pages [A, D, C, B].
+/// >
+/// >  Move(doc, [0, 4, 3], 3, 1); // returns false
+/// >  // Returned false because index 4 is out of range.
+/// >
+/// >  Move(doc, [0, 3, 1], 3, 2); // returns false
+/// >  // Returned false because index 2 is out of range for 3 page indices.
+/// >
+/// >  Move(doc, [2, 2], 2, 0); // returns false
+/// >  // Returned false because [2, 2] contains duplicates.
+int FPDF_MovePages(FPDF_DOCUMENT document,
+ffi.Pointer<ffi.Int> page_indices,
+int page_indices_len,
+int dest_page_index,
+) {
+  return _FPDF_MovePages(document,
+page_indices,
+page_indices_len,
+dest_page_index,
+);
+}
+
+late final _FPDF_MovePagesPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , ffi.Pointer<ffi.Int> , ffi.UnsignedLong , ffi.Int )>>('FPDF_MovePages');
+late final _FPDF_MovePages = _FPDF_MovePagesPtr.asFunction<int Function(FPDF_DOCUMENT , ffi.Pointer<ffi.Int> , int , int )>();
+
+/// Get the rotation of |page|.
+/// 
+/// page - handle to a page
+/// 
+/// Returns one of the following indicating the page rotation:
+/// 0 - No rotation.
+/// 1 - Rotated 90 degrees clockwise.
+/// 2 - Rotated 180 degrees clockwise.
+/// 3 - Rotated 270 degrees clockwise.
+int FPDFPage_GetRotation(FPDF_PAGE page,
+) {
+  return _FPDFPage_GetRotation(page,
+);
+}
+
+late final _FPDFPage_GetRotationPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGE )>>('FPDFPage_GetRotation');
+late final _FPDFPage_GetRotation = _FPDFPage_GetRotationPtr.asFunction<int Function(FPDF_PAGE )>();
+
+/// Set rotation for |page|.
+/// 
+/// page   - handle to a page.
+/// rotate - the rotation value, one of:
+/// 0 - No rotation.
+/// 1 - Rotated 90 degrees clockwise.
+/// 2 - Rotated 180 degrees clockwise.
+/// 3 - Rotated 270 degrees clockwise.
+void FPDFPage_SetRotation(FPDF_PAGE page,
+int rotate,
+) {
+  return _FPDFPage_SetRotation(page,
+rotate,
+);
+}
+
+late final _FPDFPage_SetRotationPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_PAGE , ffi.Int )>>('FPDFPage_SetRotation');
+late final _FPDFPage_SetRotation = _FPDFPage_SetRotationPtr.asFunction<void Function(FPDF_PAGE , int )>();
+
+/// Insert |page_object| into |page|.
+/// 
+/// page        - handle to a page
+/// page_object - handle to a page object. The |page_object| will be
+/// automatically freed.
+void FPDFPage_InsertObject(FPDF_PAGE page,
+FPDF_PAGEOBJECT page_object,
+) {
+  return _FPDFPage_InsertObject(page,
+page_object,
+);
+}
+
+late final _FPDFPage_InsertObjectPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_PAGE , FPDF_PAGEOBJECT )>>('FPDFPage_InsertObject');
+late final _FPDFPage_InsertObject = _FPDFPage_InsertObjectPtr.asFunction<void Function(FPDF_PAGE , FPDF_PAGEOBJECT )>();
+
+/// Insert |page_object| into |page| at the specified |index|.
+/// 
+/// page        - handle to a page
+/// page_object - handle to a page object as previously obtained by
+/// FPDFPageObj_CreateNew{Path|Rect}() or
+/// FPDFPageObj_New{Text|Image}Obj(). Ownership of the object
+/// is transferred back to PDFium.
+/// index       - the index position to insert the object at. If index equals
+/// the current object count, the object will be appended to the
+/// end. If index is greater than the object count, the function
+/// will fail and return false.
+/// 
+/// Returns true if successful.
+int FPDFPage_InsertObjectAtIndex(FPDF_PAGE page,
+FPDF_PAGEOBJECT page_object,
+int index,
+) {
+  return _FPDFPage_InsertObjectAtIndex(page,
+page_object,
+index,
+);
+}
+
+late final _FPDFPage_InsertObjectAtIndexPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE , FPDF_PAGEOBJECT , ffi.Size )>>('FPDFPage_InsertObjectAtIndex');
+late final _FPDFPage_InsertObjectAtIndex = _FPDFPage_InsertObjectAtIndexPtr.asFunction<int Function(FPDF_PAGE , FPDF_PAGEOBJECT , int )>();
+
+/// Experimental API.
+/// Remove |page_object| from |page|.
+/// 
+/// page        - handle to a page
+/// page_object - handle to a page object to be removed.
+/// 
+/// Returns TRUE on success.
+/// 
+/// Ownership is transferred to the caller. Call FPDFPageObj_Destroy() to free
+/// it.
+/// Note that when removing a |page_object| of type FPDF_PAGEOBJ_TEXT, all
+/// FPDF_TEXTPAGE handles for |page| are no longer valid.
+int FPDFPage_RemoveObject(FPDF_PAGE page,
+FPDF_PAGEOBJECT page_object,
+) {
+  return _FPDFPage_RemoveObject(page,
+page_object,
+);
+}
+
+late final _FPDFPage_RemoveObjectPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE , FPDF_PAGEOBJECT )>>('FPDFPage_RemoveObject');
+late final _FPDFPage_RemoveObject = _FPDFPage_RemoveObjectPtr.asFunction<int Function(FPDF_PAGE , FPDF_PAGEOBJECT )>();
+
+/// Get number of page objects inside |page|.
+/// 
+/// page - handle to a page.
+/// 
+/// Returns the number of objects in |page|.
+int FPDFPage_CountObjects(FPDF_PAGE page,
+) {
+  return _FPDFPage_CountObjects(page,
+);
+}
+
+late final _FPDFPage_CountObjectsPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGE )>>('FPDFPage_CountObjects');
+late final _FPDFPage_CountObjects = _FPDFPage_CountObjectsPtr.asFunction<int Function(FPDF_PAGE )>();
+
+/// Get object in |page| at |index|.
+/// 
+/// page  - handle to a page.
+/// index - the index of a page object.
+/// 
+/// Returns the handle to the page object, or NULL on failed.
+FPDF_PAGEOBJECT FPDFPage_GetObject(FPDF_PAGE page,
+int index,
+) {
+  return _FPDFPage_GetObject(page,
+index,
+);
+}
+
+late final _FPDFPage_GetObjectPtr = _lookup<
+    ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_PAGE , ffi.Int )>>('FPDFPage_GetObject');
+late final _FPDFPage_GetObject = _FPDFPage_GetObjectPtr.asFunction<FPDF_PAGEOBJECT Function(FPDF_PAGE , int )>();
+
+/// Checks if |page| contains transparency.
+/// 
+/// page - handle to a page.
+/// 
+/// Returns TRUE if |page| contains transparency.
+int FPDFPage_HasTransparency(FPDF_PAGE page,
+) {
+  return _FPDFPage_HasTransparency(page,
+);
+}
+
+late final _FPDFPage_HasTransparencyPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE )>>('FPDFPage_HasTransparency');
+late final _FPDFPage_HasTransparency = _FPDFPage_HasTransparencyPtr.asFunction<int Function(FPDF_PAGE )>();
+
+/// Generate the content of |page|.
+/// 
+/// page - handle to a page.
+/// 
+/// Returns TRUE on success.
+/// 
+/// Before you save the page to a file, or reload the page, you must call
+/// |FPDFPage_GenerateContent| or any changes to |page| will be lost.
+int FPDFPage_GenerateContent(FPDF_PAGE page,
+) {
+  return _FPDFPage_GenerateContent(page,
+);
+}
+
+late final _FPDFPage_GenerateContentPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE )>>('FPDFPage_GenerateContent');
+late final _FPDFPage_GenerateContent = _FPDFPage_GenerateContentPtr.asFunction<int Function(FPDF_PAGE )>();
+
+/// Destroy |page_object| by releasing its resources. |page_object| must have
+/// been created by FPDFPageObj_CreateNew{Path|Rect}() or
+/// FPDFPageObj_New{Text|Image}Obj(). This function must be called on
+/// newly-created objects if they are not added to a page through
+/// FPDFPage_InsertObject() or to an annotation through FPDFAnnot_AppendObject().
+/// 
+/// page_object - handle to a page object.
+void FPDFPageObj_Destroy(FPDF_PAGEOBJECT page_object,
+) {
+  return _FPDFPageObj_Destroy(page_object,
+);
+}
+
+late final _FPDFPageObj_DestroyPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_Destroy');
+late final _FPDFPageObj_Destroy = _FPDFPageObj_DestroyPtr.asFunction<void Function(FPDF_PAGEOBJECT )>();
+
+/// Checks if |page_object| contains transparency.
+/// 
+/// page_object - handle to a page object.
+/// 
+/// Returns TRUE if |page_object| contains transparency.
+int FPDFPageObj_HasTransparency(FPDF_PAGEOBJECT page_object,
+) {
+  return _FPDFPageObj_HasTransparency(page_object,
+);
+}
+
+late final _FPDFPageObj_HasTransparencyPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_HasTransparency');
+late final _FPDFPageObj_HasTransparency = _FPDFPageObj_HasTransparencyPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
+
+/// Get type of |page_object|.
+/// 
+/// page_object - handle to a page object.
+/// 
+/// Returns one of the FPDF_PAGEOBJ_* values on success, FPDF_PAGEOBJ_UNKNOWN on
+/// error.
+int FPDFPageObj_GetType(FPDF_PAGEOBJECT page_object,
+) {
+  return _FPDFPageObj_GetType(page_object,
+);
+}
+
+late final _FPDFPageObj_GetTypePtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_GetType');
+late final _FPDFPageObj_GetType = _FPDFPageObj_GetTypePtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
+
+/// Experimental API.
+/// Gets active state for |page_object| within page.
+/// 
+/// page_object - handle to a page object.
+/// active      - pointer to variable that will receive if the page object is
+/// active. This is a required parameter. Not filled if FALSE
+/// is returned.
+/// 
+/// For page objects where |active| is filled with FALSE, the |page_object| is
+/// treated as if it wasn't in the document even though it is still held
+/// internally.
+/// 
+/// Returns TRUE if the operation succeeded, FALSE if it failed.
+int FPDFPageObj_GetIsActive(FPDF_PAGEOBJECT page_object,
+ffi.Pointer<FPDF_BOOL> active,
+) {
+  return _FPDFPageObj_GetIsActive(page_object,
+active,
+);
+}
+
+late final _FPDFPageObj_GetIsActivePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<FPDF_BOOL> )>>('FPDFPageObj_GetIsActive');
+late final _FPDFPageObj_GetIsActive = _FPDFPageObj_GetIsActivePtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<FPDF_BOOL> )>();
+
+/// Experimental API.
+/// Sets if |page_object| is active within page.
+/// 
+/// page_object - handle to a page object.
+/// active      - a boolean specifying if the object is active.
+/// 
+/// Returns TRUE on success.
+/// 
+/// Page objects all start in the active state by default, and remain in that
+/// state unless this function is called.
+/// 
+/// When |active| is false, this makes the |page_object| be treated as if it
+/// wasn't in the document even though it is still held internally.
+int FPDFPageObj_SetIsActive(FPDF_PAGEOBJECT page_object,
+int active,
+) {
+  return _FPDFPageObj_SetIsActive(page_object,
+active,
+);
+}
+
+late final _FPDFPageObj_SetIsActivePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , FPDF_BOOL )>>('FPDFPageObj_SetIsActive');
+late final _FPDFPageObj_SetIsActive = _FPDFPageObj_SetIsActivePtr.asFunction<int Function(FPDF_PAGEOBJECT , int )>();
+
+/// Transform |page_object| by the given matrix.
+/// 
+/// page_object - handle to a page object.
+/// a           - matrix value.
+/// b           - matrix value.
+/// c           - matrix value.
+/// d           - matrix value.
+/// e           - matrix value.
+/// f           - matrix value.
+/// 
+/// The matrix is composed as:
+/// |a c e|
+/// |b d f|
+/// and can be used to scale, rotate, shear and translate the |page_object|.
+void FPDFPageObj_Transform(FPDF_PAGEOBJECT page_object,
+double a,
+double b,
+double c,
+double d,
+double e,
+double f,
+) {
+  return _FPDFPageObj_Transform(page_object,
+a,
+b,
+c,
+d,
+e,
+f,
+);
+}
+
+late final _FPDFPageObj_TransformPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_PAGEOBJECT , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Double )>>('FPDFPageObj_Transform');
+late final _FPDFPageObj_Transform = _FPDFPageObj_TransformPtr.asFunction<void Function(FPDF_PAGEOBJECT , double , double , double , double , double , double )>();
+
+/// Experimental API.
+/// Transform |page_object| by the given matrix.
+/// 
+/// page_object - handle to a page object.
+/// matrix      - the transform matrix.
+/// 
+/// Returns TRUE on success.
+/// 
+/// This can be used to scale, rotate, shear and translate the |page_object|.
+/// It is an improved version of FPDFPageObj_Transform() that does not do
+/// unnecessary double to float conversions, and only uses 1 parameter for the
+/// matrix. It also returns whether the operation succeeded or not.
+int FPDFPageObj_TransformF(FPDF_PAGEOBJECT page_object,
+ffi.Pointer<FS_MATRIX> matrix,
+) {
+  return _FPDFPageObj_TransformF(page_object,
+matrix,
+);
+}
+
+late final _FPDFPageObj_TransformFPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_MATRIX> )>>('FPDFPageObj_TransformF');
+late final _FPDFPageObj_TransformF = _FPDFPageObj_TransformFPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_MATRIX> )>();
+
+/// Experimental API.
+/// Get the transform matrix of a page object.
+/// 
+/// page_object - handle to a page object.
+/// matrix      - pointer to struct to receive the matrix value.
+/// 
+/// The matrix is composed as:
+/// |a c e|
+/// |b d f|
+/// and used to scale, rotate, shear and translate the page object.
+/// 
+/// For page objects outside form objects, the matrix values are relative to the
+/// page that contains it.
+/// For page objects inside form objects, the matrix values are relative to the
+/// form that contains it.
+/// 
+/// Returns TRUE on success.
+int FPDFPageObj_GetMatrix(FPDF_PAGEOBJECT page_object,
+ffi.Pointer<FS_MATRIX> matrix,
+) {
+  return _FPDFPageObj_GetMatrix(page_object,
+matrix,
+);
+}
+
+late final _FPDFPageObj_GetMatrixPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_MATRIX> )>>('FPDFPageObj_GetMatrix');
+late final _FPDFPageObj_GetMatrix = _FPDFPageObj_GetMatrixPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_MATRIX> )>();
+
+/// Experimental API.
+/// Set the transform matrix of a page object.
+/// 
+/// page_object - handle to a page object.
+/// matrix      - pointer to struct with the matrix value.
+/// 
+/// The matrix is composed as:
+/// |a c e|
+/// |b d f|
+/// and can be used to scale, rotate, shear and translate the page object.
+/// 
+/// Returns TRUE on success.
+int FPDFPageObj_SetMatrix(FPDF_PAGEOBJECT page_object,
+ffi.Pointer<FS_MATRIX> matrix,
+) {
+  return _FPDFPageObj_SetMatrix(page_object,
+matrix,
+);
+}
+
+late final _FPDFPageObj_SetMatrixPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_MATRIX> )>>('FPDFPageObj_SetMatrix');
+late final _FPDFPageObj_SetMatrix = _FPDFPageObj_SetMatrixPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_MATRIX> )>();
+
+/// Transform all annotations in |page|.
+/// 
+/// page - handle to a page.
+/// a    - matrix value.
+/// b    - matrix value.
+/// c    - matrix value.
+/// d    - matrix value.
+/// e    - matrix value.
+/// f    - matrix value.
+/// 
+/// The matrix is composed as:
+/// |a c e|
+/// |b d f|
+/// and can be used to scale, rotate, shear and translate the |page| annotations.
+void FPDFPage_TransformAnnots(FPDF_PAGE page,
+double a,
+double b,
+double c,
+double d,
+double e,
+double f,
+) {
+  return _FPDFPage_TransformAnnots(page,
+a,
+b,
+c,
+d,
+e,
+f,
+);
+}
+
+late final _FPDFPage_TransformAnnotsPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_PAGE , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Double )>>('FPDFPage_TransformAnnots');
+late final _FPDFPage_TransformAnnots = _FPDFPage_TransformAnnotsPtr.asFunction<void Function(FPDF_PAGE , double , double , double , double , double , double )>();
+
+/// Create a new image object.
+/// 
+/// document - handle to a document.
+/// 
+/// Returns a handle to a new image object.
+FPDF_PAGEOBJECT FPDFPageObj_NewImageObj(FPDF_DOCUMENT document,
+) {
+  return _FPDFPageObj_NewImageObj(document,
+);
+}
+
+late final _FPDFPageObj_NewImageObjPtr = _lookup<
+    ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_DOCUMENT )>>('FPDFPageObj_NewImageObj');
+late final _FPDFPageObj_NewImageObj = _FPDFPageObj_NewImageObjPtr.asFunction<FPDF_PAGEOBJECT Function(FPDF_DOCUMENT )>();
+
+/// Experimental API.
+/// Get the marked content ID for the object.
+/// 
+/// page_object - handle to a page object.
+/// 
+/// Returns the page object's marked content ID, or -1 on error.
+int FPDFPageObj_GetMarkedContentID(FPDF_PAGEOBJECT page_object,
+) {
+  return _FPDFPageObj_GetMarkedContentID(page_object,
+);
+}
+
+late final _FPDFPageObj_GetMarkedContentIDPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_GetMarkedContentID');
+late final _FPDFPageObj_GetMarkedContentID = _FPDFPageObj_GetMarkedContentIDPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
+
+/// Experimental API.
+/// Get number of content marks in |page_object|.
+/// 
+/// page_object - handle to a page object.
+/// 
+/// Returns the number of content marks in |page_object|, or -1 in case of
+/// failure.
+int FPDFPageObj_CountMarks(FPDF_PAGEOBJECT page_object,
+) {
+  return _FPDFPageObj_CountMarks(page_object,
+);
+}
+
+late final _FPDFPageObj_CountMarksPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_CountMarks');
+late final _FPDFPageObj_CountMarks = _FPDFPageObj_CountMarksPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
+
+/// Experimental API.
+/// Get content mark in |page_object| at |index|.
+/// 
+/// page_object - handle to a page object.
+/// index       - the index of a page object.
+/// 
+/// Returns the handle to the content mark, or NULL on failure. The handle is
+/// still owned by the library, and it should not be freed directly. It becomes
+/// invalid if the page object is destroyed, either directly or indirectly by
+/// unloading the page.
+FPDF_PAGEOBJECTMARK FPDFPageObj_GetMark(FPDF_PAGEOBJECT page_object,
+int index,
+) {
+  return _FPDFPageObj_GetMark(page_object,
+index,
+);
+}
+
+late final _FPDFPageObj_GetMarkPtr = _lookup<
+    ffi.NativeFunction<FPDF_PAGEOBJECTMARK Function(FPDF_PAGEOBJECT , ffi.UnsignedLong )>>('FPDFPageObj_GetMark');
+late final _FPDFPageObj_GetMark = _FPDFPageObj_GetMarkPtr.asFunction<FPDF_PAGEOBJECTMARK Function(FPDF_PAGEOBJECT , int )>();
+
+/// Experimental API.
+/// Add a new content mark to a |page_object|.
+/// 
+/// page_object - handle to a page object.
+/// name        - the name (tag) of the mark.
+/// 
+/// Returns the handle to the content mark, or NULL on failure. The handle is
+/// still owned by the library, and it should not be freed directly. It becomes
+/// invalid if the page object is destroyed, either directly or indirectly by
+/// unloading the page.
+FPDF_PAGEOBJECTMARK FPDFPageObj_AddMark(FPDF_PAGEOBJECT page_object,
+FPDF_BYTESTRING name,
+) {
+  return _FPDFPageObj_AddMark(page_object,
+name,
+);
+}
+
+late final _FPDFPageObj_AddMarkPtr = _lookup<
+    ffi.NativeFunction<FPDF_PAGEOBJECTMARK Function(FPDF_PAGEOBJECT , FPDF_BYTESTRING )>>('FPDFPageObj_AddMark');
+late final _FPDFPageObj_AddMark = _FPDFPageObj_AddMarkPtr.asFunction<FPDF_PAGEOBJECTMARK Function(FPDF_PAGEOBJECT , FPDF_BYTESTRING )>();
+
+/// Experimental API.
+/// Removes a content |mark| from a |page_object|.
+/// The mark handle will be invalid after the removal.
+/// 
+/// page_object - handle to a page object.
+/// mark        - handle to a content mark in that object to remove.
+/// 
+/// Returns TRUE if the operation succeeded, FALSE if it failed.
+int FPDFPageObj_RemoveMark(FPDF_PAGEOBJECT page_object,
+FPDF_PAGEOBJECTMARK mark,
+) {
+  return _FPDFPageObj_RemoveMark(page_object,
+mark,
+);
+}
+
+late final _FPDFPageObj_RemoveMarkPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK )>>('FPDFPageObj_RemoveMark');
+late final _FPDFPageObj_RemoveMark = _FPDFPageObj_RemoveMarkPtr.asFunction<int Function(FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK )>();
+
+/// Experimental API.
+/// Get the name of a content mark.
+/// 
+/// mark       - handle to a content mark.
+/// buffer     - buffer for holding the returned name in UTF-16LE. This is only
+/// modified if |buflen| is large enough to store the name.
+/// Optional, pass null to just retrieve the size of the buffer
+/// needed.
+/// buflen     - length of the buffer in bytes.
+/// out_buflen - pointer to variable that will receive the minimum buffer size
+/// in bytes to contain the name. This is a required parameter.
+/// Not filled if FALSE is returned.
+/// 
+/// Returns TRUE if the operation succeeded, FALSE if it failed.
+int FPDFPageObjMark_GetName(FPDF_PAGEOBJECTMARK mark,
+ffi.Pointer<FPDF_WCHAR> buffer,
+int buflen,
+ffi.Pointer<ffi.UnsignedLong> out_buflen,
+) {
+  return _FPDFPageObjMark_GetName(mark,
+buffer,
+buflen,
+out_buflen,
+);
+}
+
+late final _FPDFPageObjMark_GetNamePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECTMARK , ffi.Pointer<FPDF_WCHAR> , ffi.UnsignedLong , ffi.Pointer<ffi.UnsignedLong> )>>('FPDFPageObjMark_GetName');
+late final _FPDFPageObjMark_GetName = _FPDFPageObjMark_GetNamePtr.asFunction<int Function(FPDF_PAGEOBJECTMARK , ffi.Pointer<FPDF_WCHAR> , int , ffi.Pointer<ffi.UnsignedLong> )>();
+
+/// Experimental API.
+/// Get the number of key/value pair parameters in |mark|.
+/// 
+/// mark   - handle to a content mark.
+/// 
+/// Returns the number of key/value pair parameters |mark|, or -1 in case of
+/// failure.
+int FPDFPageObjMark_CountParams(FPDF_PAGEOBJECTMARK mark,
+) {
+  return _FPDFPageObjMark_CountParams(mark,
+);
+}
+
+late final _FPDFPageObjMark_CountParamsPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECTMARK )>>('FPDFPageObjMark_CountParams');
+late final _FPDFPageObjMark_CountParams = _FPDFPageObjMark_CountParamsPtr.asFunction<int Function(FPDF_PAGEOBJECTMARK )>();
+
+/// Experimental API.
+/// Get the key of a property in a content mark.
+/// 
+/// mark       - handle to a content mark.
+/// index      - index of the property.
+/// buffer     - buffer for holding the returned key in UTF-16LE. This is only
+/// modified if |buflen| is large enough to store the key.
+/// Optional, pass null to just retrieve the size of the buffer
+/// needed.
+/// buflen     - length of the buffer in bytes.
+/// out_buflen - pointer to variable that will receive the minimum buffer size
+/// in bytes to contain the name. This is a required parameter.
+/// Not filled if FALSE is returned.
+/// 
+/// Returns TRUE if the operation was successful, FALSE otherwise.
+int FPDFPageObjMark_GetParamKey(FPDF_PAGEOBJECTMARK mark,
+int index,
+ffi.Pointer<FPDF_WCHAR> buffer,
+int buflen,
+ffi.Pointer<ffi.UnsignedLong> out_buflen,
+) {
+  return _FPDFPageObjMark_GetParamKey(mark,
+index,
+buffer,
+buflen,
+out_buflen,
+);
+}
+
+late final _FPDFPageObjMark_GetParamKeyPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECTMARK , ffi.UnsignedLong , ffi.Pointer<FPDF_WCHAR> , ffi.UnsignedLong , ffi.Pointer<ffi.UnsignedLong> )>>('FPDFPageObjMark_GetParamKey');
+late final _FPDFPageObjMark_GetParamKey = _FPDFPageObjMark_GetParamKeyPtr.asFunction<int Function(FPDF_PAGEOBJECTMARK , int , ffi.Pointer<FPDF_WCHAR> , int , ffi.Pointer<ffi.UnsignedLong> )>();
+
+/// Experimental API.
+/// Get the type of the value of a property in a content mark by key.
+/// 
+/// mark   - handle to a content mark.
+/// key    - string key of the property.
+/// 
+/// Returns the type of the value, or FPDF_OBJECT_UNKNOWN in case of failure.
+int FPDFPageObjMark_GetParamValueType(FPDF_PAGEOBJECTMARK mark,
+FPDF_BYTESTRING key,
+) {
+  return _FPDFPageObjMark_GetParamValueType(mark,
+key,
+);
+}
+
+late final _FPDFPageObjMark_GetParamValueTypePtr = _lookup<
+    ffi.NativeFunction<FPDF_OBJECT_TYPE Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING )>>('FPDFPageObjMark_GetParamValueType');
+late final _FPDFPageObjMark_GetParamValueType = _FPDFPageObjMark_GetParamValueTypePtr.asFunction<int Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING )>();
+
+/// Experimental API.
+/// Get the value of a number property in a content mark by key as int.
+/// FPDFPageObjMark_GetParamValueType() should have returned FPDF_OBJECT_NUMBER
+/// for this property.
+/// 
+/// mark      - handle to a content mark.
+/// key       - string key of the property.
+/// out_value - pointer to variable that will receive the value. Not filled if
+/// false is returned.
+/// 
+/// Returns TRUE if the key maps to a number value, FALSE otherwise.
+int FPDFPageObjMark_GetParamIntValue(FPDF_PAGEOBJECTMARK mark,
+FPDF_BYTESTRING key,
+ffi.Pointer<ffi.Int> out_value,
+) {
+  return _FPDFPageObjMark_GetParamIntValue(mark,
+key,
+out_value,
+);
+}
+
+late final _FPDFPageObjMark_GetParamIntValuePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<ffi.Int> )>>('FPDFPageObjMark_GetParamIntValue');
+late final _FPDFPageObjMark_GetParamIntValue = _FPDFPageObjMark_GetParamIntValuePtr.asFunction<int Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<ffi.Int> )>();
+
+/// Experimental API.
+/// Get the value of a number property in a content mark by key as float.
+/// FPDFPageObjMark_GetParamValueType() should have returned FPDF_OBJECT_NUMBER
+/// for this property.
+/// 
+/// mark      - handle to a content mark.
+/// key       - string key of the property.
+/// out_value - pointer to variable that will receive the value. Not filled if
+/// false is returned.
+/// 
+/// Returns TRUE if the key maps to a number value, FALSE otherwise.
+int FPDFPageObjMark_GetParamFloatValue(FPDF_PAGEOBJECTMARK mark,
+FPDF_BYTESTRING key,
+ffi.Pointer<ffi.Float> out_value,
+) {
+  return _FPDFPageObjMark_GetParamFloatValue(mark,
+key,
+out_value,
+);
+}
+
+late final _FPDFPageObjMark_GetParamFloatValuePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<ffi.Float> )>>('FPDFPageObjMark_GetParamFloatValue');
+late final _FPDFPageObjMark_GetParamFloatValue = _FPDFPageObjMark_GetParamFloatValuePtr.asFunction<int Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<ffi.Float> )>();
+
+/// Experimental API.
+/// Get the value of a string property in a content mark by key.
+/// 
+/// mark       - handle to a content mark.
+/// key        - string key of the property.
+/// buffer     - buffer for holding the returned value in UTF-16LE. This is
+/// only modified if |buflen| is large enough to store the value.
+/// Optional, pass null to just retrieve the size of the buffer
+/// needed.
+/// buflen     - length of the buffer in bytes.
+/// out_buflen - pointer to variable that will receive the minimum buffer size
+/// in bytes to contain the name. This is a required parameter.
+/// Not filled if FALSE is returned.
+/// 
+/// Returns TRUE if the key maps to a string/blob value, FALSE otherwise.
+int FPDFPageObjMark_GetParamStringValue(FPDF_PAGEOBJECTMARK mark,
+FPDF_BYTESTRING key,
+ffi.Pointer<FPDF_WCHAR> buffer,
+int buflen,
+ffi.Pointer<ffi.UnsignedLong> out_buflen,
+) {
+  return _FPDFPageObjMark_GetParamStringValue(mark,
+key,
+buffer,
+buflen,
+out_buflen,
+);
+}
+
+late final _FPDFPageObjMark_GetParamStringValuePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<FPDF_WCHAR> , ffi.UnsignedLong , ffi.Pointer<ffi.UnsignedLong> )>>('FPDFPageObjMark_GetParamStringValue');
+late final _FPDFPageObjMark_GetParamStringValue = _FPDFPageObjMark_GetParamStringValuePtr.asFunction<int Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<FPDF_WCHAR> , int , ffi.Pointer<ffi.UnsignedLong> )>();
+
+/// Experimental API.
+/// Get the value of a blob property in a content mark by key.
+/// 
+/// mark       - handle to a content mark.
+/// key        - string key of the property.
+/// buffer     - buffer for holding the returned value. This is only modified
+/// if |buflen| is large enough to store the value.
+/// Optional, pass null to just retrieve the size of the buffer
+/// needed.
+/// buflen     - length of the buffer in bytes.
+/// out_buflen - pointer to variable that will receive the minimum buffer size
+/// in bytes to contain the name. This is a required parameter.
+/// Not filled if FALSE is returned.
+/// 
+/// Returns TRUE if the key maps to a string/blob value, FALSE otherwise.
+int FPDFPageObjMark_GetParamBlobValue(FPDF_PAGEOBJECTMARK mark,
+FPDF_BYTESTRING key,
+ffi.Pointer<ffi.UnsignedChar> buffer,
+int buflen,
+ffi.Pointer<ffi.UnsignedLong> out_buflen,
+) {
+  return _FPDFPageObjMark_GetParamBlobValue(mark,
+key,
+buffer,
+buflen,
+out_buflen,
+);
+}
+
+late final _FPDFPageObjMark_GetParamBlobValuePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<ffi.UnsignedChar> , ffi.UnsignedLong , ffi.Pointer<ffi.UnsignedLong> )>>('FPDFPageObjMark_GetParamBlobValue');
+late final _FPDFPageObjMark_GetParamBlobValue = _FPDFPageObjMark_GetParamBlobValuePtr.asFunction<int Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<ffi.UnsignedChar> , int , ffi.Pointer<ffi.UnsignedLong> )>();
+
+/// Experimental API.
+/// Set the value of an int property in a content mark by key. If a parameter
+/// with key |key| exists, its value is set to |value|. Otherwise, it is added as
+/// a new parameter.
+/// 
+/// document    - handle to the document.
+/// page_object - handle to the page object with the mark.
+/// mark        - handle to a content mark.
+/// key         - string key of the property.
+/// value       - int value to set.
+/// 
+/// Returns TRUE if the operation succeeded, FALSE otherwise.
+int FPDFPageObjMark_SetIntParam(FPDF_DOCUMENT document,
+FPDF_PAGEOBJECT page_object,
+FPDF_PAGEOBJECTMARK mark,
+FPDF_BYTESTRING key,
+int value,
+) {
+  return _FPDFPageObjMark_SetIntParam(document,
+page_object,
+mark,
+key,
+value,
+);
+}
+
+late final _FPDFPageObjMark_SetIntParamPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Int )>>('FPDFPageObjMark_SetIntParam');
+late final _FPDFPageObjMark_SetIntParam = _FPDFPageObjMark_SetIntParamPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , int )>();
+
+/// Experimental API.
+/// Set the value of a float property in a content mark by key. If a parameter
+/// with key |key| exists, its value is set to |value|. Otherwise, it is added as
+/// a new parameter.
+/// 
+/// document    - handle to the document.
+/// page_object - handle to the page object with the mark.
+/// mark        - handle to a content mark.
+/// key         - string key of the property.
+/// value       - float value to set.
+/// 
+/// Returns TRUE if the operation succeeded, FALSE otherwise.
+int FPDFPageObjMark_SetFloatParam(FPDF_DOCUMENT document,
+FPDF_PAGEOBJECT page_object,
+FPDF_PAGEOBJECTMARK mark,
+FPDF_BYTESTRING key,
+double value,
+) {
+  return _FPDFPageObjMark_SetFloatParam(document,
+page_object,
+mark,
+key,
+value,
+);
+}
+
+late final _FPDFPageObjMark_SetFloatParamPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Float )>>('FPDFPageObjMark_SetFloatParam');
+late final _FPDFPageObjMark_SetFloatParam = _FPDFPageObjMark_SetFloatParamPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , double )>();
+
+/// Experimental API.
+/// Set the value of a string property in a content mark by key. If a parameter
+/// with key |key| exists, its value is set to |value|. Otherwise, it is added as
+/// a new parameter.
+/// 
+/// document    - handle to the document.
+/// page_object - handle to the page object with the mark.
+/// mark        - handle to a content mark.
+/// key         - string key of the property.
+/// value       - string value to set.
+/// 
+/// Returns TRUE if the operation succeeded, FALSE otherwise.
+int FPDFPageObjMark_SetStringParam(FPDF_DOCUMENT document,
+FPDF_PAGEOBJECT page_object,
+FPDF_PAGEOBJECTMARK mark,
+FPDF_BYTESTRING key,
+FPDF_BYTESTRING value,
+) {
+  return _FPDFPageObjMark_SetStringParam(document,
+page_object,
+mark,
+key,
+value,
+);
+}
+
+late final _FPDFPageObjMark_SetStringParamPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , FPDF_BYTESTRING )>>('FPDFPageObjMark_SetStringParam');
+late final _FPDFPageObjMark_SetStringParam = _FPDFPageObjMark_SetStringParamPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , FPDF_BYTESTRING )>();
+
+/// Experimental API.
+/// Set the value of a blob property in a content mark by key. If a parameter
+/// with key |key| exists, its value is set to |value|. Otherwise, it is added as
+/// a new parameter.
+/// 
+/// document    - handle to the document.
+/// page_object - handle to the page object with the mark.
+/// mark        - handle to a content mark.
+/// key         - string key of the property.
+/// value       - pointer to blob value to set.
+/// value_len   - size in bytes of |value|.
+/// 
+/// Returns TRUE if the operation succeeded, FALSE otherwise.
+int FPDFPageObjMark_SetBlobParam(FPDF_DOCUMENT document,
+FPDF_PAGEOBJECT page_object,
+FPDF_PAGEOBJECTMARK mark,
+FPDF_BYTESTRING key,
+ffi.Pointer<ffi.UnsignedChar> value,
+int value_len,
+) {
+  return _FPDFPageObjMark_SetBlobParam(document,
+page_object,
+mark,
+key,
+value,
+value_len,
+);
+}
+
+late final _FPDFPageObjMark_SetBlobParamPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<ffi.UnsignedChar> , ffi.UnsignedLong )>>('FPDFPageObjMark_SetBlobParam');
+late final _FPDFPageObjMark_SetBlobParam = _FPDFPageObjMark_SetBlobParamPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<ffi.UnsignedChar> , int )>();
+
+/// Experimental API.
+/// Removes a property from a content mark by key.
+/// 
+/// page_object - handle to the page object with the mark.
+/// mark        - handle to a content mark.
+/// key         - string key of the property.
+/// 
+/// Returns TRUE if the operation succeeded, FALSE otherwise.
+int FPDFPageObjMark_RemoveParam(FPDF_PAGEOBJECT page_object,
+FPDF_PAGEOBJECTMARK mark,
+FPDF_BYTESTRING key,
+) {
+  return _FPDFPageObjMark_RemoveParam(page_object,
+mark,
+key,
+);
+}
+
+late final _FPDFPageObjMark_RemoveParamPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING )>>('FPDFPageObjMark_RemoveParam');
+late final _FPDFPageObjMark_RemoveParam = _FPDFPageObjMark_RemoveParamPtr.asFunction<int Function(FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING )>();
+
+/// Load an image from a JPEG image file and then set it into |image_object|.
+/// 
+/// pages        - pointer to the start of all loaded pages, may be NULL.
+/// count        - number of |pages|, may be 0.
+/// image_object - handle to an image object.
+/// file_access  - file access handler which specifies the JPEG image file.
+/// 
+/// Returns TRUE on success.
+/// 
+/// The image object might already have an associated image, which is shared and
+/// cached by the loaded pages. In that case, we need to clear the cached image
+/// for all the loaded pages. Pass |pages| and page count (|count|) to this API
+/// to clear the image cache. If the image is not previously shared, or NULL is a
+/// valid |pages| value.
+int FPDFImageObj_LoadJpegFile(ffi.Pointer<FPDF_PAGE> pages,
+int count,
+FPDF_PAGEOBJECT image_object,
+ffi.Pointer<FPDF_FILEACCESS> file_access,
+) {
+  return _FPDFImageObj_LoadJpegFile(pages,
+count,
+image_object,
+file_access,
+);
+}
+
+late final _FPDFImageObj_LoadJpegFilePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(ffi.Pointer<FPDF_PAGE> , ffi.Int , FPDF_PAGEOBJECT , ffi.Pointer<FPDF_FILEACCESS> )>>('FPDFImageObj_LoadJpegFile');
+late final _FPDFImageObj_LoadJpegFile = _FPDFImageObj_LoadJpegFilePtr.asFunction<int Function(ffi.Pointer<FPDF_PAGE> , int , FPDF_PAGEOBJECT , ffi.Pointer<FPDF_FILEACCESS> )>();
+
+/// Load an image from a JPEG image file and then set it into |image_object|.
+/// 
+/// pages        - pointer to the start of all loaded pages, may be NULL.
+/// count        - number of |pages|, may be 0.
+/// image_object - handle to an image object.
+/// file_access  - file access handler which specifies the JPEG image file.
+/// 
+/// Returns TRUE on success.
+/// 
+/// The image object might already have an associated image, which is shared and
+/// cached by the loaded pages. In that case, we need to clear the cached image
+/// for all the loaded pages. Pass |pages| and page count (|count|) to this API
+/// to clear the image cache. If the image is not previously shared, or NULL is a
+/// valid |pages| value. This function loads the JPEG image inline, so the image
+/// content is copied to the file. This allows |file_access| and its associated
+/// data to be deleted after this function returns.
+int FPDFImageObj_LoadJpegFileInline(ffi.Pointer<FPDF_PAGE> pages,
+int count,
+FPDF_PAGEOBJECT image_object,
+ffi.Pointer<FPDF_FILEACCESS> file_access,
+) {
+  return _FPDFImageObj_LoadJpegFileInline(pages,
+count,
+image_object,
+file_access,
+);
+}
+
+late final _FPDFImageObj_LoadJpegFileInlinePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(ffi.Pointer<FPDF_PAGE> , ffi.Int , FPDF_PAGEOBJECT , ffi.Pointer<FPDF_FILEACCESS> )>>('FPDFImageObj_LoadJpegFileInline');
+late final _FPDFImageObj_LoadJpegFileInline = _FPDFImageObj_LoadJpegFileInlinePtr.asFunction<int Function(ffi.Pointer<FPDF_PAGE> , int , FPDF_PAGEOBJECT , ffi.Pointer<FPDF_FILEACCESS> )>();
+
+/// TODO(thestig): Start deprecating this once FPDFPageObj_SetMatrix() is stable.
+/// 
+/// Set the transform matrix of |image_object|.
+/// 
+/// image_object - handle to an image object.
+/// a            - matrix value.
+/// b            - matrix value.
+/// c            - matrix value.
+/// d            - matrix value.
+/// e            - matrix value.
+/// f            - matrix value.
+/// 
+/// The matrix is composed as:
+/// |a c e|
+/// |b d f|
+/// and can be used to scale, rotate, shear and translate the |image_object|.
+/// 
+/// Returns TRUE on success.
+int FPDFImageObj_SetMatrix(FPDF_PAGEOBJECT image_object,
+double a,
+double b,
+double c,
+double d,
+double e,
+double f,
+) {
+  return _FPDFImageObj_SetMatrix(image_object,
+a,
+b,
+c,
+d,
+e,
+f,
+);
+}
+
+late final _FPDFImageObj_SetMatrixPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Double )>>('FPDFImageObj_SetMatrix');
+late final _FPDFImageObj_SetMatrix = _FPDFImageObj_SetMatrixPtr.asFunction<int Function(FPDF_PAGEOBJECT , double , double , double , double , double , double )>();
+
+/// Set |bitmap| to |image_object|.
+/// 
+/// pages        - pointer to the start of all loaded pages, may be NULL.
+/// count        - number of |pages|, may be 0.
+/// image_object - handle to an image object.
+/// bitmap       - handle of the bitmap.
+/// 
+/// Returns TRUE on success.
+int FPDFImageObj_SetBitmap(ffi.Pointer<FPDF_PAGE> pages,
+int count,
+FPDF_PAGEOBJECT image_object,
+FPDF_BITMAP bitmap,
+) {
+  return _FPDFImageObj_SetBitmap(pages,
+count,
+image_object,
+bitmap,
+);
+}
+
+late final _FPDFImageObj_SetBitmapPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(ffi.Pointer<FPDF_PAGE> , ffi.Int , FPDF_PAGEOBJECT , FPDF_BITMAP )>>('FPDFImageObj_SetBitmap');
+late final _FPDFImageObj_SetBitmap = _FPDFImageObj_SetBitmapPtr.asFunction<int Function(ffi.Pointer<FPDF_PAGE> , int , FPDF_PAGEOBJECT , FPDF_BITMAP )>();
+
+/// Get a bitmap rasterization of |image_object|. FPDFImageObj_GetBitmap() only
+/// operates on |image_object| and does not take the associated image mask into
+/// account. It also ignores the matrix for |image_object|.
+/// The returned bitmap will be owned by the caller, and FPDFBitmap_Destroy()
+/// must be called on the returned bitmap when it is no longer needed.
+/// 
+/// image_object - handle to an image object.
+/// 
+/// Returns the bitmap.
+FPDF_BITMAP FPDFImageObj_GetBitmap(FPDF_PAGEOBJECT image_object,
+) {
+  return _FPDFImageObj_GetBitmap(image_object,
+);
+}
+
+late final _FPDFImageObj_GetBitmapPtr = _lookup<
+    ffi.NativeFunction<FPDF_BITMAP Function(FPDF_PAGEOBJECT )>>('FPDFImageObj_GetBitmap');
+late final _FPDFImageObj_GetBitmap = _FPDFImageObj_GetBitmapPtr.asFunction<FPDF_BITMAP Function(FPDF_PAGEOBJECT )>();
+
+/// Experimental API.
+/// Get a bitmap rasterization of |image_object| that takes the image mask and
+/// image matrix into account. To render correctly, the caller must provide the
+/// |document| associated with |image_object|. If there is a |page| associated
+/// with |image_object|, the caller should provide that as well.
+/// The returned bitmap will be owned by the caller, and FPDFBitmap_Destroy()
+/// must be called on the returned bitmap when it is no longer needed.
+/// 
+/// document     - handle to a document associated with |image_object|.
+/// page         - handle to an optional page associated with |image_object|.
+/// image_object - handle to an image object.
+/// 
+/// Returns the bitmap or NULL on failure.
+FPDF_BITMAP FPDFImageObj_GetRenderedBitmap(FPDF_DOCUMENT document,
+FPDF_PAGE page,
+FPDF_PAGEOBJECT image_object,
+) {
+  return _FPDFImageObj_GetRenderedBitmap(document,
+page,
+image_object,
+);
+}
+
+late final _FPDFImageObj_GetRenderedBitmapPtr = _lookup<
+    ffi.NativeFunction<FPDF_BITMAP Function(FPDF_DOCUMENT , FPDF_PAGE , FPDF_PAGEOBJECT )>>('FPDFImageObj_GetRenderedBitmap');
+late final _FPDFImageObj_GetRenderedBitmap = _FPDFImageObj_GetRenderedBitmapPtr.asFunction<FPDF_BITMAP Function(FPDF_DOCUMENT , FPDF_PAGE , FPDF_PAGEOBJECT )>();
+
+/// Get the decoded image data of |image_object|. The decoded data is the
+/// uncompressed image data, i.e. the raw image data after having all filters
+/// applied. |buffer| is only modified if |buflen| is longer than the length of
+/// the decoded image data.
+/// 
+/// image_object - handle to an image object.
+/// buffer       - buffer for holding the decoded image data.
+/// buflen       - length of the buffer in bytes.
+/// 
+/// Returns the length of the decoded image data.
+int FPDFImageObj_GetImageDataDecoded(FPDF_PAGEOBJECT image_object,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
+) {
+  return _FPDFImageObj_GetImageDataDecoded(image_object,
+buffer,
+buflen,
+);
+}
+
+late final _FPDFImageObj_GetImageDataDecodedPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDFImageObj_GetImageDataDecoded');
+late final _FPDFImageObj_GetImageDataDecoded = _FPDFImageObj_GetImageDataDecodedPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Void> , int )>();
+
+/// Get the raw image data of |image_object|. The raw data is the image data as
+/// stored in the PDF without applying any filters. |buffer| is only modified if
+/// |buflen| is longer than the length of the raw image data.
+/// 
+/// image_object - handle to an image object.
+/// buffer       - buffer for holding the raw image data.
+/// buflen       - length of the buffer in bytes.
+/// 
+/// Returns the length of the raw image data.
+int FPDFImageObj_GetImageDataRaw(FPDF_PAGEOBJECT image_object,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
+) {
+  return _FPDFImageObj_GetImageDataRaw(image_object,
+buffer,
+buflen,
+);
+}
+
+late final _FPDFImageObj_GetImageDataRawPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDFImageObj_GetImageDataRaw');
+late final _FPDFImageObj_GetImageDataRaw = _FPDFImageObj_GetImageDataRawPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Void> , int )>();
+
+/// Get the number of filters (i.e. decoders) of the image in |image_object|.
+/// 
+/// image_object - handle to an image object.
+/// 
+/// Returns the number of |image_object|'s filters.
+int FPDFImageObj_GetImageFilterCount(FPDF_PAGEOBJECT image_object,
+) {
+  return _FPDFImageObj_GetImageFilterCount(image_object,
+);
+}
+
+late final _FPDFImageObj_GetImageFilterCountPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFImageObj_GetImageFilterCount');
+late final _FPDFImageObj_GetImageFilterCount = _FPDFImageObj_GetImageFilterCountPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
+
+/// Get the filter at |index| of |image_object|'s list of filters. Note that the
+/// filters need to be applied in order, i.e. the first filter should be applied
+/// first, then the second, etc. |buffer| is only modified if |buflen| is longer
+/// than the length of the filter string.
+/// 
+/// image_object - handle to an image object.
+/// index        - the index of the filter requested.
+/// buffer       - buffer for holding filter string, encoded in UTF-8.
+/// buflen       - length of the buffer.
+/// 
+/// Returns the length of the filter string.
+int FPDFImageObj_GetImageFilter(FPDF_PAGEOBJECT image_object,
+int index,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
+) {
+  return _FPDFImageObj_GetImageFilter(image_object,
+index,
+buffer,
+buflen,
+);
+}
+
+late final _FPDFImageObj_GetImageFilterPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_PAGEOBJECT , ffi.Int , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDFImageObj_GetImageFilter');
+late final _FPDFImageObj_GetImageFilter = _FPDFImageObj_GetImageFilterPtr.asFunction<int Function(FPDF_PAGEOBJECT , int , ffi.Pointer<ffi.Void> , int )>();
+
+/// Get the image metadata of |image_object|, including dimension, DPI, bits per
+/// pixel, and colorspace. If the |image_object| is not an image object or if it
+/// does not have an image, then the return value will be false. Otherwise,
+/// failure to retrieve any specific parameter would result in its value being 0.
+/// 
+/// image_object - handle to an image object.
+/// page         - handle to the page that |image_object| is on. Required for
+/// retrieving the image's bits per pixel and colorspace.
+/// metadata     - receives the image metadata; must not be NULL.
+/// 
+/// Returns true if successful.
+int FPDFImageObj_GetImageMetadata(FPDF_PAGEOBJECT image_object,
+FPDF_PAGE page,
+ffi.Pointer<FPDF_IMAGEOBJ_METADATA> metadata,
+) {
+  return _FPDFImageObj_GetImageMetadata(image_object,
+page,
+metadata,
+);
+}
+
+late final _FPDFImageObj_GetImageMetadataPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , FPDF_PAGE , ffi.Pointer<FPDF_IMAGEOBJ_METADATA> )>>('FPDFImageObj_GetImageMetadata');
+late final _FPDFImageObj_GetImageMetadata = _FPDFImageObj_GetImageMetadataPtr.asFunction<int Function(FPDF_PAGEOBJECT , FPDF_PAGE , ffi.Pointer<FPDF_IMAGEOBJ_METADATA> )>();
+
+/// Experimental API.
+/// Get the image size in pixels. Faster method to get only image size.
+/// 
+/// image_object - handle to an image object.
+/// width        - receives the image width in pixels; must not be NULL.
+/// height       - receives the image height in pixels; must not be NULL.
+/// 
+/// Returns true if successful.
+int FPDFImageObj_GetImagePixelSize(FPDF_PAGEOBJECT image_object,
+ffi.Pointer<ffi.UnsignedInt> width,
+ffi.Pointer<ffi.UnsignedInt> height,
+) {
+  return _FPDFImageObj_GetImagePixelSize(image_object,
+width,
+height,
+);
+}
+
+late final _FPDFImageObj_GetImagePixelSizePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>>('FPDFImageObj_GetImagePixelSize');
+late final _FPDFImageObj_GetImagePixelSize = _FPDFImageObj_GetImagePixelSizePtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>();
+
+/// Experimental API.
+/// Get ICC profile decoded data of |image_object|. If the |image_object| is not
+/// an image object or if it does not have an image, then the return value will
+/// be false. It also returns false if the |image_object| has no ICC profile.
+/// |buffer| is only modified if ICC profile exists and |buflen| is longer than
+/// the length of the ICC profile decoded data.
+/// 
+/// image_object - handle to an image object; must not be NULL.
+/// page         - handle to the page containing |image_object|; must not be
+/// NULL. Required for retrieving the image's colorspace.
+/// buffer       - Buffer to receive ICC profile data; may be NULL if querying
+/// required size via |out_buflen|.
+/// buflen       - Length of the buffer in bytes. Ignored if |buffer| is NULL.
+/// out_buflen   - Pointer to receive the ICC profile data size in bytes; must
+/// not be NULL. Will be set if this API returns true.
+/// 
+/// Returns true if |out_buflen| is not null and an ICC profile exists for the
+/// given |image_object|.
+int FPDFImageObj_GetIccProfileDataDecoded(FPDF_PAGEOBJECT image_object,
+FPDF_PAGE page,
+ffi.Pointer<ffi.Uint8> buffer,
+int buflen,
+ffi.Pointer<ffi.Size> out_buflen,
+) {
+  return _FPDFImageObj_GetIccProfileDataDecoded(image_object,
+page,
+buffer,
+buflen,
+out_buflen,
+);
+}
+
+late final _FPDFImageObj_GetIccProfileDataDecodedPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , FPDF_PAGE , ffi.Pointer<ffi.Uint8> , ffi.Size , ffi.Pointer<ffi.Size> )>>('FPDFImageObj_GetIccProfileDataDecoded');
+late final _FPDFImageObj_GetIccProfileDataDecoded = _FPDFImageObj_GetIccProfileDataDecodedPtr.asFunction<int Function(FPDF_PAGEOBJECT , FPDF_PAGE , ffi.Pointer<ffi.Uint8> , int , ffi.Pointer<ffi.Size> )>();
+
+/// Create a new path object at an initial position.
+/// 
+/// x - initial horizontal position.
+/// y - initial vertical position.
+/// 
+/// Returns a handle to a new path object.
+FPDF_PAGEOBJECT FPDFPageObj_CreateNewPath(double x,
+double y,
+) {
+  return _FPDFPageObj_CreateNewPath(x,
+y,
+);
+}
+
+late final _FPDFPageObj_CreateNewPathPtr = _lookup<
+    ffi.NativeFunction<FPDF_PAGEOBJECT Function(ffi.Float , ffi.Float )>>('FPDFPageObj_CreateNewPath');
+late final _FPDFPageObj_CreateNewPath = _FPDFPageObj_CreateNewPathPtr.asFunction<FPDF_PAGEOBJECT Function(double , double )>();
+
+/// Create a closed path consisting of a rectangle.
+/// 
+/// x - horizontal position for the left boundary of the rectangle.
+/// y - vertical position for the bottom boundary of the rectangle.
+/// w - width of the rectangle.
+/// h - height of the rectangle.
+/// 
+/// Returns a handle to the new path object.
+FPDF_PAGEOBJECT FPDFPageObj_CreateNewRect(double x,
+double y,
+double w,
+double h,
+) {
+  return _FPDFPageObj_CreateNewRect(x,
+y,
+w,
+h,
+);
+}
+
+late final _FPDFPageObj_CreateNewRectPtr = _lookup<
+    ffi.NativeFunction<FPDF_PAGEOBJECT Function(ffi.Float , ffi.Float , ffi.Float , ffi.Float )>>('FPDFPageObj_CreateNewRect');
+late final _FPDFPageObj_CreateNewRect = _FPDFPageObj_CreateNewRectPtr.asFunction<FPDF_PAGEOBJECT Function(double , double , double , double )>();
+
+/// Get the bounding box of |page_object|.
+/// 
+/// page_object  - handle to a page object.
+/// left         - pointer where the left coordinate will be stored
+/// bottom       - pointer where the bottom coordinate will be stored
+/// right        - pointer where the right coordinate will be stored
+/// top          - pointer where the top coordinate will be stored
+/// 
+/// On success, returns TRUE and fills in the 4 coordinates.
+int FPDFPageObj_GetBounds(FPDF_PAGEOBJECT page_object,
+ffi.Pointer<ffi.Float> left,
+ffi.Pointer<ffi.Float> bottom,
+ffi.Pointer<ffi.Float> right,
+ffi.Pointer<ffi.Float> top,
+) {
+  return _FPDFPageObj_GetBounds(page_object,
+left,
+bottom,
+right,
+top,
+);
+}
+
+late final _FPDFPageObj_GetBoundsPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>>('FPDFPageObj_GetBounds');
+late final _FPDFPageObj_GetBounds = _FPDFPageObj_GetBoundsPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>();
+
+/// Experimental API.
+/// Get the quad points that bounds |page_object|.
+/// 
+/// page_object  - handle to a page object.
+/// quad_points  - pointer where the quadrilateral points will be stored.
+/// 
+/// On success, returns TRUE and fills in |quad_points|.
+/// 
+/// Similar to FPDFPageObj_GetBounds(), this returns the bounds of a page
+/// object. When the object is rotated by a non-multiple of 90 degrees, this API
+/// returns a tighter bound that cannot be represented with just the 4 sides of
+/// a rectangle.
+/// 
+/// Currently only works the following |page_object| types: FPDF_PAGEOBJ_TEXT and
+/// FPDF_PAGEOBJ_IMAGE.
+int FPDFPageObj_GetRotatedBounds(FPDF_PAGEOBJECT page_object,
+ffi.Pointer<FS_QUADPOINTSF> quad_points,
+) {
+  return _FPDFPageObj_GetRotatedBounds(page_object,
+quad_points,
+);
+}
+
+late final _FPDFPageObj_GetRotatedBoundsPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_QUADPOINTSF> )>>('FPDFPageObj_GetRotatedBounds');
+late final _FPDFPageObj_GetRotatedBounds = _FPDFPageObj_GetRotatedBoundsPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_QUADPOINTSF> )>();
+
+/// Set the blend mode of |page_object|.
+/// 
+/// page_object  - handle to a page object.
+/// blend_mode   - string containing the blend mode.
+/// 
+/// Blend mode can be one of following: Color, ColorBurn, ColorDodge, Darken,
+/// Difference, Exclusion, HardLight, Hue, Lighten, Luminosity, Multiply, Normal,
+/// Overlay, Saturation, Screen, SoftLight
+void FPDFPageObj_SetBlendMode(FPDF_PAGEOBJECT page_object,
+FPDF_BYTESTRING blend_mode,
+) {
+  return _FPDFPageObj_SetBlendMode(page_object,
+blend_mode,
+);
+}
+
+late final _FPDFPageObj_SetBlendModePtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_PAGEOBJECT , FPDF_BYTESTRING )>>('FPDFPageObj_SetBlendMode');
+late final _FPDFPageObj_SetBlendMode = _FPDFPageObj_SetBlendModePtr.asFunction<void Function(FPDF_PAGEOBJECT , FPDF_BYTESTRING )>();
+
+/// Set the stroke RGBA of a page object. Range of values: 0 - 255.
+/// 
+/// page_object  - the handle to the page object.
+/// R            - the red component for the object's stroke color.
+/// G            - the green component for the object's stroke color.
+/// B            - the blue component for the object's stroke color.
+/// A            - the stroke alpha for the object.
+/// 
+/// Returns TRUE on success.
+int FPDFPageObj_SetStrokeColor(FPDF_PAGEOBJECT page_object,
+int R,
+int G,
+int B,
+int A,
+) {
+  return _FPDFPageObj_SetStrokeColor(page_object,
+R,
+G,
+B,
+A,
+);
+}
+
+late final _FPDFPageObj_SetStrokeColorPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.UnsignedInt , ffi.UnsignedInt , ffi.UnsignedInt , ffi.UnsignedInt )>>('FPDFPageObj_SetStrokeColor');
+late final _FPDFPageObj_SetStrokeColor = _FPDFPageObj_SetStrokeColorPtr.asFunction<int Function(FPDF_PAGEOBJECT , int , int , int , int )>();
+
+/// Get the stroke RGBA of a page object. Range of values: 0 - 255.
+/// 
+/// page_object  - the handle to the page object.
+/// R            - the red component of the path stroke color.
+/// G            - the green component of the object's stroke color.
+/// B            - the blue component of the object's stroke color.
+/// A            - the stroke alpha of the object.
+/// 
+/// Returns TRUE on success.
+int FPDFPageObj_GetStrokeColor(FPDF_PAGEOBJECT page_object,
+ffi.Pointer<ffi.UnsignedInt> R,
+ffi.Pointer<ffi.UnsignedInt> G,
+ffi.Pointer<ffi.UnsignedInt> B,
+ffi.Pointer<ffi.UnsignedInt> A,
+) {
+  return _FPDFPageObj_GetStrokeColor(page_object,
+R,
+G,
+B,
+A,
+);
+}
+
+late final _FPDFPageObj_GetStrokeColorPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>>('FPDFPageObj_GetStrokeColor');
+late final _FPDFPageObj_GetStrokeColor = _FPDFPageObj_GetStrokeColorPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>();
+
+/// Set the stroke width of a page object.
+/// 
+/// path   - the handle to the page object.
+/// width  - the width of the stroke.
+/// 
+/// Returns TRUE on success
+int FPDFPageObj_SetStrokeWidth(FPDF_PAGEOBJECT page_object,
+double width,
+) {
+  return _FPDFPageObj_SetStrokeWidth(page_object,
+width,
+);
+}
+
+late final _FPDFPageObj_SetStrokeWidthPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Float )>>('FPDFPageObj_SetStrokeWidth');
+late final _FPDFPageObj_SetStrokeWidth = _FPDFPageObj_SetStrokeWidthPtr.asFunction<int Function(FPDF_PAGEOBJECT , double )>();
+
+/// Get the stroke width of a page object.
+/// 
+/// path   - the handle to the page object.
+/// width  - the width of the stroke.
+/// 
+/// Returns TRUE on success
+int FPDFPageObj_GetStrokeWidth(FPDF_PAGEOBJECT page_object,
+ffi.Pointer<ffi.Float> width,
+) {
+  return _FPDFPageObj_GetStrokeWidth(page_object,
+width,
+);
+}
+
+late final _FPDFPageObj_GetStrokeWidthPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> )>>('FPDFPageObj_GetStrokeWidth');
+late final _FPDFPageObj_GetStrokeWidth = _FPDFPageObj_GetStrokeWidthPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> )>();
+
+/// Get the line join of |page_object|.
+/// 
+/// page_object  - handle to a page object.
+/// 
+/// Returns the line join, or -1 on failure.
+/// Line join can be one of following: FPDF_LINEJOIN_MITER, FPDF_LINEJOIN_ROUND,
+/// FPDF_LINEJOIN_BEVEL
+int FPDFPageObj_GetLineJoin(FPDF_PAGEOBJECT page_object,
+) {
+  return _FPDFPageObj_GetLineJoin(page_object,
+);
+}
+
+late final _FPDFPageObj_GetLineJoinPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_GetLineJoin');
+late final _FPDFPageObj_GetLineJoin = _FPDFPageObj_GetLineJoinPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
+
+/// Set the line join of |page_object|.
+/// 
+/// page_object  - handle to a page object.
+/// line_join    - line join
+/// 
+/// Line join can be one of following: FPDF_LINEJOIN_MITER, FPDF_LINEJOIN_ROUND,
+/// FPDF_LINEJOIN_BEVEL
+int FPDFPageObj_SetLineJoin(FPDF_PAGEOBJECT page_object,
+int line_join,
+) {
+  return _FPDFPageObj_SetLineJoin(page_object,
+line_join,
+);
+}
+
+late final _FPDFPageObj_SetLineJoinPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Int )>>('FPDFPageObj_SetLineJoin');
+late final _FPDFPageObj_SetLineJoin = _FPDFPageObj_SetLineJoinPtr.asFunction<int Function(FPDF_PAGEOBJECT , int )>();
+
+/// Get the line cap of |page_object|.
+/// 
+/// page_object - handle to a page object.
+/// 
+/// Returns the line cap, or -1 on failure.
+/// Line cap can be one of following: FPDF_LINECAP_BUTT, FPDF_LINECAP_ROUND,
+/// FPDF_LINECAP_PROJECTING_SQUARE
+int FPDFPageObj_GetLineCap(FPDF_PAGEOBJECT page_object,
+) {
+  return _FPDFPageObj_GetLineCap(page_object,
+);
+}
+
+late final _FPDFPageObj_GetLineCapPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_GetLineCap');
+late final _FPDFPageObj_GetLineCap = _FPDFPageObj_GetLineCapPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
+
+/// Set the line cap of |page_object|.
+/// 
+/// page_object - handle to a page object.
+/// line_cap    - line cap
+/// 
+/// Line cap can be one of following: FPDF_LINECAP_BUTT, FPDF_LINECAP_ROUND,
+/// FPDF_LINECAP_PROJECTING_SQUARE
+int FPDFPageObj_SetLineCap(FPDF_PAGEOBJECT page_object,
+int line_cap,
+) {
+  return _FPDFPageObj_SetLineCap(page_object,
+line_cap,
+);
+}
+
+late final _FPDFPageObj_SetLineCapPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Int )>>('FPDFPageObj_SetLineCap');
+late final _FPDFPageObj_SetLineCap = _FPDFPageObj_SetLineCapPtr.asFunction<int Function(FPDF_PAGEOBJECT , int )>();
+
+/// Set the fill RGBA of a page object. Range of values: 0 - 255.
+/// 
+/// page_object  - the handle to the page object.
+/// R            - the red component for the object's fill color.
+/// G            - the green component for the object's fill color.
+/// B            - the blue component for the object's fill color.
+/// A            - the fill alpha for the object.
+/// 
+/// Returns TRUE on success.
+int FPDFPageObj_SetFillColor(FPDF_PAGEOBJECT page_object,
+int R,
+int G,
+int B,
+int A,
+) {
+  return _FPDFPageObj_SetFillColor(page_object,
+R,
+G,
+B,
+A,
+);
+}
+
+late final _FPDFPageObj_SetFillColorPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.UnsignedInt , ffi.UnsignedInt , ffi.UnsignedInt , ffi.UnsignedInt )>>('FPDFPageObj_SetFillColor');
+late final _FPDFPageObj_SetFillColor = _FPDFPageObj_SetFillColorPtr.asFunction<int Function(FPDF_PAGEOBJECT , int , int , int , int )>();
+
+/// Get the fill RGBA of a page object. Range of values: 0 - 255.
+/// 
+/// page_object  - the handle to the page object.
+/// R            - the red component of the object's fill color.
+/// G            - the green component of the object's fill color.
+/// B            - the blue component of the object's fill color.
+/// A            - the fill alpha of the object.
+/// 
+/// Returns TRUE on success.
+int FPDFPageObj_GetFillColor(FPDF_PAGEOBJECT page_object,
+ffi.Pointer<ffi.UnsignedInt> R,
+ffi.Pointer<ffi.UnsignedInt> G,
+ffi.Pointer<ffi.UnsignedInt> B,
+ffi.Pointer<ffi.UnsignedInt> A,
+) {
+  return _FPDFPageObj_GetFillColor(page_object,
+R,
+G,
+B,
+A,
+);
+}
+
+late final _FPDFPageObj_GetFillColorPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>>('FPDFPageObj_GetFillColor');
+late final _FPDFPageObj_GetFillColor = _FPDFPageObj_GetFillColorPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>();
+
+/// Experimental API.
+/// Get the line dash |phase| of |page_object|.
+/// 
+/// page_object - handle to a page object.
+/// phase - pointer where the dashing phase will be stored.
+/// 
+/// Returns TRUE on success.
+int FPDFPageObj_GetDashPhase(FPDF_PAGEOBJECT page_object,
+ffi.Pointer<ffi.Float> phase,
+) {
+  return _FPDFPageObj_GetDashPhase(page_object,
+phase,
+);
+}
+
+late final _FPDFPageObj_GetDashPhasePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> )>>('FPDFPageObj_GetDashPhase');
+late final _FPDFPageObj_GetDashPhase = _FPDFPageObj_GetDashPhasePtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> )>();
+
+/// Experimental API.
+/// Set the line dash phase of |page_object|.
+/// 
+/// page_object - handle to a page object.
+/// phase - line dash phase.
+/// 
+/// Returns TRUE on success.
+int FPDFPageObj_SetDashPhase(FPDF_PAGEOBJECT page_object,
+double phase,
+) {
+  return _FPDFPageObj_SetDashPhase(page_object,
+phase,
+);
+}
+
+late final _FPDFPageObj_SetDashPhasePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Float )>>('FPDFPageObj_SetDashPhase');
+late final _FPDFPageObj_SetDashPhase = _FPDFPageObj_SetDashPhasePtr.asFunction<int Function(FPDF_PAGEOBJECT , double )>();
+
+/// Experimental API.
+/// Get the line dash array of |page_object|.
+/// 
+/// page_object - handle to a page object.
+/// 
+/// Returns the line dash array size or -1 on failure.
+int FPDFPageObj_GetDashCount(FPDF_PAGEOBJECT page_object,
+) {
+  return _FPDFPageObj_GetDashCount(page_object,
+);
+}
+
+late final _FPDFPageObj_GetDashCountPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_GetDashCount');
+late final _FPDFPageObj_GetDashCount = _FPDFPageObj_GetDashCountPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
+
+/// Experimental API.
+/// Get the line dash array of |page_object|.
+/// 
+/// page_object - handle to a page object.
+/// dash_array - pointer where the dashing array will be stored.
+/// dash_count - number of elements in |dash_array|.
+/// 
+/// Returns TRUE on success.
+int FPDFPageObj_GetDashArray(FPDF_PAGEOBJECT page_object,
+ffi.Pointer<ffi.Float> dash_array,
+int dash_count,
+) {
+  return _FPDFPageObj_GetDashArray(page_object,
+dash_array,
+dash_count,
+);
+}
+
+late final _FPDFPageObj_GetDashArrayPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> , ffi.Size )>>('FPDFPageObj_GetDashArray');
+late final _FPDFPageObj_GetDashArray = _FPDFPageObj_GetDashArrayPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> , int )>();
+
+/// Experimental API.
+/// Set the line dash array of |page_object|.
+/// 
+/// page_object - handle to a page object.
+/// dash_array - the dash array.
+/// dash_count - number of elements in |dash_array|.
+/// phase - the line dash phase.
+/// 
+/// Returns TRUE on success.
+int FPDFPageObj_SetDashArray(FPDF_PAGEOBJECT page_object,
+ffi.Pointer<ffi.Float> dash_array,
+int dash_count,
+double phase,
+) {
+  return _FPDFPageObj_SetDashArray(page_object,
+dash_array,
+dash_count,
+phase,
+);
+}
+
+late final _FPDFPageObj_SetDashArrayPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> , ffi.Size , ffi.Float )>>('FPDFPageObj_SetDashArray');
+late final _FPDFPageObj_SetDashArray = _FPDFPageObj_SetDashArrayPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> , int , double )>();
+
+/// Get number of segments inside |path|.
+/// 
+/// path - handle to a path.
+/// 
+/// A segment is a command, created by e.g. FPDFPath_MoveTo(),
+/// FPDFPath_LineTo() or FPDFPath_BezierTo().
+/// 
+/// Returns the number of objects in |path| or -1 on failure.
+int FPDFPath_CountSegments(FPDF_PAGEOBJECT path,
+) {
+  return _FPDFPath_CountSegments(path,
+);
+}
+
+late final _FPDFPath_CountSegmentsPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFPath_CountSegments');
+late final _FPDFPath_CountSegments = _FPDFPath_CountSegmentsPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
+
+/// Get segment in |path| at |index|.
+/// 
+/// path  - handle to a path.
+/// index - the index of a segment.
+/// 
+/// Returns the handle to the segment, or NULL on faiure.
+FPDF_PATHSEGMENT FPDFPath_GetPathSegment(FPDF_PAGEOBJECT path,
+int index,
+) {
+  return _FPDFPath_GetPathSegment(path,
+index,
+);
+}
+
+late final _FPDFPath_GetPathSegmentPtr = _lookup<
+    ffi.NativeFunction<FPDF_PATHSEGMENT Function(FPDF_PAGEOBJECT , ffi.Int )>>('FPDFPath_GetPathSegment');
+late final _FPDFPath_GetPathSegment = _FPDFPath_GetPathSegmentPtr.asFunction<FPDF_PATHSEGMENT Function(FPDF_PAGEOBJECT , int )>();
+
+/// Get coordinates of |segment|.
+/// 
+/// segment  - handle to a segment.
+/// x      - the horizontal position of the segment.
+/// y      - the vertical position of the segment.
+/// 
+/// Returns TRUE on success, otherwise |x| and |y| is not set.
+int FPDFPathSegment_GetPoint(FPDF_PATHSEGMENT segment,
+ffi.Pointer<ffi.Float> x,
+ffi.Pointer<ffi.Float> y,
+) {
+  return _FPDFPathSegment_GetPoint(segment,
+x,
+y,
+);
+}
+
+late final _FPDFPathSegment_GetPointPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PATHSEGMENT , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>>('FPDFPathSegment_GetPoint');
+late final _FPDFPathSegment_GetPoint = _FPDFPathSegment_GetPointPtr.asFunction<int Function(FPDF_PATHSEGMENT , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>();
+
+/// Get type of |segment|.
+/// 
+/// segment - handle to a segment.
+/// 
+/// Returns one of the FPDF_SEGMENT_* values on success,
+/// FPDF_SEGMENT_UNKNOWN on error.
+int FPDFPathSegment_GetType(FPDF_PATHSEGMENT segment,
+) {
+  return _FPDFPathSegment_GetType(segment,
+);
+}
+
+late final _FPDFPathSegment_GetTypePtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PATHSEGMENT )>>('FPDFPathSegment_GetType');
+late final _FPDFPathSegment_GetType = _FPDFPathSegment_GetTypePtr.asFunction<int Function(FPDF_PATHSEGMENT )>();
+
+/// Gets if the |segment| closes the current subpath of a given path.
+/// 
+/// segment - handle to a segment.
+/// 
+/// Returns close flag for non-NULL segment, FALSE otherwise.
+int FPDFPathSegment_GetClose(FPDF_PATHSEGMENT segment,
+) {
+  return _FPDFPathSegment_GetClose(segment,
+);
+}
+
+late final _FPDFPathSegment_GetClosePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PATHSEGMENT )>>('FPDFPathSegment_GetClose');
+late final _FPDFPathSegment_GetClose = _FPDFPathSegment_GetClosePtr.asFunction<int Function(FPDF_PATHSEGMENT )>();
+
+/// Move a path's current point.
+/// 
+/// path   - the handle to the path object.
+/// x      - the horizontal position of the new current point.
+/// y      - the vertical position of the new current point.
+/// 
+/// Note that no line will be created between the previous current point and the
+/// new one.
+/// 
+/// Returns TRUE on success
+int FPDFPath_MoveTo(FPDF_PAGEOBJECT path,
+double x,
+double y,
+) {
+  return _FPDFPath_MoveTo(path,
+x,
+y,
+);
+}
+
+late final _FPDFPath_MoveToPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Float , ffi.Float )>>('FPDFPath_MoveTo');
+late final _FPDFPath_MoveTo = _FPDFPath_MoveToPtr.asFunction<int Function(FPDF_PAGEOBJECT , double , double )>();
+
+/// Add a line between the current point and a new point in the path.
+/// 
+/// path   - the handle to the path object.
+/// x      - the horizontal position of the new point.
+/// y      - the vertical position of the new point.
+/// 
+/// The path's current point is changed to (x, y).
+/// 
+/// Returns TRUE on success
+int FPDFPath_LineTo(FPDF_PAGEOBJECT path,
+double x,
+double y,
+) {
+  return _FPDFPath_LineTo(path,
+x,
+y,
+);
+}
+
+late final _FPDFPath_LineToPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Float , ffi.Float )>>('FPDFPath_LineTo');
+late final _FPDFPath_LineTo = _FPDFPath_LineToPtr.asFunction<int Function(FPDF_PAGEOBJECT , double , double )>();
+
+/// Add a cubic Bezier curve to the given path, starting at the current point.
+/// 
+/// path   - the handle to the path object.
+/// x1     - the horizontal position of the first Bezier control point.
+/// y1     - the vertical position of the first Bezier control point.
+/// x2     - the horizontal position of the second Bezier control point.
+/// y2     - the vertical position of the second Bezier control point.
+/// x3     - the horizontal position of the ending point of the Bezier curve.
+/// y3     - the vertical position of the ending point of the Bezier curve.
+/// 
+/// Returns TRUE on success
+int FPDFPath_BezierTo(FPDF_PAGEOBJECT path,
+double x1,
+double y1,
+double x2,
+double y2,
+double x3,
+double y3,
+) {
+  return _FPDFPath_BezierTo(path,
+x1,
+y1,
+x2,
+y2,
+x3,
+y3,
+);
+}
+
+late final _FPDFPath_BezierToPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Float , ffi.Float , ffi.Float , ffi.Float , ffi.Float , ffi.Float )>>('FPDFPath_BezierTo');
+late final _FPDFPath_BezierTo = _FPDFPath_BezierToPtr.asFunction<int Function(FPDF_PAGEOBJECT , double , double , double , double , double , double )>();
+
+/// Close the current subpath of a given path.
+/// 
+/// path   - the handle to the path object.
+/// 
+/// This will add a line between the current point and the initial point of the
+/// subpath, thus terminating the current subpath.
+/// 
+/// Returns TRUE on success
+int FPDFPath_Close(FPDF_PAGEOBJECT path,
+) {
+  return _FPDFPath_Close(path,
+);
+}
+
+late final _FPDFPath_ClosePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT )>>('FPDFPath_Close');
+late final _FPDFPath_Close = _FPDFPath_ClosePtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
+
+/// Set the drawing mode of a path.
+/// 
+/// path     - the handle to the path object.
+/// fillmode - the filling mode to be set: one of the FPDF_FILLMODE_* flags.
+/// stroke   - a boolean specifying if the path should be stroked or not.
+/// 
+/// Returns TRUE on success
+int FPDFPath_SetDrawMode(FPDF_PAGEOBJECT path,
+int fillmode,
+int stroke,
+) {
+  return _FPDFPath_SetDrawMode(path,
+fillmode,
+stroke,
+);
+}
+
+late final _FPDFPath_SetDrawModePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Int , FPDF_BOOL )>>('FPDFPath_SetDrawMode');
+late final _FPDFPath_SetDrawMode = _FPDFPath_SetDrawModePtr.asFunction<int Function(FPDF_PAGEOBJECT , int , int )>();
+
+/// Get the drawing mode of a path.
+/// 
+/// path     - the handle to the path object.
+/// fillmode - the filling mode of the path: one of the FPDF_FILLMODE_* flags.
+/// stroke   - a boolean specifying if the path is stroked or not.
+/// 
+/// Returns TRUE on success
+int FPDFPath_GetDrawMode(FPDF_PAGEOBJECT path,
+ffi.Pointer<ffi.Int> fillmode,
+ffi.Pointer<FPDF_BOOL> stroke,
+) {
+  return _FPDFPath_GetDrawMode(path,
+fillmode,
+stroke,
+);
+}
+
+late final _FPDFPath_GetDrawModePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Int> , ffi.Pointer<FPDF_BOOL> )>>('FPDFPath_GetDrawMode');
+late final _FPDFPath_GetDrawMode = _FPDFPath_GetDrawModePtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Int> , ffi.Pointer<FPDF_BOOL> )>();
+
+/// Create a new text object using one of the standard PDF fonts.
+/// 
+/// document   - handle to the document.
+/// font       - string containing the font name, without spaces.
+/// font_size  - the font size for the new text object.
+/// 
+/// Returns a handle to a new text object, or NULL on failure
+FPDF_PAGEOBJECT FPDFPageObj_NewTextObj(FPDF_DOCUMENT document,
+FPDF_BYTESTRING font,
+double font_size,
+) {
+  return _FPDFPageObj_NewTextObj(document,
+font,
+font_size,
+);
+}
+
+late final _FPDFPageObj_NewTextObjPtr = _lookup<
+    ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_DOCUMENT , FPDF_BYTESTRING , ffi.Float )>>('FPDFPageObj_NewTextObj');
+late final _FPDFPageObj_NewTextObj = _FPDFPageObj_NewTextObjPtr.asFunction<FPDF_PAGEOBJECT Function(FPDF_DOCUMENT , FPDF_BYTESTRING , double )>();
+
+/// Set the text for a text object. If it had text, it will be replaced.
+/// 
+/// text_object  - handle to the text object.
+/// text         - the UTF-16LE encoded string containing the text to be added.
+/// 
+/// Returns TRUE on success
+int FPDFText_SetText(FPDF_PAGEOBJECT text_object,
+FPDF_WIDESTRING text,
+) {
+  return _FPDFText_SetText(text_object,
+text,
+);
+}
+
+late final _FPDFText_SetTextPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , FPDF_WIDESTRING )>>('FPDFText_SetText');
+late final _FPDFText_SetText = _FPDFText_SetTextPtr.asFunction<int Function(FPDF_PAGEOBJECT , FPDF_WIDESTRING )>();
+
+/// Experimental API.
+/// Set the text using charcodes for a text object. If it had text, it will be
+/// replaced.
+/// 
+/// text_object  - handle to the text object.
+/// charcodes    - pointer to an array of charcodes to be added.
+/// count        - number of elements in |charcodes|.
+/// 
+/// Returns TRUE on success
+int FPDFText_SetCharcodes(FPDF_PAGEOBJECT text_object,
+ffi.Pointer<ffi.Uint32> charcodes,
+int count,
+) {
+  return _FPDFText_SetCharcodes(text_object,
+charcodes,
+count,
+);
+}
+
+late final _FPDFText_SetCharcodesPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Uint32> , ffi.Size )>>('FPDFText_SetCharcodes');
+late final _FPDFText_SetCharcodes = _FPDFText_SetCharcodesPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Uint32> , int )>();
+
+/// Returns a font object loaded from a stream of data. The font is loaded
+/// into the document. Various font data structures, such as the ToUnicode data,
+/// are auto-generated based on the inputs.
+/// 
+/// document  - handle to the document.
+/// data      - the stream of font data, which will be copied by the font object.
+/// size      - the size of the font data, in bytes.
+/// font_type - FPDF_FONT_TYPE1 or FPDF_FONT_TRUETYPE depending on the font type.
+/// cid       - a boolean specifying if the font is a CID font or not.
+/// 
+/// The loaded font can be closed using FPDFFont_Close().
+/// 
+/// Returns NULL on failure
+FPDF_FONT FPDFText_LoadFont(FPDF_DOCUMENT document,
+ffi.Pointer<ffi.Uint8> data,
+int size,
+int font_type,
+int cid,
+) {
+  return _FPDFText_LoadFont(document,
+data,
+size,
+font_type,
+cid,
+);
+}
+
+late final _FPDFText_LoadFontPtr = _lookup<
+    ffi.NativeFunction<FPDF_FONT Function(FPDF_DOCUMENT , ffi.Pointer<ffi.Uint8> , ffi.Uint32 , ffi.Int , FPDF_BOOL )>>('FPDFText_LoadFont');
+late final _FPDFText_LoadFont = _FPDFText_LoadFontPtr.asFunction<FPDF_FONT Function(FPDF_DOCUMENT , ffi.Pointer<ffi.Uint8> , int , int , int )>();
+
+/// Experimental API.
+/// Loads one of the standard 14 fonts per PDF spec 1.7 page 416. The preferred
+/// way of using font style is using a dash to separate the name from the style,
+/// for example 'Helvetica-BoldItalic'.
+/// 
+/// document   - handle to the document.
+/// font       - string containing the font name, without spaces.
+/// 
+/// The loaded font can be closed using FPDFFont_Close().
+/// 
+/// Returns NULL on failure.
+FPDF_FONT FPDFText_LoadStandardFont(FPDF_DOCUMENT document,
+FPDF_BYTESTRING font,
+) {
+  return _FPDFText_LoadStandardFont(document,
+font,
+);
+}
+
+late final _FPDFText_LoadStandardFontPtr = _lookup<
+    ffi.NativeFunction<FPDF_FONT Function(FPDF_DOCUMENT , FPDF_BYTESTRING )>>('FPDFText_LoadStandardFont');
+late final _FPDFText_LoadStandardFont = _FPDFText_LoadStandardFontPtr.asFunction<FPDF_FONT Function(FPDF_DOCUMENT , FPDF_BYTESTRING )>();
+
+/// Experimental API.
+/// Returns a font object loaded from a stream of data for a type 2 CID font. The
+/// font is loaded into the document. Unlike FPDFText_LoadFont(), the ToUnicode
+/// data and the CIDToGIDMap data are caller provided, instead of auto-generated.
+/// 
+/// document                 - handle to the document.
+/// font_data                - the stream of font data, which will be copied by
+/// the font object.
+/// font_data_size           - the size of the font data, in bytes.
+/// to_unicode_cmap          - the ToUnicode data.
+/// cid_to_gid_map_data      - the stream of CIDToGIDMap data.
+/// cid_to_gid_map_data_size - the size of the CIDToGIDMap data, in bytes.
+/// 
+/// The loaded font can be closed using FPDFFont_Close().
+/// 
+/// Returns NULL on failure.
+FPDF_FONT FPDFText_LoadCidType2Font(FPDF_DOCUMENT document,
+ffi.Pointer<ffi.Uint8> font_data,
+int font_data_size,
+FPDF_BYTESTRING to_unicode_cmap,
+ffi.Pointer<ffi.Uint8> cid_to_gid_map_data,
+int cid_to_gid_map_data_size,
+) {
+  return _FPDFText_LoadCidType2Font(document,
+font_data,
+font_data_size,
+to_unicode_cmap,
+cid_to_gid_map_data,
+cid_to_gid_map_data_size,
+);
+}
+
+late final _FPDFText_LoadCidType2FontPtr = _lookup<
+    ffi.NativeFunction<FPDF_FONT Function(FPDF_DOCUMENT , ffi.Pointer<ffi.Uint8> , ffi.Uint32 , FPDF_BYTESTRING , ffi.Pointer<ffi.Uint8> , ffi.Uint32 )>>('FPDFText_LoadCidType2Font');
+late final _FPDFText_LoadCidType2Font = _FPDFText_LoadCidType2FontPtr.asFunction<FPDF_FONT Function(FPDF_DOCUMENT , ffi.Pointer<ffi.Uint8> , int , FPDF_BYTESTRING , ffi.Pointer<ffi.Uint8> , int )>();
+
+/// Get the font size of a text object.
+/// 
+/// text - handle to a text.
+/// size - pointer to the font size of the text object, measured in points
+/// (about 1/72 inch)
+/// 
+/// Returns TRUE on success.
+int FPDFTextObj_GetFontSize(FPDF_PAGEOBJECT text,
+ffi.Pointer<ffi.Float> size,
+) {
+  return _FPDFTextObj_GetFontSize(text,
+size,
+);
+}
+
+late final _FPDFTextObj_GetFontSizePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> )>>('FPDFTextObj_GetFontSize');
+late final _FPDFTextObj_GetFontSize = _FPDFTextObj_GetFontSizePtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> )>();
+
+/// Close a loaded PDF font.
+/// 
+/// font   - Handle to the loaded font.
+void FPDFFont_Close(FPDF_FONT font,
+) {
+  return _FPDFFont_Close(font,
+);
+}
+
+late final _FPDFFont_ClosePtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_FONT )>>('FPDFFont_Close');
+late final _FPDFFont_Close = _FPDFFont_ClosePtr.asFunction<void Function(FPDF_FONT )>();
+
+/// Create a new text object using a loaded font.
+/// 
+/// document   - handle to the document.
+/// font       - handle to the font object.
+/// font_size  - the font size for the new text object.
+/// 
+/// Returns a handle to a new text object, or NULL on failure
+FPDF_PAGEOBJECT FPDFPageObj_CreateTextObj(FPDF_DOCUMENT document,
+FPDF_FONT font,
+double font_size,
+) {
+  return _FPDFPageObj_CreateTextObj(document,
+font,
+font_size,
+);
+}
+
+late final _FPDFPageObj_CreateTextObjPtr = _lookup<
+    ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_DOCUMENT , FPDF_FONT , ffi.Float )>>('FPDFPageObj_CreateTextObj');
+late final _FPDFPageObj_CreateTextObj = _FPDFPageObj_CreateTextObjPtr.asFunction<FPDF_PAGEOBJECT Function(FPDF_DOCUMENT , FPDF_FONT , double )>();
+
+/// Get the text rendering mode of a text object.
+/// 
+/// text     - the handle to the text object.
+/// 
+/// Returns one of the known FPDF_TEXT_RENDERMODE enum values on success,
+/// FPDF_TEXTRENDERMODE_UNKNOWN on error.
+FPDF_TEXT_RENDERMODE FPDFTextObj_GetTextRenderMode(FPDF_PAGEOBJECT text,
+) {
+  return FPDF_TEXT_RENDERMODE.fromValue(_FPDFTextObj_GetTextRenderMode(text,
+));
+}
+
+late final _FPDFTextObj_GetTextRenderModePtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFTextObj_GetTextRenderMode');
+late final _FPDFTextObj_GetTextRenderMode = _FPDFTextObj_GetTextRenderModePtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
+
+/// Experimental API.
+/// Set the text rendering mode of a text object.
+/// 
+/// text         - the handle to the text object.
+/// render_mode  - the FPDF_TEXT_RENDERMODE enum value to be set (cannot set to
+/// FPDF_TEXTRENDERMODE_UNKNOWN).
+/// 
+/// Returns TRUE on success.
+DartFPDF_BOOL FPDFTextObj_SetTextRenderMode(FPDF_PAGEOBJECT text,
+FPDF_TEXT_RENDERMODE render_mode,
+) {
+  return _FPDFTextObj_SetTextRenderMode(text,
+render_mode.value,
+);
+}
+
+late final _FPDFTextObj_SetTextRenderModePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Int )>>('FPDFTextObj_SetTextRenderMode');
+late final _FPDFTextObj_SetTextRenderMode = _FPDFTextObj_SetTextRenderModePtr.asFunction<int Function(FPDF_PAGEOBJECT , int )>();
+
+/// Get the text of a text object.
+/// 
+/// text_object      - the handle to the text object.
+/// text_page        - the handle to the text page.
+/// buffer           - the address of a buffer that receives the text.
+/// length           - the size, in bytes, of |buffer|.
+/// 
+/// Returns the number of bytes in the text (including the trailing NUL
+/// character) on success, 0 on error.
+/// 
+/// Regardless of the platform, the |buffer| is always in UTF-16LE encoding.
+/// If |length| is less than the returned length, or |buffer| is NULL, |buffer|
+/// will not be modified.
+int FPDFTextObj_GetText(FPDF_PAGEOBJECT text_object,
+FPDF_TEXTPAGE text_page,
+ffi.Pointer<FPDF_WCHAR> buffer,
+int length,
+) {
+  return _FPDFTextObj_GetText(text_object,
+text_page,
+buffer,
+length,
+);
+}
+
+late final _FPDFTextObj_GetTextPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_PAGEOBJECT , FPDF_TEXTPAGE , ffi.Pointer<FPDF_WCHAR> , ffi.UnsignedLong )>>('FPDFTextObj_GetText');
+late final _FPDFTextObj_GetText = _FPDFTextObj_GetTextPtr.asFunction<int Function(FPDF_PAGEOBJECT , FPDF_TEXTPAGE , ffi.Pointer<FPDF_WCHAR> , int )>();
+
+/// Experimental API.
+/// Get a bitmap rasterization of |text_object|. To render correctly, the caller
+/// must provide the |document| associated with |text_object|. If there is a
+/// |page| associated with |text_object|, the caller should provide that as well.
+/// The returned bitmap will be owned by the caller, and FPDFBitmap_Destroy()
+/// must be called on the returned bitmap when it is no longer needed.
+/// 
+/// document    - handle to a document associated with |text_object|.
+/// page        - handle to an optional page associated with |text_object|.
+/// text_object - handle to a text object.
+/// scale       - the scaling factor, which must be greater than 0.
+/// 
+/// Returns the bitmap or NULL on failure.
+FPDF_BITMAP FPDFTextObj_GetRenderedBitmap(FPDF_DOCUMENT document,
+FPDF_PAGE page,
+FPDF_PAGEOBJECT text_object,
+double scale,
+) {
+  return _FPDFTextObj_GetRenderedBitmap(document,
+page,
+text_object,
+scale,
+);
+}
+
+late final _FPDFTextObj_GetRenderedBitmapPtr = _lookup<
+    ffi.NativeFunction<FPDF_BITMAP Function(FPDF_DOCUMENT , FPDF_PAGE , FPDF_PAGEOBJECT , ffi.Float )>>('FPDFTextObj_GetRenderedBitmap');
+late final _FPDFTextObj_GetRenderedBitmap = _FPDFTextObj_GetRenderedBitmapPtr.asFunction<FPDF_BITMAP Function(FPDF_DOCUMENT , FPDF_PAGE , FPDF_PAGEOBJECT , double )>();
+
+/// Experimental API.
+/// Get the font of a text object.
+/// 
+/// text - the handle to the text object.
+/// 
+/// Returns a handle to the font object held by |text| which retains ownership.
+FPDF_FONT FPDFTextObj_GetFont(FPDF_PAGEOBJECT text,
+) {
+  return _FPDFTextObj_GetFont(text,
+);
+}
+
+late final _FPDFTextObj_GetFontPtr = _lookup<
+    ffi.NativeFunction<FPDF_FONT Function(FPDF_PAGEOBJECT )>>('FPDFTextObj_GetFont');
+late final _FPDFTextObj_GetFont = _FPDFTextObj_GetFontPtr.asFunction<FPDF_FONT Function(FPDF_PAGEOBJECT )>();
+
+/// Experimental API.
+/// Get the base name of a font.
+/// 
+/// font   - the handle to the font object.
+/// buffer - the address of a buffer that receives the base font name.
+/// length - the size, in bytes, of |buffer|.
+/// 
+/// Returns the number of bytes in the base name (including the trailing NUL
+/// character) on success, 0 on error. The base name is typically the font's
+/// PostScript name. See descriptions of "BaseFont" in ISO 32000-1:2008 spec.
+/// 
+/// Regardless of the platform, the |buffer| is always in UTF-8 encoding.
+/// If |length| is less than the returned length, or |buffer| is NULL, |buffer|
+/// will not be modified.
+int FPDFFont_GetBaseFontName(FPDF_FONT font,
+ffi.Pointer<ffi.Char> buffer,
+int length,
+) {
+  return _FPDFFont_GetBaseFontName(font,
+buffer,
+length,
+);
+}
+
+late final _FPDFFont_GetBaseFontNamePtr = _lookup<
+    ffi.NativeFunction<ffi.Size Function(FPDF_FONT , ffi.Pointer<ffi.Char> , ffi.Size )>>('FPDFFont_GetBaseFontName');
+late final _FPDFFont_GetBaseFontName = _FPDFFont_GetBaseFontNamePtr.asFunction<int Function(FPDF_FONT , ffi.Pointer<ffi.Char> , int )>();
+
+/// Experimental API.
+/// Get the family name of a font.
+/// 
+/// font   - the handle to the font object.
+/// buffer - the address of a buffer that receives the font name.
+/// length - the size, in bytes, of |buffer|.
+/// 
+/// Returns the number of bytes in the family name (including the trailing NUL
+/// character) on success, 0 on error.
+/// 
+/// Regardless of the platform, the |buffer| is always in UTF-8 encoding.
+/// If |length| is less than the returned length, or |buffer| is NULL, |buffer|
+/// will not be modified.
+int FPDFFont_GetFamilyName(FPDF_FONT font,
+ffi.Pointer<ffi.Char> buffer,
+int length,
+) {
+  return _FPDFFont_GetFamilyName(font,
+buffer,
+length,
+);
+}
+
+late final _FPDFFont_GetFamilyNamePtr = _lookup<
+    ffi.NativeFunction<ffi.Size Function(FPDF_FONT , ffi.Pointer<ffi.Char> , ffi.Size )>>('FPDFFont_GetFamilyName');
+late final _FPDFFont_GetFamilyName = _FPDFFont_GetFamilyNamePtr.asFunction<int Function(FPDF_FONT , ffi.Pointer<ffi.Char> , int )>();
+
+/// Experimental API.
+/// Get the decoded data from the |font| object.
+/// 
+/// font       - The handle to the font object. (Required)
+/// buffer     - The address of a buffer that receives the font data.
+/// buflen     - Length of the buffer.
+/// out_buflen - Pointer to variable that will receive the minimum buffer size
+/// to contain the font data. Not filled if the return value is
+/// FALSE. (Required)
+/// 
+/// Returns TRUE on success. In which case, |out_buflen| will be filled, and
+/// |buffer| will be filled if it is large enough. Returns FALSE if any of the
+/// required parameters are null.
+/// 
+/// The decoded data is the uncompressed font data. i.e. the raw font data after
+/// having all stream filters applied, when the data is embedded.
+/// 
+/// If the font is not embedded, then this API will instead return the data for
+/// the substitution font it is using.
+int FPDFFont_GetFontData(FPDF_FONT font,
+ffi.Pointer<ffi.Uint8> buffer,
+int buflen,
+ffi.Pointer<ffi.Size> out_buflen,
+) {
+  return _FPDFFont_GetFontData(font,
+buffer,
+buflen,
+out_buflen,
+);
+}
+
+late final _FPDFFont_GetFontDataPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_FONT , ffi.Pointer<ffi.Uint8> , ffi.Size , ffi.Pointer<ffi.Size> )>>('FPDFFont_GetFontData');
+late final _FPDFFont_GetFontData = _FPDFFont_GetFontDataPtr.asFunction<int Function(FPDF_FONT , ffi.Pointer<ffi.Uint8> , int , ffi.Pointer<ffi.Size> )>();
+
+/// Experimental API.
+/// Get whether |font| is embedded or not.
+/// 
+/// font - the handle to the font object.
+/// 
+/// Returns 1 if the font is embedded, 0 if it not, and -1 on failure.
+int FPDFFont_GetIsEmbedded(FPDF_FONT font,
+) {
+  return _FPDFFont_GetIsEmbedded(font,
+);
+}
+
+late final _FPDFFont_GetIsEmbeddedPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_FONT )>>('FPDFFont_GetIsEmbedded');
+late final _FPDFFont_GetIsEmbedded = _FPDFFont_GetIsEmbeddedPtr.asFunction<int Function(FPDF_FONT )>();
+
+/// Experimental API.
+/// Get the descriptor flags of a font.
+/// 
+/// font - the handle to the font object.
+/// 
+/// Returns the bit flags specifying various characteristics of the font as
+/// defined in ISO 32000-1:2008, table 123, -1 on failure.
+int FPDFFont_GetFlags(FPDF_FONT font,
+) {
+  return _FPDFFont_GetFlags(font,
+);
+}
+
+late final _FPDFFont_GetFlagsPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_FONT )>>('FPDFFont_GetFlags');
+late final _FPDFFont_GetFlags = _FPDFFont_GetFlagsPtr.asFunction<int Function(FPDF_FONT )>();
+
+/// Experimental API.
+/// Get the font weight of a font.
+/// 
+/// font - the handle to the font object.
+/// 
+/// Returns the font weight, -1 on failure.
+/// Typical values are 400 (normal) and 700 (bold).
+int FPDFFont_GetWeight(FPDF_FONT font,
+) {
+  return _FPDFFont_GetWeight(font,
+);
+}
+
+late final _FPDFFont_GetWeightPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_FONT )>>('FPDFFont_GetWeight');
+late final _FPDFFont_GetWeight = _FPDFFont_GetWeightPtr.asFunction<int Function(FPDF_FONT )>();
+
+/// Experimental API.
+/// Get the italic angle of a font.
+/// 
+/// font  - the handle to the font object.
+/// angle - pointer where the italic angle will be stored
+/// 
+/// The italic angle of a |font| is defined as degrees counterclockwise
+/// from vertical. For a font that slopes to the right, this will be negative.
+/// 
+/// Returns TRUE on success; |angle| unmodified on failure.
+int FPDFFont_GetItalicAngle(FPDF_FONT font,
+ffi.Pointer<ffi.Int> angle,
+) {
+  return _FPDFFont_GetItalicAngle(font,
+angle,
+);
+}
+
+late final _FPDFFont_GetItalicAnglePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_FONT , ffi.Pointer<ffi.Int> )>>('FPDFFont_GetItalicAngle');
+late final _FPDFFont_GetItalicAngle = _FPDFFont_GetItalicAnglePtr.asFunction<int Function(FPDF_FONT , ffi.Pointer<ffi.Int> )>();
+
+/// Experimental API.
+/// Get ascent distance of a font.
+/// 
+/// font       - the handle to the font object.
+/// font_size  - the size of the |font|.
+/// ascent     - pointer where the font ascent will be stored
+/// 
+/// Ascent is the maximum distance in points above the baseline reached by the
+/// glyphs of the |font|. One point is 1/72 inch (around 0.3528 mm).
+/// 
+/// Returns TRUE on success; |ascent| unmodified on failure.
+int FPDFFont_GetAscent(FPDF_FONT font,
+double font_size,
+ffi.Pointer<ffi.Float> ascent,
+) {
+  return _FPDFFont_GetAscent(font,
+font_size,
+ascent,
+);
+}
+
+late final _FPDFFont_GetAscentPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_FONT , ffi.Float , ffi.Pointer<ffi.Float> )>>('FPDFFont_GetAscent');
+late final _FPDFFont_GetAscent = _FPDFFont_GetAscentPtr.asFunction<int Function(FPDF_FONT , double , ffi.Pointer<ffi.Float> )>();
+
+/// Experimental API.
+/// Get descent distance of a font.
+/// 
+/// font       - the handle to the font object.
+/// font_size  - the size of the |font|.
+/// descent    - pointer where the font descent will be stored
+/// 
+/// Descent is the maximum distance in points below the baseline reached by the
+/// glyphs of the |font|. One point is 1/72 inch (around 0.3528 mm).
+/// 
+/// Returns TRUE on success; |descent| unmodified on failure.
+int FPDFFont_GetDescent(FPDF_FONT font,
+double font_size,
+ffi.Pointer<ffi.Float> descent,
+) {
+  return _FPDFFont_GetDescent(font,
+font_size,
+descent,
+);
+}
+
+late final _FPDFFont_GetDescentPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_FONT , ffi.Float , ffi.Pointer<ffi.Float> )>>('FPDFFont_GetDescent');
+late final _FPDFFont_GetDescent = _FPDFFont_GetDescentPtr.asFunction<int Function(FPDF_FONT , double , ffi.Pointer<ffi.Float> )>();
+
+/// Experimental API.
+/// Get the width of a glyph in a font.
+/// 
+/// font       - the handle to the font object.
+/// glyph      - the glyph.
+/// font_size  - the size of the font.
+/// width      - pointer where the glyph width will be stored
+/// 
+/// Glyph width is the distance from the end of the prior glyph to the next
+/// glyph. This will be the vertical distance for vertical writing.
+/// 
+/// Returns TRUE on success; |width| unmodified on failure.
+int FPDFFont_GetGlyphWidth(FPDF_FONT font,
+int glyph,
+double font_size,
+ffi.Pointer<ffi.Float> width,
+) {
+  return _FPDFFont_GetGlyphWidth(font,
+glyph,
+font_size,
+width,
+);
+}
+
+late final _FPDFFont_GetGlyphWidthPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_FONT , ffi.Uint32 , ffi.Float , ffi.Pointer<ffi.Float> )>>('FPDFFont_GetGlyphWidth');
+late final _FPDFFont_GetGlyphWidth = _FPDFFont_GetGlyphWidthPtr.asFunction<int Function(FPDF_FONT , int , double , ffi.Pointer<ffi.Float> )>();
+
+/// Experimental API.
+/// Get the glyphpath describing how to draw a font glyph.
+/// 
+/// font       - the handle to the font object.
+/// glyph      - the glyph being drawn.
+/// font_size  - the size of the font.
+/// 
+/// Returns the handle to the segment, or NULL on faiure.
+FPDF_GLYPHPATH FPDFFont_GetGlyphPath(FPDF_FONT font,
+int glyph,
+double font_size,
+) {
+  return _FPDFFont_GetGlyphPath(font,
+glyph,
+font_size,
+);
+}
+
+late final _FPDFFont_GetGlyphPathPtr = _lookup<
+    ffi.NativeFunction<FPDF_GLYPHPATH Function(FPDF_FONT , ffi.Uint32 , ffi.Float )>>('FPDFFont_GetGlyphPath');
+late final _FPDFFont_GetGlyphPath = _FPDFFont_GetGlyphPathPtr.asFunction<FPDF_GLYPHPATH Function(FPDF_FONT , int , double )>();
+
+/// Experimental API.
+/// Get number of segments inside glyphpath.
+/// 
+/// glyphpath - handle to a glyph path.
+/// 
+/// Returns the number of objects in |glyphpath| or -1 on failure.
+int FPDFGlyphPath_CountGlyphSegments(FPDF_GLYPHPATH glyphpath,
+) {
+  return _FPDFGlyphPath_CountGlyphSegments(glyphpath,
+);
+}
+
+late final _FPDFGlyphPath_CountGlyphSegmentsPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_GLYPHPATH )>>('FPDFGlyphPath_CountGlyphSegments');
+late final _FPDFGlyphPath_CountGlyphSegments = _FPDFGlyphPath_CountGlyphSegmentsPtr.asFunction<int Function(FPDF_GLYPHPATH )>();
+
+/// Experimental API.
+/// Get segment in glyphpath at index.
+/// 
+/// glyphpath  - handle to a glyph path.
+/// index      - the index of a segment.
+/// 
+/// Returns the handle to the segment, or NULL on faiure.
+FPDF_PATHSEGMENT FPDFGlyphPath_GetGlyphPathSegment(FPDF_GLYPHPATH glyphpath,
+int index,
+) {
+  return _FPDFGlyphPath_GetGlyphPathSegment(glyphpath,
+index,
+);
+}
+
+late final _FPDFGlyphPath_GetGlyphPathSegmentPtr = _lookup<
+    ffi.NativeFunction<FPDF_PATHSEGMENT Function(FPDF_GLYPHPATH , ffi.Int )>>('FPDFGlyphPath_GetGlyphPathSegment');
+late final _FPDFGlyphPath_GetGlyphPathSegment = _FPDFGlyphPath_GetGlyphPathSegmentPtr.asFunction<FPDF_PATHSEGMENT Function(FPDF_GLYPHPATH , int )>();
+
+/// Get number of page objects inside |form_object|.
+/// 
+/// form_object - handle to a form object.
+/// 
+/// Returns the number of objects in |form_object| on success, -1 on error.
+int FPDFFormObj_CountObjects(FPDF_PAGEOBJECT form_object,
+) {
+  return _FPDFFormObj_CountObjects(form_object,
+);
+}
+
+late final _FPDFFormObj_CountObjectsPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFFormObj_CountObjects');
+late final _FPDFFormObj_CountObjects = _FPDFFormObj_CountObjectsPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
+
+/// Get page object in |form_object| at |index|.
+/// 
+/// form_object - handle to a form object.
+/// index       - the 0-based index of a page object.
+/// 
+/// Returns the handle to the page object, or NULL on error.
+FPDF_PAGEOBJECT FPDFFormObj_GetObject(FPDF_PAGEOBJECT form_object,
+int index,
+) {
+  return _FPDFFormObj_GetObject(form_object,
+index,
+);
+}
+
+late final _FPDFFormObj_GetObjectPtr = _lookup<
+    ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_PAGEOBJECT , ffi.UnsignedLong )>>('FPDFFormObj_GetObject');
+late final _FPDFFormObj_GetObject = _FPDFFormObj_GetObjectPtr.asFunction<FPDF_PAGEOBJECT Function(FPDF_PAGEOBJECT , int )>();
+
+/// Experimental API.
+/// 
+/// Remove |page_object| from |form_object|.
+/// 
+/// form_object - handle to a form object.
+/// page_object - handle to a page object to be removed from the form.
+/// 
+/// Returns TRUE on success.
+/// 
+/// Ownership of the removed |page_object| is transferred to the caller.
+/// Call FPDFPageObj_Destroy() on the removed page_object to free it.
+int FPDFFormObj_RemoveObject(FPDF_PAGEOBJECT form_object,
+FPDF_PAGEOBJECT page_object,
+) {
+  return _FPDFFormObj_RemoveObject(form_object,
+page_object,
+);
+}
+
+late final _FPDFFormObj_RemoveObjectPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , FPDF_PAGEOBJECT )>>('FPDFFormObj_RemoveObject');
+late final _FPDFFormObj_RemoveObject = _FPDFFormObj_RemoveObjectPtr.asFunction<int Function(FPDF_PAGEOBJECT , FPDF_PAGEOBJECT )>();
+
+/// Experimental API.
+/// Get the number of embedded files in |document|.
+/// 
+/// document - handle to a document.
+/// 
+/// Returns the number of embedded files in |document|.
+int FPDFDoc_GetAttachmentCount(FPDF_DOCUMENT document,
+) {
+  return _FPDFDoc_GetAttachmentCount(document,
+);
+}
+
+late final _FPDFDoc_GetAttachmentCountPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_DOCUMENT )>>('FPDFDoc_GetAttachmentCount');
+late final _FPDFDoc_GetAttachmentCount = _FPDFDoc_GetAttachmentCountPtr.asFunction<int Function(FPDF_DOCUMENT )>();
+
+/// Experimental API.
+/// Add an embedded file with |name| in |document|. If |name| is empty, or if
+/// |name| is the name of a existing embedded file in |document|, or if
+/// |document|'s embedded file name tree is too deep (i.e. |document| has too
+/// many embedded files already), then a new attachment will not be added.
+/// 
+/// document - handle to a document.
+/// name     - name of the new attachment.
+/// 
+/// Returns a handle to the new attachment object, or NULL on failure.
+FPDF_ATTACHMENT FPDFDoc_AddAttachment(FPDF_DOCUMENT document,
+FPDF_WIDESTRING name,
+) {
+  return _FPDFDoc_AddAttachment(document,
+name,
+);
+}
+
+late final _FPDFDoc_AddAttachmentPtr = _lookup<
+    ffi.NativeFunction<FPDF_ATTACHMENT Function(FPDF_DOCUMENT , FPDF_WIDESTRING )>>('FPDFDoc_AddAttachment');
+late final _FPDFDoc_AddAttachment = _FPDFDoc_AddAttachmentPtr.asFunction<FPDF_ATTACHMENT Function(FPDF_DOCUMENT , FPDF_WIDESTRING )>();
+
+/// Experimental API.
+/// Get the embedded attachment at |index| in |document|. Note that the returned
+/// attachment handle is only valid while |document| is open.
+/// 
+/// document - handle to a document.
+/// index    - the index of the requested embedded file.
+/// 
+/// Returns the handle to the attachment object, or NULL on failure.
+FPDF_ATTACHMENT FPDFDoc_GetAttachment(FPDF_DOCUMENT document,
+int index,
+) {
+  return _FPDFDoc_GetAttachment(document,
+index,
+);
+}
+
+late final _FPDFDoc_GetAttachmentPtr = _lookup<
+    ffi.NativeFunction<FPDF_ATTACHMENT Function(FPDF_DOCUMENT , ffi.Int )>>('FPDFDoc_GetAttachment');
+late final _FPDFDoc_GetAttachment = _FPDFDoc_GetAttachmentPtr.asFunction<FPDF_ATTACHMENT Function(FPDF_DOCUMENT , int )>();
+
+/// Experimental API.
+/// Delete the embedded attachment at |index| in |document|. Note that this does
+/// not remove the attachment data from the PDF file; it simply removes the
+/// file's entry in the embedded files name tree so that it does not appear in
+/// the attachment list. This behavior may change in the future.
+/// 
+/// document - handle to a document.
+/// index    - the index of the embedded file to be deleted.
+/// 
+/// Returns true if successful.
+int FPDFDoc_DeleteAttachment(FPDF_DOCUMENT document,
+int index,
+) {
+  return _FPDFDoc_DeleteAttachment(document,
+index,
+);
+}
+
+late final _FPDFDoc_DeleteAttachmentPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , ffi.Int )>>('FPDFDoc_DeleteAttachment');
+late final _FPDFDoc_DeleteAttachment = _FPDFDoc_DeleteAttachmentPtr.asFunction<int Function(FPDF_DOCUMENT , int )>();
+
+/// Experimental API.
+/// Get the name of the |attachment| file. |buffer| is only modified if |buflen|
+/// is longer than the length of the file name. On errors, |buffer| is unmodified
+/// and the returned length is 0.
+/// 
+/// attachment - handle to an attachment.
+/// buffer     - buffer for holding the file name, encoded in UTF-16LE.
+/// buflen     - length of the buffer in bytes.
+/// 
+/// Returns the length of the file name in bytes.
+int FPDFAttachment_GetName(FPDF_ATTACHMENT attachment,
+ffi.Pointer<FPDF_WCHAR> buffer,
+int buflen,
+) {
+  return _FPDFAttachment_GetName(attachment,
+buffer,
+buflen,
+);
+}
+
+late final _FPDFAttachment_GetNamePtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_ATTACHMENT , ffi.Pointer<FPDF_WCHAR> , ffi.UnsignedLong )>>('FPDFAttachment_GetName');
+late final _FPDFAttachment_GetName = _FPDFAttachment_GetNamePtr.asFunction<int Function(FPDF_ATTACHMENT , ffi.Pointer<FPDF_WCHAR> , int )>();
+
+/// Experimental API.
+/// Check if the params dictionary of |attachment| has |key| as a key.
+/// 
+/// attachment - handle to an attachment.
+/// key        - the key to look for, encoded in UTF-8.
+/// 
+/// Returns true if |key| exists.
+int FPDFAttachment_HasKey(FPDF_ATTACHMENT attachment,
+FPDF_BYTESTRING key,
+) {
+  return _FPDFAttachment_HasKey(attachment,
+key,
+);
+}
+
+late final _FPDFAttachment_HasKeyPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_ATTACHMENT , FPDF_BYTESTRING )>>('FPDFAttachment_HasKey');
+late final _FPDFAttachment_HasKey = _FPDFAttachment_HasKeyPtr.asFunction<int Function(FPDF_ATTACHMENT , FPDF_BYTESTRING )>();
+
+/// Experimental API.
+/// Get the type of the value corresponding to |key| in the params dictionary of
+/// the embedded |attachment|.
+/// 
+/// attachment - handle to an attachment.
+/// key        - the key to look for, encoded in UTF-8.
+/// 
+/// Returns the type of the dictionary value.
+int FPDFAttachment_GetValueType(FPDF_ATTACHMENT attachment,
+FPDF_BYTESTRING key,
+) {
+  return _FPDFAttachment_GetValueType(attachment,
+key,
+);
+}
+
+late final _FPDFAttachment_GetValueTypePtr = _lookup<
+    ffi.NativeFunction<FPDF_OBJECT_TYPE Function(FPDF_ATTACHMENT , FPDF_BYTESTRING )>>('FPDFAttachment_GetValueType');
+late final _FPDFAttachment_GetValueType = _FPDFAttachment_GetValueTypePtr.asFunction<int Function(FPDF_ATTACHMENT , FPDF_BYTESTRING )>();
+
+/// Experimental API.
+/// Set the string value corresponding to |key| in the params dictionary of the
+/// embedded file |attachment|, overwriting the existing value if any. The value
+/// type should be FPDF_OBJECT_STRING after this function call succeeds.
+/// 
+/// attachment - handle to an attachment.
+/// key        - the key to the dictionary entry, encoded in UTF-8.
+/// value      - the string value to be set, encoded in UTF-16LE.
+/// 
+/// Returns true if successful.
+int FPDFAttachment_SetStringValue(FPDF_ATTACHMENT attachment,
+FPDF_BYTESTRING key,
+FPDF_WIDESTRING value,
+) {
+  return _FPDFAttachment_SetStringValue(attachment,
+key,
+value,
+);
+}
+
+late final _FPDFAttachment_SetStringValuePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_ATTACHMENT , FPDF_BYTESTRING , FPDF_WIDESTRING )>>('FPDFAttachment_SetStringValue');
+late final _FPDFAttachment_SetStringValue = _FPDFAttachment_SetStringValuePtr.asFunction<int Function(FPDF_ATTACHMENT , FPDF_BYTESTRING , FPDF_WIDESTRING )>();
+
+/// Experimental API.
+/// Get the string value corresponding to |key| in the params dictionary of the
+/// embedded file |attachment|. |buffer| is only modified if |buflen| is longer
+/// than the length of the string value. Note that if |key| does not exist in the
+/// dictionary or if |key|'s corresponding value in the dictionary is not a
+/// string (i.e. the value is not of type FPDF_OBJECT_STRING or
+/// FPDF_OBJECT_NAME), then an empty string would be copied to |buffer| and the
+/// return value would be 2. On other errors, nothing would be added to |buffer|
+/// and the return value would be 0.
+/// 
+/// attachment - handle to an attachment.
+/// key        - the key to the requested string value, encoded in UTF-8.
+/// buffer     - buffer for holding the string value encoded in UTF-16LE.
+/// buflen     - length of the buffer in bytes.
+/// 
+/// Returns the length of the dictionary value string in bytes.
+int FPDFAttachment_GetStringValue(FPDF_ATTACHMENT attachment,
+FPDF_BYTESTRING key,
+ffi.Pointer<FPDF_WCHAR> buffer,
+int buflen,
+) {
+  return _FPDFAttachment_GetStringValue(attachment,
+key,
+buffer,
+buflen,
+);
+}
+
+late final _FPDFAttachment_GetStringValuePtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_ATTACHMENT , FPDF_BYTESTRING , ffi.Pointer<FPDF_WCHAR> , ffi.UnsignedLong )>>('FPDFAttachment_GetStringValue');
+late final _FPDFAttachment_GetStringValue = _FPDFAttachment_GetStringValuePtr.asFunction<int Function(FPDF_ATTACHMENT , FPDF_BYTESTRING , ffi.Pointer<FPDF_WCHAR> , int )>();
+
+/// Experimental API.
+/// Set the file data of |attachment|, overwriting the existing file data if any.
+/// The creation date and checksum will be updated, while all other dictionary
+/// entries will be deleted. Note that only contents with |len| smaller than
+/// INT_MAX is supported.
+/// 
+/// attachment - handle to an attachment.
+/// contents   - buffer holding the file data to write to |attachment|.
+/// len        - length of file data in bytes.
+/// 
+/// Returns true if successful.
+int FPDFAttachment_SetFile(FPDF_ATTACHMENT attachment,
+FPDF_DOCUMENT document,
+ffi.Pointer<ffi.Void> contents,
+int len,
+) {
+  return _FPDFAttachment_SetFile(attachment,
+document,
+contents,
+len,
+);
+}
+
+late final _FPDFAttachment_SetFilePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_ATTACHMENT , FPDF_DOCUMENT , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDFAttachment_SetFile');
+late final _FPDFAttachment_SetFile = _FPDFAttachment_SetFilePtr.asFunction<int Function(FPDF_ATTACHMENT , FPDF_DOCUMENT , ffi.Pointer<ffi.Void> , int )>();
+
+/// Experimental API.
+/// Get the file data of |attachment|.
+/// When the attachment file data is readable, true is returned, and |out_buflen|
+/// is updated to indicate the file data size. |buffer| is only modified if
+/// |buflen| is non-null and long enough to contain the entire file data. Callers
+/// must check both the return value and the input |buflen| is no less than the
+/// returned |out_buflen| before using the data.
+/// 
+/// Otherwise, when the attachment file data is unreadable or when |out_buflen|
+/// is null, false is returned and |buffer| and |out_buflen| remain unmodified.
+/// 
+/// attachment - handle to an attachment.
+/// buffer     - buffer for holding the file data from |attachment|.
+/// buflen     - length of the buffer in bytes.
+/// out_buflen - pointer to the variable that will receive the minimum buffer
+/// size to contain the file data of |attachment|.
+/// 
+/// Returns true on success, false otherwise.
+int FPDFAttachment_GetFile(FPDF_ATTACHMENT attachment,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
+ffi.Pointer<ffi.UnsignedLong> out_buflen,
+) {
+  return _FPDFAttachment_GetFile(attachment,
+buffer,
+buflen,
+out_buflen,
+);
+}
+
+late final _FPDFAttachment_GetFilePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_ATTACHMENT , ffi.Pointer<ffi.Void> , ffi.UnsignedLong , ffi.Pointer<ffi.UnsignedLong> )>>('FPDFAttachment_GetFile');
+late final _FPDFAttachment_GetFile = _FPDFAttachment_GetFilePtr.asFunction<int Function(FPDF_ATTACHMENT , ffi.Pointer<ffi.Void> , int , ffi.Pointer<ffi.UnsignedLong> )>();
+
+/// Experimental API.
+/// Get the MIME type (Subtype) of the embedded file |attachment|. |buffer| is
+/// only modified if |buflen| is longer than the length of the MIME type string.
+/// If the Subtype is not found or if there is no file stream, an empty string
+/// would be copied to |buffer| and the return value would be 2. On other errors,
+/// nothing would be added to |buffer| and the return value would be 0.
+/// 
+/// attachment - handle to an attachment.
+/// buffer     - buffer for holding the MIME type string encoded in UTF-16LE.
+/// buflen     - length of the buffer in bytes.
+/// 
+/// Returns the length of the MIME type string in bytes.
+int FPDFAttachment_GetSubtype(FPDF_ATTACHMENT attachment,
+ffi.Pointer<FPDF_WCHAR> buffer,
+int buflen,
+) {
+  return _FPDFAttachment_GetSubtype(attachment,
+buffer,
+buflen,
+);
+}
+
+late final _FPDFAttachment_GetSubtypePtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_ATTACHMENT , ffi.Pointer<FPDF_WCHAR> , ffi.UnsignedLong )>>('FPDFAttachment_GetSubtype');
+late final _FPDFAttachment_GetSubtype = _FPDFAttachment_GetSubtypePtr.asFunction<int Function(FPDF_ATTACHMENT , ffi.Pointer<FPDF_WCHAR> , int )>();
+
 /// Function: FPDFDOC_InitFormFillEnvironment
 /// Initialize form fill environment.
 /// Parameters:
@@ -4020,973 +8572,254 @@ late final _FPDFAnnot_AddFileAttachmentPtr = _lookup<
     ffi.NativeFunction<FPDF_ATTACHMENT Function(FPDF_ANNOTATION , FPDF_WIDESTRING )>>('FPDFAnnot_AddFileAttachment');
 late final _FPDFAnnot_AddFileAttachment = _FPDFAnnot_AddFileAttachmentPtr.asFunction<FPDF_ATTACHMENT Function(FPDF_ANNOTATION , FPDF_WIDESTRING )>();
 
-/// Function: FPDFText_LoadPage
-/// Prepare information about all characters in a page.
-/// Parameters:
-/// page    -   Handle to the page. Returned by FPDF_LoadPage function
-/// (in FPDFVIEW module).
-/// Return value:
-/// A handle to the text page information structure.
-/// NULL if something goes wrong.
-/// Comments:
-/// Application must call FPDFText_ClosePage to release the text page
-/// information.
-FPDF_TEXTPAGE FPDFText_LoadPage(FPDF_PAGE page,
-) {
-  return _FPDFText_LoadPage(page,
-);
-}
-
-late final _FPDFText_LoadPagePtr = _lookup<
-    ffi.NativeFunction<FPDF_TEXTPAGE Function(FPDF_PAGE )>>('FPDFText_LoadPage');
-late final _FPDFText_LoadPage = _FPDFText_LoadPagePtr.asFunction<FPDF_TEXTPAGE Function(FPDF_PAGE )>();
-
-/// Function: FPDFText_ClosePage
-/// Release all resources allocated for a text page information
-/// structure.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// Return Value:
-/// None.
-void FPDFText_ClosePage(FPDF_TEXTPAGE text_page,
-) {
-  return _FPDFText_ClosePage(text_page,
-);
-}
-
-late final _FPDFText_ClosePagePtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(FPDF_TEXTPAGE )>>('FPDFText_ClosePage');
-late final _FPDFText_ClosePage = _FPDFText_ClosePagePtr.asFunction<void Function(FPDF_TEXTPAGE )>();
-
-/// Function: FPDFText_CountChars
-/// Get number of characters in a page.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// Return value:
-/// Number of characters in the page. Return -1 for error.
-/// Generated characters, like additional space characters, new line
-/// characters, are also counted.
-/// Comments:
-/// Characters in a page form a "stream", inside the stream, each
-/// character has an index.
-/// We will use the index parameters in many of FPDFTEXT functions. The
-/// first character in the page
-/// has an index value of zero.
-int FPDFText_CountChars(FPDF_TEXTPAGE text_page,
-) {
-  return _FPDFText_CountChars(text_page,
-);
-}
-
-late final _FPDFText_CountCharsPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE )>>('FPDFText_CountChars');
-late final _FPDFText_CountChars = _FPDFText_CountCharsPtr.asFunction<int Function(FPDF_TEXTPAGE )>();
-
-/// Function: FPDFText_GetUnicode
-/// Get Unicode of a character in a page.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// index       -   Zero-based index of the character.
-/// Return value:
-/// The Unicode of the particular character.
-/// If a character is not encoded in Unicode and Foxit engine can't
-/// convert to Unicode,
-/// the return value will be zero.
-int FPDFText_GetUnicode(FPDF_TEXTPAGE text_page,
-int index,
-) {
-  return _FPDFText_GetUnicode(text_page,
-index,
-);
-}
-
-late final _FPDFText_GetUnicodePtr = _lookup<
-    ffi.NativeFunction<ffi.UnsignedInt Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_GetUnicode');
-late final _FPDFText_GetUnicode = _FPDFText_GetUnicodePtr.asFunction<int Function(FPDF_TEXTPAGE , int )>();
-
 /// Experimental API.
-/// Function: FPDFText_GetTextObject
-/// Get the FPDF_PAGEOBJECT associated with a given character.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// index       -   Zero-based index of the character.
-/// Return value:
-/// The associated text object for the character at |index|, or NULL on
-/// error. The returned text object, if non-null, is of type
-/// |FPDF_PAGEOBJ_TEXT|. The caller does not own the returned object.
-FPDF_PAGEOBJECT FPDFText_GetTextObject(FPDF_TEXTPAGE text_page,
-int index,
-) {
-  return _FPDFText_GetTextObject(text_page,
-index,
-);
-}
-
-late final _FPDFText_GetTextObjectPtr = _lookup<
-    ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_GetTextObject');
-late final _FPDFText_GetTextObject = _FPDFText_GetTextObjectPtr.asFunction<FPDF_PAGEOBJECT Function(FPDF_TEXTPAGE , int )>();
-
-/// Experimental API.
-/// Function: FPDFText_IsGenerated
-/// Get if a character in a page is generated by PDFium.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// index       -   Zero-based index of the character.
-/// Return value:
-/// 1 if the character is generated by PDFium.
-/// 0 if the character is not generated by PDFium.
-/// -1 if there was an error.
-int FPDFText_IsGenerated(FPDF_TEXTPAGE text_page,
-int index,
-) {
-  return _FPDFText_IsGenerated(text_page,
-index,
-);
-}
-
-late final _FPDFText_IsGeneratedPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_IsGenerated');
-late final _FPDFText_IsGenerated = _FPDFText_IsGeneratedPtr.asFunction<int Function(FPDF_TEXTPAGE , int )>();
-
-/// Experimental API.
-/// Function: FPDFText_IsHyphen
-/// Get if a character in a page is a hyphen.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// index       -   Zero-based index of the character.
-/// Return value:
-/// 1 if the character is a hyphen.
-/// 0 if the character is not a hyphen.
-/// -1 if there was an error.
-int FPDFText_IsHyphen(FPDF_TEXTPAGE text_page,
-int index,
-) {
-  return _FPDFText_IsHyphen(text_page,
-index,
-);
-}
-
-late final _FPDFText_IsHyphenPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_IsHyphen');
-late final _FPDFText_IsHyphen = _FPDFText_IsHyphenPtr.asFunction<int Function(FPDF_TEXTPAGE , int )>();
-
-/// Experimental API.
-/// Function: FPDFText_HasUnicodeMapError
-/// Get if a character in a page has an invalid unicode mapping.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// index       -   Zero-based index of the character.
-/// Return value:
-/// 1 if the character has an invalid unicode mapping.
-/// 0 if the character has no known unicode mapping issues.
-/// -1 if there was an error.
-int FPDFText_HasUnicodeMapError(FPDF_TEXTPAGE text_page,
-int index,
-) {
-  return _FPDFText_HasUnicodeMapError(text_page,
-index,
-);
-}
-
-late final _FPDFText_HasUnicodeMapErrorPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_HasUnicodeMapError');
-late final _FPDFText_HasUnicodeMapError = _FPDFText_HasUnicodeMapErrorPtr.asFunction<int Function(FPDF_TEXTPAGE , int )>();
-
-/// Function: FPDFText_GetFontSize
-/// Get the font size of a particular character.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// index       -   Zero-based index of the character.
-/// Return value:
-/// The font size of the particular character, measured in points (about
-/// 1/72 inch). This is the typographic size of the font (so called
-/// "em size").
-double FPDFText_GetFontSize(FPDF_TEXTPAGE text_page,
-int index,
-) {
-  return _FPDFText_GetFontSize(text_page,
-index,
-);
-}
-
-late final _FPDFText_GetFontSizePtr = _lookup<
-    ffi.NativeFunction<ffi.Double Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_GetFontSize');
-late final _FPDFText_GetFontSize = _FPDFText_GetFontSizePtr.asFunction<double Function(FPDF_TEXTPAGE , int )>();
-
-/// Experimental API.
-/// Function: FPDFText_GetFontInfo
-/// Get the font name and flags of a particular character.
-/// Parameters:
-/// text_page - Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// index     - Zero-based index of the character.
-/// buffer    - A buffer receiving the font name.
-/// buflen    - The length of |buffer| in bytes.
-/// flags     - Optional pointer to an int receiving the font flags.
-/// These flags should be interpreted per PDF spec 1.7
-/// Section 5.7.1 Font Descriptor Flags.
-/// Return value:
-/// On success, return the length of the font name, including the
-/// trailing NUL character, in bytes. If this length is less than or
-/// equal to |length|, |buffer| is set to the font name, |flags| is
-/// set to the font flags. |buffer| is in UTF-8 encoding. Return 0 on
-/// failure.
-int FPDFText_GetFontInfo(FPDF_TEXTPAGE text_page,
-int index,
-ffi.Pointer<ffi.Void> buffer,
-int buflen,
-ffi.Pointer<ffi.Int> flags,
-) {
-  return _FPDFText_GetFontInfo(text_page,
-index,
-buffer,
-buflen,
-flags,
-);
-}
-
-late final _FPDFText_GetFontInfoPtr = _lookup<
-    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<ffi.Void> , ffi.UnsignedLong , ffi.Pointer<ffi.Int> )>>('FPDFText_GetFontInfo');
-late final _FPDFText_GetFontInfo = _FPDFText_GetFontInfoPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<ffi.Void> , int , ffi.Pointer<ffi.Int> )>();
-
-/// Experimental API.
-/// Function: FPDFText_GetFontWeight
-/// Get the font weight of a particular character.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// index       -   Zero-based index of the character.
-/// Return value:
-/// On success, return the font weight of the particular character. If
-/// |text_page| is invalid, if |index| is out of bounds, or if the
-/// character's text object is undefined, return -1.
-int FPDFText_GetFontWeight(FPDF_TEXTPAGE text_page,
-int index,
-) {
-  return _FPDFText_GetFontWeight(text_page,
-index,
-);
-}
-
-late final _FPDFText_GetFontWeightPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_GetFontWeight');
-late final _FPDFText_GetFontWeight = _FPDFText_GetFontWeightPtr.asFunction<int Function(FPDF_TEXTPAGE , int )>();
-
-/// Experimental API.
-/// Function: FPDFText_GetFillColor
-/// Get the fill color of a particular character.
-/// Parameters:
-/// text_page      -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// index          -   Zero-based index of the character.
-/// R              -   Pointer to an unsigned int number receiving the
-/// red value of the fill color.
-/// G              -   Pointer to an unsigned int number receiving the
-/// green value of the fill color.
-/// B              -   Pointer to an unsigned int number receiving the
-/// blue value of the fill color.
-/// A              -   Pointer to an unsigned int number receiving the
-/// alpha value of the fill color.
-/// Return value:
-/// Whether the call succeeded. If false, |R|, |G|, |B| and |A| are
-/// unchanged.
-int FPDFText_GetFillColor(FPDF_TEXTPAGE text_page,
-int index,
-ffi.Pointer<ffi.UnsignedInt> R,
-ffi.Pointer<ffi.UnsignedInt> G,
-ffi.Pointer<ffi.UnsignedInt> B,
-ffi.Pointer<ffi.UnsignedInt> A,
-) {
-  return _FPDFText_GetFillColor(text_page,
-index,
-R,
-G,
-B,
-A,
-);
-}
-
-late final _FPDFText_GetFillColorPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>>('FPDFText_GetFillColor');
-late final _FPDFText_GetFillColor = _FPDFText_GetFillColorPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>();
-
-/// Experimental API.
-/// Function: FPDFText_GetStrokeColor
-/// Get the stroke color of a particular character.
-/// Parameters:
-/// text_page      -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// index          -   Zero-based index of the character.
-/// R              -   Pointer to an unsigned int number receiving the
-/// red value of the stroke color.
-/// G              -   Pointer to an unsigned int number receiving the
-/// green value of the stroke color.
-/// B              -   Pointer to an unsigned int number receiving the
-/// blue value of the stroke color.
-/// A              -   Pointer to an unsigned int number receiving the
-/// alpha value of the stroke color.
-/// Return value:
-/// Whether the call succeeded. If false, |R|, |G|, |B| and |A| are
-/// unchanged.
-int FPDFText_GetStrokeColor(FPDF_TEXTPAGE text_page,
-int index,
-ffi.Pointer<ffi.UnsignedInt> R,
-ffi.Pointer<ffi.UnsignedInt> G,
-ffi.Pointer<ffi.UnsignedInt> B,
-ffi.Pointer<ffi.UnsignedInt> A,
-) {
-  return _FPDFText_GetStrokeColor(text_page,
-index,
-R,
-G,
-B,
-A,
-);
-}
-
-late final _FPDFText_GetStrokeColorPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>>('FPDFText_GetStrokeColor');
-late final _FPDFText_GetStrokeColor = _FPDFText_GetStrokeColorPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>();
-
-/// Experimental API.
-/// Function: FPDFText_GetCharAngle
-/// Get character rotation angle.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// index       -   Zero-based index of the character.
-/// Return Value:
-/// On success, return the angle value in radian. Value will always be
-/// greater or equal to 0. If |text_page| is invalid, or if |index| is
-/// out of bounds, then return -1.
-double FPDFText_GetCharAngle(FPDF_TEXTPAGE text_page,
-int index,
-) {
-  return _FPDFText_GetCharAngle(text_page,
-index,
-);
-}
-
-late final _FPDFText_GetCharAnglePtr = _lookup<
-    ffi.NativeFunction<ffi.Float Function(FPDF_TEXTPAGE , ffi.Int )>>('FPDFText_GetCharAngle');
-late final _FPDFText_GetCharAngle = _FPDFText_GetCharAnglePtr.asFunction<double Function(FPDF_TEXTPAGE , int )>();
-
-/// Function: FPDFText_GetCharBox
-/// Get bounding box of a particular character.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// index       -   Zero-based index of the character.
-/// left        -   Pointer to a double number receiving left position
-/// of the character box.
-/// right       -   Pointer to a double number receiving right position
-/// of the character box.
-/// bottom      -   Pointer to a double number receiving bottom position
-/// of the character box.
-/// top         -   Pointer to a double number receiving top position of
-/// the character box.
-/// Return Value:
-/// On success, return TRUE and fill in |left|, |right|, |bottom|, and
-/// |top|. If |text_page| is invalid, or if |index| is out of bounds,
-/// then return FALSE, and the out parameters remain unmodified.
-/// Comments:
-/// All positions are measured in PDF "user space".
-int FPDFText_GetCharBox(FPDF_TEXTPAGE text_page,
-int index,
-ffi.Pointer<ffi.Double> left,
-ffi.Pointer<ffi.Double> right,
-ffi.Pointer<ffi.Double> bottom,
-ffi.Pointer<ffi.Double> top,
-) {
-  return _FPDFText_GetCharBox(text_page,
-index,
-left,
-right,
-bottom,
-top,
-);
-}
-
-late final _FPDFText_GetCharBoxPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>>('FPDFText_GetCharBox');
-late final _FPDFText_GetCharBox = _FPDFText_GetCharBoxPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>();
-
-/// Experimental API.
-/// Function: FPDFText_GetLooseCharBox
-/// Get a "loose" bounding box of a particular character, i.e., covering
-/// the entire glyph bounds, without taking the actual glyph shape into
-/// account.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// index       -   Zero-based index of the character.
-/// rect        -   Pointer to a FS_RECTF receiving the character box.
-/// Return Value:
-/// On success, return TRUE and fill in |rect|. If |text_page| is
-/// invalid, or if |index| is out of bounds, then return FALSE, and the
-/// |rect| out parameter remains unmodified.
-/// Comments:
-/// All positions are measured in PDF "user space".
-int FPDFText_GetLooseCharBox(FPDF_TEXTPAGE text_page,
-int index,
-ffi.Pointer<FS_RECTF> rect,
-) {
-  return _FPDFText_GetLooseCharBox(text_page,
-index,
-rect,
-);
-}
-
-late final _FPDFText_GetLooseCharBoxPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<FS_RECTF> )>>('FPDFText_GetLooseCharBox');
-late final _FPDFText_GetLooseCharBox = _FPDFText_GetLooseCharBoxPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<FS_RECTF> )>();
-
-/// Experimental API.
-/// Function: FPDFText_GetMatrix
-/// Get the effective transformation matrix for a particular character.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage().
-/// index       -   Zero-based index of the character.
-/// matrix      -   Pointer to a FS_MATRIX receiving the transformation
-/// matrix.
-/// Return Value:
-/// On success, return TRUE and fill in |matrix|. If |text_page| is
-/// invalid, or if |index| is out of bounds, or if |matrix| is NULL,
-/// then return FALSE, and |matrix| remains unmodified.
-int FPDFText_GetMatrix(FPDF_TEXTPAGE text_page,
-int index,
-ffi.Pointer<FS_MATRIX> matrix,
-) {
-  return _FPDFText_GetMatrix(text_page,
-index,
-matrix,
-);
-}
-
-late final _FPDFText_GetMatrixPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<FS_MATRIX> )>>('FPDFText_GetMatrix');
-late final _FPDFText_GetMatrix = _FPDFText_GetMatrixPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<FS_MATRIX> )>();
-
-/// Function: FPDFText_GetCharOrigin
-/// Get origin of a particular character.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// index       -   Zero-based index of the character.
-/// x           -   Pointer to a double number receiving x coordinate of
-/// the character origin.
-/// y           -   Pointer to a double number receiving y coordinate of
-/// the character origin.
-/// Return Value:
-/// Whether the call succeeded. If false, x and y are unchanged.
-/// Comments:
-/// All positions are measured in PDF "user space".
-int FPDFText_GetCharOrigin(FPDF_TEXTPAGE text_page,
-int index,
-ffi.Pointer<ffi.Double> x,
-ffi.Pointer<ffi.Double> y,
-) {
-  return _FPDFText_GetCharOrigin(text_page,
-index,
-x,
-y,
-);
-}
-
-late final _FPDFText_GetCharOriginPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>>('FPDFText_GetCharOrigin');
-late final _FPDFText_GetCharOrigin = _FPDFText_GetCharOriginPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>();
-
-/// Function: FPDFText_GetCharIndexAtPos
-/// Get the index of a character at or nearby a certain position on the
-/// page.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// x           -   X position in PDF "user space".
-/// y           -   Y position in PDF "user space".
-/// xTolerance  -   An x-axis tolerance value for character hit
-/// detection, in point units.
-/// yTolerance  -   A y-axis tolerance value for character hit
-/// detection, in point units.
-/// Return Value:
-/// The zero-based index of the character at, or nearby the point (x,y).
-/// If there is no character at or nearby the point, return value will
-/// be -1. If an error occurs, -3 will be returned.
-int FPDFText_GetCharIndexAtPos(FPDF_TEXTPAGE text_page,
-double x,
-double y,
-double xTolerance,
-double yTolerance,
-) {
-  return _FPDFText_GetCharIndexAtPos(text_page,
-x,
-y,
-xTolerance,
-yTolerance,
-);
-}
-
-late final _FPDFText_GetCharIndexAtPosPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Double , ffi.Double , ffi.Double , ffi.Double )>>('FPDFText_GetCharIndexAtPos');
-late final _FPDFText_GetCharIndexAtPos = _FPDFText_GetCharIndexAtPosPtr.asFunction<int Function(FPDF_TEXTPAGE , double , double , double , double )>();
-
-/// Function: FPDFText_GetText
-/// Extract unicode text string from the page.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// start_index -   Index for the start characters.
-/// count       -   Number of UCS-2 values to be extracted.
-/// result      -   A buffer (allocated by application) receiving the
-/// extracted UCS-2 values. The buffer must be able to
-/// hold `count` UCS-2 values plus a terminator.
-/// Return Value:
-/// Number of characters written into the result buffer, including the
-/// trailing terminator.
-/// Comments:
-/// This function ignores characters without UCS-2 representations.
-/// It considers all characters on the page, even those that are not
-/// visible when the page has a cropbox. To filter out the characters
-/// outside of the cropbox, use FPDF_GetPageBoundingBox() and
-/// FPDFText_GetCharBox().
-int FPDFText_GetText(FPDF_TEXTPAGE text_page,
-int start_index,
-int count,
-ffi.Pointer<ffi.UnsignedShort> result,
-) {
-  return _FPDFText_GetText(text_page,
-start_index,
-count,
-result,
-);
-}
-
-late final _FPDFText_GetTextPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Int , ffi.Int , ffi.Pointer<ffi.UnsignedShort> )>>('FPDFText_GetText');
-late final _FPDFText_GetText = _FPDFText_GetTextPtr.asFunction<int Function(FPDF_TEXTPAGE , int , int , ffi.Pointer<ffi.UnsignedShort> )>();
-
-/// Function: FPDFText_CountRects
-/// Counts number of rectangular areas occupied by a segment of text,
-/// and caches the result for subsequent FPDFText_GetRect() calls.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// start_index -   Index for the start character.
-/// count       -   Number of characters, or -1 for all remaining.
-/// Return value:
-/// Number of rectangles, 0 if text_page is null, or -1 on bad
-/// start_index.
-/// Comments:
-/// This function, along with FPDFText_GetRect can be used by
-/// applications to detect the position on the page for a text segment,
-/// so proper areas can be highlighted. The FPDFText_* functions will
-/// automatically merge small character boxes into bigger one if those
-/// characters are on the same line and use same font settings.
-int FPDFText_CountRects(FPDF_TEXTPAGE text_page,
-int start_index,
-int count,
-) {
-  return _FPDFText_CountRects(text_page,
-start_index,
-count,
-);
-}
-
-late final _FPDFText_CountRectsPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Int , ffi.Int )>>('FPDFText_CountRects');
-late final _FPDFText_CountRects = _FPDFText_CountRectsPtr.asFunction<int Function(FPDF_TEXTPAGE , int , int )>();
-
-/// Function: FPDFText_GetRect
-/// Get a rectangular area from the result generated by
-/// FPDFText_CountRects.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// rect_index  -   Zero-based index for the rectangle.
-/// left        -   Pointer to a double value receiving the rectangle
-/// left boundary.
-/// top         -   Pointer to a double value receiving the rectangle
-/// top boundary.
-/// right       -   Pointer to a double value receiving the rectangle
-/// right boundary.
-/// bottom      -   Pointer to a double value receiving the rectangle
-/// bottom boundary.
-/// Return Value:
-/// On success, return TRUE and fill in |left|, |top|, |right|, and
-/// |bottom|. If |text_page| is invalid then return FALSE, and the out
-/// parameters remain unmodified. If |text_page| is valid but
-/// |rect_index| is out of bounds, then return FALSE and set the out
-/// parameters to 0.
-int FPDFText_GetRect(FPDF_TEXTPAGE text_page,
-int rect_index,
-ffi.Pointer<ffi.Double> left,
-ffi.Pointer<ffi.Double> top,
-ffi.Pointer<ffi.Double> right,
-ffi.Pointer<ffi.Double> bottom,
-) {
-  return _FPDFText_GetRect(text_page,
-rect_index,
-left,
-top,
-right,
-bottom,
-);
-}
-
-late final _FPDFText_GetRectPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_TEXTPAGE , ffi.Int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>>('FPDFText_GetRect');
-late final _FPDFText_GetRect = _FPDFText_GetRectPtr.asFunction<int Function(FPDF_TEXTPAGE , int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>();
-
-/// Function: FPDFText_GetBoundedText
-/// Extract unicode text within a rectangular boundary on the page.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// left        -   Left boundary.
-/// top         -   Top boundary.
-/// right       -   Right boundary.
-/// bottom      -   Bottom boundary.
-/// buffer      -   Caller-allocated buffer to receive UTF-16 values.
-/// buflen      -   Number of UTF-16 values (not bytes) that `buffer`
-/// is capable of holding.
-/// Return Value:
-/// If buffer is NULL or buflen is zero, return number of UTF-16
-/// values (not bytes) of text present within the rectangle, excluding
-/// a terminating NUL. Generally you should pass a buffer at least one
-/// larger than this if you want a terminating NUL, which will be
-/// provided if space is available. Otherwise, return number of UTF-16
-/// values copied into the buffer, including the terminating NUL when
-/// space for it is available.
-/// Comment:
-/// If the buffer is too small, as much text as will fit is copied into
-/// it. May return a split surrogate in that case.
-int FPDFText_GetBoundedText(FPDF_TEXTPAGE text_page,
-double left,
-double top,
-double right,
-double bottom,
-ffi.Pointer<ffi.UnsignedShort> buffer,
-int buflen,
-) {
-  return _FPDFText_GetBoundedText(text_page,
-left,
-top,
-right,
-bottom,
-buffer,
-buflen,
-);
-}
-
-late final _FPDFText_GetBoundedTextPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_TEXTPAGE , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Pointer<ffi.UnsignedShort> , ffi.Int )>>('FPDFText_GetBoundedText');
-late final _FPDFText_GetBoundedText = _FPDFText_GetBoundedTextPtr.asFunction<int Function(FPDF_TEXTPAGE , double , double , double , double , ffi.Pointer<ffi.UnsignedShort> , int )>();
-
-/// Function: FPDFText_FindStart
-/// Start a search.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// findwhat    -   A unicode match pattern.
-/// flags       -   Option flags.
-/// start_index -   Start from this character. -1 for end of the page.
-/// Return Value:
-/// A handle for the search context. FPDFText_FindClose must be called
-/// to release this handle.
-FPDF_SCHHANDLE FPDFText_FindStart(FPDF_TEXTPAGE text_page,
-FPDF_WIDESTRING findwhat,
-int flags,
-int start_index,
-) {
-  return _FPDFText_FindStart(text_page,
-findwhat,
-flags,
-start_index,
-);
-}
-
-late final _FPDFText_FindStartPtr = _lookup<
-    ffi.NativeFunction<FPDF_SCHHANDLE Function(FPDF_TEXTPAGE , FPDF_WIDESTRING , ffi.UnsignedLong , ffi.Int )>>('FPDFText_FindStart');
-late final _FPDFText_FindStart = _FPDFText_FindStartPtr.asFunction<FPDF_SCHHANDLE Function(FPDF_TEXTPAGE , FPDF_WIDESTRING , int , int )>();
-
-/// Function: FPDFText_FindNext
-/// Search in the direction from page start to end.
-/// Parameters:
-/// handle      -   A search context handle returned by
-/// FPDFText_FindStart.
-/// Return Value:
-/// Whether a match is found.
-int FPDFText_FindNext(FPDF_SCHHANDLE handle,
-) {
-  return _FPDFText_FindNext(handle,
-);
-}
-
-late final _FPDFText_FindNextPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_SCHHANDLE )>>('FPDFText_FindNext');
-late final _FPDFText_FindNext = _FPDFText_FindNextPtr.asFunction<int Function(FPDF_SCHHANDLE )>();
-
-/// Function: FPDFText_FindPrev
-/// Search in the direction from page end to start.
-/// Parameters:
-/// handle      -   A search context handle returned by
-/// FPDFText_FindStart.
-/// Return Value:
-/// Whether a match is found.
-int FPDFText_FindPrev(FPDF_SCHHANDLE handle,
-) {
-  return _FPDFText_FindPrev(handle,
-);
-}
-
-late final _FPDFText_FindPrevPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_SCHHANDLE )>>('FPDFText_FindPrev');
-late final _FPDFText_FindPrev = _FPDFText_FindPrevPtr.asFunction<int Function(FPDF_SCHHANDLE )>();
-
-/// Function: FPDFText_GetSchResultIndex
-/// Get the starting character index of the search result.
-/// Parameters:
-/// handle      -   A search context handle returned by
-/// FPDFText_FindStart.
-/// Return Value:
-/// Index for the starting character.
-int FPDFText_GetSchResultIndex(FPDF_SCHHANDLE handle,
-) {
-  return _FPDFText_GetSchResultIndex(handle,
-);
-}
-
-late final _FPDFText_GetSchResultIndexPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_SCHHANDLE )>>('FPDFText_GetSchResultIndex');
-late final _FPDFText_GetSchResultIndex = _FPDFText_GetSchResultIndexPtr.asFunction<int Function(FPDF_SCHHANDLE )>();
-
-/// Function: FPDFText_GetSchCount
-/// Get the number of matched characters in the search result.
-/// Parameters:
-/// handle      -   A search context handle returned by
-/// FPDFText_FindStart.
-/// Return Value:
-/// Number of matched characters.
-int FPDFText_GetSchCount(FPDF_SCHHANDLE handle,
-) {
-  return _FPDFText_GetSchCount(handle,
-);
-}
-
-late final _FPDFText_GetSchCountPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_SCHHANDLE )>>('FPDFText_GetSchCount');
-late final _FPDFText_GetSchCount = _FPDFText_GetSchCountPtr.asFunction<int Function(FPDF_SCHHANDLE )>();
-
-/// Function: FPDFText_FindClose
-/// Release a search context.
-/// Parameters:
-/// handle      -   A search context handle returned by
-/// FPDFText_FindStart.
-/// Return Value:
-/// None.
-void FPDFText_FindClose(FPDF_SCHHANDLE handle,
-) {
-  return _FPDFText_FindClose(handle,
-);
-}
-
-late final _FPDFText_FindClosePtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(FPDF_SCHHANDLE )>>('FPDFText_FindClose');
-late final _FPDFText_FindClose = _FPDFText_FindClosePtr.asFunction<void Function(FPDF_SCHHANDLE )>();
-
-/// Function: FPDFLink_LoadWebLinks
-/// Prepare information about weblinks in a page.
-/// Parameters:
-/// text_page   -   Handle to a text page information structure.
-/// Returned by FPDFText_LoadPage function.
-/// Return Value:
-/// A handle to the page's links information structure, or
-/// NULL if something goes wrong.
-/// Comments:
-/// Weblinks are those links implicitly embedded in PDF pages. PDF also
-/// has a type of annotation called "link" (FPDFTEXT doesn't deal with
-/// that kind of link). FPDFTEXT weblink feature is useful for
-/// automatically detecting links in the page contents. For example,
-/// things like "https://www.example.com" will be detected, so
-/// applications can allow user to click on those characters to activate
-/// the link, even the PDF doesn't come with link annotations.
 /// 
-/// FPDFLink_CloseWebLinks must be called to release resources.
-FPDF_PAGELINK FPDFLink_LoadWebLinks(FPDF_TEXTPAGE text_page,
+/// Determine if |document| represents a tagged PDF.
+/// 
+/// For the definition of tagged PDF, See (see 10.7 "Tagged PDF" in PDF
+/// Reference 1.7).
+/// 
+/// document - handle to a document.
+/// 
+/// Returns |true| iff |document| is a tagged PDF.
+int FPDFCatalog_IsTagged(FPDF_DOCUMENT document,
 ) {
-  return _FPDFLink_LoadWebLinks(text_page,
+  return _FPDFCatalog_IsTagged(document,
 );
 }
 
-late final _FPDFLink_LoadWebLinksPtr = _lookup<
-    ffi.NativeFunction<FPDF_PAGELINK Function(FPDF_TEXTPAGE )>>('FPDFLink_LoadWebLinks');
-late final _FPDFLink_LoadWebLinks = _FPDFLink_LoadWebLinksPtr.asFunction<FPDF_PAGELINK Function(FPDF_TEXTPAGE )>();
-
-/// Function: FPDFLink_CountWebLinks
-/// Count number of detected web links.
-/// Parameters:
-/// link_page   -   Handle returned by FPDFLink_LoadWebLinks.
-/// Return Value:
-/// Number of detected web links.
-int FPDFLink_CountWebLinks(FPDF_PAGELINK link_page,
-) {
-  return _FPDFLink_CountWebLinks(link_page,
-);
-}
-
-late final _FPDFLink_CountWebLinksPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGELINK )>>('FPDFLink_CountWebLinks');
-late final _FPDFLink_CountWebLinks = _FPDFLink_CountWebLinksPtr.asFunction<int Function(FPDF_PAGELINK )>();
-
-/// Function: FPDFLink_GetURL
-/// Fetch the URL information for a detected web link.
-/// Parameters:
-/// link_page   -   Handle returned by FPDFLink_LoadWebLinks.
-/// link_index  -   Zero-based index for the link.
-/// buffer      -   A unicode buffer for the result.
-/// buflen      -   Number of 16-bit code units (not bytes) for the
-/// buffer, including an additional terminator.
-/// Return Value:
-/// If |buffer| is NULL or |buflen| is zero, return the number of 16-bit
-/// code units (not bytes) needed to buffer the result (an additional
-/// terminator is included in this count).
-/// Otherwise, copy the result into |buffer|, truncating at |buflen| if
-/// the result is too large to fit, and return the number of 16-bit code
-/// units actually copied into the buffer (the additional terminator is
-/// also included in this count).
-/// If |link_index| does not correspond to a valid link, then the result
-/// is an empty string.
-int FPDFLink_GetURL(FPDF_PAGELINK link_page,
-int link_index,
-ffi.Pointer<ffi.UnsignedShort> buffer,
-int buflen,
-) {
-  return _FPDFLink_GetURL(link_page,
-link_index,
-buffer,
-buflen,
-);
-}
-
-late final _FPDFLink_GetURLPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGELINK , ffi.Int , ffi.Pointer<ffi.UnsignedShort> , ffi.Int )>>('FPDFLink_GetURL');
-late final _FPDFLink_GetURL = _FPDFLink_GetURLPtr.asFunction<int Function(FPDF_PAGELINK , int , ffi.Pointer<ffi.UnsignedShort> , int )>();
-
-/// Function: FPDFLink_CountRects
-/// Count number of rectangular areas for the link.
-/// Parameters:
-/// link_page   -   Handle returned by FPDFLink_LoadWebLinks.
-/// link_index  -   Zero-based index for the link.
-/// Return Value:
-/// Number of rectangular areas for the link.  If |link_index| does
-/// not correspond to a valid link, then 0 is returned.
-int FPDFLink_CountRects(FPDF_PAGELINK link_page,
-int link_index,
-) {
-  return _FPDFLink_CountRects(link_page,
-link_index,
-);
-}
-
-late final _FPDFLink_CountRectsPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGELINK , ffi.Int )>>('FPDFLink_CountRects');
-late final _FPDFLink_CountRects = _FPDFLink_CountRectsPtr.asFunction<int Function(FPDF_PAGELINK , int )>();
-
-/// Function: FPDFLink_GetRect
-/// Fetch the boundaries of a rectangle for a link.
-/// Parameters:
-/// link_page   -   Handle returned by FPDFLink_LoadWebLinks.
-/// link_index  -   Zero-based index for the link.
-/// rect_index  -   Zero-based index for a rectangle.
-/// left        -   Pointer to a double value receiving the rectangle
-/// left boundary.
-/// top         -   Pointer to a double value receiving the rectangle
-/// top boundary.
-/// right       -   Pointer to a double value receiving the rectangle
-/// right boundary.
-/// bottom      -   Pointer to a double value receiving the rectangle
-/// bottom boundary.
-/// Return Value:
-/// On success, return TRUE and fill in |left|, |top|, |right|, and
-/// |bottom|. If |link_page| is invalid or if |link_index| does not
-/// correspond to a valid link, then return FALSE, and the out
-/// parameters remain unmodified.
-int FPDFLink_GetRect(FPDF_PAGELINK link_page,
-int link_index,
-int rect_index,
-ffi.Pointer<ffi.Double> left,
-ffi.Pointer<ffi.Double> top,
-ffi.Pointer<ffi.Double> right,
-ffi.Pointer<ffi.Double> bottom,
-) {
-  return _FPDFLink_GetRect(link_page,
-link_index,
-rect_index,
-left,
-top,
-right,
-bottom,
-);
-}
-
-late final _FPDFLink_GetRectPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGELINK , ffi.Int , ffi.Int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>>('FPDFLink_GetRect');
-late final _FPDFLink_GetRect = _FPDFLink_GetRectPtr.asFunction<int Function(FPDF_PAGELINK , int , int , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> , ffi.Pointer<ffi.Double> )>();
+late final _FPDFCatalog_IsTaggedPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT )>>('FPDFCatalog_IsTagged');
+late final _FPDFCatalog_IsTagged = _FPDFCatalog_IsTaggedPtr.asFunction<int Function(FPDF_DOCUMENT )>();
 
 /// Experimental API.
-/// Function: FPDFLink_GetTextRange
-/// Fetch the start char index and char count for a link.
-/// Parameters:
-/// link_page         -   Handle returned by FPDFLink_LoadWebLinks.
-/// link_index        -   Zero-based index for the link.
-/// start_char_index  -   pointer to int receiving the start char index
-/// char_count        -   pointer to int receiving the char count
-/// Return Value:
-/// On success, return TRUE and fill in |start_char_index| and
-/// |char_count|. if |link_page| is invalid or if |link_index| does
-/// not correspond to a valid link, then return FALSE and the out
-/// parameters remain unmodified.
-int FPDFLink_GetTextRange(FPDF_PAGELINK link_page,
-int link_index,
-ffi.Pointer<ffi.Int> start_char_index,
-ffi.Pointer<ffi.Int> char_count,
+/// Sets the language of |document| to |language|.
+/// 
+/// document - handle to a document.
+/// language - the language to set to.
+/// 
+/// Returns TRUE on success.
+int FPDFCatalog_SetLanguage(FPDF_DOCUMENT document,
+FPDF_BYTESTRING language,
 ) {
-  return _FPDFLink_GetTextRange(link_page,
-link_index,
-start_char_index,
-char_count,
+  return _FPDFCatalog_SetLanguage(document,
+language,
 );
 }
 
-late final _FPDFLink_GetTextRangePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGELINK , ffi.Int , ffi.Pointer<ffi.Int> , ffi.Pointer<ffi.Int> )>>('FPDFLink_GetTextRange');
-late final _FPDFLink_GetTextRange = _FPDFLink_GetTextRangePtr.asFunction<int Function(FPDF_PAGELINK , int , ffi.Pointer<ffi.Int> , ffi.Pointer<ffi.Int> )>();
+late final _FPDFCatalog_SetLanguagePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_BYTESTRING )>>('FPDFCatalog_SetLanguage');
+late final _FPDFCatalog_SetLanguage = _FPDFCatalog_SetLanguagePtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_BYTESTRING )>();
 
-/// Function: FPDFLink_CloseWebLinks
-/// Release resources used by weblink feature.
-/// Parameters:
-/// link_page   -   Handle returned by FPDFLink_LoadWebLinks.
-/// Return Value:
-/// None.
-void FPDFLink_CloseWebLinks(FPDF_PAGELINK link_page,
+/// Experimental API.
+/// Import pages to a FPDF_DOCUMENT.
+/// 
+/// dest_doc     - The destination document for the pages.
+/// src_doc      - The document to be imported.
+/// page_indices - An array of page indices to be imported. The first page is
+/// zero. If |page_indices| is NULL, all pages from |src_doc|
+/// are imported.
+/// length       - The length of the |page_indices| array.
+/// index        - The page index at which to insert the first imported page
+/// into |dest_doc|. The first page is zero.
+/// 
+/// Returns TRUE on success. Returns FALSE if any pages in |page_indices| is
+/// invalid.
+int FPDF_ImportPagesByIndex(FPDF_DOCUMENT dest_doc,
+FPDF_DOCUMENT src_doc,
+ffi.Pointer<ffi.Int> page_indices,
+int length,
+int index,
 ) {
-  return _FPDFLink_CloseWebLinks(link_page,
+  return _FPDF_ImportPagesByIndex(dest_doc,
+src_doc,
+page_indices,
+length,
+index,
 );
 }
 
-late final _FPDFLink_CloseWebLinksPtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(FPDF_PAGELINK )>>('FPDFLink_CloseWebLinks');
-late final _FPDFLink_CloseWebLinks = _FPDFLink_CloseWebLinksPtr.asFunction<void Function(FPDF_PAGELINK )>();
+late final _FPDF_ImportPagesByIndexPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_DOCUMENT , ffi.Pointer<ffi.Int> , ffi.UnsignedLong , ffi.Int )>>('FPDF_ImportPagesByIndex');
+late final _FPDF_ImportPagesByIndex = _FPDF_ImportPagesByIndexPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_DOCUMENT , ffi.Pointer<ffi.Int> , int , int )>();
+
+/// Import pages to a FPDF_DOCUMENT.
+/// 
+/// dest_doc  - The destination document for the pages.
+/// src_doc   - The document to be imported.
+/// pagerange - A page range string, Such as "1,3,5-7". The first page is one.
+/// If |pagerange| is NULL, all pages from |src_doc| are imported.
+/// index     - The page index at which to insert the first imported page into
+/// |dest_doc|. The first page is zero.
+/// 
+/// Returns TRUE on success. Returns FALSE if any pages in |pagerange| is
+/// invalid or if |pagerange| cannot be read.
+int FPDF_ImportPages(FPDF_DOCUMENT dest_doc,
+FPDF_DOCUMENT src_doc,
+FPDF_BYTESTRING pagerange,
+int index,
+) {
+  return _FPDF_ImportPages(dest_doc,
+src_doc,
+pagerange,
+index,
+);
+}
+
+late final _FPDF_ImportPagesPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_DOCUMENT , FPDF_BYTESTRING , ffi.Int )>>('FPDF_ImportPages');
+late final _FPDF_ImportPages = _FPDF_ImportPagesPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_DOCUMENT , FPDF_BYTESTRING , int )>();
+
+/// Experimental API.
+/// Create a new document from |src_doc|.  The pages of |src_doc| will be
+/// combined to provide |num_pages_on_x_axis x num_pages_on_y_axis| pages per
+/// |output_doc| page.
+/// 
+/// src_doc             - The document to be imported.
+/// output_width        - The output page width in PDF "user space" units.
+/// output_height       - The output page height in PDF "user space" units.
+/// num_pages_on_x_axis - The number of pages on X Axis.
+/// num_pages_on_y_axis - The number of pages on Y Axis.
+/// 
+/// Return value:
+/// A handle to the created document, or NULL on failure.
+/// 
+/// Comments:
+/// number of pages per page = num_pages_on_x_axis * num_pages_on_y_axis
+FPDF_DOCUMENT FPDF_ImportNPagesToOne(FPDF_DOCUMENT src_doc,
+double output_width,
+double output_height,
+int num_pages_on_x_axis,
+int num_pages_on_y_axis,
+) {
+  return _FPDF_ImportNPagesToOne(src_doc,
+output_width,
+output_height,
+num_pages_on_x_axis,
+num_pages_on_y_axis,
+);
+}
+
+late final _FPDF_ImportNPagesToOnePtr = _lookup<
+    ffi.NativeFunction<FPDF_DOCUMENT Function(FPDF_DOCUMENT , ffi.Float , ffi.Float , ffi.Size , ffi.Size )>>('FPDF_ImportNPagesToOne');
+late final _FPDF_ImportNPagesToOne = _FPDF_ImportNPagesToOnePtr.asFunction<FPDF_DOCUMENT Function(FPDF_DOCUMENT , double , double , int , int )>();
+
+/// Experimental API.
+/// Create a template to generate form xobjects from |src_doc|'s page at
+/// |src_page_index|, for use in |dest_doc|.
+/// 
+/// Returns a handle on success, or NULL on failure. Caller owns the newly
+/// created object.
+FPDF_XOBJECT FPDF_NewXObjectFromPage(FPDF_DOCUMENT dest_doc,
+FPDF_DOCUMENT src_doc,
+int src_page_index,
+) {
+  return _FPDF_NewXObjectFromPage(dest_doc,
+src_doc,
+src_page_index,
+);
+}
+
+late final _FPDF_NewXObjectFromPagePtr = _lookup<
+    ffi.NativeFunction<FPDF_XOBJECT Function(FPDF_DOCUMENT , FPDF_DOCUMENT , ffi.Int )>>('FPDF_NewXObjectFromPage');
+late final _FPDF_NewXObjectFromPage = _FPDF_NewXObjectFromPagePtr.asFunction<FPDF_XOBJECT Function(FPDF_DOCUMENT , FPDF_DOCUMENT , int )>();
+
+/// Experimental API.
+/// Close an FPDF_XOBJECT handle created by FPDF_NewXObjectFromPage().
+/// FPDF_PAGEOBJECTs created from the FPDF_XOBJECT handle are not affected.
+void FPDF_CloseXObject(FPDF_XOBJECT xobject,
+) {
+  return _FPDF_CloseXObject(xobject,
+);
+}
+
+late final _FPDF_CloseXObjectPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_XOBJECT )>>('FPDF_CloseXObject');
+late final _FPDF_CloseXObject = _FPDF_CloseXObjectPtr.asFunction<void Function(FPDF_XOBJECT )>();
+
+/// Experimental API.
+/// Create a new form object from an FPDF_XOBJECT object.
+/// 
+/// Returns a new form object on success, or NULL on failure. Caller owns the
+/// newly created object.
+FPDF_PAGEOBJECT FPDF_NewFormObjectFromXObject(FPDF_XOBJECT xobject,
+) {
+  return _FPDF_NewFormObjectFromXObject(xobject,
+);
+}
+
+late final _FPDF_NewFormObjectFromXObjectPtr = _lookup<
+    ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_XOBJECT )>>('FPDF_NewFormObjectFromXObject');
+late final _FPDF_NewFormObjectFromXObject = _FPDF_NewFormObjectFromXObjectPtr.asFunction<FPDF_PAGEOBJECT Function(FPDF_XOBJECT )>();
+
+/// Copy the viewer preferences from |src_doc| into |dest_doc|.
+/// 
+/// dest_doc - Document to write the viewer preferences into.
+/// src_doc  - Document to read the viewer preferences from.
+/// 
+/// Returns TRUE on success.
+int FPDF_CopyViewerPreferences(FPDF_DOCUMENT dest_doc,
+FPDF_DOCUMENT src_doc,
+) {
+  return _FPDF_CopyViewerPreferences(dest_doc,
+src_doc,
+);
+}
+
+late final _FPDF_CopyViewerPreferencesPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_DOCUMENT )>>('FPDF_CopyViewerPreferences');
+late final _FPDF_CopyViewerPreferences = _FPDF_CopyViewerPreferencesPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_DOCUMENT )>();
+
+/// Function: FPDF_SaveAsCopy
+/// Saves the copy of specified document in custom way.
+/// Parameters:
+/// document        -   Handle to document, as returned by
+/// FPDF_LoadDocument() or FPDF_CreateNewDocument().
+/// pFileWrite      -   A pointer to a custom file write structure.
+/// flags           -   Flags above that affect how the PDF gets saved.
+/// Pass in 0 when there are no flags.
+/// Return value:
+/// TRUE for succeed, FALSE for failed.
+int FPDF_SaveAsCopy(FPDF_DOCUMENT document,
+ffi.Pointer<FPDF_FILEWRITE> pFileWrite,
+int flags,
+) {
+  return _FPDF_SaveAsCopy(document,
+pFileWrite,
+flags,
+);
+}
+
+late final _FPDF_SaveAsCopyPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , ffi.Pointer<FPDF_FILEWRITE> , FPDF_DWORD )>>('FPDF_SaveAsCopy');
+late final _FPDF_SaveAsCopy = _FPDF_SaveAsCopyPtr.asFunction<int Function(FPDF_DOCUMENT , ffi.Pointer<FPDF_FILEWRITE> , int )>();
+
+/// Function: FPDF_SaveWithVersion
+/// Same as FPDF_SaveAsCopy(), except the file version of the
+/// saved document can be specified by the caller.
+/// Parameters:
+/// document        -   Handle to document.
+/// pFileWrite      -   A pointer to a custom file write structure.
+/// flags           -   The creating flags.
+/// fileVersion     -   The PDF file version. File version: 14 for 1.4,
+/// 15 for 1.5, ...
+/// Return value:
+/// TRUE if succeed, FALSE if failed.
+int FPDF_SaveWithVersion(FPDF_DOCUMENT document,
+ffi.Pointer<FPDF_FILEWRITE> pFileWrite,
+int flags,
+int fileVersion,
+) {
+  return _FPDF_SaveWithVersion(document,
+pFileWrite,
+flags,
+fileVersion,
+);
+}
+
+late final _FPDF_SaveWithVersionPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , ffi.Pointer<FPDF_FILEWRITE> , FPDF_DWORD , ffi.Int )>>('FPDF_SaveWithVersion');
+late final _FPDF_SaveWithVersion = _FPDF_SaveWithVersionPtr.asFunction<int Function(FPDF_DOCUMENT , ffi.Pointer<FPDF_FILEWRITE> , int , int )>();
 
 /// Get the first child of |bookmark|, or the first top-level bookmark item.
 /// 
@@ -5627,1342 +9460,1037 @@ late final _FPDF_GetPageLabelPtr = _lookup<
     ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_DOCUMENT , ffi.Int , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDF_GetPageLabel');
 late final _FPDF_GetPageLabel = _FPDF_GetPageLabelPtr.asFunction<int Function(FPDF_DOCUMENT , int , ffi.Pointer<ffi.Void> , int )>();
 
-/// Create a new PDF document.
-/// 
-/// Returns a handle to a new document, or NULL on failure.
-FPDF_DOCUMENT FPDF_CreateNewDocument() {
-  return _FPDF_CreateNewDocument();
-}
-
-late final _FPDF_CreateNewDocumentPtr = _lookup<
-    ffi.NativeFunction<FPDF_DOCUMENT Function()>>('FPDF_CreateNewDocument');
-late final _FPDF_CreateNewDocument = _FPDF_CreateNewDocumentPtr.asFunction<FPDF_DOCUMENT Function()>();
-
-/// Create a new PDF page.
-/// 
-/// document   - handle to document.
-/// page_index - suggested 0-based index of the page to create. If it is larger
-/// than document's current last index(L), the created page index
-/// is the next available index -- L+1.
-/// width      - the page width in points.
-/// height     - the page height in points.
-/// 
-/// Returns the handle to the new page or NULL on failure.
-/// 
-/// The page should be closed with FPDF_ClosePage() when finished as
-/// with any other page in the document.
-FPDF_PAGE FPDFPage_New(FPDF_DOCUMENT document,
-int page_index,
-double width,
-double height,
+/// Function: FPDF_StructTree_GetForPage
+/// Get the structure tree for a page.
+/// Parameters:
+/// page        -   Handle to the page, as returned by FPDF_LoadPage().
+/// Return value:
+/// A handle to the structure tree or NULL on error. The caller owns the
+/// returned handle and must use FPDF_StructTree_Close() to release it.
+/// The handle should be released before |page| gets released.
+FPDF_STRUCTTREE FPDF_StructTree_GetForPage(FPDF_PAGE page,
 ) {
-  return _FPDFPage_New(document,
-page_index,
-width,
-height,
+  return _FPDF_StructTree_GetForPage(page,
 );
 }
 
-late final _FPDFPage_NewPtr = _lookup<
-    ffi.NativeFunction<FPDF_PAGE Function(FPDF_DOCUMENT , ffi.Int , ffi.Double , ffi.Double )>>('FPDFPage_New');
-late final _FPDFPage_New = _FPDFPage_NewPtr.asFunction<FPDF_PAGE Function(FPDF_DOCUMENT , int , double , double )>();
+late final _FPDF_StructTree_GetForPagePtr = _lookup<
+    ffi.NativeFunction<FPDF_STRUCTTREE Function(FPDF_PAGE )>>('FPDF_StructTree_GetForPage');
+late final _FPDF_StructTree_GetForPage = _FPDF_StructTree_GetForPagePtr.asFunction<FPDF_STRUCTTREE Function(FPDF_PAGE )>();
 
-/// Delete the page at |page_index|.
-/// 
-/// document   - handle to document.
-/// page_index - the index of the page to delete.
-void FPDFPage_Delete(FPDF_DOCUMENT document,
-int page_index,
+/// Function: FPDF_StructTree_Close
+/// Release a resource allocated by FPDF_StructTree_GetForPage().
+/// Parameters:
+/// struct_tree -   Handle to the structure tree, as returned by
+/// FPDF_StructTree_LoadPage().
+/// Return value:
+/// None.
+void FPDF_StructTree_Close(FPDF_STRUCTTREE struct_tree,
 ) {
-  return _FPDFPage_Delete(document,
-page_index,
+  return _FPDF_StructTree_Close(struct_tree,
 );
 }
 
-late final _FPDFPage_DeletePtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(FPDF_DOCUMENT , ffi.Int )>>('FPDFPage_Delete');
-late final _FPDFPage_Delete = _FPDFPage_DeletePtr.asFunction<void Function(FPDF_DOCUMENT , int )>();
+late final _FPDF_StructTree_ClosePtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_STRUCTTREE )>>('FPDF_StructTree_Close');
+late final _FPDF_StructTree_Close = _FPDF_StructTree_ClosePtr.asFunction<void Function(FPDF_STRUCTTREE )>();
 
-/// Experimental API.
-/// Move the given pages to a new index position.
-/// 
-/// page_indices     - the ordered list of pages to move. No duplicates allowed.
-/// page_indices_len - the number of elements in |page_indices|
-/// dest_page_index  - the new index position to which the pages in
-/// |page_indices| are moved.
-/// 
-/// Returns TRUE on success. If it returns FALSE, the document may be left in an
-/// indeterminate state.
-/// 
-/// Example: The PDF document starts out with pages [A, B, C, D], with indices
-/// [0, 1, 2, 3].
-/// 
-/// >  Move(doc, [3, 2], 2, 1); // returns true
-/// >  // The document has pages [A, D, C, B].
-/// >
-/// >  Move(doc, [0, 4, 3], 3, 1); // returns false
-/// >  // Returned false because index 4 is out of range.
-/// >
-/// >  Move(doc, [0, 3, 1], 3, 2); // returns false
-/// >  // Returned false because index 2 is out of range for 3 page indices.
-/// >
-/// >  Move(doc, [2, 2], 2, 0); // returns false
-/// >  // Returned false because [2, 2] contains duplicates.
-int FPDF_MovePages(FPDF_DOCUMENT document,
-ffi.Pointer<ffi.Int> page_indices,
-int page_indices_len,
-int dest_page_index,
+/// Function: FPDF_StructTree_CountChildren
+/// Count the number of children for the structure tree.
+/// Parameters:
+/// struct_tree -   Handle to the structure tree, as returned by
+/// FPDF_StructTree_LoadPage().
+/// Return value:
+/// The number of children, or -1 on error.
+int FPDF_StructTree_CountChildren(FPDF_STRUCTTREE struct_tree,
 ) {
-  return _FPDF_MovePages(document,
-page_indices,
-page_indices_len,
-dest_page_index,
+  return _FPDF_StructTree_CountChildren(struct_tree,
 );
 }
 
-late final _FPDF_MovePagesPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , ffi.Pointer<ffi.Int> , ffi.UnsignedLong , ffi.Int )>>('FPDF_MovePages');
-late final _FPDF_MovePages = _FPDF_MovePagesPtr.asFunction<int Function(FPDF_DOCUMENT , ffi.Pointer<ffi.Int> , int , int )>();
+late final _FPDF_StructTree_CountChildrenPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_STRUCTTREE )>>('FPDF_StructTree_CountChildren');
+late final _FPDF_StructTree_CountChildren = _FPDF_StructTree_CountChildrenPtr.asFunction<int Function(FPDF_STRUCTTREE )>();
 
-/// Get the rotation of |page|.
-/// 
-/// page - handle to a page
-/// 
-/// Returns one of the following indicating the page rotation:
-/// 0 - No rotation.
-/// 1 - Rotated 90 degrees clockwise.
-/// 2 - Rotated 180 degrees clockwise.
-/// 3 - Rotated 270 degrees clockwise.
-int FPDFPage_GetRotation(FPDF_PAGE page,
-) {
-  return _FPDFPage_GetRotation(page,
-);
-}
-
-late final _FPDFPage_GetRotationPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGE )>>('FPDFPage_GetRotation');
-late final _FPDFPage_GetRotation = _FPDFPage_GetRotationPtr.asFunction<int Function(FPDF_PAGE )>();
-
-/// Set rotation for |page|.
-/// 
-/// page   - handle to a page.
-/// rotate - the rotation value, one of:
-/// 0 - No rotation.
-/// 1 - Rotated 90 degrees clockwise.
-/// 2 - Rotated 180 degrees clockwise.
-/// 3 - Rotated 270 degrees clockwise.
-void FPDFPage_SetRotation(FPDF_PAGE page,
-int rotate,
-) {
-  return _FPDFPage_SetRotation(page,
-rotate,
-);
-}
-
-late final _FPDFPage_SetRotationPtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(FPDF_PAGE , ffi.Int )>>('FPDFPage_SetRotation');
-late final _FPDFPage_SetRotation = _FPDFPage_SetRotationPtr.asFunction<void Function(FPDF_PAGE , int )>();
-
-/// Insert |page_object| into |page|.
-/// 
-/// page        - handle to a page
-/// page_object - handle to a page object. The |page_object| will be
-/// automatically freed.
-void FPDFPage_InsertObject(FPDF_PAGE page,
-FPDF_PAGEOBJECT page_object,
-) {
-  return _FPDFPage_InsertObject(page,
-page_object,
-);
-}
-
-late final _FPDFPage_InsertObjectPtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(FPDF_PAGE , FPDF_PAGEOBJECT )>>('FPDFPage_InsertObject');
-late final _FPDFPage_InsertObject = _FPDFPage_InsertObjectPtr.asFunction<void Function(FPDF_PAGE , FPDF_PAGEOBJECT )>();
-
-/// Insert |page_object| into |page| at the specified |index|.
-/// 
-/// page        - handle to a page
-/// page_object - handle to a page object as previously obtained by
-/// FPDFPageObj_CreateNew{Path|Rect}() or
-/// FPDFPageObj_New{Text|Image}Obj(). Ownership of the object
-/// is transferred back to PDFium.
-/// index       - the index position to insert the object at. If index equals
-/// the current object count, the object will be appended to the
-/// end. If index is greater than the object count, the function
-/// will fail and return false.
-/// 
-/// Returns true if successful.
-int FPDFPage_InsertObjectAtIndex(FPDF_PAGE page,
-FPDF_PAGEOBJECT page_object,
+/// Function: FPDF_StructTree_GetChildAtIndex
+/// Get a child in the structure tree.
+/// Parameters:
+/// struct_tree -   Handle to the structure tree, as returned by
+/// FPDF_StructTree_LoadPage().
+/// index       -   The index for the child, 0-based.
+/// Return value:
+/// The child at the n-th index or NULL on error. The caller does not
+/// own the handle. The handle remains valid as long as |struct_tree|
+/// remains valid.
+/// Comments:
+/// The |index| must be less than the FPDF_StructTree_CountChildren()
+/// return value.
+FPDF_STRUCTELEMENT FPDF_StructTree_GetChildAtIndex(FPDF_STRUCTTREE struct_tree,
 int index,
 ) {
-  return _FPDFPage_InsertObjectAtIndex(page,
-page_object,
+  return _FPDF_StructTree_GetChildAtIndex(struct_tree,
 index,
 );
 }
 
-late final _FPDFPage_InsertObjectAtIndexPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE , FPDF_PAGEOBJECT , ffi.Size )>>('FPDFPage_InsertObjectAtIndex');
-late final _FPDFPage_InsertObjectAtIndex = _FPDFPage_InsertObjectAtIndexPtr.asFunction<int Function(FPDF_PAGE , FPDF_PAGEOBJECT , int )>();
+late final _FPDF_StructTree_GetChildAtIndexPtr = _lookup<
+    ffi.NativeFunction<FPDF_STRUCTELEMENT Function(FPDF_STRUCTTREE , ffi.Int )>>('FPDF_StructTree_GetChildAtIndex');
+late final _FPDF_StructTree_GetChildAtIndex = _FPDF_StructTree_GetChildAtIndexPtr.asFunction<FPDF_STRUCTELEMENT Function(FPDF_STRUCTTREE , int )>();
+
+/// Function: FPDF_StructElement_GetAltText
+/// Get the alt text for a given element.
+/// Parameters:
+/// struct_element -   Handle to the struct element.
+/// buffer         -   A buffer for output the alt text. May be NULL.
+/// buflen         -   The length of the buffer, in bytes. May be 0.
+/// Return value:
+/// The number of bytes in the alt text, including the terminating NUL
+/// character. The number of bytes is returned regardless of the
+/// |buffer| and |buflen| parameters.
+/// Comments:
+/// Regardless of the platform, the |buffer| is always in UTF-16LE
+/// encoding. The string is terminated by a UTF16 NUL character. If
+/// |buflen| is less than the required length, or |buffer| is NULL,
+/// |buffer| will not be modified.
+int FPDF_StructElement_GetAltText(FPDF_STRUCTELEMENT struct_element,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
+) {
+  return _FPDF_StructElement_GetAltText(struct_element,
+buffer,
+buflen,
+);
+}
+
+late final _FPDF_StructElement_GetAltTextPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDF_StructElement_GetAltText');
+late final _FPDF_StructElement_GetAltText = _FPDF_StructElement_GetAltTextPtr.asFunction<int Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , int )>();
 
 /// Experimental API.
-/// Remove |page_object| from |page|.
-/// 
-/// page        - handle to a page
-/// page_object - handle to a page object to be removed.
-/// 
-/// Returns TRUE on success.
-/// 
-/// Ownership is transferred to the caller. Call FPDFPageObj_Destroy() to free
-/// it.
-/// Note that when removing a |page_object| of type FPDF_PAGEOBJ_TEXT, all
-/// FPDF_TEXTPAGE handles for |page| are no longer valid.
-int FPDFPage_RemoveObject(FPDF_PAGE page,
-FPDF_PAGEOBJECT page_object,
+/// Function: FPDF_StructElement_GetActualText
+/// Get the actual text for a given element.
+/// Parameters:
+/// struct_element -   Handle to the struct element.
+/// buffer         -   A buffer for output the actual text. May be NULL.
+/// buflen         -   The length of the buffer, in bytes. May be 0.
+/// Return value:
+/// The number of bytes in the actual text, including the terminating
+/// NUL character. The number of bytes is returned regardless of the
+/// |buffer| and |buflen| parameters.
+/// Comments:
+/// Regardless of the platform, the |buffer| is always in UTF-16LE
+/// encoding. The string is terminated by a UTF16 NUL character. If
+/// |buflen| is less than the required length, or |buffer| is NULL,
+/// |buffer| will not be modified.
+int FPDF_StructElement_GetActualText(FPDF_STRUCTELEMENT struct_element,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
 ) {
-  return _FPDFPage_RemoveObject(page,
-page_object,
+  return _FPDF_StructElement_GetActualText(struct_element,
+buffer,
+buflen,
 );
 }
 
-late final _FPDFPage_RemoveObjectPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE , FPDF_PAGEOBJECT )>>('FPDFPage_RemoveObject');
-late final _FPDFPage_RemoveObject = _FPDFPage_RemoveObjectPtr.asFunction<int Function(FPDF_PAGE , FPDF_PAGEOBJECT )>();
+late final _FPDF_StructElement_GetActualTextPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDF_StructElement_GetActualText');
+late final _FPDF_StructElement_GetActualText = _FPDF_StructElement_GetActualTextPtr.asFunction<int Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , int )>();
 
-/// Get number of page objects inside |page|.
-/// 
-/// page - handle to a page.
-/// 
-/// Returns the number of objects in |page|.
-int FPDFPage_CountObjects(FPDF_PAGE page,
+/// Function: FPDF_StructElement_GetID
+/// Get the ID for a given element.
+/// Parameters:
+/// struct_element -   Handle to the struct element.
+/// buffer         -   A buffer for output the ID string. May be NULL.
+/// buflen         -   The length of the buffer, in bytes. May be 0.
+/// Return value:
+/// The number of bytes in the ID string, including the terminating NUL
+/// character. The number of bytes is returned regardless of the
+/// |buffer| and |buflen| parameters.
+/// Comments:
+/// Regardless of the platform, the |buffer| is always in UTF-16LE
+/// encoding. The string is terminated by a UTF16 NUL character. If
+/// |buflen| is less than the required length, or |buffer| is NULL,
+/// |buffer| will not be modified.
+int FPDF_StructElement_GetID(FPDF_STRUCTELEMENT struct_element,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
 ) {
-  return _FPDFPage_CountObjects(page,
+  return _FPDF_StructElement_GetID(struct_element,
+buffer,
+buflen,
 );
 }
 
-late final _FPDFPage_CountObjectsPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGE )>>('FPDFPage_CountObjects');
-late final _FPDFPage_CountObjects = _FPDFPage_CountObjectsPtr.asFunction<int Function(FPDF_PAGE )>();
+late final _FPDF_StructElement_GetIDPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDF_StructElement_GetID');
+late final _FPDF_StructElement_GetID = _FPDF_StructElement_GetIDPtr.asFunction<int Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , int )>();
 
-/// Get object in |page| at |index|.
-/// 
-/// page  - handle to a page.
-/// index - the index of a page object.
-/// 
-/// Returns the handle to the page object, or NULL on failed.
-FPDF_PAGEOBJECT FPDFPage_GetObject(FPDF_PAGE page,
+/// Experimental API.
+/// Function: FPDF_StructElement_GetLang
+/// Get the case-insensitive IETF BCP 47 language code for an element.
+/// Parameters:
+/// struct_element -   Handle to the struct element.
+/// buffer         -   A buffer for output the lang string. May be NULL.
+/// buflen         -   The length of the buffer, in bytes. May be 0.
+/// Return value:
+/// The number of bytes in the ID string, including the terminating NUL
+/// character. The number of bytes is returned regardless of the
+/// |buffer| and |buflen| parameters.
+/// Comments:
+/// Regardless of the platform, the |buffer| is always in UTF-16LE
+/// encoding. The string is terminated by a UTF16 NUL character. If
+/// |buflen| is less than the required length, or |buffer| is NULL,
+/// |buffer| will not be modified.
+int FPDF_StructElement_GetLang(FPDF_STRUCTELEMENT struct_element,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
+) {
+  return _FPDF_StructElement_GetLang(struct_element,
+buffer,
+buflen,
+);
+}
+
+late final _FPDF_StructElement_GetLangPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDF_StructElement_GetLang');
+late final _FPDF_StructElement_GetLang = _FPDF_StructElement_GetLangPtr.asFunction<int Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , int )>();
+
+/// Experimental API.
+/// Function: FPDF_StructElement_GetStringAttribute
+/// Get a struct element attribute of type "name" or "string".
+/// Parameters:
+/// struct_element -   Handle to the struct element.
+/// attr_name      -   The name of the attribute to retrieve.
+/// buffer         -   A buffer for output. May be NULL.
+/// buflen         -   The length of the buffer, in bytes. May be 0.
+/// Return value:
+/// The number of bytes in the attribute value, including the
+/// terminating NUL character. The number of bytes is returned
+/// regardless of the |buffer| and |buflen| parameters.
+/// Comments:
+/// Regardless of the platform, the |buffer| is always in UTF-16LE
+/// encoding. The string is terminated by a UTF16 NUL character. If
+/// |buflen| is less than the required length, or |buffer| is NULL,
+/// |buffer| will not be modified.
+int FPDF_StructElement_GetStringAttribute(FPDF_STRUCTELEMENT struct_element,
+FPDF_BYTESTRING attr_name,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
+) {
+  return _FPDF_StructElement_GetStringAttribute(struct_element,
+attr_name,
+buffer,
+buflen,
+);
+}
+
+late final _FPDF_StructElement_GetStringAttributePtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_STRUCTELEMENT , FPDF_BYTESTRING , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDF_StructElement_GetStringAttribute');
+late final _FPDF_StructElement_GetStringAttribute = _FPDF_StructElement_GetStringAttributePtr.asFunction<int Function(FPDF_STRUCTELEMENT , FPDF_BYTESTRING , ffi.Pointer<ffi.Void> , int )>();
+
+/// Function: FPDF_StructElement_GetMarkedContentID
+/// Get the marked content ID for a given element.
+/// Parameters:
+/// struct_element -   Handle to the struct element.
+/// Return value:
+/// The marked content ID of the element. If no ID exists, returns
+/// -1.
+/// Comments:
+/// FPDF_StructElement_GetMarkedContentIdAtIndex() may be able to
+/// extract more marked content IDs out of |struct_element|. This API
+/// may be deprecated in the future.
+int FPDF_StructElement_GetMarkedContentID(FPDF_STRUCTELEMENT struct_element,
+) {
+  return _FPDF_StructElement_GetMarkedContentID(struct_element,
+);
+}
+
+late final _FPDF_StructElement_GetMarkedContentIDPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_STRUCTELEMENT )>>('FPDF_StructElement_GetMarkedContentID');
+late final _FPDF_StructElement_GetMarkedContentID = _FPDF_StructElement_GetMarkedContentIDPtr.asFunction<int Function(FPDF_STRUCTELEMENT )>();
+
+/// Function: FPDF_StructElement_GetType
+/// Get the type (/S) for a given element.
+/// Parameters:
+/// struct_element - Handle to the struct element.
+/// buffer         - A buffer for output. May be NULL.
+/// buflen         - The length of the buffer, in bytes. May be 0.
+/// Return value:
+/// The number of bytes in the type, including the terminating NUL
+/// character. The number of bytes is returned regardless of the
+/// |buffer| and |buflen| parameters.
+/// Comments:
+/// Regardless of the platform, the |buffer| is always in UTF-16LE
+/// encoding. The string is terminated by a UTF16 NUL character. If
+/// |buflen| is less than the required length, or |buffer| is NULL,
+/// |buffer| will not be modified.
+int FPDF_StructElement_GetType(FPDF_STRUCTELEMENT struct_element,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
+) {
+  return _FPDF_StructElement_GetType(struct_element,
+buffer,
+buflen,
+);
+}
+
+late final _FPDF_StructElement_GetTypePtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDF_StructElement_GetType');
+late final _FPDF_StructElement_GetType = _FPDF_StructElement_GetTypePtr.asFunction<int Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , int )>();
+
+/// Experimental API.
+/// Function: FPDF_StructElement_GetObjType
+/// Get the object type (/Type) for a given element.
+/// Parameters:
+/// struct_element - Handle to the struct element.
+/// buffer         - A buffer for output. May be NULL.
+/// buflen         - The length of the buffer, in bytes. May be 0.
+/// Return value:
+/// The number of bytes in the object type, including the terminating
+/// NUL character. The number of bytes is returned regardless of the
+/// |buffer| and |buflen| parameters.
+/// Comments:
+/// Regardless of the platform, the |buffer| is always in UTF-16LE
+/// encoding. The string is terminated by a UTF16 NUL character. If
+/// |buflen| is less than the required length, or |buffer| is NULL,
+/// |buffer| will not be modified.
+int FPDF_StructElement_GetObjType(FPDF_STRUCTELEMENT struct_element,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
+) {
+  return _FPDF_StructElement_GetObjType(struct_element,
+buffer,
+buflen,
+);
+}
+
+late final _FPDF_StructElement_GetObjTypePtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDF_StructElement_GetObjType');
+late final _FPDF_StructElement_GetObjType = _FPDF_StructElement_GetObjTypePtr.asFunction<int Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , int )>();
+
+/// Function: FPDF_StructElement_GetTitle
+/// Get the title (/T) for a given element.
+/// Parameters:
+/// struct_element - Handle to the struct element.
+/// buffer         - A buffer for output. May be NULL.
+/// buflen         - The length of the buffer, in bytes. May be 0.
+/// Return value:
+/// The number of bytes in the title, including the terminating NUL
+/// character. The number of bytes is returned regardless of the
+/// |buffer| and |buflen| parameters.
+/// Comments:
+/// Regardless of the platform, the |buffer| is always in UTF-16LE
+/// encoding. The string is terminated by a UTF16 NUL character. If
+/// |buflen| is less than the required length, or |buffer| is NULL,
+/// |buffer| will not be modified.
+int FPDF_StructElement_GetTitle(FPDF_STRUCTELEMENT struct_element,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
+) {
+  return _FPDF_StructElement_GetTitle(struct_element,
+buffer,
+buflen,
+);
+}
+
+late final _FPDF_StructElement_GetTitlePtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDF_StructElement_GetTitle');
+late final _FPDF_StructElement_GetTitle = _FPDF_StructElement_GetTitlePtr.asFunction<int Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , int )>();
+
+/// Function: FPDF_StructElement_CountChildren
+/// Count the number of children for the structure element.
+/// Parameters:
+/// struct_element -   Handle to the struct element.
+/// Return value:
+/// The number of children, or -1 on error.
+int FPDF_StructElement_CountChildren(FPDF_STRUCTELEMENT struct_element,
+) {
+  return _FPDF_StructElement_CountChildren(struct_element,
+);
+}
+
+late final _FPDF_StructElement_CountChildrenPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_STRUCTELEMENT )>>('FPDF_StructElement_CountChildren');
+late final _FPDF_StructElement_CountChildren = _FPDF_StructElement_CountChildrenPtr.asFunction<int Function(FPDF_STRUCTELEMENT )>();
+
+/// Function: FPDF_StructElement_GetChildAtIndex
+/// Get a child in the structure element.
+/// Parameters:
+/// struct_element -   Handle to the struct element.
+/// index          -   The index for the child, 0-based.
+/// Return value:
+/// The child at the n-th index or NULL on error.
+/// Comments:
+/// If the child exists but is not an element, then this function will
+/// return NULL. This will also return NULL for out of bounds indices.
+/// The |index| must be less than the FPDF_StructElement_CountChildren()
+/// return value.
+FPDF_STRUCTELEMENT FPDF_StructElement_GetChildAtIndex(FPDF_STRUCTELEMENT struct_element,
 int index,
 ) {
-  return _FPDFPage_GetObject(page,
+  return _FPDF_StructElement_GetChildAtIndex(struct_element,
 index,
 );
 }
 
-late final _FPDFPage_GetObjectPtr = _lookup<
-    ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_PAGE , ffi.Int )>>('FPDFPage_GetObject');
-late final _FPDFPage_GetObject = _FPDFPage_GetObjectPtr.asFunction<FPDF_PAGEOBJECT Function(FPDF_PAGE , int )>();
-
-/// Checks if |page| contains transparency.
-/// 
-/// page - handle to a page.
-/// 
-/// Returns TRUE if |page| contains transparency.
-int FPDFPage_HasTransparency(FPDF_PAGE page,
-) {
-  return _FPDFPage_HasTransparency(page,
-);
-}
-
-late final _FPDFPage_HasTransparencyPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE )>>('FPDFPage_HasTransparency');
-late final _FPDFPage_HasTransparency = _FPDFPage_HasTransparencyPtr.asFunction<int Function(FPDF_PAGE )>();
-
-/// Generate the content of |page|.
-/// 
-/// page - handle to a page.
-/// 
-/// Returns TRUE on success.
-/// 
-/// Before you save the page to a file, or reload the page, you must call
-/// |FPDFPage_GenerateContent| or any changes to |page| will be lost.
-int FPDFPage_GenerateContent(FPDF_PAGE page,
-) {
-  return _FPDFPage_GenerateContent(page,
-);
-}
-
-late final _FPDFPage_GenerateContentPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE )>>('FPDFPage_GenerateContent');
-late final _FPDFPage_GenerateContent = _FPDFPage_GenerateContentPtr.asFunction<int Function(FPDF_PAGE )>();
-
-/// Destroy |page_object| by releasing its resources. |page_object| must have
-/// been created by FPDFPageObj_CreateNew{Path|Rect}() or
-/// FPDFPageObj_New{Text|Image}Obj(). This function must be called on
-/// newly-created objects if they are not added to a page through
-/// FPDFPage_InsertObject() or to an annotation through FPDFAnnot_AppendObject().
-/// 
-/// page_object - handle to a page object.
-void FPDFPageObj_Destroy(FPDF_PAGEOBJECT page_object,
-) {
-  return _FPDFPageObj_Destroy(page_object,
-);
-}
-
-late final _FPDFPageObj_DestroyPtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_Destroy');
-late final _FPDFPageObj_Destroy = _FPDFPageObj_DestroyPtr.asFunction<void Function(FPDF_PAGEOBJECT )>();
-
-/// Checks if |page_object| contains transparency.
-/// 
-/// page_object - handle to a page object.
-/// 
-/// Returns TRUE if |page_object| contains transparency.
-int FPDFPageObj_HasTransparency(FPDF_PAGEOBJECT page_object,
-) {
-  return _FPDFPageObj_HasTransparency(page_object,
-);
-}
-
-late final _FPDFPageObj_HasTransparencyPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_HasTransparency');
-late final _FPDFPageObj_HasTransparency = _FPDFPageObj_HasTransparencyPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
-
-/// Get type of |page_object|.
-/// 
-/// page_object - handle to a page object.
-/// 
-/// Returns one of the FPDF_PAGEOBJ_* values on success, FPDF_PAGEOBJ_UNKNOWN on
-/// error.
-int FPDFPageObj_GetType(FPDF_PAGEOBJECT page_object,
-) {
-  return _FPDFPageObj_GetType(page_object,
-);
-}
-
-late final _FPDFPageObj_GetTypePtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_GetType');
-late final _FPDFPageObj_GetType = _FPDFPageObj_GetTypePtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
+late final _FPDF_StructElement_GetChildAtIndexPtr = _lookup<
+    ffi.NativeFunction<FPDF_STRUCTELEMENT Function(FPDF_STRUCTELEMENT , ffi.Int )>>('FPDF_StructElement_GetChildAtIndex');
+late final _FPDF_StructElement_GetChildAtIndex = _FPDF_StructElement_GetChildAtIndexPtr.asFunction<FPDF_STRUCTELEMENT Function(FPDF_STRUCTELEMENT , int )>();
 
 /// Experimental API.
-/// Gets active state for |page_object| within page.
-/// 
-/// page_object - handle to a page object.
-/// active      - pointer to variable that will receive if the page object is
-/// active. This is a required parameter. Not filled if FALSE
-/// is returned.
-/// 
-/// For page objects where |active| is filled with FALSE, the |page_object| is
-/// treated as if it wasn't in the document even though it is still held
-/// internally.
-/// 
-/// Returns TRUE if the operation succeeded, FALSE if it failed.
-int FPDFPageObj_GetIsActive(FPDF_PAGEOBJECT page_object,
-ffi.Pointer<FPDF_BOOL> active,
-) {
-  return _FPDFPageObj_GetIsActive(page_object,
-active,
-);
-}
-
-late final _FPDFPageObj_GetIsActivePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<FPDF_BOOL> )>>('FPDFPageObj_GetIsActive');
-late final _FPDFPageObj_GetIsActive = _FPDFPageObj_GetIsActivePtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<FPDF_BOOL> )>();
-
-/// Experimental API.
-/// Sets if |page_object| is active within page.
-/// 
-/// page_object - handle to a page object.
-/// active      - a boolean specifying if the object is active.
-/// 
-/// Returns TRUE on success.
-/// 
-/// Page objects all start in the active state by default, and remain in that
-/// state unless this function is called.
-/// 
-/// When |active| is false, this makes the |page_object| be treated as if it
-/// wasn't in the document even though it is still held internally.
-int FPDFPageObj_SetIsActive(FPDF_PAGEOBJECT page_object,
-int active,
-) {
-  return _FPDFPageObj_SetIsActive(page_object,
-active,
-);
-}
-
-late final _FPDFPageObj_SetIsActivePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , FPDF_BOOL )>>('FPDFPageObj_SetIsActive');
-late final _FPDFPageObj_SetIsActive = _FPDFPageObj_SetIsActivePtr.asFunction<int Function(FPDF_PAGEOBJECT , int )>();
-
-/// Transform |page_object| by the given matrix.
-/// 
-/// page_object - handle to a page object.
-/// a           - matrix value.
-/// b           - matrix value.
-/// c           - matrix value.
-/// d           - matrix value.
-/// e           - matrix value.
-/// f           - matrix value.
-/// 
-/// The matrix is composed as:
-/// |a c e|
-/// |b d f|
-/// and can be used to scale, rotate, shear and translate the |page_object|.
-void FPDFPageObj_Transform(FPDF_PAGEOBJECT page_object,
-double a,
-double b,
-double c,
-double d,
-double e,
-double f,
-) {
-  return _FPDFPageObj_Transform(page_object,
-a,
-b,
-c,
-d,
-e,
-f,
-);
-}
-
-late final _FPDFPageObj_TransformPtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(FPDF_PAGEOBJECT , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Double )>>('FPDFPageObj_Transform');
-late final _FPDFPageObj_Transform = _FPDFPageObj_TransformPtr.asFunction<void Function(FPDF_PAGEOBJECT , double , double , double , double , double , double )>();
-
-/// Experimental API.
-/// Transform |page_object| by the given matrix.
-/// 
-/// page_object - handle to a page object.
-/// matrix      - the transform matrix.
-/// 
-/// Returns TRUE on success.
-/// 
-/// This can be used to scale, rotate, shear and translate the |page_object|.
-/// It is an improved version of FPDFPageObj_Transform() that does not do
-/// unnecessary double to float conversions, and only uses 1 parameter for the
-/// matrix. It also returns whether the operation succeeded or not.
-int FPDFPageObj_TransformF(FPDF_PAGEOBJECT page_object,
-ffi.Pointer<FS_MATRIX> matrix,
-) {
-  return _FPDFPageObj_TransformF(page_object,
-matrix,
-);
-}
-
-late final _FPDFPageObj_TransformFPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_MATRIX> )>>('FPDFPageObj_TransformF');
-late final _FPDFPageObj_TransformF = _FPDFPageObj_TransformFPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_MATRIX> )>();
-
-/// Experimental API.
-/// Get the transform matrix of a page object.
-/// 
-/// page_object - handle to a page object.
-/// matrix      - pointer to struct to receive the matrix value.
-/// 
-/// The matrix is composed as:
-/// |a c e|
-/// |b d f|
-/// and used to scale, rotate, shear and translate the page object.
-/// 
-/// For page objects outside form objects, the matrix values are relative to the
-/// page that contains it.
-/// For page objects inside form objects, the matrix values are relative to the
-/// form that contains it.
-/// 
-/// Returns TRUE on success.
-int FPDFPageObj_GetMatrix(FPDF_PAGEOBJECT page_object,
-ffi.Pointer<FS_MATRIX> matrix,
-) {
-  return _FPDFPageObj_GetMatrix(page_object,
-matrix,
-);
-}
-
-late final _FPDFPageObj_GetMatrixPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_MATRIX> )>>('FPDFPageObj_GetMatrix');
-late final _FPDFPageObj_GetMatrix = _FPDFPageObj_GetMatrixPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_MATRIX> )>();
-
-/// Experimental API.
-/// Set the transform matrix of a page object.
-/// 
-/// page_object - handle to a page object.
-/// matrix      - pointer to struct with the matrix value.
-/// 
-/// The matrix is composed as:
-/// |a c e|
-/// |b d f|
-/// and can be used to scale, rotate, shear and translate the page object.
-/// 
-/// Returns TRUE on success.
-int FPDFPageObj_SetMatrix(FPDF_PAGEOBJECT page_object,
-ffi.Pointer<FS_MATRIX> matrix,
-) {
-  return _FPDFPageObj_SetMatrix(page_object,
-matrix,
-);
-}
-
-late final _FPDFPageObj_SetMatrixPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_MATRIX> )>>('FPDFPageObj_SetMatrix');
-late final _FPDFPageObj_SetMatrix = _FPDFPageObj_SetMatrixPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_MATRIX> )>();
-
-/// Transform all annotations in |page|.
-/// 
-/// page - handle to a page.
-/// a    - matrix value.
-/// b    - matrix value.
-/// c    - matrix value.
-/// d    - matrix value.
-/// e    - matrix value.
-/// f    - matrix value.
-/// 
-/// The matrix is composed as:
-/// |a c e|
-/// |b d f|
-/// and can be used to scale, rotate, shear and translate the |page| annotations.
-void FPDFPage_TransformAnnots(FPDF_PAGE page,
-double a,
-double b,
-double c,
-double d,
-double e,
-double f,
-) {
-  return _FPDFPage_TransformAnnots(page,
-a,
-b,
-c,
-d,
-e,
-f,
-);
-}
-
-late final _FPDFPage_TransformAnnotsPtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(FPDF_PAGE , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Double )>>('FPDFPage_TransformAnnots');
-late final _FPDFPage_TransformAnnots = _FPDFPage_TransformAnnotsPtr.asFunction<void Function(FPDF_PAGE , double , double , double , double , double , double )>();
-
-/// Create a new image object.
-/// 
-/// document - handle to a document.
-/// 
-/// Returns a handle to a new image object.
-FPDF_PAGEOBJECT FPDFPageObj_NewImageObj(FPDF_DOCUMENT document,
-) {
-  return _FPDFPageObj_NewImageObj(document,
-);
-}
-
-late final _FPDFPageObj_NewImageObjPtr = _lookup<
-    ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_DOCUMENT )>>('FPDFPageObj_NewImageObj');
-late final _FPDFPageObj_NewImageObj = _FPDFPageObj_NewImageObjPtr.asFunction<FPDF_PAGEOBJECT Function(FPDF_DOCUMENT )>();
-
-/// Experimental API.
-/// Get the marked content ID for the object.
-/// 
-/// page_object - handle to a page object.
-/// 
-/// Returns the page object's marked content ID, or -1 on error.
-int FPDFPageObj_GetMarkedContentID(FPDF_PAGEOBJECT page_object,
-) {
-  return _FPDFPageObj_GetMarkedContentID(page_object,
-);
-}
-
-late final _FPDFPageObj_GetMarkedContentIDPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_GetMarkedContentID');
-late final _FPDFPageObj_GetMarkedContentID = _FPDFPageObj_GetMarkedContentIDPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
-
-/// Experimental API.
-/// Get number of content marks in |page_object|.
-/// 
-/// page_object - handle to a page object.
-/// 
-/// Returns the number of content marks in |page_object|, or -1 in case of
-/// failure.
-int FPDFPageObj_CountMarks(FPDF_PAGEOBJECT page_object,
-) {
-  return _FPDFPageObj_CountMarks(page_object,
-);
-}
-
-late final _FPDFPageObj_CountMarksPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_CountMarks');
-late final _FPDFPageObj_CountMarks = _FPDFPageObj_CountMarksPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
-
-/// Experimental API.
-/// Get content mark in |page_object| at |index|.
-/// 
-/// page_object - handle to a page object.
-/// index       - the index of a page object.
-/// 
-/// Returns the handle to the content mark, or NULL on failure. The handle is
-/// still owned by the library, and it should not be freed directly. It becomes
-/// invalid if the page object is destroyed, either directly or indirectly by
-/// unloading the page.
-FPDF_PAGEOBJECTMARK FPDFPageObj_GetMark(FPDF_PAGEOBJECT page_object,
+/// Function: FPDF_StructElement_GetChildMarkedContentID
+/// Get the child's content id
+/// Parameters:
+/// struct_element -   Handle to the struct element.
+/// index          -   The index for the child, 0-based.
+/// Return value:
+/// The marked content ID of the child. If no ID exists, returns -1.
+/// Comments:
+/// If the child exists but is not a stream or object, then this
+/// function will return -1. This will also return -1 for out of bounds
+/// indices. Compared to FPDF_StructElement_GetMarkedContentIdAtIndex,
+/// it is scoped to the current page.
+/// The |index| must be less than the FPDF_StructElement_CountChildren()
+/// return value.
+int FPDF_StructElement_GetChildMarkedContentID(FPDF_STRUCTELEMENT struct_element,
 int index,
 ) {
-  return _FPDFPageObj_GetMark(page_object,
+  return _FPDF_StructElement_GetChildMarkedContentID(struct_element,
 index,
 );
 }
 
-late final _FPDFPageObj_GetMarkPtr = _lookup<
-    ffi.NativeFunction<FPDF_PAGEOBJECTMARK Function(FPDF_PAGEOBJECT , ffi.UnsignedLong )>>('FPDFPageObj_GetMark');
-late final _FPDFPageObj_GetMark = _FPDFPageObj_GetMarkPtr.asFunction<FPDF_PAGEOBJECTMARK Function(FPDF_PAGEOBJECT , int )>();
+late final _FPDF_StructElement_GetChildMarkedContentIDPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_STRUCTELEMENT , ffi.Int )>>('FPDF_StructElement_GetChildMarkedContentID');
+late final _FPDF_StructElement_GetChildMarkedContentID = _FPDF_StructElement_GetChildMarkedContentIDPtr.asFunction<int Function(FPDF_STRUCTELEMENT , int )>();
 
 /// Experimental API.
-/// Add a new content mark to a |page_object|.
-/// 
-/// page_object - handle to a page object.
-/// name        - the name (tag) of the mark.
-/// 
-/// Returns the handle to the content mark, or NULL on failure. The handle is
-/// still owned by the library, and it should not be freed directly. It becomes
-/// invalid if the page object is destroyed, either directly or indirectly by
-/// unloading the page.
-FPDF_PAGEOBJECTMARK FPDFPageObj_AddMark(FPDF_PAGEOBJECT page_object,
+/// Function: FPDF_StructElement_GetParent
+/// Get the parent of the structure element.
+/// Parameters:
+/// struct_element -   Handle to the struct element.
+/// Return value:
+/// The parent structure element or NULL on error.
+/// Comments:
+/// If structure element is StructTreeRoot, then this function will
+/// return NULL.
+FPDF_STRUCTELEMENT FPDF_StructElement_GetParent(FPDF_STRUCTELEMENT struct_element,
+) {
+  return _FPDF_StructElement_GetParent(struct_element,
+);
+}
+
+late final _FPDF_StructElement_GetParentPtr = _lookup<
+    ffi.NativeFunction<FPDF_STRUCTELEMENT Function(FPDF_STRUCTELEMENT )>>('FPDF_StructElement_GetParent');
+late final _FPDF_StructElement_GetParent = _FPDF_StructElement_GetParentPtr.asFunction<FPDF_STRUCTELEMENT Function(FPDF_STRUCTELEMENT )>();
+
+/// Function: FPDF_StructElement_GetAttributeCount
+/// Count the number of attributes for the structure element.
+/// Parameters:
+/// struct_element -   Handle to the struct element.
+/// Return value:
+/// The number of attributes, or -1 on error.
+int FPDF_StructElement_GetAttributeCount(FPDF_STRUCTELEMENT struct_element,
+) {
+  return _FPDF_StructElement_GetAttributeCount(struct_element,
+);
+}
+
+late final _FPDF_StructElement_GetAttributeCountPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_STRUCTELEMENT )>>('FPDF_StructElement_GetAttributeCount');
+late final _FPDF_StructElement_GetAttributeCount = _FPDF_StructElement_GetAttributeCountPtr.asFunction<int Function(FPDF_STRUCTELEMENT )>();
+
+/// Experimental API.
+/// Function: FPDF_StructElement_GetAttributeAtIndex
+/// Get an attribute object in the structure element.
+/// Parameters:
+/// struct_element -   Handle to the struct element.
+/// index          -   The index for the attribute object, 0-based.
+/// Return value:
+/// The attribute object at the n-th index or NULL on error.
+/// Comments:
+/// If the attribute object exists but is not a dict, then this
+/// function will return NULL. This will also return NULL for out of
+/// bounds indices. The caller does not own the handle. The handle
+/// remains valid as long as |struct_element| remains valid.
+/// The |index| must be less than the
+/// FPDF_StructElement_GetAttributeCount() return value.
+FPDF_STRUCTELEMENT_ATTR FPDF_StructElement_GetAttributeAtIndex(FPDF_STRUCTELEMENT struct_element,
+int index,
+) {
+  return _FPDF_StructElement_GetAttributeAtIndex(struct_element,
+index,
+);
+}
+
+late final _FPDF_StructElement_GetAttributeAtIndexPtr = _lookup<
+    ffi.NativeFunction<FPDF_STRUCTELEMENT_ATTR Function(FPDF_STRUCTELEMENT , ffi.Int )>>('FPDF_StructElement_GetAttributeAtIndex');
+late final _FPDF_StructElement_GetAttributeAtIndex = _FPDF_StructElement_GetAttributeAtIndexPtr.asFunction<FPDF_STRUCTELEMENT_ATTR Function(FPDF_STRUCTELEMENT , int )>();
+
+/// Experimental API.
+/// Function: FPDF_StructElement_Attr_GetCount
+/// Count the number of attributes in a structure element attribute map.
+/// Parameters:
+/// struct_attribute - Handle to the struct element attribute.
+/// Return value:
+/// The number of attributes, or -1 on error.
+int FPDF_StructElement_Attr_GetCount(FPDF_STRUCTELEMENT_ATTR struct_attribute,
+) {
+  return _FPDF_StructElement_Attr_GetCount(struct_attribute,
+);
+}
+
+late final _FPDF_StructElement_Attr_GetCountPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_STRUCTELEMENT_ATTR )>>('FPDF_StructElement_Attr_GetCount');
+late final _FPDF_StructElement_Attr_GetCount = _FPDF_StructElement_Attr_GetCountPtr.asFunction<int Function(FPDF_STRUCTELEMENT_ATTR )>();
+
+/// Experimental API.
+/// Function: FPDF_StructElement_Attr_GetName
+/// Get the name of an attribute in a structure element attribute map.
+/// Parameters:
+/// struct_attribute   - Handle to the struct element attribute.
+/// index              - The index of attribute in the map.
+/// buffer             - A buffer for output. May be NULL. This is only
+/// modified if |buflen| is longer than the length
+/// of the key. Optional, pass null to just
+/// retrieve the size of the buffer needed.
+/// buflen             - The length of the buffer.
+/// out_buflen         - A pointer to variable that will receive the
+/// minimum buffer size to contain the key. Not
+/// filled if FALSE is returned.
+/// Return value:
+/// TRUE if the operation was successful, FALSE otherwise.
+int FPDF_StructElement_Attr_GetName(FPDF_STRUCTELEMENT_ATTR struct_attribute,
+int index,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
+ffi.Pointer<ffi.UnsignedLong> out_buflen,
+) {
+  return _FPDF_StructElement_Attr_GetName(struct_attribute,
+index,
+buffer,
+buflen,
+out_buflen,
+);
+}
+
+late final _FPDF_StructElement_Attr_GetNamePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_STRUCTELEMENT_ATTR , ffi.Int , ffi.Pointer<ffi.Void> , ffi.UnsignedLong , ffi.Pointer<ffi.UnsignedLong> )>>('FPDF_StructElement_Attr_GetName');
+late final _FPDF_StructElement_Attr_GetName = _FPDF_StructElement_Attr_GetNamePtr.asFunction<int Function(FPDF_STRUCTELEMENT_ATTR , int , ffi.Pointer<ffi.Void> , int , ffi.Pointer<ffi.UnsignedLong> )>();
+
+/// Experimental API.
+/// Function: FPDF_StructElement_Attr_GetValue
+/// Get a handle to a value for an attribute in a structure element
+/// attribute map.
+/// Parameters:
+/// struct_attribute   - Handle to the struct element attribute.
+/// name               - The attribute name.
+/// Return value:
+/// Returns a handle to the value associated with the input, if any.
+/// Returns NULL on failure. The caller does not own the handle.
+/// The handle remains valid as long as |struct_attribute| remains
+/// valid.
+FPDF_STRUCTELEMENT_ATTR_VALUE FPDF_StructElement_Attr_GetValue(FPDF_STRUCTELEMENT_ATTR struct_attribute,
 FPDF_BYTESTRING name,
 ) {
-  return _FPDFPageObj_AddMark(page_object,
+  return _FPDF_StructElement_Attr_GetValue(struct_attribute,
 name,
 );
 }
 
-late final _FPDFPageObj_AddMarkPtr = _lookup<
-    ffi.NativeFunction<FPDF_PAGEOBJECTMARK Function(FPDF_PAGEOBJECT , FPDF_BYTESTRING )>>('FPDFPageObj_AddMark');
-late final _FPDFPageObj_AddMark = _FPDFPageObj_AddMarkPtr.asFunction<FPDF_PAGEOBJECTMARK Function(FPDF_PAGEOBJECT , FPDF_BYTESTRING )>();
+late final _FPDF_StructElement_Attr_GetValuePtr = _lookup<
+    ffi.NativeFunction<FPDF_STRUCTELEMENT_ATTR_VALUE Function(FPDF_STRUCTELEMENT_ATTR , FPDF_BYTESTRING )>>('FPDF_StructElement_Attr_GetValue');
+late final _FPDF_StructElement_Attr_GetValue = _FPDF_StructElement_Attr_GetValuePtr.asFunction<FPDF_STRUCTELEMENT_ATTR_VALUE Function(FPDF_STRUCTELEMENT_ATTR , FPDF_BYTESTRING )>();
 
 /// Experimental API.
-/// Removes a content |mark| from a |page_object|.
-/// The mark handle will be invalid after the removal.
-/// 
-/// page_object - handle to a page object.
-/// mark        - handle to a content mark in that object to remove.
-/// 
-/// Returns TRUE if the operation succeeded, FALSE if it failed.
-int FPDFPageObj_RemoveMark(FPDF_PAGEOBJECT page_object,
-FPDF_PAGEOBJECTMARK mark,
+/// Function: FPDF_StructElement_Attr_GetType
+/// Get the type of an attribute in a structure element attribute map.
+/// Parameters:
+/// value - Handle to the value.
+/// Return value:
+/// Returns the type of the value, or FPDF_OBJECT_UNKNOWN in case of
+/// failure. Note that this will never return FPDF_OBJECT_REFERENCE, as
+/// references are always dereferenced.
+int FPDF_StructElement_Attr_GetType(FPDF_STRUCTELEMENT_ATTR_VALUE value,
 ) {
-  return _FPDFPageObj_RemoveMark(page_object,
-mark,
+  return _FPDF_StructElement_Attr_GetType(value,
 );
 }
 
-late final _FPDFPageObj_RemoveMarkPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK )>>('FPDFPageObj_RemoveMark');
-late final _FPDFPageObj_RemoveMark = _FPDFPageObj_RemoveMarkPtr.asFunction<int Function(FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK )>();
+late final _FPDF_StructElement_Attr_GetTypePtr = _lookup<
+    ffi.NativeFunction<FPDF_OBJECT_TYPE Function(FPDF_STRUCTELEMENT_ATTR_VALUE )>>('FPDF_StructElement_Attr_GetType');
+late final _FPDF_StructElement_Attr_GetType = _FPDF_StructElement_Attr_GetTypePtr.asFunction<int Function(FPDF_STRUCTELEMENT_ATTR_VALUE )>();
 
 /// Experimental API.
-/// Get the name of a content mark.
-/// 
-/// mark       - handle to a content mark.
-/// buffer     - buffer for holding the returned name in UTF-16LE. This is only
-/// modified if |buflen| is large enough to store the name.
-/// Optional, pass null to just retrieve the size of the buffer
-/// needed.
-/// buflen     - length of the buffer in bytes.
-/// out_buflen - pointer to variable that will receive the minimum buffer size
-/// in bytes to contain the name. This is a required parameter.
-/// Not filled if FALSE is returned.
-/// 
-/// Returns TRUE if the operation succeeded, FALSE if it failed.
-int FPDFPageObjMark_GetName(FPDF_PAGEOBJECTMARK mark,
-ffi.Pointer<FPDF_WCHAR> buffer,
-int buflen,
-ffi.Pointer<ffi.UnsignedLong> out_buflen,
+/// Function: FPDF_StructElement_Attr_GetBooleanValue
+/// Get the value of a boolean attribute in an attribute map as
+/// FPDF_BOOL. FPDF_StructElement_Attr_GetType() should have returned
+/// FPDF_OBJECT_BOOLEAN for this property.
+/// Parameters:
+/// value     - Handle to the value.
+/// out_value - A pointer to variable that will receive the value. Not
+/// filled if false is returned.
+/// Return value:
+/// Returns TRUE if the attribute maps to a boolean value, FALSE
+/// otherwise.
+int FPDF_StructElement_Attr_GetBooleanValue(FPDF_STRUCTELEMENT_ATTR_VALUE value,
+ffi.Pointer<FPDF_BOOL> out_value,
 ) {
-  return _FPDFPageObjMark_GetName(mark,
-buffer,
-buflen,
-out_buflen,
-);
-}
-
-late final _FPDFPageObjMark_GetNamePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECTMARK , ffi.Pointer<FPDF_WCHAR> , ffi.UnsignedLong , ffi.Pointer<ffi.UnsignedLong> )>>('FPDFPageObjMark_GetName');
-late final _FPDFPageObjMark_GetName = _FPDFPageObjMark_GetNamePtr.asFunction<int Function(FPDF_PAGEOBJECTMARK , ffi.Pointer<FPDF_WCHAR> , int , ffi.Pointer<ffi.UnsignedLong> )>();
-
-/// Experimental API.
-/// Get the number of key/value pair parameters in |mark|.
-/// 
-/// mark   - handle to a content mark.
-/// 
-/// Returns the number of key/value pair parameters |mark|, or -1 in case of
-/// failure.
-int FPDFPageObjMark_CountParams(FPDF_PAGEOBJECTMARK mark,
-) {
-  return _FPDFPageObjMark_CountParams(mark,
-);
-}
-
-late final _FPDFPageObjMark_CountParamsPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECTMARK )>>('FPDFPageObjMark_CountParams');
-late final _FPDFPageObjMark_CountParams = _FPDFPageObjMark_CountParamsPtr.asFunction<int Function(FPDF_PAGEOBJECTMARK )>();
-
-/// Experimental API.
-/// Get the key of a property in a content mark.
-/// 
-/// mark       - handle to a content mark.
-/// index      - index of the property.
-/// buffer     - buffer for holding the returned key in UTF-16LE. This is only
-/// modified if |buflen| is large enough to store the key.
-/// Optional, pass null to just retrieve the size of the buffer
-/// needed.
-/// buflen     - length of the buffer in bytes.
-/// out_buflen - pointer to variable that will receive the minimum buffer size
-/// in bytes to contain the name. This is a required parameter.
-/// Not filled if FALSE is returned.
-/// 
-/// Returns TRUE if the operation was successful, FALSE otherwise.
-int FPDFPageObjMark_GetParamKey(FPDF_PAGEOBJECTMARK mark,
-int index,
-ffi.Pointer<FPDF_WCHAR> buffer,
-int buflen,
-ffi.Pointer<ffi.UnsignedLong> out_buflen,
-) {
-  return _FPDFPageObjMark_GetParamKey(mark,
-index,
-buffer,
-buflen,
-out_buflen,
-);
-}
-
-late final _FPDFPageObjMark_GetParamKeyPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECTMARK , ffi.UnsignedLong , ffi.Pointer<FPDF_WCHAR> , ffi.UnsignedLong , ffi.Pointer<ffi.UnsignedLong> )>>('FPDFPageObjMark_GetParamKey');
-late final _FPDFPageObjMark_GetParamKey = _FPDFPageObjMark_GetParamKeyPtr.asFunction<int Function(FPDF_PAGEOBJECTMARK , int , ffi.Pointer<FPDF_WCHAR> , int , ffi.Pointer<ffi.UnsignedLong> )>();
-
-/// Experimental API.
-/// Get the type of the value of a property in a content mark by key.
-/// 
-/// mark   - handle to a content mark.
-/// key    - string key of the property.
-/// 
-/// Returns the type of the value, or FPDF_OBJECT_UNKNOWN in case of failure.
-int FPDFPageObjMark_GetParamValueType(FPDF_PAGEOBJECTMARK mark,
-FPDF_BYTESTRING key,
-) {
-  return _FPDFPageObjMark_GetParamValueType(mark,
-key,
-);
-}
-
-late final _FPDFPageObjMark_GetParamValueTypePtr = _lookup<
-    ffi.NativeFunction<FPDF_OBJECT_TYPE Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING )>>('FPDFPageObjMark_GetParamValueType');
-late final _FPDFPageObjMark_GetParamValueType = _FPDFPageObjMark_GetParamValueTypePtr.asFunction<int Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING )>();
-
-/// Experimental API.
-/// Get the value of a number property in a content mark by key as int.
-/// FPDFPageObjMark_GetParamValueType() should have returned FPDF_OBJECT_NUMBER
-/// for this property.
-/// 
-/// mark      - handle to a content mark.
-/// key       - string key of the property.
-/// out_value - pointer to variable that will receive the value. Not filled if
-/// false is returned.
-/// 
-/// Returns TRUE if the key maps to a number value, FALSE otherwise.
-int FPDFPageObjMark_GetParamIntValue(FPDF_PAGEOBJECTMARK mark,
-FPDF_BYTESTRING key,
-ffi.Pointer<ffi.Int> out_value,
-) {
-  return _FPDFPageObjMark_GetParamIntValue(mark,
-key,
+  return _FPDF_StructElement_Attr_GetBooleanValue(value,
 out_value,
 );
 }
 
-late final _FPDFPageObjMark_GetParamIntValuePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<ffi.Int> )>>('FPDFPageObjMark_GetParamIntValue');
-late final _FPDFPageObjMark_GetParamIntValue = _FPDFPageObjMark_GetParamIntValuePtr.asFunction<int Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<ffi.Int> )>();
+late final _FPDF_StructElement_Attr_GetBooleanValuePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_STRUCTELEMENT_ATTR_VALUE , ffi.Pointer<FPDF_BOOL> )>>('FPDF_StructElement_Attr_GetBooleanValue');
+late final _FPDF_StructElement_Attr_GetBooleanValue = _FPDF_StructElement_Attr_GetBooleanValuePtr.asFunction<int Function(FPDF_STRUCTELEMENT_ATTR_VALUE , ffi.Pointer<FPDF_BOOL> )>();
 
 /// Experimental API.
-/// Get the value of a string property in a content mark by key.
-/// 
-/// mark       - handle to a content mark.
-/// key        - string key of the property.
-/// buffer     - buffer for holding the returned value in UTF-16LE. This is
-/// only modified if |buflen| is large enough to store the value.
-/// Optional, pass null to just retrieve the size of the buffer
-/// needed.
-/// buflen     - length of the buffer in bytes.
-/// out_buflen - pointer to variable that will receive the minimum buffer size
-/// in bytes to contain the name. This is a required parameter.
-/// Not filled if FALSE is returned.
-/// 
-/// Returns TRUE if the key maps to a string/blob value, FALSE otherwise.
-int FPDFPageObjMark_GetParamStringValue(FPDF_PAGEOBJECTMARK mark,
-FPDF_BYTESTRING key,
-ffi.Pointer<FPDF_WCHAR> buffer,
+/// Function: FPDF_StructElement_Attr_GetNumberValue
+/// Get the value of a number attribute in an attribute map as float.
+/// FPDF_StructElement_Attr_GetType() should have returned
+/// FPDF_OBJECT_NUMBER for this property.
+/// Parameters:
+/// value     - Handle to the value.
+/// out_value - A pointer to variable that will receive the value. Not
+/// filled if false is returned.
+/// Return value:
+/// Returns TRUE if the attribute maps to a number value, FALSE
+/// otherwise.
+int FPDF_StructElement_Attr_GetNumberValue(FPDF_STRUCTELEMENT_ATTR_VALUE value,
+ffi.Pointer<ffi.Float> out_value,
+) {
+  return _FPDF_StructElement_Attr_GetNumberValue(value,
+out_value,
+);
+}
+
+late final _FPDF_StructElement_Attr_GetNumberValuePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_STRUCTELEMENT_ATTR_VALUE , ffi.Pointer<ffi.Float> )>>('FPDF_StructElement_Attr_GetNumberValue');
+late final _FPDF_StructElement_Attr_GetNumberValue = _FPDF_StructElement_Attr_GetNumberValuePtr.asFunction<int Function(FPDF_STRUCTELEMENT_ATTR_VALUE , ffi.Pointer<ffi.Float> )>();
+
+/// Experimental API.
+/// Function: FPDF_StructElement_Attr_GetStringValue
+/// Get the value of a string attribute in an attribute map as string.
+/// FPDF_StructElement_Attr_GetType() should have returned
+/// FPDF_OBJECT_STRING or FPDF_OBJECT_NAME for this property.
+/// Parameters:
+/// value      - Handle to the value.
+/// buffer     - A buffer for holding the returned key in UTF-16LE.
+/// This is only modified if |buflen| is longer than the
+/// length of the key. Optional, pass null to just
+/// retrieve the size of the buffer needed.
+/// buflen     - The length of the buffer.
+/// out_buflen - A pointer to variable that will receive the minimum
+/// buffer size to contain the key. Not filled if FALSE is
+/// returned.
+/// Return value:
+/// Returns TRUE if the attribute maps to a string value, FALSE
+/// otherwise.
+int FPDF_StructElement_Attr_GetStringValue(FPDF_STRUCTELEMENT_ATTR_VALUE value,
+ffi.Pointer<ffi.Void> buffer,
 int buflen,
 ffi.Pointer<ffi.UnsignedLong> out_buflen,
 ) {
-  return _FPDFPageObjMark_GetParamStringValue(mark,
-key,
+  return _FPDF_StructElement_Attr_GetStringValue(value,
 buffer,
 buflen,
 out_buflen,
 );
 }
 
-late final _FPDFPageObjMark_GetParamStringValuePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<FPDF_WCHAR> , ffi.UnsignedLong , ffi.Pointer<ffi.UnsignedLong> )>>('FPDFPageObjMark_GetParamStringValue');
-late final _FPDFPageObjMark_GetParamStringValue = _FPDFPageObjMark_GetParamStringValuePtr.asFunction<int Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<FPDF_WCHAR> , int , ffi.Pointer<ffi.UnsignedLong> )>();
+late final _FPDF_StructElement_Attr_GetStringValuePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_STRUCTELEMENT_ATTR_VALUE , ffi.Pointer<ffi.Void> , ffi.UnsignedLong , ffi.Pointer<ffi.UnsignedLong> )>>('FPDF_StructElement_Attr_GetStringValue');
+late final _FPDF_StructElement_Attr_GetStringValue = _FPDF_StructElement_Attr_GetStringValuePtr.asFunction<int Function(FPDF_STRUCTELEMENT_ATTR_VALUE , ffi.Pointer<ffi.Void> , int , ffi.Pointer<ffi.UnsignedLong> )>();
 
 /// Experimental API.
-/// Get the value of a blob property in a content mark by key.
-/// 
-/// mark       - handle to a content mark.
-/// key        - string key of the property.
-/// buffer     - buffer for holding the returned value. This is only modified
-/// if |buflen| is large enough to store the value.
-/// Optional, pass null to just retrieve the size of the buffer
-/// needed.
-/// buflen     - length of the buffer in bytes.
-/// out_buflen - pointer to variable that will receive the minimum buffer size
-/// in bytes to contain the name. This is a required parameter.
-/// Not filled if FALSE is returned.
-/// 
-/// Returns TRUE if the key maps to a string/blob value, FALSE otherwise.
-int FPDFPageObjMark_GetParamBlobValue(FPDF_PAGEOBJECTMARK mark,
-FPDF_BYTESTRING key,
-ffi.Pointer<ffi.UnsignedChar> buffer,
+/// Function: FPDF_StructElement_Attr_GetBlobValue
+/// Get the value of a blob attribute in an attribute map as string.
+/// Parameters:
+/// value      - Handle to the value.
+/// buffer     - A buffer for holding the returned value. This is only
+/// modified if |buflen| is at least as long as the length
+/// of the value. Optional, pass null to just retrieve the
+/// size of the buffer needed.
+/// buflen     - The length of the buffer.
+/// out_buflen - A pointer to variable that will receive the minimum
+/// buffer size to contain the key. Not filled if FALSE is
+/// returned.
+/// Return value:
+/// Returns TRUE if the attribute maps to a string value, FALSE
+/// otherwise.
+int FPDF_StructElement_Attr_GetBlobValue(FPDF_STRUCTELEMENT_ATTR_VALUE value,
+ffi.Pointer<ffi.Void> buffer,
 int buflen,
 ffi.Pointer<ffi.UnsignedLong> out_buflen,
 ) {
-  return _FPDFPageObjMark_GetParamBlobValue(mark,
-key,
+  return _FPDF_StructElement_Attr_GetBlobValue(value,
 buffer,
 buflen,
 out_buflen,
 );
 }
 
-late final _FPDFPageObjMark_GetParamBlobValuePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<ffi.UnsignedChar> , ffi.UnsignedLong , ffi.Pointer<ffi.UnsignedLong> )>>('FPDFPageObjMark_GetParamBlobValue');
-late final _FPDFPageObjMark_GetParamBlobValue = _FPDFPageObjMark_GetParamBlobValuePtr.asFunction<int Function(FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<ffi.UnsignedChar> , int , ffi.Pointer<ffi.UnsignedLong> )>();
+late final _FPDF_StructElement_Attr_GetBlobValuePtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_STRUCTELEMENT_ATTR_VALUE , ffi.Pointer<ffi.Void> , ffi.UnsignedLong , ffi.Pointer<ffi.UnsignedLong> )>>('FPDF_StructElement_Attr_GetBlobValue');
+late final _FPDF_StructElement_Attr_GetBlobValue = _FPDF_StructElement_Attr_GetBlobValuePtr.asFunction<int Function(FPDF_STRUCTELEMENT_ATTR_VALUE , ffi.Pointer<ffi.Void> , int , ffi.Pointer<ffi.UnsignedLong> )>();
 
 /// Experimental API.
-/// Set the value of an int property in a content mark by key. If a parameter
-/// with key |key| exists, its value is set to |value|. Otherwise, it is added as
-/// a new parameter.
-/// 
-/// document    - handle to the document.
-/// page_object - handle to the page object with the mark.
-/// mark        - handle to a content mark.
-/// key         - string key of the property.
-/// value       - int value to set.
-/// 
-/// Returns TRUE if the operation succeeded, FALSE otherwise.
-int FPDFPageObjMark_SetIntParam(FPDF_DOCUMENT document,
-FPDF_PAGEOBJECT page_object,
-FPDF_PAGEOBJECTMARK mark,
-FPDF_BYTESTRING key,
-int value,
+/// Function: FPDF_StructElement_Attr_CountChildren
+/// Count the number of children values in an attribute.
+/// Parameters:
+/// value - Handle to the value.
+/// Return value:
+/// The number of children, or -1 on error.
+int FPDF_StructElement_Attr_CountChildren(FPDF_STRUCTELEMENT_ATTR_VALUE value,
 ) {
-  return _FPDFPageObjMark_SetIntParam(document,
-page_object,
-mark,
-key,
-value,
+  return _FPDF_StructElement_Attr_CountChildren(value,
 );
 }
 
-late final _FPDFPageObjMark_SetIntParamPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Int )>>('FPDFPageObjMark_SetIntParam');
-late final _FPDFPageObjMark_SetIntParam = _FPDFPageObjMark_SetIntParamPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , int )>();
+late final _FPDF_StructElement_Attr_CountChildrenPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_STRUCTELEMENT_ATTR_VALUE )>>('FPDF_StructElement_Attr_CountChildren');
+late final _FPDF_StructElement_Attr_CountChildren = _FPDF_StructElement_Attr_CountChildrenPtr.asFunction<int Function(FPDF_STRUCTELEMENT_ATTR_VALUE )>();
 
 /// Experimental API.
-/// Set the value of a string property in a content mark by key. If a parameter
-/// with key |key| exists, its value is set to |value|. Otherwise, it is added as
-/// a new parameter.
-/// 
-/// document    - handle to the document.
-/// page_object - handle to the page object with the mark.
-/// mark        - handle to a content mark.
-/// key         - string key of the property.
-/// value       - string value to set.
-/// 
-/// Returns TRUE if the operation succeeded, FALSE otherwise.
-int FPDFPageObjMark_SetStringParam(FPDF_DOCUMENT document,
-FPDF_PAGEOBJECT page_object,
-FPDF_PAGEOBJECTMARK mark,
-FPDF_BYTESTRING key,
-FPDF_BYTESTRING value,
-) {
-  return _FPDFPageObjMark_SetStringParam(document,
-page_object,
-mark,
-key,
-value,
-);
-}
-
-late final _FPDFPageObjMark_SetStringParamPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , FPDF_BYTESTRING )>>('FPDFPageObjMark_SetStringParam');
-late final _FPDFPageObjMark_SetStringParam = _FPDFPageObjMark_SetStringParamPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , FPDF_BYTESTRING )>();
-
-/// Experimental API.
-/// Set the value of a blob property in a content mark by key. If a parameter
-/// with key |key| exists, its value is set to |value|. Otherwise, it is added as
-/// a new parameter.
-/// 
-/// document    - handle to the document.
-/// page_object - handle to the page object with the mark.
-/// mark        - handle to a content mark.
-/// key         - string key of the property.
-/// value       - pointer to blob value to set.
-/// value_len   - size in bytes of |value|.
-/// 
-/// Returns TRUE if the operation succeeded, FALSE otherwise.
-int FPDFPageObjMark_SetBlobParam(FPDF_DOCUMENT document,
-FPDF_PAGEOBJECT page_object,
-FPDF_PAGEOBJECTMARK mark,
-FPDF_BYTESTRING key,
-ffi.Pointer<ffi.UnsignedChar> value,
-int value_len,
-) {
-  return _FPDFPageObjMark_SetBlobParam(document,
-page_object,
-mark,
-key,
-value,
-value_len,
-);
-}
-
-late final _FPDFPageObjMark_SetBlobParamPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<ffi.UnsignedChar> , ffi.UnsignedLong )>>('FPDFPageObjMark_SetBlobParam');
-late final _FPDFPageObjMark_SetBlobParam = _FPDFPageObjMark_SetBlobParamPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING , ffi.Pointer<ffi.UnsignedChar> , int )>();
-
-/// Experimental API.
-/// Removes a property from a content mark by key.
-/// 
-/// page_object - handle to the page object with the mark.
-/// mark        - handle to a content mark.
-/// key         - string key of the property.
-/// 
-/// Returns TRUE if the operation succeeded, FALSE otherwise.
-int FPDFPageObjMark_RemoveParam(FPDF_PAGEOBJECT page_object,
-FPDF_PAGEOBJECTMARK mark,
-FPDF_BYTESTRING key,
-) {
-  return _FPDFPageObjMark_RemoveParam(page_object,
-mark,
-key,
-);
-}
-
-late final _FPDFPageObjMark_RemoveParamPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING )>>('FPDFPageObjMark_RemoveParam');
-late final _FPDFPageObjMark_RemoveParam = _FPDFPageObjMark_RemoveParamPtr.asFunction<int Function(FPDF_PAGEOBJECT , FPDF_PAGEOBJECTMARK , FPDF_BYTESTRING )>();
-
-/// Load an image from a JPEG image file and then set it into |image_object|.
-/// 
-/// pages        - pointer to the start of all loaded pages, may be NULL.
-/// count        - number of |pages|, may be 0.
-/// image_object - handle to an image object.
-/// file_access  - file access handler which specifies the JPEG image file.
-/// 
-/// Returns TRUE on success.
-/// 
-/// The image object might already have an associated image, which is shared and
-/// cached by the loaded pages. In that case, we need to clear the cached image
-/// for all the loaded pages. Pass |pages| and page count (|count|) to this API
-/// to clear the image cache. If the image is not previously shared, or NULL is a
-/// valid |pages| value.
-int FPDFImageObj_LoadJpegFile(ffi.Pointer<FPDF_PAGE> pages,
-int count,
-FPDF_PAGEOBJECT image_object,
-ffi.Pointer<FPDF_FILEACCESS> file_access,
-) {
-  return _FPDFImageObj_LoadJpegFile(pages,
-count,
-image_object,
-file_access,
-);
-}
-
-late final _FPDFImageObj_LoadJpegFilePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(ffi.Pointer<FPDF_PAGE> , ffi.Int , FPDF_PAGEOBJECT , ffi.Pointer<FPDF_FILEACCESS> )>>('FPDFImageObj_LoadJpegFile');
-late final _FPDFImageObj_LoadJpegFile = _FPDFImageObj_LoadJpegFilePtr.asFunction<int Function(ffi.Pointer<FPDF_PAGE> , int , FPDF_PAGEOBJECT , ffi.Pointer<FPDF_FILEACCESS> )>();
-
-/// Load an image from a JPEG image file and then set it into |image_object|.
-/// 
-/// pages        - pointer to the start of all loaded pages, may be NULL.
-/// count        - number of |pages|, may be 0.
-/// image_object - handle to an image object.
-/// file_access  - file access handler which specifies the JPEG image file.
-/// 
-/// Returns TRUE on success.
-/// 
-/// The image object might already have an associated image, which is shared and
-/// cached by the loaded pages. In that case, we need to clear the cached image
-/// for all the loaded pages. Pass |pages| and page count (|count|) to this API
-/// to clear the image cache. If the image is not previously shared, or NULL is a
-/// valid |pages| value. This function loads the JPEG image inline, so the image
-/// content is copied to the file. This allows |file_access| and its associated
-/// data to be deleted after this function returns.
-int FPDFImageObj_LoadJpegFileInline(ffi.Pointer<FPDF_PAGE> pages,
-int count,
-FPDF_PAGEOBJECT image_object,
-ffi.Pointer<FPDF_FILEACCESS> file_access,
-) {
-  return _FPDFImageObj_LoadJpegFileInline(pages,
-count,
-image_object,
-file_access,
-);
-}
-
-late final _FPDFImageObj_LoadJpegFileInlinePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(ffi.Pointer<FPDF_PAGE> , ffi.Int , FPDF_PAGEOBJECT , ffi.Pointer<FPDF_FILEACCESS> )>>('FPDFImageObj_LoadJpegFileInline');
-late final _FPDFImageObj_LoadJpegFileInline = _FPDFImageObj_LoadJpegFileInlinePtr.asFunction<int Function(ffi.Pointer<FPDF_PAGE> , int , FPDF_PAGEOBJECT , ffi.Pointer<FPDF_FILEACCESS> )>();
-
-/// TODO(thestig): Start deprecating this once FPDFPageObj_SetMatrix() is stable.
-/// 
-/// Set the transform matrix of |image_object|.
-/// 
-/// image_object - handle to an image object.
-/// a            - matrix value.
-/// b            - matrix value.
-/// c            - matrix value.
-/// d            - matrix value.
-/// e            - matrix value.
-/// f            - matrix value.
-/// 
-/// The matrix is composed as:
-/// |a c e|
-/// |b d f|
-/// and can be used to scale, rotate, shear and translate the |image_object|.
-/// 
-/// Returns TRUE on success.
-int FPDFImageObj_SetMatrix(FPDF_PAGEOBJECT image_object,
-double a,
-double b,
-double c,
-double d,
-double e,
-double f,
-) {
-  return _FPDFImageObj_SetMatrix(image_object,
-a,
-b,
-c,
-d,
-e,
-f,
-);
-}
-
-late final _FPDFImageObj_SetMatrixPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Double )>>('FPDFImageObj_SetMatrix');
-late final _FPDFImageObj_SetMatrix = _FPDFImageObj_SetMatrixPtr.asFunction<int Function(FPDF_PAGEOBJECT , double , double , double , double , double , double )>();
-
-/// Set |bitmap| to |image_object|.
-/// 
-/// pages        - pointer to the start of all loaded pages, may be NULL.
-/// count        - number of |pages|, may be 0.
-/// image_object - handle to an image object.
-/// bitmap       - handle of the bitmap.
-/// 
-/// Returns TRUE on success.
-int FPDFImageObj_SetBitmap(ffi.Pointer<FPDF_PAGE> pages,
-int count,
-FPDF_PAGEOBJECT image_object,
-FPDF_BITMAP bitmap,
-) {
-  return _FPDFImageObj_SetBitmap(pages,
-count,
-image_object,
-bitmap,
-);
-}
-
-late final _FPDFImageObj_SetBitmapPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(ffi.Pointer<FPDF_PAGE> , ffi.Int , FPDF_PAGEOBJECT , FPDF_BITMAP )>>('FPDFImageObj_SetBitmap');
-late final _FPDFImageObj_SetBitmap = _FPDFImageObj_SetBitmapPtr.asFunction<int Function(ffi.Pointer<FPDF_PAGE> , int , FPDF_PAGEOBJECT , FPDF_BITMAP )>();
-
-/// Get a bitmap rasterization of |image_object|. FPDFImageObj_GetBitmap() only
-/// operates on |image_object| and does not take the associated image mask into
-/// account. It also ignores the matrix for |image_object|.
-/// The returned bitmap will be owned by the caller, and FPDFBitmap_Destroy()
-/// must be called on the returned bitmap when it is no longer needed.
-/// 
-/// image_object - handle to an image object.
-/// 
-/// Returns the bitmap.
-FPDF_BITMAP FPDFImageObj_GetBitmap(FPDF_PAGEOBJECT image_object,
-) {
-  return _FPDFImageObj_GetBitmap(image_object,
-);
-}
-
-late final _FPDFImageObj_GetBitmapPtr = _lookup<
-    ffi.NativeFunction<FPDF_BITMAP Function(FPDF_PAGEOBJECT )>>('FPDFImageObj_GetBitmap');
-late final _FPDFImageObj_GetBitmap = _FPDFImageObj_GetBitmapPtr.asFunction<FPDF_BITMAP Function(FPDF_PAGEOBJECT )>();
-
-/// Experimental API.
-/// Get a bitmap rasterization of |image_object| that takes the image mask and
-/// image matrix into account. To render correctly, the caller must provide the
-/// |document| associated with |image_object|. If there is a |page| associated
-/// with |image_object|, the caller should provide that as well.
-/// The returned bitmap will be owned by the caller, and FPDFBitmap_Destroy()
-/// must be called on the returned bitmap when it is no longer needed.
-/// 
-/// document     - handle to a document associated with |image_object|.
-/// page         - handle to an optional page associated with |image_object|.
-/// image_object - handle to an image object.
-/// 
-/// Returns the bitmap or NULL on failure.
-FPDF_BITMAP FPDFImageObj_GetRenderedBitmap(FPDF_DOCUMENT document,
-FPDF_PAGE page,
-FPDF_PAGEOBJECT image_object,
-) {
-  return _FPDFImageObj_GetRenderedBitmap(document,
-page,
-image_object,
-);
-}
-
-late final _FPDFImageObj_GetRenderedBitmapPtr = _lookup<
-    ffi.NativeFunction<FPDF_BITMAP Function(FPDF_DOCUMENT , FPDF_PAGE , FPDF_PAGEOBJECT )>>('FPDFImageObj_GetRenderedBitmap');
-late final _FPDFImageObj_GetRenderedBitmap = _FPDFImageObj_GetRenderedBitmapPtr.asFunction<FPDF_BITMAP Function(FPDF_DOCUMENT , FPDF_PAGE , FPDF_PAGEOBJECT )>();
-
-/// Get the decoded image data of |image_object|. The decoded data is the
-/// uncompressed image data, i.e. the raw image data after having all filters
-/// applied. |buffer| is only modified if |buflen| is longer than the length of
-/// the decoded image data.
-/// 
-/// image_object - handle to an image object.
-/// buffer       - buffer for holding the decoded image data.
-/// buflen       - length of the buffer in bytes.
-/// 
-/// Returns the length of the decoded image data.
-int FPDFImageObj_GetImageDataDecoded(FPDF_PAGEOBJECT image_object,
-ffi.Pointer<ffi.Void> buffer,
-int buflen,
-) {
-  return _FPDFImageObj_GetImageDataDecoded(image_object,
-buffer,
-buflen,
-);
-}
-
-late final _FPDFImageObj_GetImageDataDecodedPtr = _lookup<
-    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDFImageObj_GetImageDataDecoded');
-late final _FPDFImageObj_GetImageDataDecoded = _FPDFImageObj_GetImageDataDecodedPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Void> , int )>();
-
-/// Get the raw image data of |image_object|. The raw data is the image data as
-/// stored in the PDF without applying any filters. |buffer| is only modified if
-/// |buflen| is longer than the length of the raw image data.
-/// 
-/// image_object - handle to an image object.
-/// buffer       - buffer for holding the raw image data.
-/// buflen       - length of the buffer in bytes.
-/// 
-/// Returns the length of the raw image data.
-int FPDFImageObj_GetImageDataRaw(FPDF_PAGEOBJECT image_object,
-ffi.Pointer<ffi.Void> buffer,
-int buflen,
-) {
-  return _FPDFImageObj_GetImageDataRaw(image_object,
-buffer,
-buflen,
-);
-}
-
-late final _FPDFImageObj_GetImageDataRawPtr = _lookup<
-    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDFImageObj_GetImageDataRaw');
-late final _FPDFImageObj_GetImageDataRaw = _FPDFImageObj_GetImageDataRawPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Void> , int )>();
-
-/// Get the number of filters (i.e. decoders) of the image in |image_object|.
-/// 
-/// image_object - handle to an image object.
-/// 
-/// Returns the number of |image_object|'s filters.
-int FPDFImageObj_GetImageFilterCount(FPDF_PAGEOBJECT image_object,
-) {
-  return _FPDFImageObj_GetImageFilterCount(image_object,
-);
-}
-
-late final _FPDFImageObj_GetImageFilterCountPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFImageObj_GetImageFilterCount');
-late final _FPDFImageObj_GetImageFilterCount = _FPDFImageObj_GetImageFilterCountPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
-
-/// Get the filter at |index| of |image_object|'s list of filters. Note that the
-/// filters need to be applied in order, i.e. the first filter should be applied
-/// first, then the second, etc. |buffer| is only modified if |buflen| is longer
-/// than the length of the filter string.
-/// 
-/// image_object - handle to an image object.
-/// index        - the index of the filter requested.
-/// buffer       - buffer for holding filter string, encoded in UTF-8.
-/// buflen       - length of the buffer.
-/// 
-/// Returns the length of the filter string.
-int FPDFImageObj_GetImageFilter(FPDF_PAGEOBJECT image_object,
+/// Function: FPDF_StructElement_Attr_GetChildAtIndex
+/// Get a child from an attribute.
+/// Parameters:
+/// value - Handle to the value.
+/// index - The index for the child, 0-based.
+/// Return value:
+/// The child at the n-th index or NULL on error.
+/// Comments:
+/// The |index| must be less than the
+/// FPDF_StructElement_Attr_CountChildren() return value.
+FPDF_STRUCTELEMENT_ATTR_VALUE FPDF_StructElement_Attr_GetChildAtIndex(FPDF_STRUCTELEMENT_ATTR_VALUE value,
 int index,
-ffi.Pointer<ffi.Void> buffer,
-int buflen,
 ) {
-  return _FPDFImageObj_GetImageFilter(image_object,
+  return _FPDF_StructElement_Attr_GetChildAtIndex(value,
 index,
-buffer,
-buflen,
 );
 }
 
-late final _FPDFImageObj_GetImageFilterPtr = _lookup<
-    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_PAGEOBJECT , ffi.Int , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDFImageObj_GetImageFilter');
-late final _FPDFImageObj_GetImageFilter = _FPDFImageObj_GetImageFilterPtr.asFunction<int Function(FPDF_PAGEOBJECT , int , ffi.Pointer<ffi.Void> , int )>();
-
-/// Get the image metadata of |image_object|, including dimension, DPI, bits per
-/// pixel, and colorspace. If the |image_object| is not an image object or if it
-/// does not have an image, then the return value will be false. Otherwise,
-/// failure to retrieve any specific parameter would result in its value being 0.
-/// 
-/// image_object - handle to an image object.
-/// page         - handle to the page that |image_object| is on. Required for
-/// retrieving the image's bits per pixel and colorspace.
-/// metadata     - receives the image metadata; must not be NULL.
-/// 
-/// Returns true if successful.
-int FPDFImageObj_GetImageMetadata(FPDF_PAGEOBJECT image_object,
-FPDF_PAGE page,
-ffi.Pointer<FPDF_IMAGEOBJ_METADATA> metadata,
-) {
-  return _FPDFImageObj_GetImageMetadata(image_object,
-page,
-metadata,
-);
-}
-
-late final _FPDFImageObj_GetImageMetadataPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , FPDF_PAGE , ffi.Pointer<FPDF_IMAGEOBJ_METADATA> )>>('FPDFImageObj_GetImageMetadata');
-late final _FPDFImageObj_GetImageMetadata = _FPDFImageObj_GetImageMetadataPtr.asFunction<int Function(FPDF_PAGEOBJECT , FPDF_PAGE , ffi.Pointer<FPDF_IMAGEOBJ_METADATA> )>();
+late final _FPDF_StructElement_Attr_GetChildAtIndexPtr = _lookup<
+    ffi.NativeFunction<FPDF_STRUCTELEMENT_ATTR_VALUE Function(FPDF_STRUCTELEMENT_ATTR_VALUE , ffi.Int )>>('FPDF_StructElement_Attr_GetChildAtIndex');
+late final _FPDF_StructElement_Attr_GetChildAtIndex = _FPDF_StructElement_Attr_GetChildAtIndexPtr.asFunction<FPDF_STRUCTELEMENT_ATTR_VALUE Function(FPDF_STRUCTELEMENT_ATTR_VALUE , int )>();
 
 /// Experimental API.
-/// Get the image size in pixels. Faster method to get only image size.
-/// 
-/// image_object - handle to an image object.
-/// width        - receives the image width in pixels; must not be NULL.
-/// height       - receives the image height in pixels; must not be NULL.
-/// 
-/// Returns true if successful.
-int FPDFImageObj_GetImagePixelSize(FPDF_PAGEOBJECT image_object,
-ffi.Pointer<ffi.UnsignedInt> width,
-ffi.Pointer<ffi.UnsignedInt> height,
+/// Function: FPDF_StructElement_GetMarkedContentIdCount
+/// Get the count of marked content ids for a given element.
+/// Parameters:
+/// struct_element -   Handle to the struct element.
+/// Return value:
+/// The count of marked content ids or -1 if none exists.
+int FPDF_StructElement_GetMarkedContentIdCount(FPDF_STRUCTELEMENT struct_element,
 ) {
-  return _FPDFImageObj_GetImagePixelSize(image_object,
-width,
-height,
+  return _FPDF_StructElement_GetMarkedContentIdCount(struct_element,
 );
 }
 
-late final _FPDFImageObj_GetImagePixelSizePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>>('FPDFImageObj_GetImagePixelSize');
-late final _FPDFImageObj_GetImagePixelSize = _FPDFImageObj_GetImagePixelSizePtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>();
+late final _FPDF_StructElement_GetMarkedContentIdCountPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_STRUCTELEMENT )>>('FPDF_StructElement_GetMarkedContentIdCount');
+late final _FPDF_StructElement_GetMarkedContentIdCount = _FPDF_StructElement_GetMarkedContentIdCountPtr.asFunction<int Function(FPDF_STRUCTELEMENT )>();
 
 /// Experimental API.
-/// Get ICC profile decoded data of |image_object|. If the |image_object| is not
-/// an image object or if it does not have an image, then the return value will
-/// be false. It also returns false if the |image_object| has no ICC profile.
-/// |buffer| is only modified if ICC profile exists and |buflen| is longer than
-/// the length of the ICC profile decoded data.
-/// 
-/// image_object - handle to an image object; must not be NULL.
-/// page         - handle to the page containing |image_object|; must not be
-/// NULL. Required for retrieving the image's colorspace.
-/// buffer       - Buffer to receive ICC profile data; may be NULL if querying
-/// required size via |out_buflen|.
-/// buflen       - Length of the buffer in bytes. Ignored if |buffer| is NULL.
-/// out_buflen   - Pointer to receive the ICC profile data size in bytes; must
-/// not be NULL. Will be set if this API returns true.
-/// 
-/// Returns true if |out_buflen| is not null and an ICC profile exists for the
-/// given |image_object|.
-int FPDFImageObj_GetIccProfileDataDecoded(FPDF_PAGEOBJECT image_object,
-FPDF_PAGE page,
-ffi.Pointer<ffi.Uint8> buffer,
-int buflen,
-ffi.Pointer<ffi.Size> out_buflen,
+/// Function: FPDF_StructElement_GetMarkedContentIdAtIndex
+/// Get the marked content id at a given index for a given element.
+/// Parameters:
+/// struct_element -   Handle to the struct element.
+/// index          -   The index of the marked content id, 0-based.
+/// Return value:
+/// The marked content ID of the element. If no ID exists, returns
+/// -1.
+/// Comments:
+/// The |index| must be less than the
+/// FPDF_StructElement_GetMarkedContentIdCount() return value.
+/// This will likely supersede FPDF_StructElement_GetMarkedContentID().
+int FPDF_StructElement_GetMarkedContentIdAtIndex(FPDF_STRUCTELEMENT struct_element,
+int index,
 ) {
-  return _FPDFImageObj_GetIccProfileDataDecoded(image_object,
-page,
-buffer,
-buflen,
-out_buflen,
+  return _FPDF_StructElement_GetMarkedContentIdAtIndex(struct_element,
+index,
 );
 }
 
-late final _FPDFImageObj_GetIccProfileDataDecodedPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , FPDF_PAGE , ffi.Pointer<ffi.Uint8> , ffi.Size , ffi.Pointer<ffi.Size> )>>('FPDFImageObj_GetIccProfileDataDecoded');
-late final _FPDFImageObj_GetIccProfileDataDecoded = _FPDFImageObj_GetIccProfileDataDecodedPtr.asFunction<int Function(FPDF_PAGEOBJECT , FPDF_PAGE , ffi.Pointer<ffi.Uint8> , int , ffi.Pointer<ffi.Size> )>();
+late final _FPDF_StructElement_GetMarkedContentIdAtIndexPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_STRUCTELEMENT , ffi.Int )>>('FPDF_StructElement_GetMarkedContentIdAtIndex');
+late final _FPDF_StructElement_GetMarkedContentIdAtIndex = _FPDF_StructElement_GetMarkedContentIdAtIndexPtr.asFunction<int Function(FPDF_STRUCTELEMENT , int )>();
 
-/// Create a new path object at an initial position.
+/// Create a document availability provider.
 /// 
-/// x - initial horizontal position.
-/// y - initial vertical position.
+/// file_avail - pointer to file availability interface.
+/// file       - pointer to a file access interface.
 /// 
-/// Returns a handle to a new path object.
-FPDF_PAGEOBJECT FPDFPageObj_CreateNewPath(double x,
-double y,
+/// Returns a handle to the document availability provider, or NULL on error.
+/// 
+/// FPDFAvail_Destroy() must be called when done with the availability provider.
+FPDF_AVAIL FPDFAvail_Create(ffi.Pointer<FX_FILEAVAIL> file_avail,
+ffi.Pointer<FPDF_FILEACCESS> file,
 ) {
-  return _FPDFPageObj_CreateNewPath(x,
-y,
+  return _FPDFAvail_Create(file_avail,
+file,
 );
 }
 
-late final _FPDFPageObj_CreateNewPathPtr = _lookup<
-    ffi.NativeFunction<FPDF_PAGEOBJECT Function(ffi.Float , ffi.Float )>>('FPDFPageObj_CreateNewPath');
-late final _FPDFPageObj_CreateNewPath = _FPDFPageObj_CreateNewPathPtr.asFunction<FPDF_PAGEOBJECT Function(double , double )>();
+late final _FPDFAvail_CreatePtr = _lookup<
+    ffi.NativeFunction<FPDF_AVAIL Function(ffi.Pointer<FX_FILEAVAIL> , ffi.Pointer<FPDF_FILEACCESS> )>>('FPDFAvail_Create');
+late final _FPDFAvail_Create = _FPDFAvail_CreatePtr.asFunction<FPDF_AVAIL Function(ffi.Pointer<FX_FILEAVAIL> , ffi.Pointer<FPDF_FILEACCESS> )>();
 
-/// Create a closed path consisting of a rectangle.
+/// Destroy the |avail| document availability provider.
 /// 
-/// x - horizontal position for the left boundary of the rectangle.
-/// y - vertical position for the bottom boundary of the rectangle.
-/// w - width of the rectangle.
-/// h - height of the rectangle.
-/// 
-/// Returns a handle to the new path object.
-FPDF_PAGEOBJECT FPDFPageObj_CreateNewRect(double x,
-double y,
-double w,
-double h,
+/// avail - handle to document availability provider to be destroyed.
+void FPDFAvail_Destroy(FPDF_AVAIL avail,
 ) {
-  return _FPDFPageObj_CreateNewRect(x,
-y,
-w,
-h,
+  return _FPDFAvail_Destroy(avail,
 );
 }
 
-late final _FPDFPageObj_CreateNewRectPtr = _lookup<
-    ffi.NativeFunction<FPDF_PAGEOBJECT Function(ffi.Float , ffi.Float , ffi.Float , ffi.Float )>>('FPDFPageObj_CreateNewRect');
-late final _FPDFPageObj_CreateNewRect = _FPDFPageObj_CreateNewRectPtr.asFunction<FPDF_PAGEOBJECT Function(double , double , double , double )>();
+late final _FPDFAvail_DestroyPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_AVAIL )>>('FPDFAvail_Destroy');
+late final _FPDFAvail_Destroy = _FPDFAvail_DestroyPtr.asFunction<void Function(FPDF_AVAIL )>();
 
-/// Get the bounding box of |page_object|.
+/// Checks if the document is ready for loading, if not, gets download hints.
 /// 
-/// page_object  - handle to a page object.
-/// left         - pointer where the left coordinate will be stored
-/// bottom       - pointer where the bottom coordinate will be stored
-/// right        - pointer where the right coordinate will be stored
-/// top          - pointer where the top coordinate will be stored
+/// avail - handle to document availability provider.
+/// hints - pointer to a download hints interface.
 /// 
-/// On success, returns TRUE and fills in the 4 coordinates.
-int FPDFPageObj_GetBounds(FPDF_PAGEOBJECT page_object,
-ffi.Pointer<ffi.Float> left,
-ffi.Pointer<ffi.Float> bottom,
-ffi.Pointer<ffi.Float> right,
-ffi.Pointer<ffi.Float> top,
+/// Returns one of:
+/// PDF_DATA_ERROR: A common error is returned. Data availability unknown.
+/// PDF_DATA_NOTAVAIL: Data not yet available.
+/// PDF_DATA_AVAIL: Data available.
+/// 
+/// Applications should call this function whenever new data arrives, and process
+/// all the generated download hints, if any, until the function returns
+/// |PDF_DATA_ERROR| or |PDF_DATA_AVAIL|.
+/// if hints is nullptr, the function just check current document availability.
+/// 
+/// Once all data is available, call FPDFAvail_GetDocument() to get a document
+/// handle.
+int FPDFAvail_IsDocAvail(FPDF_AVAIL avail,
+ffi.Pointer<FX_DOWNLOADHINTS> hints,
 ) {
-  return _FPDFPageObj_GetBounds(page_object,
+  return _FPDFAvail_IsDocAvail(avail,
+hints,
+);
+}
+
+late final _FPDFAvail_IsDocAvailPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_AVAIL , ffi.Pointer<FX_DOWNLOADHINTS> )>>('FPDFAvail_IsDocAvail');
+late final _FPDFAvail_IsDocAvail = _FPDFAvail_IsDocAvailPtr.asFunction<int Function(FPDF_AVAIL , ffi.Pointer<FX_DOWNLOADHINTS> )>();
+
+/// Get document from the availability provider.
+/// 
+/// avail    - handle to document availability provider.
+/// password - password for decrypting the PDF file. Optional.
+/// 
+/// Returns a handle to the document.
+/// 
+/// When FPDFAvail_IsDocAvail() returns TRUE, call FPDFAvail_GetDocument() to
+/// retrieve the document handle.
+/// See the comments for FPDF_LoadDocument() regarding the encoding for
+/// |password|.
+FPDF_DOCUMENT FPDFAvail_GetDocument(FPDF_AVAIL avail,
+FPDF_BYTESTRING password,
+) {
+  return _FPDFAvail_GetDocument(avail,
+password,
+);
+}
+
+late final _FPDFAvail_GetDocumentPtr = _lookup<
+    ffi.NativeFunction<FPDF_DOCUMENT Function(FPDF_AVAIL , FPDF_BYTESTRING )>>('FPDFAvail_GetDocument');
+late final _FPDFAvail_GetDocument = _FPDFAvail_GetDocumentPtr.asFunction<FPDF_DOCUMENT Function(FPDF_AVAIL , FPDF_BYTESTRING )>();
+
+/// Get the page number for the first available page in a linearized PDF.
+/// 
+/// doc - document handle.
+/// 
+/// Returns the zero-based index for the first available page.
+/// 
+/// For most linearized PDFs, the first available page will be the first page,
+/// however, some PDFs might make another page the first available page.
+/// For non-linearized PDFs, this function will always return zero.
+int FPDFAvail_GetFirstPageNum(FPDF_DOCUMENT doc,
+) {
+  return _FPDFAvail_GetFirstPageNum(doc,
+);
+}
+
+late final _FPDFAvail_GetFirstPageNumPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_DOCUMENT )>>('FPDFAvail_GetFirstPageNum');
+late final _FPDFAvail_GetFirstPageNum = _FPDFAvail_GetFirstPageNumPtr.asFunction<int Function(FPDF_DOCUMENT )>();
+
+/// Check if |page_index| is ready for loading, if not, get the
+/// |FX_DOWNLOADHINTS|.
+/// 
+/// avail      - handle to document availability provider.
+/// page_index - index number of the page. Zero for the first page.
+/// hints      - pointer to a download hints interface. Populated if
+/// |page_index| is not available.
+/// 
+/// Returns one of:
+/// PDF_DATA_ERROR: A common error is returned. Data availability unknown.
+/// PDF_DATA_NOTAVAIL: Data not yet available.
+/// PDF_DATA_AVAIL: Data available.
+/// 
+/// This function can be called only after FPDFAvail_GetDocument() is called.
+/// Applications should call this function whenever new data arrives and process
+/// all the generated download |hints|, if any, until this function returns
+/// |PDF_DATA_ERROR| or |PDF_DATA_AVAIL|. Applications can then perform page
+/// loading.
+/// if hints is nullptr, the function just check current availability of
+/// specified page.
+int FPDFAvail_IsPageAvail(FPDF_AVAIL avail,
+int page_index,
+ffi.Pointer<FX_DOWNLOADHINTS> hints,
+) {
+  return _FPDFAvail_IsPageAvail(avail,
+page_index,
+hints,
+);
+}
+
+late final _FPDFAvail_IsPageAvailPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_AVAIL , ffi.Int , ffi.Pointer<FX_DOWNLOADHINTS> )>>('FPDFAvail_IsPageAvail');
+late final _FPDFAvail_IsPageAvail = _FPDFAvail_IsPageAvailPtr.asFunction<int Function(FPDF_AVAIL , int , ffi.Pointer<FX_DOWNLOADHINTS> )>();
+
+/// Check if form data is ready for initialization, if not, get the
+/// |FX_DOWNLOADHINTS|.
+/// 
+/// avail - handle to document availability provider.
+/// hints - pointer to a download hints interface. Populated if form is not
+/// ready for initialization.
+/// 
+/// Returns one of:
+/// PDF_FORM_ERROR: A common eror, in general incorrect parameters.
+/// PDF_FORM_NOTAVAIL: Data not available.
+/// PDF_FORM_AVAIL: Data available.
+/// PDF_FORM_NOTEXIST: No form data.
+/// 
+/// This function can be called only after FPDFAvail_GetDocument() is called.
+/// The application should call this function whenever new data arrives and
+/// process all the generated download |hints|, if any, until the function
+/// |PDF_FORM_ERROR|, |PDF_FORM_AVAIL| or |PDF_FORM_NOTEXIST|.
+/// if hints is nullptr, the function just check current form availability.
+/// 
+/// Applications can then perform page loading. It is recommend to call
+/// FPDFDOC_InitFormFillEnvironment() when |PDF_FORM_AVAIL| is returned.
+int FPDFAvail_IsFormAvail(FPDF_AVAIL avail,
+ffi.Pointer<FX_DOWNLOADHINTS> hints,
+) {
+  return _FPDFAvail_IsFormAvail(avail,
+hints,
+);
+}
+
+late final _FPDFAvail_IsFormAvailPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_AVAIL , ffi.Pointer<FX_DOWNLOADHINTS> )>>('FPDFAvail_IsFormAvail');
+late final _FPDFAvail_IsFormAvail = _FPDFAvail_IsFormAvailPtr.asFunction<int Function(FPDF_AVAIL , ffi.Pointer<FX_DOWNLOADHINTS> )>();
+
+/// Check whether a document is a linearized PDF.
+/// 
+/// avail - handle to document availability provider.
+/// 
+/// Returns one of:
+/// PDF_LINEARIZED
+/// PDF_NOT_LINEARIZED
+/// PDF_LINEARIZATION_UNKNOWN
+/// 
+/// FPDFAvail_IsLinearized() will return |PDF_LINEARIZED| or |PDF_NOT_LINEARIZED|
+/// when we have 1k  of data. If the files size less than 1k, it returns
+/// |PDF_LINEARIZATION_UNKNOWN| as there is insufficient information to determine
+/// if the PDF is linearlized.
+int FPDFAvail_IsLinearized(FPDF_AVAIL avail,
+) {
+  return _FPDFAvail_IsLinearized(avail,
+);
+}
+
+late final _FPDFAvail_IsLinearizedPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_AVAIL )>>('FPDFAvail_IsLinearized');
+late final _FPDFAvail_IsLinearized = _FPDFAvail_IsLinearizedPtr.asFunction<int Function(FPDF_AVAIL )>();
+
+/// Setup an unsupported object handler.
+/// 
+/// unsp_info - Pointer to an UNSUPPORT_INFO structure.
+/// 
+/// Returns TRUE on success.
+int FSDK_SetUnSpObjProcessHandler(ffi.Pointer<UNSUPPORT_INFO> unsp_info,
+) {
+  return _FSDK_SetUnSpObjProcessHandler(unsp_info,
+);
+}
+
+late final _FSDK_SetUnSpObjProcessHandlerPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(ffi.Pointer<UNSUPPORT_INFO> )>>('FSDK_SetUnSpObjProcessHandler');
+late final _FSDK_SetUnSpObjProcessHandler = _FSDK_SetUnSpObjProcessHandlerPtr.asFunction<int Function(ffi.Pointer<UNSUPPORT_INFO> )>();
+
+/// Set replacement function for calls to time().
+/// 
+/// This API is intended to be used only for testing, thus may cause PDFium to
+/// behave poorly in production environments.
+/// 
+/// func - Function pointer to alternate implementation of time(), or
+/// NULL to restore to actual time() call itself.
+void FSDK_SetTimeFunction(ffi.Pointer<ffi.NativeFunction<time_t Function()>> func,
+) {
+  return _FSDK_SetTimeFunction(func,
+);
+}
+
+late final _FSDK_SetTimeFunctionPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.NativeFunction<time_t Function()>> )>>('FSDK_SetTimeFunction');
+late final _FSDK_SetTimeFunction = _FSDK_SetTimeFunctionPtr.asFunction<void Function(ffi.Pointer<ffi.NativeFunction<time_t Function()>> )>();
+
+/// Set replacement function for calls to localtime().
+/// 
+/// This API is intended to be used only for testing, thus may cause PDFium to
+/// behave poorly in production environments.
+/// 
+/// func - Function pointer to alternate implementation of localtime(), or
+/// NULL to restore to actual localtime() call itself.
+void FSDK_SetLocaltimeFunction(ffi.Pointer<ffi.NativeFunction<ffi.Pointer<tm> Function(ffi.Pointer<time_t> )>> func,
+) {
+  return _FSDK_SetLocaltimeFunction(func,
+);
+}
+
+late final _FSDK_SetLocaltimeFunctionPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.NativeFunction<ffi.Pointer<tm> Function(ffi.Pointer<time_t> )>> )>>('FSDK_SetLocaltimeFunction');
+late final _FSDK_SetLocaltimeFunction = _FSDK_SetLocaltimeFunctionPtr.asFunction<void Function(ffi.Pointer<ffi.NativeFunction<ffi.Pointer<tm> Function(ffi.Pointer<time_t> )>> )>();
+
+/// Get the document's PageMode.
+/// 
+/// doc - Handle to document.
+/// 
+/// Returns one of the |PAGEMODE_*| flags defined above.
+/// 
+/// The page mode defines how the document should be initially displayed.
+int FPDFDoc_GetPageMode(FPDF_DOCUMENT document,
+) {
+  return _FPDFDoc_GetPageMode(document,
+);
+}
+
+late final _FPDFDoc_GetPageModePtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_DOCUMENT )>>('FPDFDoc_GetPageMode');
+late final _FPDFDoc_GetPageMode = _FPDFDoc_GetPageModePtr.asFunction<int Function(FPDF_DOCUMENT )>();
+
+/// Set "MediaBox" entry to the page dictionary.
+/// 
+/// page   - Handle to a page.
+/// left   - The left of the rectangle.
+/// bottom - The bottom of the rectangle.
+/// right  - The right of the rectangle.
+/// top    - The top of the rectangle.
+void FPDFPage_SetMediaBox(FPDF_PAGE page,
+double left,
+double bottom,
+double right,
+double top,
+) {
+  return _FPDFPage_SetMediaBox(page,
 left,
 bottom,
 right,
@@ -6970,1623 +10498,528 @@ top,
 );
 }
 
-late final _FPDFPageObj_GetBoundsPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>>('FPDFPageObj_GetBounds');
-late final _FPDFPageObj_GetBounds = _FPDFPageObj_GetBoundsPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>();
+late final _FPDFPage_SetMediaBoxPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_PAGE , ffi.Float , ffi.Float , ffi.Float , ffi.Float )>>('FPDFPage_SetMediaBox');
+late final _FPDFPage_SetMediaBox = _FPDFPage_SetMediaBoxPtr.asFunction<void Function(FPDF_PAGE , double , double , double , double )>();
+
+/// Set "CropBox" entry to the page dictionary.
+/// 
+/// page   - Handle to a page.
+/// left   - The left of the rectangle.
+/// bottom - The bottom of the rectangle.
+/// right  - The right of the rectangle.
+/// top    - The top of the rectangle.
+void FPDFPage_SetCropBox(FPDF_PAGE page,
+double left,
+double bottom,
+double right,
+double top,
+) {
+  return _FPDFPage_SetCropBox(page,
+left,
+bottom,
+right,
+top,
+);
+}
+
+late final _FPDFPage_SetCropBoxPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_PAGE , ffi.Float , ffi.Float , ffi.Float , ffi.Float )>>('FPDFPage_SetCropBox');
+late final _FPDFPage_SetCropBox = _FPDFPage_SetCropBoxPtr.asFunction<void Function(FPDF_PAGE , double , double , double , double )>();
+
+/// Set "BleedBox" entry to the page dictionary.
+/// 
+/// page   - Handle to a page.
+/// left   - The left of the rectangle.
+/// bottom - The bottom of the rectangle.
+/// right  - The right of the rectangle.
+/// top    - The top of the rectangle.
+void FPDFPage_SetBleedBox(FPDF_PAGE page,
+double left,
+double bottom,
+double right,
+double top,
+) {
+  return _FPDFPage_SetBleedBox(page,
+left,
+bottom,
+right,
+top,
+);
+}
+
+late final _FPDFPage_SetBleedBoxPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_PAGE , ffi.Float , ffi.Float , ffi.Float , ffi.Float )>>('FPDFPage_SetBleedBox');
+late final _FPDFPage_SetBleedBox = _FPDFPage_SetBleedBoxPtr.asFunction<void Function(FPDF_PAGE , double , double , double , double )>();
+
+/// Set "TrimBox" entry to the page dictionary.
+/// 
+/// page   - Handle to a page.
+/// left   - The left of the rectangle.
+/// bottom - The bottom of the rectangle.
+/// right  - The right of the rectangle.
+/// top    - The top of the rectangle.
+void FPDFPage_SetTrimBox(FPDF_PAGE page,
+double left,
+double bottom,
+double right,
+double top,
+) {
+  return _FPDFPage_SetTrimBox(page,
+left,
+bottom,
+right,
+top,
+);
+}
+
+late final _FPDFPage_SetTrimBoxPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_PAGE , ffi.Float , ffi.Float , ffi.Float , ffi.Float )>>('FPDFPage_SetTrimBox');
+late final _FPDFPage_SetTrimBox = _FPDFPage_SetTrimBoxPtr.asFunction<void Function(FPDF_PAGE , double , double , double , double )>();
+
+/// Set "ArtBox" entry to the page dictionary.
+/// 
+/// page   - Handle to a page.
+/// left   - The left of the rectangle.
+/// bottom - The bottom of the rectangle.
+/// right  - The right of the rectangle.
+/// top    - The top of the rectangle.
+void FPDFPage_SetArtBox(FPDF_PAGE page,
+double left,
+double bottom,
+double right,
+double top,
+) {
+  return _FPDFPage_SetArtBox(page,
+left,
+bottom,
+right,
+top,
+);
+}
+
+late final _FPDFPage_SetArtBoxPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_PAGE , ffi.Float , ffi.Float , ffi.Float , ffi.Float )>>('FPDFPage_SetArtBox');
+late final _FPDFPage_SetArtBox = _FPDFPage_SetArtBoxPtr.asFunction<void Function(FPDF_PAGE , double , double , double , double )>();
+
+/// Get "MediaBox" entry from the page dictionary.
+/// 
+/// page   - Handle to a page.
+/// left   - Pointer to a float value receiving the left of the rectangle.
+/// bottom - Pointer to a float value receiving the bottom of the rectangle.
+/// right  - Pointer to a float value receiving the right of the rectangle.
+/// top    - Pointer to a float value receiving the top of the rectangle.
+/// 
+/// On success, return true and write to the out parameters. Otherwise return
+/// false and leave the out parameters unmodified.
+int FPDFPage_GetMediaBox(FPDF_PAGE page,
+ffi.Pointer<ffi.Float> left,
+ffi.Pointer<ffi.Float> bottom,
+ffi.Pointer<ffi.Float> right,
+ffi.Pointer<ffi.Float> top,
+) {
+  return _FPDFPage_GetMediaBox(page,
+left,
+bottom,
+right,
+top,
+);
+}
+
+late final _FPDFPage_GetMediaBoxPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>>('FPDFPage_GetMediaBox');
+late final _FPDFPage_GetMediaBox = _FPDFPage_GetMediaBoxPtr.asFunction<int Function(FPDF_PAGE , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>();
+
+/// Get "CropBox" entry from the page dictionary.
+/// 
+/// page   - Handle to a page.
+/// left   - Pointer to a float value receiving the left of the rectangle.
+/// bottom - Pointer to a float value receiving the bottom of the rectangle.
+/// right  - Pointer to a float value receiving the right of the rectangle.
+/// top    - Pointer to a float value receiving the top of the rectangle.
+/// 
+/// On success, return true and write to the out parameters. Otherwise return
+/// false and leave the out parameters unmodified.
+int FPDFPage_GetCropBox(FPDF_PAGE page,
+ffi.Pointer<ffi.Float> left,
+ffi.Pointer<ffi.Float> bottom,
+ffi.Pointer<ffi.Float> right,
+ffi.Pointer<ffi.Float> top,
+) {
+  return _FPDFPage_GetCropBox(page,
+left,
+bottom,
+right,
+top,
+);
+}
+
+late final _FPDFPage_GetCropBoxPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>>('FPDFPage_GetCropBox');
+late final _FPDFPage_GetCropBox = _FPDFPage_GetCropBoxPtr.asFunction<int Function(FPDF_PAGE , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>();
+
+/// Get "BleedBox" entry from the page dictionary.
+/// 
+/// page   - Handle to a page.
+/// left   - Pointer to a float value receiving the left of the rectangle.
+/// bottom - Pointer to a float value receiving the bottom of the rectangle.
+/// right  - Pointer to a float value receiving the right of the rectangle.
+/// top    - Pointer to a float value receiving the top of the rectangle.
+/// 
+/// On success, return true and write to the out parameters. Otherwise return
+/// false and leave the out parameters unmodified.
+int FPDFPage_GetBleedBox(FPDF_PAGE page,
+ffi.Pointer<ffi.Float> left,
+ffi.Pointer<ffi.Float> bottom,
+ffi.Pointer<ffi.Float> right,
+ffi.Pointer<ffi.Float> top,
+) {
+  return _FPDFPage_GetBleedBox(page,
+left,
+bottom,
+right,
+top,
+);
+}
+
+late final _FPDFPage_GetBleedBoxPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>>('FPDFPage_GetBleedBox');
+late final _FPDFPage_GetBleedBox = _FPDFPage_GetBleedBoxPtr.asFunction<int Function(FPDF_PAGE , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>();
+
+/// Get "TrimBox" entry from the page dictionary.
+/// 
+/// page   - Handle to a page.
+/// left   - Pointer to a float value receiving the left of the rectangle.
+/// bottom - Pointer to a float value receiving the bottom of the rectangle.
+/// right  - Pointer to a float value receiving the right of the rectangle.
+/// top    - Pointer to a float value receiving the top of the rectangle.
+/// 
+/// On success, return true and write to the out parameters. Otherwise return
+/// false and leave the out parameters unmodified.
+int FPDFPage_GetTrimBox(FPDF_PAGE page,
+ffi.Pointer<ffi.Float> left,
+ffi.Pointer<ffi.Float> bottom,
+ffi.Pointer<ffi.Float> right,
+ffi.Pointer<ffi.Float> top,
+) {
+  return _FPDFPage_GetTrimBox(page,
+left,
+bottom,
+right,
+top,
+);
+}
+
+late final _FPDFPage_GetTrimBoxPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>>('FPDFPage_GetTrimBox');
+late final _FPDFPage_GetTrimBox = _FPDFPage_GetTrimBoxPtr.asFunction<int Function(FPDF_PAGE , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>();
+
+/// Get "ArtBox" entry from the page dictionary.
+/// 
+/// page   - Handle to a page.
+/// left   - Pointer to a float value receiving the left of the rectangle.
+/// bottom - Pointer to a float value receiving the bottom of the rectangle.
+/// right  - Pointer to a float value receiving the right of the rectangle.
+/// top    - Pointer to a float value receiving the top of the rectangle.
+/// 
+/// On success, return true and write to the out parameters. Otherwise return
+/// false and leave the out parameters unmodified.
+int FPDFPage_GetArtBox(FPDF_PAGE page,
+ffi.Pointer<ffi.Float> left,
+ffi.Pointer<ffi.Float> bottom,
+ffi.Pointer<ffi.Float> right,
+ffi.Pointer<ffi.Float> top,
+) {
+  return _FPDFPage_GetArtBox(page,
+left,
+bottom,
+right,
+top,
+);
+}
+
+late final _FPDFPage_GetArtBoxPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>>('FPDFPage_GetArtBox');
+late final _FPDFPage_GetArtBox = _FPDFPage_GetArtBoxPtr.asFunction<int Function(FPDF_PAGE , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>();
+
+/// Apply transforms to |page|.
+/// 
+/// If |matrix| is provided it will be applied to transform the page.
+/// If |clipRect| is provided it will be used to clip the resulting page.
+/// If neither |matrix| or |clipRect| are provided this method returns |false|.
+/// Returns |true| if transforms are applied.
+/// 
+/// This function will transform the whole page, and would take effect to all the
+/// objects in the page.
+/// 
+/// page        - Page handle.
+/// matrix      - Transform matrix.
+/// clipRect    - Clipping rectangle.
+int FPDFPage_TransFormWithClip(FPDF_PAGE page,
+ffi.Pointer<FS_MATRIX> matrix,
+ffi.Pointer<FS_RECTF> clipRect,
+) {
+  return _FPDFPage_TransFormWithClip(page,
+matrix,
+clipRect,
+);
+}
+
+late final _FPDFPage_TransFormWithClipPtr = _lookup<
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE , ffi.Pointer<FS_MATRIX> , ffi.Pointer<FS_RECTF> )>>('FPDFPage_TransFormWithClip');
+late final _FPDFPage_TransFormWithClip = _FPDFPage_TransFormWithClipPtr.asFunction<int Function(FPDF_PAGE , ffi.Pointer<FS_MATRIX> , ffi.Pointer<FS_RECTF> )>();
+
+/// Transform (scale, rotate, shear, move) the clip path of page object.
+/// page_object - Handle to a page object. Returned by
+/// FPDFPageObj_NewImageObj().
+/// 
+/// a  - The coefficient "a" of the matrix.
+/// b  - The coefficient "b" of the matrix.
+/// c  - The coefficient "c" of the matrix.
+/// d  - The coefficient "d" of the matrix.
+/// e  - The coefficient "e" of the matrix.
+/// f  - The coefficient "f" of the matrix.
+void FPDFPageObj_TransformClipPath(FPDF_PAGEOBJECT page_object,
+double a,
+double b,
+double c,
+double d,
+double e,
+double f,
+) {
+  return _FPDFPageObj_TransformClipPath(page_object,
+a,
+b,
+c,
+d,
+e,
+f,
+);
+}
+
+late final _FPDFPageObj_TransformClipPathPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_PAGEOBJECT , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Double , ffi.Double )>>('FPDFPageObj_TransformClipPath');
+late final _FPDFPageObj_TransformClipPath = _FPDFPageObj_TransformClipPathPtr.asFunction<void Function(FPDF_PAGEOBJECT , double , double , double , double , double , double )>();
 
 /// Experimental API.
-/// Get the quad points that bounds |page_object|.
+/// Get the clip path of the page object.
 /// 
-/// page_object  - handle to a page object.
-/// quad_points  - pointer where the quadrilateral points will be stored.
+/// page object - Handle to a page object. Returned by e.g.
+/// FPDFPage_GetObject().
 /// 
-/// On success, returns TRUE and fills in |quad_points|.
-/// 
-/// Similar to FPDFPageObj_GetBounds(), this returns the bounds of a page
-/// object. When the object is rotated by a non-multiple of 90 degrees, this API
-/// returns a tighter bound that cannot be represented with just the 4 sides of
-/// a rectangle.
-/// 
-/// Currently only works the following |page_object| types: FPDF_PAGEOBJ_TEXT and
-/// FPDF_PAGEOBJ_IMAGE.
-int FPDFPageObj_GetRotatedBounds(FPDF_PAGEOBJECT page_object,
-ffi.Pointer<FS_QUADPOINTSF> quad_points,
+/// Returns the handle to the clip path, or NULL on failure. The caller does not
+/// take ownership of the returned FPDF_CLIPPATH. Instead, it remains valid until
+/// FPDF_ClosePage() is called for the page containing |page_object|.
+FPDF_CLIPPATH FPDFPageObj_GetClipPath(FPDF_PAGEOBJECT page_object,
 ) {
-  return _FPDFPageObj_GetRotatedBounds(page_object,
-quad_points,
+  return _FPDFPageObj_GetClipPath(page_object,
 );
 }
 
-late final _FPDFPageObj_GetRotatedBoundsPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_QUADPOINTSF> )>>('FPDFPageObj_GetRotatedBounds');
-late final _FPDFPageObj_GetRotatedBounds = _FPDFPageObj_GetRotatedBoundsPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<FS_QUADPOINTSF> )>();
-
-/// Set the blend mode of |page_object|.
-/// 
-/// page_object  - handle to a page object.
-/// blend_mode   - string containing the blend mode.
-/// 
-/// Blend mode can be one of following: Color, ColorBurn, ColorDodge, Darken,
-/// Difference, Exclusion, HardLight, Hue, Lighten, Luminosity, Multiply, Normal,
-/// Overlay, Saturation, Screen, SoftLight
-void FPDFPageObj_SetBlendMode(FPDF_PAGEOBJECT page_object,
-FPDF_BYTESTRING blend_mode,
-) {
-  return _FPDFPageObj_SetBlendMode(page_object,
-blend_mode,
-);
-}
-
-late final _FPDFPageObj_SetBlendModePtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(FPDF_PAGEOBJECT , FPDF_BYTESTRING )>>('FPDFPageObj_SetBlendMode');
-late final _FPDFPageObj_SetBlendMode = _FPDFPageObj_SetBlendModePtr.asFunction<void Function(FPDF_PAGEOBJECT , FPDF_BYTESTRING )>();
-
-/// Set the stroke RGBA of a page object. Range of values: 0 - 255.
-/// 
-/// page_object  - the handle to the page object.
-/// R            - the red component for the object's stroke color.
-/// G            - the green component for the object's stroke color.
-/// B            - the blue component for the object's stroke color.
-/// A            - the stroke alpha for the object.
-/// 
-/// Returns TRUE on success.
-int FPDFPageObj_SetStrokeColor(FPDF_PAGEOBJECT page_object,
-int R,
-int G,
-int B,
-int A,
-) {
-  return _FPDFPageObj_SetStrokeColor(page_object,
-R,
-G,
-B,
-A,
-);
-}
-
-late final _FPDFPageObj_SetStrokeColorPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.UnsignedInt , ffi.UnsignedInt , ffi.UnsignedInt , ffi.UnsignedInt )>>('FPDFPageObj_SetStrokeColor');
-late final _FPDFPageObj_SetStrokeColor = _FPDFPageObj_SetStrokeColorPtr.asFunction<int Function(FPDF_PAGEOBJECT , int , int , int , int )>();
-
-/// Get the stroke RGBA of a page object. Range of values: 0 - 255.
-/// 
-/// page_object  - the handle to the page object.
-/// R            - the red component of the path stroke color.
-/// G            - the green component of the object's stroke color.
-/// B            - the blue component of the object's stroke color.
-/// A            - the stroke alpha of the object.
-/// 
-/// Returns TRUE on success.
-int FPDFPageObj_GetStrokeColor(FPDF_PAGEOBJECT page_object,
-ffi.Pointer<ffi.UnsignedInt> R,
-ffi.Pointer<ffi.UnsignedInt> G,
-ffi.Pointer<ffi.UnsignedInt> B,
-ffi.Pointer<ffi.UnsignedInt> A,
-) {
-  return _FPDFPageObj_GetStrokeColor(page_object,
-R,
-G,
-B,
-A,
-);
-}
-
-late final _FPDFPageObj_GetStrokeColorPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>>('FPDFPageObj_GetStrokeColor');
-late final _FPDFPageObj_GetStrokeColor = _FPDFPageObj_GetStrokeColorPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>();
-
-/// Set the stroke width of a page object.
-/// 
-/// path   - the handle to the page object.
-/// width  - the width of the stroke.
-/// 
-/// Returns TRUE on success
-int FPDFPageObj_SetStrokeWidth(FPDF_PAGEOBJECT page_object,
-double width,
-) {
-  return _FPDFPageObj_SetStrokeWidth(page_object,
-width,
-);
-}
-
-late final _FPDFPageObj_SetStrokeWidthPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Float )>>('FPDFPageObj_SetStrokeWidth');
-late final _FPDFPageObj_SetStrokeWidth = _FPDFPageObj_SetStrokeWidthPtr.asFunction<int Function(FPDF_PAGEOBJECT , double )>();
-
-/// Get the stroke width of a page object.
-/// 
-/// path   - the handle to the page object.
-/// width  - the width of the stroke.
-/// 
-/// Returns TRUE on success
-int FPDFPageObj_GetStrokeWidth(FPDF_PAGEOBJECT page_object,
-ffi.Pointer<ffi.Float> width,
-) {
-  return _FPDFPageObj_GetStrokeWidth(page_object,
-width,
-);
-}
-
-late final _FPDFPageObj_GetStrokeWidthPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> )>>('FPDFPageObj_GetStrokeWidth');
-late final _FPDFPageObj_GetStrokeWidth = _FPDFPageObj_GetStrokeWidthPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> )>();
-
-/// Get the line join of |page_object|.
-/// 
-/// page_object  - handle to a page object.
-/// 
-/// Returns the line join, or -1 on failure.
-/// Line join can be one of following: FPDF_LINEJOIN_MITER, FPDF_LINEJOIN_ROUND,
-/// FPDF_LINEJOIN_BEVEL
-int FPDFPageObj_GetLineJoin(FPDF_PAGEOBJECT page_object,
-) {
-  return _FPDFPageObj_GetLineJoin(page_object,
-);
-}
-
-late final _FPDFPageObj_GetLineJoinPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_GetLineJoin');
-late final _FPDFPageObj_GetLineJoin = _FPDFPageObj_GetLineJoinPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
-
-/// Set the line join of |page_object|.
-/// 
-/// page_object  - handle to a page object.
-/// line_join    - line join
-/// 
-/// Line join can be one of following: FPDF_LINEJOIN_MITER, FPDF_LINEJOIN_ROUND,
-/// FPDF_LINEJOIN_BEVEL
-int FPDFPageObj_SetLineJoin(FPDF_PAGEOBJECT page_object,
-int line_join,
-) {
-  return _FPDFPageObj_SetLineJoin(page_object,
-line_join,
-);
-}
-
-late final _FPDFPageObj_SetLineJoinPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Int )>>('FPDFPageObj_SetLineJoin');
-late final _FPDFPageObj_SetLineJoin = _FPDFPageObj_SetLineJoinPtr.asFunction<int Function(FPDF_PAGEOBJECT , int )>();
-
-/// Get the line cap of |page_object|.
-/// 
-/// page_object - handle to a page object.
-/// 
-/// Returns the line cap, or -1 on failure.
-/// Line cap can be one of following: FPDF_LINECAP_BUTT, FPDF_LINECAP_ROUND,
-/// FPDF_LINECAP_PROJECTING_SQUARE
-int FPDFPageObj_GetLineCap(FPDF_PAGEOBJECT page_object,
-) {
-  return _FPDFPageObj_GetLineCap(page_object,
-);
-}
-
-late final _FPDFPageObj_GetLineCapPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_GetLineCap');
-late final _FPDFPageObj_GetLineCap = _FPDFPageObj_GetLineCapPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
-
-/// Set the line cap of |page_object|.
-/// 
-/// page_object - handle to a page object.
-/// line_cap    - line cap
-/// 
-/// Line cap can be one of following: FPDF_LINECAP_BUTT, FPDF_LINECAP_ROUND,
-/// FPDF_LINECAP_PROJECTING_SQUARE
-int FPDFPageObj_SetLineCap(FPDF_PAGEOBJECT page_object,
-int line_cap,
-) {
-  return _FPDFPageObj_SetLineCap(page_object,
-line_cap,
-);
-}
-
-late final _FPDFPageObj_SetLineCapPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Int )>>('FPDFPageObj_SetLineCap');
-late final _FPDFPageObj_SetLineCap = _FPDFPageObj_SetLineCapPtr.asFunction<int Function(FPDF_PAGEOBJECT , int )>();
-
-/// Set the fill RGBA of a page object. Range of values: 0 - 255.
-/// 
-/// page_object  - the handle to the page object.
-/// R            - the red component for the object's fill color.
-/// G            - the green component for the object's fill color.
-/// B            - the blue component for the object's fill color.
-/// A            - the fill alpha for the object.
-/// 
-/// Returns TRUE on success.
-int FPDFPageObj_SetFillColor(FPDF_PAGEOBJECT page_object,
-int R,
-int G,
-int B,
-int A,
-) {
-  return _FPDFPageObj_SetFillColor(page_object,
-R,
-G,
-B,
-A,
-);
-}
-
-late final _FPDFPageObj_SetFillColorPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.UnsignedInt , ffi.UnsignedInt , ffi.UnsignedInt , ffi.UnsignedInt )>>('FPDFPageObj_SetFillColor');
-late final _FPDFPageObj_SetFillColor = _FPDFPageObj_SetFillColorPtr.asFunction<int Function(FPDF_PAGEOBJECT , int , int , int , int )>();
-
-/// Get the fill RGBA of a page object. Range of values: 0 - 255.
-/// 
-/// page_object  - the handle to the page object.
-/// R            - the red component of the object's fill color.
-/// G            - the green component of the object's fill color.
-/// B            - the blue component of the object's fill color.
-/// A            - the fill alpha of the object.
-/// 
-/// Returns TRUE on success.
-int FPDFPageObj_GetFillColor(FPDF_PAGEOBJECT page_object,
-ffi.Pointer<ffi.UnsignedInt> R,
-ffi.Pointer<ffi.UnsignedInt> G,
-ffi.Pointer<ffi.UnsignedInt> B,
-ffi.Pointer<ffi.UnsignedInt> A,
-) {
-  return _FPDFPageObj_GetFillColor(page_object,
-R,
-G,
-B,
-A,
-);
-}
-
-late final _FPDFPageObj_GetFillColorPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>>('FPDFPageObj_GetFillColor');
-late final _FPDFPageObj_GetFillColor = _FPDFPageObj_GetFillColorPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> , ffi.Pointer<ffi.UnsignedInt> )>();
+late final _FPDFPageObj_GetClipPathPtr = _lookup<
+    ffi.NativeFunction<FPDF_CLIPPATH Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_GetClipPath');
+late final _FPDFPageObj_GetClipPath = _FPDFPageObj_GetClipPathPtr.asFunction<FPDF_CLIPPATH Function(FPDF_PAGEOBJECT )>();
 
 /// Experimental API.
-/// Get the line dash |phase| of |page_object|.
+/// Get number of paths inside |clip_path|.
 /// 
-/// page_object - handle to a page object.
-/// phase - pointer where the dashing phase will be stored.
+/// clip_path - handle to a clip_path.
 /// 
-/// Returns TRUE on success.
-int FPDFPageObj_GetDashPhase(FPDF_PAGEOBJECT page_object,
-ffi.Pointer<ffi.Float> phase,
+/// Returns the number of objects in |clip_path| or -1 on failure.
+int FPDFClipPath_CountPaths(FPDF_CLIPPATH clip_path,
 ) {
-  return _FPDFPageObj_GetDashPhase(page_object,
-phase,
+  return _FPDFClipPath_CountPaths(clip_path,
 );
 }
 
-late final _FPDFPageObj_GetDashPhasePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> )>>('FPDFPageObj_GetDashPhase');
-late final _FPDFPageObj_GetDashPhase = _FPDFPageObj_GetDashPhasePtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> )>();
+late final _FPDFClipPath_CountPathsPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_CLIPPATH )>>('FPDFClipPath_CountPaths');
+late final _FPDFClipPath_CountPaths = _FPDFClipPath_CountPathsPtr.asFunction<int Function(FPDF_CLIPPATH )>();
 
 /// Experimental API.
-/// Set the line dash phase of |page_object|.
+/// Get number of segments inside one path of |clip_path|.
 /// 
-/// page_object - handle to a page object.
-/// phase - line dash phase.
+/// clip_path  - handle to a clip_path.
+/// path_index - index into the array of paths of the clip path.
 /// 
-/// Returns TRUE on success.
-int FPDFPageObj_SetDashPhase(FPDF_PAGEOBJECT page_object,
-double phase,
+/// Returns the number of segments or -1 on failure.
+int FPDFClipPath_CountPathSegments(FPDF_CLIPPATH clip_path,
+int path_index,
 ) {
-  return _FPDFPageObj_SetDashPhase(page_object,
-phase,
+  return _FPDFClipPath_CountPathSegments(clip_path,
+path_index,
 );
 }
 
-late final _FPDFPageObj_SetDashPhasePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Float )>>('FPDFPageObj_SetDashPhase');
-late final _FPDFPageObj_SetDashPhase = _FPDFPageObj_SetDashPhasePtr.asFunction<int Function(FPDF_PAGEOBJECT , double )>();
+late final _FPDFClipPath_CountPathSegmentsPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_CLIPPATH , ffi.Int )>>('FPDFClipPath_CountPathSegments');
+late final _FPDFClipPath_CountPathSegments = _FPDFClipPath_CountPathSegmentsPtr.asFunction<int Function(FPDF_CLIPPATH , int )>();
 
 /// Experimental API.
-/// Get the line dash array of |page_object|.
+/// Get segment in one specific path of |clip_path| at index.
 /// 
-/// page_object - handle to a page object.
+/// clip_path     - handle to a clip_path.
+/// path_index    - the index of a path.
+/// segment_index - the index of a segment.
 /// 
-/// Returns the line dash array size or -1 on failure.
-int FPDFPageObj_GetDashCount(FPDF_PAGEOBJECT page_object,
+/// Returns the handle to the segment, or NULL on failure. The caller does not
+/// take ownership of the returned FPDF_PATHSEGMENT. Instead, it remains valid
+/// until FPDF_ClosePage() is called for the page containing |clip_path|.
+FPDF_PATHSEGMENT FPDFClipPath_GetPathSegment(FPDF_CLIPPATH clip_path,
+int path_index,
+int segment_index,
 ) {
-  return _FPDFPageObj_GetDashCount(page_object,
+  return _FPDFClipPath_GetPathSegment(clip_path,
+path_index,
+segment_index,
 );
 }
 
-late final _FPDFPageObj_GetDashCountPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFPageObj_GetDashCount');
-late final _FPDFPageObj_GetDashCount = _FPDFPageObj_GetDashCountPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
+late final _FPDFClipPath_GetPathSegmentPtr = _lookup<
+    ffi.NativeFunction<FPDF_PATHSEGMENT Function(FPDF_CLIPPATH , ffi.Int , ffi.Int )>>('FPDFClipPath_GetPathSegment');
+late final _FPDFClipPath_GetPathSegment = _FPDFClipPath_GetPathSegmentPtr.asFunction<FPDF_PATHSEGMENT Function(FPDF_CLIPPATH , int , int )>();
+
+/// Create a new clip path, with a rectangle inserted.
+/// 
+/// Caller takes ownership of the returned FPDF_CLIPPATH. It should be freed with
+/// FPDF_DestroyClipPath().
+/// 
+/// left   - The left of the clip box.
+/// bottom - The bottom of the clip box.
+/// right  - The right of the clip box.
+/// top    - The top of the clip box.
+FPDF_CLIPPATH FPDF_CreateClipPath(double left,
+double bottom,
+double right,
+double top,
+) {
+  return _FPDF_CreateClipPath(left,
+bottom,
+right,
+top,
+);
+}
+
+late final _FPDF_CreateClipPathPtr = _lookup<
+    ffi.NativeFunction<FPDF_CLIPPATH Function(ffi.Float , ffi.Float , ffi.Float , ffi.Float )>>('FPDF_CreateClipPath');
+late final _FPDF_CreateClipPath = _FPDF_CreateClipPathPtr.asFunction<FPDF_CLIPPATH Function(double , double , double , double )>();
+
+/// Destroy the clip path.
+/// 
+/// clipPath - A handle to the clip path. It will be invalid after this call.
+void FPDF_DestroyClipPath(FPDF_CLIPPATH clipPath,
+) {
+  return _FPDF_DestroyClipPath(clipPath,
+);
+}
+
+late final _FPDF_DestroyClipPathPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_CLIPPATH )>>('FPDF_DestroyClipPath');
+late final _FPDF_DestroyClipPath = _FPDF_DestroyClipPathPtr.asFunction<void Function(FPDF_CLIPPATH )>();
+
+/// Clip the page content, the page content that outside the clipping region
+/// become invisible.
+/// 
+/// A clip path will be inserted before the page content stream or content array.
+/// In this way, the page content will be clipped by this clip path.
+/// 
+/// page        - A page handle.
+/// clipPath    - A handle to the clip path. (Does not take ownership.)
+void FPDFPage_InsertClipPath(FPDF_PAGE page,
+FPDF_CLIPPATH clipPath,
+) {
+  return _FPDFPage_InsertClipPath(page,
+clipPath,
+);
+}
+
+late final _FPDFPage_InsertClipPathPtr = _lookup<
+    ffi.NativeFunction<ffi.Void Function(FPDF_PAGE , FPDF_CLIPPATH )>>('FPDFPage_InsertClipPath');
+late final _FPDFPage_InsertClipPath = _FPDFPage_InsertClipPathPtr.asFunction<void Function(FPDF_PAGE , FPDF_CLIPPATH )>();
+
+/// Flatten annotations and form fields into the page contents.
+/// 
+/// page  - handle to the page.
+/// nFlag - One of the |FLAT_*| values denoting the page usage.
+/// 
+/// Returns one of the |FLATTEN_*| values.
+/// 
+/// Currently, all failures return |FLATTEN_FAIL| with no indication of the
+/// cause.
+int FPDFPage_Flatten(FPDF_PAGE page,
+int nFlag,
+) {
+  return _FPDFPage_Flatten(page,
+nFlag,
+);
+}
+
+late final _FPDFPage_FlattenPtr = _lookup<
+    ffi.NativeFunction<ffi.Int Function(FPDF_PAGE , ffi.Int )>>('FPDFPage_Flatten');
+late final _FPDFPage_Flatten = _FPDFPage_FlattenPtr.asFunction<int Function(FPDF_PAGE , int )>();
 
 /// Experimental API.
-/// Get the line dash array of |page_object|.
-/// 
-/// page_object - handle to a page object.
-/// dash_array - pointer where the dashing array will be stored.
-/// dash_count - number of elements in |dash_array|.
-/// 
-/// Returns TRUE on success.
-int FPDFPageObj_GetDashArray(FPDF_PAGEOBJECT page_object,
-ffi.Pointer<ffi.Float> dash_array,
-int dash_count,
-) {
-  return _FPDFPageObj_GetDashArray(page_object,
-dash_array,
-dash_count,
-);
-}
-
-late final _FPDFPageObj_GetDashArrayPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> , ffi.Size )>>('FPDFPageObj_GetDashArray');
-late final _FPDFPageObj_GetDashArray = _FPDFPageObj_GetDashArrayPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> , int )>();
-
-/// Experimental API.
-/// Set the line dash array of |page_object|.
-/// 
-/// page_object - handle to a page object.
-/// dash_array - the dash array.
-/// dash_count - number of elements in |dash_array|.
-/// phase - the line dash phase.
-/// 
-/// Returns TRUE on success.
-int FPDFPageObj_SetDashArray(FPDF_PAGEOBJECT page_object,
-ffi.Pointer<ffi.Float> dash_array,
-int dash_count,
-double phase,
-) {
-  return _FPDFPageObj_SetDashArray(page_object,
-dash_array,
-dash_count,
-phase,
-);
-}
-
-late final _FPDFPageObj_SetDashArrayPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> , ffi.Size , ffi.Float )>>('FPDFPageObj_SetDashArray');
-late final _FPDFPageObj_SetDashArray = _FPDFPageObj_SetDashArrayPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> , int , double )>();
-
-/// Get number of segments inside |path|.
-/// 
-/// path - handle to a path.
-/// 
-/// A segment is a command, created by e.g. FPDFPath_MoveTo(),
-/// FPDFPath_LineTo() or FPDFPath_BezierTo().
-/// 
-/// Returns the number of objects in |path| or -1 on failure.
-int FPDFPath_CountSegments(FPDF_PAGEOBJECT path,
-) {
-  return _FPDFPath_CountSegments(path,
-);
-}
-
-late final _FPDFPath_CountSegmentsPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFPath_CountSegments');
-late final _FPDFPath_CountSegments = _FPDFPath_CountSegmentsPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
-
-/// Get segment in |path| at |index|.
-/// 
-/// path  - handle to a path.
-/// index - the index of a segment.
-/// 
-/// Returns the handle to the segment, or NULL on faiure.
-FPDF_PATHSEGMENT FPDFPath_GetPathSegment(FPDF_PAGEOBJECT path,
-int index,
-) {
-  return _FPDFPath_GetPathSegment(path,
-index,
-);
-}
-
-late final _FPDFPath_GetPathSegmentPtr = _lookup<
-    ffi.NativeFunction<FPDF_PATHSEGMENT Function(FPDF_PAGEOBJECT , ffi.Int )>>('FPDFPath_GetPathSegment');
-late final _FPDFPath_GetPathSegment = _FPDFPath_GetPathSegmentPtr.asFunction<FPDF_PATHSEGMENT Function(FPDF_PAGEOBJECT , int )>();
-
-/// Get coordinates of |segment|.
-/// 
-/// segment  - handle to a segment.
-/// x      - the horizontal position of the segment.
-/// y      - the vertical position of the segment.
-/// 
-/// Returns TRUE on success, otherwise |x| and |y| is not set.
-int FPDFPathSegment_GetPoint(FPDF_PATHSEGMENT segment,
-ffi.Pointer<ffi.Float> x,
-ffi.Pointer<ffi.Float> y,
-) {
-  return _FPDFPathSegment_GetPoint(segment,
-x,
-y,
-);
-}
-
-late final _FPDFPathSegment_GetPointPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PATHSEGMENT , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>>('FPDFPathSegment_GetPoint');
-late final _FPDFPathSegment_GetPoint = _FPDFPathSegment_GetPointPtr.asFunction<int Function(FPDF_PATHSEGMENT , ffi.Pointer<ffi.Float> , ffi.Pointer<ffi.Float> )>();
-
-/// Get type of |segment|.
-/// 
-/// segment - handle to a segment.
-/// 
-/// Returns one of the FPDF_SEGMENT_* values on success,
-/// FPDF_SEGMENT_UNKNOWN on error.
-int FPDFPathSegment_GetType(FPDF_PATHSEGMENT segment,
-) {
-  return _FPDFPathSegment_GetType(segment,
-);
-}
-
-late final _FPDFPathSegment_GetTypePtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PATHSEGMENT )>>('FPDFPathSegment_GetType');
-late final _FPDFPathSegment_GetType = _FPDFPathSegment_GetTypePtr.asFunction<int Function(FPDF_PATHSEGMENT )>();
-
-/// Gets if the |segment| closes the current subpath of a given path.
-/// 
-/// segment - handle to a segment.
-/// 
-/// Returns close flag for non-NULL segment, FALSE otherwise.
-int FPDFPathSegment_GetClose(FPDF_PATHSEGMENT segment,
-) {
-  return _FPDFPathSegment_GetClose(segment,
-);
-}
-
-late final _FPDFPathSegment_GetClosePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PATHSEGMENT )>>('FPDFPathSegment_GetClose');
-late final _FPDFPathSegment_GetClose = _FPDFPathSegment_GetClosePtr.asFunction<int Function(FPDF_PATHSEGMENT )>();
-
-/// Move a path's current point.
-/// 
-/// path   - the handle to the path object.
-/// x      - the horizontal position of the new current point.
-/// y      - the vertical position of the new current point.
-/// 
-/// Note that no line will be created between the previous current point and the
-/// new one.
-/// 
-/// Returns TRUE on success
-int FPDFPath_MoveTo(FPDF_PAGEOBJECT path,
-double x,
-double y,
-) {
-  return _FPDFPath_MoveTo(path,
-x,
-y,
-);
-}
-
-late final _FPDFPath_MoveToPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Float , ffi.Float )>>('FPDFPath_MoveTo');
-late final _FPDFPath_MoveTo = _FPDFPath_MoveToPtr.asFunction<int Function(FPDF_PAGEOBJECT , double , double )>();
-
-/// Add a line between the current point and a new point in the path.
-/// 
-/// path   - the handle to the path object.
-/// x      - the horizontal position of the new point.
-/// y      - the vertical position of the new point.
-/// 
-/// The path's current point is changed to (x, y).
-/// 
-/// Returns TRUE on success
-int FPDFPath_LineTo(FPDF_PAGEOBJECT path,
-double x,
-double y,
-) {
-  return _FPDFPath_LineTo(path,
-x,
-y,
-);
-}
-
-late final _FPDFPath_LineToPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Float , ffi.Float )>>('FPDFPath_LineTo');
-late final _FPDFPath_LineTo = _FPDFPath_LineToPtr.asFunction<int Function(FPDF_PAGEOBJECT , double , double )>();
-
-/// Add a cubic Bezier curve to the given path, starting at the current point.
-/// 
-/// path   - the handle to the path object.
-/// x1     - the horizontal position of the first Bezier control point.
-/// y1     - the vertical position of the first Bezier control point.
-/// x2     - the horizontal position of the second Bezier control point.
-/// y2     - the vertical position of the second Bezier control point.
-/// x3     - the horizontal position of the ending point of the Bezier curve.
-/// y3     - the vertical position of the ending point of the Bezier curve.
-/// 
-/// Returns TRUE on success
-int FPDFPath_BezierTo(FPDF_PAGEOBJECT path,
-double x1,
-double y1,
-double x2,
-double y2,
-double x3,
-double y3,
-) {
-  return _FPDFPath_BezierTo(path,
-x1,
-y1,
-x2,
-y2,
-x3,
-y3,
-);
-}
-
-late final _FPDFPath_BezierToPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Float , ffi.Float , ffi.Float , ffi.Float , ffi.Float , ffi.Float )>>('FPDFPath_BezierTo');
-late final _FPDFPath_BezierTo = _FPDFPath_BezierToPtr.asFunction<int Function(FPDF_PAGEOBJECT , double , double , double , double , double , double )>();
-
-/// Close the current subpath of a given path.
-/// 
-/// path   - the handle to the path object.
-/// 
-/// This will add a line between the current point and the initial point of the
-/// subpath, thus terminating the current subpath.
-/// 
-/// Returns TRUE on success
-int FPDFPath_Close(FPDF_PAGEOBJECT path,
-) {
-  return _FPDFPath_Close(path,
-);
-}
-
-late final _FPDFPath_ClosePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT )>>('FPDFPath_Close');
-late final _FPDFPath_Close = _FPDFPath_ClosePtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
-
-/// Set the drawing mode of a path.
-/// 
-/// path     - the handle to the path object.
-/// fillmode - the filling mode to be set: one of the FPDF_FILLMODE_* flags.
-/// stroke   - a boolean specifying if the path should be stroked or not.
-/// 
-/// Returns TRUE on success
-int FPDFPath_SetDrawMode(FPDF_PAGEOBJECT path,
-int fillmode,
-int stroke,
-) {
-  return _FPDFPath_SetDrawMode(path,
-fillmode,
-stroke,
-);
-}
-
-late final _FPDFPath_SetDrawModePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Int , FPDF_BOOL )>>('FPDFPath_SetDrawMode');
-late final _FPDFPath_SetDrawMode = _FPDFPath_SetDrawModePtr.asFunction<int Function(FPDF_PAGEOBJECT , int , int )>();
-
-/// Get the drawing mode of a path.
-/// 
-/// path     - the handle to the path object.
-/// fillmode - the filling mode of the path: one of the FPDF_FILLMODE_* flags.
-/// stroke   - a boolean specifying if the path is stroked or not.
-/// 
-/// Returns TRUE on success
-int FPDFPath_GetDrawMode(FPDF_PAGEOBJECT path,
-ffi.Pointer<ffi.Int> fillmode,
-ffi.Pointer<FPDF_BOOL> stroke,
-) {
-  return _FPDFPath_GetDrawMode(path,
-fillmode,
-stroke,
-);
-}
-
-late final _FPDFPath_GetDrawModePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Int> , ffi.Pointer<FPDF_BOOL> )>>('FPDFPath_GetDrawMode');
-late final _FPDFPath_GetDrawMode = _FPDFPath_GetDrawModePtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Int> , ffi.Pointer<FPDF_BOOL> )>();
-
-/// Create a new text object using one of the standard PDF fonts.
-/// 
-/// document   - handle to the document.
-/// font       - string containing the font name, without spaces.
-/// font_size  - the font size for the new text object.
-/// 
-/// Returns a handle to a new text object, or NULL on failure
-FPDF_PAGEOBJECT FPDFPageObj_NewTextObj(FPDF_DOCUMENT document,
-FPDF_BYTESTRING font,
-double font_size,
-) {
-  return _FPDFPageObj_NewTextObj(document,
-font,
-font_size,
-);
-}
-
-late final _FPDFPageObj_NewTextObjPtr = _lookup<
-    ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_DOCUMENT , FPDF_BYTESTRING , ffi.Float )>>('FPDFPageObj_NewTextObj');
-late final _FPDFPageObj_NewTextObj = _FPDFPageObj_NewTextObjPtr.asFunction<FPDF_PAGEOBJECT Function(FPDF_DOCUMENT , FPDF_BYTESTRING , double )>();
-
-/// Set the text for a text object. If it had text, it will be replaced.
-/// 
-/// text_object  - handle to the text object.
-/// text         - the UTF-16LE encoded string containing the text to be added.
-/// 
-/// Returns TRUE on success
-int FPDFText_SetText(FPDF_PAGEOBJECT text_object,
-FPDF_WIDESTRING text,
-) {
-  return _FPDFText_SetText(text_object,
-text,
-);
-}
-
-late final _FPDFText_SetTextPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , FPDF_WIDESTRING )>>('FPDFText_SetText');
-late final _FPDFText_SetText = _FPDFText_SetTextPtr.asFunction<int Function(FPDF_PAGEOBJECT , FPDF_WIDESTRING )>();
-
-/// Experimental API.
-/// Set the text using charcodes for a text object. If it had text, it will be
-/// replaced.
-/// 
-/// text_object  - handle to the text object.
-/// charcodes    - pointer to an array of charcodes to be added.
-/// count        - number of elements in |charcodes|.
-/// 
-/// Returns TRUE on success
-int FPDFText_SetCharcodes(FPDF_PAGEOBJECT text_object,
-ffi.Pointer<ffi.Uint32> charcodes,
-int count,
-) {
-  return _FPDFText_SetCharcodes(text_object,
-charcodes,
-count,
-);
-}
-
-late final _FPDFText_SetCharcodesPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Uint32> , ffi.Size )>>('FPDFText_SetCharcodes');
-late final _FPDFText_SetCharcodes = _FPDFText_SetCharcodesPtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Uint32> , int )>();
-
-/// Returns a font object loaded from a stream of data. The font is loaded
-/// into the document. Various font data structures, such as the ToUnicode data,
-/// are auto-generated based on the inputs.
-/// 
-/// document  - handle to the document.
-/// data      - the stream of font data, which will be copied by the font object.
-/// size      - the size of the font data, in bytes.
-/// font_type - FPDF_FONT_TYPE1 or FPDF_FONT_TRUETYPE depending on the font type.
-/// cid       - a boolean specifying if the font is a CID font or not.
-/// 
-/// The loaded font can be closed using FPDFFont_Close().
-/// 
-/// Returns NULL on failure
-FPDF_FONT FPDFText_LoadFont(FPDF_DOCUMENT document,
-ffi.Pointer<ffi.Uint8> data,
-int size,
-int font_type,
-int cid,
-) {
-  return _FPDFText_LoadFont(document,
-data,
-size,
-font_type,
-cid,
-);
-}
-
-late final _FPDFText_LoadFontPtr = _lookup<
-    ffi.NativeFunction<FPDF_FONT Function(FPDF_DOCUMENT , ffi.Pointer<ffi.Uint8> , ffi.Uint32 , ffi.Int , FPDF_BOOL )>>('FPDFText_LoadFont');
-late final _FPDFText_LoadFont = _FPDFText_LoadFontPtr.asFunction<FPDF_FONT Function(FPDF_DOCUMENT , ffi.Pointer<ffi.Uint8> , int , int , int )>();
-
-/// Experimental API.
-/// Loads one of the standard 14 fonts per PDF spec 1.7 page 416. The preferred
-/// way of using font style is using a dash to separate the name from the style,
-/// for example 'Helvetica-BoldItalic'.
-/// 
-/// document   - handle to the document.
-/// font       - string containing the font name, without spaces.
-/// 
-/// The loaded font can be closed using FPDFFont_Close().
-/// 
-/// Returns NULL on failure.
-FPDF_FONT FPDFText_LoadStandardFont(FPDF_DOCUMENT document,
-FPDF_BYTESTRING font,
-) {
-  return _FPDFText_LoadStandardFont(document,
-font,
-);
-}
-
-late final _FPDFText_LoadStandardFontPtr = _lookup<
-    ffi.NativeFunction<FPDF_FONT Function(FPDF_DOCUMENT , FPDF_BYTESTRING )>>('FPDFText_LoadStandardFont');
-late final _FPDFText_LoadStandardFont = _FPDFText_LoadStandardFontPtr.asFunction<FPDF_FONT Function(FPDF_DOCUMENT , FPDF_BYTESTRING )>();
-
-/// Experimental API.
-/// Returns a font object loaded from a stream of data for a type 2 CID font. The
-/// font is loaded into the document. Unlike FPDFText_LoadFont(), the ToUnicode
-/// data and the CIDToGIDMap data are caller provided, instead of auto-generated.
-/// 
-/// document                 - handle to the document.
-/// font_data                - the stream of font data, which will be copied by
-/// the font object.
-/// font_data_size           - the size of the font data, in bytes.
-/// to_unicode_cmap          - the ToUnicode data.
-/// cid_to_gid_map_data      - the stream of CIDToGIDMap data.
-/// cid_to_gid_map_data_size - the size of the CIDToGIDMap data, in bytes.
-/// 
-/// The loaded font can be closed using FPDFFont_Close().
-/// 
-/// Returns NULL on failure.
-FPDF_FONT FPDFText_LoadCidType2Font(FPDF_DOCUMENT document,
-ffi.Pointer<ffi.Uint8> font_data,
-int font_data_size,
-FPDF_BYTESTRING to_unicode_cmap,
-ffi.Pointer<ffi.Uint8> cid_to_gid_map_data,
-int cid_to_gid_map_data_size,
-) {
-  return _FPDFText_LoadCidType2Font(document,
-font_data,
-font_data_size,
-to_unicode_cmap,
-cid_to_gid_map_data,
-cid_to_gid_map_data_size,
-);
-}
-
-late final _FPDFText_LoadCidType2FontPtr = _lookup<
-    ffi.NativeFunction<FPDF_FONT Function(FPDF_DOCUMENT , ffi.Pointer<ffi.Uint8> , ffi.Uint32 , FPDF_BYTESTRING , ffi.Pointer<ffi.Uint8> , ffi.Uint32 )>>('FPDFText_LoadCidType2Font');
-late final _FPDFText_LoadCidType2Font = _FPDFText_LoadCidType2FontPtr.asFunction<FPDF_FONT Function(FPDF_DOCUMENT , ffi.Pointer<ffi.Uint8> , int , FPDF_BYTESTRING , ffi.Pointer<ffi.Uint8> , int )>();
-
-/// Get the font size of a text object.
-/// 
-/// text - handle to a text.
-/// size - pointer to the font size of the text object, measured in points
-/// (about 1/72 inch)
-/// 
-/// Returns TRUE on success.
-int FPDFTextObj_GetFontSize(FPDF_PAGEOBJECT text,
-ffi.Pointer<ffi.Float> size,
-) {
-  return _FPDFTextObj_GetFontSize(text,
-size,
-);
-}
-
-late final _FPDFTextObj_GetFontSizePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> )>>('FPDFTextObj_GetFontSize');
-late final _FPDFTextObj_GetFontSize = _FPDFTextObj_GetFontSizePtr.asFunction<int Function(FPDF_PAGEOBJECT , ffi.Pointer<ffi.Float> )>();
-
-/// Close a loaded PDF font.
-/// 
-/// font   - Handle to the loaded font.
-void FPDFFont_Close(FPDF_FONT font,
-) {
-  return _FPDFFont_Close(font,
-);
-}
-
-late final _FPDFFont_ClosePtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(FPDF_FONT )>>('FPDFFont_Close');
-late final _FPDFFont_Close = _FPDFFont_ClosePtr.asFunction<void Function(FPDF_FONT )>();
-
-/// Create a new text object using a loaded font.
-/// 
-/// document   - handle to the document.
-/// font       - handle to the font object.
-/// font_size  - the font size for the new text object.
-/// 
-/// Returns a handle to a new text object, or NULL on failure
-FPDF_PAGEOBJECT FPDFPageObj_CreateTextObj(FPDF_DOCUMENT document,
-FPDF_FONT font,
-double font_size,
-) {
-  return _FPDFPageObj_CreateTextObj(document,
-font,
-font_size,
-);
-}
-
-late final _FPDFPageObj_CreateTextObjPtr = _lookup<
-    ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_DOCUMENT , FPDF_FONT , ffi.Float )>>('FPDFPageObj_CreateTextObj');
-late final _FPDFPageObj_CreateTextObj = _FPDFPageObj_CreateTextObjPtr.asFunction<FPDF_PAGEOBJECT Function(FPDF_DOCUMENT , FPDF_FONT , double )>();
-
-/// Get the text rendering mode of a text object.
-/// 
-/// text     - the handle to the text object.
-/// 
-/// Returns one of the known FPDF_TEXT_RENDERMODE enum values on success,
-/// FPDF_TEXTRENDERMODE_UNKNOWN on error.
-FPDF_TEXT_RENDERMODE FPDFTextObj_GetTextRenderMode(FPDF_PAGEOBJECT text,
-) {
-  return FPDF_TEXT_RENDERMODE.fromValue(_FPDFTextObj_GetTextRenderMode(text,
-));
-}
-
-late final _FPDFTextObj_GetTextRenderModePtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFTextObj_GetTextRenderMode');
-late final _FPDFTextObj_GetTextRenderMode = _FPDFTextObj_GetTextRenderModePtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
-
-/// Experimental API.
-/// Set the text rendering mode of a text object.
-/// 
-/// text         - the handle to the text object.
-/// render_mode  - the FPDF_TEXT_RENDERMODE enum value to be set (cannot set to
-/// FPDF_TEXTRENDERMODE_UNKNOWN).
-/// 
-/// Returns TRUE on success.
-DartFPDF_BOOL FPDFTextObj_SetTextRenderMode(FPDF_PAGEOBJECT text,
-FPDF_TEXT_RENDERMODE render_mode,
-) {
-  return _FPDFTextObj_SetTextRenderMode(text,
-render_mode.value,
-);
-}
-
-late final _FPDFTextObj_SetTextRenderModePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , ffi.Int )>>('FPDFTextObj_SetTextRenderMode');
-late final _FPDFTextObj_SetTextRenderMode = _FPDFTextObj_SetTextRenderModePtr.asFunction<int Function(FPDF_PAGEOBJECT , int )>();
-
-/// Get the text of a text object.
-/// 
-/// text_object      - the handle to the text object.
-/// text_page        - the handle to the text page.
-/// buffer           - the address of a buffer that receives the text.
-/// length           - the size, in bytes, of |buffer|.
-/// 
-/// Returns the number of bytes in the text (including the trailing NUL
-/// character) on success, 0 on error.
-/// 
-/// Regardless of the platform, the |buffer| is always in UTF-16LE encoding.
-/// If |length| is less than the returned length, or |buffer| is NULL, |buffer|
-/// will not be modified.
-int FPDFTextObj_GetText(FPDF_PAGEOBJECT text_object,
-FPDF_TEXTPAGE text_page,
-ffi.Pointer<FPDF_WCHAR> buffer,
-int length,
-) {
-  return _FPDFTextObj_GetText(text_object,
-text_page,
-buffer,
-length,
-);
-}
-
-late final _FPDFTextObj_GetTextPtr = _lookup<
-    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_PAGEOBJECT , FPDF_TEXTPAGE , ffi.Pointer<FPDF_WCHAR> , ffi.UnsignedLong )>>('FPDFTextObj_GetText');
-late final _FPDFTextObj_GetText = _FPDFTextObj_GetTextPtr.asFunction<int Function(FPDF_PAGEOBJECT , FPDF_TEXTPAGE , ffi.Pointer<FPDF_WCHAR> , int )>();
-
-/// Experimental API.
-/// Get a bitmap rasterization of |text_object|. To render correctly, the caller
-/// must provide the |document| associated with |text_object|. If there is a
-/// |page| associated with |text_object|, the caller should provide that as well.
-/// The returned bitmap will be owned by the caller, and FPDFBitmap_Destroy()
-/// must be called on the returned bitmap when it is no longer needed.
-/// 
-/// document    - handle to a document associated with |text_object|.
-/// page        - handle to an optional page associated with |text_object|.
-/// text_object - handle to a text object.
-/// scale       - the scaling factor, which must be greater than 0.
-/// 
-/// Returns the bitmap or NULL on failure.
-FPDF_BITMAP FPDFTextObj_GetRenderedBitmap(FPDF_DOCUMENT document,
-FPDF_PAGE page,
-FPDF_PAGEOBJECT text_object,
-double scale,
-) {
-  return _FPDFTextObj_GetRenderedBitmap(document,
-page,
-text_object,
-scale,
-);
-}
-
-late final _FPDFTextObj_GetRenderedBitmapPtr = _lookup<
-    ffi.NativeFunction<FPDF_BITMAP Function(FPDF_DOCUMENT , FPDF_PAGE , FPDF_PAGEOBJECT , ffi.Float )>>('FPDFTextObj_GetRenderedBitmap');
-late final _FPDFTextObj_GetRenderedBitmap = _FPDFTextObj_GetRenderedBitmapPtr.asFunction<FPDF_BITMAP Function(FPDF_DOCUMENT , FPDF_PAGE , FPDF_PAGEOBJECT , double )>();
-
-/// Experimental API.
-/// Get the font of a text object.
-/// 
-/// text - the handle to the text object.
-/// 
-/// Returns a handle to the font object held by |text| which retains ownership.
-FPDF_FONT FPDFTextObj_GetFont(FPDF_PAGEOBJECT text,
-) {
-  return _FPDFTextObj_GetFont(text,
-);
-}
-
-late final _FPDFTextObj_GetFontPtr = _lookup<
-    ffi.NativeFunction<FPDF_FONT Function(FPDF_PAGEOBJECT )>>('FPDFTextObj_GetFont');
-late final _FPDFTextObj_GetFont = _FPDFTextObj_GetFontPtr.asFunction<FPDF_FONT Function(FPDF_PAGEOBJECT )>();
-
-/// Experimental API.
-/// Get the base name of a font.
-/// 
-/// font   - the handle to the font object.
-/// buffer - the address of a buffer that receives the base font name.
-/// length - the size, in bytes, of |buffer|.
-/// 
-/// Returns the number of bytes in the base name (including the trailing NUL
-/// character) on success, 0 on error. The base name is typically the font's
-/// PostScript name. See descriptions of "BaseFont" in ISO 32000-1:2008 spec.
-/// 
-/// Regardless of the platform, the |buffer| is always in UTF-8 encoding.
-/// If |length| is less than the returned length, or |buffer| is NULL, |buffer|
-/// will not be modified.
-int FPDFFont_GetBaseFontName(FPDF_FONT font,
-ffi.Pointer<ffi.Char> buffer,
-int length,
-) {
-  return _FPDFFont_GetBaseFontName(font,
-buffer,
-length,
-);
-}
-
-late final _FPDFFont_GetBaseFontNamePtr = _lookup<
-    ffi.NativeFunction<ffi.Size Function(FPDF_FONT , ffi.Pointer<ffi.Char> , ffi.Size )>>('FPDFFont_GetBaseFontName');
-late final _FPDFFont_GetBaseFontName = _FPDFFont_GetBaseFontNamePtr.asFunction<int Function(FPDF_FONT , ffi.Pointer<ffi.Char> , int )>();
-
-/// Experimental API.
-/// Get the family name of a font.
-/// 
-/// font   - the handle to the font object.
-/// buffer - the address of a buffer that receives the font name.
-/// length - the size, in bytes, of |buffer|.
-/// 
-/// Returns the number of bytes in the family name (including the trailing NUL
-/// character) on success, 0 on error.
-/// 
-/// Regardless of the platform, the |buffer| is always in UTF-8 encoding.
-/// If |length| is less than the returned length, or |buffer| is NULL, |buffer|
-/// will not be modified.
-int FPDFFont_GetFamilyName(FPDF_FONT font,
-ffi.Pointer<ffi.Char> buffer,
-int length,
-) {
-  return _FPDFFont_GetFamilyName(font,
-buffer,
-length,
-);
-}
-
-late final _FPDFFont_GetFamilyNamePtr = _lookup<
-    ffi.NativeFunction<ffi.Size Function(FPDF_FONT , ffi.Pointer<ffi.Char> , ffi.Size )>>('FPDFFont_GetFamilyName');
-late final _FPDFFont_GetFamilyName = _FPDFFont_GetFamilyNamePtr.asFunction<int Function(FPDF_FONT , ffi.Pointer<ffi.Char> , int )>();
-
-/// Experimental API.
-/// Get the decoded data from the |font| object.
-/// 
-/// font       - The handle to the font object. (Required)
-/// buffer     - The address of a buffer that receives the font data.
-/// buflen     - Length of the buffer.
-/// out_buflen - Pointer to variable that will receive the minimum buffer size
-/// to contain the font data. Not filled if the return value is
-/// FALSE. (Required)
-/// 
-/// Returns TRUE on success. In which case, |out_buflen| will be filled, and
-/// |buffer| will be filled if it is large enough. Returns FALSE if any of the
-/// required parameters are null.
-/// 
-/// The decoded data is the uncompressed font data. i.e. the raw font data after
-/// having all stream filters applied, when the data is embedded.
-/// 
-/// If the font is not embedded, then this API will instead return the data for
-/// the substitution font it is using.
-int FPDFFont_GetFontData(FPDF_FONT font,
-ffi.Pointer<ffi.Uint8> buffer,
+/// Gets the decoded data from the thumbnail of |page| if it exists.
+/// This only modifies |buffer| if |buflen| less than or equal to the
+/// size of the decoded data. Returns the size of the decoded
+/// data or 0 if thumbnail DNE. Optional, pass null to just retrieve
+/// the size of the buffer needed.
+/// 
+/// page    - handle to a page.
+/// buffer  - buffer for holding the decoded image data.
+/// buflen  - length of the buffer in bytes.
+int FPDFPage_GetDecodedThumbnailData(FPDF_PAGE page,
+ffi.Pointer<ffi.Void> buffer,
 int buflen,
-ffi.Pointer<ffi.Size> out_buflen,
 ) {
-  return _FPDFFont_GetFontData(font,
+  return _FPDFPage_GetDecodedThumbnailData(page,
 buffer,
 buflen,
-out_buflen,
 );
 }
 
-late final _FPDFFont_GetFontDataPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_FONT , ffi.Pointer<ffi.Uint8> , ffi.Size , ffi.Pointer<ffi.Size> )>>('FPDFFont_GetFontData');
-late final _FPDFFont_GetFontData = _FPDFFont_GetFontDataPtr.asFunction<int Function(FPDF_FONT , ffi.Pointer<ffi.Uint8> , int , ffi.Pointer<ffi.Size> )>();
+late final _FPDFPage_GetDecodedThumbnailDataPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_PAGE , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDFPage_GetDecodedThumbnailData');
+late final _FPDFPage_GetDecodedThumbnailData = _FPDFPage_GetDecodedThumbnailDataPtr.asFunction<int Function(FPDF_PAGE , ffi.Pointer<ffi.Void> , int )>();
 
 /// Experimental API.
-/// Get whether |font| is embedded or not.
+/// Gets the raw data from the thumbnail of |page| if it exists.
+/// This only modifies |buffer| if |buflen| is less than or equal to
+/// the size of the raw data. Returns the size of the raw data or 0
+/// if thumbnail DNE. Optional, pass null to just retrieve the size
+/// of the buffer needed.
 /// 
-/// font - the handle to the font object.
-/// 
-/// Returns 1 if the font is embedded, 0 if it not, and -1 on failure.
-int FPDFFont_GetIsEmbedded(FPDF_FONT font,
+/// page    - handle to a page.
+/// buffer  - buffer for holding the raw image data.
+/// buflen  - length of the buffer in bytes.
+int FPDFPage_GetRawThumbnailData(FPDF_PAGE page,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
 ) {
-  return _FPDFFont_GetIsEmbedded(font,
+  return _FPDFPage_GetRawThumbnailData(page,
+buffer,
+buflen,
 );
 }
 
-late final _FPDFFont_GetIsEmbeddedPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_FONT )>>('FPDFFont_GetIsEmbedded');
-late final _FPDFFont_GetIsEmbedded = _FPDFFont_GetIsEmbeddedPtr.asFunction<int Function(FPDF_FONT )>();
+late final _FPDFPage_GetRawThumbnailDataPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_PAGE , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDFPage_GetRawThumbnailData');
+late final _FPDFPage_GetRawThumbnailData = _FPDFPage_GetRawThumbnailDataPtr.asFunction<int Function(FPDF_PAGE , ffi.Pointer<ffi.Void> , int )>();
 
 /// Experimental API.
-/// Get the descriptor flags of a font.
+/// Returns the thumbnail of |page| as a FPDF_BITMAP. Returns a nullptr
+/// if unable to access the thumbnail's stream.
 /// 
-/// font - the handle to the font object.
-/// 
-/// Returns the bit flags specifying various characteristics of the font as
-/// defined in ISO 32000-1:2008, table 123, -1 on failure.
-int FPDFFont_GetFlags(FPDF_FONT font,
+/// page - handle to a page.
+FPDF_BITMAP FPDFPage_GetThumbnailAsBitmap(FPDF_PAGE page,
 ) {
-  return _FPDFFont_GetFlags(font,
+  return _FPDFPage_GetThumbnailAsBitmap(page,
 );
 }
 
-late final _FPDFFont_GetFlagsPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_FONT )>>('FPDFFont_GetFlags');
-late final _FPDFFont_GetFlags = _FPDFFont_GetFlagsPtr.asFunction<int Function(FPDF_FONT )>();
-
-/// Experimental API.
-/// Get the font weight of a font.
-/// 
-/// font - the handle to the font object.
-/// 
-/// Returns the font weight, -1 on failure.
-/// Typical values are 400 (normal) and 700 (bold).
-int FPDFFont_GetWeight(FPDF_FONT font,
-) {
-  return _FPDFFont_GetWeight(font,
-);
-}
-
-late final _FPDFFont_GetWeightPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_FONT )>>('FPDFFont_GetWeight');
-late final _FPDFFont_GetWeight = _FPDFFont_GetWeightPtr.asFunction<int Function(FPDF_FONT )>();
-
-/// Experimental API.
-/// Get the italic angle of a font.
-/// 
-/// font  - the handle to the font object.
-/// angle - pointer where the italic angle will be stored
-/// 
-/// The italic angle of a |font| is defined as degrees counterclockwise
-/// from vertical. For a font that slopes to the right, this will be negative.
-/// 
-/// Returns TRUE on success; |angle| unmodified on failure.
-int FPDFFont_GetItalicAngle(FPDF_FONT font,
-ffi.Pointer<ffi.Int> angle,
-) {
-  return _FPDFFont_GetItalicAngle(font,
-angle,
-);
-}
-
-late final _FPDFFont_GetItalicAnglePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_FONT , ffi.Pointer<ffi.Int> )>>('FPDFFont_GetItalicAngle');
-late final _FPDFFont_GetItalicAngle = _FPDFFont_GetItalicAnglePtr.asFunction<int Function(FPDF_FONT , ffi.Pointer<ffi.Int> )>();
-
-/// Experimental API.
-/// Get ascent distance of a font.
-/// 
-/// font       - the handle to the font object.
-/// font_size  - the size of the |font|.
-/// ascent     - pointer where the font ascent will be stored
-/// 
-/// Ascent is the maximum distance in points above the baseline reached by the
-/// glyphs of the |font|. One point is 1/72 inch (around 0.3528 mm).
-/// 
-/// Returns TRUE on success; |ascent| unmodified on failure.
-int FPDFFont_GetAscent(FPDF_FONT font,
-double font_size,
-ffi.Pointer<ffi.Float> ascent,
-) {
-  return _FPDFFont_GetAscent(font,
-font_size,
-ascent,
-);
-}
-
-late final _FPDFFont_GetAscentPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_FONT , ffi.Float , ffi.Pointer<ffi.Float> )>>('FPDFFont_GetAscent');
-late final _FPDFFont_GetAscent = _FPDFFont_GetAscentPtr.asFunction<int Function(FPDF_FONT , double , ffi.Pointer<ffi.Float> )>();
-
-/// Experimental API.
-/// Get descent distance of a font.
-/// 
-/// font       - the handle to the font object.
-/// font_size  - the size of the |font|.
-/// descent    - pointer where the font descent will be stored
-/// 
-/// Descent is the maximum distance in points below the baseline reached by the
-/// glyphs of the |font|. One point is 1/72 inch (around 0.3528 mm).
-/// 
-/// Returns TRUE on success; |descent| unmodified on failure.
-int FPDFFont_GetDescent(FPDF_FONT font,
-double font_size,
-ffi.Pointer<ffi.Float> descent,
-) {
-  return _FPDFFont_GetDescent(font,
-font_size,
-descent,
-);
-}
-
-late final _FPDFFont_GetDescentPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_FONT , ffi.Float , ffi.Pointer<ffi.Float> )>>('FPDFFont_GetDescent');
-late final _FPDFFont_GetDescent = _FPDFFont_GetDescentPtr.asFunction<int Function(FPDF_FONT , double , ffi.Pointer<ffi.Float> )>();
-
-/// Experimental API.
-/// Get the width of a glyph in a font.
-/// 
-/// font       - the handle to the font object.
-/// glyph      - the glyph.
-/// font_size  - the size of the font.
-/// width      - pointer where the glyph width will be stored
-/// 
-/// Glyph width is the distance from the end of the prior glyph to the next
-/// glyph. This will be the vertical distance for vertical writing.
-/// 
-/// Returns TRUE on success; |width| unmodified on failure.
-int FPDFFont_GetGlyphWidth(FPDF_FONT font,
-int glyph,
-double font_size,
-ffi.Pointer<ffi.Float> width,
-) {
-  return _FPDFFont_GetGlyphWidth(font,
-glyph,
-font_size,
-width,
-);
-}
-
-late final _FPDFFont_GetGlyphWidthPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_FONT , ffi.Uint32 , ffi.Float , ffi.Pointer<ffi.Float> )>>('FPDFFont_GetGlyphWidth');
-late final _FPDFFont_GetGlyphWidth = _FPDFFont_GetGlyphWidthPtr.asFunction<int Function(FPDF_FONT , int , double , ffi.Pointer<ffi.Float> )>();
-
-/// Experimental API.
-/// Get the glyphpath describing how to draw a font glyph.
-/// 
-/// font       - the handle to the font object.
-/// glyph      - the glyph being drawn.
-/// font_size  - the size of the font.
-/// 
-/// Returns the handle to the segment, or NULL on faiure.
-FPDF_GLYPHPATH FPDFFont_GetGlyphPath(FPDF_FONT font,
-int glyph,
-double font_size,
-) {
-  return _FPDFFont_GetGlyphPath(font,
-glyph,
-font_size,
-);
-}
-
-late final _FPDFFont_GetGlyphPathPtr = _lookup<
-    ffi.NativeFunction<FPDF_GLYPHPATH Function(FPDF_FONT , ffi.Uint32 , ffi.Float )>>('FPDFFont_GetGlyphPath');
-late final _FPDFFont_GetGlyphPath = _FPDFFont_GetGlyphPathPtr.asFunction<FPDF_GLYPHPATH Function(FPDF_FONT , int , double )>();
-
-/// Experimental API.
-/// Get number of segments inside glyphpath.
-/// 
-/// glyphpath - handle to a glyph path.
-/// 
-/// Returns the number of objects in |glyphpath| or -1 on failure.
-int FPDFGlyphPath_CountGlyphSegments(FPDF_GLYPHPATH glyphpath,
-) {
-  return _FPDFGlyphPath_CountGlyphSegments(glyphpath,
-);
-}
-
-late final _FPDFGlyphPath_CountGlyphSegmentsPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_GLYPHPATH )>>('FPDFGlyphPath_CountGlyphSegments');
-late final _FPDFGlyphPath_CountGlyphSegments = _FPDFGlyphPath_CountGlyphSegmentsPtr.asFunction<int Function(FPDF_GLYPHPATH )>();
-
-/// Experimental API.
-/// Get segment in glyphpath at index.
-/// 
-/// glyphpath  - handle to a glyph path.
-/// index      - the index of a segment.
-/// 
-/// Returns the handle to the segment, or NULL on faiure.
-FPDF_PATHSEGMENT FPDFGlyphPath_GetGlyphPathSegment(FPDF_GLYPHPATH glyphpath,
-int index,
-) {
-  return _FPDFGlyphPath_GetGlyphPathSegment(glyphpath,
-index,
-);
-}
-
-late final _FPDFGlyphPath_GetGlyphPathSegmentPtr = _lookup<
-    ffi.NativeFunction<FPDF_PATHSEGMENT Function(FPDF_GLYPHPATH , ffi.Int )>>('FPDFGlyphPath_GetGlyphPathSegment');
-late final _FPDFGlyphPath_GetGlyphPathSegment = _FPDFGlyphPath_GetGlyphPathSegmentPtr.asFunction<FPDF_PATHSEGMENT Function(FPDF_GLYPHPATH , int )>();
-
-/// Get number of page objects inside |form_object|.
-/// 
-/// form_object - handle to a form object.
-/// 
-/// Returns the number of objects in |form_object| on success, -1 on error.
-int FPDFFormObj_CountObjects(FPDF_PAGEOBJECT form_object,
-) {
-  return _FPDFFormObj_CountObjects(form_object,
-);
-}
-
-late final _FPDFFormObj_CountObjectsPtr = _lookup<
-    ffi.NativeFunction<ffi.Int Function(FPDF_PAGEOBJECT )>>('FPDFFormObj_CountObjects');
-late final _FPDFFormObj_CountObjects = _FPDFFormObj_CountObjectsPtr.asFunction<int Function(FPDF_PAGEOBJECT )>();
-
-/// Get page object in |form_object| at |index|.
-/// 
-/// form_object - handle to a form object.
-/// index       - the 0-based index of a page object.
-/// 
-/// Returns the handle to the page object, or NULL on error.
-FPDF_PAGEOBJECT FPDFFormObj_GetObject(FPDF_PAGEOBJECT form_object,
-int index,
-) {
-  return _FPDFFormObj_GetObject(form_object,
-index,
-);
-}
-
-late final _FPDFFormObj_GetObjectPtr = _lookup<
-    ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_PAGEOBJECT , ffi.UnsignedLong )>>('FPDFFormObj_GetObject');
-late final _FPDFFormObj_GetObject = _FPDFFormObj_GetObjectPtr.asFunction<FPDF_PAGEOBJECT Function(FPDF_PAGEOBJECT , int )>();
-
-/// Experimental API.
-/// 
-/// Remove |page_object| from |form_object|.
-/// 
-/// form_object - handle to a form object.
-/// page_object - handle to a page object to be removed from the form.
-/// 
-/// Returns TRUE on success.
-/// 
-/// Ownership of the removed |page_object| is transferred to the caller.
-/// Call FPDFPageObj_Destroy() on the removed page_object to free it.
-int FPDFFormObj_RemoveObject(FPDF_PAGEOBJECT form_object,
-FPDF_PAGEOBJECT page_object,
-) {
-  return _FPDFFormObj_RemoveObject(form_object,
-page_object,
-);
-}
-
-late final _FPDFFormObj_RemoveObjectPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGEOBJECT , FPDF_PAGEOBJECT )>>('FPDFFormObj_RemoveObject');
-late final _FPDFFormObj_RemoveObject = _FPDFFormObj_RemoveObjectPtr.asFunction<int Function(FPDF_PAGEOBJECT , FPDF_PAGEOBJECT )>();
-
-/// Experimental API.
-/// Import pages to a FPDF_DOCUMENT.
-/// 
-/// dest_doc     - The destination document for the pages.
-/// src_doc      - The document to be imported.
-/// page_indices - An array of page indices to be imported. The first page is
-/// zero. If |page_indices| is NULL, all pages from |src_doc|
-/// are imported.
-/// length       - The length of the |page_indices| array.
-/// index        - The page index at which to insert the first imported page
-/// into |dest_doc|. The first page is zero.
-/// 
-/// Returns TRUE on success. Returns FALSE if any pages in |page_indices| is
-/// invalid.
-int FPDF_ImportPagesByIndex(FPDF_DOCUMENT dest_doc,
-FPDF_DOCUMENT src_doc,
-ffi.Pointer<ffi.Int> page_indices,
-int length,
-int index,
-) {
-  return _FPDF_ImportPagesByIndex(dest_doc,
-src_doc,
-page_indices,
-length,
-index,
-);
-}
-
-late final _FPDF_ImportPagesByIndexPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_DOCUMENT , ffi.Pointer<ffi.Int> , ffi.UnsignedLong , ffi.Int )>>('FPDF_ImportPagesByIndex');
-late final _FPDF_ImportPagesByIndex = _FPDF_ImportPagesByIndexPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_DOCUMENT , ffi.Pointer<ffi.Int> , int , int )>();
-
-/// Import pages to a FPDF_DOCUMENT.
-/// 
-/// dest_doc  - The destination document for the pages.
-/// src_doc   - The document to be imported.
-/// pagerange - A page range string, Such as "1,3,5-7". The first page is one.
-/// If |pagerange| is NULL, all pages from |src_doc| are imported.
-/// index     - The page index at which to insert the first imported page into
-/// |dest_doc|. The first page is zero.
-/// 
-/// Returns TRUE on success. Returns FALSE if any pages in |pagerange| is
-/// invalid or if |pagerange| cannot be read.
-int FPDF_ImportPages(FPDF_DOCUMENT dest_doc,
-FPDF_DOCUMENT src_doc,
-FPDF_BYTESTRING pagerange,
-int index,
-) {
-  return _FPDF_ImportPages(dest_doc,
-src_doc,
-pagerange,
-index,
-);
-}
-
-late final _FPDF_ImportPagesPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_DOCUMENT , FPDF_BYTESTRING , ffi.Int )>>('FPDF_ImportPages');
-late final _FPDF_ImportPages = _FPDF_ImportPagesPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_DOCUMENT , FPDF_BYTESTRING , int )>();
-
-/// Experimental API.
-/// Create a new document from |src_doc|.  The pages of |src_doc| will be
-/// combined to provide |num_pages_on_x_axis x num_pages_on_y_axis| pages per
-/// |output_doc| page.
-/// 
-/// src_doc             - The document to be imported.
-/// output_width        - The output page width in PDF "user space" units.
-/// output_height       - The output page height in PDF "user space" units.
-/// num_pages_on_x_axis - The number of pages on X Axis.
-/// num_pages_on_y_axis - The number of pages on Y Axis.
-/// 
-/// Return value:
-/// A handle to the created document, or NULL on failure.
-/// 
-/// Comments:
-/// number of pages per page = num_pages_on_x_axis * num_pages_on_y_axis
-FPDF_DOCUMENT FPDF_ImportNPagesToOne(FPDF_DOCUMENT src_doc,
-double output_width,
-double output_height,
-int num_pages_on_x_axis,
-int num_pages_on_y_axis,
-) {
-  return _FPDF_ImportNPagesToOne(src_doc,
-output_width,
-output_height,
-num_pages_on_x_axis,
-num_pages_on_y_axis,
-);
-}
-
-late final _FPDF_ImportNPagesToOnePtr = _lookup<
-    ffi.NativeFunction<FPDF_DOCUMENT Function(FPDF_DOCUMENT , ffi.Float , ffi.Float , ffi.Size , ffi.Size )>>('FPDF_ImportNPagesToOne');
-late final _FPDF_ImportNPagesToOne = _FPDF_ImportNPagesToOnePtr.asFunction<FPDF_DOCUMENT Function(FPDF_DOCUMENT , double , double , int , int )>();
-
-/// Experimental API.
-/// Create a template to generate form xobjects from |src_doc|'s page at
-/// |src_page_index|, for use in |dest_doc|.
-/// 
-/// Returns a handle on success, or NULL on failure. Caller owns the newly
-/// created object.
-FPDF_XOBJECT FPDF_NewXObjectFromPage(FPDF_DOCUMENT dest_doc,
-FPDF_DOCUMENT src_doc,
-int src_page_index,
-) {
-  return _FPDF_NewXObjectFromPage(dest_doc,
-src_doc,
-src_page_index,
-);
-}
-
-late final _FPDF_NewXObjectFromPagePtr = _lookup<
-    ffi.NativeFunction<FPDF_XOBJECT Function(FPDF_DOCUMENT , FPDF_DOCUMENT , ffi.Int )>>('FPDF_NewXObjectFromPage');
-late final _FPDF_NewXObjectFromPage = _FPDF_NewXObjectFromPagePtr.asFunction<FPDF_XOBJECT Function(FPDF_DOCUMENT , FPDF_DOCUMENT , int )>();
-
-/// Experimental API.
-/// Close an FPDF_XOBJECT handle created by FPDF_NewXObjectFromPage().
-/// FPDF_PAGEOBJECTs created from the FPDF_XOBJECT handle are not affected.
-void FPDF_CloseXObject(FPDF_XOBJECT xobject,
-) {
-  return _FPDF_CloseXObject(xobject,
-);
-}
-
-late final _FPDF_CloseXObjectPtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(FPDF_XOBJECT )>>('FPDF_CloseXObject');
-late final _FPDF_CloseXObject = _FPDF_CloseXObjectPtr.asFunction<void Function(FPDF_XOBJECT )>();
-
-/// Experimental API.
-/// Create a new form object from an FPDF_XOBJECT object.
-/// 
-/// Returns a new form object on success, or NULL on failure. Caller owns the
-/// newly created object.
-FPDF_PAGEOBJECT FPDF_NewFormObjectFromXObject(FPDF_XOBJECT xobject,
-) {
-  return _FPDF_NewFormObjectFromXObject(xobject,
-);
-}
-
-late final _FPDF_NewFormObjectFromXObjectPtr = _lookup<
-    ffi.NativeFunction<FPDF_PAGEOBJECT Function(FPDF_XOBJECT )>>('FPDF_NewFormObjectFromXObject');
-late final _FPDF_NewFormObjectFromXObject = _FPDF_NewFormObjectFromXObjectPtr.asFunction<FPDF_PAGEOBJECT Function(FPDF_XOBJECT )>();
-
-/// Copy the viewer preferences from |src_doc| into |dest_doc|.
-/// 
-/// dest_doc - Document to write the viewer preferences into.
-/// src_doc  - Document to read the viewer preferences from.
-/// 
-/// Returns TRUE on success.
-int FPDF_CopyViewerPreferences(FPDF_DOCUMENT dest_doc,
-FPDF_DOCUMENT src_doc,
-) {
-  return _FPDF_CopyViewerPreferences(dest_doc,
-src_doc,
-);
-}
-
-late final _FPDF_CopyViewerPreferencesPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_DOCUMENT )>>('FPDF_CopyViewerPreferences');
-late final _FPDF_CopyViewerPreferences = _FPDF_CopyViewerPreferencesPtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_DOCUMENT )>();
-
-/// Function: FPDF_SaveAsCopy
-/// Saves the copy of specified document in custom way.
-/// Parameters:
-/// document        -   Handle to document, as returned by
-/// FPDF_LoadDocument() or FPDF_CreateNewDocument().
-/// pFileWrite      -   A pointer to a custom file write structure.
-/// flags           -   Flags above that affect how the PDF gets saved.
-/// Pass in 0 when there are no flags.
-/// Return value:
-/// TRUE for succeed, FALSE for failed.
-int FPDF_SaveAsCopy(FPDF_DOCUMENT document,
-ffi.Pointer<FPDF_FILEWRITE> pFileWrite,
-int flags,
-) {
-  return _FPDF_SaveAsCopy(document,
-pFileWrite,
-flags,
-);
-}
-
-late final _FPDF_SaveAsCopyPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , ffi.Pointer<FPDF_FILEWRITE> , FPDF_DWORD )>>('FPDF_SaveAsCopy');
-late final _FPDF_SaveAsCopy = _FPDF_SaveAsCopyPtr.asFunction<int Function(FPDF_DOCUMENT , ffi.Pointer<FPDF_FILEWRITE> , int )>();
-
-/// Function: FPDF_SaveWithVersion
-/// Same as FPDF_SaveAsCopy(), except the file version of the
-/// saved document can be specified by the caller.
-/// Parameters:
-/// document        -   Handle to document.
-/// pFileWrite      -   A pointer to a custom file write structure.
-/// flags           -   The creating flags.
-/// fileVersion     -   The PDF file version. File version: 14 for 1.4,
-/// 15 for 1.5, ...
-/// Return value:
-/// TRUE if succeed, FALSE if failed.
-int FPDF_SaveWithVersion(FPDF_DOCUMENT document,
-ffi.Pointer<FPDF_FILEWRITE> pFileWrite,
-int flags,
-int fileVersion,
-) {
-  return _FPDF_SaveWithVersion(document,
-pFileWrite,
-flags,
-fileVersion,
-);
-}
-
-late final _FPDF_SaveWithVersionPtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , ffi.Pointer<FPDF_FILEWRITE> , FPDF_DWORD , ffi.Int )>>('FPDF_SaveWithVersion');
-late final _FPDF_SaveWithVersion = _FPDF_SaveWithVersionPtr.asFunction<int Function(FPDF_DOCUMENT , ffi.Pointer<FPDF_FILEWRITE> , int , int )>();
-
-/// Function: FPDF_GetDefaultTTFMap
-/// Returns a pointer to the default character set to TT Font name map. The
-/// map is an array of FPDF_CharsetFontMap structs, with its end indicated
-/// by a { -1, NULL } entry.
-/// Parameters:
-/// None.
-/// Return Value:
-/// Pointer to the Charset Font Map.
-/// Note:
-/// Once FPDF_GetDefaultTTFMapCount() and FPDF_GetDefaultTTFMapEntry() are no
-/// longer experimental, this API will be marked as deprecated.
-/// See https://crbug.com/348468114
-ffi.Pointer<FPDF_CharsetFontMap> FPDF_GetDefaultTTFMap() {
-  return _FPDF_GetDefaultTTFMap();
-}
-
-late final _FPDF_GetDefaultTTFMapPtr = _lookup<
-    ffi.NativeFunction<ffi.Pointer<FPDF_CharsetFontMap> Function()>>('FPDF_GetDefaultTTFMap');
-late final _FPDF_GetDefaultTTFMap = _FPDF_GetDefaultTTFMapPtr.asFunction<ffi.Pointer<FPDF_CharsetFontMap> Function()>();
-
-/// Experimental API.
-/// 
-/// Function: FPDF_GetDefaultTTFMapCount
-/// Returns the number of entries in the default character set to TT Font name
-/// map.
-/// Parameters:
-/// None.
-/// Return Value:
-/// The number of entries in the map.
-int FPDF_GetDefaultTTFMapCount() {
-  return _FPDF_GetDefaultTTFMapCount();
-}
-
-late final _FPDF_GetDefaultTTFMapCountPtr = _lookup<
-    ffi.NativeFunction<ffi.Size Function()>>('FPDF_GetDefaultTTFMapCount');
-late final _FPDF_GetDefaultTTFMapCount = _FPDF_GetDefaultTTFMapCountPtr.asFunction<int Function()>();
-
-/// Experimental API.
-/// 
-/// Function: FPDF_GetDefaultTTFMapEntry
-/// Returns an entry in the default character set to TT Font name map.
-/// Parameters:
-/// index    -   The index to the entry in the map to retrieve.
-/// Return Value:
-/// A pointer to the entry, if it is in the map, or NULL if the index is out
-/// of bounds.
-ffi.Pointer<FPDF_CharsetFontMap> FPDF_GetDefaultTTFMapEntry(int index,
-) {
-  return _FPDF_GetDefaultTTFMapEntry(index,
-);
-}
-
-late final _FPDF_GetDefaultTTFMapEntryPtr = _lookup<
-    ffi.NativeFunction<ffi.Pointer<FPDF_CharsetFontMap> Function(ffi.Size )>>('FPDF_GetDefaultTTFMapEntry');
-late final _FPDF_GetDefaultTTFMapEntry = _FPDF_GetDefaultTTFMapEntryPtr.asFunction<ffi.Pointer<FPDF_CharsetFontMap> Function(int )>();
-
-/// Function: FPDF_AddInstalledFont
-/// Add a system font to the list in PDFium.
-/// Comments:
-/// This function is only called during the system font list building
-/// process.
-/// Parameters:
-/// mapper          -   Opaque pointer to Foxit font mapper
-/// face            -   The font face name
-/// charset         -   Font character set. See above defined constants.
-/// Return Value:
-/// None.
-void FPDF_AddInstalledFont(ffi.Pointer<ffi.Void> mapper,
-ffi.Pointer<ffi.Char> face,
-int charset,
-) {
-  return _FPDF_AddInstalledFont(mapper,
-face,
-charset,
-);
-}
-
-late final _FPDF_AddInstalledFontPtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void> , ffi.Pointer<ffi.Char> , ffi.Int )>>('FPDF_AddInstalledFont');
-late final _FPDF_AddInstalledFont = _FPDF_AddInstalledFontPtr.asFunction<void Function(ffi.Pointer<ffi.Void> , ffi.Pointer<ffi.Char> , int )>();
-
-/// Function: FPDF_SetSystemFontInfo
-/// Set the system font info interface into PDFium
-/// Parameters:
-/// font_info       -   Pointer to a FPDF_SYSFONTINFO structure
-/// Return Value:
-/// None
-/// Comments:
-/// Platform support implementation should implement required methods of
-/// FFDF_SYSFONTINFO interface, then call this function during PDFium
-/// initialization process.
-/// 
-/// Call this with NULL to tell PDFium to stop using a previously set
-/// |FPDF_SYSFONTINFO|.
-void FPDF_SetSystemFontInfo(ffi.Pointer<FPDF_SYSFONTINFO> font_info,
-) {
-  return _FPDF_SetSystemFontInfo(font_info,
-);
-}
-
-late final _FPDF_SetSystemFontInfoPtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(ffi.Pointer<FPDF_SYSFONTINFO> )>>('FPDF_SetSystemFontInfo');
-late final _FPDF_SetSystemFontInfo = _FPDF_SetSystemFontInfoPtr.asFunction<void Function(ffi.Pointer<FPDF_SYSFONTINFO> )>();
-
-/// Function: FPDF_GetDefaultSystemFontInfo
-/// Get default system font info interface for current platform
-/// Parameters:
-/// None
-/// Return Value:
-/// Pointer to a FPDF_SYSFONTINFO structure describing the default
-/// interface, or NULL if the platform doesn't have a default interface.
-/// Application should call FPDF_FreeDefaultSystemFontInfo to free the
-/// returned pointer.
-/// Comments:
-/// For some platforms, PDFium implements a default version of system
-/// font info interface. The default implementation can be passed to
-/// FPDF_SetSystemFontInfo().
-ffi.Pointer<FPDF_SYSFONTINFO> FPDF_GetDefaultSystemFontInfo() {
-  return _FPDF_GetDefaultSystemFontInfo();
-}
-
-late final _FPDF_GetDefaultSystemFontInfoPtr = _lookup<
-    ffi.NativeFunction<ffi.Pointer<FPDF_SYSFONTINFO> Function()>>('FPDF_GetDefaultSystemFontInfo');
-late final _FPDF_GetDefaultSystemFontInfo = _FPDF_GetDefaultSystemFontInfoPtr.asFunction<ffi.Pointer<FPDF_SYSFONTINFO> Function()>();
-
-/// Function: FPDF_FreeDefaultSystemFontInfo
-/// Free a default system font info interface
-/// Parameters:
-/// font_info       -   Pointer to a FPDF_SYSFONTINFO structure
-/// Return Value:
-/// None
-/// Comments:
-/// This function should be called on the output from
-/// FPDF_GetDefaultSystemFontInfo() once it is no longer needed.
-void FPDF_FreeDefaultSystemFontInfo(ffi.Pointer<FPDF_SYSFONTINFO> font_info,
-) {
-  return _FPDF_FreeDefaultSystemFontInfo(font_info,
-);
-}
-
-late final _FPDF_FreeDefaultSystemFontInfoPtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(ffi.Pointer<FPDF_SYSFONTINFO> )>>('FPDF_FreeDefaultSystemFontInfo');
-late final _FPDF_FreeDefaultSystemFontInfo = _FPDF_FreeDefaultSystemFontInfoPtr.asFunction<void Function(ffi.Pointer<FPDF_SYSFONTINFO> )>();
+late final _FPDFPage_GetThumbnailAsBitmapPtr = _lookup<
+    ffi.NativeFunction<FPDF_BITMAP Function(FPDF_PAGE )>>('FPDFPage_GetThumbnailAsBitmap');
+late final _FPDFPage_GetThumbnailAsBitmap = _FPDFPage_GetThumbnailAsBitmapPtr.asFunction<FPDF_BITMAP Function(FPDF_PAGE )>();
 
 }
 
@@ -9119,6 +11552,235 @@ final class FPDF_COLORSCHEME_ extends ffi.Struct{
 /// Struct for color scheme.
 /// Each should be a 32-bit value specifying the color, in 8888 ARGB format.
 typedef FPDF_COLORSCHEME = FPDF_COLORSCHEME_;
+/// Interface: FPDF_SYSFONTINFO
+/// Interface for getting system font information and font mapping
+final class _FPDF_SYSFONTINFO extends ffi.Struct{
+  /// Version number of the interface. Currently must be 1.
+  @ffi.Int()
+  external int version;
+
+  /// Method: Release
+  /// Give implementation a chance to release any data after the
+  /// interface is no longer used.
+  /// Interface Version:
+  /// 1
+  /// Implementation Required:
+  /// No
+  /// Parameters:
+  /// pThis       -   Pointer to the interface structure itself
+  /// Return Value:
+  /// None
+  /// Comments:
+  /// Called by PDFium during the final cleanup process.
+  external ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis)>> Release;
+
+  /// Method: EnumFonts
+  /// Enumerate all fonts installed on the system
+  /// Interface Version:
+  /// 1
+  /// Implementation Required:
+  /// No
+  /// Parameters:
+  /// pThis       -   Pointer to the interface structure itself
+  /// pMapper     -   An opaque pointer to internal font mapper, used
+  /// when calling FPDF_AddInstalledFont().
+  /// Return Value:
+  /// None
+  /// Comments:
+  /// Implementations should call FPDF_AddInstalledFont() function for
+  /// each font found. Only TrueType/OpenType and Type1 fonts are
+  /// accepted by PDFium.
+  external ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis, ffi.Pointer<ffi.Void> pMapper)>> EnumFonts;
+
+  /// Method: MapFont
+  /// Use the system font mapper to get a font handle from requested
+  /// parameters.
+  /// Interface Version:
+  /// 1
+  /// Implementation Required:
+  /// Required if GetFont method is not implemented.
+  /// Parameters:
+  /// pThis       -   Pointer to the interface structure itself
+  /// weight      -   Weight of the requested font. 400 is normal and
+  /// 700 is bold.
+  /// bItalic     -   Italic option of the requested font, TRUE or
+  /// FALSE.
+  /// charset     -   Character set identifier for the requested font.
+  /// See above defined constants.
+  /// pitch_family -  A combination of flags. See above defined
+  /// constants.
+  /// face        -   Typeface name. Currently use system local encoding
+  /// only.
+  /// bExact      -   Obsolete: this parameter is now ignored.
+  /// Return Value:
+  /// An opaque pointer for font handle, or NULL if system mapping is
+  /// not supported.
+  /// Comments:
+  /// If the system supports native font mapper (like Windows),
+  /// implementation can implement this method to get a font handle.
+  /// Otherwise, PDFium will do the mapping and then call GetFont
+  /// method. Only TrueType/OpenType and Type1 fonts are accepted
+  /// by PDFium.
+  external ffi.Pointer<ffi.NativeFunction<ffi.Pointer<ffi.Void> Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis, ffi.Int weight, FPDF_BOOL bItalic, ffi.Int charset, ffi.Int pitch_family, ffi.Pointer<ffi.Char> face, ffi.Pointer<FPDF_BOOL> bExact)>> MapFont;
+
+  /// Method: GetFont
+  /// Get a handle to a particular font by its internal ID
+  /// Interface Version:
+  /// 1
+  /// Implementation Required:
+  /// Required if MapFont method is not implemented.
+  /// Return Value:
+  /// An opaque pointer for font handle.
+  /// Parameters:
+  /// pThis       -   Pointer to the interface structure itself
+  /// face        -   Typeface name in system local encoding.
+  /// Comments:
+  /// If the system mapping not supported, PDFium will do the font
+  /// mapping and use this method to get a font handle.
+  external ffi.Pointer<ffi.NativeFunction<ffi.Pointer<ffi.Void> Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis, ffi.Pointer<ffi.Char> face)>> GetFont;
+
+  /// Method: GetFontData
+  /// Get font data from a font
+  /// Interface Version:
+  /// 1
+  /// Implementation Required:
+  /// Yes
+  /// Parameters:
+  /// pThis       -   Pointer to the interface structure itself
+  /// hFont       -   Font handle returned by MapFont or GetFont method
+  /// table       -   TrueType/OpenType table identifier (refer to
+  /// TrueType specification), or 0 for the whole file.
+  /// buffer      -   The buffer receiving the font data. Can be NULL if
+  /// not provided.
+  /// buf_size    -   Buffer size, can be zero if not provided.
+  /// Return Value:
+  /// Number of bytes needed, if buffer not provided or not large
+  /// enough, or number of bytes written into buffer otherwise.
+  /// Comments:
+  /// Can read either the full font file, or a particular
+  /// TrueType/OpenType table.
+  external ffi.Pointer<ffi.NativeFunction<ffi.UnsignedLong Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis, ffi.Pointer<ffi.Void> hFont, ffi.UnsignedInt table, ffi.Pointer<ffi.UnsignedChar> buffer, ffi.UnsignedLong buf_size)>> GetFontData;
+
+  /// Method: GetFaceName
+  /// Get face name from a font handle
+  /// Interface Version:
+  /// 1
+  /// Implementation Required:
+  /// No
+  /// Parameters:
+  /// pThis       -   Pointer to the interface structure itself
+  /// hFont       -   Font handle returned by MapFont or GetFont method
+  /// buffer      -   The buffer receiving the face name. Can be NULL if
+  /// not provided
+  /// buf_size    -   Buffer size, can be zero if not provided
+  /// Return Value:
+  /// Number of bytes needed, if buffer not provided or not large
+  /// enough, or number of bytes written into buffer otherwise.
+  external ffi.Pointer<ffi.NativeFunction<ffi.UnsignedLong Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis, ffi.Pointer<ffi.Void> hFont, ffi.Pointer<ffi.Char> buffer, ffi.UnsignedLong buf_size)>> GetFaceName;
+
+  /// Method: GetFontCharset
+  /// Get character set information for a font handle
+  /// Interface Version:
+  /// 1
+  /// Implementation Required:
+  /// No
+  /// Parameters:
+  /// pThis       -   Pointer to the interface structure itself
+  /// hFont       -   Font handle returned by MapFont or GetFont method
+  /// Return Value:
+  /// Character set identifier. See defined constants above.
+  external ffi.Pointer<ffi.NativeFunction<ffi.Int Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis, ffi.Pointer<ffi.Void> hFont)>> GetFontCharset;
+
+  /// Method: DeleteFont
+  /// Delete a font handle
+  /// Interface Version:
+  /// 1
+  /// Implementation Required:
+  /// Yes
+  /// Parameters:
+  /// pThis       -   Pointer to the interface structure itself
+  /// hFont       -   Font handle returned by MapFont or GetFont method
+  /// Return Value:
+  /// None
+  external ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis, ffi.Pointer<ffi.Void> hFont)>> DeleteFont;
+
+}
+
+/// Interface: FPDF_SYSFONTINFO
+/// Interface for getting system font information and font mapping
+typedef FPDF_SYSFONTINFO = _FPDF_SYSFONTINFO;
+/// Struct: FPDF_CharsetFontMap
+/// Provides the name of a font to use for a given charset value.
+final class FPDF_CharsetFontMap_ extends ffi.Struct{
+  /// Character Set Enum value, see FXFONT_*_CHARSET above.
+  @ffi.Int()
+  external int charset;
+
+  /// Name of default font to use with that charset.
+  external ffi.Pointer<ffi.Char> fontname;
+
+}
+
+/// Struct: FPDF_CharsetFontMap
+/// Provides the name of a font to use for a given charset value.
+typedef FPDF_CharsetFontMap = FPDF_CharsetFontMap_;
+/// IFPDF_RENDERINFO interface.
+final class _IFSDK_PAUSE extends ffi.Struct{
+  /// Version number of the interface. Currently must be 1.
+  @ffi.Int()
+  external int version;
+
+  /// Method: NeedToPauseNow
+  /// Check if we need to pause a progressive process now.
+  /// Interface Version:
+  /// 1
+  /// Implementation Required:
+  /// yes
+  /// Parameters:
+  /// pThis       -   Pointer to the interface structure itself
+  /// Return Value:
+  /// Non-zero for pause now, 0 for continue.
+  external ffi.Pointer<ffi.NativeFunction<FPDF_BOOL Function(ffi.Pointer<_IFSDK_PAUSE> pThis)>> NeedToPauseNow;
+
+  /// A user defined data pointer, used by user's application. Can be NULL.
+  external ffi.Pointer<ffi.Void> user;
+
+}
+
+/// IFPDF_RENDERINFO interface.
+typedef IFSDK_PAUSE = _IFSDK_PAUSE;
+final class FPDF_IMAGEOBJ_METADATA extends ffi.Struct{
+  /// The image width in pixels.
+  @ffi.UnsignedInt()
+  external int width;
+
+  /// The image height in pixels.
+  @ffi.UnsignedInt()
+  external int height;
+
+  /// The image's horizontal pixel-per-inch.
+  @ffi.Float()
+  external double horizontal_dpi;
+
+  /// The image's vertical pixel-per-inch.
+  @ffi.Float()
+  external double vertical_dpi;
+
+  /// The number of bits used to represent each pixel.
+  @ffi.UnsignedInt()
+  external int bits_per_pixel;
+
+  /// The image's colorspace. See above for the list of FPDF_COLORSPACE_*.
+  @ffi.Int()
+  external int colorspace;
+
+  /// The image's marked content ID. Useful for pairing with associated alt-text.
+  /// A value of -1 indicates no ID.
+  @ffi.Int()
+  external int marked_content_id;
+
+}
+
 final class _IPDF_JsPlatform extends ffi.Struct{
   /// Version number of the interface. Currently must be 2.
   @ffi.Int()
@@ -10019,56 +12681,6 @@ enum FPDFANNOT_COLORTYPE {
 
 }
 
-/// The file identifier entry type. See section 14.4 "File Identifiers" of the
-/// ISO 32000-1:2008 spec.
-enum FPDF_FILEIDTYPE {
-  FILEIDTYPE_PERMANENT(0),
-  FILEIDTYPE_CHANGING(1);
-
-
-  final int value;
-  const FPDF_FILEIDTYPE(this.value);
-
-  static FPDF_FILEIDTYPE fromValue(int value) => switch (value) {
-    0 => FILEIDTYPE_PERMANENT,
-    1 => FILEIDTYPE_CHANGING,
-    _ => throw ArgumentError('Unknown value for FPDF_FILEIDTYPE: $value'),
-  };
-
-}
-
-final class FPDF_IMAGEOBJ_METADATA extends ffi.Struct{
-  /// The image width in pixels.
-  @ffi.UnsignedInt()
-  external int width;
-
-  /// The image height in pixels.
-  @ffi.UnsignedInt()
-  external int height;
-
-  /// The image's horizontal pixel-per-inch.
-  @ffi.Float()
-  external double horizontal_dpi;
-
-  /// The image's vertical pixel-per-inch.
-  @ffi.Float()
-  external double vertical_dpi;
-
-  /// The number of bits used to represent each pixel.
-  @ffi.UnsignedInt()
-  external int bits_per_pixel;
-
-  /// The image's colorspace. See above for the list of FPDF_COLORSPACE_*.
-  @ffi.Int()
-  external int colorspace;
-
-  /// The image's marked content ID. Useful for pairing with associated alt-text.
-  /// A value of -1 indicates no ID.
-  @ffi.Int()
-  external int marked_content_id;
-
-}
-
 /// Structure for custom file write
 final class FPDF_FILEWRITE_ extends ffi.Struct{
   /// Version number of the interface. Currently must be 1.
@@ -10095,178 +12707,513 @@ final class FPDF_FILEWRITE_ extends ffi.Struct{
 
 /// Structure for custom file write
 typedef FPDF_FILEWRITE = FPDF_FILEWRITE_;
-/// Interface: FPDF_SYSFONTINFO
-/// Interface for getting system font information and font mapping
-final class _FPDF_SYSFONTINFO extends ffi.Struct{
-  /// Version number of the interface. Currently must be 1.
+/// The file identifier entry type. See section 14.4 "File Identifiers" of the
+/// ISO 32000-1:2008 spec.
+enum FPDF_FILEIDTYPE {
+  FILEIDTYPE_PERMANENT(0),
+  FILEIDTYPE_CHANGING(1);
+
+
+  final int value;
+  const FPDF_FILEIDTYPE(this.value);
+
+  static FPDF_FILEIDTYPE fromValue(int value) => switch (value) {
+    0 => FILEIDTYPE_PERMANENT,
+    1 => FILEIDTYPE_CHANGING,
+    _ => throw ArgumentError('Unknown value for FPDF_FILEIDTYPE: $value'),
+  };
+
+}
+
+/// Interface for checking whether sections of the file are available.
+final class _FX_FILEAVAIL extends ffi.Struct{
+  /// Version number of the interface. Must be 1.
   @ffi.Int()
   external int version;
 
-  /// Method: Release
-  /// Give implementation a chance to release any data after the
-  /// interface is no longer used.
-  /// Interface Version:
-  /// 1
-  /// Implementation Required:
-  /// No
-  /// Parameters:
-  /// pThis       -   Pointer to the interface structure itself
-  /// Return Value:
-  /// None
-  /// Comments:
-  /// Called by PDFium during the final cleanup process.
-  external ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis)>> Release;
-
-  /// Method: EnumFonts
-  /// Enumerate all fonts installed on the system
-  /// Interface Version:
-  /// 1
-  /// Implementation Required:
-  /// No
-  /// Parameters:
-  /// pThis       -   Pointer to the interface structure itself
-  /// pMapper     -   An opaque pointer to internal font mapper, used
-  /// when calling FPDF_AddInstalledFont().
-  /// Return Value:
-  /// None
-  /// Comments:
-  /// Implementations should call FPDF_AddInstalledFont() function for
-  /// each font found. Only TrueType/OpenType and Type1 fonts are
-  /// accepted by PDFium.
-  external ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis, ffi.Pointer<ffi.Void> pMapper)>> EnumFonts;
-
-  /// Method: MapFont
-  /// Use the system font mapper to get a font handle from requested
-  /// parameters.
-  /// Interface Version:
-  /// 1
-  /// Implementation Required:
-  /// Required if GetFont method is not implemented.
-  /// Parameters:
-  /// pThis       -   Pointer to the interface structure itself
-  /// weight      -   Weight of the requested font. 400 is normal and
-  /// 700 is bold.
-  /// bItalic     -   Italic option of the requested font, TRUE or
-  /// FALSE.
-  /// charset     -   Character set identifier for the requested font.
-  /// See above defined constants.
-  /// pitch_family -  A combination of flags. See above defined
-  /// constants.
-  /// face        -   Typeface name. Currently use system local encoding
-  /// only.
-  /// bExact      -   Obsolete: this parameter is now ignored.
-  /// Return Value:
-  /// An opaque pointer for font handle, or NULL if system mapping is
-  /// not supported.
-  /// Comments:
-  /// If the system supports native font mapper (like Windows),
-  /// implementation can implement this method to get a font handle.
-  /// Otherwise, PDFium will do the mapping and then call GetFont
-  /// method. Only TrueType/OpenType and Type1 fonts are accepted
-  /// by PDFium.
-  external ffi.Pointer<ffi.NativeFunction<ffi.Pointer<ffi.Void> Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis, ffi.Int weight, FPDF_BOOL bItalic, ffi.Int charset, ffi.Int pitch_family, ffi.Pointer<ffi.Char> face, ffi.Pointer<FPDF_BOOL> bExact)>> MapFont;
-
-  /// Method: GetFont
-  /// Get a handle to a particular font by its internal ID
-  /// Interface Version:
-  /// 1
-  /// Implementation Required:
-  /// Required if MapFont method is not implemented.
-  /// Return Value:
-  /// An opaque pointer for font handle.
-  /// Parameters:
-  /// pThis       -   Pointer to the interface structure itself
-  /// face        -   Typeface name in system local encoding.
-  /// Comments:
-  /// If the system mapping not supported, PDFium will do the font
-  /// mapping and use this method to get a font handle.
-  external ffi.Pointer<ffi.NativeFunction<ffi.Pointer<ffi.Void> Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis, ffi.Pointer<ffi.Char> face)>> GetFont;
-
-  /// Method: GetFontData
-  /// Get font data from a font
-  /// Interface Version:
-  /// 1
-  /// Implementation Required:
-  /// Yes
-  /// Parameters:
-  /// pThis       -   Pointer to the interface structure itself
-  /// hFont       -   Font handle returned by MapFont or GetFont method
-  /// table       -   TrueType/OpenType table identifier (refer to
-  /// TrueType specification), or 0 for the whole file.
-  /// buffer      -   The buffer receiving the font data. Can be NULL if
-  /// not provided.
-  /// buf_size    -   Buffer size, can be zero if not provided.
-  /// Return Value:
-  /// Number of bytes needed, if buffer not provided or not large
-  /// enough, or number of bytes written into buffer otherwise.
-  /// Comments:
-  /// Can read either the full font file, or a particular
-  /// TrueType/OpenType table.
-  external ffi.Pointer<ffi.NativeFunction<ffi.UnsignedLong Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis, ffi.Pointer<ffi.Void> hFont, ffi.UnsignedInt table, ffi.Pointer<ffi.UnsignedChar> buffer, ffi.UnsignedLong buf_size)>> GetFontData;
-
-  /// Method: GetFaceName
-  /// Get face name from a font handle
-  /// Interface Version:
-  /// 1
-  /// Implementation Required:
-  /// No
-  /// Parameters:
-  /// pThis       -   Pointer to the interface structure itself
-  /// hFont       -   Font handle returned by MapFont or GetFont method
-  /// buffer      -   The buffer receiving the face name. Can be NULL if
-  /// not provided
-  /// buf_size    -   Buffer size, can be zero if not provided
-  /// Return Value:
-  /// Number of bytes needed, if buffer not provided or not large
-  /// enough, or number of bytes written into buffer otherwise.
-  external ffi.Pointer<ffi.NativeFunction<ffi.UnsignedLong Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis, ffi.Pointer<ffi.Void> hFont, ffi.Pointer<ffi.Char> buffer, ffi.UnsignedLong buf_size)>> GetFaceName;
-
-  /// Method: GetFontCharset
-  /// Get character set information for a font handle
-  /// Interface Version:
-  /// 1
-  /// Implementation Required:
-  /// No
-  /// Parameters:
-  /// pThis       -   Pointer to the interface structure itself
-  /// hFont       -   Font handle returned by MapFont or GetFont method
-  /// Return Value:
-  /// Character set identifier. See defined constants above.
-  external ffi.Pointer<ffi.NativeFunction<ffi.Int Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis, ffi.Pointer<ffi.Void> hFont)>> GetFontCharset;
-
-  /// Method: DeleteFont
-  /// Delete a font handle
-  /// Interface Version:
-  /// 1
-  /// Implementation Required:
-  /// Yes
-  /// Parameters:
-  /// pThis       -   Pointer to the interface structure itself
-  /// hFont       -   Font handle returned by MapFont or GetFont method
-  /// Return Value:
-  /// None
-  external ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis, ffi.Pointer<ffi.Void> hFont)>> DeleteFont;
+  /// Reports if the specified data section is currently available. A section is
+  /// available if all bytes in the section are available.
+  /// 
+  /// Interface Version: 1
+  /// Implementation Required: Yes
+  /// 
+  /// pThis  - pointer to the interface structure.
+  /// offset - the offset of the data section in the file.
+  /// size   - the size of the data section.
+  /// 
+  /// Returns true if the specified data section at |offset| of |size|
+  /// is available.
+  external ffi.Pointer<ffi.NativeFunction<FPDF_BOOL Function(ffi.Pointer<_FX_FILEAVAIL> pThis, ffi.Size offset, ffi.Size size)>> IsDataAvail;
 
 }
 
-/// Interface: FPDF_SYSFONTINFO
-/// Interface for getting system font information and font mapping
-typedef FPDF_SYSFONTINFO = _FPDF_SYSFONTINFO;
-/// Struct: FPDF_CharsetFontMap
-/// Provides the name of a font to use for a given charset value.
-final class FPDF_CharsetFontMap_ extends ffi.Struct{
-  /// Character Set Enum value, see FXFONT_*_CHARSET above.
+/// Interface for checking whether sections of the file are available.
+typedef FX_FILEAVAIL = _FX_FILEAVAIL;
+/// Download hints interface. Used to receive hints for further downloading.
+final class _FX_DOWNLOADHINTS extends ffi.Struct{
+  /// Version number of the interface. Must be 1.
   @ffi.Int()
-  external int charset;
+  external int version;
 
-  /// Name of default font to use with that charset.
-  external ffi.Pointer<ffi.Char> fontname;
+  /// Add a section to be downloaded.
+  /// 
+  /// Interface Version: 1
+  /// Implementation Required: Yes
+  /// 
+  /// pThis  - pointer to the interface structure.
+  /// offset - the offset of the hint reported to be downloaded.
+  /// size   - the size of the hint reported to be downloaded.
+  /// 
+  /// The |offset| and |size| of the section may not be unique. Part of the
+  /// section might be already available. The download manager must deal with
+  /// overlapping sections.
+  external ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<_FX_DOWNLOADHINTS> pThis, ffi.Size offset, ffi.Size size)>> AddSegment;
 
 }
 
-/// Struct: FPDF_CharsetFontMap
-/// Provides the name of a font to use for a given charset value.
-typedef FPDF_CharsetFontMap = FPDF_CharsetFontMap_;
+/// Download hints interface. Used to receive hints for further downloading.
+typedef FX_DOWNLOADHINTS = _FX_DOWNLOADHINTS;
+/// Key flags.
+enum FWL_EVENTFLAG {
+  FWL_EVENTFLAG_ShiftKey(1),
+  FWL_EVENTFLAG_ControlKey(2),
+  FWL_EVENTFLAG_AltKey(4),
+  FWL_EVENTFLAG_MetaKey(8),
+  FWL_EVENTFLAG_KeyPad(16),
+  FWL_EVENTFLAG_AutoRepeat(32),
+  FWL_EVENTFLAG_LeftButtonDown(64),
+  FWL_EVENTFLAG_MiddleButtonDown(128),
+  FWL_EVENTFLAG_RightButtonDown(256);
+
+
+  final int value;
+  const FWL_EVENTFLAG(this.value);
+
+  static FWL_EVENTFLAG fromValue(int value) => switch (value) {
+    1 => FWL_EVENTFLAG_ShiftKey,
+    2 => FWL_EVENTFLAG_ControlKey,
+    4 => FWL_EVENTFLAG_AltKey,
+    8 => FWL_EVENTFLAG_MetaKey,
+    16 => FWL_EVENTFLAG_KeyPad,
+    32 => FWL_EVENTFLAG_AutoRepeat,
+    64 => FWL_EVENTFLAG_LeftButtonDown,
+    128 => FWL_EVENTFLAG_MiddleButtonDown,
+    256 => FWL_EVENTFLAG_RightButtonDown,
+    _ => throw ArgumentError('Unknown value for FWL_EVENTFLAG: $value'),
+  };
+
+}
+
+/// Virtual keycodes.
+enum FWL_VKEYCODE {
+  FWL_VKEY_Back(8),
+  FWL_VKEY_Tab(9),
+  FWL_VKEY_NewLine(10),
+  FWL_VKEY_Clear(12),
+  FWL_VKEY_Return(13),
+  FWL_VKEY_Shift(16),
+  FWL_VKEY_Control(17),
+  FWL_VKEY_Menu(18),
+  FWL_VKEY_Pause(19),
+  FWL_VKEY_Capital(20),
+  FWL_VKEY_Kana(21),
+  FWL_VKEY_Junja(23),
+  FWL_VKEY_Final(24),
+  FWL_VKEY_Hanja(25),
+  FWL_VKEY_Escape(27),
+  FWL_VKEY_Convert(28),
+  FWL_VKEY_NonConvert(29),
+  FWL_VKEY_Accept(30),
+  FWL_VKEY_ModeChange(31),
+  FWL_VKEY_Space(32),
+  FWL_VKEY_Prior(33),
+  FWL_VKEY_Next(34),
+  FWL_VKEY_End(35),
+  FWL_VKEY_Home(36),
+  FWL_VKEY_Left(37),
+  FWL_VKEY_Up(38),
+  FWL_VKEY_Right(39),
+  FWL_VKEY_Down(40),
+  FWL_VKEY_Select(41),
+  FWL_VKEY_Print(42),
+  FWL_VKEY_Execute(43),
+  FWL_VKEY_Snapshot(44),
+  FWL_VKEY_Insert(45),
+  FWL_VKEY_Delete(46),
+  FWL_VKEY_Help(47),
+  FWL_VKEY_0(48),
+  FWL_VKEY_1(49),
+  FWL_VKEY_2(50),
+  FWL_VKEY_3(51),
+  FWL_VKEY_4(52),
+  FWL_VKEY_5(53),
+  FWL_VKEY_6(54),
+  FWL_VKEY_7(55),
+  FWL_VKEY_8(56),
+  FWL_VKEY_9(57),
+  FWL_VKEY_A(65),
+  FWL_VKEY_B(66),
+  FWL_VKEY_C(67),
+  FWL_VKEY_D(68),
+  FWL_VKEY_E(69),
+  FWL_VKEY_F(70),
+  FWL_VKEY_G(71),
+  FWL_VKEY_H(72),
+  FWL_VKEY_I(73),
+  FWL_VKEY_J(74),
+  FWL_VKEY_K(75),
+  FWL_VKEY_L(76),
+  FWL_VKEY_M(77),
+  FWL_VKEY_N(78),
+  FWL_VKEY_O(79),
+  FWL_VKEY_P(80),
+  FWL_VKEY_Q(81),
+  FWL_VKEY_R(82),
+  FWL_VKEY_S(83),
+  FWL_VKEY_T(84),
+  FWL_VKEY_U(85),
+  FWL_VKEY_V(86),
+  FWL_VKEY_W(87),
+  FWL_VKEY_X(88),
+  FWL_VKEY_Y(89),
+  FWL_VKEY_Z(90),
+  FWL_VKEY_LWin(91),
+  FWL_VKEY_RWin(92),
+  FWL_VKEY_Apps(93),
+  FWL_VKEY_Sleep(95),
+  FWL_VKEY_NumPad0(96),
+  FWL_VKEY_NumPad1(97),
+  FWL_VKEY_NumPad2(98),
+  FWL_VKEY_NumPad3(99),
+  FWL_VKEY_NumPad4(100),
+  FWL_VKEY_NumPad5(101),
+  FWL_VKEY_NumPad6(102),
+  FWL_VKEY_NumPad7(103),
+  FWL_VKEY_NumPad8(104),
+  FWL_VKEY_NumPad9(105),
+  FWL_VKEY_Multiply(106),
+  FWL_VKEY_Add(107),
+  FWL_VKEY_Separator(108),
+  FWL_VKEY_Subtract(109),
+  FWL_VKEY_Decimal(110),
+  FWL_VKEY_Divide(111),
+  FWL_VKEY_F1(112),
+  FWL_VKEY_F2(113),
+  FWL_VKEY_F3(114),
+  FWL_VKEY_F4(115),
+  FWL_VKEY_F5(116),
+  FWL_VKEY_F6(117),
+  FWL_VKEY_F7(118),
+  FWL_VKEY_F8(119),
+  FWL_VKEY_F9(120),
+  FWL_VKEY_F10(121),
+  FWL_VKEY_F11(122),
+  FWL_VKEY_F12(123),
+  FWL_VKEY_F13(124),
+  FWL_VKEY_F14(125),
+  FWL_VKEY_F15(126),
+  FWL_VKEY_F16(127),
+  FWL_VKEY_F17(128),
+  FWL_VKEY_F18(129),
+  FWL_VKEY_F19(130),
+  FWL_VKEY_F20(131),
+  FWL_VKEY_F21(132),
+  FWL_VKEY_F22(133),
+  FWL_VKEY_F23(134),
+  FWL_VKEY_F24(135),
+  FWL_VKEY_NunLock(144),
+  FWL_VKEY_Scroll(145),
+  FWL_VKEY_LShift(160),
+  FWL_VKEY_RShift(161),
+  FWL_VKEY_LControl(162),
+  FWL_VKEY_RControl(163),
+  FWL_VKEY_LMenu(164),
+  FWL_VKEY_RMenu(165),
+  FWL_VKEY_BROWSER_Back(166),
+  FWL_VKEY_BROWSER_Forward(167),
+  FWL_VKEY_BROWSER_Refresh(168),
+  FWL_VKEY_BROWSER_Stop(169),
+  FWL_VKEY_BROWSER_Search(170),
+  FWL_VKEY_BROWSER_Favorites(171),
+  FWL_VKEY_BROWSER_Home(172),
+  FWL_VKEY_VOLUME_Mute(173),
+  FWL_VKEY_VOLUME_Down(174),
+  FWL_VKEY_VOLUME_Up(175),
+  FWL_VKEY_MEDIA_NEXT_Track(176),
+  FWL_VKEY_MEDIA_PREV_Track(177),
+  FWL_VKEY_MEDIA_Stop(178),
+  FWL_VKEY_MEDIA_PLAY_Pause(179),
+  FWL_VKEY_MEDIA_LAUNCH_Mail(180),
+  FWL_VKEY_MEDIA_LAUNCH_MEDIA_Select(181),
+  FWL_VKEY_MEDIA_LAUNCH_APP1(182),
+  FWL_VKEY_MEDIA_LAUNCH_APP2(183),
+  FWL_VKEY_OEM_1(186),
+  FWL_VKEY_OEM_Plus(187),
+  FWL_VKEY_OEM_Comma(188),
+  FWL_VKEY_OEM_Minus(189),
+  FWL_VKEY_OEM_Period(190),
+  FWL_VKEY_OEM_2(191),
+  FWL_VKEY_OEM_3(192),
+  FWL_VKEY_OEM_4(219),
+  FWL_VKEY_OEM_5(220),
+  FWL_VKEY_OEM_6(221),
+  FWL_VKEY_OEM_7(222),
+  FWL_VKEY_OEM_8(223),
+  FWL_VKEY_OEM_102(226),
+  FWL_VKEY_ProcessKey(229),
+  FWL_VKEY_Packet(231),
+  FWL_VKEY_Attn(246),
+  FWL_VKEY_Crsel(247),
+  FWL_VKEY_Exsel(248),
+  FWL_VKEY_Ereof(249),
+  FWL_VKEY_Play(250),
+  FWL_VKEY_Zoom(251),
+  FWL_VKEY_NoName(252),
+  FWL_VKEY_PA1(253),
+  FWL_VKEY_OEM_Clear(254),
+  FWL_VKEY_Unknown(0);
+
+  static const FWL_VKEY_Hangul = FWL_VKEY_Kana;
+  static const FWL_VKEY_Kanji = FWL_VKEY_Hanja;
+  static const FWL_VKEY_Command = FWL_VKEY_LWin;
+
+  final int value;
+  const FWL_VKEYCODE(this.value);
+
+  static FWL_VKEYCODE fromValue(int value) => switch (value) {
+    8 => FWL_VKEY_Back,
+    9 => FWL_VKEY_Tab,
+    10 => FWL_VKEY_NewLine,
+    12 => FWL_VKEY_Clear,
+    13 => FWL_VKEY_Return,
+    16 => FWL_VKEY_Shift,
+    17 => FWL_VKEY_Control,
+    18 => FWL_VKEY_Menu,
+    19 => FWL_VKEY_Pause,
+    20 => FWL_VKEY_Capital,
+    21 => FWL_VKEY_Kana,
+    23 => FWL_VKEY_Junja,
+    24 => FWL_VKEY_Final,
+    25 => FWL_VKEY_Hanja,
+    27 => FWL_VKEY_Escape,
+    28 => FWL_VKEY_Convert,
+    29 => FWL_VKEY_NonConvert,
+    30 => FWL_VKEY_Accept,
+    31 => FWL_VKEY_ModeChange,
+    32 => FWL_VKEY_Space,
+    33 => FWL_VKEY_Prior,
+    34 => FWL_VKEY_Next,
+    35 => FWL_VKEY_End,
+    36 => FWL_VKEY_Home,
+    37 => FWL_VKEY_Left,
+    38 => FWL_VKEY_Up,
+    39 => FWL_VKEY_Right,
+    40 => FWL_VKEY_Down,
+    41 => FWL_VKEY_Select,
+    42 => FWL_VKEY_Print,
+    43 => FWL_VKEY_Execute,
+    44 => FWL_VKEY_Snapshot,
+    45 => FWL_VKEY_Insert,
+    46 => FWL_VKEY_Delete,
+    47 => FWL_VKEY_Help,
+    48 => FWL_VKEY_0,
+    49 => FWL_VKEY_1,
+    50 => FWL_VKEY_2,
+    51 => FWL_VKEY_3,
+    52 => FWL_VKEY_4,
+    53 => FWL_VKEY_5,
+    54 => FWL_VKEY_6,
+    55 => FWL_VKEY_7,
+    56 => FWL_VKEY_8,
+    57 => FWL_VKEY_9,
+    65 => FWL_VKEY_A,
+    66 => FWL_VKEY_B,
+    67 => FWL_VKEY_C,
+    68 => FWL_VKEY_D,
+    69 => FWL_VKEY_E,
+    70 => FWL_VKEY_F,
+    71 => FWL_VKEY_G,
+    72 => FWL_VKEY_H,
+    73 => FWL_VKEY_I,
+    74 => FWL_VKEY_J,
+    75 => FWL_VKEY_K,
+    76 => FWL_VKEY_L,
+    77 => FWL_VKEY_M,
+    78 => FWL_VKEY_N,
+    79 => FWL_VKEY_O,
+    80 => FWL_VKEY_P,
+    81 => FWL_VKEY_Q,
+    82 => FWL_VKEY_R,
+    83 => FWL_VKEY_S,
+    84 => FWL_VKEY_T,
+    85 => FWL_VKEY_U,
+    86 => FWL_VKEY_V,
+    87 => FWL_VKEY_W,
+    88 => FWL_VKEY_X,
+    89 => FWL_VKEY_Y,
+    90 => FWL_VKEY_Z,
+    91 => FWL_VKEY_LWin,
+    92 => FWL_VKEY_RWin,
+    93 => FWL_VKEY_Apps,
+    95 => FWL_VKEY_Sleep,
+    96 => FWL_VKEY_NumPad0,
+    97 => FWL_VKEY_NumPad1,
+    98 => FWL_VKEY_NumPad2,
+    99 => FWL_VKEY_NumPad3,
+    100 => FWL_VKEY_NumPad4,
+    101 => FWL_VKEY_NumPad5,
+    102 => FWL_VKEY_NumPad6,
+    103 => FWL_VKEY_NumPad7,
+    104 => FWL_VKEY_NumPad8,
+    105 => FWL_VKEY_NumPad9,
+    106 => FWL_VKEY_Multiply,
+    107 => FWL_VKEY_Add,
+    108 => FWL_VKEY_Separator,
+    109 => FWL_VKEY_Subtract,
+    110 => FWL_VKEY_Decimal,
+    111 => FWL_VKEY_Divide,
+    112 => FWL_VKEY_F1,
+    113 => FWL_VKEY_F2,
+    114 => FWL_VKEY_F3,
+    115 => FWL_VKEY_F4,
+    116 => FWL_VKEY_F5,
+    117 => FWL_VKEY_F6,
+    118 => FWL_VKEY_F7,
+    119 => FWL_VKEY_F8,
+    120 => FWL_VKEY_F9,
+    121 => FWL_VKEY_F10,
+    122 => FWL_VKEY_F11,
+    123 => FWL_VKEY_F12,
+    124 => FWL_VKEY_F13,
+    125 => FWL_VKEY_F14,
+    126 => FWL_VKEY_F15,
+    127 => FWL_VKEY_F16,
+    128 => FWL_VKEY_F17,
+    129 => FWL_VKEY_F18,
+    130 => FWL_VKEY_F19,
+    131 => FWL_VKEY_F20,
+    132 => FWL_VKEY_F21,
+    133 => FWL_VKEY_F22,
+    134 => FWL_VKEY_F23,
+    135 => FWL_VKEY_F24,
+    144 => FWL_VKEY_NunLock,
+    145 => FWL_VKEY_Scroll,
+    160 => FWL_VKEY_LShift,
+    161 => FWL_VKEY_RShift,
+    162 => FWL_VKEY_LControl,
+    163 => FWL_VKEY_RControl,
+    164 => FWL_VKEY_LMenu,
+    165 => FWL_VKEY_RMenu,
+    166 => FWL_VKEY_BROWSER_Back,
+    167 => FWL_VKEY_BROWSER_Forward,
+    168 => FWL_VKEY_BROWSER_Refresh,
+    169 => FWL_VKEY_BROWSER_Stop,
+    170 => FWL_VKEY_BROWSER_Search,
+    171 => FWL_VKEY_BROWSER_Favorites,
+    172 => FWL_VKEY_BROWSER_Home,
+    173 => FWL_VKEY_VOLUME_Mute,
+    174 => FWL_VKEY_VOLUME_Down,
+    175 => FWL_VKEY_VOLUME_Up,
+    176 => FWL_VKEY_MEDIA_NEXT_Track,
+    177 => FWL_VKEY_MEDIA_PREV_Track,
+    178 => FWL_VKEY_MEDIA_Stop,
+    179 => FWL_VKEY_MEDIA_PLAY_Pause,
+    180 => FWL_VKEY_MEDIA_LAUNCH_Mail,
+    181 => FWL_VKEY_MEDIA_LAUNCH_MEDIA_Select,
+    182 => FWL_VKEY_MEDIA_LAUNCH_APP1,
+    183 => FWL_VKEY_MEDIA_LAUNCH_APP2,
+    186 => FWL_VKEY_OEM_1,
+    187 => FWL_VKEY_OEM_Plus,
+    188 => FWL_VKEY_OEM_Comma,
+    189 => FWL_VKEY_OEM_Minus,
+    190 => FWL_VKEY_OEM_Period,
+    191 => FWL_VKEY_OEM_2,
+    192 => FWL_VKEY_OEM_3,
+    219 => FWL_VKEY_OEM_4,
+    220 => FWL_VKEY_OEM_5,
+    221 => FWL_VKEY_OEM_6,
+    222 => FWL_VKEY_OEM_7,
+    223 => FWL_VKEY_OEM_8,
+    226 => FWL_VKEY_OEM_102,
+    229 => FWL_VKEY_ProcessKey,
+    231 => FWL_VKEY_Packet,
+    246 => FWL_VKEY_Attn,
+    247 => FWL_VKEY_Crsel,
+    248 => FWL_VKEY_Exsel,
+    249 => FWL_VKEY_Ereof,
+    250 => FWL_VKEY_Play,
+    251 => FWL_VKEY_Zoom,
+    252 => FWL_VKEY_NoName,
+    253 => FWL_VKEY_PA1,
+    254 => FWL_VKEY_OEM_Clear,
+    0 => FWL_VKEY_Unknown,
+    _ => throw ArgumentError('Unknown value for FWL_VKEYCODE: $value'),
+  };
+
+  @override
+  String toString() {
+    if (this == FWL_VKEY_Kana) return "FWL_VKEYCODE.FWL_VKEY_Kana, FWL_VKEYCODE.FWL_VKEY_Hangul";
+    if (this == FWL_VKEY_Hanja) return "FWL_VKEYCODE.FWL_VKEY_Hanja, FWL_VKEYCODE.FWL_VKEY_Kanji";
+    if (this == FWL_VKEY_LWin) return "FWL_VKEYCODE.FWL_VKEY_LWin, FWL_VKEYCODE.FWL_VKEY_Command";
+    return super.toString();
+  }}
+
+/// Interface for unsupported feature notifications.
+final class _UNSUPPORT_INFO extends ffi.Struct{
+  /// Version number of the interface. Must be 1.
+  @ffi.Int()
+  external int version;
+
+  /// Unsupported object notification function.
+  /// Interface Version: 1
+  /// Implementation Required: Yes
+  /// 
+  /// pThis - pointer to the interface structure.
+  /// nType - the type of unsupported object. One of the |FPDF_UNSP_*| entries.
+  external ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<_UNSUPPORT_INFO> pThis, ffi.Int nType)>> FSDK_UnSupport_Handler;
+
+}
+
+/// Interface for unsupported feature notifications.
+typedef UNSUPPORT_INFO = _UNSUPPORT_INFO;
+typedef __time_t = ffi.Long;
+typedef Dart__time_t = int;
+typedef time_t = __time_t;
+final class tm extends ffi.Struct{
+  @ffi.Int()
+  external int tm_sec;
+
+  @ffi.Int()
+  external int tm_min;
+
+  @ffi.Int()
+  external int tm_hour;
+
+  @ffi.Int()
+  external int tm_mday;
+
+  @ffi.Int()
+  external int tm_mon;
+
+  @ffi.Int()
+  external int tm_year;
+
+  @ffi.Int()
+  external int tm_wday;
+
+  @ffi.Int()
+  external int tm_yday;
+
+  @ffi.Int()
+  external int tm_isdst;
+
+  @ffi.Long()
+  external int tm_gmtoff;
+
+  external ffi.Pointer<ffi.Char> tm_zone;
+
+}
+
 
 const int FPDF_OBJECT_UNKNOWN = 0;
 
@@ -10380,6 +13327,210 @@ const int FPDFBitmap_BGRA = 4;
 
 
 const int FPDFBitmap_BGRA_Premul = 5;
+
+
+const int FXFONT_ANSI_CHARSET = 0;
+
+
+const int FXFONT_DEFAULT_CHARSET = 1;
+
+
+const int FXFONT_SYMBOL_CHARSET = 2;
+
+
+const int FXFONT_SHIFTJIS_CHARSET = 128;
+
+
+const int FXFONT_HANGEUL_CHARSET = 129;
+
+
+const int FXFONT_GB2312_CHARSET = 134;
+
+
+const int FXFONT_CHINESEBIG5_CHARSET = 136;
+
+
+const int FXFONT_GREEK_CHARSET = 161;
+
+
+const int FXFONT_VIETNAMESE_CHARSET = 163;
+
+
+const int FXFONT_HEBREW_CHARSET = 177;
+
+
+const int FXFONT_ARABIC_CHARSET = 178;
+
+
+const int FXFONT_CYRILLIC_CHARSET = 204;
+
+
+const int FXFONT_THAI_CHARSET = 222;
+
+
+const int FXFONT_EASTERNEUROPEAN_CHARSET = 238;
+
+
+const int FXFONT_FF_FIXEDPITCH = 1;
+
+
+const int FXFONT_FF_ROMAN = 16;
+
+
+const int FXFONT_FF_SCRIPT = 64;
+
+
+const int FXFONT_FW_NORMAL = 400;
+
+
+const int FXFONT_FW_BOLD = 700;
+
+
+const int FPDF_MATCHCASE = 1;
+
+
+const int FPDF_MATCHWHOLEWORD = 2;
+
+
+const int FPDF_CONSECUTIVE = 4;
+
+
+const int FPDF_RENDER_READY = 0;
+
+
+const int FPDF_RENDER_TOBECONTINUED = 1;
+
+
+const int FPDF_RENDER_DONE = 2;
+
+
+const int FPDF_RENDER_FAILED = 3;
+
+
+const int FPDF_COLORSPACE_UNKNOWN = 0;
+
+
+const int FPDF_COLORSPACE_DEVICEGRAY = 1;
+
+
+const int FPDF_COLORSPACE_DEVICERGB = 2;
+
+
+const int FPDF_COLORSPACE_DEVICECMYK = 3;
+
+
+const int FPDF_COLORSPACE_CALGRAY = 4;
+
+
+const int FPDF_COLORSPACE_CALRGB = 5;
+
+
+const int FPDF_COLORSPACE_LAB = 6;
+
+
+const int FPDF_COLORSPACE_ICCBASED = 7;
+
+
+const int FPDF_COLORSPACE_SEPARATION = 8;
+
+
+const int FPDF_COLORSPACE_DEVICEN = 9;
+
+
+const int FPDF_COLORSPACE_INDEXED = 10;
+
+
+const int FPDF_COLORSPACE_PATTERN = 11;
+
+
+const int FPDF_PAGEOBJ_UNKNOWN = 0;
+
+
+const int FPDF_PAGEOBJ_TEXT = 1;
+
+
+const int FPDF_PAGEOBJ_PATH = 2;
+
+
+const int FPDF_PAGEOBJ_IMAGE = 3;
+
+
+const int FPDF_PAGEOBJ_SHADING = 4;
+
+
+const int FPDF_PAGEOBJ_FORM = 5;
+
+
+const int FPDF_SEGMENT_UNKNOWN = -1;
+
+
+const int FPDF_SEGMENT_LINETO = 0;
+
+
+const int FPDF_SEGMENT_BEZIERTO = 1;
+
+
+const int FPDF_SEGMENT_MOVETO = 2;
+
+
+const int FPDF_FILLMODE_NONE = 0;
+
+
+const int FPDF_FILLMODE_ALTERNATE = 1;
+
+
+const int FPDF_FILLMODE_WINDING = 2;
+
+
+const int FPDF_FONT_TYPE1 = 1;
+
+
+const int FPDF_FONT_TRUETYPE = 2;
+
+
+const int FPDF_LINECAP_BUTT = 0;
+
+
+const int FPDF_LINECAP_ROUND = 1;
+
+
+const int FPDF_LINECAP_PROJECTING_SQUARE = 2;
+
+
+const int FPDF_LINEJOIN_MITER = 0;
+
+
+const int FPDF_LINEJOIN_ROUND = 1;
+
+
+const int FPDF_LINEJOIN_BEVEL = 2;
+
+
+const int FPDF_PRINTMODE_EMF = 0;
+
+
+const int FPDF_PRINTMODE_TEXTONLY = 1;
+
+
+const int FPDF_PRINTMODE_POSTSCRIPT2 = 2;
+
+
+const int FPDF_PRINTMODE_POSTSCRIPT3 = 3;
+
+
+const int FPDF_PRINTMODE_POSTSCRIPT2_PASSTHROUGH = 4;
+
+
+const int FPDF_PRINTMODE_POSTSCRIPT3_PASSTHROUGH = 5;
+
+
+const int FPDF_PRINTMODE_EMF_IMAGE_MASKS = 6;
+
+
+const int FPDF_PRINTMODE_POSTSCRIPT3_TYPE42 = 7;
+
+
+const int FPDF_PRINTMODE_POSTSCRIPT3_TYPE42_PASSTHROUGH = 8;
 
 
 const int FORMTYPE_NONE = 0;
@@ -10691,13 +13842,13 @@ const int FPDF_ANNOT_AACTION_VALIDATE = 14;
 const int FPDF_ANNOT_AACTION_CALCULATE = 15;
 
 
-const int FPDF_MATCHCASE = 1;
+const int FPDF_INCREMENTAL = 1;
 
 
-const int FPDF_MATCHWHOLEWORD = 2;
+const int FPDF_NO_INCREMENTAL = 2;
 
 
-const int FPDF_CONSECUTIVE = 4;
+const int FPDF_REMOVE_SECURITY = 3;
 
 
 const int PDFACTION_UNSUPPORTED = 0;
@@ -10745,194 +13896,113 @@ const int PDFDEST_VIEW_FITBH = 7;
 const int PDFDEST_VIEW_FITBV = 8;
 
 
-const int FPDF_COLORSPACE_UNKNOWN = 0;
+const int PDF_LINEARIZATION_UNKNOWN = -1;
 
 
-const int FPDF_COLORSPACE_DEVICEGRAY = 1;
+const int PDF_NOT_LINEARIZED = 0;
 
 
-const int FPDF_COLORSPACE_DEVICERGB = 2;
+const int PDF_LINEARIZED = 1;
 
 
-const int FPDF_COLORSPACE_DEVICECMYK = 3;
+const int PDF_DATA_ERROR = -1;
 
 
-const int FPDF_COLORSPACE_CALGRAY = 4;
+const int PDF_DATA_NOTAVAIL = 0;
 
 
-const int FPDF_COLORSPACE_CALRGB = 5;
+const int PDF_DATA_AVAIL = 1;
 
 
-const int FPDF_COLORSPACE_LAB = 6;
+const int PDF_FORM_ERROR = -1;
 
 
-const int FPDF_COLORSPACE_ICCBASED = 7;
+const int PDF_FORM_NOTAVAIL = 0;
 
 
-const int FPDF_COLORSPACE_SEPARATION = 8;
+const int PDF_FORM_AVAIL = 1;
 
 
-const int FPDF_COLORSPACE_DEVICEN = 9;
+const int PDF_FORM_NOTEXIST = 2;
 
 
-const int FPDF_COLORSPACE_INDEXED = 10;
+const int FPDF_UNSP_DOC_XFAFORM = 1;
 
 
-const int FPDF_COLORSPACE_PATTERN = 11;
+const int FPDF_UNSP_DOC_PORTABLECOLLECTION = 2;
 
 
-const int FPDF_PAGEOBJ_UNKNOWN = 0;
+const int FPDF_UNSP_DOC_ATTACHMENT = 3;
 
 
-const int FPDF_PAGEOBJ_TEXT = 1;
+const int FPDF_UNSP_DOC_SECURITY = 4;
 
 
-const int FPDF_PAGEOBJ_PATH = 2;
+const int FPDF_UNSP_DOC_SHAREDREVIEW = 5;
 
 
-const int FPDF_PAGEOBJ_IMAGE = 3;
+const int FPDF_UNSP_DOC_SHAREDFORM_ACROBAT = 6;
 
 
-const int FPDF_PAGEOBJ_SHADING = 4;
+const int FPDF_UNSP_DOC_SHAREDFORM_FILESYSTEM = 7;
 
 
-const int FPDF_PAGEOBJ_FORM = 5;
+const int FPDF_UNSP_DOC_SHAREDFORM_EMAIL = 8;
 
 
-const int FPDF_SEGMENT_UNKNOWN = -1;
+const int FPDF_UNSP_ANNOT_3DANNOT = 11;
 
 
-const int FPDF_SEGMENT_LINETO = 0;
+const int FPDF_UNSP_ANNOT_MOVIE = 12;
 
 
-const int FPDF_SEGMENT_BEZIERTO = 1;
+const int FPDF_UNSP_ANNOT_SOUND = 13;
 
 
-const int FPDF_SEGMENT_MOVETO = 2;
+const int FPDF_UNSP_ANNOT_SCREEN_MEDIA = 14;
 
 
-const int FPDF_FILLMODE_NONE = 0;
+const int FPDF_UNSP_ANNOT_SCREEN_RICHMEDIA = 15;
 
 
-const int FPDF_FILLMODE_ALTERNATE = 1;
+const int FPDF_UNSP_ANNOT_ATTACHMENT = 16;
 
 
-const int FPDF_FILLMODE_WINDING = 2;
+const int FPDF_UNSP_ANNOT_SIG = 17;
 
 
-const int FPDF_FONT_TYPE1 = 1;
+const int PAGEMODE_UNKNOWN = -1;
 
 
-const int FPDF_FONT_TRUETYPE = 2;
+const int PAGEMODE_USENONE = 0;
 
 
-const int FPDF_LINECAP_BUTT = 0;
+const int PAGEMODE_USEOUTLINES = 1;
 
 
-const int FPDF_LINECAP_ROUND = 1;
+const int PAGEMODE_USETHUMBS = 2;
 
 
-const int FPDF_LINECAP_PROJECTING_SQUARE = 2;
+const int PAGEMODE_FULLSCREEN = 3;
 
 
-const int FPDF_LINEJOIN_MITER = 0;
+const int PAGEMODE_USEOC = 4;
 
 
-const int FPDF_LINEJOIN_ROUND = 1;
+const int PAGEMODE_USEATTACHMENTS = 5;
 
 
-const int FPDF_LINEJOIN_BEVEL = 2;
+const int FLATTEN_FAIL = 0;
 
 
-const int FPDF_PRINTMODE_EMF = 0;
+const int FLATTEN_SUCCESS = 1;
 
 
-const int FPDF_PRINTMODE_TEXTONLY = 1;
+const int FLATTEN_NOTHINGTODO = 2;
 
 
-const int FPDF_PRINTMODE_POSTSCRIPT2 = 2;
+const int FLAT_NORMALDISPLAY = 0;
 
 
-const int FPDF_PRINTMODE_POSTSCRIPT3 = 3;
-
-
-const int FPDF_PRINTMODE_POSTSCRIPT2_PASSTHROUGH = 4;
-
-
-const int FPDF_PRINTMODE_POSTSCRIPT3_PASSTHROUGH = 5;
-
-
-const int FPDF_PRINTMODE_EMF_IMAGE_MASKS = 6;
-
-
-const int FPDF_PRINTMODE_POSTSCRIPT3_TYPE42 = 7;
-
-
-const int FPDF_PRINTMODE_POSTSCRIPT3_TYPE42_PASSTHROUGH = 8;
-
-
-const int FPDF_INCREMENTAL = 1;
-
-
-const int FPDF_NO_INCREMENTAL = 2;
-
-
-const int FPDF_REMOVE_SECURITY = 3;
-
-
-const int FXFONT_ANSI_CHARSET = 0;
-
-
-const int FXFONT_DEFAULT_CHARSET = 1;
-
-
-const int FXFONT_SYMBOL_CHARSET = 2;
-
-
-const int FXFONT_SHIFTJIS_CHARSET = 128;
-
-
-const int FXFONT_HANGEUL_CHARSET = 129;
-
-
-const int FXFONT_GB2312_CHARSET = 134;
-
-
-const int FXFONT_CHINESEBIG5_CHARSET = 136;
-
-
-const int FXFONT_GREEK_CHARSET = 161;
-
-
-const int FXFONT_VIETNAMESE_CHARSET = 163;
-
-
-const int FXFONT_HEBREW_CHARSET = 177;
-
-
-const int FXFONT_ARABIC_CHARSET = 178;
-
-
-const int FXFONT_CYRILLIC_CHARSET = 204;
-
-
-const int FXFONT_THAI_CHARSET = 222;
-
-
-const int FXFONT_EASTERNEUROPEAN_CHARSET = 238;
-
-
-const int FXFONT_FF_FIXEDPITCH = 1;
-
-
-const int FXFONT_FF_ROMAN = 16;
-
-
-const int FXFONT_FF_SCRIPT = 64;
-
-
-const int FXFONT_FW_NORMAL = 400;
-
-
-const int FXFONT_FW_BOLD = 700;
+const int FLAT_PRINT = 1;
 
