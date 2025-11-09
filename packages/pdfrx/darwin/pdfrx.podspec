@@ -1,3 +1,8 @@
+# PDFium xcframework configuration
+# https://github.com/espresso3389/pdfium-xcframework/releases
+PDFIUM_URL = "https://github.com/espresso3389/pdfium-xcframework/releases/download/v144.0.7506.0/PDFium-chromium-7506-20251109-180742.xcframework.zip"
+PDFIUM_HASH = "0a900bb5b5d66c4caaaaef1cf291dd1ef34639069baa12c565eda296aee878ec"
+
 Pod::Spec.new do |s|
   s.name             = 'pdfrx'
   s.version          = '0.1.3'
@@ -24,17 +29,27 @@ Pod::Spec.new do |s|
   s.osx.deployment_target = '10.13'
   s.osx.dependency 'FlutterMacOS'
   s.osx.vendored_frameworks = 'PDFium.xcframework'
-  s.osx.pod_target_xcconfig = {
-    'DEFINES_MODULE' => 'YES',
-    'OTHER_LDFLAGS' => '-framework PDFium'
-  }
+  s.osx.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
 
   s.swift_version = '5.0'
 
   s.prepare_command = <<-CMD
     if [ ! -d "PDFium.xcframework" ]; then
       echo "Downloading PDFium xcframework..."
-      curl -L -o pdfium.zip "https://github.com/espresso3389/pdfium-xcframework/releases/download/v144.0.7506.0/PDFium-chromium-7506-20251109-174316.xcframework.zip"
+      curl -L -o pdfium.zip "#{PDFIUM_URL}"
+
+      echo "Verifying ZIP file hash..."
+      ACTUAL_HASH=$(shasum -a 256 pdfium.zip | awk '{print $1}')
+
+      if [ "$ACTUAL_HASH" != "#{PDFIUM_HASH}" ]; then
+        echo "Error: Hash mismatch!"
+        echo "Expected: #{PDFIUM_HASH}"
+        echo "Actual:   $ACTUAL_HASH"
+        rm pdfium.zip
+        exit 1
+      fi
+      echo "Hash verification successful"
+
       unzip -q pdfium.zip
       rm pdfium.zip
       echo "PDFium xcframework downloaded successfully"
