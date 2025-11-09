@@ -5,7 +5,7 @@ PODS:
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
-  - pdfrx (0.0.12):
+  - pdfrx (0.1.3):
     - Flutter
     - FlutterMacOS
   - url_launcher_ios (0.0.1):
@@ -34,7 +34,7 @@ SPEC CHECKSUMS:
   file_selector_ios: ec57ec07954363dd730b642e765e58f199bb621a
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
-  pdfrx: af3a9815e0f9b28ad40c6bdc8ee56f3d77dc5574
+  pdfrx: 958de19403cf8ee766b42d4c95a9ad095a74a44f
   url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
 
 PODFILE CHECKSUM: 4f1c12611da7338d21589c0b2ecd6bd20b109694

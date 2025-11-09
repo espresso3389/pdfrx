@@ -47,13 +47,11 @@ flutter:
       android:
         ffiPlugin: true
       ios:
-        pluginClass: PdfrxPlugin
         ffiPlugin: true
         sharedDarwinSource: true
       linux:
         ffiPlugin: true
       macos:
-        pluginClass: PdfrxPlugin
         ffiPlugin: true
         sharedDarwinSource: true
       windows:
