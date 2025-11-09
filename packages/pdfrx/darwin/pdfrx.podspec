@@ -14,7 +14,7 @@ Pod::Spec.new do |s|
   s.license          = { :type => 'MIT', :file => '../LICENSE' }
   s.author           = { 'Takashi Kawasaki' => 'espresso3389@gmail.com' }
   s.source           = { :path => '.' }
-  s.source_files     = 'Sources/**/*.swift'
+  s.source_files     = 'pdfrx/Sources/**/*.swift'
   s.preserve_paths = 'PDFium.xcframework/**/*'
 
   s.ios.deployment_target = '12.0'
