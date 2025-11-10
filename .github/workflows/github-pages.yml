@@ -42,7 +42,7 @@ jobs:
           flutter build web --wasm --release --base-href "/pdfrx/${{ matrix.example }}/" --dart-define=GITHUB_COMMIT=$GITHUB_SHA --dart-define=PDFRX_VERSION=$PDFRX_VERSION
           sed -i "s/__CONFIGS__/pdfrx=${PDFRX_VERSION},commit=${GITHUB_SHA},flutter=${FLUTTER_VERSION}/g" build/web/index.html
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.example }}-web
           path: packages/pdfrx/example/${{ matrix.example }}/build/web/
