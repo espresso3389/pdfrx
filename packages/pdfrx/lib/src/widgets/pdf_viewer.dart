@@ -2350,20 +2350,20 @@ class _PdfViewerState extends State<PdfViewer>
 
     Offset? calcPosition(
       Size? widgetSize,
-      PdfTextSelectionAnchor? textAnchor,
-      Rect? anchorLocalRect,
-      Offset pointerOffset, {
+      _TextSelectionPart part, {
       double margin = defMargin,
       double? marginOnTop,
       double? marginOnBottom,
     }) {
-      if (widgetSize == null || textAnchor == null) {
+      if (widgetSize == null || (part != _TextSelectionPart.a && part != _TextSelectionPart.b)) {
         return null;
       }
+      final textAnchor = part == _TextSelectionPart.a ? _textSelA : _textSelB;
+      if (textAnchor == null) return null;
 
       late double left, top;
-      final rect0 = textAnchor.rect;
-      final rect1 = anchorLocalRect;
+      final rect0 = (part == _TextSelectionPart.a ? rectA : rectB);
+      final rect1 = (part == _TextSelectionPart.a ? _anchorARect : _anchorBRect);
       final pt = rect0.center;
       final rectTop = rect1 == null ? rect0.top : min(rect0.top, rect1.top);
       final rectBottom = rect1 == null ? rect0.bottom : max(rect0.bottom, rect1.bottom);
@@ -2387,7 +2387,7 @@ class _PdfViewerState extends State<PdfViewer>
           }
           break;
         case PdfTextDirection.vrtl:
-          if (textAnchor.type == PdfTextSelectionAnchorType.a) {
+          if (part == _TextSelectionPart.a) {
             left = rectRight + margin;
             if (left + widgetSize.width + margin > viewSize.width) {
               left = rectLeft - widgetSize.width - margin;
@@ -2410,17 +2410,8 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     Widget? magnifier;
-
-    final shouldShowMagnifier = widget.params.textSelectionParams?.magnifier?.shouldShowMagnifier?.call();
-    // Show magnifier if dragging
-    if (((textAnchorMoving == _TextSelectionPart.a || textAnchorMoving == _TextSelectionPart.b) &&
-            shouldShowMagnifier != false) ||
-        shouldShowMagnifier == true) {
-      final textAnchor = textAnchorMoving == _TextSelectionPart.a
-          ? _textSelA!
-          : textAnchorMoving == _TextSelectionPart.b
-          ? _textSelB!
-          : (_selPartLastMoved == _TextSelectionPart.a ? _textSelA! : _textSelB!);
+    if (textAnchorMoving == _TextSelectionPart.a || textAnchorMoving == _TextSelectionPart.b) {
+      final textAnchor = textAnchorMoving == _TextSelectionPart.a ? _textSelA! : _textSelB!;
       final magnifierParams = widget.params.textSelectionParams?.magnifier ?? const PdfViewerSelectionMagnifierParams();
 
       final magnifierEnabled =
@@ -2431,50 +2422,15 @@ class _PdfViewerState extends State<PdfViewer>
             magnifierParams,
           );
       if (magnifierEnabled) {
-        final textAnchorLocalRect = (textAnchor.type == PdfTextSelectionAnchorType.a ? _anchorARect : _anchorBRect);
-        // Calculate final magnifier position before calling builder
-        final magnifierPosition =
-            (magnifierParams.calcPosition ?? calcPosition).call(
-              _magnifierRect?.size,
-              textAnchor,
-              textAnchorLocalRect,
-              _pointerOffset,
-              margin: defMargin,
-              marginOnTop: 20,
-              marginOnBottom: 80,
-            ) ??
-            Offset.zero;
-
-        // Calculate clamped pointer position for magnifier content
-        final clampedPointerPosition = _calcClampedPointerPosition(
-          _pointerOffset,
-          magnifierPosition,
-          _magnifierRect?.size,
-          textAnchor,
-        );
-
-        final magRect = (magnifierParams.getMagnifierRectForAnchor ?? _getMagnifierRect)(
-          textAnchor,
-          magnifierParams,
-          clampedPointerPosition,
-        );
+        final magRect = (magnifierParams.getMagnifierRectForAnchor ?? _getMagnifierRect)(textAnchor, magnifierParams);
         final magnifierMain = _buildMagnifier(context, magRect, magnifierParams);
         final builder = magnifierParams.builder ?? _buildMagnifierDecoration;
-        magnifier = builder(
-          context,
-          textAnchor,
-          magnifierParams,
-          magnifierMain,
-          magRect.size,
-          clampedPointerPosition,
-          magnifierPosition,
-        );
+        magnifier = builder(context, textAnchor, magnifierParams, magnifierMain, magRect.size);
         if (magnifier != null && !isPositionalWidget(magnifier)) {
-          // Use calculated values
-          final offset = magnifierPosition;
-
+          final offset =
+              calcPosition(_magnifierRect?.size, textAnchorMoving, marginOnTop: 20, marginOnBottom: 80) ?? Offset.zero;
           magnifier = AnimatedPositioned(
-            duration: _previousMagnifierRect != null ? magnifierParams.animationDuration : Duration.zero,
+            duration: _previousMagnifierRect != null ? const Duration(milliseconds: 100) : Duration.zero,
             left: offset.dx,
             top: offset.dy,
             child: WidgetSizeSniffer(
@@ -2577,18 +2533,9 @@ class _PdfViewerState extends State<PdfViewer>
 
       contextMenu = createContextMenu(a, b, _contextMenuFor);
       if (contextMenu != null && !isPositionalWidget(contextMenu)) {
-        final textAnchor = textAnchorMoving == _TextSelectionPart.a
-            ? _textSelA!
-            : textAnchorMoving == _TextSelectionPart.b
-            ? _textSelB!
-            : null;
-        final textAnchorLocalRect = textAnchor == null
-            ? null
-            : (textAnchor.type == PdfTextSelectionAnchorType.a ? _anchorARect : _anchorBRect);
-
         final offset = localOffset != null
             ? normalizeWidgetPosition(localOffset, _contextMenuRect?.size)
-            : (calcPosition(_contextMenuRect?.size, textAnchor, textAnchorLocalRect, _pointerOffset) ?? Offset.zero);
+            : (calcPosition(_contextMenuRect?.size, _selPartLastMoved) ?? Offset.zero);
         contextMenu = Positioned(
           left: offset.dx,
           top: offset.dy,
@@ -2665,33 +2612,6 @@ class _PdfViewerState extends State<PdfViewer>
       if (magnifier != null) magnifier,
       if (contextMenu != null) contextMenu,
     ];
-  }
-
-  /// Calculate clamped pointer position for magnifier content.
-  ///
-  /// When the magnifier widget is clamped to viewport edges (by calcPosition),
-  /// we adjust the pointer position by the same amount. This enables [PdfViewerGetMagnifierRectForAnchor]
-  /// and [PdfViewerMagnifierBuilder] to use the clamped pointer position to effectively "freeze" the
-  /// magnifier content, preventing it from sliding inside the magnifier.
-  Offset _calcClampedPointerPosition(
-    Offset pointerOffset,
-    Offset magnifierPosition,
-    Size? magnifierSize,
-    PdfTextSelectionAnchor textAnchor,
-  ) {
-    var clampedPointerOffset = pointerOffset;
-
-    if (magnifierSize != null) {
-      // What the magnifier X position would be without clamping (centered on pointer)
-      final unclampedLeft = pointerOffset.dx - magnifierSize.width / 2;
-      // How much it was actually clamped by calcPosition
-      final clampAmount = magnifierPosition.dx - unclampedLeft;
-      // Adjust pointer position by the same clamp amount to freeze content
-      clampedPointerOffset = Offset(pointerOffset.dx + clampAmount, pointerOffset.dy);
-    }
-
-    // Convert to document coordinates
-    return _globalToDocument(clampedPointerOffset) ?? textAnchor.anchorPoint;
   }
 
   bool _shouldBeShownForAnchor(
@@ -2793,11 +2713,8 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
-  Rect _getMagnifierRect(
-    PdfTextSelectionAnchor textAnchor,
-    PdfViewerSelectionMagnifierParams params,
-    Offset pointerPosition,
-  ) {
+  /// Calculate the rectangle shown in the magnifier for the given text anchor.
+  Rect _getMagnifierRect(PdfTextSelectionAnchor textAnchor, PdfViewerSelectionMagnifierParams params) {
     final c = textAnchor.page.charRects[textAnchor.index];
 
     final (width, height) = switch (_document!.pages[textAnchor.page.pageNumber - 1].rotation.index & 1) {
@@ -2854,8 +2771,6 @@ class _PdfViewerState extends State<PdfViewer>
     PdfViewerSelectionMagnifierParams params,
     Widget child,
     Size childSize,
-    Offset pointerPosition,
-    Offset magnifierPosition,
   ) {
     final scale = 80 / min(childSize.width, childSize.height);
     return Container(
@@ -2914,15 +2829,11 @@ class _PdfViewerState extends State<PdfViewer>
       final a = _findTextAndIndexForPoint(_textSelA!.rect.center);
       if (a == null) return;
       _selA = a;
-      // Notify drag start callback
-      widget.params.textSelectionParams?.onSelectionHandlePanStart?.call(_textSelA!);
     } else if (_selPartMoving == _TextSelectionPart.b) {
       _textSelectAnchor = anchor + _textSelB!.rect.bottomRight - position!;
       final b = _findTextAndIndexForPoint(_textSelB!.rect.center);
       if (b == null) return;
       _selB = b;
-      // Notify drag start callback
-      widget.params.textSelectionParams?.onSelectionHandlePanStart?.call(_textSelB!);
     } else {
       return;
     }
@@ -2961,22 +2872,11 @@ class _PdfViewerState extends State<PdfViewer>
     if (_isInteractionGoingOn) return;
     _contextMenuDocumentPosition = null;
     _updateSelectionHandlesPan(_globalToDocument(details.globalPosition));
-    // Notify drag update callback
-    final anchor = handle == _TextSelectionPart.a ? _textSelA : _textSelB;
-    if (anchor != null) {
-      widget.params.textSelectionParams?.onSelectionHandlePanUpdate?.call(anchor, details.delta);
-    }
   }
 
   void _onSelectionHandlePanEnd(_TextSelectionPart handle, DragEndDetails details) {
     if (_isInteractionGoingOn) return;
     final result = _updateSelectionHandlesPan(_globalToDocument(details.globalPosition));
-    // Notify drag end callback before clearing state
-    final anchor = handle == _TextSelectionPart.a ? _textSelA : _textSelB;
-    if (anchor != null) {
-      widget.params.textSelectionParams?.onSelectionHandlePanEnd?.call(anchor);
-    }
-
     _selPartMoving = _TextSelectionPart.none;
     _isSelectingAllText = false;
     if (!result) {
@@ -4006,9 +3906,6 @@ class PdfViewerController extends ValueListenable<Matrix4> {
 
   /// Converts the local position in the PDF document structure to the global position.
   Offset? documentToGlobal(Offset document) => _state._documentToGlobal(document);
-
-  /// Converts a local position in the PDF document to the local position in the widget.
-  Offset? offsetToLocal(BuildContext context, Offset? position) => _state.offsetToLocal(context, position);
 
   /// Converts document coordinates to local coordinates.
   PdfViewerCoordinateConverter get doc2local => _state;
