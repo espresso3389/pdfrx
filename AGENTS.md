@@ -11,18 +11,36 @@ This file provides guidance to AI agents and developers when working with code i
 
 ## Project Overview
 
-pdfrx is a monorepo containing two packages:
+pdfrx is a monorepo containing five packages:
 
-1. **pdfrx_engine** (`packages/pdfrx_engine/`) - A platform-agnostic PDF rendering API built on top of PDFium
+1. **pdfium_dart** (`packages/pdfium_dart/`) - Low-level Dart FFI bindings for PDFium
+   - Pure Dart package with auto-generated FFI bindings using `ffigen`
+   - Provides direct access to PDFium's C API
+   - Includes `getPdfium()` function for on-demand PDFium binary downloads
+   - Used as a foundation by higher-level packages
+
+2. **pdfium_flutter** (`packages/pdfium_flutter/`) - Flutter FFI plugin for loading PDFium native libraries
+   - Bundles pre-built PDFium binaries for all Flutter platforms (Android, iOS, Windows, macOS, Linux)
+   - Provides utilities for loading PDFium at runtime
+   - Re-exports `pdfium_dart` FFI bindings
+
+3. **pdfrx_engine** (`packages/pdfrx_engine/`) - A platform-agnostic PDF rendering API built on top of PDFium
    - Pure Dart package with no Flutter dependencies
-   - Provides core PDF document API and PDFium bindings
+   - Depends on `pdfium_dart` for PDFium bindings
+   - Provides core PDF document API
    - Can be used independently for non-Flutter Dart applications
 
-2. **pdfrx** (`packages/pdfrx/`) - A cross-platform PDF viewer plugin for Flutter
+4. **pdfrx** (`packages/pdfrx/`) - A cross-platform PDF viewer plugin for Flutter
    - Depends on pdfrx_engine for PDF rendering functionality
+   - Depends on pdfium_flutter for bundled PDFium binaries
    - Provides Flutter widgets and UI components
    - Supports iOS, Android, Windows, macOS, Linux, and Web
    - Uses PDFium for native platforms and PDFium WASM for web platforms
+
+5. **pdfrx_coregraphics** (`packages/pdfrx_coregraphics/`) - CoreGraphics-backed renderer for iOS/macOS
+   - Experimental package using PDFKit/CoreGraphics instead of PDFium
+   - Drop-in replacement for Apple platforms
+   - iOS and macOS only
 
 ## Command and Tooling Expectations
 
@@ -66,16 +84,36 @@ flutter build windows
 flutter build macos
 ```
 
-### FFI Bindings (pdfrx_engine)
+### FFI Bindings
 
-- Bindings are generated with `ffigen`.
-- Pdfium headers download automatically when `dart test` runs on Linux.
+FFI bindings for PDFium are maintained in the `pdfium_dart` package and generated using `ffigen`.
+
+#### Prerequisites
+
+The `ffigen` process requires the following prerequisites to be installed:
+
+- **LLVM/Clang**: Required for parsing C headers
+  - macOS: Install via Homebrew: `brew install llvm`
+  - Linux: Install via package manager: `apt-get install libclang-dev` (Ubuntu/Debian) or `dnf install clang-devel` (Fedora)
+  - Windows: Install LLVM from [llvm.org](https://releases.llvm.org/)
+
+#### Generating Bindings
 
 ```bash
+# For pdfium_dart package
+cd packages/pdfium_dart
+dart test  # Downloads PDFium headers automatically
+dart run ffigen
+
+# For pdfrx_engine (if needed)
 cd packages/pdfrx_engine
 dart test
 dart run ffigen
 ```
+
+#### On-Demand PDFium Downloads
+
+The `pdfium_dart` package provides a `getPdfium()` function that downloads PDFium binaries on demand. This is useful for testing or CLI applications that don't want to bundle PDFium binaries.
 
 ## Release Process
 

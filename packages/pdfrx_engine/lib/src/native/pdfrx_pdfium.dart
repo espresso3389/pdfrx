@@ -31,7 +31,7 @@ import '../utils/shuffle_in_place.dart';
 import 'native_utils.dart';
 import 'pdf_file_cache.dart';
 import 'pdfium.dart';
-import 'pdfium_bindings.dart' as pdfium_bindings;
+import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
 import 'pdfium_file_access.dart';
 import 'worker.dart';
 
