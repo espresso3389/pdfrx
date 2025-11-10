@@ -11,18 +11,36 @@ This file provides guidance to AI agents and developers when working with code i
 
 ## Project Overview
 
-pdfrx is a monorepo containing two packages:
+pdfrx is a monorepo containing five packages:
 
-1. **pdfrx_engine** (`packages/pdfrx_engine/`) - A platform-agnostic PDF rendering API built on top of PDFium
+1. **pdfium_dart** (`packages/pdfium_dart/`) - Low-level Dart FFI bindings for PDFium
+   - Pure Dart package with auto-generated FFI bindings using `ffigen`
+   - Provides direct access to PDFium's C API
+   - Includes `getPdfium()` function for on-demand PDFium binary downloads
+   - Used as a foundation by higher-level packages
+
+2. **pdfium_flutter** (`packages/pdfium_flutter/`) - Flutter FFI plugin for loading PDFium native libraries
+   - Bundles pre-built PDFium binaries for all Flutter platforms (Android, iOS, Windows, macOS, Linux)
+   - Provides utilities for loading PDFium at runtime
+   - Re-exports `pdfium_dart` FFI bindings
+
+3. **pdfrx_engine** (`packages/pdfrx_engine/`) - A platform-agnostic PDF rendering API built on top of PDFium
    - Pure Dart package with no Flutter dependencies
-   - Provides core PDF document API and PDFium bindings
+   - Depends on `pdfium_dart` for PDFium bindings
+   - Provides core PDF document API
    - Can be used independently for non-Flutter Dart applications
 
-2. **pdfrx** (`packages/pdfrx/`) - A cross-platform PDF viewer plugin for Flutter
+4. **pdfrx** (`packages/pdfrx/`) - A cross-platform PDF viewer plugin for Flutter
    - Depends on pdfrx_engine for PDF rendering functionality
+   - Depends on pdfium_flutter for bundled PDFium binaries
    - Provides Flutter widgets and UI components
    - Supports iOS, Android, Windows, macOS, Linux, and Web
    - Uses PDFium for native platforms and PDFium WASM for web platforms
+
+5. **pdfrx_coregraphics** (`packages/pdfrx_coregraphics/`) - CoreGraphics-backed renderer for iOS/macOS
+   - Experimental package using PDFKit/CoreGraphics instead of PDFium
+   - Drop-in replacement for Apple platforms
+   - iOS and macOS only
 
 ## Command and Tooling Expectations
 

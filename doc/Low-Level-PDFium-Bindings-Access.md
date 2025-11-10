@@ -4,33 +4,25 @@ This document explains how to access low-level PDFium bindings directly when wor
 
 ## Overview
 
-While pdfrx_engine provides high-level Dart APIs for PDF operations, you may occasionally need direct access to PDFium's native functions. The package exposes these through two key imports:
+While pdfrx_engine provides high-level Dart APIs for PDF operations, you may occasionally need direct access to PDFium's native functions. The low-level PDFium bindings are provided by the [pdfium_dart](https://pub.dev/packages/pdfium_dart) package:
 
-- `package:pdfrx_engine/src/native/pdfium_bindings.dart` - Raw FFI bindings generated from PDFium headers
-- `package:pdfrx_engine/src/native/pdfium.dart` - Helper utilities and wrapper functions
+- `package:pdfium_dart/pdfium_dart.dart` - Raw FFI bindings generated from PDFium headers
 
 ## Importing Low-Level Bindings
 
 ### Raw FFI Bindings
 
 ```dart
-import 'package:pdfrx_engine/src/native/pdfium_bindings.dart';
+import 'package:pdfium_dart/pdfium_dart.dart';
 ```
 
 This import provides access to the auto-generated FFI bindings that directly map to PDFium's C API. These bindings are generated using `ffigen` from PDFium headers and include all PDFium functions with their original names (e.g., `FPDF_InitLibrary`, `FPDF_LoadDocument`, etc.).
 
-### Helper Utilities
+The `pdfium_dart` package provides:
 
-```dart
-import 'package:pdfrx_engine/src/native/pdfium.dart';
-```
-
-This import provides:
-
-- The `pdfium` global instance for accessing PDFium functions
-- Helper utilities for memory management
-- Platform-specific initialization functions
-- Convenience wrappers around common PDFium operations
+- The `PDFium` class for accessing PDFium functions
+- Auto-generated FFI bindings for all PDFium C API functions
+- `getPdfium()` function for on-demand PDFium binary downloads
 
 ### Initialization
 
@@ -41,11 +33,11 @@ There are basically three ways to initialize PDFium:
 #### Manual Initialization
 
 ```dart
-import 'package:pdfrx_engine/pdfrx_engine.dart'; // or import 'package:pdfrx/pdfrx.dart';
-import 'package:pdfrx_engine/src/native/pdfium.dart';
-import 'package:pdfrx_engine/src/native/pdfium_bindings.dart';
+import 'package:pdfium_dart/pdfium_dart.dart';
+import 'dart:ffi';
 
-Pdfrx.pdfiumModulePath = 'somewhere/in/your/filesystem/libpdfium.so';
+// Load PDFium library manually
+final pdfium = PDFium(DynamicLibrary.open('path/to/libpdfium.so'));
 pdfium.FPDF_InitLibrary(); // or pdfium.FPDF_InitLibraryWithConfig(...)
 ```
 
@@ -74,15 +66,17 @@ For more information about initialization, see [pdfrx Initialization](pdfrx-Init
 ### Basic PDFium Function Access
 
 ```dart
-import 'package:pdfrx_engine/src/native/pdfium.dart';
-import 'package:pdfrx_engine/src/native/pdfium_bindings.dart';
+import 'package:pdfium_dart/pdfium_dart.dart';
 import 'dart:ffi';
 import 'package:ffi/ffi.dart';
 
-void example() {
+void example() async {
+  // Get PDFium bindings (downloads binaries if needed)
+  final pdfium = await getPdfium();
+
   // Use arena to automatically manage memory
   using((arena) {
-    // Access PDFium functions through the global pdfium instance
+    // Access PDFium functions
     final doc = pdfium.FPDF_LoadDocument(
       'path/to/file.pdf'.toNativeUtf8(allocator: arena).cast<Char>(),
       nullptr,
@@ -102,10 +96,9 @@ void example() {
 ### Working with Pages
 
 ```dart
-import 'package:pdfrx_engine/src/native/pdfium.dart';
-import 'package:pdfrx_engine/src/native/pdfium_bindings.dart';
+import 'package:pdfium_dart/pdfium_dart.dart';
 
-void workWithPage(FPDF_DOCUMENT doc) {
+void workWithPage(PDFium pdfium, FPDF_DOCUMENT doc) {
   final page = pdfium.FPDF_LoadPage(doc, 0); // Load first page
 
   if (page != nullptr) {
@@ -123,11 +116,13 @@ void workWithPage(FPDF_DOCUMENT doc) {
 When working with raw bindings, you're responsible for proper memory management. Always use `Arena` to ensure allocated memory is properly released:
 
 ```dart
-import 'package:pdfrx_engine/src/native/pdfium.dart';
+import 'package:pdfium_dart/pdfium_dart.dart';
 import 'dart:ffi';
 import 'package:ffi/ffi.dart';
 
-void memoryExample() {
+void memoryExample() async {
+  final pdfium = await getPdfium();
+
   // Use arena for automatic memory management
   using((arena) {
     final pathPtr = 'path/to/file.pdf'.toNativeUtf8(allocator: arena);
@@ -146,7 +141,8 @@ void memoryExample() {
 }
 
 // Alternative: Manual memory management (not recommended)
-void manualMemoryExample() {
+void manualMemoryExample() async {
+  final pdfium = await getPdfium();
   final pathPtr = 'path/to/file.pdf'.toNativeUtf8();
 
   try {
@@ -177,6 +173,8 @@ PDFium is not thread-safe. Ensure all PDFium calls are made from the same thread
 Always check return values from PDFium functions:
 
 ```dart
+final pdfium = await getPdfium();
+
 using((arena) {
   final pathPtr = 'path/to/file.pdf'.toNativeUtf8(allocator: arena);
   final doc = pdfium.FPDF_LoadDocument(pathPtr.cast<Char>(), nullptr);
