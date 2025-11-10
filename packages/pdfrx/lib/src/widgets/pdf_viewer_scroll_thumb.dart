@@ -89,7 +89,7 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
                   ),
                 ],
               ),
-              child: Center(child: Text(widget.controller.pageNumber.toString())),
+              child: Center(child: Text(widget.controller.pageNumber?.toString() ?? '')),
             ),
         onPanStart: (details) {
           _panStartOffset = top - details.localPosition.dy;
@@ -144,7 +144,7 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
                   ),
                 ],
               ),
-              child: Center(child: Text(widget.controller.pageNumber.toString())),
+              child: Center(child: Text(widget.controller.pageNumber?.toString() ?? '')),
             ),
         onPanStart: (details) {
           _panStartOffset = left - details.localPosition.dx;
