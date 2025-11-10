@@ -13,7 +13,7 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
-  pdfrx_engine: ^0.2.4
+  pdfrx_engine: ^0.3.0
   http:
 
 dev_dependencies:

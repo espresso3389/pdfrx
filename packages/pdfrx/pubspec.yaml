@@ -14,7 +14,7 @@ environment:
 resolution: workspace
 
 dependencies:
-  pdfrx_engine: ^0.2.4
+  pdfrx_engine: ^0.3.0
   pdfium_flutter: ^0.1.0
   collection:
   crypto: ^3.0.6
