@@ -10,8 +10,10 @@ environment:
 resolution: workspace
 
 dependencies:
-  ffi:
-  path:
+  archive: ^4.0.7
+  ffi: ^2.1.4
+  http: ^1.5.0
+  path: ^1.9.1
 
 dev_dependencies:
   ffigen: ^19.1.0

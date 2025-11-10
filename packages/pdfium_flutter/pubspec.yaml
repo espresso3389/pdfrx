@@ -12,10 +12,10 @@ resolution: workspace
 
 dependencies:
   pdfium_dart: ^0.1.0
-  ffi:
+  ffi: ^2.1.4
   flutter:
     sdk: flutter
-  path:
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:

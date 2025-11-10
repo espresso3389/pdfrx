@@ -51,7 +51,7 @@ You should call `pdfrxInitialize()` before using any PDF engine APIs to ensure t
     - [PdfDocument.openUri](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openUri.html) - Open PDF from stream (advanced use case)
     - [PdfDocument.openAsset](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openAsset.html) - Open PDF from Flutter asset
     - [PdfDocument.createNew](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/createNew.html) - Create new empty PDF document
-    - [PdfDocument.createFromImage](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/createFromImage.html) - Create PDF from image
+    - [PdfDocument.createFromJpegData](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/createFromJpegData.html) - Create PDF from JPEG data
   - [PdfPage](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage-class.html) - Page representation and rendering
     - [PdfPage.render](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/render.html) - Render page to bitmap
     - [PdfPage.loadText](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/loadText.html) - Extract text content from page

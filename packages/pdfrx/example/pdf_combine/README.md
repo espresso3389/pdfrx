@@ -16,7 +16,7 @@ A Flutter desktop application that demonstrates how to combine multiple PDF file
 
 ## How It Works
 
-The app uses the [`PdfDocument.createFromImage()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/createFromImage.html) and [`encodePdf()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/encodePdf.html) APIs from pdfrx_engine:
+The app uses the [`PdfDocument.createFromJpegData()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/createFromJpegData.html) and [`encodePdf()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/encodePdf.html) APIs from pdfrx_engine:
 
 ### PDF Files
 
@@ -25,9 +25,10 @@ The app uses the [`PdfDocument.createFromImage()`](https://pub.dev/documentation
 
 ### Image Files
 
-1. **Load Images**: Read image bytes and decode using Flutter's [`decodeImageFromList()`](https://api.flutter.dev/flutter/dart-ui/decodeImageFromList.html)
-2. **Convert to PDF**: Use [`image.toPdfImage()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfImageGeneratorOnImage/toPdfImage.html) and [`PdfDocument.createFromImage()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/createFromImage.html) to convert images to single-page PDF documents
-3. **DPI Handling**: Images are converted with an assumed DPI of 300 for optimal page sizing
+1. **Load Images**: Read image bytes and decode/resize as needed
+2. **Convert to JPEG**: Compress images to JPEG format with quality control and optional resizing
+3. **Convert to PDF**: Use [`PdfDocument.createFromJpegData()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/createFromJpegData.html) to convert JPEG data to single-page PDF documents
+4. **Size Control**: Images are resized to fit within A4 page dimensions while maintaining aspect ratio
 
 ### Combining
 
