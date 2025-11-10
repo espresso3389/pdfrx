@@ -9,7 +9,7 @@ let package = Package(
     ],
     products: [
         .library(
-            name: "pdfium_flutter",
+            name: "pdfium-flutter",
             targets: ["pdfium_flutter"]
         ),
     ],
