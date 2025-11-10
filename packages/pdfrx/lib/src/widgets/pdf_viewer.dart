@@ -227,6 +227,8 @@ class _PdfViewerState extends State<PdfViewer>
   double _minScale = _defaultMinScale;
   int? _pageNumber;
   bool _initialized = false;
+  bool _usingScrollPercentageMode = false;
+
   StreamSubscription<PdfDocumentEvent>? _documentSubscription;
   final _interactiveViewerKey = GlobalKey<iv.InteractiveViewerState>();
 
@@ -868,7 +870,6 @@ class _PdfViewerState extends State<PdfViewer>
   ///
   /// Please note that the function does not scroll/zoom to the specified page but changes the current page number.
   void _setCurrentPageNumber(int? pageNumber, {bool doSetState = false}) {
-    _gotoTargetPageNumber = pageNumber;
     if (pageNumber != null && _pageNumber != pageNumber) {
       _pageNumber = pageNumber;
       if (doSetState) {
@@ -880,6 +881,20 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
+  double _calcPrimaryAxisVisibility(Rect pageRect, Rect viewportRect, bool isHorizontal) {
+    if (isHorizontal) {
+      if (pageRect.right <= viewportRect.left || pageRect.left >= viewportRect.right) return 0.0;
+      final visibleLeft = pageRect.left < viewportRect.left ? viewportRect.left : pageRect.left;
+      final visibleRight = pageRect.right > viewportRect.right ? viewportRect.right : pageRect.right;
+      return ((visibleRight - visibleLeft) / pageRect.width).clamp(0.0, 1.0);
+    } else {
+      if (pageRect.bottom <= viewportRect.top || pageRect.top >= viewportRect.bottom) return 0.0;
+      final visibleTop = pageRect.top < viewportRect.top ? viewportRect.top : pageRect.top;
+      final visibleBottom = pageRect.bottom > viewportRect.bottom ? viewportRect.bottom : pageRect.bottom;
+      return ((visibleBottom - visibleTop) / pageRect.height).clamp(0.0, 1.0);
+    }
+  }
+
   int? _guessCurrentPageNumber() {
     if (_layout == null || _viewSize == null) return null;
     if (widget.params.calculateCurrentPageNumber != null) {
@@ -887,33 +902,101 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     final visibleRect = _visibleRect;
-    double calcIntersectionArea(int pageNumber) {
-      final rect = _layout!.pageLayouts[pageNumber - 1];
-      final intersection = rect.intersect(visibleRect);
-      if (intersection.isEmpty) return 0;
-      final area = intersection.width * intersection.height;
-      return area / (rect.width * rect.height);
+    final layout = _layout!;
+    final isHorizontal = layout.documentSize.width > layout.documentSize.height;
+    final isSimple = _isSimpleLayout(layout.pageLayouts, isHorizontal);
+
+    // Calculate primary axis visibility for all pages (map: page number -> visibility %)
+    final visible = <int, double>{};
+    for (var i = 0; i < layout.pageLayouts.length; i++) {
+      final pct = _calcPrimaryAxisVisibility(layout.pageLayouts[i], visibleRect, isHorizontal);
+      if (pct > 0) visible[i + 1] = pct;
     }
 
-    if (_gotoTargetPageNumber != null &&
-        _gotoTargetPageNumber! > 0 &&
-        _gotoTargetPageNumber! <= _document!.pages.length) {
-      final ratio = calcIntersectionArea(_gotoTargetPageNumber!);
-      if (ratio > .2) return _gotoTargetPageNumber;
-    }
-    _gotoTargetPageNumber = null;
+    if (visible.isEmpty) return _pageNumber ?? 1;
 
-    int? pageNumber;
-    double maxRatio = 0;
-    for (var i = 1; i <= _document!.pages.length; i++) {
-      final ratio = calcIntersectionArea(i);
-      if (ratio == 0) continue;
-      if (ratio > maxRatio) {
-        maxRatio = ratio;
-        pageNumber = i;
+    final current = _pageNumber;
+    final fullyVisiblePages = visible.entries.where((e) => e.value >= 1.0).map((e) => e.key).toList();
+
+    // 3+ fully visible pages to enter scroll percentage mode, <2 to exit
+    // to stop flapping between modes
+    if (_usingScrollPercentageMode) {
+      if (fullyVisiblePages.length < 2 && isSimple) _usingScrollPercentageMode = false;
+    } else {
+      if (fullyVisiblePages.length >= 3 || !isSimple) _usingScrollPercentageMode = true;
+    }
+
+    // Check goto target
+    final gotoVisibility = visible[_gotoTargetPageNumber] ?? 0.0;
+    if (gotoVisibility >= 0.5) return _gotoTargetPageNumber;
+    if (_gotoTargetPageNumber != null && !_animController.isAnimating) _gotoTargetPageNumber = null;
+
+    // Scroll percentage mode
+    if (_usingScrollPercentageMode) {
+      final scrollPosition = isHorizontal ? visibleRect.left : visibleRect.top;
+      final scrollLength =
+          (isHorizontal ? layout.documentSize.width : layout.documentSize.height) -
+          (isHorizontal ? visibleRect.width : visibleRect.height);
+      final scrollPercentage = scrollLength > 0 ? (scrollPosition / scrollLength).clamp(0.0, 1.0) : 0.0;
+      return ((scrollPercentage * layout.pageLayouts.length).floor() + 1).clamp(1, layout.pageLayouts.length);
+    }
+
+    // Sticky mode - prefer current page if it is fully visible as long
+    // as the first or last page is not fully visible also
+    if (current != null) {
+      final currentPercentage = visible[current] ?? 0.0;
+      if (currentPercentage >= 1.0) {
+        // Edge detection: prefer first/last page if also fully visible
+        if (fullyVisiblePages.contains(1) && current != 1) return 1;
+        if (fullyVisiblePages.contains(layout.pageLayouts.length) && current != layout.pageLayouts.length) {
+          return layout.pageLayouts.length;
+        }
+        return current;
+      }
+      // Most visible with proximity tie-break
+      var maxPercentage = 0.0, maxPage = visible.keys.first;
+      for (final entry in visible.entries) {
+        if (entry.value > maxPercentage ||
+            (entry.value == maxPercentage && (current - entry.key).abs() < (current - maxPage).abs())) {
+          maxPercentage = entry.value;
+          maxPage = entry.key;
+        }
+      }
+      return maxPage;
+    }
+
+    // Should not reach here, but fallback to most visible
+    return visible.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+  }
+
+  /// Detect if layout is "simple" (sequential pages) vs "complex" (facing pages)
+  /// In facing pages, multiple pages can share the same PRIMARY SCROLL axis coordinate
+  bool _isSimpleLayout(List<Rect> pageLayouts, bool isHorizontalLayout) {
+    if (pageLayouts.length <= 1) return true;
+
+    // Check if any two consecutive pages overlap along the PRIMARY SCROLL axis
+    // For horizontal layouts (scroll left-right), check if pages overlap horizontally (same x-range = facing)
+    // For vertical layouts (scroll up-down), check if pages overlap vertically (same y-range = facing)
+    for (var i = 0; i < pageLayouts.length - 1; i++) {
+      final page1 = pageLayouts[i];
+      final page2 = pageLayouts[i + 1];
+
+      if (isHorizontalLayout) {
+        // Horizontal scroll: pages are "complex" if they overlap horizontally (facing pages side-by-side)
+        // In sequential horizontal, page2.left should be >= page1.right (no overlap)
+        if (page2.left < page1.right - 1.0) {
+          return false; // Overlap detected = facing pages
+        }
+      } else {
+        // Vertical scroll: pages are "complex" if they overlap vertically (facing pages top-bottom)
+        // In sequential vertical, page2.top should be >= page1.bottom (no overlap)
+        if (page2.top < page1.bottom - 1.0) {
+          return false; // Overlap detected = facing pages
+        }
       }
     }
-    return pageNumber;
+
+    return true;
   }
 
   /// Returns true if page layouts are changed.
