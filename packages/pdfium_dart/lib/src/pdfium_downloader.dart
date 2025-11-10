@@ -10,11 +10,11 @@ import 'pdfium_bindings.dart' as pdfium_bindings;
 /// The release of pdfium to download.
 ///
 /// The actual binaries are downloaded from https://github.com/bblanchon/pdfium-binaries.
-const currentPdfiumRelease = 'chromium%2F7506';
+const currentPDFiumRelease = 'chromium%2F7506';
 
-/// Helper function to get Pdfium instance.
+/// Helper function to get PDFium instance.
 ///
-/// This function downloads the Pdfium module if necessary.
+/// This function downloads the PDFium module if necessary.
 ///
 /// For macOS, the downloaded library is not codesigned. If you encounter issues loading the library,
 /// you may need to manually codesign it using the following command:
@@ -24,7 +24,7 @@ const currentPdfiumRelease = 'chromium%2F7506';
 /// ```
 Future<pdfium_bindings.PDFium> getPdfium({
   String? tmpPath,
-  String? pdfiumRelease = currentPdfiumRelease,
+  String? pdfiumRelease = currentPDFiumRelease,
 }) async {
   tmpPath ??= path.join(
     Directory.systemTemp.path,
@@ -36,7 +36,7 @@ Future<pdfium_bindings.PDFium> getPdfium({
   if (!await File(tmpPath).exists()) {
     await Directory(tmpPath).create(recursive: true);
   }
-  final modulePath = await PDFiumDownloader.downloadAndGetPdfiumModulePath(
+  final modulePath = await PDFiumDownloader.downloadAndGetPDFiumModulePath(
     tmpPath,
     pdfiumRelease: pdfiumRelease,
   );
@@ -60,15 +60,15 @@ class PDFiumDownloader {
   /// - macOS x64, arm64
   ///
   /// The binaries are downloaded from https://github.com/bblanchon/pdfium-binaries.
-  static Future<String> downloadAndGetPdfiumModulePath(
+  static Future<String> downloadAndGetPDFiumModulePath(
     String tmpPath, {
-    String? pdfiumRelease = currentPdfiumRelease,
+    String? pdfiumRelease = currentPDFiumRelease,
   }) async {
     final pa = RegExp(r'"([^_]+)_([^_]+)"').firstMatch(Platform.version)!;
     final platform = pa[1]!;
     final arch = pa[2]!;
     if (platform == 'windows' && arch == 'x64') {
-      return await downloadPdfium(
+      return await downloadPDFium(
         tmpPath,
         'win',
         arch,
@@ -77,7 +77,7 @@ class PDFiumDownloader {
       );
     }
     if (platform == 'linux' && (arch == 'x64' || arch == 'arm64')) {
-      return await downloadPdfium(
+      return await downloadPDFium(
         tmpPath,
         platform,
         arch,
@@ -86,7 +86,7 @@ class PDFiumDownloader {
       );
     }
     if (platform == 'macos') {
-      return await downloadPdfium(
+      return await downloadPDFium(
         tmpPath,
         'mac',
         arch,
@@ -99,7 +99,7 @@ class PDFiumDownloader {
   }
 
   /// Downloads the pdfium module for the given platform and architecture.
-  static Future<String> downloadPdfium(
+  static Future<String> downloadPDFium(
     String tmpRoot,
     String platform,
     String arch,

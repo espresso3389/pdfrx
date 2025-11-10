@@ -1,3 +1,7 @@
+## 0.3.1
+
+- Updated to pdfium_dart 0.1.1
+
 ## 0.3.0
 
 - NEW: `PdfDocument.createFromJpegData()` - Create PDF documents from JPEG image data

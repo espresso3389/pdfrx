@@ -19,7 +19,7 @@ bool _isInitialized = false;
 /// - Calls [PdfrxEntryFunctions.init] to initialize the PDFium library.
 ///
 /// For Flutter, you should call `pdfrxFlutterInitialize` instead of the function.
-Future<void> pdfrxInitialize({String? tmpPath, String? pdfiumRelease = pdfium_dart.currentPdfiumRelease}) async {
+Future<void> pdfrxInitialize({String? tmpPath, String? pdfiumRelease = pdfium_dart.currentPDFiumRelease}) async {
   if (_isInitialized) return;
 
   Pdfrx.loadAsset ??= (name) async {
@@ -33,7 +33,7 @@ Future<void> pdfrxInitialize({String? tmpPath, String? pdfiumRelease = pdfium_da
 
   if (!File(Pdfrx.pdfiumModulePath!).existsSync()) {
     pdfiumPath.createSync(recursive: true);
-    Pdfrx.pdfiumModulePath = await pdfium_dart.PDFiumDownloader.downloadAndGetPdfiumModulePath(pdfiumPath.path);
+    Pdfrx.pdfiumModulePath = await pdfium_dart.PDFiumDownloader.downloadAndGetPDFiumModulePath(pdfiumPath.path);
   }
 
   await PdfrxEntryFunctions.instance.init();
