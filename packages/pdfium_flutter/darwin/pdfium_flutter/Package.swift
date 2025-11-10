@@ -2,20 +2,20 @@
 import PackageDescription
 
 let package = Package(
-    name: "pdfrx",
+    name: "pdfium_flutter",
     platforms: [
         .iOS(.v12),
         .macOS(.v10_13),
     ],
     products: [
         .library(
-            name: "pdfrx",
-            targets: ["pdfrx"]
+            name: "pdfium_flutter",
+            targets: ["pdfium_flutter"]
         ),
     ],
     targets: [
         .target(
-            name: "pdfrx",
+            name: "pdfium_flutter",
             dependencies: [
                 .target(name: "PDFium"),
             ],

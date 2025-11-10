@@ -4,17 +4,17 @@ PDFIUM_URL = "https://github.com/espresso3389/pdfium-xcframework/releases/downlo
 PDFIUM_HASH = "0a900bb5b5d66c4caaaaef1cf291dd1ef34639069baa12c565eda296aee878ec"
 
 Pod::Spec.new do |s|
-  s.name             = 'pdfrx'
-  s.version          = '0.1.3'
-  s.summary          = 'Yet another PDF renderer for Flutter using PDFium.'
+  s.name             = 'pdfium_flutter'
+  s.version          = '0.1.0'
+  s.summary          = 'Flutter FFI plugin for loading PDFium native libraries.'
   s.description      = <<-DESC
-  Yet another PDF renderer for Flutter using PDFium.
+  Flutter FFI plugin for loading PDFium native libraries. Bundles PDFium binaries for iOS and macOS.
                        DESC
   s.homepage         = 'https://github.com/espresso3389/pdfrx'
   s.license          = { :type => 'MIT', :file => '../LICENSE' }
   s.author           = { 'Takashi Kawasaki' => 'espresso3389@gmail.com' }
   s.source           = { :path => '.' }
-  s.source_files     = 'pdfrx/Sources/**/*.swift'
+  s.source_files     = 'pdfium_flutter/Sources/**/*.swift'
   s.preserve_paths = 'PDFium.xcframework/**/*'
 
   s.ios.deployment_target = '12.0'

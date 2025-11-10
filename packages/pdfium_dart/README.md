@@ -17,14 +17,14 @@ This package contains auto-generated FFI bindings for PDFium using `ffigen`. It 
 
 ### Basic Usage
 
-This package is primarily intended to be used as a dependency by higher-level packages like `pdfium_flutter` and `pdfrx_engine`. Direct usage is possible but not recommended unless you need low-level PDFium access.
+This package is primarily intended to be used as a dependency by higher-level packages like [pdfium_flutter](https://pub.dev/packages/pdfium_flutter) and [pdfrx_engine](https://pub.dev/packages/pdfrx_engine). Direct usage is possible but not recommended unless you need low-level PDFium access.
 
 ```dart
 import 'package:pdfium_dart/pdfium_dart.dart';
 import 'dart:ffi';
 
 // If you already have PDFium loaded
-final pdfium = pdfium(DynamicLibrary.open('/path/to/libpdfium.so'));
+final pdfium = PDFium(DynamicLibrary.open('/path/to/libpdfium.so'));
 ```
 
 ### On-Demand PDFium Downloads

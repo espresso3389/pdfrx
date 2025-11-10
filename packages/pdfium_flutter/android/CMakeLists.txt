@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.18.1)
 
 # Project-level configuration.
-set(PROJECT_NAME "pdfrx")
+set(PROJECT_NAME "pdfium_flutter")
 project(${PROJECT_NAME} LANGUAGES CXX)
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
@@ -63,7 +63,7 @@ endif()
 file(REMOVE ${PDFIUM_LATEST_DIR})
 file(CREATE_LINK ${PDFIUM_LIBS_DIR} ${PDFIUM_LATEST_DIR} SYMBOLIC)
 
-set(pdfrx_bundled_libraries
+set(pdfium_flutter_bundled_libraries
   ${PDFIUM_LATEST_LIB_FILENAME}
   PARENT_SCOPE
 )

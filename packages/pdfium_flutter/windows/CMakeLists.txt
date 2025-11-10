@@ -5,7 +5,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 # Project-level configuration.
-set(PROJECT_NAME "pdfrx")
+set(PROJECT_NAME "pdfium_flutter")
 project(${PROJECT_NAME} LANGUAGES CXX)
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
@@ -93,7 +93,7 @@ else()
         "========================================================================\n"
         "  ERROR: Windows Developer Mode is not enabled!\n"
         "------------------------------------------------------------------------\n"
-        "  The pdfrx build process requires Developer Mode to create symbolic\n"
+        "  The pdfium_flutter build process requires Developer Mode to create symbolic\n"
         "  links. The build cannot continue without Developer Mode enabled.\n"
         "\n"
         "  Please enable Developer Mode by following the instructions at:\n"
@@ -108,7 +108,7 @@ endif()
 # List of absolute paths to libraries that should be bundled with the plugin.
 # This list could contain prebuilt libraries, or libraries created by an
 # external build triggered from this build file.
-set(pdfrx_bundled_libraries
+set(pdfium_flutter_bundled_libraries
   ${PDFIUM_LATEST_LIB_FILENAME}
   PARENT_SCOPE
 )

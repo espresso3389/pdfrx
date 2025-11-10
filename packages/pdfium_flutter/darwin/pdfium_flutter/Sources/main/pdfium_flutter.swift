@@ -4,10 +4,10 @@
   import FlutterMacOS
 #endif
 
-class PdfrxPlugin: NSObject, FlutterPlugin {
+class PDFiumFlutterPlugin: NSObject, FlutterPlugin {
   static func register(with _: FlutterPluginRegistrar) {
     // This is an FFI plugin - no platform channel needed
-    // The native code is accessed via FFI from pdfrx_engine
+    // The native code is accessed via FFI from pdfium_flutter
   }
 
   func dummyMethodToPreventStripping() {

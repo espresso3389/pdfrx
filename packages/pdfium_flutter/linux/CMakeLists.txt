@@ -4,7 +4,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Project-level configuration.
-set(PROJECT_NAME "pdfrx")
+set(PROJECT_NAME "pdfium_flutter")
 project(${PROJECT_NAME} LANGUAGES CXX)
 
 # Determine target processor name
@@ -80,7 +80,7 @@ file(CREATE_LINK ${PDFIUM_LIBS_DIR} ${PDFIUM_LATEST_DIR} SYMBOLIC)
 # List of absolute paths to libraries that should be bundled with the plugin.
 # This list could contain prebuilt libraries, or libraries created by an
 # external build triggered from this build file.
-set(pdfrx_bundled_libraries
+set(pdfium_flutter_bundled_libraries
   ${PDFIUM_LATEST_LIB_FILENAME}
   PARENT_SCOPE
 )

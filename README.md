@@ -1,6 +1,6 @@
 # pdfrx
 
-This repository contains three Dart/Flutter packages for PDF rendering, viewing, and manipulation:
+This repository contains multiple Dart/Flutter packages for PDF rendering, viewing, and manipulation:
 
 ## Packages
 
@@ -33,11 +33,31 @@ A cross-platform PDF viewer and manipulation plugin for Flutter.
 - Maintains full compatibility with pdfrx widget API
 - iOS and macOS only
 
+### [pdfium_dart](packages/pdfium_dart/)
+
+Low-level Dart FFI bindings for the PDFium library.
+
+- Pure Dart package with auto-generated FFI bindings using `ffigen`
+- Provides direct access to PDFium's C API from Dart
+- Includes `getPdfium()` function that downloads PDFium binaries on demand
+- Used as a foundation by higher-level packages
+
+### [pdfium_flutter](packages/pdfium_flutter/)
+
+Flutter FFI plugin for loading PDFium native libraries.
+
+- Bundles pre-built PDFium binaries for all Flutter platforms (Android, iOS, Windows, macOS, Linux)
+- Provides utilities for loading PDFium at runtime
+- Re-exports `pdfium_dart` FFI bindings
+- Simplifies PDFium integration in Flutter applications
+
 ## When to Use Which Package
 
 - **Use `pdfrx`** if you're building a Flutter application and need PDF viewing and manipulation capabilities with UI
 - **Use `pdfrx_engine`** if you need PDF rendering and manipulation without Flutter dependencies (e.g., server-side PDF processing, CLI tools, PDF combining utilities)
 - **Use `pdfrx_coregraphics`** (experimental) if you want to use CoreGraphics/PDFKit instead of PDFium on iOS/macOS
+- **Use `pdfium_dart`** if you need low-level PDFium FFI bindings for Dart projects or want on-demand PDFium binary downloads
+- **Use `pdfium_flutter`** if you're building a Flutter plugin that needs PDFium integration with bundled binaries
 
 ## Getting Started
 

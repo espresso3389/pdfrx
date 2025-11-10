@@ -1,8 +1,7 @@
 import 'dart:io';
 
+import 'package:pdfium_dart/pdfium_dart.dart';
 import 'package:test/test.dart';
-
-import '../lib/pdfium_dart.dart';
 
 final tmpRoot = Directory('${Directory.current.path}/test/.tmp');
 final testPdfFile = File('../pdfrx/example/viewer/assets/hello.pdf');

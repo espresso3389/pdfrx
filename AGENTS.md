@@ -66,16 +66,36 @@ flutter build windows
 flutter build macos
 ```
 
-### FFI Bindings (pdfrx_engine)
+### FFI Bindings
 
-- Bindings are generated with `ffigen`.
-- Pdfium headers download automatically when `dart test` runs on Linux.
+FFI bindings for PDFium are maintained in the `pdfium_dart` package and generated using `ffigen`.
+
+#### Prerequisites
+
+The `ffigen` process requires the following prerequisites to be installed:
+
+- **LLVM/Clang**: Required for parsing C headers
+  - macOS: Install via Homebrew: `brew install llvm`
+  - Linux: Install via package manager: `apt-get install libclang-dev` (Ubuntu/Debian) or `dnf install clang-devel` (Fedora)
+  - Windows: Install LLVM from [llvm.org](https://releases.llvm.org/)
+
+#### Generating Bindings
 
 ```bash
+# For pdfium_dart package
+cd packages/pdfium_dart
+dart test  # Downloads PDFium headers automatically
+dart run ffigen
+
+# For pdfrx_engine (if needed)
 cd packages/pdfrx_engine
 dart test
 dart run ffigen
 ```
+
+#### On-Demand PDFium Downloads
+
+The `pdfium_dart` package provides a `getPdfium()` function that downloads PDFium binaries on demand. This is useful for testing or CLI applications that don't want to bundle PDFium binaries.
 
 ## Release Process
 
