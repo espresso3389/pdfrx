@@ -16,7 +16,7 @@ import '../pdfrx_entry_functions.dart';
 import '../pdfrx_initialize_dart.dart';
 import 'http_cache_control.dart';
 import 'native_utils.dart';
-import 'pdfium_bindings.dart' as pdfium_bindings;
+import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
 
 final _rafFinalizer = Finalizer<RandomAccessFile>((raf) {
   // Attempt to close the file if it hasn't been closed explicitly.

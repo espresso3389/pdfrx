@@ -4,7 +4,7 @@ import 'dart:ffi';
 
 import 'package:ffi/ffi.dart';
 
-import '../pdfium_bindings.dart' as pdfium_bindings;
+import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
 import '../pdfium_file_access.dart';
 import '../worker.dart';
 import 'pthread.dart';

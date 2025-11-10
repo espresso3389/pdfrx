@@ -3,8 +3,9 @@ import 'dart:ffi' as ffi;
 import 'dart:ffi';
 import 'dart:io';
 
+import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
+
 import '../pdfrx.dart';
-import 'pdfium_bindings.dart' as pdfium_bindings;
 
 /// Get the module file name for pdfium.
 String _getModuleFileName() {
@@ -28,15 +29,15 @@ DynamicLibrary _getModule() {
   return DynamicLibrary.open(_getModuleFileName());
 }
 
-pdfium_bindings.pdfium? _pdfium;
+pdfium_bindings.PDFium? _pdfium;
 
 /// Loaded PDFium module.
-pdfium_bindings.pdfium get pdfium {
-  _pdfium ??= pdfium_bindings.pdfium(_getModule());
+pdfium_bindings.PDFium get pdfium {
+  _pdfium ??= pdfium_bindings.PDFium(_getModule());
   return _pdfium!;
 }
 
-set pdfium(pdfium_bindings.pdfium value) {
+set pdfium(pdfium_bindings.PDFium value) {
   _pdfium = value;
 }
 
