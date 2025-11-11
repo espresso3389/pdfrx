@@ -2426,7 +2426,7 @@ class _PdfViewerState extends State<PdfViewer>
 
       final magnifierEnabled =
           (magnifierParams.enabled ?? _selectionPointerDeviceKind == PointerDeviceKind.touch) &&
-          (magnifierParams.shouldBeShownForAnchor ?? _shouldBeShownForAnchor)(
+          (magnifierParams.shouldShowMagnifierForAnchor ?? _shouldBeShownForAnchor)(
             textAnchor,
             _controller!,
             magnifierParams,

@@ -933,7 +933,7 @@ enum PdfViewerPart {
 /// State of the text selection anchor handle.
 enum PdfViewerTextSelectionAnchorHandleState { normal, hover, dragging }
 
-/// Function to build the  text  selection anchor handle.
+/// Function to build the text selection anchor handle.
 typedef PdfViewerTextSelectionAnchorHandleBuilder =
     Widget? Function(
       BuildContext context,
@@ -1062,11 +1062,11 @@ class PdfViewerSelectionMagnifierParams {
     this.magnifierSizeThreshold = 72,
     this.getMagnifierRectForAnchor,
     this.builder,
-    this.shouldBeShownForAnchor,
-    this.maxImageBytesCachedOnMemory = defaultMaxImageBytesCachedOnMemory,
-    this.calcPosition,
     this.shouldShowMagnifier,
+    this.calcPosition,
     this.animationDuration = const Duration(milliseconds: 100),
+    this.shouldShowMagnifierForAnchor,
+    this.maxImageBytesCachedOnMemory = defaultMaxImageBytesCachedOnMemory,
   });
 
   /// The default maximum image bytes cached on memory is 256 KB.
@@ -1088,17 +1088,20 @@ class PdfViewerSelectionMagnifierParams {
   /// Function to build the magnifier widget.
   final PdfViewerMagnifierBuilder? builder;
 
-  /// Function to determine whether the magnifier should be shown based on conditions such as zoom level.
+  /// Function to control magnifier visibility.
   ///
-  /// If [enabled] is false, this function is not called.
-  final PdfViewerMagnifierShouldBeShownFunction? shouldBeShownForAnchor;
-
-  /// The maximum number of image bytes to be cached on memory.
+  /// This allows for fine grained control of when the magnifier should be shown during text selection, for example
+  /// to coordinate with custom animations.
+  /// If null, the magnifier is shown whenever a selection handle is being dragged.
   ///
-  /// The default is 256 * 1024 bytes (256 KB).
-  final int maxImageBytesCachedOnMemory;
+  /// Return true to show the magnifier, false to hide it.
+  ///
+  /// Even if this function returns true, the magnifier may not be shown if other conditions are not met
+  /// (e.g., if [enabled] is false or if the character height is above [magnifierSizeThreshold],
+  /// or [shouldShowMagnifierForAnchor] returns false).
+  final bool Function()? shouldShowMagnifier;
 
-  /// Optional callback to calculate the magnifier widget position.
+  /// Function to calculate the magnifier widget position.
   ///
   /// When provided, this function will be used to determine where to place
   /// the magnifier widget in the viewport. If null, pdfrx uses its default
@@ -1106,15 +1109,6 @@ class PdfViewerSelectionMagnifierParams {
   ///
   /// This can also be used for context menu positioning or other overlay widgets.
   final PdfViewerCalcMagnifierPositionFunction? calcPosition;
-
-  /// Optional callback to control magnifier visibility.
-  ///
-  /// This allows for more fine grained control of when the magnifier should be
-  /// shown during text selection, for example to coordinate with custom animations.
-  /// If null, the magnifier is shown whenever a selection handle is being dragged.
-  ///
-  /// Return true to show the magnifier, false to hide it.
-  final bool Function()? shouldShowMagnifier;
 
   /// Duration for the magnifier position animation.
   ///
@@ -1125,6 +1119,21 @@ class PdfViewerSelectionMagnifierParams {
   /// Default is 100 milliseconds.
   final Duration animationDuration;
 
+  /// Function to determine whether the magnifier should be shown based on conditions such as zoom level.
+  ///
+  /// If [enabled] is false, this function is not called.
+  ///
+  /// If the function is null, the magnifier is shown if the character height is smaller than
+  /// [magnifierSizeThreshold].
+  ///
+  /// Please note that the function is called after evaluating [enabled] and [shouldShowMagnifier].
+  final PdfViewerMagnifierShouldBeShownFunction? shouldShowMagnifierForAnchor;
+
+  /// The maximum number of image bytes to be cached on memory.
+  ///
+  /// The default is 256 * 1024 bytes (256 KB).
+  final int maxImageBytesCachedOnMemory;
+
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
@@ -1134,7 +1143,7 @@ class PdfViewerSelectionMagnifierParams {
         other.magnifierSizeThreshold == magnifierSizeThreshold &&
         other.getMagnifierRectForAnchor == getMagnifierRectForAnchor &&
         other.builder == builder &&
-        other.shouldBeShownForAnchor == shouldBeShownForAnchor &&
+        other.shouldShowMagnifierForAnchor == shouldShowMagnifierForAnchor &&
         other.maxImageBytesCachedOnMemory == maxImageBytesCachedOnMemory &&
         other.calcPosition == calcPosition &&
         other.shouldShowMagnifier == shouldShowMagnifier &&
@@ -1147,7 +1156,7 @@ class PdfViewerSelectionMagnifierParams {
       magnifierSizeThreshold.hashCode ^
       getMagnifierRectForAnchor.hashCode ^
       builder.hashCode ^
-      shouldBeShownForAnchor.hashCode ^
+      shouldShowMagnifierForAnchor.hashCode ^
       maxImageBytesCachedOnMemory.hashCode ^
       calcPosition.hashCode ^
       shouldShowMagnifier.hashCode ^
