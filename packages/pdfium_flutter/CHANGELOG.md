@@ -1,3 +1,7 @@
+## 0.1.5
+
+- Updated PDFium to version 144.0.7520.0 (build 20251111-190355).
+
 ## 0.1.4
 
 - Updated PDFium to version 144.0.7520.0 (build 20251111-183119).

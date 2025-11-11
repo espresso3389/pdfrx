@@ -1,11 +1,11 @@
 # PDFium xcframework configuration
 # https://github.com/espresso3389/pdfium-xcframework/releases
-PDFIUM_URL = "https://github.com/espresso3389/pdfium-xcframework/releases/download/v144.0.7520.0-20251111-183119/PDFium-chromium-7520-20251111-183119.xcframework.zip"
-PDFIUM_HASH = "f7b1ac0b78aa24a909850b9347cb019d4feef7da242ad28a258a49f274dddd81"
+PDFIUM_URL = "https://github.com/espresso3389/pdfium-xcframework/releases/download/v144.0.7520.0-20251111-190355/PDFium-chromium-7520-20251111-190355.xcframework.zip"
+PDFIUM_HASH = "bd2a9542f13c78b06698c7907936091ceee2713285234cbda2e16bc03c64810b"
 
 Pod::Spec.new do |s|
   s.name             = 'pdfium_flutter'
-  s.version          = '0.1.4'
+  s.version          = '0.1.5'
   s.summary          = 'Flutter FFI plugin for loading PDFium native libraries.'
   s.description      = <<-DESC
   Flutter FFI plugin for loading PDFium native libraries. Bundles PDFium binaries for iOS and macOS.
