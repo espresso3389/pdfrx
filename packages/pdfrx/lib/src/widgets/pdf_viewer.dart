@@ -247,7 +247,7 @@ class _PdfViewerState extends State<PdfViewer>
   final double _hitTestMargin = 3.0;
 
   /// The starting/ending point of the text selection.
-  _PdfTextSelectionPoint? _selA, _selB;
+  PdfTextSelectionPoint? _selA, _selB;
   Offset? _textSelectAnchor;
 
   /// [_textSelA] is the rectangle of the first character in the selected paragraph and
@@ -2172,7 +2172,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   /// [point] is in the document coordinates.
-  _PdfTextSelectionPoint? _findTextAndIndexForPoint(Offset? point, {double hitTestMargin = 8}) {
+  PdfTextSelectionPoint? _findTextAndIndexForPoint(Offset? point, {double hitTestMargin = 8}) {
     if (point == null) return null;
     for (var pageIndex = 0; pageIndex < _document!.pages.length; pageIndex++) {
       final pageRect = _layout!.pageLayouts[pageIndex];
@@ -2188,7 +2188,7 @@ class _PdfViewerState extends State<PdfViewer>
       for (var i = 0; i < text.charRects.length; i++) {
         final charRect = text.charRects[i];
         if (charRect.containsPoint(pt)) {
-          return _PdfTextSelectionPoint(text, i);
+          return PdfTextSelectionPoint(text, i);
         }
         final d2 = charRect.distanceSquaredTo(pt);
         if (d2 < d2Min) {
@@ -2197,7 +2197,7 @@ class _PdfViewerState extends State<PdfViewer>
         }
       }
       if (closestIndex != null && d2Min <= hitTestMargin * hitTestMargin) {
-        return _PdfTextSelectionPoint(text, closestIndex);
+        return PdfTextSelectionPoint(text, closestIndex);
       }
     }
     return null;
@@ -2910,12 +2910,23 @@ class _PdfViewerState extends State<PdfViewer>
   @override
   Future<void> clearTextSelection() async => _clearTextSelections();
 
-  void _setTextSelection(_PdfTextSelectionPoint a, _PdfTextSelectionPoint b) {
-    if (!a.isValid || !b.isValid) {
-      throw ArgumentError('Both selection points must be valid.');
+  @override
+  PdfTextSelectionRange? get textSelectionPointRange {
+    final a = _selA;
+    final b = _selB;
+    if (a == null || b == null) {
+      return null;
     }
-    _selA = a;
-    _selB = b;
+    return PdfTextSelectionRange.fromPoints(a, b);
+  }
+
+  @override
+  Future<void> setTextSelectionPointRange(PdfTextSelectionRange range) async {
+    if (_selA == range.start && _selB == range.end) {
+      return;
+    }
+    _selA = range.start;
+    _selB = range.end;
     if (_selA! > _selB!) {
       final temp = _selA;
       _selA = _selB;
@@ -3058,8 +3069,8 @@ class _PdfViewerState extends State<PdfViewer>
       }
       final range = PdfPageTextRange(pageText: text, start: f.index, end: f.end);
       final selectionRect = f.bounds.toRectInDocument(page: page, pageRect: pageRect);
-      _selA = _PdfTextSelectionPoint(text, f.index);
-      _selB = _PdfTextSelectionPoint(text, f.end - 1);
+      _selA = PdfTextSelectionPoint(text, f.index);
+      _selB = PdfTextSelectionPoint(text, f.end - 1);
       _textSelA = PdfTextSelectionAnchor(
         selectionRect,
         range.pageText.getFragmentForTextIndex(range.start)?.direction ?? PdfTextDirection.ltr,
@@ -3326,16 +3337,19 @@ class _PdfViewerTransformationController extends TransformationController {
 /// What selection part is moving by mouse-dragging/finger-panning.
 enum _TextSelectionPart { none, free, a, b }
 
-/// Represents a point in the text selection.
+/// Represents a point (combination of page and character index) in the text selection.
 /// It contains the [PdfPageText] and the index of the character in that text.
 @immutable
-class _PdfTextSelectionPoint {
-  const _PdfTextSelectionPoint(this.text, this.index);
+class PdfTextSelectionPoint {
+  const PdfTextSelectionPoint(this.text, this.index);
 
   /// The page text associated with this selection point.
   final PdfPageText text;
 
   /// The index of the character in the [text].
+  ///
+  /// Similar to [PdfPageText.getRangeFromAB], this index is inclusive; even for the end point of the selection.
+  /// In other words, for the end of the selection, the index points to the last selected character.
   final int index;
 
   /// Whether the index is valid in the [text].
@@ -3344,33 +3358,51 @@ class _PdfTextSelectionPoint {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    if (other is! _PdfTextSelectionPoint) return false;
+    if (other is! PdfTextSelectionPoint) return false;
     return text == other.text && index == other.index;
   }
 
-  bool operator <(_PdfTextSelectionPoint other) {
+  bool operator <(PdfTextSelectionPoint other) {
     if (text.pageNumber != other.text.pageNumber) {
       return text.pageNumber < other.text.pageNumber;
     }
     return index < other.index;
   }
 
-  bool operator >(_PdfTextSelectionPoint other) => !(this <= other);
+  bool operator >(PdfTextSelectionPoint other) => !(this <= other);
 
-  bool operator <=(_PdfTextSelectionPoint other) {
+  bool operator <=(PdfTextSelectionPoint other) {
     if (text.pageNumber != other.text.pageNumber) {
       return text.pageNumber < other.text.pageNumber;
     }
     return index <= other.index;
   }
 
-  bool operator >=(_PdfTextSelectionPoint other) => !(this < other);
+  bool operator >=(PdfTextSelectionPoint other) => !(this < other);
 
   @override
   int get hashCode => text.hashCode ^ index.hashCode;
 
   @override
-  String toString() => '$_PdfTextSelectionPoint(text: $text, index: $index)';
+  String toString() => '$PdfTextSelectionPoint(text: $text, index: $index)';
+}
+
+/// Represents a range of text selection between two points.
+class PdfTextSelectionRange {
+  /// Creates a [PdfTextSelectionRange] from two selection points.
+  ///
+  /// The points can be in any order; the constructor will ensure that [start] is less than or equal to [end].
+  PdfTextSelectionRange.fromPoints(PdfTextSelectionPoint a, PdfTextSelectionPoint b)
+    : start = a <= b ? a : b,
+      end = a <= b ? b : a;
+
+  /// The start point of the text selection.
+  final PdfTextSelectionPoint start;
+
+  /// The end point of the text selection.
+  ///
+  /// Please note that the index of this point is inclusive; it points to the last selected character.
+  final PdfTextSelectionPoint end;
 }
 
 /// Represents the anchor point of the text selection.

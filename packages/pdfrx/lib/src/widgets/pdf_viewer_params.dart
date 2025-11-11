@@ -956,6 +956,11 @@ abstract class PdfTextSelection {
   /// Whether the viewer is currently selecting all text.
   bool get isSelectingAllText;
 
+  /// Get the text selection point range.
+  ///
+  /// null if there is no text selected.
+  PdfTextSelectionRange? get textSelectionPointRange;
+
   /// Get the selected text.
   ///
   /// Although the use of this property is not restricted by [isCopyAllowed]
@@ -963,6 +968,9 @@ abstract class PdfTextSelection {
   Future<String> getSelectedText();
 
   /// Get the selected text ranges.
+  ///
+  /// Although the use of this property is not restricted by [isCopyAllowed]
+  /// but you have to ensure that your use of the text does not violate [isCopyAllowed] condition.
   Future<List<PdfPageTextRange>> getSelectedTextRanges();
 }
 
@@ -988,6 +996,13 @@ abstract class PdfTextSelectionDelegate implements PdfTextSelection {
   ///
   /// Please note that [position] is in document coordinates.
   Future<void> selectWord(Offset position);
+
+  /// Set the text selection point range.
+  ///
+  /// This function will update the current text selection to the specified range.
+  ///
+  /// See also [textSelectionPointRange].
+  Future<void> setTextSelectionPointRange(PdfTextSelectionRange range);
 
   /// Convert document coordinates to local coordinates and vice versa.
   PdfViewerCoordinateConverter get doc2local;
