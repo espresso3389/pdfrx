@@ -940,7 +940,9 @@ typedef PdfViewerCalcSelectionAnchorHandleOffsetFunction =
 /// [textSelection] contains the selected text range on each page.
 typedef PdfViewerTextSelectionChangeCallback = void Function(PdfTextSelection textSelection);
 
-/// Text selection
+/// Interface for text selection information.
+///
+/// To perform text selection actions, use [PdfTextSelectionDelegate].
 abstract class PdfTextSelection {
   /// Whether the text selection is enabled by the configuration.
   ///
@@ -975,6 +977,8 @@ abstract class PdfTextSelection {
 }
 
 /// Delegate for text selection actions.
+///
+/// You can obtain the instance via [PdfViewerController.textSelectionDelegate].
 abstract class PdfTextSelectionDelegate implements PdfTextSelection {
   /// Copy the selected text.
   ///
