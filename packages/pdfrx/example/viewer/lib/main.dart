@@ -1,4 +1,4 @@
-import 'dart:math';
+import 'dart:math' as math;
 
 import 'package:file_selector/file_selector.dart' as fs;
 import 'package:flutter/foundation.dart';
@@ -41,7 +41,7 @@ class MainPage extends StatefulWidget {
   State<MainPage> createState() => _MainPageState();
 }
 
-class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
+class _MainPageState extends State<MainPage> with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final documentRef = ValueNotifier<PdfDocumentRef?>(null);
   final controller = PdfViewerController();
   final showLeftPane = ValueNotifier<bool>(false);
@@ -49,6 +49,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   final textSearcher = ValueNotifier<PdfTextSearcher?>(null);
   final _markers = <int, List<Marker>>{};
   List<PdfPageTextRange>? textSelections;
+
+  final bool _isDraggingHandle = false; // True while actively dragging, false on release
+  // Magnifier animation controller
+  late final AnimationController _magnifierAnimController;
 
   void _update() {
     if (mounted) {
@@ -59,12 +63,14 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    _magnifierAnimController = AnimationController(duration: const Duration(milliseconds: 250), vsync: this);
     WidgetsBinding.instance.addObserver(this);
     openInitialFile();
   }
 
   @override
   void dispose() {
+    _magnifierAnimController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     textSearcher.value?.dispose();
     textSearcher.dispose();
@@ -307,11 +313,148 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                           onTextSelectionChange: (textSelection) async {
                             textSelections = await textSelection.getSelectedTextRanges();
                           },
+                          /*magnifier: PdfViewerSelectionMagnifierParams(
+                            shouldBeShownForAnchor: (textAnchor, controller, params) => true,
+                            getMagnifierRectForAnchor: (textAnchor, params, clampedPointerPosition) {
+                              final c = textAnchor.page.charRects[textAnchor.index];
+                              final baseUnit = switch (textAnchor.direction) {
+                                PdfTextDirection.ltr || PdfTextDirection.rtl || PdfTextDirection.unknown => c.height,
+                                PdfTextDirection.vrtl => c.width,
+                              };
+
+                              // Convert clamped pointer position from viewport to document coordinates
+                              final pointerInDocument =
+                                  controller.globalToDocument(clampedPointerPosition) ?? textAnchor.anchorPoint;
+
+                              return Rect.fromLTRB(
+                                pointerInDocument.dx - baseUnit * 2.5,
+                                textAnchor.rect.top - baseUnit * 0.5,
+                                pointerInDocument.dx + baseUnit * 2.5,
+                                textAnchor.rect.bottom + baseUnit * 0.5,
+                              );
+                            },
+                            builder:
+                                (
+                                  context,
+                                  textAnchor,
+                                  params,
+                                  magnifierContent,
+                                  magnifierContentSize,
+                                  pointerPosition,
+                                  magnifierPosition,
+                                ) {
+                                  // calculate the scale to fit the magnifier content fit into 80x80 box
+                                  final contentScale =
+                                      80 / math.min(magnifierContentSize.width, magnifierContentSize.height);
+
+                                  // Calculate the actual magnifier widget size (with border radius padding)
+                                  final magnifierWidgetSize = Size(
+                                    magnifierContentSize.width * contentScale,
+                                    magnifierContentSize.height * contentScale,
+                                  );
+
+                                  // Start animation when magnifier first appears and capture initial pointer position
+                                  if (_magnifierAnimController.status == AnimationStatus.dismissed) {
+                                    _magnifierAnimationStartPositionViewport = pointerPosition;
+                                    _magnifierAnimController.forward();
+                                  }
+
+                                  final centeredStartOffset =
+                                      pointerPosition -
+                                      Offset(magnifierWidgetSize.width / 2, magnifierWidgetSize.height / 2);
+                                  final delta = centeredStartOffset - magnifierPosition;
+
+                                  return AnimatedBuilder(
+                                    animation: _magnifierAnimController,
+                                    builder: (context, child) {
+                                      final currentProgress = _magnifierAnimController.value;
+                                      return Transform.translate(
+                                        offset: delta * (1 - currentProgress),
+                                        child: Transform.scale(
+                                          scale: currentProgress,
+                                          alignment: Alignment.center,
+                                          child: child!,
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(25),
+                                        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8, spreadRadius: 2)],
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(25),
+                                        child: SizedBox(
+                                          width: magnifierContentSize.width * contentScale,
+                                          height: magnifierContentSize.height * contentScale,
+                                          child: magnifierContent,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                            calcPosition:
+                                (
+                                  widgetSize,
+                                  anchorLocalRect,
+                                  handleLocalRect,
+                                  textAnchor,
+                                  pointerPosition, {
+                                  margin = 10.0,
+                                  marginOnTop,
+                                  marginOnBottom,
+                                }) {
+                                  if (widgetSize == null) return null;
+
+                                  final viewSize = controller.viewSize;
+
+                                  // Center magnifier horizontally on pointer for smooth tracking
+                                  var left = pointerPosition.dx - widgetSize.width / 2;
+
+                                  // Clamp to viewport bounds
+                                  if (left < margin) {
+                                    left = margin;
+                                  } else if (left + widgetSize.width + margin > viewSize.width) {
+                                    left = viewSize.width - widgetSize.width - margin;
+                                  }
+
+                                  var top = anchorLocalRect.top - widgetSize.height - (marginOnTop ?? margin);
+
+                                  // If too close to top, place below instead
+                                  if (top < margin) {
+                                    top = anchorLocalRect.bottom + (marginOnBottom ?? margin);
+                                  }
+
+                                  return Offset(left, top);
+                                },
+                            shouldShowMagnifier: () =>
+                                _isDraggingHandle ||
+                                _magnifierAnimController.status == AnimationStatus.reverse ||
+                                _magnifierAnimController.status == AnimationStatus.forward,
+                            animationDuration: Duration.zero,
+                          ),
+                          onSelectionHandlePanStart: (anchor) {
+                            setState(() {
+                              _isDraggingHandle = true;
+                            });
+                          },
+
+                          onSelectionHandlePanEnd: (anchor) {
+                            // Animate out, then reset for next drag
+                            if (mounted) {
+                              setState(() {
+                                _isDraggingHandle = false;
+                              });
+                            }
+                            _magnifierAnimController.reverse().then((_) {
+                              _magnifierAnimController.reset();
+                            });
+                          }, */
                         ),
                         keyHandlerParams: PdfViewerKeyHandlerParams(autofocus: true),
                         useAlternativeFitScaleAsMinScale: false,
                         maxScale: 8,
-                        //scrollPhysics: PdfViewerParams.getScrollPhysics(context),
+                        scrollPhysics: PdfViewerParams.getScrollPhysics(context),
                         viewerOverlayBuilder: (context, size, handleLinkTap) => [
                           //
                           // Example use of GestureDetector to handle custom gestures
@@ -478,7 +621,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     null,
     // Horizontal layout
     (pages, params) {
-      final height = pages.fold(0.0, (prev, page) => max(prev, page.height)) + params.margin * 2;
+      final height = pages.fold(0.0, (prev, page) => math.max(prev, page.height)) + params.margin * 2;
       final pageLayouts = <Rect>[];
       double x = params.margin;
       for (var page in pages) {
@@ -496,7 +639,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     },
     // Facing pages layout
     (pages, params) {
-      final width = pages.fold(0.0, (prev, page) => max(prev, page.width));
+      final width = pages.fold(0.0, (prev, page) => math.max(prev, page.width));
 
       final pageLayouts = <Rect>[];
       final offset = needCoverPage ? 1 : 0;
@@ -507,7 +650,9 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
         final isLeft = isRightToLeftReadingOrder ? (pos & 1) == 1 : (pos & 1) == 0;
 
         final otherSide = (pos ^ 1) - offset;
-        final h = 0 <= otherSide && otherSide < pages.length ? max(page.height, pages[otherSide].height) : page.height;
+        final h = 0 <= otherSide && otherSide < pages.length
+            ? math.max(page.height, pages[otherSide].height)
+            : page.height;
 
         pageLayouts.add(
           Rect.fromLTWH(
@@ -658,5 +803,24 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     if (path == null) return null;
     final parts = path.split(RegExp(r'[\\/]'));
     return parts.isEmpty ? path : parts.last;
+  }
+}
+
+/// Create a [CustomPainter] from a paint function.
+class _CustomPainter extends CustomPainter {
+  /// Create a [CustomPainter] from a paint function.
+  const _CustomPainter.fromFunctions(this.paintFunction, {this.hitTestFunction});
+  final void Function(Canvas canvas, Size size) paintFunction;
+  final bool Function(Offset position)? hitTestFunction;
+  @override
+  void paint(Canvas canvas, Size size) => paintFunction(canvas, size);
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+
+  @override
+  bool hitTest(Offset position) {
+    if (hitTestFunction == null) return false;
+    return hitTestFunction!(position);
   }
 }
