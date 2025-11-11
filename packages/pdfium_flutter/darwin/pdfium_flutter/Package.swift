@@ -23,8 +23,8 @@ let package = Package(
         ),
         .binaryTarget(
             name: "PDFium",
-            url: "https://github.com/espresso3389/pdfium-xcframework/releases/download/v144.0.7520.0-20251111-181257/PDFium-chromium-7520-20251111-181257.xcframework.zip",
-            checksum: "1190e2034a34f1f4a462e3564516750d6652b05064c545978306032bcd19be42"
+            url: "https://github.com/espresso3389/pdfium-xcframework/releases/download/v144.0.7520.0-20251111-183119/PDFium-chromium-7520-20251111-183119.xcframework.zip",
+            checksum: "f7b1ac0b78aa24a909850b9347cb019d4feef7da242ad28a258a49f274dddd81"
         ),
     ]
 )
