@@ -12,7 +12,7 @@ project(${PROJECT_NAME} LANGUAGES CXX)
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
 
-set(PDFIUM_RELEASE chromium%2F7506)
+set(PDFIUM_RELEASE chromium%2F7520)
 set(PDFIUM_DIR ${CMAKE_BINARY_DIR}/pdfium)
 set(PDFIUM_RELEASE_DIR ${PDFIUM_DIR}/${PDFIUM_RELEASE})
 
