@@ -9,8 +9,10 @@ import 'package:share_plus/share_plus.dart';
 
 Future<void> savePdf(Uint8List bytes, {String? suggestedName}) async {
   if (Platform.isIOS || Platform.isAndroid) {
-    final xFile = XFile.fromData(bytes, name: suggestedName ?? 'document.pdf', mimeType: 'application/pdf');
-    await Share.shareXFiles([xFile]);
+    final params = ShareParams(
+      files: [XFile.fromData(bytes, name: suggestedName ?? 'document.pdf', mimeType: 'application/pdf')],
+    );
+    await SharePlus.instance.share(params);
     return;
   }
   final savePath = await getSaveLocation(
@@ -41,7 +43,7 @@ Future<JpegData> compressImageToJpeg(
   int quality = 90,
 }) async {
   calculateTargetSize ??= (w, h) => (width: w, height: h);
-  final ui.ImmutableBuffer buffer = await ui.ImmutableBuffer.fromUint8List(imageData);
+  final buffer = await ui.ImmutableBuffer.fromUint8List(imageData);
   final codec = await PaintingBinding.instance.instantiateImageCodecWithSize(
     buffer,
     getTargetSize: (w, h) {

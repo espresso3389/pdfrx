@@ -1,6 +1,6 @@
 name: pdfrx_engine
 description: pdfrx_engine is a PDF rendering and manipulation API built on top of PDFium, designed to be used with the pdfrx plugin. Supports viewing, editing, and combining PDF documents.
-version: 0.2.4
+version: 0.3.1
 homepage: https://github.com/espresso3389/pdfrx
 repository: https://github.com/espresso3389/pdfrx/tree/master/packages/pdfrx_engine
 issue_tracker: https://github.com/espresso3389/pdfrx/issues
@@ -12,6 +12,7 @@ resolution: workspace
 # Some of the dependencies are intentionally not pinned to a specific version
 # to allow for more flexibility in resolving versions when used in larger projects.
 dependencies:
+  pdfium_dart: ^0.1.0
   collection:
   crypto: ^3.0.6
   ffi:
@@ -24,36 +25,7 @@ dependencies:
   image: ^4.5.4
 
 dev_dependencies:
-  ffigen: ^19.1.0
   lints: ^6.0.0
   test: ^1.26.2
-
-# To generate the bindings, firstly you must run the test once to download PDFium headers:
-#  dart run test
-# then run the following command:
-#  dart run ffigen
-ffigen:
-  output:
-    bindings: "lib/src/native/pdfium_bindings.dart"
-  headers:
-    entry-points:
-      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdfview.h"
-      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_annot.h"
-      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_text.h"
-      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_doc.h"
-      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_edit.h"
-      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_ppo.h"
-      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_save.h"
-      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_formfill.h"
-      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/fpdf_sysfontinfo.h"
-    include-directives:
-      - "/tmp/pdfrx.cache/pdfium/linux-x64/include/**"
-  preamble: |
-    // ignore_for_file: unused_field
-    // dart format off
-  name: "pdfium"
-  comments:
-    style: any
-    length: full
 
 

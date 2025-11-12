@@ -240,8 +240,18 @@ class _PdfCombinePageState extends State<PdfCombinePage> {
   Future<void> _pickFiles() async {
     final files = await openFiles(
       acceptedTypeGroups: [
-        XTypeGroup(label: 'PDFs', extensions: ['pdf']),
-        XTypeGroup(label: 'Images', extensions: ['jpg', 'jpeg', 'png', 'bmp', 'gif', 'webp']),
+        XTypeGroup(label: 'PDFs', extensions: ['pdf'], uniformTypeIdentifiers: ['com.adobe.pdf']),
+        XTypeGroup(
+          label: 'Images',
+          extensions: ['jpg', 'jpeg', 'png', 'bmp', 'gif', 'webp'],
+          uniformTypeIdentifiers: [
+            'public.jpeg',
+            'public.png',
+            'com.microsoft.bmp',
+            'com.compuserve.gif',
+            'org.webmproject.webp',
+          ],
+        ),
       ],
     );
     if (files.isEmpty) return;

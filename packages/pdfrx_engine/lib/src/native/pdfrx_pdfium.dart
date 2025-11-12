@@ -31,8 +31,8 @@ import '../utils/shuffle_in_place.dart';
 import 'native_utils.dart';
 import 'pdf_file_cache.dart';
 import 'pdfium.dart';
-import 'pdfium_bindings.dart' as pdfium_bindings;
-import 'pdfium_interop.dart' as file_access_helpers;
+import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
+import 'pdfium_file_access.dart';
 import 'worker.dart';
 
 Directory? _appLocalFontPath;
@@ -48,7 +48,7 @@ Future<void> _init() async {
 
     _appLocalFontPath = await getCacheDirectory('pdfrx.fonts');
 
-    (await backgroundWorker).computeWithArena((arena, params) {
+    (await BackgroundWorker.instance).computeWithArena((arena, params) {
       final config = arena.allocate<pdfium_bindings.FPDF_LIBRARY_CONFIG>(sizeOf<pdfium_bindings.FPDF_LIBRARY_CONFIG>());
       config.ref.version = 2;
 
@@ -77,14 +77,12 @@ Future<void> _init() async {
   await _initializeFontEnvironment();
 }
 
-final backgroundWorker = BackgroundWorker.create();
-
 /// Stores the fonts that were not found during mapping.
-/// NOTE: This is used by [backgroundWorker] and should not be used directly; use [_getAndClearMissingFonts] instead.
+/// NOTE: This is used by [BackgroundWorker] and should not be used directly; use [_getAndClearMissingFonts] instead.
 final _lastMissingFonts = <String, PdfFontQuery>{};
 
 /// MapFont function used by PDFium to map font requests to system fonts.
-/// NOTE: This is used by [backgroundWorker] and should not be used directly.
+/// NOTE: This is used by [BackgroundWorker] and should not be used directly.
 NativeCallable<
   Pointer<Void> Function(
     Pointer<pdfium_bindings.FPDF_SYSFONTINFO>,
@@ -100,7 +98,7 @@ _mapFont;
 
 /// Setup the system font info in PDFium.
 Future<void> _initializeFontEnvironment() async {
-  await (await backgroundWorker).computeWithArena((arena, params) {
+  await (await BackgroundWorker.instance).computeWithArena((arena, params) {
     // kBase14FontNames
     const fontNamesToIgnore = {
       'Courier': true,
@@ -180,7 +178,7 @@ Future<void> _initializeFontEnvironment() async {
 
 /// Retrieve and clear the last missing fonts from [_lastMissingFonts] in a thread-safe manner.
 Future<List<PdfFontQuery>> _getAndClearMissingFonts() async {
-  return await (await backgroundWorker).compute((params) {
+  return await (await BackgroundWorker.instance).compute((params) {
     final fonts = _lastMissingFonts.values.toList();
     _lastMissingFonts.clear();
     return fonts;
@@ -195,7 +193,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
 
   @override
   Future<T> suspendPdfiumWorkerDuringAction<T>(FutureOr<T> Function() action) async {
-    return await (await backgroundWorker).suspendDuringAction(action);
+    return await (await BackgroundWorker.instance).suspendDuringAction(action);
   }
 
   @override
@@ -255,7 +253,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   }) async {
     await _init();
     return _openByFunc(
-      (password) async => (await backgroundWorker).computeWithArena((arena, params) {
+      (password) async => (await BackgroundWorker.instance).computeWithArena((arena, params) {
         final doc = pdfium.FPDF_LoadDocument(params.filePath.toUtf8(arena), params.password?.toUtf8(arena) ?? nullptr);
         return doc.address;
       }, (filePath: filePath, password: password)),
@@ -317,7 +315,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
       try {
         await read(buffer.asTypedList(fileSize), 0, fileSize);
         return _openByFunc(
-          (password) async => (await backgroundWorker).computeWithArena(
+          (password) async => (await BackgroundWorker.instance).computeWithArena(
             (arena, params) => pdfium.FPDF_LoadMemDocument(
               Pointer<Void>.fromAddress(params.buffer),
               params.fileSize,
@@ -344,15 +342,15 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     }
 
     // Otherwise, load the file on demand
-    final fa = file_access_helpers.FileAccess(fileSize, read);
+    final fa = await PdfiumFileAccess.create(fileSize, read);
     try {
       return _openByFunc(
-        (password) async => (await backgroundWorker).computeWithArena(
+        (password) async => (await BackgroundWorker.instance).computeWithArena(
           (arena, params) => pdfium.FPDF_LoadCustomDocument(
             Pointer<pdfium_bindings.FPDF_FILEACCESS>.fromAddress(params.fileAccess),
             params.password?.toUtf8(arena) ?? nullptr,
           ).address,
-          (fileAccess: fa.fileAccess.address, password: password),
+          (fileAccess: fa.fileAccess, password: password),
         ),
         sourceName: sourceName,
         passwordProvider: passwordProvider,
@@ -434,7 +432,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   @override
   Future<PdfDocument> createNew({required String sourceName}) async {
     await _init();
-    final doc = await (await backgroundWorker).compute((params) {
+    final doc = await (await BackgroundWorker.instance).compute((params) {
       return pdfium.FPDF_CreateNewDocument().address;
     }, null);
     return _PdfDocumentPdfium.fromPdfDocument(
@@ -456,7 +454,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     final dataBuffer = malloc<Uint8>(jpegData.length);
     try {
       dataBuffer.asTypedList(jpegData.length).setAll(0, jpegData);
-      final doc = await (await backgroundWorker).computeWithArena(
+      final doc = await (await BackgroundWorker.instance).computeWithArena(
         (arena, params) {
           final document = pdfium.FPDF_CreateNewDocument();
           final newPage = pdfium.FPDFPage_New(document, 0, params.width, params.height);
@@ -585,7 +583,7 @@ class _PdfDocumentPdfium extends PdfDocument {
     }
     _PdfDocumentPdfium? pdfDoc;
     try {
-      final result = await (await backgroundWorker).computeWithArena((arena, docAddress) {
+      final result = await (await BackgroundWorker.instance).computeWithArena((arena, docAddress) {
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(docAddress);
         Pointer<pdfium_bindings.FPDF_FORMFILLINFO> formInfo = nullptr;
         pdfium_bindings.FPDF_FORMHANDLE formHandle = nullptr;
@@ -690,7 +688,7 @@ class _PdfDocumentPdfium extends PdfDocument {
     Duration? timeout,
   }) async {
     try {
-      final results = await (await backgroundWorker).computeWithArena(
+      final results = await (await BackgroundWorker.instance).computeWithArena(
         (arena, params) {
           final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docAddress);
           final pageCount = pdfium.FPDF_GetPageCount(doc);
@@ -814,7 +812,7 @@ class _PdfDocumentPdfium extends PdfDocument {
     if (!isDisposed) {
       isDisposed = true;
       subject.close();
-      await (await backgroundWorker).compute((params) {
+      await (await BackgroundWorker.instance).compute((params) {
         final formHandle = pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle);
         final formInfo = Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(params.formInfo);
         pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
@@ -831,7 +829,7 @@ class _PdfDocumentPdfium extends PdfDocument {
   @override
   Future<List<PdfOutlineNode>> loadOutline() async => isDisposed
       ? <PdfOutlineNode>[]
-      : await (await backgroundWorker).computeWithArena((arena, params) {
+      : await (await BackgroundWorker.instance).computeWithArena((arena, params) {
           final document = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
           return _getOutlineNodeSiblings(pdfium.FPDFBookmark_GetFirstChild(document, nullptr), document, arena);
         }, (document: document.address));
@@ -865,7 +863,7 @@ class _PdfDocumentPdfium extends PdfDocument {
   Future<Uint8List> encodePdf({bool incremental = false, bool removeSecurity = false}) async {
     await assemble();
     final byteBuffer = BytesBuilder();
-    return await (await backgroundWorker).computeWithArena((arena, params) {
+    return await (await BackgroundWorker.instance).computeWithArena((arena, params) {
       int write(Pointer<pdfium_bindings.FPDF_FILEWRITE> pThis, Pointer<Void> pData, int size) {
         byteBuffer.add(Pointer<Uint8>.fromAddress(pData.address).asTypedList(size));
         return size;
@@ -931,7 +929,7 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
       return false;
     }
 
-    await (await backgroundWorker).computeWithArena(
+    await (await BackgroundWorker.instance).computeWithArena(
       (arena, params) {
         final arranger = _DocumentPageArranger._(
           pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document),
@@ -1075,7 +1073,7 @@ class _PdfPagePdfium extends PdfPage {
         ct?.attach(cancelFlag);
 
         if (cancelFlag.value || document.isDisposed) return false;
-        return await (await backgroundWorker).compute(
+        return await (await BackgroundWorker.instance).compute(
           (params) {
             final cancelFlag = Pointer<Bool>.fromAddress(params.cancelFlag);
             if (cancelFlag.value) return false;
@@ -1190,7 +1188,7 @@ class _PdfPagePdfium extends PdfPage {
   @override
   Future<PdfPageRawText?> loadText() async {
     if (document.isDisposed || !isLoaded) return null;
-    return await (await backgroundWorker).computeWithArena((arena, params) {
+    return await (await BackgroundWorker.instance).computeWithArena((arena, params) {
       final doubleSize = sizeOf<Double>();
       final rectBuffer = arena.allocate<Double>(4 * sizeOf<Double>());
       final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
@@ -1237,7 +1235,7 @@ class _PdfPagePdfium extends PdfPage {
 
   Future<List<PdfLink>> _loadWebLinks() async => document.isDisposed
       ? []
-      : await (await backgroundWorker).computeWithArena((arena, params) {
+      : await (await BackgroundWorker.instance).computeWithArena((arena, params) {
           pdfium_bindings.FPDF_PAGE page = nullptr;
           pdfium_bindings.FPDF_TEXTPAGE textPage = nullptr;
           pdfium_bindings.FPDF_PAGELINK linkPage = nullptr;
@@ -1304,7 +1302,7 @@ class _PdfPagePdfium extends PdfPage {
 
   Future<List<PdfLink>> _loadAnnotLinks() async => document.isDisposed
       ? []
-      : await (await backgroundWorker).computeWithArena((arena, params) {
+      : await (await BackgroundWorker.instance).computeWithArena((arena, params) {
           final document = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
           final page = pdfium.FPDF_LoadPage(document, params.pageNumber - 1);
           try {

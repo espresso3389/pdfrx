@@ -22,7 +22,7 @@ pdfrx provides mechanisms to coordinate PDFium access across different libraries
 
 ## Low-Level PDFium Bindings
 
-For advanced use cases, pdfrx_engine exposes direct access to PDFium's C API through FFI bindings. This allows you to:
+For advanced use cases, the [pdfium_dart](https://pub.dev/packages/pdfium_dart) package exposes direct access to PDFium's C API through FFI bindings. This allows you to:
 
 - Call any PDFium function directly
 - Implement custom PDF processing not covered by the high-level API
@@ -119,21 +119,23 @@ class PdfProcessor {
 
 ### Example 2: Low-Level PDFium Bindings Access
 
-pdfrx_engine provides direct access to PDFium bindings for advanced use cases. You can import the low-level bindings to make direct PDFium API calls:
+The [pdfium_dart](https://pub.dev/packages/pdfium_dart) package provides direct access to PDFium bindings for advanced use cases. You can import the low-level bindings to make direct PDFium API calls:
 
 ```dart
 import 'dart:ffi';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:pdfrx/pdfrx.dart';
-// Access low-level PDFium bindings
-import 'package:pdfrx_engine/src/native/pdfium_bindings.dart';
-import 'package:pdfrx_engine/src/native/pdfium.dart';
+// Access low-level PDFium bindings from pdfium_dart
+import 'package:pdfium_dart/pdfium_dart.dart';
 
 class LowLevelPdfiumAccess {
   Future<void> useDirectBindings() async {
     // Initialize PDFium through pdfrx
     await pdfrxFlutterInitialize();
+
+    // Get PDFium bindings
+    final pdfium = await getPdfium();
 
     // Now you can use all PDFium C API functions through the bindings
     // Remember to wrap calls with suspendPdfiumWorkerDuringAction
@@ -146,6 +148,8 @@ class LowLevelPdfiumAccess {
   }
 
   Future<Map<String, String>> extractCustomMetadata(Uint8List pdfData) async {
+    final pdfium = await getPdfium();
+
     return await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
       return using((arena) {
         final dataPtr = arena.allocate<Uint8>(pdfData.length);
@@ -199,8 +203,7 @@ class LowLevelPdfiumAccess {
 
 **Important Notes about Low-Level Bindings:**
 
-- Import `package:pdfrx_engine/src/native/pdfium_bindings.dart` for the FFI binding definitions
-- Import `package:pdfrx_engine/src/native/pdfium.dart` for the `loadPdfiumBindings()` function
+- Import `package:pdfium_dart/pdfium_dart.dart` for the FFI binding definitions and `getPdfium()` function
 - Always wrap PDFium calls with `suspendPdfiumWorkerDuringAction()` to prevent conflicts
 - Remember to properly manage memory (use `Arena` for automatic memory management)
 - PDFium text APIs often return UTF-16 encoded strings

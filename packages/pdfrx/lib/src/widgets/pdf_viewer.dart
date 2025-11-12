@@ -226,6 +226,8 @@ class _PdfViewerState extends State<PdfViewer>
   int? _pageNumber;
   PdfPageRange? _visiblePageRange;
   bool _initialized = false;
+  bool _usingScrollPercentageMode = false;
+
   StreamSubscription<PdfDocumentEvent>? _documentSubscription;
   final _interactiveViewerKey = GlobalKey<iv.InteractiveViewerState>();
 
@@ -244,7 +246,7 @@ class _PdfViewerState extends State<PdfViewer>
   final double _hitTestMargin = 3.0;
 
   /// The starting/ending point of the text selection.
-  _PdfTextSelectionPoint? _selA, _selB;
+  PdfTextSelectionPoint? _selA, _selB;
   Offset? _textSelectAnchor;
 
   /// [_textSelA] is the rectangle of the first character in the selected paragraph and
@@ -786,6 +788,7 @@ class _PdfViewerState extends State<PdfViewer>
       }
 
       if (isLayoutChanged) {
+        _clearTextSelections();
         // if the layout changed, calculate the top-left position in the document
         // before the layout change and go to that position in the new layout
 
@@ -1437,7 +1440,6 @@ class _PdfViewerState extends State<PdfViewer>
   ///
   /// Please note that the function does not scroll/zoom to the specified page but changes the current page number.
   void _setCurrentPageNumber(int? pageNumber, {bool doSetState = false, double? targetZoom}) {
-    _gotoTargetPageNumber = pageNumber;
     if (pageNumber != null && _pageNumber != pageNumber) {
       _pageNumber = pageNumber;
       // Update boundary margins for the new page (for discrete mode with overflow)
@@ -1451,6 +1453,20 @@ class _PdfViewerState extends State<PdfViewer>
       if (widget.params.onPageChanged != null) {
         Future.microtask(() => widget.params.onPageChanged?.call(_pageNumber));
       }
+    }
+  }
+
+  double _calcPrimaryAxisVisibility(Rect pageRect, Rect viewportRect, bool isHorizontal) {
+    if (isHorizontal) {
+      if (pageRect.right <= viewportRect.left || pageRect.left >= viewportRect.right) return 0.0;
+      final visibleLeft = pageRect.left < viewportRect.left ? viewportRect.left : pageRect.left;
+      final visibleRight = pageRect.right > viewportRect.right ? viewportRect.right : pageRect.right;
+      return ((visibleRight - visibleLeft) / pageRect.width).clamp(0.0, 1.0);
+    } else {
+      if (pageRect.bottom <= viewportRect.top || pageRect.top >= viewportRect.bottom) return 0.0;
+      final visibleTop = pageRect.top < viewportRect.top ? viewportRect.top : pageRect.top;
+      final visibleBottom = pageRect.bottom > viewportRect.bottom ? viewportRect.bottom : pageRect.bottom;
+      return ((visibleBottom - visibleTop) / pageRect.height).clamp(0.0, 1.0);
     }
   }
 
@@ -1470,34 +1486,118 @@ class _PdfViewerState extends State<PdfViewer>
       return null;
     }
     final visibleRect = _visibleRect;
+    _updateVisiblePageRange(visibleRect);
     if (widget.params.calculateCurrentPageNumber != null) {
       final pageNumber = widget.params.calculateCurrentPageNumber!(visibleRect, _layout!.pageLayouts, _controller!);
-      _updateVisiblePageRange(visibleRect);
       return pageNumber;
     }
 
-    // Calculate visible page range (any page with any intersection)
-    _updateVisiblePageRange(visibleRect);
+    final layout = _layout!;
+    final isHorizontal =
+        layout.primaryAxis == Axis.horizontal || layout.documentSize.width > layout.documentSize.height;
+    final isSimple = _isSimpleLayout(layout, isHorizontal);
 
-    if (_gotoTargetPageNumber != null &&
-        _gotoTargetPageNumber! > 0 &&
-        _gotoTargetPageNumber! <= _document!.pages.length) {
-      final ratio = _calcPageIntersectionPercentage(_gotoTargetPageNumber!, visibleRect);
-      if (ratio > _kPageIntersectionThreshold) return _gotoTargetPageNumber;
+    // Calculate primary axis visibility for all pages (map: page number -> visibility %)
+    final visible = <int, double>{};
+    for (var i = 0; i < layout.pageLayouts.length; i++) {
+      final pct = _calcPrimaryAxisVisibility(layout.pageLayouts[i], visibleRect, isHorizontal);
+      if (pct > 0) visible[i + 1] = pct;
     }
-    _gotoTargetPageNumber = null;
 
-    int? pageNumber;
-    double maxRatio = 0;
-    for (var i = 1; i <= _document!.pages.length; i++) {
-      final ratio = _calcPageIntersectionPercentage(i, visibleRect);
-      if (ratio == 0) continue;
-      if (ratio > maxRatio) {
-        maxRatio = ratio;
-        pageNumber = i;
+    if (visible.isEmpty) return _pageNumber ?? 1;
+
+    final current = _pageNumber;
+    final fullyVisiblePages = visible.entries.where((e) => e.value >= 1.0).map((e) => e.key).toList();
+
+    // 3+ fully visible pages to enter scroll percentage mode, <2 to exit
+    // to stop flapping between modes
+    if (_usingScrollPercentageMode) {
+      if (fullyVisiblePages.length < 2 && isSimple) _usingScrollPercentageMode = false;
+    } else {
+      if (fullyVisiblePages.length >= 3 || !isSimple) _usingScrollPercentageMode = true;
+    }
+
+    // Check goto target
+    final gotoVisibility = visible[_gotoTargetPageNumber] ?? 0.0;
+    if (gotoVisibility >= 0.5) return _gotoTargetPageNumber;
+    if (_gotoTargetPageNumber != null && !_animController.isAnimating) _gotoTargetPageNumber = null;
+
+    // Scroll percentage mode
+    if (_usingScrollPercentageMode) {
+      final scrollPosition = isHorizontal ? visibleRect.left : visibleRect.top;
+      final scrollLength =
+          (isHorizontal ? layout.documentSize.width : layout.documentSize.height) -
+          (isHorizontal ? visibleRect.width : visibleRect.height);
+      final scrollPercentage = scrollLength > 0 ? (scrollPosition / scrollLength).clamp(0.0, 1.0) : 0.0;
+      return ((scrollPercentage * layout.pageLayouts.length).floor() + 1).clamp(1, layout.pageLayouts.length);
+    }
+
+    // Sticky mode - prefer current page if it is fully visible as long
+    // as the first or last page is not fully visible also
+    if (current != null) {
+      final currentPercentage = visible[current] ?? 0.0;
+      if (currentPercentage >= 1.0) {
+        // Edge detection: prefer first/last page if also fully visible
+        if (fullyVisiblePages.contains(1) && current != 1) return 1;
+        if (fullyVisiblePages.contains(layout.pageLayouts.length) && current != layout.pageLayouts.length) {
+          return layout.pageLayouts.length;
+        }
+        return current;
+      }
+      // Most visible with proximity tie-break
+      var maxPercentage = 0.0, maxPage = visible.keys.first;
+      for (final entry in visible.entries) {
+        if (entry.value > maxPercentage ||
+            (entry.value == maxPercentage && (current - entry.key).abs() < (current - maxPage).abs())) {
+          maxPercentage = entry.value;
+          maxPage = entry.key;
+        }
+      }
+      return maxPage;
+    }
+
+    // Should not reach here, but fallback to most visible
+    return visible.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+  }
+
+  /// Detect if layout is "simple" (sequential pages) vs "complex" (facing pages)
+  /// In facing pages, multiple pages can share the same PRIMARY SCROLL axis coordinate
+  bool _isSimpleLayout(PdfPageLayout layout, bool isHorizontal) {
+    final pageLayouts = layout.pageLayouts;
+    if (layout is PdfSpreadLayout) {
+      // Spread layouts are always complex
+      return false;
+    }
+    if (layout is SequentialPagesLayout) {
+      // Sequential layouts are always simple
+      return true;
+    }
+
+    if (pageLayouts.length <= 1) return true;
+
+    // Check if any two consecutive pages overlap along the PRIMARY SCROLL axis
+    // For horizontal layouts (scroll left-right), check if pages overlap horizontally (same x-range = facing)
+    // For vertical layouts (scroll up-down), check if pages overlap vertically (same y-range = facing)
+    for (var i = 0; i < pageLayouts.length - 1; i++) {
+      final page1 = pageLayouts[i];
+      final page2 = pageLayouts[i + 1];
+
+      if (isHorizontal) {
+        // Horizontal scroll: pages are "complex" if they overlap horizontally (facing pages side-by-side)
+        // In sequential horizontal, page2.left should be >= page1.right (no overlap)
+        if (page2.left < page1.right - 1.0) {
+          return false; // Overlap detected = facing pages
+        }
+      } else {
+        // Vertical scroll: pages are "complex" if they overlap vertically (facing pages top-bottom)
+        // In sequential vertical, page2.top should be >= page1.bottom (no overlap)
+        if (page2.top < page1.bottom - 1.0) {
+          return false; // Overlap detected = facing pages
+        }
       }
     }
-    return pageNumber;
+
+    return true;
   }
 
   /// Calculate the range of all pages that have any intersection with the visible viewport.
@@ -3229,7 +3329,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   /// [point] is in the document coordinates.
-  _PdfTextSelectionPoint? _findTextAndIndexForPoint(Offset? point, {double hitTestMargin = 8}) {
+  PdfTextSelectionPoint? _findTextAndIndexForPoint(Offset? point, {double hitTestMargin = 8}) {
     if (point == null) return null;
     for (var pageIndex = 0; pageIndex < _document!.pages.length; pageIndex++) {
       final pageRect = _layout!.pageLayouts[pageIndex];
@@ -3245,7 +3345,7 @@ class _PdfViewerState extends State<PdfViewer>
       for (var i = 0; i < text.charRects.length; i++) {
         final charRect = text.charRects[i];
         if (charRect.containsPoint(pt)) {
-          return _PdfTextSelectionPoint(text, i);
+          return PdfTextSelectionPoint(text, i);
         }
         final d2 = charRect.distanceSquaredTo(pt);
         if (d2 < d2Min) {
@@ -3254,7 +3354,7 @@ class _PdfViewerState extends State<PdfViewer>
         }
       }
       if (closestIndex != null && d2Min <= hitTestMargin * hitTestMargin) {
-        return _PdfTextSelectionPoint(text, closestIndex);
+        return PdfTextSelectionPoint(text, closestIndex);
       }
     }
     return null;
@@ -3317,7 +3417,7 @@ class _PdfViewerState extends State<PdfViewer>
       return contextMenuIfNeeded();
     }
 
-    double? aLeft, aTop, aRight, aBottom;
+    double? aLeft, aRight, aBottom;
     double? bLeft, bTop, bRight;
     Widget? anchorA, anchorB;
 
@@ -3326,50 +3426,50 @@ class _PdfViewerState extends State<PdfViewer>
       final builder = widget.params.textSelectionParams?.buildSelectionHandle ?? _buildDefaultSelectionHandle;
 
       if (_textSelA != null) {
+        final state = _selPartMoving == _TextSelectionPart.a
+            ? PdfViewerTextSelectionAnchorHandleState.dragging
+            : _hoverOn == _TextSelectionPart.a
+            ? PdfViewerTextSelectionAnchorHandleState.hover
+            : PdfViewerTextSelectionAnchorHandleState.normal;
+        final offset =
+            widget.params.textSelectionParams?.calcSelectionHandleOffset?.call(context, _textSelA!, state) ??
+            Offset.zero;
         switch (_textSelA!.direction) {
           case PdfTextDirection.ltr:
           case PdfTextDirection.unknown:
-            aRight = viewSize.width - rectA.left;
-            aBottom = viewSize.height - rectA.top;
+            aRight = viewSize.width - rectA.left - offset.dx;
+            aBottom = viewSize.height - rectA.top - offset.dy;
           case PdfTextDirection.rtl:
-            aLeft = rectA.right;
-            aBottom = viewSize.height - rectA.top;
+            aLeft = rectA.right + offset.dx;
+            aBottom = viewSize.height - rectA.top - offset.dy;
           case PdfTextDirection.vrtl:
-            aLeft = rectA.right;
-            aBottom = viewSize.height - rectA.top;
+            aLeft = rectA.right + offset.dx;
+            aBottom = viewSize.height - rectA.top - offset.dy;
         }
-        anchorA = builder(
-          context,
-          _textSelA!,
-          _selPartMoving == _TextSelectionPart.a
-              ? PdfViewerTextSelectionAnchorHandleState.dragging
-              : _hoverOn == _TextSelectionPart.a
-              ? PdfViewerTextSelectionAnchorHandleState.hover
-              : PdfViewerTextSelectionAnchorHandleState.normal,
-        );
+        anchorA = builder(context, _textSelA!, state);
       }
       if (_textSelB != null) {
+        final state = _selPartMoving == _TextSelectionPart.b
+            ? PdfViewerTextSelectionAnchorHandleState.dragging
+            : _hoverOn == _TextSelectionPart.b
+            ? PdfViewerTextSelectionAnchorHandleState.hover
+            : PdfViewerTextSelectionAnchorHandleState.normal;
+        final offset =
+            widget.params.textSelectionParams?.calcSelectionHandleOffset?.call(context, _textSelB!, state) ??
+            Offset.zero;
         switch (_textSelB!.direction) {
           case PdfTextDirection.ltr:
           case PdfTextDirection.unknown:
-            bLeft = rectB.right;
-            bTop = rectB.bottom;
+            bLeft = rectB.right + offset.dx;
+            bTop = rectB.bottom + offset.dy;
           case PdfTextDirection.rtl:
-            bRight = viewSize.width - rectB.left;
-            bTop = rectB.bottom;
+            bRight = viewSize.width - rectB.left - offset.dx;
+            bTop = rectB.bottom + offset.dy;
           case PdfTextDirection.vrtl:
-            bRight = viewSize.width - rectB.left;
-            bTop = rectB.bottom;
+            bRight = viewSize.width - rectB.left - offset.dx;
+            bTop = rectB.bottom + offset.dy;
         }
-        anchorB = builder(
-          context,
-          _textSelB!,
-          _selPartMoving == _TextSelectionPart.b
-              ? PdfViewerTextSelectionAnchorHandleState.dragging
-              : _hoverOn == _TextSelectionPart.b
-              ? PdfViewerTextSelectionAnchorHandleState.hover
-              : PdfViewerTextSelectionAnchorHandleState.normal,
-        );
+        anchorB = builder(context, _textSelB!, state);
       }
     } else {
       _anchorARect = _anchorBRect = null;
@@ -3407,20 +3507,21 @@ class _PdfViewerState extends State<PdfViewer>
 
     Offset? calcPosition(
       Size? widgetSize,
-      _TextSelectionPart part, {
+      Rect anchorLocalRect,
+      Rect? handleLocalRect,
+      PdfTextSelectionAnchor? textAnchor,
+      Offset pointerPosition, {
       double margin = defMargin,
       double? marginOnTop,
       double? marginOnBottom,
     }) {
-      if (widgetSize == null || (part != _TextSelectionPart.a && part != _TextSelectionPart.b)) {
+      if (widgetSize == null || textAnchor == null) {
         return null;
       }
-      final textAnchor = part == _TextSelectionPart.a ? _textSelA : _textSelB;
-      if (textAnchor == null) return null;
 
       late double left, top;
-      final rect0 = (part == _TextSelectionPart.a ? rectA : rectB);
-      final rect1 = (part == _TextSelectionPart.a ? _anchorARect : _anchorBRect);
+      final rect0 = anchorLocalRect;
+      final rect1 = handleLocalRect;
       final pt = rect0.center;
       final rectTop = rect1 == null ? rect0.top : min(rect0.top, rect1.top);
       final rectBottom = rect1 == null ? rect0.bottom : max(rect0.bottom, rect1.bottom);
@@ -3444,7 +3545,7 @@ class _PdfViewerState extends State<PdfViewer>
           }
           break;
         case PdfTextDirection.vrtl:
-          if (part == _TextSelectionPart.a) {
+          if (textAnchor.type == PdfTextSelectionAnchorType.a) {
             left = rectRight + margin;
             if (left + widgetSize.width + margin > viewSize.width) {
               left = rectLeft - widgetSize.width - margin;
@@ -3467,27 +3568,71 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     Widget? magnifier;
-    if (textAnchorMoving == _TextSelectionPart.a || textAnchorMoving == _TextSelectionPart.b) {
-      final textAnchor = textAnchorMoving == _TextSelectionPart.a ? _textSelA! : _textSelB!;
+
+    final shouldShowMagnifier = widget.params.textSelectionParams?.magnifier?.shouldShowMagnifier?.call();
+    // Show magnifier if dragging
+    if (((textAnchorMoving == _TextSelectionPart.a || textAnchorMoving == _TextSelectionPart.b) &&
+            shouldShowMagnifier != false) ||
+        shouldShowMagnifier == true) {
+      final textAnchor = textAnchorMoving == _TextSelectionPart.a
+          ? _textSelA!
+          : textAnchorMoving == _TextSelectionPart.b
+          ? _textSelB!
+          : (_selPartLastMoved == _TextSelectionPart.a ? _textSelA! : _textSelB!);
       final magnifierParams = widget.params.textSelectionParams?.magnifier ?? const PdfViewerSelectionMagnifierParams();
 
       final magnifierEnabled =
           (magnifierParams.enabled ?? _selectionPointerDeviceKind == PointerDeviceKind.touch) &&
-          (magnifierParams.shouldBeShownForAnchor ?? _shouldBeShownForAnchor)(
+          (magnifierParams.shouldShowMagnifierForAnchor ?? _shouldBeShownForAnchor)(
             textAnchor,
             _controller!,
             magnifierParams,
           );
       if (magnifierEnabled) {
-        final magRect = (magnifierParams.getMagnifierRectForAnchor ?? _getMagnifierRect)(textAnchor, magnifierParams);
+        final anchorLocalRect = textAnchorMoving == _TextSelectionPart.a ? rectA : rectB;
+        final handleLocalRect = textAnchorMoving == _TextSelectionPart.a ? _anchorARect! : _anchorBRect!;
+        // Calculate final magnifier position before calling builder
+        final magnifierPosition =
+            (magnifierParams.calcPosition ?? calcPosition)(
+              _magnifierRect?.size,
+              anchorLocalRect,
+              handleLocalRect,
+              textAnchor,
+              _pointerOffset,
+              margin: 10,
+              marginOnTop: 20,
+              marginOnBottom: 80,
+            ) ??
+            Offset.zero;
+
+        // Calculate clamped pointer position for magnifier content
+        final clampedPointerPosition = _calcClampedPointerPosition(
+          _pointerOffset,
+          magnifierPosition,
+          _magnifierRect?.size,
+          textAnchor,
+        );
+
+        final magRect = (magnifierParams.getMagnifierRectForAnchor ?? _getMagnifierRect)(
+          textAnchor,
+          magnifierParams,
+          clampedPointerPosition,
+        );
         final magnifierMain = _buildMagnifier(context, magRect, magnifierParams);
         final builder = magnifierParams.builder ?? _buildMagnifierDecoration;
-        magnifier = builder(context, textAnchor, magnifierParams, magnifierMain, magRect.size);
+        magnifier = builder(
+          context,
+          textAnchor,
+          magnifierParams,
+          magnifierMain,
+          magRect.size,
+          _pointerOffset,
+          magnifierPosition,
+        );
         if (magnifier != null && !isPositionalWidget(magnifier)) {
-          final offset =
-              calcPosition(_magnifierRect?.size, textAnchorMoving, marginOnTop: 20, marginOnBottom: 80) ?? Offset.zero;
+          final offset = magnifierPosition;
           magnifier = AnimatedPositioned(
-            duration: _previousMagnifierRect != null ? const Duration(milliseconds: 100) : Duration.zero,
+            duration: _previousMagnifierRect != null ? magnifierParams.animationDuration : Duration.zero,
             left: offset.dx,
             top: offset.dy,
             child: WidgetSizeSniffer(
@@ -3581,9 +3726,18 @@ class _PdfViewerState extends State<PdfViewer>
 
       contextMenu = createContextMenu(a, b, _contextMenuFor);
       if (contextMenu != null && !isPositionalWidget(contextMenu)) {
+        final textAnchor = _selPartLastMoved == _TextSelectionPart.a
+            ? _textSelA
+            : _selPartLastMoved == _TextSelectionPart.b
+            ? _textSelB
+            : null;
+        final anchorLocalRect = _selPartLastMoved == _TextSelectionPart.a ? rectA : rectB;
+        final handleLocalRect = _selPartLastMoved == _TextSelectionPart.a ? _anchorARect : _anchorBRect;
         final offset = localOffset != null
             ? normalizeWidgetPosition(localOffset, _contextMenuRect?.size)
-            : (calcPosition(_contextMenuRect?.size, _selPartLastMoved) ?? Offset.zero);
+            : (calcPosition(_contextMenuRect?.size, anchorLocalRect, handleLocalRect, textAnchor, _pointerOffset) ??
+                  Offset.zero);
+
         contextMenu = Positioned(
           left: offset.dx,
           top: offset.dy,
@@ -3609,7 +3763,6 @@ class _PdfViewerState extends State<PdfViewer>
       if (anchorA != null)
         Positioned(
           left: aLeft,
-          top: aTop,
           right: aRight,
           bottom: aBottom,
           child: MouseRegion(
@@ -3661,6 +3814,33 @@ class _PdfViewerState extends State<PdfViewer>
       if (magnifier != null) magnifier,
       if (contextMenu != null) contextMenu,
     ];
+  }
+
+  /// Calculate the clamped pointer position for the magnifier content.
+  ///
+  /// When the magnifier widget is clamped to stay within viewport bounds (e.g., near screen edges),
+  /// we adjust the pointer position by the same amount. This enables [PdfViewerGetMagnifierRectForAnchor]
+  /// and [PdfViewerMagnifierBuilder] to use the clamped pointer position to effectively "freeze" the
+  /// magnifier content, preventing it from sliding inside the magnifier.
+  ///
+  /// Returns the clamped pointer position in viewport coordinates.
+  Offset _calcClampedPointerPosition(
+    Offset pointerOffset,
+    Offset magnifierPosition,
+    Size? magnifierSize,
+    PdfTextSelectionAnchor textAnchor,
+  ) {
+    var clampedPointerOffset = pointerOffset;
+
+    if (magnifierSize != null) {
+      // What the magnifier X position would be without clamping (centered on pointer)
+      final unclampedLeft = pointerOffset.dx - magnifierSize.width / 2;
+      // How much it was actually clamped by calcPosition
+      final clampAmount = magnifierPosition.dx - unclampedLeft;
+      // Adjust pointer position by the same clamp amount to freeze content
+      clampedPointerOffset = Offset(pointerOffset.dx + clampAmount, pointerOffset.dy);
+    }
+    return clampedPointerOffset;
   }
 
   bool _shouldBeShownForAnchor(
@@ -3762,8 +3942,11 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
-  /// Calculate the rectangle shown in the magnifier for the given text anchor.
-  Rect _getMagnifierRect(PdfTextSelectionAnchor textAnchor, PdfViewerSelectionMagnifierParams params) {
+  Rect _getMagnifierRect(
+    PdfTextSelectionAnchor textAnchor,
+    PdfViewerSelectionMagnifierParams params,
+    Offset clampedPointerPosition,
+  ) {
     final c = textAnchor.page.charRects[textAnchor.index];
 
     final (width, height) = switch (_document!.pages[textAnchor.page.pageNumber - 1].rotation.index & 1) {
@@ -3820,6 +4003,8 @@ class _PdfViewerState extends State<PdfViewer>
     PdfViewerSelectionMagnifierParams params,
     Widget child,
     Size childSize,
+    Offset pointerPosition,
+    Offset magnifierPosition,
   ) {
     final scale = 80 / min(childSize.width, childSize.height);
     return Container(
@@ -3878,11 +4063,15 @@ class _PdfViewerState extends State<PdfViewer>
       final a = _findTextAndIndexForPoint(_textSelA!.rect.center);
       if (a == null) return;
       _selA = a;
+      // Notify drag start callback
+      widget.params.textSelectionParams?.onSelectionHandlePanStart?.call(_textSelA!);
     } else if (_selPartMoving == _TextSelectionPart.b) {
       _textSelectAnchor = anchor + _textSelB!.rect.bottomRight - position!;
       final b = _findTextAndIndexForPoint(_textSelB!.rect.center);
       if (b == null) return;
       _selB = b;
+      // Notify drag start callback
+      widget.params.textSelectionParams?.onSelectionHandlePanStart?.call(_textSelB!);
     } else {
       return;
     }
@@ -3921,11 +4110,22 @@ class _PdfViewerState extends State<PdfViewer>
     if (_isInteractionGoingOn) return;
     _contextMenuDocumentPosition = null;
     _updateSelectionHandlesPan(_globalToDocument(details.globalPosition));
+    // Notify drag update callback
+    final anchor = handle == _TextSelectionPart.a ? _textSelA : _textSelB;
+    if (anchor != null) {
+      widget.params.textSelectionParams?.onSelectionHandlePanUpdate?.call(anchor, details.delta);
+    }
   }
 
   void _onSelectionHandlePanEnd(_TextSelectionPart handle, DragEndDetails details) {
     if (_isInteractionGoingOn) return;
     final result = _updateSelectionHandlesPan(_globalToDocument(details.globalPosition));
+    // Notify drag end callback before clearing state
+    final anchor = handle == _TextSelectionPart.a ? _textSelA : _textSelB;
+    if (anchor != null) {
+      widget.params.textSelectionParams?.onSelectionHandlePanEnd?.call(anchor);
+    }
+
     _selPartMoving = _TextSelectionPart.none;
     _isSelectingAllText = false;
     if (!result) {
@@ -3959,12 +4159,23 @@ class _PdfViewerState extends State<PdfViewer>
   @override
   Future<void> clearTextSelection() async => _clearTextSelections();
 
-  void _setTextSelection(_PdfTextSelectionPoint a, _PdfTextSelectionPoint b) {
-    if (!a.isValid || !b.isValid) {
-      throw ArgumentError('Both selection points must be valid.');
+  @override
+  PdfTextSelectionRange? get textSelectionPointRange {
+    final a = _selA;
+    final b = _selB;
+    if (a == null || b == null) {
+      return null;
     }
-    _selA = a;
-    _selB = b;
+    return PdfTextSelectionRange.fromPoints(a, b);
+  }
+
+  @override
+  Future<void> setTextSelectionPointRange(PdfTextSelectionRange range) async {
+    if (_selA == range.start && _selB == range.end) {
+      return;
+    }
+    _selA = range.start;
+    _selB = range.end;
     if (_selA! > _selB!) {
       final temp = _selA;
       _selA = _selB;
@@ -4107,8 +4318,8 @@ class _PdfViewerState extends State<PdfViewer>
       }
       final range = PdfPageTextRange(pageText: text, start: f.index, end: f.end);
       final selectionRect = f.bounds.toRectInDocument(page: page, pageRect: pageRect);
-      _selA = _PdfTextSelectionPoint(text, f.index);
-      _selB = _PdfTextSelectionPoint(text, f.end - 1);
+      _selA = PdfTextSelectionPoint(text, f.index);
+      _selB = PdfTextSelectionPoint(text, f.end - 1);
       _textSelA = PdfTextSelectionAnchor(
         selectionRect,
         range.pageText.getFragmentForTextIndex(range.start)?.direction ?? PdfTextDirection.ltr,
@@ -4373,16 +4584,19 @@ class _PdfViewerTransformationController extends TransformationController {
 /// What selection part is moving by mouse-dragging/finger-panning.
 enum _TextSelectionPart { none, free, a, b }
 
-/// Represents a point in the text selection.
+/// Represents a point (combination of page and character index) in the text selection.
 /// It contains the [PdfPageText] and the index of the character in that text.
 @immutable
-class _PdfTextSelectionPoint {
-  const _PdfTextSelectionPoint(this.text, this.index);
+class PdfTextSelectionPoint {
+  const PdfTextSelectionPoint(this.text, this.index);
 
   /// The page text associated with this selection point.
   final PdfPageText text;
 
   /// The index of the character in the [text].
+  ///
+  /// Similar to [PdfPageText.getRangeFromAB], this index is inclusive; even for the end point of the selection.
+  /// In other words, for the end of the selection, the index points to the last selected character.
   final int index;
 
   /// Whether the index is valid in the [text].
@@ -4391,33 +4605,51 @@ class _PdfTextSelectionPoint {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    if (other is! _PdfTextSelectionPoint) return false;
+    if (other is! PdfTextSelectionPoint) return false;
     return text == other.text && index == other.index;
   }
 
-  bool operator <(_PdfTextSelectionPoint other) {
+  bool operator <(PdfTextSelectionPoint other) {
     if (text.pageNumber != other.text.pageNumber) {
       return text.pageNumber < other.text.pageNumber;
     }
     return index < other.index;
   }
 
-  bool operator >(_PdfTextSelectionPoint other) => !(this <= other);
+  bool operator >(PdfTextSelectionPoint other) => !(this <= other);
 
-  bool operator <=(_PdfTextSelectionPoint other) {
+  bool operator <=(PdfTextSelectionPoint other) {
     if (text.pageNumber != other.text.pageNumber) {
       return text.pageNumber < other.text.pageNumber;
     }
     return index <= other.index;
   }
 
-  bool operator >=(_PdfTextSelectionPoint other) => !(this < other);
+  bool operator >=(PdfTextSelectionPoint other) => !(this < other);
 
   @override
   int get hashCode => text.hashCode ^ index.hashCode;
 
   @override
-  String toString() => '$_PdfTextSelectionPoint(text: $text, index: $index)';
+  String toString() => '$PdfTextSelectionPoint(text: $text, index: $index)';
+}
+
+/// Represents a range of text selection between two points.
+class PdfTextSelectionRange {
+  /// Creates a [PdfTextSelectionRange] from two selection points.
+  ///
+  /// The points can be in any order; the constructor will ensure that [start] is less than or equal to [end].
+  PdfTextSelectionRange.fromPoints(PdfTextSelectionPoint a, PdfTextSelectionPoint b)
+    : start = a <= b ? a : b,
+      end = a <= b ? b : a;
+
+  /// The start point of the text selection.
+  final PdfTextSelectionPoint start;
+
+  /// The end point of the text selection.
+  ///
+  /// Please note that the index of this point is inclusive; it points to the last selected character.
+  final PdfTextSelectionPoint end;
 }
 
 /// Represents the anchor point of the text selection.

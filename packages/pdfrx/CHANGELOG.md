@@ -1,3 +1,11 @@
+# 2.2.10
+
+- Updated to pdfrx_engine 0.3.1 and pdfium_flutter 0.1.1
+
+# 2.2.9
+
+- Updated to pdfrx_engine 0.3.0
+
 # 2.2.8
 
 - NEW: `PdfDocument` now supports page re-arrangement and accepts `PdfPage` instances from other documents, enabling PDF combine/merge functionality

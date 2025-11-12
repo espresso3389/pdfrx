@@ -4,7 +4,7 @@
 
 [pdfrx_engine](https://pub.dartlang.org/packages/pdfrx_engine) is a platform-agnostic PDF rendering and manipulation engine built on top of [PDFium](https://pdfium.googlesource.com/pdfium/). It provides low-level PDF document APIs for viewing, editing, combining PDF documents, and importing images without any Flutter dependencies, making it suitable for use in pure Dart applications, CLI tools, or server-side PDF processing.
 
-This package is a part of [pdfrx](https://pub.dartlang.org/packages/pdfrx) Flutter plugin, which adds UI widgets and Flutter-specific features on top of this engine.
+This package depends on [pdfium_dart](https://pub.dartlang.org/packages/pdfium_dart) for PDFium FFI bindings and is a part of [pdfrx](https://pub.dartlang.org/packages/pdfrx) Flutter plugin, which adds UI widgets and Flutter-specific features on top of this engine.
 
 ## Multi-platform support
 
@@ -51,13 +51,14 @@ You should call `pdfrxInitialize()` before using any PDF engine APIs to ensure t
     - [PdfDocument.openUri](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openUri.html) - Open PDF from stream (advanced use case)
     - [PdfDocument.openAsset](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openAsset.html) - Open PDF from Flutter asset
     - [PdfDocument.createNew](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/createNew.html) - Create new empty PDF document
-    - [PdfDocument.createFromImage](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/createFromImage.html) - Create PDF from image
+    - [PdfDocument.createFromJpegData](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/createFromJpegData.html) - Create PDF from JPEG data
   - [PdfPage](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage-class.html) - Page representation and rendering
     - [PdfPage.render](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/render.html) - Render page to bitmap
     - [PdfPage.loadText](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/loadText.html) - Extract text content from page
     - [PdfPage.loadLinks](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/loadLinks.html) - Extract links from page
 - PDFium bindings
-  - For advanced use cases, you can access the raw PDFium bindings via `package:pdfrx_engine/src/native/pdfium_bindings.dart`
+  - For advanced use cases, you can access the raw PDFium bindings via `package:pdfium_dart/pdfium_dart.dart`
+  - The bindings are provided by the [pdfium_dart](https://pub.dartlang.org/packages/pdfium_dart) package
   - Note: Direct use of PDFium bindings is not recommended for most use cases
 
 ## When to Use pdfrx_engine vs. pdfrx

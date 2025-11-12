@@ -3,14 +3,13 @@ import 'dart:ffi' as ffi;
 import 'dart:ffi';
 import 'dart:io';
 
+import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
+
 import '../pdfrx.dart';
-import 'pdfium_bindings.dart' as pdfium_bindings;
 
 /// Get the module file name for pdfium.
 String _getModuleFileName() {
-  if (Pdfrx.pdfiumModulePath != null) return Pdfrx.pdfiumModulePath!;
   if (Platform.isAndroid) return 'libpdfium.so';
-  if (Platform.isIOS || Platform.isMacOS) return 'pdfrx.framework/pdfrx';
   if (Platform.isWindows) return 'pdfium.dll';
   if (Platform.isLinux) {
     return '${File(Platform.resolvedExecutable).parent.path}/lib/libpdfium.so';
@@ -19,22 +18,26 @@ String _getModuleFileName() {
 }
 
 DynamicLibrary _getModule() {
+  // If the module path is explicitly specified, use it.
+  if (Pdfrx.pdfiumModulePath != null) {
+    return DynamicLibrary.open(Pdfrx.pdfiumModulePath!);
+  }
+  // For iOS/macOS, we assume pdfium is already loaded (or statically linked) in the process.
   if (Platform.isIOS || Platform.isMacOS) {
-    // NOTE: with SwiftPM, the library is embedded in the app bundle (iOS/macOS)
     return DynamicLibrary.process();
   }
   return DynamicLibrary.open(_getModuleFileName());
 }
 
-pdfium_bindings.pdfium? _pdfium;
+pdfium_bindings.PDFium? _pdfium;
 
 /// Loaded PDFium module.
-pdfium_bindings.pdfium get pdfium {
-  _pdfium ??= pdfium_bindings.pdfium(_getModule());
+pdfium_bindings.PDFium get pdfium {
+  _pdfium ??= pdfium_bindings.PDFium(_getModule());
   return _pdfium!;
 }
 
-set pdfium(pdfium_bindings.pdfium value) {
+set pdfium(pdfium_bindings.PDFium value) {
   _pdfium = value;
 }
 

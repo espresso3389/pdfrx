@@ -1808,13 +1808,26 @@ function _insertImportedPage(destDocHandle, srcDocHandle, srcPageIndex, destInde
 function encodePdf(params) {
   const { docHandle, incremental = false, removeSecurity = false } = params;
 
-  const chunks = [];
+  let buffer = new Uint8Array(1024 * 1024); // Start with 1MB buffer
+  let totalSize = 0;
 
   // Create a callback function that will be called by PDFium to write data
   const writeCallback = Pdfium.addFunction((pThis, pData, size) => {
     void pThis; // Suppress unused parameter warning
+
+    // Grow buffer if needed
+    if (totalSize + size > buffer.length) {
+      const newSize = Math.max(buffer.length * 2, totalSize + size);
+      const newBuffer = new Uint8Array(newSize);
+      newBuffer.set(buffer.subarray(0, totalSize));
+      buffer = newBuffer;
+    }
+
+    // Copy data directly into buffer
     const chunk = new Uint8Array(Pdfium.memory.buffer, pData, size);
-    chunks.push(new Uint8Array(chunk)); // Copy the data
+    buffer.set(chunk, totalSize);
+    totalSize += size;
+
     return size;
   }, 'iiii');
 
@@ -1840,14 +1853,8 @@ function encodePdf(params) {
       throw new Error('FPDF_SaveAsCopy failed');
     }
 
-    // Combine all chunks into a single ArrayBuffer
-    const totalSize = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-    const combined = new Uint8Array(totalSize);
-    let offset = 0;
-    for (const chunk of chunks) {
-      combined.set(chunk, offset);
-      offset += chunk.length;
-    }
+    // Trim buffer to actual size
+    const combined = buffer.subarray(0, totalSize);
 
     return {
       result: { data: combined.buffer },

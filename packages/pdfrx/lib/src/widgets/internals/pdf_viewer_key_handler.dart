@@ -25,6 +25,13 @@ class PdfViewerKeyHandler extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final childBuilder = Builder(
+      builder: (context) => ListenableBuilder(listenable: Focus.of(context), builder: (context, _) => child),
+    );
+    if (!params.enabled) {
+      return childBuilder;
+    }
+
     return Focus(
       focusNode: params.focusNode,
       parentNode: params.parentNode,
@@ -41,9 +48,7 @@ class PdfViewerKeyHandler extends StatelessWidget {
         }
         return KeyEventResult.ignored;
       },
-      child: Builder(
-        builder: (context) => ListenableBuilder(listenable: Focus.of(context), builder: (context, _) => child),
-      ),
+      child: childBuilder,
     );
   }
 }

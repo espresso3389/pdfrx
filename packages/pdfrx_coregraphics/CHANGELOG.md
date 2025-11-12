@@ -1,3 +1,7 @@
+## 0.1.8
+
+- Updated to pdfrx_engine 0.3.0
+
 ## 0.1.7
 
 - Updated to pdfrx_engine 0.2.4

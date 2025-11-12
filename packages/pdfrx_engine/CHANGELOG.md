@@ -1,3 +1,14 @@
+## 0.3.1
+
+- Updated to pdfium_dart 0.1.1
+
+## 0.3.0
+
+- NEW: `PdfDocument.createFromJpegData()` - Create PDF documents from JPEG image data
+- CHANGED: Now uses `pdfium_dart` package for PDFium FFI bindings instead of bundled bindings
+- CHANGED: File structure refactoring - moved from monolithic API file to separate files for better organization
+- Dependency updates
+
 ## 0.2.4
 
 - NEW: `PdfDocument` now supports page re-arrangement and accepts `PdfPage` instances from other documents, enabling PDF combine/merge functionality

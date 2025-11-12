@@ -1,0 +1,63 @@
+name: pdfium_dart
+description: Dart FFI bindings for PDFium library. Provides low-level access to PDFium's C API from Dart.
+version: 0.1.1
+homepage: https://github.com/espresso3389/pdfrx
+repository: https://github.com/espresso3389/pdfrx/tree/master/packages/pdfium_dart
+issue_tracker: https://github.com/espresso3389/pdfrx/issues
+
+environment:
+  sdk: ^3.9.0
+resolution: workspace
+
+dependencies:
+  archive: ^4.0.7
+  ffi: ^2.1.4
+  http: ^1.5.0
+  path: ^1.9.1
+
+dev_dependencies:
+  ffigen: ^19.1.0
+  lints: ^6.0.0
+  test: ^1.26.2
+
+# To generate the bindings, firstly you must run the test once to download PDFium headers:
+#  dart run test
+# then run the following command:
+#  dart run ffigen
+ffigen:
+  output:
+    bindings: 'lib/src/pdfium_bindings.dart'
+  description: 'Bindings for PDFium C API'
+  headers:
+    entry-points:
+      - 'test/.tmp/**/fpdf_signature.h'
+      - 'test/.tmp/**/fpdf_sysfontinfo.h'
+      - 'test/.tmp/**/fpdf_javascript.h'
+      - 'test/.tmp/**/fpdf_text.h'
+      - 'test/.tmp/**/fpdf_searchex.h'
+      - 'test/.tmp/**/fpdf_progressive.h'
+      - 'test/.tmp/**/fpdfview.h'
+      - 'test/.tmp/**/fpdf_edit.h'
+      - 'test/.tmp/**/fpdf_attachment.h'
+      - 'test/.tmp/**/fpdf_annot.h'
+      - 'test/.tmp/**/fpdf_catalog.h'
+      - 'test/.tmp/**/fpdf_ppo.h'
+      - 'test/.tmp/**/fpdf_formfill.h'
+      - 'test/.tmp/**/fpdf_save.h'
+      - 'test/.tmp/**/fpdf_doc.h'
+      - 'test/.tmp/**/fpdf_structtree.h'
+      - 'test/.tmp/**/fpdf_dataavail.h'
+      - 'test/.tmp/**/fpdf_fwlevent.h'
+      - 'test/.tmp/**/fpdf_ext.h'
+      - 'test/.tmp/**/fpdf_transformpage.h'
+      - 'test/.tmp/**/fpdf_flatten.h'
+      - 'test/.tmp/**/fpdf_thumbnail.h'
+    include-directives:
+      - 'test/.tmp/**/**'
+  preamble: |
+    // ignore_for_file: unused_field
+    // dart format off
+  name: 'PDFium'
+  comments:
+    style: any
+    length: full

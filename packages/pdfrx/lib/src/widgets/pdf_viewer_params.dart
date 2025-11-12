@@ -825,7 +825,11 @@ class PdfTextSelectionParams {
     this.enableSelectionHandles,
     this.showContextMenuAutomatically,
     this.buildSelectionHandle,
+    this.calcSelectionHandleOffset,
     this.onTextSelectionChange,
+    this.onSelectionHandlePanStart,
+    this.onSelectionHandlePanUpdate,
+    this.onSelectionHandlePanEnd,
     this.magnifier,
   });
 
@@ -851,8 +855,23 @@ class PdfTextSelectionParams {
   /// - If the function is null, the default anchor handle will be used.
   final PdfViewerTextSelectionAnchorHandleBuilder? buildSelectionHandle;
 
+  /// Optional callback to calculate the offset for the anchor handles.
+  ///
+  /// This callback is called for each anchor handle to determine the offset
+  /// to apply to the handle's default position. If null, defaults to [Offset.zero].
+  final PdfViewerCalcSelectionAnchorHandleOffsetFunction? calcSelectionHandleOffset;
+
   /// Function to be notified when the text selection is changed.
   final PdfViewerTextSelectionChangeCallback? onTextSelectionChange;
+
+  /// Callback for when a selection handle pan starts.
+  final PdfViewerSelectionHandlePanStartCallback? onSelectionHandlePanStart;
+
+  /// Callback for when a selection handle is being panned.
+  final PdfViewerSelectionHandlePanUpdateCallback? onSelectionHandlePanUpdate;
+
+  /// Callback for when a selection handle pan ends.
+  final PdfViewerSelectionHandlePanEndCallback? onSelectionHandlePanEnd;
 
   /// Parameters for the magnifier.
   final PdfViewerSelectionMagnifierParams? magnifier;
@@ -863,7 +882,11 @@ class PdfTextSelectionParams {
     return other is PdfTextSelectionParams &&
         other.enabled == enabled &&
         other.buildSelectionHandle == buildSelectionHandle &&
+        other.calcSelectionHandleOffset == calcSelectionHandleOffset &&
         other.onTextSelectionChange == onTextSelectionChange &&
+        other.onSelectionHandlePanStart == onSelectionHandlePanStart &&
+        other.onSelectionHandlePanUpdate == onSelectionHandlePanUpdate &&
+        other.onSelectionHandlePanEnd == onSelectionHandlePanEnd &&
         other.enableSelectionHandles == enableSelectionHandles &&
         other.showContextMenuAutomatically == showContextMenuAutomatically &&
         other.magnifier == magnifier;
@@ -873,7 +896,11 @@ class PdfTextSelectionParams {
   int get hashCode =>
       enabled.hashCode ^
       buildSelectionHandle.hashCode ^
+      calcSelectionHandleOffset.hashCode ^
       onTextSelectionChange.hashCode ^
+      onSelectionHandlePanStart.hashCode ^
+      onSelectionHandlePanUpdate.hashCode ^
+      onSelectionHandlePanEnd.hashCode ^
       enableSelectionHandles.hashCode ^
       showContextMenuAutomatically.hashCode ^
       magnifier.hashCode;
@@ -1000,12 +1027,35 @@ typedef PdfViewerTextSelectionAnchorHandleBuilder =
       PdfViewerTextSelectionAnchorHandleState state,
     );
 
+/// Function to calculate the offset for an anchor handle.
+///
+/// This callback is called for each anchor handle to determine the offset
+/// to apply to the handle's default position.
+///
+/// The callback receives the [PdfTextSelectionAnchor] and should return an [Offset]
+/// that positions the handle widget relative to the anchor point:
+/// - For anchor A (LTR): default anchor point is text's top-left, widget's bottom-right
+/// - For anchor B (LTR): default anchor point is text's bottom-right, widget's top-left
+typedef PdfViewerCalcSelectionAnchorHandleOffsetFunction =
+    Offset Function(BuildContext context, PdfTextSelectionAnchor anchor, PdfViewerTextSelectionAnchorHandleState state);
+
 /// Function to be notified when the text selection is changed.
 ///
 /// [textSelection] contains the selected text range on each page.
 typedef PdfViewerTextSelectionChangeCallback = void Function(PdfTextSelection textSelection);
 
-/// Text selection
+/// Callback for when a selection handle pan starts
+typedef PdfViewerSelectionHandlePanStartCallback = void Function(PdfTextSelectionAnchor anchor);
+
+/// Callback for when a selection handle is being panned
+typedef PdfViewerSelectionHandlePanUpdateCallback = void Function(PdfTextSelectionAnchor anchor, Offset delta);
+
+/// Callback for when a selection handle pan ends
+typedef PdfViewerSelectionHandlePanEndCallback = void Function(PdfTextSelectionAnchor anchor);
+
+/// Interface for text selection information.
+///
+/// To perform text selection actions, use [PdfTextSelectionDelegate].
 abstract class PdfTextSelection {
   /// Whether the text selection is enabled by the configuration.
   ///
@@ -1021,6 +1071,11 @@ abstract class PdfTextSelection {
   /// Whether the viewer is currently selecting all text.
   bool get isSelectingAllText;
 
+  /// Get the text selection point range.
+  ///
+  /// null if there is no text selected.
+  PdfTextSelectionRange? get textSelectionPointRange;
+
   /// Get the selected text.
   ///
   /// Although the use of this property is not restricted by [isCopyAllowed]
@@ -1028,10 +1083,15 @@ abstract class PdfTextSelection {
   Future<String> getSelectedText();
 
   /// Get the selected text ranges.
+  ///
+  /// Although the use of this property is not restricted by [isCopyAllowed]
+  /// but you have to ensure that your use of the text does not violate [isCopyAllowed] condition.
   Future<List<PdfPageTextRange>> getSelectedTextRanges();
 }
 
 /// Delegate for text selection actions.
+///
+/// You can obtain the instance via [PdfViewerController.textSelectionDelegate].
 abstract class PdfTextSelectionDelegate implements PdfTextSelection {
   /// Copy the selected text.
   ///
@@ -1053,6 +1113,13 @@ abstract class PdfTextSelectionDelegate implements PdfTextSelection {
   ///
   /// Please note that [position] is in document coordinates.
   Future<void> selectWord(Offset position);
+
+  /// Set the text selection point range.
+  ///
+  /// This function will update the current text selection to the specified range.
+  ///
+  /// See also [textSelectionPointRange].
+  Future<void> setTextSelectionPointRange(PdfTextSelectionRange range);
 
   /// Convert document coordinates to local coordinates and vice versa.
   PdfViewerCoordinateConverter get doc2local;
@@ -1081,7 +1148,10 @@ class PdfViewerSelectionMagnifierParams {
     this.magnifierSizeThreshold = 72,
     this.getMagnifierRectForAnchor,
     this.builder,
-    this.shouldBeShownForAnchor,
+    this.shouldShowMagnifier,
+    this.calcPosition,
+    this.animationDuration = const Duration(milliseconds: 100),
+    this.shouldShowMagnifierForAnchor,
     this.maxImageBytesCachedOnMemory = defaultMaxImageBytesCachedOnMemory,
   });
 
@@ -1104,10 +1174,46 @@ class PdfViewerSelectionMagnifierParams {
   /// Function to build the magnifier widget.
   final PdfViewerMagnifierBuilder? builder;
 
+  /// Function to control magnifier visibility.
+  ///
+  /// This allows for fine grained control of when the magnifier should be shown during text selection, for example
+  /// to coordinate with custom animations.
+  /// If null, the magnifier is shown whenever a selection handle is being dragged.
+  ///
+  /// Return true to show the magnifier, false to hide it.
+  ///
+  /// Even if this function returns true, the magnifier may not be shown if other conditions are not met
+  /// (e.g., if [enabled] is false or if the character height is above [magnifierSizeThreshold],
+  /// or [shouldShowMagnifierForAnchor] returns false).
+  final bool Function()? shouldShowMagnifier;
+
+  /// Function to calculate the magnifier widget position.
+  ///
+  /// When provided, this function will be used to determine where to place
+  /// the magnifier widget in the viewport. If null, pdfrx uses its default
+  /// positioning logic.
+  ///
+  /// This can also be used for context menu positioning or other overlay widgets.
+  final PdfViewerCalcMagnifierPositionFunction? calcPosition;
+
+  /// Duration for the magnifier position animation.
+  ///
+  /// This controls the animation duration when the magnifier position changes
+  /// as the user drags the selection handle. Set to [Duration.zero] to disable
+  /// the position animation.
+  ///
+  /// Default is 100 milliseconds.
+  final Duration animationDuration;
+
   /// Function to determine whether the magnifier should be shown based on conditions such as zoom level.
   ///
   /// If [enabled] is false, this function is not called.
-  final PdfViewerMagnifierShouldBeShownFunction? shouldBeShownForAnchor;
+  ///
+  /// If the function is null, the magnifier is shown if the character height is smaller than
+  /// [magnifierSizeThreshold].
+  ///
+  /// Please note that the function is called after evaluating [enabled] and [shouldShowMagnifier].
+  final PdfViewerMagnifierShouldBeShownFunction? shouldShowMagnifierForAnchor;
 
   /// The maximum number of image bytes to be cached on memory.
   ///
@@ -1123,8 +1229,11 @@ class PdfViewerSelectionMagnifierParams {
         other.magnifierSizeThreshold == magnifierSizeThreshold &&
         other.getMagnifierRectForAnchor == getMagnifierRectForAnchor &&
         other.builder == builder &&
-        other.shouldBeShownForAnchor == shouldBeShownForAnchor &&
-        other.maxImageBytesCachedOnMemory == maxImageBytesCachedOnMemory;
+        other.shouldShowMagnifierForAnchor == shouldShowMagnifierForAnchor &&
+        other.maxImageBytesCachedOnMemory == maxImageBytesCachedOnMemory &&
+        other.calcPosition == calcPosition &&
+        other.shouldShowMagnifier == shouldShowMagnifier &&
+        other.animationDuration == animationDuration;
   }
 
   @override
@@ -1133,31 +1242,51 @@ class PdfViewerSelectionMagnifierParams {
       magnifierSizeThreshold.hashCode ^
       getMagnifierRectForAnchor.hashCode ^
       builder.hashCode ^
-      shouldBeShownForAnchor.hashCode ^
-      maxImageBytesCachedOnMemory.hashCode;
+      shouldShowMagnifierForAnchor.hashCode ^
+      maxImageBytesCachedOnMemory.hashCode ^
+      calcPosition.hashCode ^
+      shouldShowMagnifier.hashCode ^
+      animationDuration.hashCode;
 }
 
 /// Function to get the magnifier rectangle for the anchor.
 ///
-/// The following fragment illustrates one example of the code to calculate where on the document the magnifier should
-/// be shown for:
+/// This function determines what part of the PDF document to show in the magnifier.
 ///
+/// Parameters:
+/// - [anchor]: The text selection anchor with character information
+/// - [params]: Magnifier parameters
+/// - [clampedPointerPosition]: The clamped pointer position in viewport coordinates.
+///   This is the raw pointer position adjusted for viewport edge clamping to prevent
+///   content sliding when the magnifier widget itself is clamped at the viewport edge.
+///   Use [PdfViewerController.globalToDocument] to convert to document coordinates if needed.
+///
+/// Returns a [Rect] in document coordinates representing the area to magnify.
+///
+/// Example:
 ///```dart
-/// getMagnifierRectForAnchor: (textAnchor, params) {
+/// getMagnifierRectForAnchor: (textAnchor, params, clampedPointerPosition) {
 ///   final c = textAnchor.page.charRects[textAnchor.index];
 ///   final baseUnit = switch (textAnchor.direction) {
 ///     PdfTextDirection.ltr || PdfTextDirection.rtl || PdfTextDirection.unknown => c.height,
 ///     PdfTextDirection.vrtl => c.width,
 ///   };
+///   // Convert to document coordinates for positioning
+///   final pointerInDocument = controller.globalToDocument(clampedPointerPosition) ?? textAnchor.anchorPoint;
 ///   return Rect.fromLTRB(
-///     textAnchor.rect.left - baseUnit * 2,
-///     textAnchor.rect.top - baseUnit * .2,
-///     textAnchor.rect.right + baseUnit * 2,
-///     textAnchor.rect.bottom + baseUnit * .2,
-/// );
+///     pointerInDocument.dx - baseUnit * 2.5,
+///     textAnchor.rect.top - baseUnit * 0.5,
+///     pointerInDocument.dx + baseUnit * 2.5,
+///     textAnchor.rect.bottom + baseUnit * 0.5,
+///  );
+/// }
 ///```
 typedef PdfViewerGetMagnifierRectForAnchor =
-    Rect Function(PdfTextSelectionAnchor anchor, PdfViewerSelectionMagnifierParams params);
+    Rect Function(
+      PdfTextSelectionAnchor anchor,
+      PdfViewerSelectionMagnifierParams params,
+      Offset clampedPointerPosition,
+    );
 
 /// Function to build the magnifier widget.
 ///
@@ -1172,11 +1301,13 @@ typedef PdfViewerGetMagnifierRectForAnchor =
 /// [magnifierContent] is the widget that contains the magnified content. And you can embed it into your widget tree.
 /// [magnifierContentSize] is the size of the magnified content in document coordinates; you can use the size to know
 /// the aspect ratio of the magnified content.
+/// [pointerPosition] is the pointer/finger position in viewport coordinates.
+/// [magnifierPosition] is the calculated position for the magnifier widget in viewport coordinates.
 ///
 /// The following fragment illustrates how to build a magnifier widget with a border and rounded corners:
 ///
 /// ```dart
-/// builder: (context, textAnchor, params, magnifierContent, magnifierContentSize) {
+/// builder: (context, textAnchor, params, magnifierContent, magnifierContentSize, pointerPosition, magnifierPosition) {
 ///   // calculate the scale to fit the magnifier content fit into 80x80 box
 ///   final scale = 80 / min(magnifierContentSize.width, magnifierContentSize.height);
 ///   return Container(
@@ -1201,6 +1332,8 @@ typedef PdfViewerMagnifierBuilder =
       PdfViewerSelectionMagnifierParams params,
       Widget magnifierContent,
       Size magnifierContentSize,
+      Offset pointerPosition,
+      Offset magnifierPosition,
     );
 
 /// Function to determine whether the magnifier should be shown or not.
@@ -1221,6 +1354,33 @@ typedef PdfViewerMagnifierShouldBeShownFunction =
       PdfViewerController controller,
       PdfViewerSelectionMagnifierParams params,
     );
+
+/// Function to calculate the position of the magnifier widget in viewport coordinates.
+///
+/// This callback allows custom positioning logic for the magnifier.
+/// If null, pdfrx uses its default positioning algorithm that handles different text
+/// directions (LTR, RTL, VRTL) and viewport edge cases.
+///
+/// Parameters:
+/// - [widgetSize]: The size of the magnifier widget (null if not yet measured)
+/// - [anchorLocalRect]: The anchor's character rectangle in viewport coordinates
+/// - [handleLocalRect]: The selection handle rectangle in viewport coordinates (may be null)
+/// - [textAnchor]: The text selection anchor with character information (may be null)
+/// - [pointerPosition]: The pointer/finger position in viewport coordinates
+/// - [margin]: Default margin from viewport edges
+/// - [marginOnTop]: Optional custom margin when magnifier is positioned above text
+/// - [marginOnBottom]: Optional custom margin when magnifier is positioned below text
+typedef PdfViewerCalcMagnifierPositionFunction =
+    Offset? Function(
+      Size? widgetSize,
+      Rect anchorLocalRect,
+      Rect? handleLocalRect,
+      PdfTextSelectionAnchor textAnchor,
+      Offset pointerPosition, {
+      double margin,
+      double? marginOnTop,
+      double? marginOnBottom,
+    });
 
 /// Function to notify that the document is loaded/changed.
 typedef PdfViewerDocumentChangedCallback = void Function(PdfDocument? document);
@@ -1504,12 +1664,14 @@ typedef PdfViewerOnKeyCallback =
 /// please refer to the documentation of [Focus] widget.
 class PdfViewerKeyHandlerParams {
   const PdfViewerKeyHandlerParams({
+    this.enabled = true,
     this.autofocus = false,
     this.canRequestFocus = true,
     this.focusNode,
     this.parentNode,
   });
 
+  final bool enabled;
   final bool autofocus;
   final bool canRequestFocus;
   final FocusNode? focusNode;
@@ -1519,14 +1681,16 @@ class PdfViewerKeyHandlerParams {
   bool operator ==(covariant PdfViewerKeyHandlerParams other) {
     if (identical(this, other)) return true;
 
-    return other.autofocus == autofocus &&
+    return other.enabled == enabled &&
+        other.autofocus == autofocus &&
         other.canRequestFocus == canRequestFocus &&
         other.focusNode == focusNode &&
         other.parentNode == parentNode;
   }
 
   @override
-  int get hashCode => autofocus.hashCode ^ canRequestFocus.hashCode ^ focusNode.hashCode ^ parentNode.hashCode;
+  int get hashCode =>
+      enabled.hashCode ^ autofocus.hashCode ^ canRequestFocus.hashCode ^ focusNode.hashCode ^ parentNode.hashCode;
 }
 
 enum PdfViewerGeneralTapType {

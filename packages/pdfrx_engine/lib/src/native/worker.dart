@@ -6,27 +6,27 @@ import 'dart:isolate';
 import 'package:ffi/ffi.dart';
 
 import '../pdfrx.dart';
-import 'apple_direct_lookup.dart';
 
 typedef PdfrxComputeCallback<M, R> = FutureOr<R> Function(M message);
 
 /// Background worker based on Dart [Isolate].
 class BackgroundWorker {
-  BackgroundWorker._(this._receivePort, this._sendPort);
-  final ReceivePort _receivePort;
+  BackgroundWorker._(this._sendPort);
+
+  static final instance = create(debugName: 'PdfrxEngineWorker');
+
   final SendPort _sendPort;
   bool _isDisposed = false;
 
   static Future<BackgroundWorker> create({String? debugName}) async {
     final receivePort = ReceivePort();
     await Isolate.spawn(_workerEntry, receivePort.sendPort, debugName: debugName);
-    final worker = BackgroundWorker._(receivePort, await receivePort.first as SendPort);
+    final worker = BackgroundWorker._(await receivePort.first as SendPort);
 
     // propagate the pdfium module path to the worker
     worker.compute((params) {
       Pdfrx.pdfiumModulePath = params.modulePath;
       Pdfrx.pdfiumNativeBindings = params.bindings;
-      setupAppleDirectLookupIfApplicable();
     }, (modulePath: Pdfrx.pdfiumModulePath, bindings: Pdfrx.pdfiumNativeBindings));
 
     return worker;
@@ -96,7 +96,6 @@ class BackgroundWorker {
     try {
       _isDisposed = true;
       _sendPort.send(null);
-      _receivePort.close();
     } catch (e) {
       developer.log('Failed to dispose worker (possible double-dispose?): $e');
     }
