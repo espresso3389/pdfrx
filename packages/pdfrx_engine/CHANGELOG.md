@@ -1,3 +1,10 @@
+## 0.3.2
+
+- Updated to `pdfium_dart` 0.1.2.
+- Improved cache directory management with support for `PDFRX_CACHE_DIR` environment variable.
+- Better default cache locations: `~/.pdfrx` on Unix-like systems, `%LOCALAPPDATA%\pdfrx` on Windows.
+- Fallback to system temp directory for backward compatibility.
+
 ## 0.3.1
 
 - Updated to pdfium_dart 0.1.1
