@@ -271,7 +271,11 @@ class _PdfViewerState extends State<PdfViewer>
   bool _isInteractionGoingOn = false;
 
   BuildContext? _contextForFocusNode;
+
+  /// last pointer location in viewer local coordinates
   Offset _pointerOffset = Offset.zero;
+
+  /// last pointer device kind to differentiate between mouse and touch
   PointerDeviceKind? _pointerDeviceKind;
 
   // boundary margins adjusted to center content that's smaller than
@@ -1995,16 +1999,26 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// Converts the global position to the local position in the PDF document structure.
   Offset? _globalToDocument(Offset global) {
-    final ratio = 1 / _currentZoom;
-    return _globalToLocal(
-      global,
-    )?.translate(-_txController.value.xZoomed, -_txController.value.yZoomed).scale(ratio, ratio);
+    final local = _globalToLocal(global);
+    if (local == null) return null;
+    return _localToDocument(local);
   }
 
   /// Converts the local position in the PDF document structure to the global position.
-  Offset? _documentToGlobal(Offset document) => _localToGlobal(
-    document.scale(_currentZoom, _currentZoom).translate(_txController.value.xZoomed, _txController.value.yZoomed),
-  );
+  Offset? _documentToGlobal(Offset document) => _localToGlobal((_documentToLocal(document)));
+
+  /// Converts the local position in the widget to the local position in the PDF document structure.
+  Offset _localToDocument(Offset local) {
+    final ratio = 1 / _currentZoom;
+    return local.translate(-_txController.value.xZoomed, -_txController.value.yZoomed).scale(ratio, ratio);
+  }
+
+  /// Converts the local position in the PDF document structure to the local position in the widget.
+  Offset _documentToLocal(Offset document) {
+    return document
+        .scale(_currentZoom, _currentZoom)
+        .translate(_txController.value.xZoomed, _txController.value.yZoomed);
+  }
 
   FocusNode? _getFocusNode() {
     return _contextForFocusNode != null ? Focus.of(_contextForFocusNode!) : null;
@@ -4039,6 +4053,12 @@ class PdfViewerController extends ValueListenable<Matrix4> {
 
   /// Converts the local position in the PDF document structure to the global position.
   Offset? documentToGlobal(Offset document) => _state._documentToGlobal(document);
+
+  /// Converts local coordinates to document coordinates.
+  Offset localToDocument(Offset local) => _state._localToDocument(local);
+
+  /// Converts document coordinates to local coordinates.
+  Offset documentToLocal(Offset document) => _state._documentToLocal(document);
 
   /// Converts document coordinates to local coordinates.
   PdfViewerCoordinateConverter get doc2local => _state;
