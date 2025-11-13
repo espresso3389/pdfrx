@@ -50,7 +50,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
   final _markers = <int, List<Marker>>{};
   List<PdfPageTextRange>? textSelections;
 
-  bool _isDraggingHandle = false; // True while actively dragging, false on release
+  bool _isDraggingHandle = false;
   // Magnifier animation controller
   late final AnimationController _magnifierAnimController = AnimationController(
     duration: const Duration(milliseconds: 250),
@@ -314,123 +314,123 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                           onTextSelectionChange: (textSelection) async {
                             textSelections = await textSelection.getSelectedTextRanges();
                           },
-                          magnifier: PdfViewerSelectionMagnifierParams(
-                            shouldShowMagnifierForAnchor: (textAnchor, controller, params) => true,
-                            getMagnifierRectForAnchor: (textAnchor, params, clampedPointerPosition) {
-                              final c = textAnchor.page.charRects[textAnchor.index];
-                              final baseUnit = switch (textAnchor.direction) {
-                                PdfTextDirection.ltr || PdfTextDirection.rtl || PdfTextDirection.unknown => c.height,
-                                PdfTextDirection.vrtl => c.width,
-                              };
+                          // magnifier: PdfViewerSelectionMagnifierParams(
+                          //   shouldShowMagnifierForAnchor: (textAnchor, controller, params) => true,
+                          //   getMagnifierRectForAnchor: (textAnchor, params, clampedPointerPosition) {
+                          //     final c = textAnchor.page.charRects[textAnchor.index];
+                          //     final baseUnit = switch (textAnchor.direction) {
+                          //       PdfTextDirection.ltr || PdfTextDirection.rtl || PdfTextDirection.unknown => c.height,
+                          //       PdfTextDirection.vrtl => c.width,
+                          //     };
 
-                              // Convert clamped pointer position from viewport to document coordinates
-                              final pointerInDocument = controller.localToDocument(clampedPointerPosition);
-                              return Rect.fromLTRB(
-                                pointerInDocument.dx - baseUnit * 2.5,
-                                textAnchor.rect.top - baseUnit * 0.5,
-                                pointerInDocument.dx + baseUnit * 2.5,
-                                textAnchor.rect.bottom + baseUnit * 0.5,
-                              );
-                            },
-                            builder:
-                                (
-                                  context,
-                                  textAnchor,
-                                  params,
-                                  magnifierContent,
-                                  magnifierContentSize,
-                                  pointerPosition,
-                                  magnifierPosition,
-                                ) {
-                                  // calculate the scale to fit the magnifier content fit into 80x80 box
-                                  final contentScale =
-                                      80 / math.min(magnifierContentSize.width, magnifierContentSize.height);
+                          //     // Convert clamped pointer position from viewport to document coordinates
+                          //     final pointerInDocument = controller.localToDocument(clampedPointerPosition);
+                          //     return Rect.fromLTRB(
+                          //       pointerInDocument.dx - baseUnit * 2.5,
+                          //       textAnchor.rect.top - baseUnit * 0.5,
+                          //       pointerInDocument.dx + baseUnit * 2.5,
+                          //       textAnchor.rect.bottom + baseUnit * 0.5,
+                          //     );
+                          //   },
+                          //   builder:
+                          //       (
+                          //         context,
+                          //         textAnchor,
+                          //         params,
+                          //         magnifierContent,
+                          //         magnifierContentSize,
+                          //         pointerPosition,
+                          //         magnifierPosition,
+                          //       ) {
+                          //         // calculate the scale to fit the magnifier content fit into 80x80 box
+                          //         final contentScale =
+                          //             80 / math.min(magnifierContentSize.width, magnifierContentSize.height);
 
-                                  // Calculate the actual magnifier widget size (with border radius padding)
-                                  final magnifierWidgetSize = Size(
-                                    magnifierContentSize.width * contentScale,
-                                    magnifierContentSize.height * contentScale,
-                                  );
+                          //         // Calculate the actual magnifier widget size (with border radius padding)
+                          //         final magnifierWidgetSize = Size(
+                          //           magnifierContentSize.width * contentScale,
+                          //           magnifierContentSize.height * contentScale,
+                          //         );
 
-                                  // Start animation when magnifier first appears and capture initial pointer position
-                                  if (_magnifierAnimController.status == AnimationStatus.dismissed) {
-                                    _magnifierAnimController.forward();
-                                  }
+                          //         // Start animation when magnifier first appears and capture initial pointer position
+                          //         if (_magnifierAnimController.status == AnimationStatus.dismissed) {
+                          //           _magnifierAnimController.forward();
+                          //         }
 
-                                  final centeredStartOffset =
-                                      pointerPosition -
-                                      Offset(magnifierWidgetSize.width / 2, magnifierWidgetSize.height / 2);
-                                  final delta = centeredStartOffset - magnifierPosition;
+                          //         final centeredStartOffset =
+                          //             pointerPosition -
+                          //             Offset(magnifierWidgetSize.width / 2, magnifierWidgetSize.height / 2);
+                          //         final delta = centeredStartOffset - magnifierPosition;
 
-                                  return AnimatedBuilder(
-                                    animation: _magnifierAnimController,
-                                    builder: (context, child) {
-                                      final currentProgress = _magnifierAnimController.value;
-                                      return Transform.translate(
-                                        offset: delta * (1 - currentProgress),
-                                        child: Transform.scale(
-                                          scale: currentProgress,
-                                          alignment: Alignment.center,
-                                          child: child!,
-                                        ),
-                                      );
-                                    },
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(25),
-                                        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8, spreadRadius: 2)],
-                                      ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(25),
-                                        child: SizedBox(
-                                          width: magnifierContentSize.width * contentScale,
-                                          height: magnifierContentSize.height * contentScale,
-                                          child: magnifierContent,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                            calcPosition:
-                                (
-                                  widgetSize,
-                                  anchorLocalRect,
-                                  handleLocalRect,
-                                  textAnchor,
-                                  pointerPosition, {
-                                  margin = 10.0,
-                                  marginOnTop,
-                                  marginOnBottom,
-                                }) {
-                                  if (widgetSize == null) return null;
+                          //         return AnimatedBuilder(
+                          //           animation: _magnifierAnimController,
+                          //           builder: (context, child) {
+                          //             final currentProgress = _magnifierAnimController.value;
+                          //             return Transform.translate(
+                          //               offset: delta * (1 - currentProgress),
+                          //               child: Transform.scale(
+                          //                 scale: currentProgress,
+                          //                 alignment: Alignment.center,
+                          //                 child: child!,
+                          //               ),
+                          //             );
+                          //           },
+                          //           child: Container(
+                          //             decoration: BoxDecoration(
+                          //               borderRadius: BorderRadius.circular(25),
+                          //               boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8, spreadRadius: 2)],
+                          //             ),
+                          //             child: ClipRRect(
+                          //               borderRadius: BorderRadius.circular(25),
+                          //               child: SizedBox(
+                          //                 width: magnifierContentSize.width * contentScale,
+                          //                 height: magnifierContentSize.height * contentScale,
+                          //                 child: magnifierContent,
+                          //               ),
+                          //             ),
+                          //           ),
+                          //         );
+                          //       },
+                          //   calcPosition:
+                          //       (
+                          //         widgetSize,
+                          //         anchorLocalRect,
+                          //         handleLocalRect,
+                          //         textAnchor,
+                          //         pointerPosition, {
+                          //         margin = 10.0,
+                          //         marginOnTop,
+                          //         marginOnBottom,
+                          //       }) {
+                          //         if (widgetSize == null) return null;
 
-                                  final viewSize = controller.viewSize;
+                          //         final viewSize = controller.viewSize;
 
-                                  // Center magnifier horizontally on pointer for smooth tracking
-                                  var left = pointerPosition.dx - widgetSize.width / 2;
+                          //         // Center magnifier horizontally on pointer for smooth tracking
+                          //         var left = pointerPosition.dx - widgetSize.width / 2;
 
-                                  // Clamp to viewport bounds
-                                  if (left < margin) {
-                                    left = margin;
-                                  } else if (left + widgetSize.width + margin > viewSize.width) {
-                                    left = viewSize.width - widgetSize.width - margin;
-                                  }
+                          //         // Clamp to viewport bounds
+                          //         if (left < margin) {
+                          //           left = margin;
+                          //         } else if (left + widgetSize.width + margin > viewSize.width) {
+                          //           left = viewSize.width - widgetSize.width - margin;
+                          //         }
 
-                                  var top = anchorLocalRect.top - widgetSize.height - (marginOnTop ?? margin);
+                          //         var top = anchorLocalRect.top - widgetSize.height - (marginOnTop ?? margin);
 
-                                  // If too close to top, place below instead
-                                  if (top < margin) {
-                                    top = anchorLocalRect.bottom + (marginOnBottom ?? margin);
-                                  }
+                          //         // If too close to top, place below instead
+                          //         if (top < margin) {
+                          //           top = anchorLocalRect.bottom + (marginOnBottom ?? margin);
+                          //         }
 
-                                  return Offset(left, top);
-                                },
-                            shouldShowMagnifier: () =>
-                                _isDraggingHandle ||
-                                _magnifierAnimController.status == AnimationStatus.reverse ||
-                                _magnifierAnimController.status == AnimationStatus.forward,
-                            animationDuration: Duration.zero,
-                          ),
+                          //         return Offset(left, top);
+                          //       },
+                          //   shouldShowMagnifier: () =>
+                          //       _isDraggingHandle ||
+                          //       _magnifierAnimController.status == AnimationStatus.reverse ||
+                          //       _magnifierAnimController.status == AnimationStatus.forward,
+                          //   animationDuration: Duration.zero,
+                          // ),
                           onSelectionHandlePanStart: (anchor) {
                             setState(() {
                               _isDraggingHandle = true;
