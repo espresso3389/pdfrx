@@ -38,6 +38,7 @@ import '../../pdfrx.dart';
 /// ),
 /// ```
 class PdfDocumentViewBuilder extends StatefulWidget {
+  /// Creates a widget that loads PDF document.
   const PdfDocumentViewBuilder({
     required this.documentRef,
     required this.builder,
@@ -46,6 +47,18 @@ class PdfDocumentViewBuilder extends StatefulWidget {
     super.key,
   });
 
+  /// Creates a widget that loads PDF document from an asset.
+  ///
+  /// - [assetName] is the name of the asset.
+  /// - [builder] is the builder that builds the widget tree with the PDF document.
+  /// - [loadingBuilder] is the builder that builds the loading widget.
+  /// - [errorBuilder] is the builder that builds the error widget on error.
+  /// - [passwordProvider] is the provider for the password of the PDF document.
+  /// - [firstAttemptByEmptyPassword] indicates whether to try to open the document with an empty password first.
+  /// - [useProgressiveLoading] indicates whether to use progressive loading.
+  /// - [autoDispose] indicates whether to automatically dispose the document when the widget is disposed.
+  ///
+  /// Returns the created widget.
   PdfDocumentViewBuilder.asset(
     String assetName, {
     required this.builder,
@@ -64,6 +77,18 @@ class PdfDocumentViewBuilder extends StatefulWidget {
          autoDispose: autoDispose,
        );
 
+  /// Creates a widget that loads PDF document from a file.
+  ///
+  /// - [filePath] is the path of the file.
+  /// - [builder] is the builder that builds the widget tree with the PDF document.
+  /// - [loadingBuilder] is the builder that builds the loading widget.
+  /// - [errorBuilder] is the builder that builds the error widget on error.
+  /// - [passwordProvider] is the provider for the password of the PDF document.
+  /// - [firstAttemptByEmptyPassword] indicates whether to try to open the document with an empty password first.
+  /// - [useProgressiveLoading] indicates whether to use progressive loading.
+  /// - [autoDispose] indicates whether to automatically dispose the document when the widget is disposed.
+  ///
+  /// Returns the created widget.
   PdfDocumentViewBuilder.file(
     String filePath, {
     required this.builder,
@@ -82,6 +107,18 @@ class PdfDocumentViewBuilder extends StatefulWidget {
          autoDispose: autoDispose,
        );
 
+  /// Creates a widget that loads PDF document from a URI.
+  ///
+  /// - [uri] is the URI of the PDF document.
+  /// - [builder] is the builder that builds the widget tree with the PDF document.
+  /// - [loadingBuilder] is the builder that builds the loading widget.
+  /// - [errorBuilder] is the builder that builds the error widget on error.
+  /// - [passwordProvider] is the provider for the password of the PDF document.
+  /// - [firstAttemptByEmptyPassword] indicates whether to try to open the document with an empty password first.
+  /// - [useProgressiveLoading] indicates whether to use progressive loading.
+  /// - [autoDispose] indicates whether to automatically dispose the document when the widget is disposed.
+  ///
+  /// Returns the created widget.
   PdfDocumentViewBuilder.uri(
     Uri uri, {
     required this.builder,
@@ -106,16 +143,29 @@ class PdfDocumentViewBuilder extends StatefulWidget {
          withCredentials: withCredentials,
        );
 
+  /// The reference to the PDF document.
   final PdfDocumentRef documentRef;
+
+  /// The builder that builds the widget tree with the PDF document.
   final PdfDocumentViewBuilderFunction builder;
 
-  /// Optional builders
+  /// The builder that builds the loading widget.
   final WidgetBuilder? loadingBuilder;
-  final Widget Function(BuildContext context, Object error, StackTrace? stackTrace)? errorBuilder;
+
+  /// The builder that builds the error widget on error.
+  final PdfDocumentViewBuilderErrorBuilder? errorBuilder;
 
   @override
   State<PdfDocumentViewBuilder> createState() => _PdfDocumentViewBuilderState();
 }
+
+/// A function that builds a widget tree when an error occurs while loading the PDF document.
+///
+/// [context] is the build context.
+/// [error] is the error that occurred.
+/// [stackTrace] is the stack trace of the error, which may be null.
+typedef PdfDocumentViewBuilderErrorBuilder =
+    Widget Function(BuildContext context, Object error, StackTrace? stackTrace);
 
 class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
   StreamSubscription<PdfDocumentEvent>? _updateSubscription;
