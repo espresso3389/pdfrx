@@ -43,15 +43,5 @@ executables:
   remove_darwin_pdfium_modules:
 
 flutter:
-  plugin:
-    platforms:
-      android:
-      ios:
-      macos:
-      windows:
-      linux:
-      web:
-
   assets:
     - assets/
-
