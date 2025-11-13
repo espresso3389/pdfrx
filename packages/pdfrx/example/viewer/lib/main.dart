@@ -314,7 +314,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                             textSelections = await textSelection.getSelectedTextRanges();
                           },
                           /*magnifier: PdfViewerSelectionMagnifierParams(
-                            shouldBeShownForAnchor: (textAnchor, controller, params) => true,
+                            shouldShowMagnifierForAnchor: (textAnchor, controller, params) => true,
                             getMagnifierRectForAnchor: (textAnchor, params, clampedPointerPosition) {
                               final c = textAnchor.page.charRects[textAnchor.index];
                               final baseUnit = switch (textAnchor.direction) {
@@ -322,9 +322,14 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                                 PdfTextDirection.vrtl => c.width,
                               };
 
-                              // Convert clamped pointer position from viewport to document coordinates
-                              final pointerInDocument =
-                                  controller.globalToDocument(clampedPointerPosition) ?? textAnchor.anchorPoint;
+                              // Convert clamped pointer position from viewport (local) to document coordinates
+                              // clampedPointerPosition is in local widget coordinates, so we need to:
+                              // 1. First convert to global coordinates
+                              // 2. Then convert from global to document coordinates
+                              final globalPointer = controller.localToGlobal(clampedPointerPosition);
+                              final pointerInDocument = globalPointer != null
+                                  ? controller.globalToDocument(globalPointer) ?? textAnchor.anchorPoint
+                                  : textAnchor.anchorPoint;
 
                               return Rect.fromLTRB(
                                 pointerInDocument.dx - baseUnit * 2.5,
@@ -355,7 +360,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
 
                                   // Start animation when magnifier first appears and capture initial pointer position
                                   if (_magnifierAnimController.status == AnimationStatus.dismissed) {
-                                    _magnifierAnimationStartPositionViewport = pointerPosition;
                                     _magnifierAnimController.forward();
                                   }
 
