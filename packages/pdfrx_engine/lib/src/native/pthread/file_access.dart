@@ -3,8 +3,8 @@
 import 'dart:ffi';
 
 import 'package:ffi/ffi.dart';
-
 import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
+
 import '../pdfium_file_access.dart';
 import '../worker.dart';
 import 'pthread.dart';
@@ -12,7 +12,7 @@ import 'pthread.dart';
 class PdfiumFileAccessHelperPthread implements PdfiumFileAccessHelper {
   @override
   Future<int> create(int fileSize, int readBlock) async {
-    final buffer = malloc.allocate<Void>(
+    final buffer = malloc<Uint8>(
       sizeOf<pdfium_bindings.FPDF_FILEACCESS>() + sizeOfPthreadMutex + sizeOfPthreadCond + sizeOf<IntPtr>() * 2,
     );
     final fa = buffer.cast<pdfium_bindings.FPDF_FILEACCESS>();

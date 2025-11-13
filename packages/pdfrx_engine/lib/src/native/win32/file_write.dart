@@ -3,8 +3,8 @@
 import 'dart:ffi';
 
 import 'package:ffi/ffi.dart';
-
 import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
+
 import '../pdfium_file_write.dart';
 import '../worker.dart';
 import 'kernel32.dart';
@@ -12,7 +12,7 @@ import 'kernel32.dart';
 class PdfiumFileWriteHelperWin32 implements PdfiumFileWriteHelper {
   @override
   Future<int> create(int writeBlock) async {
-    final buffer = malloc.allocate<Void>(
+    final buffer = calloc<Uint8>(
       sizeOf<pdfium_bindings.FPDF_FILEWRITE>() + sizeOfCriticalSection + sizeOfConditionVariable + sizeOf<IntPtr>() * 2,
     );
     final fw = buffer.cast<pdfium_bindings.FPDF_FILEWRITE>();
