@@ -324,9 +324,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                               };
 
                               // Convert clamped pointer position from viewport to document coordinates
-                              final pointerInDocument =
-                                  controller.globalToDocument(clampedPointerPosition) ?? textAnchor.anchorPoint;
-
+                              final pointerInDocument = controller.localToDocument(clampedPointerPosition);
                               return Rect.fromLTRB(
                                 pointerInDocument.dx - baseUnit * 2.5,
                                 textAnchor.rect.top - baseUnit * 0.5,
