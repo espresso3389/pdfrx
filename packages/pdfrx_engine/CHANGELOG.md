@@ -1,3 +1,8 @@
+## 0.3.3
+
+- Code refactoring and maintenance updates.
+- Use shortened syntax for `Allocator.allocate`.
+
 ## 0.3.2
 
 - Updated to `pdfium_dart` 0.1.2.

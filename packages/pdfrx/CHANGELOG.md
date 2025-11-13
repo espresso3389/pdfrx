@@ -1,3 +1,9 @@
+# 2.2.11
+
+- FIXED: Magnifier content location calculated incorrectly ([#532](https://github.com/espresso3389/pdfrx/issues/532))
+- NEW: Added `PdfViewerController.localToDocument()` and `PdfViewerController.documentToLocal()` methods for coordinate conversion
+- Updated to pdfrx_engine 0.3.3
+
 # 2.2.10
 
 - Updated to pdfrx_engine 0.3.1 and pdfium_flutter 0.1.1
