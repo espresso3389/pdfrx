@@ -45,6 +45,11 @@ executables:
 flutter:
   plugin:
     platforms:
+      android:
+      ios:
+      macos:
+      windows:
+      linux:
       web:
 
   assets:
