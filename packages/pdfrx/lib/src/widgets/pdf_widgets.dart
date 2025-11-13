@@ -38,11 +38,19 @@ import '../../pdfrx.dart';
 /// ),
 /// ```
 class PdfDocumentViewBuilder extends StatefulWidget {
-  const PdfDocumentViewBuilder({required this.documentRef, required this.builder, super.key});
+  const PdfDocumentViewBuilder({
+    required this.documentRef,
+    required this.builder,
+    this.loadingBuilder,
+    this.errorBuilder,
+    super.key,
+  });
 
   PdfDocumentViewBuilder.asset(
     String assetName, {
     required this.builder,
+    this.loadingBuilder,
+    this.errorBuilder,
     super.key,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
@@ -59,11 +67,12 @@ class PdfDocumentViewBuilder extends StatefulWidget {
   PdfDocumentViewBuilder.file(
     String filePath, {
     required this.builder,
+    this.loadingBuilder,
+    this.errorBuilder,
     super.key,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
-
     bool autoDispose = true,
   }) : documentRef = PdfDocumentRefFile(
          filePath,
@@ -76,6 +85,8 @@ class PdfDocumentViewBuilder extends StatefulWidget {
   PdfDocumentViewBuilder.uri(
     Uri uri, {
     required this.builder,
+    this.loadingBuilder,
+    this.errorBuilder,
     super.key,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
@@ -95,18 +106,15 @@ class PdfDocumentViewBuilder extends StatefulWidget {
          withCredentials: withCredentials,
        );
 
-  /// A reference to the PDF document.
   final PdfDocumentRef documentRef;
-
-  /// A builder that builds a widget tree with the PDF document.
   final PdfDocumentViewBuilderFunction builder;
+
+  /// Optional builders
+  final WidgetBuilder? loadingBuilder;
+  final Widget Function(BuildContext context, Object error, StackTrace? stackTrace)? errorBuilder;
 
   @override
   State<PdfDocumentViewBuilder> createState() => _PdfDocumentViewBuilderState();
-
-  static PdfDocumentViewBuilder? maybeOf(BuildContext context) {
-    return context.findAncestorWidgetOfExactType<PdfDocumentViewBuilder>();
-  }
 }
 
 class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
@@ -151,15 +159,26 @@ class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
         }
       });
       document?.loadPagesProgressively();
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return widget.builder(context, widget.documentRef.resolveListenable().document);
+    final listenable = widget.documentRef.resolveListenable();
+
+    // Handle error
+    if (listenable.error != null && widget.errorBuilder != null) {
+      return widget.errorBuilder!(context, listenable.error!, listenable.stackTrace);
+    }
+
+    // Handle loading
+    if (listenable.document == null && widget.loadingBuilder != null) {
+      return widget.loadingBuilder!(context);
+    }
+
+    // Render document
+    return widget.builder(context, listenable.document);
   }
 }
 
