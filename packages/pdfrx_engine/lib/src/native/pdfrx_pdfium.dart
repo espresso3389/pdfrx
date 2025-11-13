@@ -8,6 +8,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:ffi/ffi.dart';
+import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
 
@@ -31,7 +32,6 @@ import '../utils/shuffle_in_place.dart';
 import 'native_utils.dart';
 import 'pdf_file_cache.dart';
 import 'pdfium.dart';
-import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
 import 'pdfium_file_access.dart';
 import 'worker.dart';
 
@@ -49,13 +49,13 @@ Future<void> _init() async {
     _appLocalFontPath = await getCacheDirectory('pdfrx.fonts');
 
     (await BackgroundWorker.instance).computeWithArena((arena, params) {
-      final config = arena.allocate<pdfium_bindings.FPDF_LIBRARY_CONFIG>(sizeOf<pdfium_bindings.FPDF_LIBRARY_CONFIG>());
+      final config = arena<pdfium_bindings.FPDF_LIBRARY_CONFIG>();
       config.ref.version = 2;
 
       final fontPaths = [?params.appLocalFontPath?.path, ...params.fontPaths];
       if (fontPaths.isNotEmpty) {
         // NOTE: m_pUserFontPaths must not be freed until FPDF_DestroyLibrary is called; on pdfrx, it's never freed.
-        final fontPathArray = malloc<Pointer<Char>>(sizeOf<Pointer<Char>>() * (fontPaths.length + 1));
+        final fontPathArray = malloc<Pointer<Char>>(fontPaths.length + 1);
         for (var i = 0; i < fontPaths.length; i++) {
           fontPathArray[i] = fontPaths[i]
               .toNativeUtf8()
@@ -311,7 +311,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
 
     // If the file size is smaller than the specified size, load the file on memory
     if (fileSize <= maxSizeToCacheOnMemory) {
-      final buffer = malloc.allocate<Uint8>(fileSize);
+      final buffer = malloc<Uint8>(fileSize);
       try {
         await read(buffer.asTypedList(fileSize), 0, fileSize);
         return _openByFunc(
@@ -458,7 +458,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
         (arena, params) {
           final document = pdfium.FPDF_CreateNewDocument();
           final newPage = pdfium.FPDFPage_New(document, 0, params.width, params.height);
-          final newPages = arena.allocate<pdfium_bindings.FPDF_PAGE>(sizeOf<Pointer<pdfium_bindings.FPDF_PAGE>>());
+          final newPages = arena<pdfium_bindings.FPDF_PAGE>();
           newPages.value = newPage;
 
           final imageObj = pdfium.FPDFPageObj_NewImageObj(document);
@@ -591,7 +591,7 @@ class _PdfDocumentPdfium extends PdfDocument {
           final permissions = pdfium.FPDF_GetDocPermissions(doc);
           final securityHandlerRevision = pdfium.FPDF_GetSecurityHandlerRevision(doc);
 
-          formInfo = calloc.allocate<pdfium_bindings.FPDF_FORMFILLINFO>(sizeOf<pdfium_bindings.FPDF_FORMFILLINFO>());
+          formInfo = calloc<pdfium_bindings.FPDF_FORMFILLINFO>();
           formInfo.ref.version = 1;
           formHandle = pdfium.FPDFDOC_InitFormFillEnvironment(doc, formInfo);
           return (
@@ -700,7 +700,7 @@ class _PdfDocumentPdfium extends PdfDocument {
           for (var i = params.pagesCountLoadedSoFar; i < end; i++) {
             final page = pdfium.FPDF_LoadPage(doc, i);
             try {
-              final rect = arena.allocate<pdfium_bindings.FS_RECTF>(sizeOf<pdfium_bindings.FS_RECTF>());
+              final rect = arena<pdfium_bindings.FS_RECTF>();
               pdfium.FPDF_GetPageBoundingBox(page, rect);
               pages.add((
                 width: pdfium.FPDF_GetPageWidthF(page),
@@ -872,7 +872,7 @@ class _PdfDocumentPdfium extends PdfDocument {
       final nativeWriteCallable = _NativeFileWriteCallable.isolateLocal(write, exceptionalReturn: 0);
       try {
         final document = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
-        final fw = arena.allocate<pdfium_bindings.FPDF_FILEWRITE>(sizeOf<pdfium_bindings.FPDF_FILEWRITE>());
+        final fw = arena<pdfium_bindings.FPDF_FILEWRITE>();
         fw.ref.version = 1;
         fw.ref.WriteBlock = nativeWriteCallable.nativeFunction;
         final int flags;
@@ -966,7 +966,7 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
   @override
   void move(int fromIndex, int toIndex, int count) {
     using((arena) {
-      final pageIndices = arena.allocate<Int>(sizeOf<Int32>() * count);
+      final pageIndices = arena<Int>(count);
       for (var i = 0; i < count; i++) {
         pageIndices[i] = fromIndex + i;
       }
@@ -984,7 +984,7 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
   @override
   void duplicate(int fromIndex, int toIndex, int count) {
     using((arena) {
-      final pageIndices = arena.allocate<Int>(sizeOf<Int32>() * count);
+      final pageIndices = arena<Int>(count);
       for (var i = 0; i < count; i++) {
         pageIndices[i] = fromIndex + i;
       }
@@ -997,7 +997,7 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
     final page = items[negativeItemIndex]!;
     final src = pdfium_bindings.FPDF_DOCUMENT.fromAddress(page.document);
     using((arena) {
-      final pageIndices = arena.allocate<Int>(sizeOf<Int32>());
+      final pageIndices = arena<Int>();
       pageIndices.value = page.pageNumber - 1;
       pdfium.FPDF_ImportPagesByIndex(document, src, pageIndices, 1, index);
     });
@@ -1067,9 +1067,9 @@ class _PdfPagePdfium extends PdfPage {
     const rgbaSize = 4;
     Pointer<Uint8> buffer = nullptr;
     try {
-      buffer = malloc.allocate<Uint8>(width * height * rgbaSize);
+      buffer = malloc<Uint8>(width * height * rgbaSize);
       final isSucceeded = await using((arena) async {
-        final cancelFlag = arena.allocate<Bool>(sizeOf<Bool>());
+        final cancelFlag = arena<Bool>();
         ct?.attach(cancelFlag);
 
         if (cancelFlag.value || document.isDisposed) return false;
@@ -1190,7 +1190,7 @@ class _PdfPagePdfium extends PdfPage {
     if (document.isDisposed || !isLoaded) return null;
     return await (await BackgroundWorker.instance).computeWithArena((arena, params) {
       final doubleSize = sizeOf<Double>();
-      final rectBuffer = arena.allocate<Double>(4 * sizeOf<Double>());
+      final rectBuffer = arena<Double>(4);
       final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
       final page = pdfium.FPDF_LoadPage(doc, params.pageNumber - 1);
       final textPage = pdfium.FPDFText_LoadPage(page);
@@ -1248,7 +1248,7 @@ class _PdfPagePdfium extends PdfPage {
             if (linkPage == nullptr) return [];
 
             final doubleSize = sizeOf<Double>();
-            final rectBuffer = arena.allocate<Double>(4 * doubleSize);
+            final rectBuffer = arena<Double>(4);
             return List.generate(pdfium.FPDFLink_CountWebLinks(linkPage), (index) {
               final rects = List.generate(pdfium.FPDFLink_CountRects(linkPage, index), (rectIndex) {
                 pdfium.FPDFLink_GetRect(
@@ -1273,26 +1273,26 @@ class _PdfPagePdfium extends PdfPage {
 
   static String _getLinkUrl(pdfium_bindings.FPDF_PAGELINK linkPage, int linkIndex, Arena arena) {
     final urlLength = pdfium.FPDFLink_GetURL(linkPage, linkIndex, nullptr, 0);
-    final urlBuffer = arena.allocate<UnsignedShort>(urlLength * sizeOf<UnsignedShort>());
+    final urlBuffer = arena<UnsignedShort>(urlLength);
     pdfium.FPDFLink_GetURL(linkPage, linkIndex, urlBuffer, urlLength);
     return urlBuffer.cast<Utf16>().toDartString();
   }
 
   static String? _getAnnotationContent(pdfium_bindings.FPDF_ANNOTATION annot, Arena arena) {
-    final contentLength = pdfium.FPDFAnnot_GetStringValue(
+    final contentLengthInBytes = pdfium.FPDFAnnot_GetStringValue(
       annot,
       'Contents'.toNativeUtf8(allocator: arena).cast<Char>(),
       nullptr,
       0,
     );
 
-    if (contentLength > 0) {
-      final contentBuffer = arena.allocate<UnsignedShort>(contentLength);
+    if (contentLengthInBytes > 0) {
+      final contentBuffer = arena.allocate<UnsignedShort>(contentLengthInBytes); // NOTE: size is in bytes
       pdfium.FPDFAnnot_GetStringValue(
         annot,
         'Contents'.toNativeUtf8(allocator: arena).cast<Char>(),
         contentBuffer,
-        contentLength,
+        contentLengthInBytes,
       );
       return contentBuffer.cast<Utf16>().toDartString();
     }
@@ -1307,7 +1307,7 @@ class _PdfPagePdfium extends PdfPage {
           final page = pdfium.FPDF_LoadPage(document, params.pageNumber - 1);
           try {
             final count = pdfium.FPDFPage_GetAnnotCount(page);
-            final rectf = arena.allocate<pdfium_bindings.FS_RECTF>(sizeOf<pdfium_bindings.FS_RECTF>());
+            final rectf = arena<pdfium_bindings.FS_RECTF>();
             final links = <PdfLink>[];
             for (var i = 0; i < count; i++) {
               final annot = pdfium.FPDFPage_GetAnnot(page, i);
@@ -1444,8 +1444,8 @@ extension _PointerExt<T extends NativeType> on Pointer<T> {
 
 PdfDest? _pdfDestFromDest(pdfium_bindings.FPDF_DEST dest, pdfium_bindings.FPDF_DOCUMENT document, Arena arena) {
   if (dest == nullptr) return null;
-  final pul = arena.allocate<UnsignedLong>(sizeOf<UnsignedLong>());
-  final values = arena.allocate<pdfium_bindings.FS_FLOAT>(sizeOf<pdfium_bindings.FS_FLOAT>() * 4);
+  final pul = arena<UnsignedLong>();
+  final values = arena<pdfium_bindings.FS_FLOAT>(4);
   final pageIndex = pdfium.FPDFDest_GetDestPageIndex(document, dest);
   final type = pdfium.FPDFDest_GetView(dest, pul, values);
   if (type != 0) {

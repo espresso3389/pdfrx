@@ -67,8 +67,9 @@ PdfiumNativeFunctionLookup<T>? createPdfiumNativeFunctionLookup<
   if (nativeBindings != null) {
     ffi.Pointer<T> lookup(String symbolName) {
       final ptr = nativeBindings[symbolName];
-      if (ptr == null)
+      if (ptr == null) {
         throw Exception('Failed to find binding for $symbolName');
+      }
       return ffi.Pointer<T>.fromAddress(ptr);
     }
 

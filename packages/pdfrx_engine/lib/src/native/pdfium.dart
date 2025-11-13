@@ -48,7 +48,9 @@ PdfrxNativeFunctionLookup<T>? createPdfrxNativeFunctionLookup<T extends ffi.Nati
     final bindings = Pdfrx.pdfiumNativeBindings!;
     ffi.Pointer<T> lookup(String symbolName) {
       final ptr = bindings[symbolName];
-      if (ptr == null) throw Exception('Failed to find binding for $symbolName');
+      if (ptr == null) {
+        throw Exception('Failed to find binding for $symbolName');
+      }
       return ffi.Pointer<T>.fromAddress(ptr);
     }
 

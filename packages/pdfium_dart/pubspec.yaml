@@ -1,6 +1,6 @@
 name: pdfium_dart
 description: Dart FFI bindings for PDFium library. Provides low-level access to PDFium's C API from Dart.
-version: 0.1.1
+version: 0.1.2
 homepage: https://github.com/espresso3389/pdfrx
 repository: https://github.com/espresso3389/pdfrx/tree/master/packages/pdfium_dart
 issue_tracker: https://github.com/espresso3389/pdfrx/issues

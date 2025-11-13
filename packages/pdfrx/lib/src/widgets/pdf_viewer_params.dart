@@ -1141,6 +1141,14 @@ abstract class PdfViewerCoordinateConverter {
 }
 
 /// Parameters for the text selection magnifier.
+///
+/// The text selection magnifier is used with text selection handles to help users select text precisely,
+/// especially on touch devices. It shows a magnified view of the text around the selection handle
+/// as the user drags the handle.
+///
+/// Because of this, the magnifier is typically enabled only on touch devices by default and if you want to
+/// show the magnifier on non-touch devices, you need to set [enabled] to true and also set
+/// [PdfTextSelectionParams.enableSelectionHandles] to true to enable selection handles.
 @immutable
 class PdfViewerSelectionMagnifierParams {
   const PdfViewerSelectionMagnifierParams({
@@ -1161,6 +1169,8 @@ class PdfViewerSelectionMagnifierParams {
   /// Whether the magnifier is enabled.
   ///
   /// null to determine the behavior based on pointing device.
+  ///
+  /// To show magnifier on non-touch devices, set this and [PdfTextSelectionParams.enableSelectionHandles] to true.
   final bool? enabled;
 
   /// If the character size (in pt.) is smaller than this value, the magnifier will be shown.
