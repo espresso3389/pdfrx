@@ -1,3 +1,7 @@
+# 2.2.12
+
+- FIXED: Package incorrectly showing as web-only on pub.dev due to incorrect Flutter plugin platform declarations ([#535](https://github.com/espresso3389/pdfrx/issues/535))
+
 # 2.2.11
 
 - FIXED: Magnifier content location calculated incorrectly ([#532](https://github.com/espresso3389/pdfrx/issues/532))
