@@ -38,11 +38,32 @@ import '../../pdfrx.dart';
 /// ),
 /// ```
 class PdfDocumentViewBuilder extends StatefulWidget {
-  const PdfDocumentViewBuilder({required this.documentRef, required this.builder, super.key});
+  /// Creates a widget that loads PDF document.
+  const PdfDocumentViewBuilder({
+    required this.documentRef,
+    required this.builder,
+    this.loadingBuilder,
+    this.errorBuilder,
+    super.key,
+  });
 
+  /// Creates a widget that loads PDF document from an asset.
+  ///
+  /// - [assetName] is the name of the asset.
+  /// - [builder] is the builder that builds the widget tree with the PDF document.
+  /// - [loadingBuilder] is the builder that builds the loading widget.
+  /// - [errorBuilder] is the builder that builds the error widget on error.
+  /// - [passwordProvider] is the provider for the password of the PDF document.
+  /// - [firstAttemptByEmptyPassword] indicates whether to try to open the document with an empty password first.
+  /// - [useProgressiveLoading] indicates whether to use progressive loading.
+  /// - [autoDispose] indicates whether to automatically dispose the document when the widget is disposed.
+  ///
+  /// Returns the created widget.
   PdfDocumentViewBuilder.asset(
     String assetName, {
     required this.builder,
+    this.loadingBuilder,
+    this.errorBuilder,
     super.key,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
@@ -56,14 +77,27 @@ class PdfDocumentViewBuilder extends StatefulWidget {
          autoDispose: autoDispose,
        );
 
+  /// Creates a widget that loads PDF document from a file.
+  ///
+  /// - [filePath] is the path of the file.
+  /// - [builder] is the builder that builds the widget tree with the PDF document.
+  /// - [loadingBuilder] is the builder that builds the loading widget.
+  /// - [errorBuilder] is the builder that builds the error widget on error.
+  /// - [passwordProvider] is the provider for the password of the PDF document.
+  /// - [firstAttemptByEmptyPassword] indicates whether to try to open the document with an empty password first.
+  /// - [useProgressiveLoading] indicates whether to use progressive loading.
+  /// - [autoDispose] indicates whether to automatically dispose the document when the widget is disposed.
+  ///
+  /// Returns the created widget.
   PdfDocumentViewBuilder.file(
     String filePath, {
     required this.builder,
+    this.loadingBuilder,
+    this.errorBuilder,
     super.key,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = false,
-
     bool autoDispose = true,
   }) : documentRef = PdfDocumentRefFile(
          filePath,
@@ -73,9 +107,23 @@ class PdfDocumentViewBuilder extends StatefulWidget {
          autoDispose: autoDispose,
        );
 
+  /// Creates a widget that loads PDF document from a URI.
+  ///
+  /// - [uri] is the URI of the PDF document.
+  /// - [builder] is the builder that builds the widget tree with the PDF document.
+  /// - [loadingBuilder] is the builder that builds the loading widget.
+  /// - [errorBuilder] is the builder that builds the error widget on error.
+  /// - [passwordProvider] is the provider for the password of the PDF document.
+  /// - [firstAttemptByEmptyPassword] indicates whether to try to open the document with an empty password first.
+  /// - [useProgressiveLoading] indicates whether to use progressive loading.
+  /// - [autoDispose] indicates whether to automatically dispose the document when the widget is disposed.
+  ///
+  /// Returns the created widget.
   PdfDocumentViewBuilder.uri(
     Uri uri, {
     required this.builder,
+    this.loadingBuilder,
+    this.errorBuilder,
     super.key,
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
@@ -95,19 +143,29 @@ class PdfDocumentViewBuilder extends StatefulWidget {
          withCredentials: withCredentials,
        );
 
-  /// A reference to the PDF document.
+  /// The reference to the PDF document.
   final PdfDocumentRef documentRef;
 
-  /// A builder that builds a widget tree with the PDF document.
+  /// The builder that builds the widget tree with the PDF document.
   final PdfDocumentViewBuilderFunction builder;
+
+  /// The builder that builds the loading widget.
+  final WidgetBuilder? loadingBuilder;
+
+  /// The builder that builds the error widget on error.
+  final PdfDocumentViewBuilderErrorBuilder? errorBuilder;
 
   @override
   State<PdfDocumentViewBuilder> createState() => _PdfDocumentViewBuilderState();
-
-  static PdfDocumentViewBuilder? maybeOf(BuildContext context) {
-    return context.findAncestorWidgetOfExactType<PdfDocumentViewBuilder>();
-  }
 }
+
+/// A function that builds a widget tree when an error occurs while loading the PDF document.
+///
+/// [context] is the build context.
+/// [error] is the error that occurred.
+/// [stackTrace] is the stack trace of the error, which may be null.
+typedef PdfDocumentViewBuilderErrorBuilder =
+    Widget Function(BuildContext context, Object error, StackTrace? stackTrace);
 
 class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
   StreamSubscription<PdfDocumentEvent>? _updateSubscription;
@@ -151,15 +209,26 @@ class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
         }
       });
       document?.loadPagesProgressively();
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return widget.builder(context, widget.documentRef.resolveListenable().document);
+    final listenable = widget.documentRef.resolveListenable();
+
+    // Handle error
+    if (listenable.error != null && widget.errorBuilder != null) {
+      return widget.errorBuilder!(context, listenable.error!, listenable.stackTrace);
+    }
+
+    // Handle loading
+    if (listenable.document == null && widget.loadingBuilder != null) {
+      return widget.loadingBuilder!(context);
+    }
+
+    // Render document
+    return widget.builder(context, listenable.document);
   }
 }
 
