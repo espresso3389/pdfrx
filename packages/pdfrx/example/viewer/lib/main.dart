@@ -50,9 +50,12 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
   final _markers = <int, List<Marker>>{};
   List<PdfPageTextRange>? textSelections;
 
-  final bool _isDraggingHandle = false; // True while actively dragging, false on release
+  bool _isDraggingHandle = false; // True while actively dragging, false on release
   // Magnifier animation controller
-  late final AnimationController _magnifierAnimController;
+  late final AnimationController _magnifierAnimController = AnimationController(
+    duration: const Duration(milliseconds: 250),
+    vsync: this,
+  );
 
   void _update() {
     if (mounted) {
@@ -63,7 +66,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
   @override
   void initState() {
     super.initState();
-    _magnifierAnimController = AnimationController(duration: const Duration(milliseconds: 250), vsync: this);
     WidgetsBinding.instance.addObserver(this);
     openInitialFile();
   }
@@ -309,11 +311,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                         pageAnchor: isHorizontalLayout ? PdfPageAnchor.left : PdfPageAnchor.top,
                         pageAnchorEnd: isHorizontalLayout ? PdfPageAnchor.right : PdfPageAnchor.bottom,
                         textSelectionParams: PdfTextSelectionParams(
-                          enabled: true,
                           onTextSelectionChange: (textSelection) async {
                             textSelections = await textSelection.getSelectedTextRanges();
                           },
-                          /*magnifier: PdfViewerSelectionMagnifierParams(
+                          magnifier: PdfViewerSelectionMagnifierParams(
                             shouldShowMagnifierForAnchor: (textAnchor, controller, params) => true,
                             getMagnifierRectForAnchor: (textAnchor, params, clampedPointerPosition) {
                               final c = textAnchor.page.charRects[textAnchor.index];
@@ -453,7 +454,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                             _magnifierAnimController.reverse().then((_) {
                               _magnifierAnimController.reset();
                             });
-                          }, */
+                          },
                         ),
                         keyHandlerParams: PdfViewerKeyHandlerParams(autofocus: true),
                         useAlternativeFitScaleAsMinScale: false,
@@ -571,7 +572,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                                 if (count > 0) {
                                   await PdfrxEntryFunctions.instance.reloadFonts();
                                   await controller.documentRef.resolveListenable().load(forceReload: true);
-                                  //controller.forceRepaintAllPageImages();
                                 }
                               });
                             }
@@ -807,24 +807,5 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
     if (path == null) return null;
     final parts = path.split(RegExp(r'[\\/]'));
     return parts.isEmpty ? path : parts.last;
-  }
-}
-
-/// Create a [CustomPainter] from a paint function.
-class _CustomPainter extends CustomPainter {
-  /// Create a [CustomPainter] from a paint function.
-  const _CustomPainter.fromFunctions(this.paintFunction, {this.hitTestFunction});
-  final void Function(Canvas canvas, Size size) paintFunction;
-  final bool Function(Offset position)? hitTestFunction;
-  @override
-  void paint(Canvas canvas, Size size) => paintFunction(canvas, size);
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-
-  @override
-  bool hitTest(Offset position) {
-    if (hitTestFunction == null) return false;
-    return hitTestFunction!(position);
   }
 }

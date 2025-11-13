@@ -152,7 +152,7 @@ class LowLevelPdfiumAccess {
 
     return await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
       return using((arena) {
-        final dataPtr = arena.allocate<Uint8>(pdfData.length);
+        final dataPtr = arena<Uint8>(pdfData.length);
         dataPtr.asTypedList(pdfData.length).setAll(0, pdfData);
 
         // Load document using low-level API
@@ -176,7 +176,7 @@ class LowLevelPdfiumAccess {
 
           // Get document metadata tags
           for (final tag in ['Title', 'Author', 'Subject', 'Keywords', 'Creator']) {
-            final buffer = arena.allocate<Uint8>(256);
+            final buffer = arena<Uint8>(256);
             final tagPtr = tag.toNativeUtf8(allocator: arena);
             final len = pdfium.FPDF_GetMetaText(
               doc,

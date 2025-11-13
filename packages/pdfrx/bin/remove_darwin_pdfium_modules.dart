@@ -29,7 +29,7 @@ Future<int> main(List<String> args) async {
     }
 
     final deps = await oss.listDependencies(pubspecYamlPath: projectPubspecYaml.path);
-    final pdfrxPackage = [...deps.allDependencies, deps.package].firstWhere((p) => p.name == 'pdfrx');
+    final pdfrxPackage = [...deps.allDependencies, deps.package].firstWhere((p) => p.name == 'pdfium_flutter');
     print('Found: ${pdfrxPackage.name} ${pdfrxPackage.version}: ${pdfrxPackage.pubspecYamlPath}');
 
     final pubspecPath = pdfrxPackage.pubspecYamlPath;
@@ -62,19 +62,13 @@ Future<int> main(List<String> args) async {
 String _commentPlatforms(String yaml) {
   // Comment out iOS platform configuration
   yaml = yaml.replaceAllMapped(
-    RegExp(
-      r'^(\s*ios:\s*\n\s*pluginClass:\s*PdfrxPlugin\n\s*ffiPlugin:\s*true\n\s*sharedDarwinSource:\s*true)',
-      multiLine: true,
-    ),
+    RegExp(r'^(\s*ios:\s*\n\s*ffiPlugin:\s*true\n\s*sharedDarwinSource:\s*true)', multiLine: true),
     (match) => '# ${match[1]!.replaceAll('\n', '\n# ')}',
   );
 
   // Comment out macOS platform configuration
   yaml = yaml.replaceAllMapped(
-    RegExp(
-      r'^(\s*macos:\s*\n\s*pluginClass:\s*PdfrxPlugin\n\s*ffiPlugin:\s*true\n\s*sharedDarwinSource:\s*true)',
-      multiLine: true,
-    ),
+    RegExp(r'^(\s*macos:\s*\n\s*ffiPlugin:\s*true\n\s*sharedDarwinSource:\s*true)', multiLine: true),
     (match) => '# ${match[1]!.replaceAll('\n', '\n# ')}',
   );
 
@@ -84,20 +78,14 @@ String _commentPlatforms(String yaml) {
 String _uncommentPlatforms(String yaml) {
   // Uncomment iOS platform configuration
   yaml = yaml.replaceAllMapped(
-    RegExp(
-      r'^# (\s*ios:\s*\n)# (\s*pluginClass:\s*PdfrxPlugin\n)# (\s*ffiPlugin:\s*true\n)# (\s*sharedDarwinSource:\s*true)',
-      multiLine: true,
-    ),
-    (match) => '${match[1]}${match[2]}${match[3]}${match[4]}',
+    RegExp(r'^# (\s*ios:\s*\n)# (\s*ffiPlugin:\s*true\n)# (\s*sharedDarwinSource:\s*true)', multiLine: true),
+    (match) => '${match[1]}${match[2]}${match[3]}',
   );
 
   // Uncomment macOS platform configuration
   yaml = yaml.replaceAllMapped(
-    RegExp(
-      r'^# (\s*macos:\s*\n)# (\s*pluginClass:\s*PdfrxPlugin\n)# (\s*ffiPlugin:\s*true\n)# (\s*sharedDarwinSource:\s*true)',
-      multiLine: true,
-    ),
-    (match) => '${match[1]}${match[2]}${match[3]}${match[4]}',
+    RegExp(r'^# (\s*macos:\s*\n)# (\s*ffiPlugin:\s*true\n)# (\s*sharedDarwinSource:\s*true)', multiLine: true),
+    (match) => '${match[1]}${match[2]}${match[3]}',
   );
 
   return yaml;

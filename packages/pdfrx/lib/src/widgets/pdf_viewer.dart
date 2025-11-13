@@ -2426,7 +2426,7 @@ class _PdfViewerState extends State<PdfViewer>
 
       final magnifierEnabled =
           (magnifierParams.enabled ?? _selectionPointerDeviceKind == PointerDeviceKind.touch) &&
-          (magnifierParams.shouldShowMagnifierForAnchor ?? _shouldBeShownForAnchor)(
+          (magnifierParams.shouldShowMagnifierForAnchor ?? _shouldShowMagnifierForAnchor)(
             textAnchor,
             _controller!,
             magnifierParams,
@@ -2695,7 +2695,7 @@ class _PdfViewerState extends State<PdfViewer>
     return clampedPointerOffset;
   }
 
-  bool _shouldBeShownForAnchor(
+  bool _shouldShowMagnifierForAnchor(
     PdfTextSelectionAnchor textAnchor,
     PdfViewerController controller,
     PdfViewerSelectionMagnifierParams params,
