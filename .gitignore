@@ -40,7 +40,7 @@ pubspec_overrides.yaml
 
 .serena/
 
-# iOS/macOS build artifacts that change frequently
+# SHOULD WE NEED THIS??: iOS/macOS build artifacts that change frequently
 **/ios/Podfile.lock
 **/macos/Podfile.lock
 **/ios/**/*.xcodeproj/project.pbxproj
