@@ -150,7 +150,7 @@ class PdfTextSearcher extends Listenable {
         if (searchSession != _searchSession) return;
         if (pageText == null) continue;
         textMatchesPageStartIndex.add(textMatches.length);
-        for (final f in pageText.allMatches(condition.pattern, caseInsensitive: condition.caseInsensitive)) {
+        await for (final f in pageText.allMatches(condition.pattern, caseInsensitive: condition.caseInsensitive)) {
           if (searchSession != _searchSession) return;
           textMatches.add(f);
         }

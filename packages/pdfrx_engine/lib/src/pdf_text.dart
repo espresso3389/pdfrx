@@ -104,7 +104,7 @@ class PdfPageText {
   ///
   /// Just work like [Pattern.allMatches] but it returns stream of [PdfPageTextRange].
   /// [caseInsensitive] is used to specify case-insensitive search only if [pattern] is [String].
-  Iterable<PdfPageTextRange> allMatches(Pattern pattern, {bool caseInsensitive = true}) sync* {
+  Stream<PdfPageTextRange> allMatches(Pattern pattern, {bool caseInsensitive = true}) async* {
     final String text;
     if (pattern is RegExp) {
       caseInsensitive = pattern.isCaseSensitive;
