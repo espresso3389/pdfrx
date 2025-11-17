@@ -29,7 +29,6 @@ The handler function receives a parameter of [PdfTextSelection](https://pub.dev/
 PdfViewer.asset(
   'assets/test.pdf',
   params: PdfViewerParams(
-    enableTextSelection: true,
     textSelectionParams: PdfTextSelectionParams(
       onTextSelectionChange: (selections) async {
         // Get the selected string
