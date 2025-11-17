@@ -1,3 +1,7 @@
+# 2.2.14
+
+- Minor changes.
+
 # 2.2.13
 
 - FIXED: [PdfTextSearcher](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html) not in sync on [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) update ([#515](https://github.com/espresso3389/pdfrx/issues/515))
