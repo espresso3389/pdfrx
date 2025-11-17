@@ -530,8 +530,9 @@ class _PdfViewerState extends State<PdfViewer>
                       if (_initialized && _canvasLinkPainter.isEnabled)
                         _canvasLinkPainter.linkHandlingOverlay(viewSize),
                       if (_initialized && widget.params.viewerOverlayBuilder != null)
-                        ...widget.params.viewerOverlayBuilder!(context, viewSize, _canvasLinkPainter._handleLinkTap)
-                            .map((e) => e),
+                        ...widget.params.viewerOverlayBuilder!(context, viewSize, _canvasLinkPainter._handleTapUp).map(
+                          (e) => e,
+                        ),
                       if (_initialized) ..._placeTextSelectionWidgets(context, viewSize, isCopyTextEnabled),
                     ],
                   ),
@@ -4263,7 +4264,7 @@ class _CanvasLinkPainter {
     return null;
   }
 
-  bool _handleLinkTap(Offset tapPosition) {
+  bool _handleTapUp(Offset tapPosition) {
     _state._requestFocus();
     _cursor = MouseCursor.defer;
     final link = _findLinkAtPosition(tapPosition);
@@ -4274,7 +4275,8 @@ class _CanvasLinkPainter {
         return true;
       }
     }
-    _state._clearTextSelections();
+    final globalPosition = _state._localToGlobal(tapPosition)!;
+    _state._handleGeneralTap(globalPosition, PdfViewerGeneralTapType.tap);
     return false;
   }
 
@@ -4283,7 +4285,7 @@ class _CanvasLinkPainter {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       // link taps
-      onTapUp: (details) => _handleLinkTap(details.localPosition),
+      onTapUp: (details) => _handleTapUp(details.localPosition),
       child: StatefulBuilder(
         builder: (context, setState) {
           return MouseRegion(
