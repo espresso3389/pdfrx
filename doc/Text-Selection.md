@@ -80,7 +80,7 @@ final controller = PdfViewerController();
 
 // First, load the page text for the target page
 final page = await controller.document?.getPage(pageNumber);
-final pageText = await page?.loadText();
+final pageText = await page?.loadStructuredText();
 
 if (pageText != null) {
   // Create selection points with page text and character indices
@@ -98,10 +98,10 @@ if (pageText != null) {
 ```dart
 // Example: Select from the beginning of page 1 to the end of page 3
 final startPage = await controller.document?.getPage(1);
-final startPageText = await startPage?.loadText();
+final startPageText = await startPage?.loadStructuredText();
 
 final endPage = await controller.document?.getPage(3);
-final endPageText = await endPage?.loadText();
+final endPageText = await endPage?.loadStructuredText();
 
 if (startPageText != null && endPageText != null && endPageText.fullText.isNotEmpty) {
   final startPoint = PdfTextSelectionPoint(startPageText, 0);
