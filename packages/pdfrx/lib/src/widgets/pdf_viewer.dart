@@ -2024,7 +2024,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   FocusNode? _getFocusNode() {
-    return _contextForFocusNode != null ? Focus.of(_contextForFocusNode!) : null;
+    return _contextForFocusNode != null ? Focus.maybeOf(_contextForFocusNode!) : null;
   }
 
   void _requestFocus() {
