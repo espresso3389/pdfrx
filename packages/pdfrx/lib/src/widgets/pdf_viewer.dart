@@ -526,13 +526,13 @@ class _PdfViewerState extends State<PdfViewer>
                                 ),
                         ),
                       ),
+                      if (_initialized && _canvasLinkPainter.isLaidUnderPageOverlays)
+                        _canvasLinkPainter.linkHandlingOverlay(viewSize),
                       if (_initialized) ..._buildPageOverlayWidgets(context),
-                      if (_initialized && _canvasLinkPainter.isEnabled)
+                      if (_initialized && _canvasLinkPainter.isLaidOverPageOverlays)
                         _canvasLinkPainter.linkHandlingOverlay(viewSize),
                       if (_initialized && widget.params.viewerOverlayBuilder != null)
-                        ...widget.params.viewerOverlayBuilder!(context, viewSize, _canvasLinkPainter._handleTapUp).map(
-                          (e) => e,
-                        ),
+                        ...widget.params.viewerOverlayBuilder!(context, viewSize, _canvasLinkPainter._handleTapUp),
                       if (_initialized) ..._placeTextSelectionWidgets(context, viewSize, isCopyTextEnabled),
                     ],
                   ),
@@ -4219,6 +4219,12 @@ class _CanvasLinkPainter {
   final _links = <int, List<PdfLink>>{};
 
   bool get isEnabled => _state.widget.params.linkHandlerParams != null;
+
+  bool get isLaidOverPageOverlays =>
+      _state.widget.params.linkHandlerParams != null && _state.widget.params.linkHandlerParams!.laidOverPageOverlays;
+
+  bool get isLaidUnderPageOverlays =>
+      _state.widget.params.linkHandlerParams != null && !_state.widget.params.linkHandlerParams!.laidOverPageOverlays;
 
   /// Reset all the internal data.
   void resetAll() {
