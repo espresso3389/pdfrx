@@ -627,7 +627,9 @@ class _PdfViewerState extends State<PdfViewer>
             ) ??
             _coverScale!;
         await _setZoom(Offset.zero, zoom, duration: Duration.zero);
-        await _goToPage(pageNumber: _pageNumber!, duration: Duration.zero);
+        if (_pageNumber! <= _layout!.pageLayouts.length) {
+          await _goToPage(pageNumber: _pageNumber!, duration: Duration.zero);
+        }
         if (mounted && _document != null && _controller != null) {
           widget.params.onViewerReady?.call(_document!, _controller!);
         }
@@ -1030,7 +1032,7 @@ class _PdfViewerState extends State<PdfViewer>
       _coverScale = max(s1, s2);
     }
     final pageNumber = _pageNumber ?? _gotoTargetPageNumber;
-    if (pageNumber != null) {
+    if (pageNumber != null && pageNumber >= 1 && pageNumber <= _layout!.pageLayouts.length) {
       final rect = _layout!.pageLayouts[pageNumber - 1];
       final m2 = params.margin * 2;
       _alternativeFitScale = min(
