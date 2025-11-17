@@ -46,7 +46,7 @@ pageOverlaysBuilder: (context, pageRect, page) {
 On [PdfViewerParams.viewerOverlayBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html);
 
 - Convert the global tap position to in-document position using [PdfViewerController.globalToDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/globalToDocument.html)
-  - The in-document position is position in document structure (i.e., page layout in 72-dpi). 
+  - The in-document position is position in document structure (i.e., page layout in 72-dpi).
 - Determine which page contains the position using [PdfViewerController.layout.pageLayouts](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageLayout/pageLayouts.html)
 - Convert the in-document position to the in-page position (just subtract the page's top-left position)
 
