@@ -301,7 +301,7 @@ class _PdfViewerState extends State<PdfViewer>
       return;
     }
 
-    if (oldWidget?.documentRef == widget.documentRef) {
+    if (oldWidget?.documentRef.key == widget.documentRef.key) {
       if (widget.params.doChangesRequireReload(oldWidget?.params)) {
         if (widget.params.annotationRenderingMode != oldWidget?.params.annotationRenderingMode) {
           _imageCache.releaseAllImages();
