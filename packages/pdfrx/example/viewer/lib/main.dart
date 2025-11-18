@@ -453,6 +453,23 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                         useAlternativeFitScaleAsMinScale: false,
                         maxScale: 8,
                         scrollPhysics: PdfViewerParams.getScrollPhysics(context),
+                        customizeContextMenuItems: (params, items) {
+                          // Example: add custom menu item to show page number
+
+                          items.add(
+                            ContextMenuButtonItem(
+                              type: ContextMenuButtonType.searchWeb,
+                              onPressed: () async {
+                                final text = await controller.textSelectionDelegate.getSelectedText();
+                                if (text.isNotEmpty && text.length < 100) {
+                                  final query = Uri.encodeComponent(text);
+                                  final url = Uri.parse('https://www.google.com/search?q=$query');
+                                  await launchUrl(url);
+                                }
+                              },
+                            ),
+                          );
+                        },
                         viewerOverlayBuilder: (context, size, handleLinkTap) => [
                           //
                           // Example use of GestureDetector to handle custom gestures
