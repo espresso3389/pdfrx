@@ -1,3 +1,7 @@
+# 2.2.15
+
+- FIXED: Focus context retrieval issue in [PdfViewerKeyHandler](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerKeyHandler-class.html) ([#518](https://github.com/espresso3389/pdfrx/issues/518))
+
 # 2.2.14
 
 - Minor changes.
