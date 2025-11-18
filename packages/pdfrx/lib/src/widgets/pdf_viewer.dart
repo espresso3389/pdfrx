@@ -407,11 +407,12 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onDocumentEvent(PdfDocumentEvent event) {
     if (event is PdfDocumentPageStatusChangedEvent) {
-      // TODO: we can reuse images for moved pages
+      // FIXME: We can handle the event more efficiently by only updating the affected pages.
       for (final change in event.changes.entries) {
         _imageCache.removeCacheImagesForPage(change.key);
         _magnifierImageCache.removeCacheImagesForPage(change.key);
       }
+      // very conservative approach: just clear all caches; we can optimize this later
       _canvasLinkPainter.resetAll();
       _textCache.clear();
       _clearTextSelections(invalidate: false);

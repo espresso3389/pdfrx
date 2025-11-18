@@ -1,7 +1,13 @@
+import 'dart:async';
+
+import 'package:rxdart/rxdart.dart';
+
 import 'pdf_document.dart';
+import 'pdf_document_event.dart';
 import 'pdf_image.dart';
 import 'pdf_link.dart';
 import 'pdf_page_proxies.dart';
+import 'pdf_page_status_change.dart';
 import 'pdf_text.dart';
 import 'pdf_text_formatter.dart';
 
@@ -27,7 +33,9 @@ abstract class PdfPage {
   /// Whether the page is really loaded or not.
   ///
   /// If the value is false, the page's [width], [height], and [rotation] are just guessed values and
-  /// will be updated when the page is really loaded.
+  /// will be updated when the page is really loaded (progressive loading case only).
+  ///
+  /// If you want to wait until the page is really loaded, use [PdfPageBaseExtensions.ensureLoaded].
   bool get isLoaded;
 
   /// Render a sub-area or full image of specified PDF file.
@@ -41,6 +49,9 @@ abstract class PdfPage {
   /// - [annotationRenderingMode] controls to render annotations or not. The default is [PdfAnnotationRenderingMode.annotationAndForms].
   /// - [flags] is used to specify additional rendering flags. The default is [PdfPageRenderFlags.none].
   /// - [cancellationToken] can be used to cancel the rendering process. It must be created by [createCancellationToken].
+  ///
+  /// If the page is not loaded yet (progressive loading case only), the function renders empty page with specified
+  /// background color.
   ///
   /// The following code extract the area of (20,30)-(120,130) from the page image rendered at 1000x1500 pixels:
   /// ```dart
@@ -70,17 +81,11 @@ abstract class PdfPage {
   /// Create [PdfPageRenderCancellationToken] to cancel the rendering process.
   PdfPageRenderCancellationToken createCancellationToken();
 
-  /// Load structured text with character bounding boxes.
-  ///
-  /// The function internally does test flow analysis (reading order) and line segmentation to detect
-  /// text direction and line breaks.
-  ///
-  /// To access the raw text, use [loadText].
-  Future<PdfPageText> loadStructuredText() => PdfTextFormatter.loadStructuredText(this, pageNumberOverride: pageNumber);
-
   /// Load plain text for the page.
   ///
-  /// For text with character bounding boxes, use [loadStructuredText].
+  /// For text with character bounding boxes, use [PdfPageBaseExtensions.loadStructuredText].
+  ///
+  /// If the page is not loaded yet (progressive loading case only), this function returns null.
   Future<PdfPageRawText?> loadText();
 
   /// Load links.
@@ -91,7 +96,73 @@ abstract class PdfPage {
   /// If [enableAutoLinkDetection] is true, the function tries to detect Web links automatically.
   /// This is useful if the PDF file contains text that looks like Web links but not defined as links in the PDF.
   /// The default is true.
+  ///
+  /// If the page is not loaded yet (progressive loading case only), this function returns an empty list.
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true});
+}
+
+/// Extension methods for [PdfPage].
+extension PdfPageBaseExtensions on PdfPage {
+  /// Load structured text with character bounding boxes.
+  ///
+  /// The function internally does test flow analysis (reading order) and line segmentation to detect
+  /// text direction and line breaks.
+  ///
+  /// To access the raw text, use [loadText].
+  ///
+  /// If the page is not loaded yet (progressive loading case only), this function returns null.
+  Future<PdfPageText> loadStructuredText({bool ensureLoaded = true}) =>
+      PdfTextFormatter.loadStructuredText(this, pageNumberOverride: pageNumber);
+
+  /// Stream of page status change events for this page.
+  ///
+  /// The event is based on the page position (page number), so the page instance identity may change if the page is
+  /// replaced by another instance with the same page number.
+  Stream<PdfPageStatusChange> get events {
+    return document.events
+        .where((event) => event is PdfDocumentPageStatusChangedEvent && event.changes.containsKey(pageNumber))
+        .map((event) => (event as PdfDocumentPageStatusChangedEvent).changes[pageNumber]!);
+  }
+
+  /// Stream of latest page instances when the page status changes.
+  ///
+  /// The page instance identity may change if the page is replaced by another instance with the same page number.
+  /// For example, when the page is loaded, the instance may be replaced with a fully loaded page instance.
+  /// This stream emits the latest instance of the page whenever a status change event occurs for this page.
+  /// Note that this stream may emit the same instance multiple times if the page is not replaced.
+  Stream<PdfPage> get latestPageStream =>
+      Stream.value(this).concatWith([events.map((event) => document.pages[pageNumber - 1])]);
+
+  /// Wait until the page is really loaded.
+  ///
+  /// Returns the latest instance of the page once it is loaded.
+  /// If [timeout] is specified, it returns null if the page is not loaded within the duration. otherwise,
+  /// it waits indefinitely and never returns null.
+  Future<PdfPage?> ensureLoaded({Duration? timeout}) async {
+    final newPage = document.pages[pageNumber - 1];
+    if (newPage.isLoaded) {
+      return newPage;
+    }
+    final completer = Completer<PdfPage?>();
+    late StreamSubscription<PdfPageStatusChange> subscription;
+    subscription = events.listen((event) {
+      final newPage = document.pages[pageNumber - 1];
+      if (newPage.isLoaded) {
+        subscription.cancel();
+        completer.complete(newPage); // get the latest instance
+      }
+    });
+    if (timeout != null) {
+      return completer.future.timeout(
+        timeout,
+        onTimeout: () {
+          subscription.cancel();
+          return null;
+        },
+      );
+    }
+    return completer.future;
+  }
 }
 
 /// Extension to add rotation capability to [PdfPage].
