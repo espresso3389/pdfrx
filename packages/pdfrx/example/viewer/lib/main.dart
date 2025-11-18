@@ -454,17 +454,17 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                         maxScale: 8,
                         scrollPhysics: PdfViewerParams.getScrollPhysics(context),
                         customizeContextMenuItems: (params, items) {
-                          // Example: add custom menu item to show page number
-
+                          // Example: add custom menu item to search selected text on web
                           items.add(
                             ContextMenuButtonItem(
                               type: ContextMenuButtonType.searchWeb,
                               onPressed: () async {
                                 final text = await controller.textSelectionDelegate.getSelectedText();
-                                if (text.isNotEmpty && text.length < 100) {
-                                  final query = Uri.encodeComponent(text);
-                                  final url = Uri.parse('https://www.google.com/search?q=$query');
-                                  await launchUrl(url);
+                                if (text.isNotEmpty) {
+                                  final shortened = text.length > 100 ? text.substring(0, 100) : text;
+                                  await launchUrl(
+                                    Uri.parse('https://www.google.com/search?q=${Uri.encodeComponent(shortened)}'),
+                                  );
                                 }
                               },
                             ),
