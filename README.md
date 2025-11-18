@@ -14,7 +14,7 @@ A platform-agnostic PDF rendering and manipulation API built on top of [PDFium](
 - Can be used in CLI applications or non-Flutter Dart projects
 - Supports all platforms: Android, iOS, Windows, macOS, Linux
 
-[View documentation](packages/pdfrx_engine/) | [API reference](https://pub.dev/documentation/pdfrx_engine/latest/)
+[View repo](packages/pdfrx_engine/) | [API reference](https://pub.dev/documentation/pdfrx_engine/latest/)
 
 ### [pdfrx](https://pub.dev/packages/pdfrx)
 
@@ -26,7 +26,7 @@ A cross-platform PDF viewer and manipulation plugin for Flutter.
 - Includes text selection, search, zoom controls, and more
 - Supports PDF editing features like page manipulation, document combining, and image import
 
-[View documentation](packages/pdfrx/) | [API reference](https://pub.dev/documentation/pdfrx/latest/)
+[View repo](packages/pdfrx/) | [API reference](https://pub.dev/documentation/pdfrx/latest/)
 
 ### [pdfrx_coregraphics](https://pub.dev/packages/pdfrx_coregraphics)
 
@@ -37,7 +37,7 @@ A cross-platform PDF viewer and manipulation plugin for Flutter.
 - Maintains full compatibility with [pdfrx](https://pub.dev/packages/pdfrx) widget API
 - iOS and macOS only
 
-[View documentation](packages/pdfrx_coregraphics/) | [API reference](https://pub.dev/documentation/pdfrx_coregraphics/latest/)
+[View repo](packages/pdfrx_coregraphics/) | [API reference](https://pub.dev/documentation/pdfrx_coregraphics/latest/)
 
 ### [pdfium_dart](https://pub.dev/packages/pdfium_dart)
 
@@ -48,7 +48,7 @@ Low-level Dart FFI bindings for the [PDFium](https://pdfium.googlesource.com/pdf
 - Includes [getPdfium()](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html) function that downloads PDFium binaries on demand
 - Used as a foundation by higher-level packages
 
-[View documentation](packages/pdfium_dart/) | [API reference](https://pub.dev/documentation/pdfium_dart/latest/)
+[View repo](packages/pdfium_dart/) | [API reference](https://pub.dev/documentation/pdfium_dart/latest/)
 
 ### [pdfium_flutter](https://pub.dev/packages/pdfium_flutter)
 
@@ -59,7 +59,7 @@ Flutter FFI plugin for loading [PDFium](https://pdfium.googlesource.com/pdfium/)
 - Re-exports [pdfium_dart](https://pub.dev/packages/pdfium_dart) FFI bindings
 - Simplifies PDFium integration in Flutter applications
 
-[View documentation](packages/pdfium_flutter/) | [API reference](https://pub.dev/documentation/pdfium_flutter/latest/)
+[View repo](packages/pdfium_flutter/) | [API reference](https://pub.dev/documentation/pdfium_flutter/latest/)
 
 ## When to Use Which Package
 
