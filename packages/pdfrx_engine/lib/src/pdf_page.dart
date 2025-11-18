@@ -35,7 +35,8 @@ abstract class PdfPage {
   /// If the value is false, the page's [width], [height], and [rotation] are just guessed values and
   /// will be updated when the page is really loaded (progressive loading case only).
   ///
-  /// If you want to wait until the page is really loaded, use [PdfPageBaseExtensions.ensureLoaded].
+  /// If you want to wait until the page is really loaded, use [PdfPageBaseExtensions.ensureLoaded] or
+  /// [PdfPageBaseExtensions.waitForLoaded].
   bool get isLoaded;
 
   /// Render a sub-area or full image of specified PDF file.
@@ -133,12 +134,21 @@ extension PdfPageBaseExtensions on PdfPage {
   Stream<PdfPage> get latestPageStream =>
       Stream.value(this).concatWith([events.map((event) => document.pages[pageNumber - 1])]);
 
+  /// Ensure the page is really loaded.
+  ///
+  /// Returns the latest instance of the page once it is loaded.
+  ///
+  /// If you want to specify a timeout, use [waitForLoaded] instead.
+  Future<PdfPage> ensureLoaded() async {
+    return (await waitForLoaded())!;
+  }
+
   /// Wait until the page is really loaded.
   ///
   /// Returns the latest instance of the page once it is loaded.
   /// If [timeout] is specified, it returns null if the page is not loaded within the duration. otherwise,
   /// it waits indefinitely and never returns null.
-  Future<PdfPage?> ensureLoaded({Duration? timeout}) async {
+  Future<PdfPage?> waitForLoaded({Duration? timeout}) async {
     final newPage = document.pages[pageNumber - 1];
     if (newPage.isLoaded) {
       return newPage;
@@ -146,10 +156,9 @@ extension PdfPageBaseExtensions on PdfPage {
     final completer = Completer<PdfPage?>();
     late StreamSubscription<PdfPageStatusChange> subscription;
     subscription = events.listen((event) {
-      final newPage = document.pages[pageNumber - 1];
-      if (newPage.isLoaded) {
+      if (event.page.isLoaded) {
         subscription.cancel();
-        completer.complete(newPage); // get the latest instance
+        completer.complete(event.page); // get the latest instance
       }
     });
     if (timeout != null) {

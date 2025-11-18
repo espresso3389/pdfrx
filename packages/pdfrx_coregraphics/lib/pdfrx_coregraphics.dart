@@ -467,15 +467,17 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
       }
 
       final newPageNumber = pages.length + 1;
-      pages.add(newPage.withPageNumber(newPageNumber));
+      final updated = newPage.withPageNumber(newPageNumber);
+      pages.add(updated);
 
       final oldPageIndex = _pages.indexWhere((p) => identical(p, newPage));
       if (oldPageIndex != -1) {
         changes[newPageNumber] = PdfPageStatusChange.moved(
+          page: updated,
           oldPageNumber: oldPageIndex + 1,
         );
       } else {
-        changes[newPageNumber] = PdfPageStatusChange.modified;
+        changes[newPageNumber] = PdfPageStatusChange.modified(page: updated);
       }
     }
 
