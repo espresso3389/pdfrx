@@ -25,12 +25,14 @@ class PdfViewerKeyHandler extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final focusNode = Focus.maybeOf(context);
-    if (focusNode == null) {
-      return child;
-    }
     final childBuilder = Builder(
-      builder: (context) => ListenableBuilder(listenable: focusNode, builder: (context, _) => child),
+      builder: (context) {
+        final focusNode = Focus.maybeOf(context);
+        if (focusNode == null) {
+          return child;
+        }
+        return ListenableBuilder(listenable: focusNode, builder: (context, _) => child);
+      },
     );
     if (!params.enabled) {
       return childBuilder;
