@@ -288,7 +288,7 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
           // try again with the next password
           continue;
         }
-        rethrow;
+        throw PdfException(e.message ?? 'Platform error: ${e.code}');
       }
     }
   }
