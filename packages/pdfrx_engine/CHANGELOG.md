@@ -1,3 +1,7 @@
+## 0.3.5
+
+- Documentation updates.
+
 ## 0.3.4
 
 - NEW: Added [`PdfPageBaseExtensions.ensureLoaded()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/ensureLoaded.html) - Wait for page to load (waits indefinitely, never returns null)
