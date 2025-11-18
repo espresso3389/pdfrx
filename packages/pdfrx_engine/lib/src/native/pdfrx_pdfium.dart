@@ -659,14 +659,7 @@ class _PdfDocumentPdfium extends PdfDocument {
         timeout: loadUnitDuration,
       );
       if (isDisposed) return;
-      _pages = List.unmodifiable(loaded.pages);
-
-      // notify pages changed
-      final changes = {
-        for (var p in _pages.skip(firstUnloadedPageIndex).take(_pages.length - firstUnloadedPageIndex))
-          p.pageNumber: PdfPageStatusModified(),
-      };
-      subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+      pages = loaded.pages;
 
       if (onPageLoadProgress != null) {
         final result = await onPageLoadProgress(loaded.pageCountLoadedTotal, loaded.pages.length, data);
@@ -797,10 +790,13 @@ class _PdfDocumentPdfium extends PdfDocument {
       }
     }
 
-    _pages = pages;
+    _pages = List.unmodifiable(pages);
     subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
   }
 
+  /// Don't handle [_pages] directly unless you really understand what you're doing; use [pages] getter/setter instead.
+  ///
+  /// [pages] automatically keeps consistency and also notifies page changes.
   List<PdfPage> _pages = [];
 
   @override

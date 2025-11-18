@@ -419,7 +419,8 @@ class _PdfDocumentWasm extends PdfDocument {
       var firstPageIndex = pages.indexWhere((page) => !page.isLoaded);
       if (firstPageIndex < 0) return; // All pages are already loaded
 
-      for (; firstPageIndex < pages.length;) {
+      final newPages = pages.toList(growable: false);
+      for (; firstPageIndex < newPages.length;) {
         if (isDisposed) return;
         final result = await _sendCommand(
           'loadPagesProgressively',
@@ -432,13 +433,9 @@ class _PdfDocumentWasm extends PdfDocument {
         final pagesLoaded = parsePages(this, result['pages'] as List<dynamic>);
         firstPageIndex += pagesLoaded.length;
         for (final page in pagesLoaded) {
-          pages[page.pageNumber - 1] = page; // Update the existing page
+          newPages[page.pageNumber - 1] = page; // Update the existing page
         }
-
-        if (!subject.isClosed) {
-          final changes = {for (var p in pagesLoaded) p.pageNumber: PdfPageStatusModified()};
-          subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
-        }
+        pages = newPages;
 
         updateMissingFonts(result['missingFonts']);
 
@@ -452,6 +449,9 @@ class _PdfDocumentWasm extends PdfDocument {
     });
   }
 
+  /// Don't handle [_pages] directly unless you really understand what you're doing; use [pages] getter/setter instead.
+  ///
+  /// [pages] automatically keeps consistency and also notifies page changes.
   late List<PdfPage> _pages;
 
   @override
@@ -486,7 +486,7 @@ class _PdfDocumentWasm extends PdfDocument {
       }
     }
 
-    _pages = pages;
+    _pages = List.unmodifiable(pages);
     subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
   }
 
