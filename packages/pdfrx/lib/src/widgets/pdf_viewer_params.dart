@@ -1424,9 +1424,10 @@ class PdfViewerGeneralTapHandlerDetails {
 
 /// Function to build page overlays.
 ///
-/// [pageRect] is the rectangle of the page in the viewer.
+/// [pageRectInViewer] is the rectangle of the page in the viewer; it represents where the page is drawn in the viewer and
+/// not the page size in the document.
 /// [page] is the page.
-typedef PdfPageOverlaysBuilder = List<Widget> Function(BuildContext context, Rect pageRect, PdfPage page);
+typedef PdfPageOverlaysBuilder = List<Widget> Function(BuildContext context, Rect pageRectInViewer, PdfPage page);
 
 /// Function to build loading banner.
 ///
