@@ -505,6 +505,10 @@ class PdfViewerParams {
   ///
   /// This function is used to decorate each page with overlay widgets.
   ///
+  /// But placing widgets over the page may make the viewer heavier, especially when
+  /// the document has many pages. So please use this function with care.
+  /// To draw simple decorations such as page number footer, consider using [pageBackgroundPaintCallbacks].
+  ///
   /// The return value of the function is a list of widgets to be laid out on the page;
   /// they are actually laid out on the page using [Stack].
   ///
@@ -558,8 +562,8 @@ class PdfViewerParams {
   ///
   /// If [linkHandlerParams] is specified, it is ignored.
   ///
-  /// Basically, handling links with widgets are not recommended because it is not efficient.
-  /// [linkHandlerParams] is the recommended way to handle links.
+  /// Basically, handling links with widgets are not recommended because it makes the viewer heavier.
+  /// If you just handle simple link taps or want to customize link visuals, use [linkHandlerParams].
   final PdfLinkWidgetBuilder? linkWidgetBuilder;
 
   /// Callback to paint over the rendered page.
@@ -1598,6 +1602,7 @@ class PdfLinkHandlerParams {
     this.linkColor,
     this.customPainter,
     this.enableAutoLinkDetection = true,
+    this.laidOverPageOverlays = true,
   });
 
   /// Function to be called when the link is tapped.
@@ -1633,6 +1638,13 @@ class PdfLinkHandlerParams {
   /// The default is true.
   final bool enableAutoLinkDetection;
 
+  /// Whether the link widgets are laid over page overlays or not.
+  ///
+  /// If true, the link widgets are laid over page overlays built by [PdfViewerParams.pageOverlaysBuilder].
+  /// If false, the link widgets are laid under page overlays.
+  /// The default is true.
+  final bool laidOverPageOverlays;
+
   @override
   bool operator ==(covariant PdfLinkHandlerParams other) {
     if (identical(this, other)) return true;
@@ -1640,12 +1652,17 @@ class PdfLinkHandlerParams {
     return other.onLinkTap == onLinkTap &&
         other.linkColor == linkColor &&
         other.customPainter == customPainter &&
-        other.enableAutoLinkDetection == enableAutoLinkDetection;
+        other.enableAutoLinkDetection == enableAutoLinkDetection &&
+        other.laidOverPageOverlays == laidOverPageOverlays;
   }
 
   @override
   int get hashCode {
-    return onLinkTap.hashCode ^ linkColor.hashCode ^ customPainter.hashCode ^ enableAutoLinkDetection.hashCode;
+    return onLinkTap.hashCode ^
+        linkColor.hashCode ^
+        customPainter.hashCode ^
+        enableAutoLinkDetection.hashCode ^
+        laidOverPageOverlays.hashCode;
   }
 }
 

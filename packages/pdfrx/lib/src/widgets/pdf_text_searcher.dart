@@ -10,7 +10,9 @@ import '../../pdfrx.dart';
 /// To be notified when the search status change, use [addListener].
 class PdfTextSearcher extends Listenable {
   /// Creates a new instance of [PdfTextSearcher].
-  PdfTextSearcher(this._controller);
+  PdfTextSearcher(this._controller) {
+    _registerForDocumentChanges();
+  }
 
   final PdfViewerController _controller;
 
@@ -21,13 +23,14 @@ class PdfTextSearcher extends Listenable {
   int _searchSession = 0; // current search session
   List<PdfPageTextRange> _matches = const [];
   List<int> _matchesPageStartIndices = const [];
-  Pattern? _lastSearchPattern;
+  _SearchCondition? _lastSearchCondition;
   int? _currentIndex;
   PdfPageTextRange? _currentMatch;
   int? _searchingPageNumber;
   int? _totalPageCount;
   bool _isSearching = false;
   final _cachedText = <int, PdfPageText>{};
+  StreamSubscription<PdfDocumentEvent>? _documentEventSubscription;
 
   /// The current match index in [matches] if available.
   int? get currentIndex => _currentIndex;
@@ -51,7 +54,7 @@ class PdfTextSearcher extends Listenable {
     return _searchingPageNumber! / _totalPageCount!;
   }
 
-  Pattern? get pattern => _lastSearchPattern;
+  Pattern? get pattern => _lastSearchCondition?.pattern;
 
   int get searchSession => _searchSession;
 
@@ -81,13 +84,17 @@ class PdfTextSearcher extends Listenable {
     final searchSession = ++_searchSession;
 
     void search() {
-      if (_isIdenticalPattern(_lastSearchPattern, pattern)) return;
-      _lastSearchPattern = pattern;
+      if (_isIdenticalPattern(_lastSearchCondition?.pattern, pattern)) return;
+      _lastSearchCondition = _SearchCondition(
+        pattern: pattern,
+        caseInsensitive: caseInsensitive,
+        goToFirstMatch: goToFirstMatch,
+      );
       if (pattern.isEmpty) {
         _resetTextSearch();
         return;
       }
-      _startTextSearchInternal(pattern, searchSession, caseInsensitive, goToFirstMatch);
+      _startTextSearchInternal(_lastSearchCondition!, searchSession);
     }
 
     if (searchImmediately) {
@@ -97,34 +104,18 @@ class PdfTextSearcher extends Listenable {
     }
   }
 
-  bool _isIdenticalPattern(Pattern? a, Pattern? b) {
-    if (a is String && b is String) {
-      return a == b;
-    }
-    if (a is RegExp && b is RegExp) {
-      return a.pattern == b.pattern &&
-          a.isCaseSensitive == b.isCaseSensitive &&
-          a.isMultiLine == b.isMultiLine &&
-          a.isUnicode == b.isUnicode &&
-          a.isDotAll == b.isDotAll;
-    }
-    if (a == null && b == null) {
-      return true;
-    }
-    return false;
-  }
-
   /// Reset the current search.
   void resetTextSearch() => _resetTextSearch();
 
   /// Almost identical to [resetTextSearch], but does not notify listeners.
   void dispose() {
+    _documentEventSubscription?.cancel();
     _listeners.clear();
     _cachedText.clear();
     _resetTextSearch(notify: false);
   }
 
-  void _resetTextSearch({bool notify = true}) {
+  void _resetTextSearch({bool notify = true, bool clearSearchCondition = true}) {
     _cancelTextSearch();
     _matches = const [];
     _matchesPageStartIndices = const [];
@@ -132,7 +123,9 @@ class PdfTextSearcher extends Listenable {
     _currentIndex = null;
     _currentMatch = null;
     _isSearching = false;
-    _lastSearchPattern = null;
+    if (clearSearchCondition) {
+      _lastSearchCondition = null;
+    }
     if (notify) {
       notifyListeners();
     }
@@ -143,12 +136,7 @@ class PdfTextSearcher extends Listenable {
     ++_searchSession;
   }
 
-  Future<void> _startTextSearchInternal(
-    Pattern text,
-    int searchSession,
-    bool caseInsensitive,
-    bool goToFirstMatch,
-  ) async {
+  Future<void> _startTextSearchInternal(_SearchCondition condition, int searchSession) async {
     await controller?.useDocument((document) async {
       final textMatches = <PdfPageTextRange>[];
       final textMatchesPageStartIndex = <int>[];
@@ -159,9 +147,10 @@ class PdfTextSearcher extends Listenable {
         _searchingPageNumber = page.pageNumber;
         if (searchSession != _searchSession) return;
         final pageText = await loadText(pageNumber: page.pageNumber);
+        if (searchSession != _searchSession) return;
         if (pageText == null) continue;
         textMatchesPageStartIndex.add(textMatches.length);
-        await for (final f in pageText.allMatches(text, caseInsensitive: caseInsensitive)) {
+        await for (final f in pageText.allMatches(condition.pattern, caseInsensitive: condition.caseInsensitive)) {
           if (searchSession != _searchSession) return;
           textMatches.add(f);
         }
@@ -172,7 +161,7 @@ class PdfTextSearcher extends Listenable {
 
         if (_matches.isNotEmpty && first) {
           first = false;
-          if (goToFirstMatch) {
+          if (condition.goToFirstMatch) {
             _currentIndex = 0;
             _currentMatch = null;
             goToMatchOfIndex(_currentIndex!);
@@ -180,6 +169,31 @@ class PdfTextSearcher extends Listenable {
         }
       }
     });
+  }
+
+  void _registerForDocumentChanges() {
+    _documentEventSubscription?.cancel();
+    _documentEventSubscription = controller!.document.events.listen((event) {
+      if (event is PdfDocumentPageStatusChangedEvent) {
+        final changedPages = event.changes.keys.toSet();
+        final needRestart = _matches.any((m) => changedPages.contains(m.pageNumber));
+        if (needRestart) {
+          _restartSearch();
+        }
+      }
+    });
+  }
+
+  void _restartSearch() {
+    _resetTextSearch(clearSearchCondition: false);
+    _cachedText.clear();
+    if (_lastSearchCondition != null) {
+      startTextSearch(
+        _lastSearchCondition!.pattern,
+        caseInsensitive: _lastSearchCondition!.caseInsensitive,
+        goToFirstMatch: _lastSearchCondition!.goToFirstMatch,
+      );
+    }
   }
 
   /// Just a helper function to load the text of a page.
@@ -283,4 +297,28 @@ extension _PatternExts on Pattern {
         throw UnsupportedError('Pattern type not supported: $this');
     }
   }
+}
+
+class _SearchCondition {
+  const _SearchCondition({required this.pattern, required this.caseInsensitive, required this.goToFirstMatch});
+  final Pattern pattern;
+  final bool caseInsensitive;
+  final bool goToFirstMatch;
+}
+
+bool _isIdenticalPattern(Pattern? a, Pattern? b) {
+  if (a is String && b is String) {
+    return a == b;
+  }
+  if (a is RegExp && b is RegExp) {
+    return a.pattern == b.pattern &&
+        a.isCaseSensitive == b.isCaseSensitive &&
+        a.isMultiLine == b.isMultiLine &&
+        a.isUnicode == b.isUnicode &&
+        a.isDotAll == b.isDotAll;
+  }
+  if (a == null && b == null) {
+    return true;
+  }
+  return false;
 }

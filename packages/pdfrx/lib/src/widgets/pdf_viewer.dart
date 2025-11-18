@@ -302,7 +302,7 @@ class _PdfViewerState extends State<PdfViewer>
       return;
     }
 
-    if (oldWidget?.documentRef == widget.documentRef) {
+    if (oldWidget?.documentRef.key == widget.documentRef.key) {
       if (widget.params.doChangesRequireReload(oldWidget?.params)) {
         if (widget.params.annotationRenderingMode != oldWidget?.params.annotationRenderingMode) {
           _imageCache.releaseAllImages();
@@ -534,12 +534,13 @@ class _PdfViewerState extends State<PdfViewer>
                                 ),
                         ),
                       ),
+                      if (_initialized && _canvasLinkPainter.isLaidUnderPageOverlays)
+                        _canvasLinkPainter.linkHandlingOverlay(viewSize),
                       if (_initialized) ..._buildPageOverlayWidgets(context),
-                      if (_initialized && _canvasLinkPainter.isEnabled)
+                      if (_initialized && _canvasLinkPainter.isLaidOverPageOverlays)
                         _canvasLinkPainter.linkHandlingOverlay(viewSize),
                       if (_initialized && widget.params.viewerOverlayBuilder != null)
-                        ...widget.params.viewerOverlayBuilder!(context, viewSize, _canvasLinkPainter._handleLinkTap)
-                            .map((e) => e),
+                        ...widget.params.viewerOverlayBuilder!(context, viewSize, _canvasLinkPainter._handleTapUp),
                       if (_initialized) ..._placeTextSelectionWidgets(context, viewSize, isCopyTextEnabled),
                     ],
                   ),
@@ -3178,7 +3179,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   FocusNode? _getFocusNode() {
-    return _contextForFocusNode != null ? Focus.of(_contextForFocusNode!) : null;
+    return _contextForFocusNode != null ? Focus.maybeOf(_contextForFocusNode!) : null;
   }
 
   void _requestFocus() {
@@ -5396,6 +5397,12 @@ class _CanvasLinkPainter {
 
   bool get isEnabled => _state.widget.params.linkHandlerParams != null;
 
+  bool get isLaidOverPageOverlays =>
+      _state.widget.params.linkHandlerParams != null && _state.widget.params.linkHandlerParams!.laidOverPageOverlays;
+
+  bool get isLaidUnderPageOverlays =>
+      _state.widget.params.linkHandlerParams != null && !_state.widget.params.linkHandlerParams!.laidOverPageOverlays;
+
   /// Reset all the internal data.
   void resetAll() {
     _cursor = MouseCursor.defer;
@@ -5440,7 +5447,7 @@ class _CanvasLinkPainter {
     return null;
   }
 
-  bool _handleLinkTap(Offset tapPosition) {
+  bool _handleTapUp(Offset tapPosition) {
     _state._requestFocus();
     _cursor = MouseCursor.defer;
     final link = _findLinkAtPosition(tapPosition);
@@ -5451,7 +5458,8 @@ class _CanvasLinkPainter {
         return true;
       }
     }
-    _state._clearTextSelections();
+    final globalPosition = _state._localToGlobal(tapPosition)!;
+    _state._handleGeneralTap(globalPosition, PdfViewerGeneralTapType.tap);
     return false;
   }
 
@@ -5460,7 +5468,7 @@ class _CanvasLinkPainter {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       // link taps
-      onTapUp: (details) => _handleLinkTap(details.localPosition),
+      onTapUp: (details) => _handleTapUp(details.localPosition),
       child: StatefulBuilder(
         builder: (context, setState) {
           return MouseRegion(

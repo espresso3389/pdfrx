@@ -1,3 +1,19 @@
+# 2.2.14
+
+- Minor changes.
+
+# 2.2.13
+
+- FIXED: [PdfTextSearcher](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html) not in sync on [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) update ([#515](https://github.com/espresso3389/pdfrx/issues/515))
+- FIXED: Focus.of -> Focus.maybeOf to prevent exceptions when FocusNode is not available ([#518](https://github.com/espresso3389/pdfrx/issues/518))
+- FIXED: Crash when opening an empty PDF - now treated as a valid PDF to keep consistency with existing editing feature ([#544](https://github.com/espresso3389/pdfrx/issues/544))
+- FIXED: [PdfViewerParams.onGeneralTap](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/onGeneralTap.html) one-click not working ([#540](https://github.com/espresso3389/pdfrx/issues/540))
+- IMPROVED: Document reference comparison now uses key for better consistency ([#543](https://github.com/espresso3389/pdfrx/pull/543))
+
+# 2.2.12
+
+- FIXED: Package incorrectly showing as web-only on pub.dev due to incorrect Flutter plugin platform declarations ([#535](https://github.com/espresso3389/pdfrx/issues/535))
+
 # 2.2.11
 
 - FIXED: Magnifier content location calculated incorrectly ([#532](https://github.com/espresso3389/pdfrx/issues/532))

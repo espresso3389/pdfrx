@@ -21,7 +21,7 @@ Basically, these initialization functions do the following things:
 - Map PdfDocument [factory/interop functions](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions-class.html) to actual platform ones
 - Set [Pdfrx.loadAsset](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pdfrx/loadAsset.html) (Flutter only)
 - Download PDFium binary on-demand ([pdfrxInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html) only)
-- Call [PdfrxEntryFunctions.initPdfium](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/initPdfium.html) to initialize the PDFium library (internally calls `FPDF_InitLibraryWithConfig`)
+- Call [PdfrxEntryFunctions.init](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/init.html) to initialize the PDFium library (internally calls `FPDF_InitLibraryWithConfig`)
 
 ## Cache Directory
 

@@ -24,7 +24,7 @@ Future<void> loadFont() async {
   final fontData = response.bodyBytes;
 
   // Add font data to PDFium
-  await PPdfrxEntryFunctions.instance.addFontData(
+  await PdfrxEntryFunctions.instance.addFontData(
     face: 'MyFont', // font name should be unique but don't have to be meaningful name
     data: fontData,
   );
