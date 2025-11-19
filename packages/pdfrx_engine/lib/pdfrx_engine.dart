@@ -1,6 +1,7 @@
 library;
 
 export 'src/mock/pdfrx_initialize_mock.dart' if (dart.library.io) 'src/pdfrx_initialize_dart.dart';
+export 'src/pdf_annotation.dart';
 export 'src/pdf_dest.dart';
 export 'src/pdf_document.dart';
 export 'src/pdf_document_event.dart';

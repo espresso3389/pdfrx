@@ -1288,6 +1288,9 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
 
     var linkEntry: [String: Any] = ["rects": annotRects]
 
+    var annotation: [String: String] = [:]
+    var hasAnnotation = false
+
     // Extract URL from action
     var actionDict: CGPDFDictionaryRef?
     if CGPDFDictionaryGetDictionary(annotDict, "A", &actionDict), let action = actionDict {
@@ -1317,21 +1320,62 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       }
     }
 
-    // Extract annotation content
-    var contentsString: CGPDFStringRef?
-    if CGPDFDictionaryGetString(annotDict, "Contents", &contentsString), let contents = contentsString {
-      if let cfString = CGPDFStringCopyTextString(contents) {
-        linkEntry["annotationContent"] = cfString as String
-      }
+    // Author (T field)
+  var authorString: CGPDFStringRef?
+  if CGPDFDictionaryGetString(annotDict, "T", &authorString), let author = authorString {
+    if let cfString = CGPDFStringCopyTextString(author) {
+      annotation["author"] = cfString as String
+      hasAnnotation = true
     }
-
-    // Only return if we have a URL or destination
-    guard linkEntry["url"] != nil || linkEntry["dest"] != nil else {
-      return nil
-    }
-
-    return linkEntry
   }
+  
+  // Contents
+  var contentsString: CGPDFStringRef?
+  if CGPDFDictionaryGetString(annotDict, "Contents", &contentsString), let contents = contentsString {
+    if let cfString = CGPDFStringCopyTextString(contents) {
+      annotation["content"] = cfString as String
+      hasAnnotation = true
+    }
+  }
+  
+  // Subject
+  var subjString: CGPDFStringRef?
+  if CGPDFDictionaryGetString(annotDict, "Subj", &subjString), let subj = subjString {
+    if let cfString = CGPDFStringCopyTextString(subj) {
+      annotation["subject"] = cfString as String
+      hasAnnotation = true
+    }
+  }
+  
+  // Modification date (M)
+  var modDateString: CGPDFStringRef?
+  if CGPDFDictionaryGetString(annotDict, "M", &modDateString), let modDate = modDateString {
+    if let cfString = CGPDFStringCopyTextString(modDate) {
+      annotation["modificationDate"] = cfString as String
+      hasAnnotation = true
+    }
+  }
+  
+  // Creation date
+  var createDateString: CGPDFStringRef?
+  if CGPDFDictionaryGetString(annotDict, "CreationDate", &createDateString), let createDate = createDateString {
+    if let cfString = CGPDFStringCopyTextString(createDate) {
+      annotation["creationDate"] = cfString as String
+      hasAnnotation = true
+    }
+  }
+  
+  if hasAnnotation {
+    linkEntry["annotation"] = annotation
+  }
+
+  // Only return if we have a URL, destination, or annotation
+  guard linkEntry["url"] != nil || linkEntry["dest"] != nil || linkEntry["annotation"] != nil else {
+    return nil
+  }
+
+  return linkEntry
+}
 
   private func parseCGRect(_ rectArray: CGPDFArrayRef) -> [String: Double]? {
     let count = CGPDFArrayGetCount(rectArray)
@@ -1466,9 +1510,26 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
         .joined(separator: "|")
       return "rect:\(rectKey)"
     }
-    if let content = link["annotationContent"] as? String, !content.isEmpty {
-      return "content:\(content)"
+    
+    // Use annotation fields for key generation
+    if let annotation = link["annotation"] as? [String: String] {
+      var components: [String] = []
+      
+      if let author = annotation["author"], !author.isEmpty {
+        components.append("author:\(author)")
+      }
+      if let content = annotation["content"], !content.isEmpty {
+        components.append("content:\(content)")
+      }
+      if let subject = annotation["subject"], !subject.isEmpty {
+        components.append("subject:\(subject)")
+      }
+      
+      if !components.isEmpty {
+        return components.joined(separator: "|")
+      }
     }
+    
     return UUID().uuidString
   }
 

@@ -664,21 +664,31 @@ class _PdfPageWasm extends PdfPage {
 
       final url = link['url'];
       final dest = link['dest'];
-      final annotationContent = link['annotationContent'] as String?;
+
+      final annotationData = link['annotation'] as Map<Object?, dynamic>?;
+      final annotation = annotationData != null
+          ? PdfAnnotation(
+              author: annotationData['author'] as String?,
+              content: annotationData['content'] as String?,
+              subject: annotationData['subject'] as String?,
+              modificationDate: annotationData['modificationDate'] as String?,
+              creationDate: annotationData['creationDate'] as String?,
+            )
+          : null;
 
       if (url is String) {
-        return PdfLink(rects, url: Uri.tryParse(url), annotationContent: annotationContent);
+        return PdfLink(rects, url: Uri.tryParse(url), annotation: annotation);
       }
 
       if (dest != null && dest is Map<Object?, dynamic>) {
-        return PdfLink(rects, dest: _pdfDestFromMap(dest), annotationContent: annotationContent);
+        return PdfLink(rects, dest: _pdfDestFromMap(dest), annotation: annotation);
       }
 
-      if (annotationContent != null) {
-        return PdfLink(rects, annotationContent: annotationContent);
+      if (annotation != null) {
+        return PdfLink(rects, annotation: annotation);
       }
 
-      return PdfLink(rects, annotationContent: annotationContent);
+      return PdfLink(rects);
     }).toList();
   }
 

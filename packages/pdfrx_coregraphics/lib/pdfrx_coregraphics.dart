@@ -689,11 +689,25 @@ class _CoreGraphicsPdfPage extends PdfPage {
                 const <PdfRect>[];
             final url = map['url'] as String?;
             final destMap = map['dest'] as Map<Object?, Object?>?;
+
+            // Parse annotation from Swift
+            final annotationData = map['annotation'] as Map<Object?, Object?>?;
+            final annotation = annotationData != null
+                ? PdfAnnotation(
+                    author: annotationData['author'] as String?,
+                    content: annotationData['content'] as String?,
+                    subject: annotationData['subject'] as String?,
+                    modificationDate:
+                        annotationData['modificationDate'] as String?,
+                    creationDate: annotationData['creationDate'] as String?,
+                  )
+                : null;
+
             final link = PdfLink(
               rects,
               url: url == null ? null : Uri.tryParse(url),
               dest: _parseDest(destMap, defaultPageNumber: pageNumber),
-              annotationContent: map['annotationContent'] as String?,
+              annotation: annotation,
             );
             return compact ? link.compact() : link;
           })

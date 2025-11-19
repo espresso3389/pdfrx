@@ -1297,22 +1297,22 @@ function _loadAnnotLinks(params) {
     const [l, t, r, b] = new Float32Array(Pdfium.memory.buffer, rectF, 4);
     const rect = [l, t > b ? t : b, r, t > b ? b : t];
 
-    const content = _getAnnotationContent(annot);
+    const annotation = _getAnnotationContent(annot);
 
     const dest = _processAnnotDest(annot, docHandle);
     if (dest) {
       links.push({
         rects: [rect],
         dest: _pdfDestFromDest(dest, docHandle),
-        annotationContent: content
+        annotation: annotation
       });
     } else {
       const url = _processAnnotLink(annot, docHandle);
-      if (url || content) {
+      if (url || annotation) {
         links.push({
           rects: [rect],
           url: url,
-          annotationContent: content
+          annotation: annotation
         });
       }
     }
@@ -1323,29 +1323,76 @@ function _loadAnnotLinks(params) {
   return links;
 }
 
+
+
+/**
+ * Get annotation content with all metadata fields
+ * @param {number} annot Annotation handle
+ * @returns {Object|null} Annotation object with author, content, dates, and subject
+ */
 function _getAnnotationContent(annot) {
-  const contentsKey = StringUtils.allocateUTF8("Contents");
+  console.log('Getting annotation content');
+  const author = _getAnnotField('T', annot); // Title (Author)
+  console.log('Author:', author);
+  const content = _getAnnotField('Contents', annot); // Content
+  console.log('Content:', content);
+  const modDate = _getAnnotField('M', annot); // Modification date
+  console.log('Modification Date:', modDate);
+  const creationDate = _getAnnotField('CreationDate', annot); // Creation date
+  console.log('Creation Date:', creationDate);
+  const subject = _getAnnotField('Subj', annot); // Subject
+  console.log('Subject:', subject);
 
-  const contentLength = Pdfium.wasmExports.FPDFAnnot_GetStringValue(
-    annot, contentsKey, null, 0
-  );
-
-  let content = null;
-  if (contentLength > 0) {
-    const contentBuffer = Pdfium.wasmExports.malloc(contentLength * 2);
-    Pdfium.wasmExports.FPDFAnnot_GetStringValue(
-      annot, contentsKey, contentBuffer, contentLength
-    );
-    content = StringUtils.utf16BytesToString(
-      new Uint8Array(Pdfium.memory.buffer, contentBuffer, contentLength * 2)
-    );
-    Pdfium.wasmExports.free(contentBuffer);
+  if (!author && !content && !modDate && !creationDate && !subject) {
+    return null;
   }
 
-  StringUtils.freeUTF8(contentsKey);
-  return content;
+  return {
+    author: author,
+    content: content,
+    modificationDate: modDate,
+    creationDate: creationDate,
+    subject: subject
+  };
 }
 
+
+/**
+  * Helper function to get annotation field value
+  * @param {string} fieldName PDF annotation field name
+  * @returns {string|null}
+  */
+function _getAnnotField(fieldName, annot) {
+  const key = StringUtils.allocateUTF8(fieldName);
+  try {
+    const length = Pdfium.wasmExports.FPDFAnnot_GetStringValue(
+      annot,
+      key,
+      null,
+      0
+    );
+
+    if (length <= 0) return null;
+
+    const buffer = Pdfium.wasmExports.malloc(length * 2);
+    try {
+      Pdfium.wasmExports.FPDFAnnot_GetStringValue(
+        annot,
+        key,
+        buffer,
+        length
+      );
+      const value = StringUtils.utf16BytesToString(
+        new Uint8Array(Pdfium.memory.buffer, buffer, length * 2)
+      );
+      return value && value.trim() !== '' ? value : null;
+    } finally {
+      Pdfium.wasmExports.free(buffer);
+    }
+  } finally {
+    StringUtils.freeUTF8(key);
+  }
+}
 
 /**
  *
@@ -1871,7 +1918,7 @@ function encodePdf(params) {
  */
 function createNewDocument() {
   const docHandle = Pdfium.wasmExports.FPDF_CreateNewDocument();
-  return _loadDocument(docHandle, false, () => {});
+  return _loadDocument(docHandle, false, () => { });
 }
 
 /**
@@ -1998,7 +2045,7 @@ function createDocumentFromJpegData(params) {
   Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
 
   // Load and return the document
-  return _loadDocument(docHandle, false, () => {});
+  return _loadDocument(docHandle, false, () => { });
 }
 
 /**
