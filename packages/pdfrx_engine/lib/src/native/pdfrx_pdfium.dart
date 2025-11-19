@@ -12,6 +12,7 @@ import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
 
+import '../pdf_annotation.dart';
 import '../pdf_dest.dart';
 import '../pdf_document.dart';
 import '../pdf_document_event.dart';
@@ -1275,26 +1276,38 @@ class _PdfPagePdfium extends PdfPage {
     return urlBuffer.cast<Utf16>().toDartString();
   }
 
-  static String? _getAnnotationContent(pdfium_bindings.FPDF_ANNOTATION annot, Arena arena) {
-    final contentLengthInBytes = pdfium.FPDFAnnot_GetStringValue(
+  static String? _getAnnotField(String fieldName, pdfium_bindings.FPDF_ANNOTATION annot, Arena arena) {
+    final length = pdfium.FPDFAnnot_GetStringValue(
       annot,
-      'Contents'.toNativeUtf8(allocator: arena).cast<Char>(),
+      fieldName.toNativeUtf8(allocator: arena).cast<Char>(),
       nullptr,
       0,
     );
+    if (length <= 0) return null;
 
-    if (contentLengthInBytes > 0) {
-      final contentBuffer = arena.allocate<UnsignedShort>(contentLengthInBytes); // NOTE: size is in bytes
-      pdfium.FPDFAnnot_GetStringValue(
-        annot,
-        'Contents'.toNativeUtf8(allocator: arena).cast<Char>(),
-        contentBuffer,
-        contentLengthInBytes,
-      );
-      return contentBuffer.cast<Utf16>().toDartString();
+    final buffer = arena.allocate<UnsignedShort>(length);
+    pdfium.FPDFAnnot_GetStringValue(annot, fieldName.toNativeUtf8(allocator: arena).cast<Char>(), buffer, length);
+    final value = buffer.cast<Utf16>().toDartString();
+    return value.isEmpty ? null : value;
+  }
+
+  static PdfAnnotation? _getAnnotationContent(pdfium_bindings.FPDF_ANNOTATION annot, Arena arena) {
+    final title = _getAnnotField('T', annot, arena);
+    final content = _getAnnotField('Contents', annot, arena);
+    final modDate = _getAnnotField('M', annot, arena);
+    final creationDate = _getAnnotField('CreationDate', annot, arena);
+    final subject = _getAnnotField('Subj', annot, arena);
+    if (title == null && content == null && modDate == null && creationDate == null && subject == null) {
+      return null;
     }
 
-    return null;
+    return PdfAnnotation(
+      title: title,
+      content: content,
+      modificationDate: modDate,
+      creationDate: creationDate,
+      subject: subject,
+    );
   }
 
   Future<List<PdfLink>> _loadAnnotLinks() async => document.isDisposed
@@ -1317,15 +1330,15 @@ class _PdfPagePdfium extends PdfPage {
                 r.top > r.bottom ? r.bottom : r.top,
               ).translate(-params.bbLeft, -params.bbBottom);
 
-              final content = _getAnnotationContent(annot, arena);
+              final annotation = _getAnnotationContent(annot, arena);
 
               final dest = _processAnnotDest(annot, document, arena);
               if (dest != nullptr) {
-                links.add(PdfLink([rect], dest: _pdfDestFromDest(dest, document, arena), annotationContent: content));
+                links.add(PdfLink([rect], dest: _pdfDestFromDest(dest, document, arena), annotation: annotation));
               } else {
                 final uri = _processAnnotLink(annot, document, arena);
-                if (uri != null || content != null) {
-                  links.add(PdfLink([rect], url: uri, annotationContent: content));
+                if (uri != null || annotation != null) {
+                  links.add(PdfLink([rect], url: uri, annotation: annotation));
                 }
               }
               pdfium.FPDFPage_CloseAnnot(annot);
