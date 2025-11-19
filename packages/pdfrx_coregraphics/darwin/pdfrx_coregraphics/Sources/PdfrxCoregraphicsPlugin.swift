@@ -1321,14 +1321,14 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     }
 
     // Author (T field)
-  var authorString: CGPDFStringRef?
-  if CGPDFDictionaryGetString(annotDict, "T", &authorString), let author = authorString {
-    if let cfString = CGPDFStringCopyTextString(author) {
-      annotation["author"] = cfString as String
+  var titleString: CGPDFStringRef?
+  if CGPDFDictionaryGetString(annotDict, "T", &titleString), let title = titleString {
+    if let cfString = CGPDFStringCopyTextString(title) {
+      annotation["title"] = cfString as String
       hasAnnotation = true
     }
   }
-  
+
   // Contents
   var contentsString: CGPDFStringRef?
   if CGPDFDictionaryGetString(annotDict, "Contents", &contentsString), let contents = contentsString {
@@ -1337,7 +1337,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       hasAnnotation = true
     }
   }
-  
+
   // Subject
   var subjString: CGPDFStringRef?
   if CGPDFDictionaryGetString(annotDict, "Subj", &subjString), let subj = subjString {
@@ -1346,7 +1346,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       hasAnnotation = true
     }
   }
-  
+
   // Modification date (M)
   var modDateString: CGPDFStringRef?
   if CGPDFDictionaryGetString(annotDict, "M", &modDateString), let modDate = modDateString {
@@ -1355,7 +1355,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       hasAnnotation = true
     }
   }
-  
+
   // Creation date
   var createDateString: CGPDFStringRef?
   if CGPDFDictionaryGetString(annotDict, "CreationDate", &createDateString), let createDate = createDateString {
@@ -1364,7 +1364,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       hasAnnotation = true
     }
   }
-  
+
   if hasAnnotation {
     linkEntry["annotation"] = annotation
   }
@@ -1510,11 +1510,11 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
         .joined(separator: "|")
       return "rect:\(rectKey)"
     }
-    
+
     // Use annotation fields for key generation
     if let annotation = link["annotation"] as? [String: String] {
       var components: [String] = []
-      
+
       if let author = annotation["author"], !author.isEmpty {
         components.append("author:\(author)")
       }
@@ -1524,12 +1524,12 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       if let subject = annotation["subject"], !subject.isEmpty {
         components.append("subject:\(subject)")
       }
-      
+
       if !components.isEmpty {
         return components.joined(separator: "|")
       }
     }
-    
+
     return UUID().uuidString
   }
 

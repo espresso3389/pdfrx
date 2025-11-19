@@ -632,7 +632,7 @@ const emEnv = {
     tm[7] = 0; // dst
     tm[8] = 0; // gmtoff
   },
-  _tzset_js: function () { },
+  _tzset_js: function () {},
   emscripten_date_now: function () {
     return Date.now();
   },
@@ -914,7 +914,7 @@ function _loadDocument(docHandle, useProgressiveLoading, onDispose) {
   } catch (e) {
     try {
       if (formHandle !== 0) Pdfium.wasmExports.FPDFDOC_ExitFormFillEnvironment(formHandle);
-    } catch (e) { }
+    } catch (e) {}
     Pdfium.wasmExports.free(formInfo);
     delete disposers[docHandle];
     onDispose();
@@ -988,7 +988,7 @@ function closeDocument(params) {
   if (params.formHandle) {
     try {
       Pdfium.wasmExports.FPDFDOC_ExitFormFillEnvironment(params.formHandle);
-    } catch (e) { }
+    } catch (e) {}
   }
   Pdfium.wasmExports.free(params.formInfo);
   Pdfium.wasmExports.FPDF_CloseDocument(params.docHandle);
@@ -1280,7 +1280,6 @@ function _getLinkUrl(linkPage, linkIndex) {
   return url;
 }
 
-
 /**
  * @param {{docHandle: number, pageIndex: number}} params
  * @returns {Array<PdfDestLink|PdfUrlLink>}
@@ -1304,7 +1303,7 @@ function _loadAnnotLinks(params) {
       links.push({
         rects: [rect],
         dest: _pdfDestFromDest(dest, docHandle),
-        annotation: annotation
+        annotation: annotation,
       });
     } else {
       const url = _processAnnotLink(annot, docHandle);
@@ -1312,7 +1311,7 @@ function _loadAnnotLinks(params) {
         links.push({
           rects: [rect],
           url: url,
-          annotation: annotation
+          annotation: annotation,
         });
       }
     }
@@ -1323,68 +1322,49 @@ function _loadAnnotLinks(params) {
   return links;
 }
 
-
+/**
+ * @typedef {{title: string|null, content: string|null, modificationDate: string|null, creationDate: string|null, subject: string|null}} PdfAnnotationContent
+ */
 
 /**
  * Get annotation content with all metadata fields
  * @param {number} annot Annotation handle
- * @returns {Object|null} Annotation object with author, content, dates, and subject
+ * @returns {PdfAnnotationContent|null} Annotation object or null if no content
  */
 function _getAnnotationContent(annot) {
-  console.log('Getting annotation content');
-  const author = _getAnnotField('T', annot); // Title (Author)
-  console.log('Author:', author);
+  const title = _getAnnotField('T', annot); // Title (Author)
   const content = _getAnnotField('Contents', annot); // Content
-  console.log('Content:', content);
   const modDate = _getAnnotField('M', annot); // Modification date
-  console.log('Modification Date:', modDate);
   const creationDate = _getAnnotField('CreationDate', annot); // Creation date
-  console.log('Creation Date:', creationDate);
   const subject = _getAnnotField('Subj', annot); // Subject
-  console.log('Subject:', subject);
-
-  if (!author && !content && !modDate && !creationDate && !subject) {
+  if (!title && !content && !modDate && !creationDate && !subject) {
     return null;
   }
 
   return {
-    author: author,
+    title: title,
     content: content,
     modificationDate: modDate,
     creationDate: creationDate,
-    subject: subject
+    subject: subject,
   };
 }
 
-
 /**
-  * Helper function to get annotation field value
-  * @param {string} fieldName PDF annotation field name
-  * @returns {string|null}
-  */
+ * Helper function to get annotation field value
+ * @param {string} fieldName PDF annotation field name
+ * @returns {string|null}
+ */
 function _getAnnotField(fieldName, annot) {
   const key = StringUtils.allocateUTF8(fieldName);
   try {
-    const length = Pdfium.wasmExports.FPDFAnnot_GetStringValue(
-      annot,
-      key,
-      null,
-      0
-    );
-
+    const length = Pdfium.wasmExports.FPDFAnnot_GetStringValue(annot, key, null, 0);
     if (length <= 0) return null;
 
     const buffer = Pdfium.wasmExports.malloc(length * 2);
     try {
-      Pdfium.wasmExports.FPDFAnnot_GetStringValue(
-        annot,
-        key,
-        buffer,
-        length
-      );
-      const value = StringUtils.utf16BytesToString(
-        new Uint8Array(Pdfium.memory.buffer, buffer, length * 2)
-      );
+      Pdfium.wasmExports.FPDFAnnot_GetStringValue(annot, key, buffer, length);
+      const value = StringUtils.utf16BytesToString(new Uint8Array(Pdfium.memory.buffer, buffer, length * 2));
       return value && value.trim() !== '' ? value : null;
     } finally {
       Pdfium.wasmExports.free(buffer);
@@ -1918,7 +1898,7 @@ function encodePdf(params) {
  */
 function createNewDocument() {
   const docHandle = Pdfium.wasmExports.FPDF_CreateNewDocument();
-  return _loadDocument(docHandle, false, () => { });
+  return _loadDocument(docHandle, false, () => {});
 }
 
 /**
@@ -1997,12 +1977,7 @@ function createDocumentFromJpegData(params) {
   new Int32Array(Pdfium.memory.buffer, pageArrayPtr, 1)[0] = pageHandle;
 
   // Load JPEG data into the image object
-  const loadResult = Pdfium.wasmExports.FPDFImageObj_LoadJpegFileInline(
-    pageArrayPtr,
-    1,
-    imageObj,
-    fileAccessPtr
-  );
+  const loadResult = Pdfium.wasmExports.FPDFImageObj_LoadJpegFileInline(pageArrayPtr, 1, imageObj, fileAccessPtr);
   Pdfium.wasmExports.free(pageArrayPtr);
   Pdfium.removeFunction(callbackIndex);
   Pdfium.wasmExports.free(fileAccessPtr);
@@ -2045,7 +2020,7 @@ function createDocumentFromJpegData(params) {
   Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
 
   // Load and return the document
-  return _loadDocument(docHandle, false, () => { });
+  return _loadDocument(docHandle, false, () => {});
 }
 
 /**
@@ -2195,7 +2170,11 @@ async function initializePdfium(params = {}) {
       });
     } catch (e) {
       // Fallback for browsers that do not support instantiateStreaming
-      console.warn('%cWebAssembly.instantiateStreaming failed, falling back to ArrayBuffer instantiation. Consider to configure your server to serve wasm files as application/wasm', 'background: red; color: white', e);
+      console.warn(
+        '%cWebAssembly.instantiateStreaming failed, falling back to ArrayBuffer instantiation. Consider to configure your server to serve wasm files as application/wasm',
+        'background: red; color: white',
+        e
+      );
       const response = await fetch(pdfiumWasmUrl, fetchOptions);
       const buffer = await response.arrayBuffer();
       result = await WebAssembly.instantiate(buffer, {

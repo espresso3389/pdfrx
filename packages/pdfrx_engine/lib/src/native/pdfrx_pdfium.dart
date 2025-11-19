@@ -1276,14 +1276,13 @@ class _PdfPagePdfium extends PdfPage {
     return urlBuffer.cast<Utf16>().toDartString();
   }
 
-  static String? getAnnotField(String fieldName, pdfium_bindings.FPDF_ANNOTATION annot, Arena arena) {
+  static String? _getAnnotField(String fieldName, pdfium_bindings.FPDF_ANNOTATION annot, Arena arena) {
     final length = pdfium.FPDFAnnot_GetStringValue(
       annot,
       fieldName.toNativeUtf8(allocator: arena).cast<Char>(),
       nullptr,
       0,
     );
-
     if (length <= 0) return null;
 
     final buffer = arena.allocate<UnsignedShort>(length);
@@ -1293,18 +1292,17 @@ class _PdfPagePdfium extends PdfPage {
   }
 
   static PdfAnnotation? _getAnnotationContent(pdfium_bindings.FPDF_ANNOTATION annot, Arena arena) {
-    final author = getAnnotField('T', annot, arena);
-    final content = getAnnotField('Contents', annot, arena);
-    final modDate = getAnnotField('M', annot, arena);
-    final creationDate = getAnnotField('CreationDate', annot, arena);
-    final subject = getAnnotField('Subj', annot, arena);
-
-    if (author == null && content == null && modDate == null && creationDate == null && subject == null) {
+    final title = _getAnnotField('T', annot, arena);
+    final content = _getAnnotField('Contents', annot, arena);
+    final modDate = _getAnnotField('M', annot, arena);
+    final creationDate = _getAnnotField('CreationDate', annot, arena);
+    final subject = _getAnnotField('Subj', annot, arena);
+    if (title == null && content == null && modDate == null && creationDate == null && subject == null) {
       return null;
     }
 
     return PdfAnnotation(
-      author: author,
+      title: title,
       content: content,
       modificationDate: modDate,
       creationDate: creationDate,

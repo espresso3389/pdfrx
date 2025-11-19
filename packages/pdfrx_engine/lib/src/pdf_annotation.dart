@@ -2,33 +2,33 @@
 ///
 /// Contains metadata about PDF annotations such as author, content, and dates.
 class PdfAnnotation {
-  const PdfAnnotation({this.author, this.content, this.subject, this.modificationDate, this.creationDate});
+  const PdfAnnotation({this.title, this.content, this.subject, this.modificationDate, this.creationDate});
 
-  /// The author/creator of the annotation (PDF field: T - Title).
-  final String? author;
+  /// The author/creator of the annotation (PDF field: `T` - Title).
+  final String? title;
 
-  /// The content/text of the annotation (PDF field: Contents).
+  /// The content/text of the annotation (PDF field: `Contents`).
   final String? content;
 
-  /// The subject of the annotation (PDF field: Subj).
+  /// The subject of the annotation (PDF field: `Subj` - Subject).
   final String? subject;
 
-  /// The modification date of the annotation (PDF field: M).
+  /// The modification date of the annotation (PDF field: `M` - ModificationDate).
   final String? modificationDate;
 
-  /// The creation date of the annotation (PDF field: CreationDate).
+  /// The creation date of the annotation (PDF field: `CreationDate`).
   final String? creationDate;
 
   /// Returns true if all fields are null.
   bool get isEmpty =>
-      author == null && content == null && subject == null && modificationDate == null && creationDate == null;
+      title == null && content == null && subject == null && modificationDate == null && creationDate == null;
 
   /// Returns true if at least one field is not null.
   bool get isNotEmpty => !isEmpty;
 
   @override
   String toString() {
-    return 'PdfAnnotation{author: $author, content: $content, subject: $subject, '
+    return 'PdfAnnotation{author: $title, content: $content, subject: $subject, '
         'modificationDate: $modificationDate, creationDate: $creationDate}';
   }
 
@@ -37,7 +37,7 @@ class PdfAnnotation {
     if (identical(this, other)) return true;
 
     return other is PdfAnnotation &&
-        other.author == author &&
+        other.title == title &&
         other.content == content &&
         other.subject == subject &&
         other.modificationDate == modificationDate &&
@@ -46,6 +46,6 @@ class PdfAnnotation {
 
   @override
   int get hashCode {
-    return author.hashCode ^ content.hashCode ^ subject.hashCode ^ modificationDate.hashCode ^ creationDate.hashCode;
+    return title.hashCode ^ content.hashCode ^ subject.hashCode ^ modificationDate.hashCode ^ creationDate.hashCode;
   }
 }

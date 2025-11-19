@@ -694,7 +694,7 @@ class _CoreGraphicsPdfPage extends PdfPage {
             final annotationData = map['annotation'] as Map<Object?, Object?>?;
             final annotation = annotationData != null
                 ? PdfAnnotation(
-                    author: annotationData['author'] as String?,
+                    title: annotationData['title'] as String?,
                     content: annotationData['content'] as String?,
                     subject: annotationData['subject'] as String?,
                     modificationDate:

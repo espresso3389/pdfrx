@@ -668,7 +668,7 @@ class _PdfPageWasm extends PdfPage {
       final annotationData = link['annotation'] as Map<Object?, dynamic>?;
       final annotation = annotationData != null
           ? PdfAnnotation(
-              author: annotationData['author'] as String?,
+              title: annotationData['title'] as String?,
               content: annotationData['content'] as String?,
               subject: annotationData['subject'] as String?,
               modificationDate: annotationData['modificationDate'] as String?,
