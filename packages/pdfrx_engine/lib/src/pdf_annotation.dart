@@ -1,8 +1,10 @@
+import 'pdf_datetime.dart';
+
 /// PDF annotation information extracted from PDF links.
 ///
 /// Contains metadata about PDF annotations such as author, content, and dates.
 class PdfAnnotation {
-  const PdfAnnotation({this.title, this.content, this.subject, this.modificationDate, this.creationDate});
+  PdfAnnotation({this.title, this.content, this.subject, this.modificationDate, this.creationDate});
 
   /// The author/creator of the annotation (PDF field: `T` - Title).
   final String? title;
@@ -14,10 +16,10 @@ class PdfAnnotation {
   final String? subject;
 
   /// The modification date of the annotation (PDF field: `M` - ModificationDate).
-  final String? modificationDate;
+  final PdfDateTime? modificationDate;
 
   /// The creation date of the annotation (PDF field: `CreationDate`).
-  final String? creationDate;
+  final PdfDateTime? creationDate;
 
   /// Returns true if all fields are null.
   bool get isEmpty =>
@@ -28,7 +30,7 @@ class PdfAnnotation {
 
   @override
   String toString() {
-    return 'PdfAnnotation{author: $title, content: $content, subject: $subject, '
+    return 'PdfAnnotation{title: $title, content: $content, subject: $subject, '
         'modificationDate: $modificationDate, creationDate: $creationDate}';
   }
 

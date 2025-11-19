@@ -671,8 +671,8 @@ class _PdfPageWasm extends PdfPage {
               title: annotationData['title'] as String?,
               content: annotationData['content'] as String?,
               subject: annotationData['subject'] as String?,
-              modificationDate: annotationData['modificationDate'] as String?,
-              creationDate: annotationData['creationDate'] as String?,
+              modificationDate: PdfDateTime.fromPdfDateString(annotationData['modificationDate']),
+              creationDate: PdfDateTime.fromPdfDateString(annotationData['creationDate']),
             )
           : null;
 

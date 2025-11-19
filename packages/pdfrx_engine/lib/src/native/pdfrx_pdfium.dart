@@ -13,6 +13,7 @@ import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
 
 import '../pdf_annotation.dart';
+import '../pdf_datetime.dart';
 import '../pdf_dest.dart';
 import '../pdf_document.dart';
 import '../pdf_document_event.dart';
@@ -1304,8 +1305,8 @@ class _PdfPagePdfium extends PdfPage {
     return PdfAnnotation(
       title: title,
       content: content,
-      modificationDate: modDate,
-      creationDate: creationDate,
+      modificationDate: PdfDateTime.fromPdfDateString(modDate),
+      creationDate: PdfDateTime.fromPdfDateString(creationDate),
       subject: subject,
     );
   }
