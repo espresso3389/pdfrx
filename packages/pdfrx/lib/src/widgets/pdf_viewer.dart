@@ -1947,10 +1947,13 @@ class _PdfViewerState extends State<PdfViewer>
   double _getNextZoom({bool loop = true}) => _findNextZoomStop(_currentZoom, zoomUp: true, loop: loop);
   double _getPreviousZoom({bool loop = true}) => _findNextZoomStop(_currentZoom, zoomUp: false, loop: loop);
 
-  Future<void> _setZoom(Offset position, double zoom, {Duration duration = const Duration(milliseconds: 200)}) => _goTo(
-    _calcMatrixFor(position, zoom: zoom, viewSize: _viewSize!),
-    duration: duration,
-  );
+  Future<void> _setZoom(Offset position, double zoom, {Duration duration = const Duration(milliseconds: 200)}) {
+    _adjustBoundaryMargins(_viewSize!, zoom);
+    return _goTo(
+      _calcMatrixFor(position, zoom: zoom, viewSize: _viewSize!),
+      duration: duration,
+    );
+  }
 
   Offset _localPositionToZoomCenter(Offset localPosition, double newZoom) {
     final toCenter = (_viewSize!.center(Offset.zero) - localPosition) / newZoom;
@@ -1970,9 +1973,7 @@ class _PdfViewerState extends State<PdfViewer>
     bool loop = false,
     Offset? zoomCenter,
     Duration duration = const Duration(milliseconds: 200),
-  }) async {
-    await _setZoom(zoomCenter ?? _centerPosition, _getPreviousZoom(loop: loop), duration: duration);
-  }
+  }) => _setZoom(zoomCenter ?? _centerPosition, _getPreviousZoom(loop: loop), duration: duration);
 
   RenderBox? get _renderBox {
     final renderBox = context.findRenderObject();
