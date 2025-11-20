@@ -1581,23 +1581,24 @@ class _PdfViewerState extends State<PdfViewer>
   void _onWheelDelta(PointerScrollEvent event) {
     _startInteraction();
     try {
-      if (!kIsWeb) {
-        // To make the behavior consistent across platforms, we only handle zooming on web via Ctrl+wheel.
-        if (HardwareKeyboard.instance.isControlPressed) {
-          // NOTE: I believe that either only dx or dy is set, but I don't know which one is guaranteed to be set.
-          // So, I just add both values.
-          var zoomFactor = -(event.scrollDelta.dx + event.scrollDelta.dy) / 120.0;
-          final newZoom = (_currentZoom * (pow(1.2, zoomFactor))).clamp(widget.params.minScale, widget.params.maxScale);
-          if (_areZoomsAlmostIdentical(newZoom, _currentZoom)) return;
-          // NOTE: _onWheelDelta may be called from other widget's context and localPosition may be incorrect.
-          _controller!.zoomOnLocalPosition(
-            localPosition: _controller!.globalToLocal(event.position)!,
-            newZoom: newZoom,
-            duration: Duration.zero,
-          );
-          return;
-        }
+      // Handle Ctrl+wheel for zooming
+      // NOTE: On Flutter Web on Windows, Ctrl+wheel is handled by Flutter engine and it never gets here; and if
+      // you set scrollPhysics to non-null, it causes layout issue on zooming out (see #547).
+      if (HardwareKeyboard.instance.isControlPressed) {
+        // NOTE: I believe that either only dx or dy is set, but I don't know which one is guaranteed to be set.
+        // So, I just add both values.
+        var zoomFactor = -(event.scrollDelta.dx + event.scrollDelta.dy) / 120.0;
+        final newZoom = (_currentZoom * (pow(1.2, zoomFactor))).clamp(widget.params.minScale, widget.params.maxScale);
+        if (_areZoomsAlmostIdentical(newZoom, _currentZoom)) return;
+        // NOTE: _onWheelDelta may be called from other widget's context and localPosition may be incorrect.
+        _controller!.zoomOnLocalPosition(
+          localPosition: _controller!.globalToLocal(event.position)!,
+          newZoom: newZoom,
+          duration: Duration.zero,
+        );
+        return;
       }
+
       final dx = -event.scrollDelta.dx * widget.params.scrollByMouseWheel! / _currentZoom;
       final dy = -event.scrollDelta.dy * widget.params.scrollByMouseWheel! / _currentZoom;
       final m = _txController.value.clone();
