@@ -1,8 +1,10 @@
 /// Represents a PDF date/time string defined in [PDF 32000-1:2008, 7.9.4 Dates](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=95)
-class PdfDateTime {
-  /// Creates a [PdfDateTime] from a PDF date string.
-  const PdfDateTime(this.pdfDateString);
-
+///
+/// [pdfDateString] is a PDF date string.
+/// The date string should be in `D:YYYYMMDDHHmmSSOHH'mm'` format as specified in the PDF standard.
+/// But this class do permissive parsing and allows missing some of the components.
+/// To validate the format, use [isValidFormat].
+extension type const PdfDateTime(String pdfDateString) {
   /// Creates a [PdfDateTime] from a [DateTime] object.
   PdfDateTime.fromDateTime(DateTime dateTime)
     : pdfDateString = _pdfDateStringFromYMDHMS(
@@ -26,13 +28,6 @@ class PdfDateTime {
   /// - [timeZoneOffset] is in minutes and defaults to 0 (UTC)
   PdfDateTime.fromYMDHMS(int year, int month, int day, int hour, int minute, int second, {int timeZoneOffset = 0})
     : pdfDateString = _pdfDateStringFromYMDHMS(year, month, day, hour, minute, second, timeZoneOffset: timeZoneOffset);
-
-  /// The original PDF date string.
-  ///
-  /// The date string should be in `D:YYYYMMDDHHmmSSOHH'mm'` format as specified in the PDF standard.
-  /// But this class do permissive parsing and allows missing some of the components.
-  /// To validate the format, use [isValidFormat].
-  final String pdfDateString;
 
   /// Creates a [PdfDateTime] from a nullable PDF date string.
   ///
@@ -126,9 +121,7 @@ class PdfDateTime {
       DateTime.utc(year, month, day, hour, minute, second).subtract(Duration(minutes: timezoneOffset));
 
   /// Checks if the PDF date/time string is in a valid format or not.
-  bool get isValidFormat {
-    return _dtRegex.hasMatch(pdfDateString);
-  }
+  bool get isValidFormat => _dtRegex.hasMatch(pdfDateString);
 
   /// Regular expression to validate PDF date/time string format.
   static final _dtRegex = RegExp(r"^D:\d{4}(\d{2}(\d{2}(\d{2}(\d{2}(\d{2}(Z|[+\-]\d{2}'\d{2}'?)?)?)?)?)?)?$");
@@ -136,16 +129,4 @@ class PdfDateTime {
   /// Returns a canonicalized [PdfDateTime] with all components filled in.
   PdfDateTime canonicalize() =>
       PdfDateTime.fromYMDHMS(year, month, day, hour, minute, second, timeZoneOffset: timezoneOffset);
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is PdfDateTime && other.pdfDateString == pdfDateString;
-  }
-
-  @override
-  int get hashCode => pdfDateString.hashCode;
-
-  @override
-  String toString() => pdfDateString;
 }
