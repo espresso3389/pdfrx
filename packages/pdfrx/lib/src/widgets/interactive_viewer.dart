@@ -1110,7 +1110,7 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
         final focalPointScene = _transformer.toScene(local);
         final newFocalPointScene = _transformer.toScene(local - localDelta);
 
-        _transformer.value = _matrixTranslate(_transformer.value, newFocalPointScene - focalPointScene);
+        _transformer.value = _matrixClamp(_matrixTranslate(_transformer.value, newFocalPointScene - focalPointScene));
 
         widget.onInteractionUpdate?.call(
           ScaleUpdateDetails(
@@ -1155,7 +1155,7 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
     // After scaling, translate such that the event's position is at the
     // same scene point before and after the scale.
     final focalPointSceneScaled = _transformer.toScene(local);
-    _transformer.value = _matrixTranslate(_transformer.value, focalPointSceneScaled - focalPointScene);
+    _transformer.value = _matrixClamp(_matrixTranslate(_transformer.value, focalPointSceneScaled - focalPointScene));
 
     widget.onInteractionUpdate?.call(
       ScaleUpdateDetails(focalPoint: global, localFocalPoint: local, scale: scaleChange),
