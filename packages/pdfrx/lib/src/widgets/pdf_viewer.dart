@@ -408,11 +408,12 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onDocumentEvent(PdfDocumentEvent event) {
     if (event is PdfDocumentPageStatusChangedEvent) {
-      // TODO: we can reuse images for moved pages
+      // FIXME: We can handle the event more efficiently by only updating the affected pages.
       for (final change in event.changes.entries) {
         _imageCache.removeCacheImagesForPage(change.key);
         _magnifierImageCache.removeCacheImagesForPage(change.key);
       }
+      // very conservative approach: just clear all caches; we can optimize this later
       _canvasLinkPainter.resetAll();
       _textCache.clear();
       _clearTextSelections(invalidate: false);
@@ -445,6 +446,7 @@ class _PdfViewerState extends State<PdfViewer>
       color: widget.params.backgroundColor,
       child: PdfViewerKeyHandler(
         onKeyRepeat: _onKey,
+        // NOTE: When the PdfViewer gets focus, we report it to prevent the default context menu on Web browser.
         onFocusChange: (hasFocus) => focusReportForPreventingContextMenuWeb(this, hasFocus),
         params: widget.params.keyHandlerParams,
         child: StreamBuilder(
@@ -2610,23 +2612,24 @@ class _PdfViewerState extends State<PdfViewer>
   void _onWheelDelta(PointerScrollEvent event) {
     _startInteraction();
     try {
-      if (!kIsWeb) {
-        // To make the behavior consistent across platforms, we only handle zooming on web via Ctrl+wheel.
-        if (HardwareKeyboard.instance.isControlPressed) {
-          // NOTE: I believe that either only dx or dy is set, but I don't know which one is guaranteed to be set.
-          // So, I just add both values.
-          var zoomFactor = -(event.scrollDelta.dx + event.scrollDelta.dy) / 120.0;
-          final newZoom = (_currentZoom * (pow(1.2, zoomFactor))).clamp(minScale, widget.params.maxScale);
-          if (_areZoomsAlmostIdentical(newZoom, _currentZoom)) return;
-          // NOTE: _onWheelDelta may be called from other widget's context and localPosition may be incorrect.
-          _controller!.zoomOnLocalPosition(
-            localPosition: _controller!.globalToLocal(event.position)!,
-            newZoom: newZoom,
-            duration: Duration.zero,
-          );
-          return;
-        }
+      // Handle Ctrl+wheel for zooming
+      // NOTE: On Flutter Web on Windows, Ctrl+wheel is handled by Flutter engine and it never gets here; and if
+      // you set scrollPhysics to non-null, it causes layout issue on zooming out (see #547).
+      if (HardwareKeyboard.instance.isControlPressed) {
+        // NOTE: I believe that either only dx or dy is set, but I don't know which one is guaranteed to be set.
+        // So, I just add both values.
+        var zoomFactor = -(event.scrollDelta.dx + event.scrollDelta.dy) / 120.0;
+        final newZoom = (_currentZoom * (pow(1.2, zoomFactor))).clamp(minScale, widget.params.maxScale);
+        if (_areZoomsAlmostIdentical(newZoom, _currentZoom)) return;
+        // NOTE: _onWheelDelta may be called from other widget's context and localPosition may be incorrect.
+        _controller!.zoomOnLocalPosition(
+          localPosition: _controller!.globalToLocal(event.position)!,
+          newZoom: newZoom,
+          duration: Duration.zero,
+        );
+        return;
       }
+
       final dx = -event.scrollDelta.dx * widget.params.scrollByMouseWheel! / _currentZoom;
       final dy = -event.scrollDelta.dy * widget.params.scrollByMouseWheel! / _currentZoom;
       final m = _txController.value.clone();
@@ -3084,10 +3087,13 @@ class _PdfViewerState extends State<PdfViewer>
   double _getNextZoom({bool loop = true}) => _findNextZoomStop(_currentZoom, zoomUp: true, loop: loop);
   double _getPreviousZoom({bool loop = true}) => _findNextZoomStop(_currentZoom, zoomUp: false, loop: loop);
 
-  Future<void> _setZoom(Offset position, double zoom, {Duration duration = const Duration(milliseconds: 200)}) => _goTo(
-    _calcMatrixFor(position, zoom: zoom, viewSize: _viewSize!),
-    duration: duration,
-  );
+  Future<void> _setZoom(Offset position, double zoom, {Duration duration = const Duration(milliseconds: 200)}) {
+    _adjustBoundaryMargins(_viewSize!, zoom);
+    return _goTo(
+      _calcMatrixFor(position, zoom: zoom, viewSize: _viewSize!),
+      duration: duration,
+    );
+  }
 
   Offset _localPositionToZoomCenter(Offset localPosition, double newZoom) {
     final toCenter = (_viewSize!.center(Offset.zero) - localPosition) / newZoom;
@@ -4041,13 +4047,11 @@ class _PdfViewerState extends State<PdfViewer>
           params.textSelectionDelegate.hasSelectedText)
         ContextMenuButtonItem(
           onPressed: () => params.textSelectionDelegate.copyTextSelection(),
-          label: _l10n(PdfViewerL10nKey.copy),
           type: ContextMenuButtonType.copy,
         ),
       if (params.isTextSelectionEnabled && !params.textSelectionDelegate.isSelectingAllText)
         ContextMenuButtonItem(
           onPressed: () => params.textSelectionDelegate.selectAllText(),
-          label: _l10n(PdfViewerL10nKey.selectAll),
           type: ContextMenuButtonType.selectAll,
         ),
     ];
@@ -4419,22 +4423,6 @@ class _PdfViewerState extends State<PdfViewer>
     _imageCache.releaseAllImages();
     _magnifierImageCache.releaseAllImages();
     _invalidate();
-  }
-
-  /// Get the localized string for the given key.
-  ///
-  /// If a custom localization delegate is provided in the widget parameters, it will be used.
-  /// Otherwise, default English strings will be returned.
-  String _l10n(PdfViewerL10nKey key, [List<Object>? args]) {
-    var result = widget.params.l10nDelegate?.call(key, args);
-    if (result != null) return result;
-
-    switch (key) {
-      case PdfViewerL10nKey.copy:
-        return 'Copy';
-      case PdfViewerL10nKey.selectAll:
-        return 'Select All';
-    }
   }
 }
 

@@ -1,3 +1,15 @@
+## 0.3.5
+
+- Documentation updates.
+
+## 0.3.4
+
+- NEW: Added [`PdfPageBaseExtensions.ensureLoaded()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/ensureLoaded.html) - Wait for page to load (waits indefinitely, never returns null)
+- NEW: Added [`PdfPageBaseExtensions.waitForLoaded()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/waitForLoaded.html) - Wait for page to load with optional timeout (may return null on timeout)
+- NEW: [`PdfPageStatusChange.page`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageStatusChange/page.html) property now provides the newest page instance directly
+- NEW: Added comprehensive [Progressive Loading documentation](https://github.com/espresso3389/pdfrx/blob/master/doc/Progressive-Loading.md)
+- IMPROVED: Better API for progressive loading - `ensureLoaded()` simplifies common use cases, `waitForLoaded()` for timeout scenarios
+
 ## 0.3.3
 
 - Code refactoring and maintenance updates.

@@ -5,6 +5,7 @@ Welcome to the pdfrx documentation! This guide provides comprehensive informatio
 ## Getting Started
 
 - [pdfrx Initialization](pdfrx-Initialization.md) - How to properly initialize pdfrx in your app
+- [Progressive Loading](Progressive-Loading.md) - Understanding and using progressive page loading for large PDFs
 
 ## Core Features
 

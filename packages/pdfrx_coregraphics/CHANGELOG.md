@@ -1,3 +1,9 @@
+## 0.1.9
+
+- Updated to pdfrx_engine 0.3.4
+- NEW: Progressive loading helper functions - [`ensureLoaded()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/ensureLoaded.html) and [`waitForLoaded()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/waitForLoaded.html)
+- NEW: [`PdfPageStatusChange.page`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageStatusChange/page.html) property for easier access to updated page instances
+
 ## 0.1.8
 
 - Updated to pdfrx_engine 0.3.0

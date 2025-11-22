@@ -12,6 +12,8 @@ import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
 
+import '../pdf_annotation.dart';
+import '../pdf_datetime.dart';
 import '../pdf_dest.dart';
 import '../pdf_document.dart';
 import '../pdf_document_event.dart';
@@ -659,14 +661,7 @@ class _PdfDocumentPdfium extends PdfDocument {
         timeout: loadUnitDuration,
       );
       if (isDisposed) return;
-      _pages = List.unmodifiable(loaded.pages);
-
-      // notify pages changed
-      final changes = {
-        for (var p in _pages.skip(firstUnloadedPageIndex).take(_pages.length - firstUnloadedPageIndex))
-          p.pageNumber: PdfPageStatusModified(),
-      };
-      subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+      pages = loaded.pages;
 
       if (onPageLoadProgress != null) {
         final result = await onPageLoadProgress(loaded.pageCountLoadedTotal, loaded.pages.length, data);
@@ -787,20 +782,24 @@ class _PdfDocumentPdfium extends PdfDocument {
       }
 
       final newPageNumber = pages.length + 1;
-      pages.add(newPage.withPageNumber(newPageNumber));
+      final updated = newPage.withPageNumber(newPageNumber);
+      pages.add(updated);
 
       final oldPageIndex = _pages.indexWhere((p) => identical(p, newPage));
       if (oldPageIndex != -1) {
-        changes[newPageNumber] = PdfPageStatusChange.moved(oldPageNumber: oldPageIndex + 1);
+        changes[newPageNumber] = PdfPageStatusChange.moved(page: updated, oldPageNumber: oldPageIndex + 1);
       } else {
-        changes[newPageNumber] = PdfPageStatusChange.modified;
+        changes[newPageNumber] = PdfPageStatusChange.modified(page: updated);
       }
     }
 
-    _pages = pages;
+    _pages = List.unmodifiable(pages);
     subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
   }
 
+  /// Don't handle [_pages] directly unless you really understand what you're doing; use [pages] getter/setter instead.
+  ///
+  /// [pages] automatically keeps consistency and also notifies page changes.
   List<PdfPage> _pages = [];
 
   @override
@@ -1278,26 +1277,38 @@ class _PdfPagePdfium extends PdfPage {
     return urlBuffer.cast<Utf16>().toDartString();
   }
 
-  static String? _getAnnotationContent(pdfium_bindings.FPDF_ANNOTATION annot, Arena arena) {
-    final contentLengthInBytes = pdfium.FPDFAnnot_GetStringValue(
+  static String? _getAnnotField(String fieldName, pdfium_bindings.FPDF_ANNOTATION annot, Arena arena) {
+    final length = pdfium.FPDFAnnot_GetStringValue(
       annot,
-      'Contents'.toNativeUtf8(allocator: arena).cast<Char>(),
+      fieldName.toNativeUtf8(allocator: arena).cast<Char>(),
       nullptr,
       0,
     );
+    if (length <= 0) return null;
 
-    if (contentLengthInBytes > 0) {
-      final contentBuffer = arena.allocate<UnsignedShort>(contentLengthInBytes); // NOTE: size is in bytes
-      pdfium.FPDFAnnot_GetStringValue(
-        annot,
-        'Contents'.toNativeUtf8(allocator: arena).cast<Char>(),
-        contentBuffer,
-        contentLengthInBytes,
-      );
-      return contentBuffer.cast<Utf16>().toDartString();
+    final buffer = arena.allocate<UnsignedShort>(length);
+    pdfium.FPDFAnnot_GetStringValue(annot, fieldName.toNativeUtf8(allocator: arena).cast<Char>(), buffer, length);
+    final value = buffer.cast<Utf16>().toDartString();
+    return value.isEmpty ? null : value;
+  }
+
+  static PdfAnnotation? _getAnnotationContent(pdfium_bindings.FPDF_ANNOTATION annot, Arena arena) {
+    final title = _getAnnotField('T', annot, arena);
+    final content = _getAnnotField('Contents', annot, arena);
+    final modDate = _getAnnotField('M', annot, arena);
+    final creationDate = _getAnnotField('CreationDate', annot, arena);
+    final subject = _getAnnotField('Subj', annot, arena);
+    if (title == null && content == null && modDate == null && creationDate == null && subject == null) {
+      return null;
     }
 
-    return null;
+    return PdfAnnotation(
+      title: title,
+      content: content,
+      modificationDate: PdfDateTime.fromPdfDateString(modDate),
+      creationDate: PdfDateTime.fromPdfDateString(creationDate),
+      subject: subject,
+    );
   }
 
   Future<List<PdfLink>> _loadAnnotLinks() async => document.isDisposed
@@ -1320,15 +1331,15 @@ class _PdfPagePdfium extends PdfPage {
                 r.top > r.bottom ? r.bottom : r.top,
               ).translate(-params.bbLeft, -params.bbBottom);
 
-              final content = _getAnnotationContent(annot, arena);
+              final annotation = _getAnnotationContent(annot, arena);
 
               final dest = _processAnnotDest(annot, document, arena);
               if (dest != nullptr) {
-                links.add(PdfLink([rect], dest: _pdfDestFromDest(dest, document, arena), annotationContent: content));
+                links.add(PdfLink([rect], dest: _pdfDestFromDest(dest, document, arena), annotation: annotation));
               } else {
                 final uri = _processAnnotLink(annot, document, arena);
-                if (uri != null || content != null) {
-                  links.add(PdfLink([rect], url: uri, annotationContent: content));
+                if (uri != null || annotation != null) {
+                  links.add(PdfLink([rect], url: uri, annotation: annotation));
                 }
               }
               pdfium.FPDFPage_CloseAnnot(annot);

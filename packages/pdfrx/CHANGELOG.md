@@ -1,3 +1,14 @@
+# 2.2.16
+
+- Updated to pdfrx_engine 0.3.4
+- NEW: Progressive loading helper functions - [`ensureLoaded()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/ensureLoaded.html) and [`waitForLoaded()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/waitForLoaded.html)
+- NEW: [`PdfPageStatusChange.page`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageStatusChange/page.html) property for easier access to updated page instances
+- NEW: Added comprehensive [Progressive Loading documentation](https://github.com/espresso3389/pdfrx/blob/master/doc/Progressive-Loading.md)
+
+# 2.2.15
+
+- FIXED: Focus context retrieval issue in [PdfViewerKeyHandler](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerKeyHandler-class.html) ([#518](https://github.com/espresso3389/pdfrx/issues/518))
+
 # 2.2.14
 
 - Minor changes.

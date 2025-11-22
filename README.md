@@ -4,9 +4,9 @@ This repository contains multiple Dart/Flutter packages for PDF rendering, viewi
 
 ## Packages
 
-### [pdfrx_engine](packages/pdfrx_engine/)
+### [pdfrx_engine](https://pub.dev/packages/pdfrx_engine)
 
-A platform-agnostic PDF rendering and manipulation API built on top of PDFium.
+A platform-agnostic PDF rendering and manipulation API built on top of [PDFium](https://pdfium.googlesource.com/pdfium/).
 
 - Pure Dart package (no Flutter dependencies)
 - Provides low-level PDF document API for viewing and editing
@@ -14,65 +14,75 @@ A platform-agnostic PDF rendering and manipulation API built on top of PDFium.
 - Can be used in CLI applications or non-Flutter Dart projects
 - Supports all platforms: Android, iOS, Windows, macOS, Linux
 
-### [pdfrx](packages/pdfrx/)
+[View repo](packages/pdfrx_engine/) | [API reference](https://pub.dev/documentation/pdfrx_engine/latest/)
+
+### [pdfrx](https://pub.dev/packages/pdfrx)
 
 A cross-platform PDF viewer and manipulation plugin for Flutter.
 
 - Flutter plugin with UI widgets
-- Built on top of pdfrx_engine
+- Built on top of [pdfrx_engine](https://pub.dev/packages/pdfrx_engine)
 - Provides high-level viewer widgets and overlays
 - Includes text selection, search, zoom controls, and more
 - Supports PDF editing features like page manipulation, document combining, and image import
 
-### [pdfrx_coregraphics](packages/pdfrx_coregraphics/)
+[View repo](packages/pdfrx/) | [API reference](https://pub.dev/documentation/pdfrx/latest/)
 
-**⚠️ EXPERIMENTAL** - CoreGraphics-backed renderer for pdfrx on iOS/macOS.
+### [pdfrx_coregraphics](https://pub.dev/packages/pdfrx_coregraphics)
 
-- Uses PDFKit/CoreGraphics instead of PDFium on Apple platforms
+**⚠️ EXPERIMENTAL** - CoreGraphics-backed renderer for [pdfrx](https://pub.dev/packages/pdfrx) on iOS/macOS.
+
+- Uses PDFKit/CoreGraphics instead of [PDFium](https://pdfium.googlesource.com/pdfium/) on Apple platforms
 - Drop-in replacement for teams preferring the system PDF stack
-- Maintains full compatibility with pdfrx widget API
+- Maintains full compatibility with [pdfrx](https://pub.dev/packages/pdfrx) widget API
 - iOS and macOS only
 
-### [pdfium_dart](packages/pdfium_dart/)
+[View repo](packages/pdfrx_coregraphics/) | [API reference](https://pub.dev/documentation/pdfrx_coregraphics/latest/)
 
-Low-level Dart FFI bindings for the PDFium library.
+### [pdfium_dart](https://pub.dev/packages/pdfium_dart)
 
-- Pure Dart package with auto-generated FFI bindings using `ffigen`
+Low-level Dart FFI bindings for the [PDFium](https://pdfium.googlesource.com/pdfium/) library.
+
+- Pure Dart package with auto-generated FFI bindings using [ffigen](https://pub.dev/packages/ffigen)
 - Provides direct access to PDFium's C API from Dart
-- Includes `getPdfium()` function that downloads PDFium binaries on demand
+- Includes [getPdfium()](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html) function that downloads PDFium binaries on demand
 - Used as a foundation by higher-level packages
 
-### [pdfium_flutter](packages/pdfium_flutter/)
+[View repo](packages/pdfium_dart/) | [API reference](https://pub.dev/documentation/pdfium_dart/latest/)
 
-Flutter FFI plugin for loading PDFium native libraries.
+### [pdfium_flutter](https://pub.dev/packages/pdfium_flutter)
+
+Flutter FFI plugin for loading [PDFium](https://pdfium.googlesource.com/pdfium/) native libraries.
 
 - Bundles pre-built PDFium binaries for all Flutter platforms (Android, iOS, Windows, macOS, Linux)
 - Provides utilities for loading PDFium at runtime
-- Re-exports `pdfium_dart` FFI bindings
+- Re-exports [pdfium_dart](https://pub.dev/packages/pdfium_dart) FFI bindings
 - Simplifies PDFium integration in Flutter applications
+
+[View repo](packages/pdfium_flutter/) | [API reference](https://pub.dev/documentation/pdfium_flutter/latest/)
 
 ## When to Use Which Package
 
-- **Use `pdfrx`** if you're building a Flutter application and need PDF viewing and manipulation capabilities with UI
-- **Use `pdfrx_engine`** if you need PDF rendering and manipulation without Flutter dependencies (e.g., server-side PDF processing, CLI tools, PDF combining utilities)
-- **Use `pdfrx_coregraphics`** (experimental) if you want to use CoreGraphics/PDFKit instead of PDFium on iOS/macOS
-- **Use `pdfium_dart`** if you need low-level PDFium FFI bindings for Dart projects or want on-demand PDFium binary downloads
-- **Use `pdfium_flutter`** if you're building a Flutter plugin that needs PDFium integration with bundled binaries
+- **Use [pdfrx](https://pub.dev/packages/pdfrx)** if you're building a Flutter application and need PDF viewing and manipulation capabilities with UI
+- **Use [pdfrx_engine](https://pub.dev/packages/pdfrx_engine)** if you need PDF rendering and manipulation without Flutter dependencies (e.g., server-side PDF processing, CLI tools, PDF combining utilities)
+- **Use [pdfrx_coregraphics](https://pub.dev/packages/pdfrx_coregraphics)** (experimental) if you want to use CoreGraphics/PDFKit instead of [PDFium](https://pdfium.googlesource.com/pdfium/) on iOS/macOS
+- **Use [pdfium_dart](https://pub.dev/packages/pdfium_dart)** if you need low-level PDFium FFI bindings for Dart projects or want on-demand PDFium binary downloads
+- **Use [pdfium_flutter](https://pub.dev/packages/pdfium_flutter)** if you're building a Flutter plugin that needs PDFium integration with bundled binaries
 
 ## Getting Started
 
 ### For Flutter Applications
 
-Add `pdfrx` to your `pubspec.yaml`:
+Add [pdfrx](https://pub.dev/packages/pdfrx) to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.2.14
+  pdfrx: ^2.2.15
 ```
 
 ### For Pure Dart Applications
 
-Add `pdfrx_engine` to your `pubspec.yaml`:
+Add [pdfrx_engine](https://pub.dev/packages/pdfrx_engine) to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
@@ -82,6 +92,7 @@ dependencies:
 ## Documentation
 
 Comprehensive documentation is available in the [doc/](doc/) directory, including:
+
 - Getting started guides
 - Feature tutorials
 - Platform-specific configurations
@@ -95,7 +106,7 @@ This is a monorepo managed with pub workspaces. Just do `dart pub get` on some d
 
 ### PDF Viewer
 
-The example viewer application is located in [packages/pdfrx/example/viewer/](packages/pdfrx/example/viewer/). It demonstrates the full capabilities of the pdfrx Flutter plugin.
+The example viewer application is located in [packages/pdfrx/example/viewer/](packages/pdfrx/example/viewer/). It demonstrates the full capabilities of the [pdfrx](https://pub.dev/packages/pdfrx) Flutter plugin.
 
 ```bash
 cd packages/pdfrx/example/viewer
@@ -122,4 +133,4 @@ Contributions are welcome! Please read the individual package READMEs for specif
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

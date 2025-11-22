@@ -419,7 +419,8 @@ class _PdfDocumentWasm extends PdfDocument {
       var firstPageIndex = pages.indexWhere((page) => !page.isLoaded);
       if (firstPageIndex < 0) return; // All pages are already loaded
 
-      for (; firstPageIndex < pages.length;) {
+      final newPages = pages.toList(growable: false);
+      for (; firstPageIndex < newPages.length;) {
         if (isDisposed) return;
         final result = await _sendCommand(
           'loadPagesProgressively',
@@ -432,13 +433,9 @@ class _PdfDocumentWasm extends PdfDocument {
         final pagesLoaded = parsePages(this, result['pages'] as List<dynamic>);
         firstPageIndex += pagesLoaded.length;
         for (final page in pagesLoaded) {
-          pages[page.pageNumber - 1] = page; // Update the existing page
+          newPages[page.pageNumber - 1] = page; // Update the existing page
         }
-
-        if (!subject.isClosed) {
-          final changes = {for (var p in pagesLoaded) p.pageNumber: PdfPageStatusModified()};
-          subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
-        }
+        pages = newPages;
 
         updateMissingFonts(result['missingFonts']);
 
@@ -452,6 +449,9 @@ class _PdfDocumentWasm extends PdfDocument {
     });
   }
 
+  /// Don't handle [_pages] directly unless you really understand what you're doing; use [pages] getter/setter instead.
+  ///
+  /// [pages] automatically keeps consistency and also notifies page changes.
   late List<PdfPage> _pages;
 
   @override
@@ -476,17 +476,18 @@ class _PdfDocumentWasm extends PdfDocument {
       }
 
       final newPageNumber = pages.length + 1;
-      pages.add(newPage.withPageNumber(newPageNumber));
+      final updated = newPage.withPageNumber(newPageNumber);
+      pages.add(updated);
 
       final oldPageIndex = _pages.indexWhere((p) => identical(p, newPage));
       if (oldPageIndex != -1) {
-        changes[newPageNumber] = PdfPageStatusChange.moved(oldPageNumber: oldPageIndex + 1);
+        changes[newPageNumber] = PdfPageStatusChange.moved(page: updated, oldPageNumber: oldPageIndex + 1);
       } else {
-        changes[newPageNumber] = PdfPageStatusChange.modified;
+        changes[newPageNumber] = PdfPageStatusChange.modified(page: updated);
       }
     }
 
-    _pages = pages;
+    _pages = List.unmodifiable(pages);
     subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
   }
 
@@ -663,21 +664,31 @@ class _PdfPageWasm extends PdfPage {
 
       final url = link['url'];
       final dest = link['dest'];
-      final annotationContent = link['annotationContent'] as String?;
+
+      final annotationData = link['annotation'] as Map<Object?, dynamic>?;
+      final annotation = annotationData != null
+          ? PdfAnnotation(
+              title: annotationData['title'] as String?,
+              content: annotationData['content'] as String?,
+              subject: annotationData['subject'] as String?,
+              modificationDate: PdfDateTime.fromPdfDateString(annotationData['modificationDate']),
+              creationDate: PdfDateTime.fromPdfDateString(annotationData['creationDate']),
+            )
+          : null;
 
       if (url is String) {
-        return PdfLink(rects, url: Uri.tryParse(url), annotationContent: annotationContent);
+        return PdfLink(rects, url: Uri.tryParse(url), annotation: annotation);
       }
 
       if (dest != null && dest is Map<Object?, dynamic>) {
-        return PdfLink(rects, dest: _pdfDestFromMap(dest), annotationContent: annotationContent);
+        return PdfLink(rects, dest: _pdfDestFromMap(dest), annotation: annotation);
       }
 
-      if (annotationContent != null) {
-        return PdfLink(rects, annotationContent: annotationContent);
+      if (annotation != null) {
+        return PdfLink(rects, annotation: annotation);
       }
 
-      return PdfLink(rects, annotationContent: annotationContent);
+      return PdfLink(rects);
     }).toList();
   }
 

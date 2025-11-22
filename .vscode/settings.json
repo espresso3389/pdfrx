@@ -222,6 +222,7 @@
     "xobject",
     "YESNO",
     "YESNOCANCEL",
+    "YMDHMS",
     "ZapfDingbats"
   ],
   "editor.codeActionsOnSave": {

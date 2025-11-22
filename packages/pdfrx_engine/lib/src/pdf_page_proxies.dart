@@ -3,7 +3,6 @@ import 'pdf_image.dart';
 import 'pdf_link.dart';
 import 'pdf_page.dart';
 import 'pdf_text.dart';
-import 'pdf_text_formatter.dart';
 
 /// Proxy interface for [PdfPage].
 ///
@@ -104,9 +103,6 @@ class PdfPageRenumbered implements PdfPageProxy {
     cancellationToken: cancellationToken,
     rotationOverride: rotationOverride,
   );
-
-  @override
-  Future<PdfPageText> loadStructuredText() => PdfTextFormatter.loadStructuredText(this, pageNumberOverride: pageNumber);
 }
 
 /// PDF page wrapper that applies an absolute rotation to the base page.
@@ -183,8 +179,4 @@ class PdfPageRotated implements PdfPageProxy {
   @override
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) =>
       basePage.loadLinks(compact: compact, enableAutoLinkDetection: enableAutoLinkDetection);
-
-  // Text methods don't depend on rotation - just delegate to source
-  @override
-  Future<PdfPageText> loadStructuredText() => basePage.loadStructuredText();
 }

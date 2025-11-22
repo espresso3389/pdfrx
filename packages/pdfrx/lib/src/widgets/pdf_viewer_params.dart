@@ -72,7 +72,6 @@ class PdfViewerParams {
     this.onKey,
     this.keyHandlerParams = const PdfViewerKeyHandlerParams(),
     this.behaviorControlParams = const PdfViewerBehaviorControlParams(),
-    this.l10nDelegate,
     this.forceReload = false,
     ScrollPhysics? scrollPhysics,
     this.scrollPhysicsScale,
@@ -613,9 +612,6 @@ class PdfViewerParams {
   /// Parameters to control viewer behaviors.
   final PdfViewerBehaviorControlParams behaviorControlParams;
 
-  /// Delegate for localization.
-  final PdfViewerL10nDelegate? l10nDelegate;
-
   /// Force reload the viewer.
   ///
   /// Normally whether to reload the viewer is determined by the changes of the parameters but
@@ -754,7 +750,6 @@ class PdfViewerParams {
         other.onKey == onKey &&
         other.keyHandlerParams == keyHandlerParams &&
         other.behaviorControlParams == behaviorControlParams &&
-        other.l10nDelegate == l10nDelegate &&
         other.forceReload == forceReload &&
         other.scrollPhysics == scrollPhysics;
   }
@@ -815,7 +810,6 @@ class PdfViewerParams {
         onKey.hashCode ^
         keyHandlerParams.hashCode ^
         behaviorControlParams.hashCode ^
-        l10nDelegate.hashCode ^
         forceReload.hashCode ^
         scrollPhysics.hashCode;
   }
@@ -926,13 +920,11 @@ class PdfTextSelectionParams {
 ///         params.textSelectionDelegate.hasSelectedText)
 ///       ContextMenuButtonItem(
 ///         onPressed: () => params.textSelectionDelegate.copyTextSelection(),
-///         label: 'Copy',
 ///         type: ContextMenuButtonType.copy,
 ///       ),
 ///     if (params.isTextSelectionEnabled && !params.textSelectionDelegate.isSelectingAllText)
 ///       ContextMenuButtonItem(
 ///         onPressed: () => params.textSelectionDelegate.selectAllText(),
-///         label: 'Select All',
 ///         type: ContextMenuButtonType.selectAll,
 ///       ),
 ///   ];
@@ -956,6 +948,15 @@ class PdfTextSelectionParams {
 /// See [PdfViewerParams.customizeContextMenuItems] for more.
 typedef PdfViewerContextMenuBuilder = Widget? Function(BuildContext context, PdfViewerContextMenuBuilderParams params);
 
+/// Function to customize the context menu items.
+///
+/// This function is called when the context menu is built and can be used to customize the context menu items.
+/// This function may not be called if the context menu is build using [PdfViewerContextMenuBuilder].
+/// [PdfViewerContextMenuBuilder] is responsible for building the context menu items
+/// (i.e. it should decide whether to call this function internally or not).
+///
+/// - [params] contains the parameters for building the context menu.
+/// - [items] is the list of context menu items to be customized. You can add, remove, or modify the items in this list.
 typedef PdfViewerContextMenuUpdateMenuItemsFunction =
     void Function(PdfViewerContextMenuBuilderParams params, List<ContextMenuButtonItem> items);
 
@@ -1525,9 +1526,10 @@ class PdfViewerGeneralTapHandlerDetails {
 
 /// Function to build page overlays.
 ///
-/// [pageRect] is the rectangle of the page in the viewer.
+/// [pageRectInViewer] is the rectangle of the page in the viewer; it represents where the page is drawn in the viewer and
+/// not the page size in the document.
 /// [page] is the page.
-typedef PdfPageOverlaysBuilder = List<Widget> Function(BuildContext context, Rect pageRect, PdfPage page);
+typedef PdfPageOverlaysBuilder = List<Widget> Function(BuildContext context, Rect pageRectInViewer, PdfPage page);
 
 /// Function to build loading banner.
 ///
@@ -1776,21 +1778,4 @@ class PdfViewerBehaviorControlParams {
       enableLowResolutionPagePreview.hashCode ^
       pageImageCachingDelay.hashCode ^
       partialImageLoadingDelay.hashCode;
-}
-
-/// Delegate for localization.
-///
-/// The [key] is the localization key. See [PdfViewerL10nKey] for more details.
-/// The [args] are the arguments for the localization string.
-///
-/// If the function returns null, the default localization string will be used.
-typedef PdfViewerL10nDelegate = String? Function(PdfViewerL10nKey key, [List<Object?>? args]);
-
-/// Localization keys for the PDF viewer.
-enum PdfViewerL10nKey {
-  /// "Copy" action label.
-  copy,
-
-  /// "Select All" action label.
-  selectAll,
 }

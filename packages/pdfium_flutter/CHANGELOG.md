@@ -1,3 +1,7 @@
+## 0.1.7
+
+- Documentation updates.
+
 ## 0.1.6
 
 - Updated PDFium to version 144.0.7520.0 for Android, Linux, and Windows platforms.

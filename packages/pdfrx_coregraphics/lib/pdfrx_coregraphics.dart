@@ -288,7 +288,7 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
           // try again with the next password
           continue;
         }
-        rethrow;
+        throw PdfException(e.message ?? 'Platform error: ${e.code}');
       }
     }
   }
@@ -467,15 +467,17 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
       }
 
       final newPageNumber = pages.length + 1;
-      pages.add(newPage.withPageNumber(newPageNumber));
+      final updated = newPage.withPageNumber(newPageNumber);
+      pages.add(updated);
 
       final oldPageIndex = _pages.indexWhere((p) => identical(p, newPage));
       if (oldPageIndex != -1) {
         changes[newPageNumber] = PdfPageStatusChange.moved(
+          page: updated,
           oldPageNumber: oldPageIndex + 1,
         );
       } else {
-        changes[newPageNumber] = PdfPageStatusChange.modified;
+        changes[newPageNumber] = PdfPageStatusChange.modified(page: updated);
       }
     }
 
@@ -687,11 +689,28 @@ class _CoreGraphicsPdfPage extends PdfPage {
                 const <PdfRect>[];
             final url = map['url'] as String?;
             final destMap = map['dest'] as Map<Object?, Object?>?;
+
+            // Parse annotation from Swift
+            final annotationData = map['annotation'] as Map<Object?, Object?>?;
+            final annotation = annotationData != null
+                ? PdfAnnotation(
+                    title: annotationData['title'] as String?,
+                    content: annotationData['content'] as String?,
+                    subject: annotationData['subject'] as String?,
+                    modificationDate: PdfDateTime.fromPdfDateString(
+                      annotationData['modificationDate'] as String?,
+                    ),
+                    creationDate: PdfDateTime.fromPdfDateString(
+                      annotationData['creationDate'] as String?,
+                    ),
+                  )
+                : null;
+
             final link = PdfLink(
               rects,
               url: url == null ? null : Uri.tryParse(url),
               dest: _parseDest(destMap, defaultPageNumber: pageNumber),
-              annotationContent: map['annotationContent'] as String?,
+              annotation: annotation,
             );
             return compact ? link.compact() : link;
           })

@@ -2,12 +2,15 @@
 
 Flutter FFI plugin for loading PDFium native libraries. This package bundles PDFium binaries for Android, iOS, Windows, macOS, and Linux.
 
+This package is part of the [pdfrx](https://github.com/espresso3389/pdfrx) project.
+
 ## Overview
 
 This package provides:
+
 - Pre-built PDFium native libraries for all supported platforms
 - Utilities for loading PDFium at runtime
-- Re-exports of `pdfium_dart` FFI bindings
+- Re-exports of [pdfium_dart](https://pub.dev/packages/pdfium_dart) FFI bindings
 
 ## Platform Support
 
@@ -36,15 +39,10 @@ final customPdfium = loadPdfium(modulePath: '/custom/path/to/pdfium.so');
 
 ## Native Libraries
 
-### Android
+### Android/Windows/Linux
+
 PDFium binaries are downloaded during build from [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries/releases).
 
 ### iOS/macOS
+
 PDFium XCFramework is downloaded using CocoaPods/SwiftPM install from [espresso3389/pdfium-xcframework](https://github.com/espresso3389/pdfium-xcframework/releases).
-
-### Windows/Linux
-PDFium binaries are downloaded during build from [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries/releases).
-
-## License
-
-This package is part of the [pdfrx](https://github.com/espresso3389/pdfrx) project.
