@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'pdf_page_layout.dart';
 import 'pdf_viewer.dart';
 import 'pdf_viewer_params.dart';
 
@@ -13,6 +14,7 @@ class PdfViewerScrollThumb extends StatefulWidget {
     this.thumbSize,
     this.margin = 2,
     this.thumbBuilder,
+    this.showVisiblePageRange,
     super.key,
   });
 
@@ -28,8 +30,20 @@ class PdfViewerScrollThumb extends StatefulWidget {
   /// Margin from the viewer's edge.
   final double margin;
 
+  /// Whether to show the visible page range (all pages with any intersection with the viewport).
+  /// If null, automatically set to true for spread layouts and false otherwise.
+  /// When true, the default thumb shows the range of all visible pages (e.g., "1-4").
+  /// When false, only shows the current page number.
+  final bool? showVisiblePageRange;
+
   /// Function to customize the thumb widget.
-  final Widget? Function(BuildContext context, Size thumbSize, int? pageNumber, PdfViewerController controller)?
+  final Widget? Function(
+    BuildContext context,
+    Size thumbSize,
+    bool showVisiblePageRange,
+    PdfPageRange? visiblePageRange,
+    PdfViewerController controller,
+  )?
   thumbBuilder;
 
   /// Determine whether the orientation is vertical or not.
@@ -47,6 +61,34 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
       return const SizedBox();
     }
     return widget.isVertical ? _buildVertical(context) : _buildHorizontal(context);
+  }
+
+  /// Build the thumb widget with visible page range awareness.
+  Widget _buildThumbWidget(BuildContext context, Size thumbSize) {
+    final showVisiblePageRange = widget.showVisiblePageRange ?? widget.controller.layout is PdfSpreadLayout;
+    final pageNumber = widget.controller.pageNumber;
+    final range = showVisiblePageRange
+        ? widget.controller.visiblePageRange
+        : pageNumber != null
+        ? PdfPageRange.single(pageNumber)
+        : null;
+    return widget.thumbBuilder?.call(context, thumbSize, showVisiblePageRange, range, widget.controller) ??
+        _buildDefaultThumb(thumbSize, showVisiblePageRange, range);
+  }
+
+  /// Build default thumb widget with visible page range awareness.
+  Widget _buildDefaultThumb(Size thumbSize, bool showVisiblePageRange, PdfPageRange? visibleRange) {
+    final label = visibleRange?.label;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(5),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withAlpha(127), spreadRadius: 1, blurRadius: 1, offset: const Offset(1, 1)),
+        ],
+      ),
+      child: label != null ? Center(child: Text(label)) : const SizedBox(),
+    );
   }
 
   Widget _buildVertical(BuildContext context) {
@@ -74,23 +116,7 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
       width: thumbSize.width,
       height: thumbSize.height,
       child: GestureDetector(
-        child:
-            widget.thumbBuilder?.call(context, thumbSize, widget.controller.pageNumber, widget.controller) ??
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(127),
-                    spreadRadius: 1,
-                    blurRadius: 1,
-                    offset: const Offset(1, 1),
-                  ),
-                ],
-              ),
-              child: Center(child: Text(widget.controller.pageNumber?.toString() ?? '')),
-            ),
+        child: _buildThumbWidget(context, thumbSize),
         onPanStart: (details) {
           _panStartOffset = top - details.localPosition.dy;
         },
@@ -121,6 +147,7 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
 
     final x = (-widget.controller.value.x - minScrollX) / scrollRange;
     final vw = view.width * widget.controller.currentZoom - thumbSize.width;
+
     final left = x * vw;
     return Positioned(
       top: widget.orientation == ScrollbarOrientation.top ? widget.margin : null,
@@ -129,23 +156,7 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
       width: thumbSize.width,
       height: thumbSize.height,
       child: GestureDetector(
-        child:
-            widget.thumbBuilder?.call(context, thumbSize, widget.controller.pageNumber, widget.controller) ??
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(127),
-                    spreadRadius: 1,
-                    blurRadius: 1,
-                    offset: const Offset(1, 1),
-                  ),
-                ],
-              ),
-              child: Center(child: Text(widget.controller.pageNumber?.toString() ?? '')),
-            ),
+        child: _buildThumbWidget(context, thumbSize),
         onPanStart: (details) {
           _panStartOffset = left - details.localPosition.dx;
         },
