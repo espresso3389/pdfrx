@@ -18,7 +18,6 @@ dependencies:
   pdfium_flutter: ^0.1.1
   collection:
   crypto: ^3.0.6
-  dart_pubspec_licenses: ^3.0.12
   ffi:
   flutter:
     sdk: flutter
@@ -32,6 +31,7 @@ dependencies:
   web: ^1.1.1
 
 dev_dependencies:
+  dart_pubspec_licenses: ^3.0.14
   ffigen: ^19.1.0
   flutter_test:
     sdk: flutter
