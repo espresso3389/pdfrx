@@ -1,3 +1,9 @@
+## 0.1.10
+
+- Updated to pdfrx_engine 0.3.6
+- NEW: [`PdfDateTime`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDateTime.html) extension type for PDF date string parsing
+- NEW: [`PdfAnnotation`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfAnnotation-class.html) class for PDF annotation metadata extraction ([#546](https://github.com/espresso3389/pdfrx/pull/546))
+
 ## 0.1.9
 
 - Updated to pdfrx_engine 0.3.4

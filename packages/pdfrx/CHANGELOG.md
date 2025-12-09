@@ -1,3 +1,12 @@
+# 2.2.17
+
+- Updated to pdfrx_engine 0.3.6
+- FIXED: Trackpad and mouse wheel boundary issues on Web ([#547](https://github.com/espresso3389/pdfrx/issues/547), [#548](https://github.com/espresso3389/pdfrx/pull/548))
+- FIXED: `_setZoom` now properly sets `boundaryMargins`
+- NEW: Ctrl+wheel zoom logic can be enabled on Web ([#538](https://github.com/espresso3389/pdfrx/issues/538))
+- NEW: [`PdfDateTime`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDateTime.html) extension type for PDF date string parsing
+- NEW: [`PdfAnnotation`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfAnnotation-class.html) class for PDF annotation metadata extraction ([#546](https://github.com/espresso3389/pdfrx/pull/546))
+
 # 2.2.16
 
 - Updated to pdfrx_engine 0.3.4

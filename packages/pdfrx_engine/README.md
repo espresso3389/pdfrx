@@ -120,8 +120,6 @@ For detailed guides and tutorials, see the [documentation](https://github.com/es
 ## PDF API
 
 - Easy to use PDF APIs
-  - [PdfDateTime](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDateTime.html) - PDF date/time string parsing ([PDF 32000-1:2008, 7.9.4](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=95))
-  - [PdfAnnotation](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfAnnotation-class.html) - PDF annotation metadata
   - [PdfDocument](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) - Main document interface
     - [PdfDocument.openFile](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openFile.html) - Open PDF from file path
     - [PdfDocument.openData](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openData.html) - Open PDF from memory (Uint8List)
