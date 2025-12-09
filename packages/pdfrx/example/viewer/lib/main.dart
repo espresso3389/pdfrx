@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+import 'dart:math';
 
 import 'package:file_selector/file_selector.dart' as fs;
 import 'package:flutter/foundation.dart';
@@ -450,11 +450,9 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                           },
                         ),
                         keyHandlerParams: PdfViewerKeyHandlerParams(autofocus: true),
-                        useAlternativeFitScaleAsMinScale: false,
                         maxScale: 8,
-                        // #547: At least, on Flutter Web on Windows, the default scroll physics
-                        // seems to have some issues with zooming and we don't use it here.
                         //scrollPhysics: PdfViewerParams.getScrollPhysics(context),
+                        //pageTransition: PageTransition.discrete,
                         customizeContextMenuItems: (params, items) {
                           // Example: add custom menu item to search selected text on web
                           items.add(
@@ -472,6 +470,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                             ),
                           );
                         },
+                        //pageTransition: PageTransition.discrete,
                         viewerOverlayBuilder: (context, size, handleLinkTap) => [
                           //
                           // Example use of GestureDetector to handle custom gestures
@@ -501,12 +500,12 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                             controller: controller,
                             orientation: ScrollbarOrientation.right,
                             thumbSize: const Size(40, 25),
-                            thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
+                            thumbBuilder: (context, thumbSize, showRange, pageRange, controller) => Container(
                               color: Colors.black,
                               child: isHorizontalLayout
                                   ? null
                                   : Center(
-                                      child: Text(pageNumber.toString(), style: const TextStyle(color: Colors.white)),
+                                      child: Text(pageRange?.label ?? '', style: const TextStyle(color: Colors.white)),
                                     ),
                             ),
                           ),
@@ -515,12 +514,12 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                             controller: controller,
                             orientation: ScrollbarOrientation.bottom,
                             thumbSize: const Size(40, 25),
-                            thumbBuilder: (context, thumbSize, pageNumber, controller) => Container(
+                            thumbBuilder: (context, thumbSize, showRange, pageRange, controller) => Container(
                               color: Colors.black,
                               child: !isHorizontalLayout
                                   ? null
                                   : Center(
-                                      child: Text(pageNumber.toString(), style: const TextStyle(color: Colors.white)),
+                                      child: Text(pageRange?.label ?? '', style: const TextStyle(color: Colors.white)),
                                     ),
                             ),
                           ),
@@ -624,68 +623,36 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
     });
   }
 
-  bool get isHorizontalLayout => _layoutTypeIndex == 1;
+  bool get isHorizontalLayout => _layoutTypeIndex == 1 || _layoutTypeIndex == 3;
 
   /// Page reading order; true to L-to-R that is commonly used by books like manga or such
   var isRightToLeftReadingOrder = false;
 
-  /// Use the first page as cover page
-  var needCoverPage = true;
-
   late final List<PdfPageLayoutFunction?> _layoutPages = [
-    // The default layout
     null,
-    // Horizontal layout
-    (pages, params) {
-      final height = pages.fold(0.0, (prev, page) => math.max(prev, page.height)) + params.margin * 2;
+    // Horizontal layout (using built-in layout class)
+    (pages, params, helper) =>
+        SequentialPagesLayout.fromPages(pages, params, helper: helper, scrollDirection: Axis.horizontal),
+
+    // Facing pages layout (using built-in layout class)
+    (pages, params, helper) => FacingPagesLayout.fromPages(
+      pages,
+      params,
+      helper: helper,
+      firstPageIsCoverPage: true,
+      isRightToLeftReadingOrder: isRightToLeftReadingOrder,
+    ),
+
+    // Custom layout example - horizontal strip layout
+    (pages, params, helper) {
+      final height = pages.fold(0.0, (prev, page) => max(prev, page.height)) + params.margin * 2;
       final pageLayouts = <Rect>[];
       double x = params.margin;
       for (var page in pages) {
-        pageLayouts.add(
-          Rect.fromLTWH(
-            x,
-            (height - page.height) / 2, // center vertically
-            page.width,
-            page.height,
-          ),
-        );
+        pageLayouts.add(Rect.fromLTWH(x, (height - page.height) / 2, page.width, page.height));
         x += page.width + params.margin;
       }
       return PdfPageLayout(pageLayouts: pageLayouts, documentSize: Size(x, height));
-    },
-    // Facing pages layout
-    (pages, params) {
-      final width = pages.fold(0.0, (prev, page) => math.max(prev, page.width));
-
-      final pageLayouts = <Rect>[];
-      final offset = needCoverPage ? 1 : 0;
-      double y = params.margin;
-      for (int i = 0; i < pages.length; i++) {
-        final page = pages[i];
-        final pos = i + offset;
-        final isLeft = isRightToLeftReadingOrder ? (pos & 1) == 1 : (pos & 1) == 0;
-
-        final otherSide = (pos ^ 1) - offset;
-        final h = 0 <= otherSide && otherSide < pages.length
-            ? math.max(page.height, pages[otherSide].height)
-            : page.height;
-
-        pageLayouts.add(
-          Rect.fromLTWH(
-            isLeft ? width + params.margin - page.width : params.margin * 2 + width,
-            y + (h - page.height) / 2,
-            page.width,
-            page.height,
-          ),
-        );
-        if (pos & 1 == 1 || i + 1 == pages.length) {
-          y += h + params.margin;
-        }
-      }
-      return PdfPageLayout(
-        pageLayouts: pageLayouts,
-        documentSize: Size((params.margin + width) * 2 + params.margin, y),
-      );
     },
   ];
 
@@ -767,7 +734,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
       final bytes = await file.readAsBytes();
       documentRef.value = PdfDocumentRefData(
         bytes,
-        sourceName: 'web-open-file%${file.name}',
+        sourceName: file.name,
         passwordProvider: () => passwordDialog(context),
         useProgressiveLoading: useProgressiveLoading,
       );
