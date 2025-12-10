@@ -15,7 +15,6 @@ dependencies:
   ffi: ^2.1.4
   hooks: ^1.0.0
   http: ^1.5.0
-  native_toolchain_c: ^0.17.4
   path: ^1.9.1
 
 dev_dependencies:
