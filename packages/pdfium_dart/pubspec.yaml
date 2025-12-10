@@ -11,12 +11,15 @@ resolution: workspace
 
 dependencies:
   archive: ^4.0.7
+  code_assets: ^1.0.0
   ffi: ^2.1.4
+  hooks: ^1.0.0
   http: ^1.5.0
+  native_toolchain_c: ^0.17.4
   path: ^1.9.1
 
 dev_dependencies:
-  ffigen: ^19.1.0
+  ffigen: ^20.1.1
   lints: ^6.0.0
   test: ^1.26.2
 
@@ -57,6 +60,7 @@ ffigen:
   preamble: |
     // ignore_for_file: unused_field
     // dart format off
+  ffi-native:
   name: 'PDFium'
   comments:
     style: any

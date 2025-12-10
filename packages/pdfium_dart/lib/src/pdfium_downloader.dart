@@ -1,55 +1,15 @@
-import 'dart:ffi';
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
+import 'package:code_assets/src/code_assets/architecture.dart';
+import 'package:code_assets/src/code_assets/os.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
-
-import 'pdfium_bindings.dart' as pdfium_bindings;
 
 /// The release of pdfium to download.
 ///
 /// The actual binaries are downloaded from https://github.com/bblanchon/pdfium-binaries.
 const currentPDFiumRelease = 'chromium%2F7520';
-
-/// Helper function to get PDFium instance.
-///
-/// This function downloads the PDFium module if necessary.
-///
-/// - [cacheRootPath]: The root directory to cache the downloaded PDFium module.
-/// - [pdfiumRelease]: The release of PDFium to download. Defaults to [currentPDFiumRelease].
-///
-/// For macOS, the downloaded library is not codesigned. If you encounter issues loading the library,
-/// you may need to manually codesign it using the following command:
-///
-/// ```
-/// codesign --force --sign - <path_to_libpdfium.dylib>
-/// ```
-Future<pdfium_bindings.PDFium> getPdfium({
-  String? cacheRootPath,
-  String? pdfiumRelease = currentPDFiumRelease,
-}) async {
-  cacheRootPath ??= path.join(
-    Directory.systemTemp.path,
-    'pdfium_dart',
-    'cache',
-    pdfiumRelease,
-  );
-
-  if (!await File(cacheRootPath).exists()) {
-    await Directory(cacheRootPath).create(recursive: true);
-  }
-  final modulePath = await PDFiumDownloader.downloadAndGetPDFiumModulePath(
-    cacheRootPath,
-    pdfiumRelease: pdfiumRelease,
-  );
-
-  try {
-    return pdfium_bindings.PDFium(DynamicLibrary.open(modulePath));
-  } catch (e) {
-    throw Exception('Failed to load PDFium module at $modulePath: $e');
-  }
-}
 
 /// PdfiumDownloader is a utility class to download the PDFium module for various platforms.
 class PDFiumDownloader {
@@ -63,46 +23,46 @@ class PDFiumDownloader {
   /// - macOS x64, arm64
   ///
   /// The binaries are downloaded from https://github.com/bblanchon/pdfium-binaries.
-  static Future<String> downloadAndGetPDFiumModulePath(
+  static Future<Uri> downloadAndGetPDFiumModulePath(
     String cacheRootPath, {
     String? pdfiumRelease,
+    required OS os,
+    required Architecture arch,
   }) async {
-    final pa = RegExp(r'"([^_]+)_([^_]+)"').firstMatch(Platform.version)!;
-    final platform = pa[1]!;
-    final arch = pa[2]!;
-    if (platform == 'windows' && arch == 'x64') {
-      return await downloadPDFium(
+    if (os == OS.windows && arch == Architecture.x64) {
+      return await _downloadPDFium(
         cacheRootPath,
         'win',
-        arch,
+        arch.name,
         'bin/pdfium.dll',
         pdfiumRelease,
       );
     }
-    if (platform == 'linux' && (arch == 'x64' || arch == 'arm64')) {
-      return await downloadPDFium(
+    if (os == OS.linux &&
+        (arch == Architecture.x64 || arch == Architecture.arm64)) {
+      return await _downloadPDFium(
         cacheRootPath,
-        platform,
-        arch,
+        'linux',
+        arch.name,
         'lib/libpdfium.so',
         pdfiumRelease,
       );
     }
-    if (platform == 'macos') {
-      return await downloadPDFium(
+    if (os == OS.macOS) {
+      return await _downloadPDFium(
         cacheRootPath,
         'mac',
-        arch,
+        arch.name,
         'lib/libpdfium.dylib',
         pdfiumRelease,
       );
     } else {
-      throw Exception('Unsupported platform: $platform-$arch');
+      throw Exception('Unsupported platform: $os-$arch');
     }
   }
 
   /// Downloads the pdfium module for the given platform and architecture.
-  static Future<String> downloadPDFium(
+  static Future<Uri> _downloadPDFium(
     String cacheRootPath,
     String platform,
     String arch,
@@ -115,10 +75,10 @@ class PDFiumDownloader {
       '_',
     );
     final cacheDir = Directory(
-      '$cacheRootPath/$pdfiumReleaseDirName/$platform-$arch',
+      path.join(cacheRootPath, pdfiumReleaseDirName, '$platform-$arch'),
     );
-    final targetPath = '${cacheDir.path}/$modulePath';
-    if (await File(targetPath).exists()) return targetPath;
+    final targetPath = path.join(cacheDir.path, modulePath);
+    if (await File(targetPath).exists()) return Uri.file(targetPath);
 
     final uri =
         'https://github.com/bblanchon/pdfium-binaries/releases/download/$pdfiumRelease/pdfium-$platform-$arch.tgz';
@@ -135,6 +95,6 @@ class PDFiumDownloader {
       await cacheDir.delete(recursive: true);
     } catch (_) {}
     await extractArchiveToDisk(archive, cacheDir.path);
-    return targetPath;
+    return Uri.file(targetPath);
   }
 }

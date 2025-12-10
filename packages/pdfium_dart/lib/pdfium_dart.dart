@@ -5,5 +5,4 @@
 /// a more user-friendly API for working with PDF documents.
 library pdfium_dart;
 
-export 'src/pdfium_bindings.dart';
-export 'src/pdfium_downloader.dart';
+export 'src/pdfium_bindings.g.dart';
