@@ -25,12 +25,12 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Download iOS artifact
-        uses: actions/download-artifact@f093f21ca4cfa7c75ccbbc2be54da76a0c7e1f05 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v6.0.0
         with:
           name: pdfium-ios
           path: ./packages/pdfrx/darwin/pdfium/
       - name: Download macOS artifact
-        uses: actions/download-artifact@f093f21ca4cfa7c75ccbbc2be54da76a0c7e1f05 # v6.0.0
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v6.0.0
         with:
           name: pdfium-macos
           path: ./packages/pdfrx/darwin/pdfium/
