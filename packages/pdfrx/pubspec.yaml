@@ -35,7 +35,7 @@ dev_dependencies:
   ffigen: ^19.1.0
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0
+  flutter_lints:
   archive: ^4.0.7
 
 executables:
