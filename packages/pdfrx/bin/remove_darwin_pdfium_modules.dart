@@ -2,8 +2,9 @@
 
 import 'dart:io';
 
-import 'package:dart_pubspec_licenses/dart_pubspec_licenses.dart' as oss;
 import 'package:path/path.dart' as path;
+
+import 'find_package_path.dart';
 
 Future<int> main(List<String> args) async {
   try {
@@ -28,11 +29,13 @@ Future<int> main(List<String> args) async {
       return 2;
     }
 
-    final deps = await oss.listDependencies(pubspecYamlPath: projectPubspecYaml.path);
-    final pdfrxPackage = [...deps.allDependencies, deps.package].firstWhere((p) => p.name == 'pdfium_flutter');
-    print('Found: ${pdfrxPackage.name} ${pdfrxPackage.version}: ${pdfrxPackage.pubspecYamlPath}');
+    final pubspecPath = findPackagePubspecPath(projectRoot, 'pdfium_flutter');
+    if (pubspecPath == null) {
+      print('pdfium_flutter package not found. Did you run "flutter pub get"?');
+      return 3;
+    }
+    print('Found pdfium_flutter: $pubspecPath');
 
-    final pubspecPath = pdfrxPackage.pubspecYamlPath;
     final pubspecFile = File(pubspecPath);
 
     if (!pubspecFile.existsSync()) {

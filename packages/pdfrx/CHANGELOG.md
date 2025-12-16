@@ -1,3 +1,9 @@
+# 2.2.18
+
+- FIXED: Dependency conflicts with `dart_pubspec_licenses` causing version resolution failures ([#563](https://github.com/espresso3389/pdfrx/issues/563), [#570](https://github.com/espresso3389/pdfrx/issues/570))
+  - Removed `dart_pubspec_licenses` dependency and reimplemented package path resolution internally
+  - This resolves conflicts with `pana`, `meta`, `lints`, and `analyzer` package versions
+
 # 2.2.17
 
 - Updated to pdfrx_engine 0.3.6
