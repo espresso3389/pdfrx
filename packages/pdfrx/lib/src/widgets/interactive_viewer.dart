@@ -83,6 +83,7 @@ class InteractiveViewer extends StatefulWidget {
     this.alignment,
     this.trackpadScrollCausesScale = false,
     this.onWheelDelta,
+    this.onPointerScale,
     this.scrollPhysics,
     this.scrollPhysicsScale,
     this.scrollPhysicsAutoAdjustBoundaries = true,
@@ -131,6 +132,7 @@ class InteractiveViewer extends StatefulWidget {
     this.alignment,
     this.trackpadScrollCausesScale = false,
     this.onWheelDelta,
+    this.onPointerScale,
     this.scrollPhysics,
     this.scrollPhysicsScale,
     this.scrollPhysicsAutoAdjustBoundaries = true,
@@ -393,6 +395,9 @@ class InteractiveViewer extends StatefulWidget {
   /// To override the default mouse wheel behavior.
   ///
   final void Function(PointerScrollEvent event)? onWheelDelta;
+
+  /// To override the default pointer scale behavior.
+  final void Function(PointerScaleEvent event)? onPointerScale;
 
   // Used as the coefficient of friction in the inertial translation animation.
   // This value was eyeballed to give a feel similar to Google Photos.
@@ -1135,6 +1140,10 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
       }
       scaleChange = math.exp(-event.scrollDelta.dy / widget.scaleFactor);
     } else if (event is PointerScaleEvent) {
+      if (widget.onPointerScale != null) {
+        widget.onPointerScale!(event);
+        return;
+      }
       scaleChange = event.scale;
     } else {
       return;
