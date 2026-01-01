@@ -982,6 +982,63 @@ function loadPagesProgressively(params) {
 }
 
 /**
+ * 
+ * @param {{docHandle: number, pageIndices: number[]|undefined, currentPagesCount: number}} params
+ * @returns {{pages: PdfPage[], missingFonts: FontQueries}}
+ */
+function reloadPages(params) {
+  const { docHandle, pageIndices } = params;
+  /** @type {PdfPage[]} */
+  const pages = [];
+  const pageCount = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
+  /** @type {number[]} */
+  var indicesToLoad = [];
+  if (pageIndices) {
+    for (const pageIndex of pageIndices) {
+      if (pageIndex < 0 || pageIndex >= pageCount) {
+        throw new Error(`Invalid page index ${pageIndex} (page count: ${pageCount})`);
+      }
+      if (pageIndex < currentPagesCount) {
+        indicesToLoad.push(pageIndex);
+      }
+    }
+    for (let i = currentPagesCount; i < pageCount; i++) {
+      indicesToLoad.push(i);
+    }
+  } else {
+    for (let i = 0; i < pageCount; i++) {
+      indicesToLoad.push(i);
+    }
+  }
+
+  _resetMissingFonts();
+  for (const pageIndex of indicesToLoad) {
+    const pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
+    if (!pageHandle) {
+      const error = Pdfium.wasmExports.FPDF_GetLastError();
+      throw new Error(`FPDF_LoadPage failed (${_getErrorMessage(error)})`);
+    }
+    const rectBuffer = Pdfium.wasmExports.malloc(4 * 4); // FS_RECTF: float[4]
+    Pdfium.wasmExports.FPDF_GetPageBoundingBox(pageHandle, rectBuffer);
+    const rect = new Float32Array(Pdfium.memory.buffer, rectBuffer, 4);
+    const bbLeft = rect[0];
+    const bbBottom = rect[3];
+    Pdfium.wasmExports.free(rectBuffer);
+    pages.push({
+      pageIndex: pageIndex,
+      width: Pdfium.wasmExports.FPDF_GetPageWidthF(pageHandle),
+      height: Pdfium.wasmExports.FPDF_GetPageHeightF(pageHandle),
+      rotation: Pdfium.wasmExports.FPDFPage_GetRotation(pageHandle),
+      isLoaded: true,
+      bbLeft: bbLeft,
+      bbBottom: bbBottom,
+    });
+    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+  }
+  return { pages, missingFonts: missingFonts[docHandle] };
+}
+
+/**
  * @param {{formHandle: number, formInfo: number, docHandle: number}} params
  */
 function closeDocument(params) {
@@ -2068,6 +2125,7 @@ const functions = {
   createNewDocument,
   createDocumentFromJpegData,
   loadPagesProgressively,
+  reloadPages,
   closeDocument,
   loadOutline,
   loadPage,

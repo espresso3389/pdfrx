@@ -1,5 +1,6 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
@@ -762,6 +763,71 @@ class _PdfDocumentPdfium extends PdfDocument {
   }
 
   @override
+  Future<void> reloadPages({List<int>? pageNumbersToReload}) async {
+    try {
+      final results = await (await BackgroundWorker.instance).computeWithArena((arena, params) {
+        final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docAddress);
+        final pageCount = pdfium.FPDF_GetPageCount(doc);
+        if (params.pageNumbersToReload != null) {
+          for (final pageNumber in params.pageNumbersToReload!) {
+            if (pageNumber < 1 || pageNumber > pageCount) {
+              throw ArgumentError('Invalid page number to reload: $pageNumber', 'pageNumbersToReload');
+            }
+          }
+        }
+
+        final pageNumbersToLoad = SplayTreeSet.from(params.pageNumbersToReload ?? []);
+        pageNumbersToLoad.addAll(
+          Iterable.generate(pageCount - params.currentPageCount, (index) => params.currentPageCount + index + 1),
+        );
+
+        final pages = <({int pageIndex, double width, double height, int rotation, double bbLeft, double bbBottom})>[];
+        for (final pageNumber in pageNumbersToLoad) {
+          final page = pdfium.FPDF_LoadPage(doc, pageNumber - 1);
+          try {
+            final rect = arena<pdfium_bindings.FS_RECTF>();
+            pdfium.FPDF_GetPageBoundingBox(page, rect);
+            pages.add((
+              pageIndex: pageNumber - 1,
+              width: pdfium.FPDF_GetPageWidthF(page),
+              height: pdfium.FPDF_GetPageHeightF(page),
+              rotation: pdfium.FPDFPage_GetRotation(page),
+              bbLeft: rect.ref.left.toDouble(),
+              bbBottom: rect.ref.bottom.toDouble(),
+            ));
+          } finally {
+            pdfium.FPDF_ClosePage(page);
+          }
+        }
+        return (pages: pages);
+      }, (docAddress: document.address, pageNumbersToReload: pageNumbersToReload, currentPageCount: _pages.length));
+
+      final newPages = [..._pages];
+      for (var i = 0; i < results.pages.length; i++) {
+        final pageData = results.pages[i];
+        final newPage = _PdfPagePdfium._(
+          document: this,
+          pageNumber: i + 1,
+          width: pageData.width,
+          height: pageData.height,
+          rotation: PdfPageRotation.values[pageData.rotation],
+          bbLeft: pageData.bbLeft,
+          bbBottom: pageData.bbBottom,
+          isLoaded: true,
+        );
+        if (i < newPages.length) {
+          newPages[i] = newPage;
+        } else {
+          newPages.add(newPage);
+        }
+      }
+      pages = newPages;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
   List<PdfPage> get pages => _pages;
 
   @override
@@ -886,6 +952,16 @@ class _PdfDocumentPdfium extends PdfDocument {
         nativeWriteCallable.close();
       }
     }, (document: document.address, incremental: incremental, removeSecurity: removeSecurity));
+  }
+
+  @override
+  Future<T> useNativeDocumentHandle<T>(FutureOr<T> Function(int nativeDocumentHandle) task) async {
+    if (isDisposed) {
+      throw StateError('Document is already disposed.');
+    }
+    return await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
+      return task(document.address);
+    });
   }
 }
 

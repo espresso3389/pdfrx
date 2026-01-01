@@ -449,6 +449,30 @@ class _PdfDocumentWasm extends PdfDocument {
     });
   }
 
+  @override
+  Future<void> reloadPages({List<int>? pageNumbersToReload}) async {
+    if (isDisposed) return;
+    await synchronized(() async {
+      final pageIndices = pageNumbersToReload?.map((n) => n - 1).toList();
+      final result = await _sendCommand(
+        'reloadPages',
+        parameters: {
+          'docHandle': document['docHandle'],
+          if (pageIndices != null) 'pageIndices': pageIndices,
+          'currentPagesCount': pages.length,
+        },
+      );
+      final reloadedPages = parsePages(this, result['pages'] as List<dynamic>);
+      final newPages = pages.toList(growable: false);
+      for (final page in reloadedPages) {
+        newPages[page.pageNumber - 1] = page; // Update the existing page
+      }
+      pages = newPages;
+
+      updateMissingFonts(result['missingFonts']);
+    });
+  }
+
   /// Don't handle [_pages] directly unless you really understand what you're doing; use [pages] getter/setter instead.
   ///
   /// [pages] automatically keeps consistency and also notifies page changes.
@@ -599,6 +623,11 @@ class _PdfDocumentWasm extends PdfDocument {
     );
     final bb = result['data'] as ByteBuffer;
     return Uint8List.view(bb.asByteData().buffer, 0, bb.lengthInBytes);
+  }
+
+  @override
+  Future<T> useNativeDocumentHandle<T>(FutureOr<T> Function(int nativeDocumentHandle) task) {
+    throw UnimplementedError('PdfDocument.useNativeDocumentHandle is not implemented for WASM backend.');
   }
 }
 

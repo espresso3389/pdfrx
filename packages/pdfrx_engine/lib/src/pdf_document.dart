@@ -262,6 +262,33 @@ abstract class PdfDocument {
   ///
   /// This function internally calls [assemble] before encoding the PDF.
   Future<Uint8List> encodePdf({bool incremental = false, bool removeSecurity = false});
+
+  /// Execute native document task with the native document handle.
+  ///
+  /// Only supported for native backends (e.g., PDFium).
+  ///
+  /// Please note that this function suspends pdfrx internal PDFium worker during the execution of [task].
+  ///
+  /// If you modify the document inside [task], make sure to keep consistency of the document after the
+  /// modification; e.g., call [reloadPages] if necessary.
+  ///
+  /// `nativeDocumentHandle` is a pointer to the native PDF document handle (e.g., FPDF_DOCUMENT in PDFium) but
+  /// represented as an integer to avoid direct dependency to PDFium bindings.
+  ///
+  /// ```dart
+  /// final result = await pdfDocument.useNativeDocumentHandle((nativeDocumentHandle) {
+  ///   // Convert nativeDocumentHandle to FPDF_DOCUMENT handle.
+  ///   final pdfDocument = pdfium_bindings.FPDF_DOCUMENT.fromAddress(nativeDocumentHandle);
+  ///   // <<Do something with pdfDocument...>>
+  ///   return someResult;
+  /// });
+  /// ```
+  Future<T> useNativeDocumentHandle<T>(FutureOr<T> Function(int nativeDocumentHandle) task);
+
+  /// Reload specified pages.
+  ///
+  /// [pageNumbersToReload] is the list of page numbers (1-based) to reload. If null, all pages are reloaded.
+  Future<void> reloadPages({List<int>? pageNumbersToReload});
 }
 
 typedef PdfPageLoadingCallback<T> = FutureOr<bool> Function(int currentPageNumber, int totalPageCount, T? data);

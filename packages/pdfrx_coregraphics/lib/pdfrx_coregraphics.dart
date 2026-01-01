@@ -501,6 +501,22 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
       'encodePdf() is not implemented for CoreGraphics backend.',
     );
   }
+
+  @override
+  Future<T> useNativeDocumentHandle<T>(
+    FutureOr<T> Function(int nativeDocumentHandle) task,
+  ) {
+    throw UnimplementedError(
+      'useNativeDocumentHandle() is not implemented for CoreGraphics backend.',
+    );
+  }
+
+  @override
+  Future<void> reloadPages({List<int>? pageNumbersToReload}) {
+    throw UnimplementedError(
+      'reloadPages() is not implemented for CoreGraphics backend.',
+    );
+  }
 }
 
 class _CoreGraphicsPdfPage extends PdfPage {
