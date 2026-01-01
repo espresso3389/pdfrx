@@ -12,3 +12,6 @@ export 'src/widgets/pdf_widgets.dart';
 export 'src/widgets/scroll_interaction/pdf_viewer_scroll_interaction_delegate.dart';
 export 'src/widgets/scroll_interaction/pdf_viewer_scroll_interaction_delegate_instant.dart';
 export 'src/widgets/scroll_interaction/pdf_viewer_scroll_interaction_delegate_physics.dart';
+export 'src/widgets/sizing/pdf_viewer_size_delegate.dart';
+export 'src/widgets/sizing/pdf_viewer_size_delegate_legacy.dart';
+export 'src/widgets/sizing/pdf_viewer_size_delegate_smart.dart';

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../pdf_viewer.dart';
+import '../sizing/pdf_viewer_size_delegate.dart';
 import 'pdf_viewer_scroll_interaction_delegate.dart';
 
 /// A provider that creates a [PdfViewerScrollInteractionDelegate] with **Instant** behavior.
@@ -45,7 +46,7 @@ class _PdfViewerScrollInteractionDelegateInstant implements PdfViewerScrollInter
   }
 
   @override
-  void pan(Offset delta) {
+  void pan(Offset delta, PdfViewerLayoutMetrics layoutMetrics) {
     final controller = _controller;
     if (controller == null || !controller.isReady) {
       return;
@@ -65,17 +66,16 @@ class _PdfViewerScrollInteractionDelegateInstant implements PdfViewerScrollInter
   }
 
   @override
-  void zoom(double scale, Offset focalPoint) {
+  void zoom(double scale, Offset focalPoint, PdfViewerLayoutMetrics layoutMetrics) {
     final controller = _controller;
     if (controller == null || !controller.isReady) {
       return;
     }
 
     final currentZoom = controller.currentZoom;
-    final params = controller.params;
 
-    // Calculate the target zoom level, clamped to the min/max allowed by params.
-    final newZoom = (currentZoom * scale).clamp(params.minScale, params.maxScale);
+    // Calculate the target zoom level, clamped to the min/max allowed by layoutMetrics.
+    final newZoom = (currentZoom * scale).clamp(layoutMetrics.minScale, layoutMetrics.maxScale);
 
     // Optimization: Ignore negligible changes to prevent unnecessary rebuilds.
     if ((newZoom - currentZoom).abs() < 0.0001) {
