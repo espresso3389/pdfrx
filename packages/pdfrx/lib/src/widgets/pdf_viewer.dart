@@ -221,10 +221,7 @@ class _PdfViewerState extends State<PdfViewer>
   PdfDocument? _document;
   PdfPageLayout? _layout;
   Size? _viewSize;
-  double? _coverScale;
-  double? _alternativeFitScale;
-  static const _defaultMinScale = 0.1;
-  double _minScale = _defaultMinScale;
+  late PdfViewerLayoutMetrics _layoutMetrics;
   int? _pageNumber;
   bool _initialized = false;
   bool _usingScrollPercentageMode = false;
@@ -232,7 +229,7 @@ class _PdfViewerState extends State<PdfViewer>
   StreamSubscription<PdfDocumentEvent>? _documentSubscription;
   final _interactiveViewerKey = GlobalKey<iv.InteractiveViewerState>();
 
-  final List<double> _zoomStops = [1.0];
+  List<double> _zoomStops = const [1.0];
 
   final _imageCache = _PdfPageImageCache();
   final _magnifierImageCache = _PdfPageImageCache();
@@ -282,18 +279,36 @@ class _PdfViewerState extends State<PdfViewer>
   // the viewport
   EdgeInsets _adjustedBoundaryMargins = EdgeInsets.zero;
 
+  PdfViewerSizeDelegate? _sizeDelegate;
+
   @override
   void initState() {
     super.initState();
     pdfrxFlutterInitialize();
     _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
     _widgetUpdated(null);
+    _updateSizeDelegate();
+
+    // Initialize metrics with default/current state
+    // (Layout is null here, so it will return defaults)
+    _recalculateMetrics();
   }
 
   @override
   void didUpdateWidget(covariant PdfViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
     _widgetUpdated(oldWidget);
+    if (widget.params.sizeDelegateProvider != oldWidget.params.sizeDelegateProvider) {
+      _updateSizeDelegate();
+    }
+  }
+
+  void _updateSizeDelegate() {
+    _sizeDelegate?.dispose();
+    _sizeDelegate = widget.params.getSizeDelegateProvider().create();
+    if (_controller != null) {
+      _sizeDelegate!.init(_controller!);
+    }
   }
 
   Future<void> _widgetUpdated(PdfViewer? oldWidget) async {
@@ -352,6 +367,7 @@ class _PdfViewerState extends State<PdfViewer>
     _controller!._attach(this);
     _txController.addListener(_onMatrixChanged);
     _documentSubscription = document.events.listen(_onDocumentEvent);
+    _sizeDelegate?.init(_controller!);
 
     if (mounted) {
       setState(() {});
@@ -386,6 +402,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   void dispose() {
+    _sizeDelegate?.dispose();
     focusReportForPreventingContextMenuWeb(this, false);
     _documentSubscription?.cancel();
     _textSelectionChangedDebounceTimer?.cancel();
@@ -473,7 +490,7 @@ class _PdfViewerState extends State<PdfViewer>
                         boundaryMargin: widget.params.scrollPhysics == null
                             ? const EdgeInsets.all(double.infinity) // NOTE: boundaryMargin is handled manually
                             : _adjustedBoundaryMargins,
-                        maxScale: widget.params.maxScale,
+                        maxScale: _layoutMetrics.maxScale,
                         minScale: minScale,
                         panAxis: widget.params.panAxis,
                         panEnabled: widget.params.panEnabled,
@@ -593,17 +610,30 @@ class _PdfViewerState extends State<PdfViewer>
   void _updateLayout(Size viewSize) {
     if (viewSize.height <= 0) return; // For fix blank pdf when restore window from minimize on Windows
     final currentPageNumber = _guessCurrentPageNumber();
+    final oldSnapshot = PdfViewerLayoutSnapshot(
+      viewSize: _viewSize ?? Size.zero,
+      layout: _layout,
+      minScale: _layoutMetrics.minScale,
+      coverScale: _layoutMetrics.coverScale,
+      alternativeFitScale: _layoutMetrics.alternativeFitScale,
+    );
     final oldVisibleRect = _initialized ? _visibleRect : Rect.zero;
-    final oldLayout = _layout;
-    final oldMinScale = _minScale;
     final oldSize = _viewSize;
     final isViewSizeChanged = oldSize != viewSize;
     _viewSize = viewSize;
     final isLayoutChanged = _relayoutPages();
 
-    _calcCoverFitScale();
+    _recalculateMetrics();
     _calcZoomStopTable();
-    _adjustBoundaryMargins(viewSize, max(_minScale, _currentZoom));
+    _adjustBoundaryMargins(viewSize, max(_layoutMetrics.minScale, _currentZoom));
+
+    final newSnapshot = PdfViewerLayoutSnapshot(
+      viewSize: viewSize,
+      layout: _layout,
+      minScale: _layoutMetrics.minScale,
+      coverScale: _layoutMetrics.coverScale,
+      alternativeFitScale: _layoutMetrics.alternativeFitScale,
+    );
 
     void callOnViewerSizeChanged() {
       if (isViewSizeChanged) {
@@ -613,98 +643,68 @@ class _PdfViewerState extends State<PdfViewer>
       }
     }
 
-    if (!_initialized && _layout != null && _coverScale != null) {
+    if (!_initialized && _layout != null) {
       _initialized = true;
-      Future.microtask(() async {
-        // forcibly calculate fit scale for the initial page
+      Future.microtask(() {
+        if (!mounted) {
+          return;
+        }
+
+        // Calculate initial page (using params or default)
+        // We set it here so internal state is consistent before delegate runs
         _pageNumber = _gotoTargetPageNumber = _calcInitialPageNumber();
-        _calcCoverFitScale();
+
+        // RECALCULATE for specific initial page
+        _recalculateMetrics();
         _calcZoomStopTable();
-        final zoom =
-            widget.params.calculateInitialZoom?.call(
-              _document!,
-              _controller!,
-              _alternativeFitScale ?? _coverScale!,
-              _coverScale!,
-            ) ??
-            _coverScale!;
-        await _setZoom(Offset.zero, zoom, duration: Duration.zero);
+
+        _sizeDelegate?.onLayoutInitialized(
+          state: newSnapshot,
+          initialPageNumber: _pageNumber!,
+          coverScale: _layoutMetrics.coverScale,
+          alternativeFitScale: _layoutMetrics.alternativeFitScale,
+          layout: _layout!,
+          document: _document!,
+        );
+
         if (_pageNumber! <= _layout!.pageLayouts.length) {
-          await _goToPage(pageNumber: _pageNumber!, duration: Duration.zero);
+          unawaited(_goToPage(pageNumber: _pageNumber!, duration: Duration.zero));
         }
-        if (mounted && _document != null && _controller != null) {
-          widget.params.onViewerReady?.call(_document!, _controller!);
+
+        final onViewerReady = widget.params.onViewerReady;
+        if (_document != null && _controller != null && onViewerReady != null) {
+          onViewerReady(_document!, _controller!);
         }
+
         callOnViewerSizeChanged();
       });
     } else if (isLayoutChanged || isViewSizeChanged) {
-      Future.microtask(() async {
-        if (mounted) {
-          // preserve the current zoom whilst respecting the new minScale
-          final zoomTo = _currentZoom < _minScale || _currentZoom == oldMinScale ? _minScale : _currentZoom;
-          if (isLayoutChanged) {
-            // if the layout changed, calculate the top-left position in the document
-            // before the layout change and go to that position in the new layout
+      Future.microtask(() {
+        if (!mounted) {
+          return;
+        }
 
-            if (oldLayout != null && currentPageNumber != null) {
-              // The top-left position of the screen (oldVisibleRect.topLeft) may be
-              // in the boundary margin, or a margin between pages, and it could be
-              // the current page or one of the neighboring pages
-              final hit = _getClosestPageHit(currentPageNumber, oldLayout, oldVisibleRect);
-              final pageNumber = hit?.page.pageNumber ?? currentPageNumber;
+        _sizeDelegate?.onLayoutUpdate(
+          oldState: oldSnapshot,
+          newState: newSnapshot,
+          currentZoom: _currentZoom,
+          oldVisibleRect: oldVisibleRect,
+          anchorPageNumber: currentPageNumber,
+          isLayoutChanged: isLayoutChanged,
+          isViewSizeChanged: isViewSizeChanged,
+        );
 
-              // Compute relative position within the old pageRect
-              final oldPageRect = oldLayout.pageLayouts[pageNumber - 1];
-              final newPageRect = _layout!.pageLayouts[pageNumber - 1];
-              final oldOffset = oldVisibleRect.topLeft - oldPageRect.topLeft;
-              final fracX = oldOffset.dx / oldPageRect.width;
-              final fracY = oldOffset.dy / oldPageRect.height;
+        if (!mounted) {
+          return;
+        }
 
-              // Map into new layoutRect
-              final newOffset = Offset(
-                newPageRect.left + fracX * newPageRect.width,
-                newPageRect.top + fracY * newPageRect.height,
-              );
-
-              // preserve the position after a layout change
-              await _goToPosition(documentOffset: newOffset, zoom: zoomTo);
-            }
-          } else {
-            if (zoomTo != _currentZoom) {
-              // layout hasn't changed, but size and zoom has
-              final zoomChange = zoomTo / _currentZoom;
-              final pivot = vec.Vector3(_txController.value.x, _txController.value.y, 0);
-
-              final pivotScale = Matrix4.identity()
-                ..translateByVector3(pivot)
-                ..scaleByDouble(zoomChange, zoomChange, zoomChange, 1)
-                ..translateByVector3(-pivot / zoomChange);
-
-              final Matrix4 zoomPivoted = pivotScale * _txController.value;
-              _adjustBoundaryMargins(viewSize, zoomTo);
-              _clampToNearestBoundary(zoomPivoted, viewSize: viewSize);
-            } else {
-              // size changes (e.g. rotation) can still cause out-of-bounds matrices
-              // so clamp here
-              _clampToNearestBoundary(_txController.value, viewSize: viewSize);
-            }
-            callOnViewerSizeChanged();
-          }
+        if (isViewSizeChanged) {
+          callOnViewerSizeChanged();
         }
       });
     } else if (currentPageNumber != null && _pageNumber != currentPageNumber) {
       _setCurrentPageNumber(currentPageNumber);
     }
-  }
-
-  /// Stop InteractiveViewer animations and apply boundary clamping
-  void _clampToNearestBoundary(Matrix4 candidate, {required Size viewSize}) {
-    if (_isInteractionGoingOn) return;
-
-    _stopInteractiveViewerAnimation();
-
-    // Apply the clamped matrix
-    _txController.value = _calcMatrixForClampedToNearestBoundary(candidate, viewSize: viewSize);
   }
 
   /// Get the state of the internal [iv.InteractiveViewer].
@@ -718,7 +718,12 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   int _calcInitialPageNumber() {
-    return widget.params.calculateInitialPageNumber?.call(_document!, _controller!) ?? widget.initialPageNumber;
+    int? pageNumber;
+    final calculateInitialPageNumber = widget.params.calculateInitialPageNumber;
+    if (calculateInitialPageNumber != null) {
+      pageNumber = calculateInitialPageNumber(_document!, _controller!);
+    }
+    return pageNumber ?? widget.initialPageNumber;
   }
 
   PdfPageHitTestResult? _getClosestPageHit(int currentPageNumber, PdfPageLayout oldLayout, ui.Rect oldVisibleRect) {
@@ -1023,78 +1028,20 @@ class _PdfViewerState extends State<PdfViewer>
     return true;
   }
 
-  void _calcCoverFitScale() {
-    final params = widget.params;
-    final bmh = params.boundaryMargin?.horizontal == double.infinity ? 0 : params.boundaryMargin?.horizontal ?? 0;
-    final bmv = params.boundaryMargin?.vertical == double.infinity ? 0 : params.boundaryMargin?.vertical ?? 0;
-
-    if (_viewSize != null) {
-      final s1 = _viewSize!.width / (_layout!.documentSize.width + bmh);
-      final s2 = _viewSize!.height / (_layout!.documentSize.height + bmv);
-      _coverScale = max(s1, s2);
-    }
+  void _recalculateMetrics() {
     final pageNumber = _pageNumber ?? _gotoTargetPageNumber;
-    if (pageNumber != null && pageNumber >= 1 && pageNumber <= _layout!.pageLayouts.length) {
-      final rect = _layout!.pageLayouts[pageNumber - 1];
-      final m2 = params.margin * 2;
-      _alternativeFitScale = min(
-        (_viewSize!.width) / (rect.width + bmh + m2),
-        (_viewSize!.height) / (rect.height + bmv + m2),
-      );
-      if (_alternativeFitScale! <= 0) {
-        _alternativeFitScale = null;
-      }
-    } else {
-      _alternativeFitScale = null;
-    }
-    if (_coverScale == null) {
-      _minScale = _defaultMinScale;
-      return;
-    }
-    _minScale = !widget.params.useAlternativeFitScaleAsMinScale
-        ? widget.params.minScale
-        : _alternativeFitScale == null
-        ? _coverScale!
-        : min(_coverScale!, _alternativeFitScale!);
+
+    _layoutMetrics = _sizeDelegate!.calculateMetrics(
+      viewSize: _viewSize ?? Size.zero,
+      layout: _layout,
+      pageNumber: pageNumber,
+      pageMargin: widget.params.margin,
+      boundaryMargin: widget.params.boundaryMargin,
+    );
   }
 
   void _calcZoomStopTable() {
-    _zoomStops.clear();
-    double z;
-    if (_alternativeFitScale != null && !_areZoomsAlmostIdentical(_alternativeFitScale!, _coverScale!)) {
-      if (_alternativeFitScale! < _coverScale!) {
-        _zoomStops.add(_alternativeFitScale!);
-        z = _coverScale!;
-      } else {
-        _zoomStops.add(_coverScale!);
-        z = _alternativeFitScale!;
-      }
-    } else {
-      z = _coverScale!;
-    }
-    // in some case, z may be 0 and it causes infinite loop.
-    if (z < 1 / 128) {
-      _zoomStops.add(1.0);
-      return;
-    }
-    while (z < widget.params.maxScale) {
-      _zoomStops.add(z);
-      z *= 2;
-    }
-    if (!_areZoomsAlmostIdentical(z, widget.params.maxScale)) {
-      _zoomStops.add(widget.params.maxScale);
-    }
-
-    if (!widget.params.useAlternativeFitScaleAsMinScale) {
-      z = _zoomStops.first;
-      while (z > widget.params.minScale) {
-        z /= 2;
-        _zoomStops.insert(0, z);
-      }
-      if (!_areZoomsAlmostIdentical(z, widget.params.minScale)) {
-        _zoomStops.insert(0, widget.params.minScale);
-      }
-    }
+    _zoomStops = _sizeDelegate!.generateZoomStops(_layoutMetrics);
   }
 
   double _findNextZoomStop(double zoom, {required bool zoomUp, bool loop = true}) {
@@ -1288,7 +1235,7 @@ class _PdfViewerState extends State<PdfViewer>
         context,
         page,
         _controller!,
-        widget.params.onePassRenderingScaleThreshold,
+        _sizeDelegate!.onePassRenderingScaleThreshold,
       );
 
       if (dropShadowPaint != null) {
@@ -1588,7 +1535,7 @@ class _PdfViewerState extends State<PdfViewer>
         // NOTE: I believe that either only dx or dy is set, but I don't know which one is guaranteed to be set.
         // So, I just add both values.
         var zoomFactor = -(event.scrollDelta.dx + event.scrollDelta.dy) / 120.0;
-        final newZoom = (_currentZoom * (pow(1.2, zoomFactor))).clamp(widget.params.minScale, widget.params.maxScale);
+        final newZoom = (_currentZoom * (pow(1.2, zoomFactor))).clamp(_layoutMetrics.minScale, _layoutMetrics.maxScale);
         if (_areZoomsAlmostIdentical(newZoom, _currentZoom)) return;
         // NOTE: _onWheelDelta may be called from other widget's context and localPosition may be incorrect.
         _controller!.zoomOnLocalPosition(
@@ -1638,7 +1585,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   /// The minimum zoom ratio allowed.
-  double get minScale => _minScale;
+  double get minScale => _layoutMetrics.minScale;
 
   Matrix4 _calcMatrixForRect(Rect rect, {double? zoomMax, double? margin}) {
     margin ??= 0;
@@ -3681,10 +3628,10 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   Size get viewSize => _state._viewSize!;
 
   /// The zoom ratio that fits the page's smaller side (either horizontal or vertical) to the view port.
-  double get coverScale => _state._coverScale!;
+  double get coverScale => _state._layoutMetrics.coverScale;
 
   /// The zoom ratio that fits whole the page to the view port.
-  double? get alternativeFitScale => _state._alternativeFitScale;
+  double? get alternativeFitScale => _state._layoutMetrics.alternativeFitScale;
 
   /// The minimum zoom ratio allowed.
   double get minScale => _state.minScale;
@@ -3800,6 +3747,14 @@ class PdfViewerController extends ValueListenable<Matrix4> {
     PdfPageAnchor? anchor,
     Duration duration = const Duration(milliseconds: 200),
   }) => _state._goToRectInsidePage(pageNumber: pageNumber, rect: rect, anchor: anchor, duration: duration);
+
+  /// Scrolls/zooms so that the specified PDF document coordinate appears at
+  /// the top-left corner of the viewport.
+  Future<void> goToPosition({
+    required Offset documentOffset,
+    double? zoom,
+    Duration duration = const Duration(milliseconds: 0),
+  }) => _state._goToPosition(documentOffset: documentOffset, zoom: zoom, duration: duration);
 
   /// Calculate the rectangle for the specified area inside the page.
   ///
@@ -4075,6 +4030,26 @@ class PdfViewerController extends ValueListenable<Matrix4> {
 
   /// Force redraw all the page images.
   void forceRepaintAllPageImages() => _state.forceRepaintAllPageImages();
+
+  /// Stop the inertia animation of the interactive viewer.
+  ///
+  /// This is useful when you want to manually update the matrix without
+  /// fighting against the active inertia animation.
+  void stopInteractiveViewerAnimation() => _state._stopInteractiveViewerAnimation();
+
+  /// Calculate the matrix that clamps the given [matrix] to the nearest boundary.
+  ///
+  /// This ensures that the content is visible within the view port.
+  /// This is used by the default resizing logic to prevent the content from
+  /// being hidden when the view size is reduced.
+  Matrix4 calcMatrixForClampedToNearestBoundary(Matrix4 matrix, {required Size viewSize}) =>
+      _state._calcMatrixForClampedToNearestBoundary(matrix, viewSize: viewSize);
+
+  /// Find the closest page hit for the given parameters.
+  ///
+  /// This is used to determine the anchor position when the layout changes.
+  PdfPageHitTestResult? getClosestPageHit(int currentPageNumber, PdfPageLayout oldLayout, Rect oldVisibleRect) =>
+      _state._getClosestPageHit(currentPageNumber, oldLayout, oldVisibleRect);
 }
 
 /// [PdfViewerController.calcFitZoomMatrices] returns the list of this class.
