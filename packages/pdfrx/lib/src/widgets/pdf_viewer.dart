@@ -280,6 +280,7 @@ class _PdfViewerState extends State<PdfViewer>
   EdgeInsets _adjustedBoundaryMargins = EdgeInsets.zero;
 
   PdfViewerSizeDelegate? _sizeDelegate;
+  PdfViewerZoomStepsDelegate? _zoomStepsDelegate;
 
   @override
   void initState() {
@@ -288,6 +289,7 @@ class _PdfViewerState extends State<PdfViewer>
     _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
     _widgetUpdated(null);
     _updateSizeDelegate();
+    _updateZoomStepsDelegate();
 
     // Initialize metrics with default/current state
     // (Layout is null here, so it will return defaults)
@@ -301,6 +303,9 @@ class _PdfViewerState extends State<PdfViewer>
     if (widget.params.sizeDelegateProvider != oldWidget.params.sizeDelegateProvider) {
       _updateSizeDelegate();
     }
+    if (widget.params.zoomStepsDelegateProvider != oldWidget.params.zoomStepsDelegateProvider) {
+      _updateZoomStepsDelegate();
+    }
   }
 
   void _updateSizeDelegate() {
@@ -309,6 +314,11 @@ class _PdfViewerState extends State<PdfViewer>
     if (_controller != null) {
       _sizeDelegate!.init(_controller!);
     }
+  }
+
+  void _updateZoomStepsDelegate() {
+    _zoomStepsDelegate?.dispose();
+    _zoomStepsDelegate = widget.params.zoomStepsDelegateProvider.create();
   }
 
   Future<void> _widgetUpdated(PdfViewer? oldWidget) async {
@@ -403,6 +413,7 @@ class _PdfViewerState extends State<PdfViewer>
   @override
   void dispose() {
     _sizeDelegate?.dispose();
+    _zoomStepsDelegate?.dispose();
     focusReportForPreventingContextMenuWeb(this, false);
     _documentSubscription?.cancel();
     _textSelectionChangedDebounceTimer?.cancel();
@@ -491,7 +502,7 @@ class _PdfViewerState extends State<PdfViewer>
                             ? const EdgeInsets.all(double.infinity) // NOTE: boundaryMargin is handled manually
                             : _adjustedBoundaryMargins,
                         maxScale: _layoutMetrics.maxScale,
-                        minScale: minScale,
+                        minScale: _layoutMetrics.minScale,
                         panAxis: widget.params.panAxis,
                         panEnabled: widget.params.panEnabled,
                         scaleEnabled: widget.params.scaleEnabled,
@@ -1041,7 +1052,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _calcZoomStopTable() {
-    _zoomStops = _sizeDelegate!.generateZoomStops(_layoutMetrics);
+    _zoomStops = _zoomStepsDelegate!.generateZoomStops(_layoutMetrics);
   }
 
   double _findNextZoomStop(double zoom, {required bool zoomUp, bool loop = true}) {
@@ -1583,9 +1594,6 @@ class _PdfViewerState extends State<PdfViewer>
       ),
     );
   }
-
-  /// The minimum zoom ratio allowed.
-  double get minScale => _layoutMetrics.minScale;
 
   Matrix4 _calcMatrixForRect(Rect rect, {double? zoomMax, double? margin}) {
     margin ??= 0;
@@ -3634,7 +3642,10 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   double? get alternativeFitScale => _state._layoutMetrics.alternativeFitScale;
 
   /// The minimum zoom ratio allowed.
-  double get minScale => _state.minScale;
+  double get minScale => _state._layoutMetrics.minScale;
+
+  /// The maximum zoom ratio allowed.
+  double get maxScale => _state._layoutMetrics.maxScale;
 
   /// The area of the document layout which is visible on the view port.
   Rect get visibleRect => _state._visibleRect;

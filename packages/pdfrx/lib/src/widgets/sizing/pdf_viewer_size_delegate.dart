@@ -37,7 +37,7 @@ abstract class PdfViewerSizeDelegateProvider {
 ///
 /// ### Lifecycle & Controller Access
 /// 1. [create] is called by the Provider.
-/// 2. **[calculateMetrics] and [generateZoomStops] may be called immediately.**
+/// 2. **[calculateMetrics] may be called immediately.**
 ///    *   **Warning:** At this stage, [init] has *not* been called yet.
 ///    *   Implementations must not access the controller or internal state here.
 ///    *   Calculations must rely solely on the arguments provided.
@@ -76,15 +76,6 @@ abstract class PdfViewerSizeDelegate {
     required double pageMargin,
     required EdgeInsets? boundaryMargin,
   });
-
-  /// Generates the list of zoom stops (steps) for double-tap zooming.
-  ///
-  /// **⚠️ Important:** This method is often called **before** [init].
-  /// Do not access the [PdfViewerController] inside this method.
-  ///
-  /// Typically this includes the "Fit Page" scale, 1.0 (100%), and powers of 2.
-  /// The result should be sorted in ascending order.
-  List<double> generateZoomStops(PdfViewerLayoutMetrics metrics);
 
   /// The scale threshold for switching between one-pass rendering and progressive rendering.
   ///
@@ -194,36 +185,4 @@ class PdfViewerLayoutSnapshot {
 
   @override
   int get hashCode => Object.hash(viewSize, layout, minScale, coverScale, alternativeFitScale);
-}
-
-/// A container for the calculated scaling limits of the viewer.
-///
-/// Returned by [PdfViewerSizeDelegate.calculateMetrics].
-class PdfViewerLayoutMetrics {
-  const PdfViewerLayoutMetrics({
-    required this.minScale,
-    required this.maxScale,
-    // We keep these because the Controller exposes them publicly as getters.
-    // The Delegate calculates them so the Controller can return them.
-    required this.coverScale,
-    this.alternativeFitScale,
-  });
-
-  /// The effective minimum scale allowed for the viewer.
-  final double minScale;
-
-  /// The effective maximum scale allowed for the viewer.
-  final double maxScale;
-
-  /// The scale required to fit the document's bounding box within the viewport.
-  final double coverScale;
-
-  /// The scale required to fit the content (usually the current page) entirely within the viewport.
-  ///
-  /// Conventionally, delegates calculate this as the "Fit Page" scale.
-  ///
-  /// It is often used as the effective minimum scale to ensure the user can always
-  /// see the full page content preventing zooming out too far (which could lead to
-  /// rendering performance issues if too many pages become visible).
-  final double? alternativeFitScale;
 }
