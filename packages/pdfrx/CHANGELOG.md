@@ -1,3 +1,11 @@
+# 2.2.19
+
+- Updated to pdfrx_engine 0.3.7 and pdfium_flutter 0.1.8
+- IMPROVED: Add `isDirty` flag to page image cache to prevent cache removal before re-rendering page ([#567](https://github.com/espresso3389/pdfrx/issues/567))
+- FIXED: `round10BitFrac` should not process `Infinity` or `NaN` ([#550](https://github.com/espresso3389/pdfrx/issues/550))
+- Updated Gradle wrapper to version 8.12 and Android plugin to version 8.9.1
+- WIP: Adding `PdfDocument.useNativeDocumentHandle`/`reloadPages`
+
 # 2.2.18
 
 - FIXED: Dependency conflicts with `dart_pubspec_licenses` causing version resolution failures ([#563](https://github.com/espresso3389/pdfrx/issues/563), [#570](https://github.com/espresso3389/pdfrx/issues/570))

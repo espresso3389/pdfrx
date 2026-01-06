@@ -1,3 +1,7 @@
+## 0.1.8
+
+- Dependency configuration updates.
+
 ## 0.1.7
 
 - Documentation updates.

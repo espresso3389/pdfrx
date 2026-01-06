@@ -1,3 +1,9 @@
+## 0.1.11
+
+- Updated to pdfrx_engine 0.3.7
+- Dependency configuration updates
+- WIP: Adding `PdfDocument.useNativeDocumentHandle`/`reloadPages`
+
 ## 0.1.10
 
 - Updated to pdfrx_engine 0.3.6

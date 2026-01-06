@@ -1,6 +1,6 @@
 name: pdfrx_coregraphics
 description: CoreGraphics-backed Pdfrx engine layer for Apple platforms.
-version: 0.1.10
+version: 0.1.11
 homepage: https://github.com/espresso3389/pdfrx
 repository: https://github.com/espresso3389/pdfrx/tree/master/packages/pdfrx
 issue_tracker: https://github.com/espresso3389/pdfrx/issues
@@ -13,7 +13,7 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
-  pdfrx_engine: ^0.3.6
+  pdfrx_engine: ^0.3.7
   http:
 
 dev_dependencies:
