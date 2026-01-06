@@ -40,6 +40,34 @@ flutter pub publish --force
 
 ## Post-Release
 
+### Git Tagging
+
+After publishing, create git tags for each released package and push them:
+
+```bash
+# Tag format: <package>-v<version>
+git tag pdfium_dart-v0.1.3
+git tag pdfium_flutter-v0.1.8
+git tag pdfrx_engine-v0.3.7
+git tag pdfrx-v2.2.19
+git tag pdfrx_coregraphics-v0.1.11
+
+# Push all tags
+git push --tags
+```
+
+### Commit Changes
+
+Before tagging, commit all release changes:
+
+```bash
+git add -A
+git commit -m "Release pdfrx 2.2.19, pdfrx_engine 0.3.7, etc."
+git push
+```
+
+### Notify Issues
+
 - Notify relevant GitHub issues about the fix/feature being released
 - Comment format: "This has been addressed in <package> <version>. <brief description>"
 
