@@ -31,6 +31,8 @@ class PdfDocumentPageStatusChangedEvent implements PdfDocumentEvent {
   /// The pages that have changed.
   ///
   /// The map is from page number (1-based) to it's status change.
+  ///
+  /// You can assume that the keys in this map are sorted in ascending order.
   final Map<int, PdfPageStatusChange> changes;
 }
 
