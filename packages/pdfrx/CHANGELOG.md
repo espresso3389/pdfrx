@@ -1,3 +1,7 @@
+# 2.2.20
+
+- FIXED: Inconsistent environment constraints - Flutter version now correctly requires 3.35.1+ to match Dart 3.9.0 requirement ([#553](https://github.com/espresso3389/pdfrx/issues/553))
+
 # 2.2.19
 
 - Updated to pdfrx_engine 0.3.7 and pdfium_flutter 0.1.8
