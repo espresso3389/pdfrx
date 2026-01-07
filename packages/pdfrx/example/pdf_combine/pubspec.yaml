@@ -5,7 +5,6 @@ version: 1.0.0+1
 
 environment:
   sdk: ^3.9.2
-
 resolution: workspace
 
 dependencies:
