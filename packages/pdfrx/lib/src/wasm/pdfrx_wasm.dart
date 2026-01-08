@@ -112,6 +112,11 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     return await action();
   }
 
+  @override
+  Future<R> compute<M, R>(FutureOr<R> Function(M message) callback, M message) async {
+    throw UnimplementedError('compute() is not implemented for WASM backend.');
+  }
+
   static String? _pdfiumWasmModulesUrlFromMetaTag() {
     final meta = web.document.querySelector('meta[name="pdfium-wasm-module-url"]') as web.HTMLMetaElement?;
     return meta?.content;

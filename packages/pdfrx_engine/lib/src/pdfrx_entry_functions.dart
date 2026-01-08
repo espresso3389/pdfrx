@@ -29,6 +29,15 @@ abstract class PdfrxEntryFunctions {
   /// To avoid such problems, you can wrap the code that calls those libraries with this function.
   Future<T> suspendPdfiumWorkerDuringAction<T>(FutureOr<T> Function() action);
 
+  /// Perform a computation in the background worker isolate.
+  ///
+  /// The [callback] function is executed in the background isolate with [message] as its argument.
+  /// The result of the [callback] function is returned as a [Future].
+  ///
+  /// The background worker isolate is same to the one used by pdfrx internally to call PDFium
+  /// functions.
+  Future<R> compute<M, R>(FutureOr<R> Function(M message) callback, M message);
+
   /// See [PdfDocument.openAsset].
   Future<PdfDocument> openAsset(
     String name, {

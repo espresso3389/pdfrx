@@ -200,6 +200,11 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   }
 
   @override
+  Future<R> compute<M, R>(FutureOr<R> Function(M message) callback, M message) async {
+    return await (await BackgroundWorker.instance).compute(callback, message);
+  }
+
+  @override
   Future<PdfDocument> openAsset(
     String name, {
     PdfPasswordProvider? passwordProvider,
