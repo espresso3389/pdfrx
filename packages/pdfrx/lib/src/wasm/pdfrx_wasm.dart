@@ -198,6 +198,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     sourceName: sourceName ?? _sourceNameFromData(data),
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
     onDispose: onDispose,
   );
 
@@ -222,6 +223,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     sourceName: 'file%$filePath',
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+    useProgressiveLoading: useProgressiveLoading,
     onDispose: null,
   );
 
@@ -264,6 +266,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
         sourceName: 'uri%$uri',
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+        useProgressiveLoading: useProgressiveLoading,
         onDispose: cleanupCallbacks,
       );
     } catch (e) {
@@ -277,6 +280,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     required String sourceName,
     required PdfPasswordProvider? passwordProvider,
     required bool firstAttemptByEmptyPassword,
+    required bool useProgressiveLoading,
     required void Function()? onDispose,
   }) async {
     await init();
@@ -303,7 +307,12 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
         throw StateError('Failed to open document: ${result['errorCodeStr']} ($errorCode)');
       }
 
-      return _PdfDocumentWasm._(result, sourceName: sourceName, disposeCallback: onDispose);
+      return _PdfDocumentWasm._(
+        result,
+        sourceName: sourceName,
+        disposeCallback: onDispose,
+        useProgressiveLoading: useProgressiveLoading,
+      );
     }
   }
 
@@ -315,7 +324,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     if (errorCode != null) {
       throw StateError('Failed to create new document: ${result['errorCodeStr']} ($errorCode)');
     }
-    return _PdfDocumentWasm._(result, sourceName: sourceName, disposeCallback: null);
+    return _PdfDocumentWasm._(result, sourceName: sourceName, disposeCallback: null, useProgressiveLoading: false);
   }
 
   @override
@@ -336,7 +345,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     if (errorCode != null) {
       throw StateError('Failed to create document from JPEG data: ${result['errorCodeStr']} ($errorCode)');
     }
-    return _PdfDocumentWasm._(result, sourceName: sourceName, disposeCallback: null);
+    return _PdfDocumentWasm._(result, sourceName: sourceName, disposeCallback: null, useProgressiveLoading: false);
   }
 
   @override
@@ -363,10 +372,21 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
 }
 
 class _PdfDocumentWasm extends PdfDocument {
-  _PdfDocumentWasm._(this.document, {required super.sourceName, this.disposeCallback})
-    : permissions = parsePermissions(document) {
+  _PdfDocumentWasm._(
+    this.document, {
+    required super.sourceName,
+    required bool useProgressiveLoading,
+    this.disposeCallback,
+  }) : permissions = parsePermissions(document) {
     _pages = parsePages(this, document['pages'] as List<dynamic>);
     updateMissingFonts(document['missingFonts']);
+    if (!useProgressiveLoading) {
+      _notifyDocumentLoadComplete();
+    }
+  }
+
+  void _notifyDocumentLoadComplete() {
+    subject.add(PdfDocumentLoadCompleteEvent(this));
   }
 
   final Map<Object?, dynamic> document;
@@ -450,6 +470,10 @@ class _PdfDocumentWasm extends PdfDocument {
             break;
           }
         }
+      }
+      // All pages loaded
+      if (firstPageIndex >= pages.length) {
+        _notifyDocumentLoadComplete();
       }
     });
   }

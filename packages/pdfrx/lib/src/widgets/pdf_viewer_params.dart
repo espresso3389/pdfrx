@@ -42,6 +42,7 @@ class PdfViewerParams {
     this.onSecondaryTapUp,
     this.onLongPressStart,
     this.onDocumentChanged,
+    this.onDocumentLoadFinished,
     this.calculateInitialPageNumber,
     this.calculateInitialZoom,
     this.calculateCurrentPageNumber,
@@ -263,6 +264,11 @@ class PdfViewerParams {
   /// The function is called even if the document is null (it means the document is unloaded).
   /// If you want to be notified when the viewer is ready to interact, use [onViewerReady] instead.
   final PdfViewerDocumentChangedCallback? onDocumentChanged;
+
+  /// Function to notify that the document loading is finished regardless of success or failure.
+  ///
+  /// For the function usage, see [PdfDocumentLoadFinished].
+  final PdfDocumentLoadFinished? onDocumentLoadFinished;
 
   /// Function called when the viewer is ready.
   ///
@@ -640,6 +646,7 @@ class PdfViewerParams {
         other.onSecondaryTapUp == onSecondaryTapUp &&
         other.onLongPressStart == onLongPressStart &&
         other.onDocumentChanged == onDocumentChanged &&
+        other.onDocumentLoadFinished == onDocumentLoadFinished &&
         other.calculateInitialPageNumber == calculateInitialPageNumber &&
         other.calculateInitialZoom == calculateInitialZoom &&
         other.calculateCurrentPageNumber == calculateCurrentPageNumber &&
@@ -699,6 +706,7 @@ class PdfViewerParams {
         onSecondaryTapUp.hashCode ^
         onLongPressStart.hashCode ^
         onDocumentChanged.hashCode ^
+        onDocumentLoadFinished.hashCode ^
         calculateInitialPageNumber.hashCode ^
         calculateInitialZoom.hashCode ^
         calculateCurrentPageNumber.hashCode ^
@@ -1336,6 +1344,28 @@ typedef PdfViewerCalculateCurrentPageNumberFunction =
 /// Function called when the viewer is ready.
 ///
 typedef PdfViewerReadyCallback = void Function(PdfDocument document, PdfViewerController controller);
+
+/// Function to called when the document loading is finished regardless of success or failure.
+///
+/// [documentRef] is the reference to the loaded document.
+/// [loadSucceeded] indicates whether the document was loaded successfully.
+///
+/// The following fragment illustrates how to use the function:
+/// ```dart
+/// onDocumentLoadFinished: (documentRef, succeeded) {
+///   if (succeeded) {
+///     // all the pages are loaded successfully
+///     debugPrint('Document loaded successfully.');
+///   } else {
+///     // there was an error loading the document
+///     final listenable = widget.documentRef.resolveListenable();
+///     final error = listenable.error;
+///     final stackTrace = listenable.stackTrace;
+///     debugPrint('Document load failed: $error\n$stackTrace');
+///   }
+/// }
+/// ```
+typedef PdfDocumentLoadFinished = void Function(PdfDocumentRef documentRef, bool loadSucceeded);
 
 /// Function to be called when the viewer view size is changed.
 ///

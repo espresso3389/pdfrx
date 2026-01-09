@@ -4,9 +4,14 @@ import 'pdf_page_status_change.dart';
 
 /// PDF document event types.
 enum PdfDocumentEventType {
+  /// [PdfDocumentLoadCompleteEvent]: Document's loading is complete; i.e., all pages are loaded.
+  documentLoadComplete,
+
   /// [PdfDocumentPageStatusChangedEvent]: Page status changed.
   pageStatusChanged,
-  missingFonts, // [PdfDocumentMissingFontsEvent]: Missing fonts changed.
+
+  /// [PdfDocumentMissingFontsEvent]: Missing fonts changed.
+  missingFonts,
 }
 
 /// Base class for PDF document events.
@@ -16,6 +21,17 @@ abstract class PdfDocumentEvent {
 
   /// Document that this event is related to.
   PdfDocument get document;
+}
+
+/// Event that is triggered when the PDF document has finished loading.
+class PdfDocumentLoadCompleteEvent implements PdfDocumentEvent {
+  PdfDocumentLoadCompleteEvent(this.document);
+
+  @override
+  PdfDocumentEventType get type => PdfDocumentEventType.documentLoadComplete;
+
+  @override
+  final PdfDocument document;
 }
 
 /// Event that is triggered when the status of PDF document pages has changed.

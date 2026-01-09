@@ -631,6 +631,9 @@ class _PdfDocumentPdfium extends PdfDocument {
         maxPageCountToLoadAdditionally: useProgressiveLoading ? 1 : null,
       );
       pdfDoc._pages = List.unmodifiable(pages.pages);
+      if (!useProgressiveLoading) {
+        pdfDoc._notifyDocumentLoadComplete();
+      }
       pdfDoc._notifyMissingFonts();
       return pdfDoc;
     } catch (e) {
@@ -676,10 +679,18 @@ class _PdfDocumentPdfium extends PdfDocument {
           return;
         }
       }
-      if (loaded.pageCountLoadedTotal == loaded.pages.length || isDisposed) {
+      if (loaded.pageCountLoadedTotal == loaded.pages.length) {
+        _notifyDocumentLoadComplete();
+        return;
+      }
+      if (isDisposed) {
         return;
       }
     }
+  }
+
+  void _notifyDocumentLoadComplete() {
+    subject.add(PdfDocumentLoadCompleteEvent(this));
   }
 
   /// Loads pages in the document in a time-limited manner.

@@ -358,7 +358,15 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
           rotation: _rotationFromDegrees(pageInfos[i]['rotation'] as int? ?? 0),
         ),
     ]);
+    // CoreGraphics loads all pages immediately, so notify load complete
+    if (!useProgressiveLoading) {
+      doc._notifyDocumentLoadComplete();
+    }
     return doc;
+  }
+
+  void _notifyDocumentLoadComplete() {
+    subject.add(PdfDocumentLoadCompleteEvent(this));
   }
 
   static PdfPageRotation _rotationFromDegrees(int degrees) {
@@ -416,9 +424,7 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
     T? data,
     Duration loadUnitDuration = const Duration(milliseconds: 250),
   }) async {
-    if (onPageLoadProgress != null) {
-      await onPageLoadProgress(_pages.length, _pages.length, data);
-    }
+    // CoreGraphics loads all pages immediately; nothing to do.
   }
 
   @override

@@ -337,13 +337,17 @@ class _PdfViewerState extends State<PdfViewer>
     _txController.removeListener(_onMatrixChanged);
     _controller?._attach(null);
 
-    final document = widget.documentRef.resolveListenable().document;
+    final listenable = widget.documentRef.resolveListenable();
+    final document = listenable.document;
     if (document == null) {
       _document = null;
       if (mounted) {
         setState(() {});
       }
       _notifyOnDocumentChanged();
+      if (listenable.error != null) {
+        _notifyDocumentLoadFinished(succeeded: false);
+      }
       return;
     }
 
@@ -417,7 +421,26 @@ class _PdfViewerState extends State<PdfViewer>
       }
       _clearTextSelections(invalidate: false);
       _invalidate();
+    } else if (event is PdfDocumentLoadCompleteEvent) {
+      _notifyDocumentLoadFinished(succeeded: true);
     }
+  }
+
+  Future<void> _notifyDocumentLoadFinished({required bool succeeded}) async {
+    final listenable = widget.documentRef.resolveListenable();
+    if (succeeded) {
+      // FIXME: This is a temporary workaround to wait until the initial page is loaded.
+      while (mounted) {
+        if (_imageCache.pageImages.containsKey(widget.initialPageNumber)) break;
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+    }
+
+    Future.microtask(() async {
+      if (mounted) {
+        widget.params.onDocumentLoadFinished?.call(widget.documentRef, succeeded);
+      }
+    });
   }
 
   @override
