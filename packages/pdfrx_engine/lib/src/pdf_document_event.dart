@@ -25,7 +25,7 @@ abstract class PdfDocumentEvent {
 
 /// Event that is triggered when the PDF document has finished loading.
 class PdfDocumentLoadCompleteEvent implements PdfDocumentEvent {
-  PdfDocumentLoadCompleteEvent(this.document);
+  const PdfDocumentLoadCompleteEvent(this.document);
 
   @override
   PdfDocumentEventType get type => PdfDocumentEventType.documentLoadComplete;
@@ -36,7 +36,7 @@ class PdfDocumentLoadCompleteEvent implements PdfDocumentEvent {
 
 /// Event that is triggered when the status of PDF document pages has changed.
 class PdfDocumentPageStatusChangedEvent implements PdfDocumentEvent {
-  PdfDocumentPageStatusChangedEvent(this.document, {required this.changes});
+  const PdfDocumentPageStatusChangedEvent(this.document, {required this.changes});
 
   @override
   PdfDocumentEventType get type => PdfDocumentEventType.pageStatusChanged;
@@ -55,7 +55,7 @@ class PdfDocumentPageStatusChangedEvent implements PdfDocumentEvent {
 /// Event that is triggered when the list of missing fonts in the PDF document has changed.
 class PdfDocumentMissingFontsEvent implements PdfDocumentEvent {
   /// Create a [PdfDocumentMissingFontsEvent].
-  PdfDocumentMissingFontsEvent(this.document, this.missingFonts);
+  const PdfDocumentMissingFontsEvent(this.document, this.missingFonts);
 
   @override
   PdfDocumentEventType get type => PdfDocumentEventType.missingFonts;

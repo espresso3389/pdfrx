@@ -1,3 +1,7 @@
+## 0.3.8
+
+- NEW: `PdfDocumentLoadCompleteEvent` for document load completion notification
+
 ## 0.3.7
 
 - IMPROVED: Add `isDirty` flag to page image cache to prevent cache removal before re-rendering page ([#567](https://github.com/espresso3389/pdfrx/issues/567))

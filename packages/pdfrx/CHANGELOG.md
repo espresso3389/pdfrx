@@ -1,3 +1,12 @@
+# 2.2.22
+
+- Updated to pdfrx_engine 0.3.8
+
+# 2.2.21 (Invalid release - use 2.2.22)
+
+- NEW: `onDocumentLoadFinished` callback in `PdfViewerParams` to notify when document loading completes (or fails)
+- Implemented `PdfDocumentLoadCompleteEvent` for WASM backend
+
 # 2.2.20
 
 - FIXED: Inconsistent environment constraints - Flutter version now correctly requires 3.35.1+ to match Dart 3.9.0 requirement ([#553](https://github.com/espresso3389/pdfrx/issues/553))
