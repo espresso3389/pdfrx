@@ -1,8 +1,12 @@
-## 0.1.14
+## 0.1.15
 
 - Updated to pdfrx_engine 0.3.8
 
-## 0.1.13 (Invalid release - use 0.1.14)
+## 0.1.14 (Invalid release - use 0.1.15)
+
+- pdfrx_engine dependency was not updated correctly
+
+## 0.1.13 (Invalid release - use 0.1.15)
 
 - Implemented `PdfDocumentLoadCompleteEvent` for CoreGraphics backend
 

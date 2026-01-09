@@ -1,8 +1,12 @@
-# 2.2.22
+# 2.2.23
 
-- Updated to pdfrx_engine 0.3.8
+- Minor fixes
 
-# 2.2.21 (Invalid release - use 2.2.22)
+# 2.2.22 (Invalid release - use 2.2.23)
+
+- pdfrx_engine dependency was not updated correctly
+
+# 2.2.21 (Invalid release - use 2.2.23)
 
 - NEW: `onDocumentLoadFinished` callback in `PdfViewerParams` to notify when document loading completes (or fails)
 - Implemented `PdfDocumentLoadCompleteEvent` for WASM backend
