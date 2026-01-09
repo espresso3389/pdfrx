@@ -427,7 +427,6 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   Future<void> _notifyDocumentLoadFinished({required bool succeeded}) async {
-    final listenable = widget.documentRef.resolveListenable();
     if (succeeded) {
       // FIXME: This is a temporary workaround to wait until the initial page is loaded.
       while (mounted) {
