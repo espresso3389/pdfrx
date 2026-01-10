@@ -1,3 +1,8 @@
+# 2.2.24
+
+- Updated to pdfrx_engine 0.3.9
+- NEW: `PdfrxEntryFunctions.stopBackgroundWorker()` to stop the background worker thread ([#184](https://github.com/espresso3389/pdfrx/issues/184), [#430](https://github.com/espresso3389/pdfrx/issues/430))
+
 # 2.2.23
 
 - pdfrx_engine 0.3.8
