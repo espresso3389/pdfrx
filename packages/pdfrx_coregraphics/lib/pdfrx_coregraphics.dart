@@ -48,6 +48,13 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
   }
 
   @override
+  Future<void> stopBackgroundWorker() async {
+    throw UnimplementedError(
+      'stopBackgroundWorker() is not implemented for CoreGraphics backend.',
+    );
+  }
+
+  @override
   Future<PdfDocument> openAsset(
     String name, {
     PdfPasswordProvider? passwordProvider,
@@ -259,7 +266,7 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
   }
 
   @override
-  PdfrxBackend get backend => PdfrxBackend.pdfKit;
+  PdfrxBackendType get backendType => PdfrxBackendType.pdfKit;
 
   Future<PdfDocument> _openWithPassword({
     required PdfPasswordProvider? passwordProvider,
