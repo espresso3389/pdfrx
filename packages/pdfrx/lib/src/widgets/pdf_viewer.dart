@@ -221,11 +221,10 @@ class _PdfViewerState extends State<PdfViewer>
   PdfDocument? _document;
   PdfPageLayout? _layout;
   Size? _viewSize;
-  double? _coverScale;
-  double? _alternativeFitScale;
   static const _defaultMinScale = 0.1;
-  double _minScale = _defaultMinScale;
+  double _fitScale = _defaultMinScale; // Scale calculated based on fitMode for page positioning
   int? _pageNumber;
+  PdfPageRange? _visiblePageRange;
   bool _initialized = false;
   bool _usingScrollPercentageMode = false;
 
@@ -262,7 +261,6 @@ class _PdfViewerState extends State<PdfViewer>
   _TextSelectionPart _selPartLastMoved = _TextSelectionPart.none;
 
   bool _isSelectingAllText = false;
-  bool _isSelectingAWord = false;
   PointerDeviceKind? _selectionPointerDeviceKind;
 
   Offset? _contextMenuDocumentPosition;
@@ -270,6 +268,9 @@ class _PdfViewerState extends State<PdfViewer>
 
   Timer? _interactionEndedTimer;
   bool _isInteractionGoingOn = false;
+  bool _isActiveGesture = false; // True during pan/scale gestures
+  bool _isActivelyZooming = false; // True only during active pinch-zoom gesture
+  bool _hasActiveAnimations = false; // True when InteractiveViewer has active animations
 
   BuildContext? _contextForFocusNode;
 
@@ -493,8 +494,14 @@ class _PdfViewerState extends State<PdfViewer>
                         transformationController: _txController,
                         constrained: false,
                         boundaryMargin: widget.params.scrollPhysics == null
-                            ? const EdgeInsets.all(double.infinity) // NOTE: boundaryMargin is handled manually
+                            ? const EdgeInsets.all(double.infinity)
+                            : widget.params.pageTransition == PageTransition.discrete
+                            ? EdgeInsets
+                                  .zero // Discrete mode uses boundaryProvider
                             : _adjustedBoundaryMargins,
+                        boundaryProvider: widget.params.pageTransition == PageTransition.discrete
+                            ? _getDiscreteBoundaryRect
+                            : null,
                         maxScale: widget.params.maxScale,
                         minScale: minScale,
                         panAxis: widget.params.panAxis,
@@ -502,7 +509,8 @@ class _PdfViewerState extends State<PdfViewer>
                         scaleEnabled: widget.params.scaleEnabled,
                         onInteractionEnd: _onInteractionEnd,
                         onInteractionStart: _onInteractionStart,
-                        onInteractionUpdate: widget.params.onInteractionUpdate,
+                        onInteractionUpdate: _onInteractionUpdate,
+                        onAnimationEnd: _onAnimationEnd,
                         interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
                         onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
                         scrollPhysics: widget.params.scrollPhysics,
@@ -569,16 +577,63 @@ class _PdfViewerState extends State<PdfViewer>
     );
   }
 
-  Offset _calcOverscroll(Matrix4 m, {required Size viewSize}) {
-    final boundaryMargin = _adjustedBoundaryMargins;
-    if (boundaryMargin.containsInfinite) {
-      return Offset.zero;
-    }
-
+  Offset _calcOverscroll(Matrix4 m, {required Size viewSize, bool allowExtendedBoundaries = true}) {
     final layout = _layout!;
     final visible = m.calcVisibleRect(viewSize);
     var dxDoc = 0.0;
     var dyDoc = 0.0;
+
+    // Check for invalid rect (happens when matrix has incorrect values)
+    if (!visible.isFinite || visible.isEmpty || visible.left > visible.right || visible.top > visible.bottom) {
+      return Offset.zero;
+    }
+
+    // In discrete mode, use the page/spread bounds directly
+    if (widget.params.pageTransition == PageTransition.discrete) {
+      final discreteBounds = _getDiscreteBoundaryRect(
+        visible,
+        Size(layout.documentSize.width, layout.documentSize.height),
+        zoom: m.zoom,
+      );
+      if (discreteBounds == null) {
+        return Offset.zero;
+      }
+
+      // Calculate overscroll: how much to adjust to keep visible rect within discrete bounds
+      if (visible.left < discreteBounds.left) {
+        dxDoc = discreteBounds.left - visible.left;
+      } else if (visible.right > discreteBounds.right) {
+        dxDoc = discreteBounds.right - visible.right;
+      }
+
+      if (visible.top < discreteBounds.top) {
+        dyDoc = discreteBounds.top - visible.top;
+      } else if (visible.bottom > discreteBounds.bottom) {
+        dyDoc = discreteBounds.bottom - visible.bottom;
+      }
+
+      // Special case: if the discrete bounds are smaller than the viewport, center them
+      // Note: both discreteBounds and visible are in document space, so we need to compare
+      // with viewSize converted to document space (viewSize / zoom = visible.size)
+      if (discreteBounds.width < visible.width) {
+        final desiredCenter = (discreteBounds.left + discreteBounds.right) / 2;
+        final currentCenter = (visible.left + visible.right) / 2;
+        dxDoc = desiredCenter - currentCenter;
+      }
+      if (discreteBounds.height < visible.height) {
+        final desiredCenter = (discreteBounds.top + discreteBounds.bottom) / 2;
+        final currentCenter = (visible.top + visible.bottom) / 2;
+        dyDoc = desiredCenter - currentCenter;
+      }
+
+      return Offset(dxDoc, dyDoc);
+    }
+
+    // Continuous mode: use EdgeInsets-based boundaries
+    final boundaryMargin = _adjustedBoundaryMargins;
+    if (boundaryMargin.containsInfinite) {
+      return Offset.zero;
+    }
 
     final leftBoundary = -boundaryMargin.left; // negative margin reduces allowed leftward scroll
     final rightBoundary =
@@ -602,9 +657,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   Matrix4 _calcMatrixForClampedToNearestBoundary(Matrix4 candidate, {required Size viewSize}) {
-    if (widget.params.scrollPhysics == null) {
-      _adjustBoundaryMargins(_viewSize!, candidate.zoom);
-    }
+    _adjustBoundaryMargins(viewSize, candidate.zoom);
     final overScroll = _calcOverscroll(candidate, viewSize: viewSize);
     if (overScroll == Offset.zero) {
       return candidate;
@@ -612,20 +665,72 @@ class _PdfViewerState extends State<PdfViewer>
     return candidate.clone()..translateByDouble(-overScroll.dx, -overScroll.dy, 0, 1);
   }
 
+  /// Snaps the viewport to effective bounds when positioned between document origin and bounds.
+  /// Used after layout changes to ensure proper boundary alignment.
+  Matrix4 _calcMatrixForMarginSnappedToNearestBoundary(
+    Matrix4 candidate, {
+    required int pageNumber,
+    required Size viewSize,
+  }) {
+    final layout = _layout;
+    if (layout == null) return candidate;
+
+    _adjustBoundaryMargins(viewSize, candidate.zoom);
+
+    // Get the effective page bounds (includes margins and boundary margins)
+    final effectiveBounds = _getEffectivePageBounds(pageNumber, layout);
+    // Use spread bounds (without layout-applied margins) for comparison
+    final pageRect = layout.getSpreadBounds(pageNumber);
+
+    // Calculate visible rect from candidate matrix
+    final visible = candidate.calcVisibleRect(viewSize);
+
+    var dxDoc = 0.0;
+    var dyDoc = 0.0;
+
+    // Snap threshold in screen pixels, converted to document space
+    const snapThresholdPx = 5.0; // 5 pixels on screen
+    final snapThreshold = snapThresholdPx / candidate.zoom;
+
+    if (visible.left > effectiveBounds.left && visible.left < pageRect.left + snapThreshold) {
+      dxDoc = effectiveBounds.left - visible.left;
+    }
+    // Top edge: if visible is between effectiveBounds.top and just before page origin, snap to effectiveBounds.top
+    if (visible.top > effectiveBounds.top && visible.top < pageRect.top + snapThreshold) {
+      dyDoc = effectiveBounds.top - visible.top;
+    }
+
+    if (dxDoc == 0.0 && dyDoc == 0.0) {
+      return candidate;
+    }
+
+    return candidate.clone()..translateByDouble(-dxDoc, -dyDoc, 0, 1);
+  }
+
   void _updateLayout(Size viewSize) {
     if (viewSize.height <= 0) return; // For fix blank pdf when restore window from minimize on Windows
     final currentPageNumber = _guessCurrentPageNumber();
     final oldVisibleRect = _initialized ? _visibleRect : Rect.zero;
     final oldLayout = _layout;
-    final oldMinScale = _minScale;
+    final oldFitScale = _fitScale;
     final oldSize = _viewSize;
     final isViewSizeChanged = oldSize != viewSize;
     _viewSize = viewSize;
+
+    // Clear active gesture state before relayout to prevent extended boundaries
+    // from being baked into the layout
+    if (isViewSizeChanged) {
+      _isActiveGesture = false;
+    }
+
     final isLayoutChanged = _relayoutPages();
 
-    _calcCoverFitScale();
+    _calcFitScale();
     _calcZoomStopTable();
-    _adjustBoundaryMargins(viewSize, max(_minScale, _currentZoom));
+    // Use max of current zoom and minScale for boundary calculations
+    // minScale getter returns widget.params.minScale ?? _fitScale, matching InteractiveViewer
+    final boundaryScale = max(_currentZoom, minScale);
+    _adjustBoundaryMargins(viewSize, boundaryScale);
 
     void callOnViewerSizeChanged() {
       if (isViewSizeChanged) {
@@ -635,87 +740,138 @@ class _PdfViewerState extends State<PdfViewer>
       }
     }
 
-    if (!_initialized && _layout != null && _coverScale != null) {
+    if (!_initialized && _layout != null && _fitScale != _defaultMinScale) {
       _initialized = true;
       Future.microtask(() async {
         // forcibly calculate fit scale for the initial page
         _pageNumber = _gotoTargetPageNumber = _calcInitialPageNumber();
-        _calcCoverFitScale();
+        _calcFitScale();
         _calcZoomStopTable();
         final zoom =
             widget.params.calculateInitialZoom?.call(
               _document!,
               _controller!,
-              _alternativeFitScale ?? _coverScale!,
-              _coverScale!,
+              _calculateScaleForMode(FitMode.fit), // fitZoom (was _alternativeFitScale)
+              _calculateScaleForMode(FitMode.fill), // coverZoom (was _coverScale)**
             ) ??
-            _coverScale!;
+            _getInitialZoom();
         await _setZoom(Offset.zero, zoom, duration: Duration.zero);
-        if (_pageNumber! <= _layout!.pageLayouts.length) {
-          await _goToPage(pageNumber: _pageNumber!, duration: Duration.zero);
+        // Recalculate boundary margins with the correct initial zoom
+        _adjustBoundaryMargins(_viewSize!, zoom);
+
+        // Determine initial anchor for discrete mode
+        var discreteAnchor = PdfPageAnchor.center;
+        if (widget.params.pageTransition == PageTransition.discrete) {
+          // Check if page fits in viewport on primary axis
+          final layout = _layout!;
+          final isPrimaryVertical = layout.primaryAxis == Axis.vertical;
+          final pageRect = layout.getSpreadBounds(_pageNumber!);
+          final pageSize = isPrimaryVertical ? pageRect.height : pageRect.width;
+          final viewportSize = isPrimaryVertical ? _viewSize!.height : _viewSize!.width;
+          final pageFitsInViewport = pageSize * zoom <= viewportSize;
+
+          // If page fits, center it; otherwise use appropriate edge anchor
+          if (!pageFitsInViewport) {
+            discreteAnchor = widget.params.pageAnchor;
+          }
         }
+
+        await _goToPage(
+          pageNumber: _pageNumber!,
+          duration: Duration.zero,
+          maintainCurrentZoom: true,
+          anchor: widget.params.pageTransition == PageTransition.discrete ? discreteAnchor : PdfPageAnchor.topLeft,
+        );
         if (mounted && _document != null && _controller != null) {
           widget.params.onViewerReady?.call(_document!, _controller!);
         }
         callOnViewerSizeChanged();
       });
     } else if (isLayoutChanged || isViewSizeChanged) {
-      Future.microtask(() async {
-        if (mounted) {
-          // preserve the current zoom whilst respecting the new minScale
-          final zoomTo = _currentZoom < _minScale || _currentZoom == oldMinScale ? _minScale : _currentZoom;
-          if (isLayoutChanged) {
-            // if the layout changed, calculate the top-left position in the document
-            // before the layout change and go to that position in the new layout
+      // Handle layout/size changes synchronously to prevent flash
+      // Preserve the visual page size by comparing actual page dimensions in layouts
+      double zoomTo;
+      if (_currentZoom < _fitScale || _currentZoom == oldFitScale) {
+        // User was at fit scale or below minimum - use new fit scale
+        zoomTo = _fitScale;
+      } else if (oldLayout != null && currentPageNumber != null && _layout != null) {
+        // Calculate zoom to maintain same visual page size
+        // Visual size = pageRect.size * zoom, so we scale zoom by page size ratio
+        final oldPageRect = oldLayout.pageLayouts[currentPageNumber - 1];
+        final newPageRect = _layout!.pageLayouts[currentPageNumber - 1];
 
-            if (oldLayout != null && currentPageNumber != null) {
-              // The top-left position of the screen (oldVisibleRect.topLeft) may be
-              // in the boundary margin, or a margin between pages, and it could be
-              // the current page or one of the neighboring pages
-              final hit = _getClosestPageHit(currentPageNumber, oldLayout, oldVisibleRect);
-              final pageNumber = hit?.page.pageNumber ?? currentPageNumber;
+        // Use the primary axis size to determine scaling
+        final isPrimaryVertical = _layout!.primaryAxis == Axis.vertical;
+        final oldPageSize = isPrimaryVertical ? oldPageRect.height : oldPageRect.width;
+        final newPageSize = isPrimaryVertical ? newPageRect.height : newPageRect.width;
 
-              // Compute relative position within the old pageRect
-              final oldPageRect = oldLayout.pageLayouts[pageNumber - 1];
-              final newPageRect = _layout!.pageLayouts[pageNumber - 1];
-              final oldOffset = oldVisibleRect.topLeft - oldPageRect.topLeft;
-              final fracX = oldOffset.dx / oldPageRect.width;
-              final fracY = oldOffset.dy / oldPageRect.height;
-
-              // Map into new layoutRect
-              final newOffset = Offset(
-                newPageRect.left + fracX * newPageRect.width,
-                newPageRect.top + fracY * newPageRect.height,
-              );
-
-              // preserve the position after a layout change
-              await _goToPosition(documentOffset: newOffset, zoom: zoomTo);
-            }
-          } else {
-            if (zoomTo != _currentZoom) {
-              // layout hasn't changed, but size and zoom has
-              final zoomChange = zoomTo / _currentZoom;
-              final pivot = vec.Vector3(_txController.value.x, _txController.value.y, 0);
-
-              final pivotScale = Matrix4.identity()
-                ..translateByVector3(pivot)
-                ..scaleByDouble(zoomChange, zoomChange, zoomChange, 1)
-                ..translateByVector3(-pivot / zoomChange);
-
-              final Matrix4 zoomPivoted = pivotScale * _txController.value;
-              _adjustBoundaryMargins(viewSize, zoomTo);
-              _clampToNearestBoundary(zoomPivoted, viewSize: viewSize);
-            } else {
-              // size changes (e.g. rotation) can still cause out-of-bounds matrices
-              // so clamp here
-              _clampToNearestBoundary(_txController.value, viewSize: viewSize);
-            }
-            callOnViewerSizeChanged();
-          }
+        if (newPageSize > 0) {
+          final calculatedZoom = _currentZoom * (oldPageSize / newPageSize);
+          // Clamp to min/max scale constraints
+          zoomTo = calculatedZoom.clamp(minScale, widget.params.maxScale);
+        } else {
+          zoomTo = _currentZoom;
         }
-      });
+      } else {
+        zoomTo = _currentZoom;
+      }
+
+      if (isLayoutChanged) {
+        _clearTextSelections();
+        // if the layout changed, calculate the top-left position in the document
+        // before the layout change and go to that position in the new layout
+
+        if (oldLayout != null && currentPageNumber != null) {
+          // Get the hit point in PDF page coordinates (stable across layout changes)
+
+          final hit = _getClosestPageHit(currentPageNumber, oldLayout, oldVisibleRect);
+
+          Offset newOffset;
+          if (hit == null) {
+            // Hit is null - top left was in margin area
+            // Use the page's top-left as the reference point
+            newOffset = _layout!.pageLayouts[currentPageNumber - 1].topLeft;
+          } else {
+            // Got a valid hit - convert PDF coordinates to new layout
+            newOffset = hit.offset.toOffsetInDocument(
+              page: hit.page,
+              pageRect: _layout!.pageLayouts[hit.page.pageNumber - 1],
+            );
+          }
+
+          // preserve the position after a layout change
+          // Call _goToPosition without await - with Duration.zero it completes synchronously
+          // This ensures the matrix is updated before the widget rebuilds, preventing flash
+          _goToPosition(documentOffset: newOffset, zoom: zoomTo, pageNumber: currentPageNumber);
+        }
+      } else {
+        if (zoomTo != _currentZoom) {
+          // layout hasn't changed, but size and zoom has
+          final zoomChange = zoomTo / _currentZoom;
+          final pivot = vec.Vector3(_txController.value.x, _txController.value.y, 0);
+
+          final pivotScale = Matrix4.identity()
+            ..translateByVector3(pivot)
+            ..scaleByDouble(zoomChange, zoomChange, zoomChange, 1)
+            ..translateByVector3(-pivot / zoomChange);
+
+          final Matrix4 zoomPivoted = pivotScale * _txController.value;
+          _adjustBoundaryMargins(viewSize, zoomTo);
+          _clampToNearestBoundary(zoomPivoted, viewSize: viewSize);
+        } else {
+          // size changes (e.g. rotation) can still cause out-of-bounds matrices
+          // so clamp here
+          _clampToNearestBoundary(_txController.value, viewSize: viewSize);
+        }
+        callOnViewerSizeChanged();
+      }
     } else if (currentPageNumber != null && _pageNumber != currentPageNumber) {
-      _setCurrentPageNumber(currentPageNumber);
+      // In discrete mode, only allow page changes via _snapToPage (not guessed page number)
+      // Exception: during initialization when _pageNumber is null
+      // In continuous mode, always update page based on what's most visible
+      if (widget.params.pageTransition != PageTransition.discrete || _pageNumber == null) {
+        _setCurrentPageNumber(currentPageNumber);
+      }
     }
   }
 
@@ -744,9 +900,9 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   PdfPageHitTestResult? _getClosestPageHit(int currentPageNumber, PdfPageLayout oldLayout, ui.Rect oldVisibleRect) {
-    for (final pageIndex in <int>[currentPageNumber, currentPageNumber - 1, currentPageNumber + 1]) {
-      if (pageIndex >= 1 && pageIndex <= oldLayout.pageLayouts.length) {
-        final rec = _nudgeHitTest(oldVisibleRect.topLeft, layout: oldLayout, pageNumber: pageIndex);
+    for (final pageIndex in <int>[currentPageNumber - 1, currentPageNumber - 2, currentPageNumber]) {
+      if (pageIndex >= 0 && pageIndex < oldLayout.pageLayouts.length) {
+        final rec = _nudgeHitTest(oldVisibleRect.topLeft, layout: oldLayout, pageIndex: pageIndex);
         if (rec != null) {
           return rec.hit;
         }
@@ -759,17 +915,17 @@ class _PdfViewerState extends State<PdfViewer>
   PdfPageHitTestResult? _hitTestWithLayout({
     required Offset point,
     required PdfPageLayout layout,
-    required int pageNumber,
+    required int pageIndex,
   }) {
     final pages = _document?.pages;
     if (pages == null) return null;
-    if (pageNumber >= layout.pageLayouts.length) {
+    if (pageIndex >= layout.pageLayouts.length) {
       return null;
     }
 
-    final rect = layout.pageLayouts[pageNumber];
+    final rect = layout.pageLayouts[pageIndex];
     if (rect.contains(point)) {
-      final page = pages[pageNumber];
+      final page = pages[pageIndex];
       final local = point - rect.topLeft;
       final pdfOffset = local.toPdfPoint(page: page, scaledPageSize: rect.size);
       return PdfPageHitTestResult(page: page, offset: pdfOffset);
@@ -778,24 +934,99 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
-  // Attempts to nudge the point on the x axis until a valid page hit is found.
-  ({Offset point, PdfPageHitTestResult hit})? _nudgeHitTest(Offset start, {PdfPageLayout? layout, int? pageNumber}) {
+  // Attempts to nudge the point to find the nearest page content.
+  // Intelligently determines nudge direction based on page layout and visible rect.
+  ({Offset point, PdfPageHitTestResult hit})? _nudgeHitTest(Offset start, {PdfPageLayout? layout, int? pageIndex}) {
     const epsViewPx = 1.0;
     final epsDoc = epsViewPx / _currentZoom;
 
-    var tryPoint = start;
-    var tryOffset = Offset.zero;
-    final useLayout = layout;
-    for (var i = 0; i < 500; i++) {
-      final result = useLayout != null && pageNumber != null
-          ? _hitTestWithLayout(point: tryPoint, layout: useLayout, pageNumber: pageNumber)
-          : _getPdfPageHitTestResult(tryPoint, useDocumentLayoutCoordinates: true);
-      if (result != null) {
-        return (point: tryOffset, hit: result);
-      }
-      tryOffset += Offset(epsDoc, 0);
-      tryPoint = tryPoint.translate(epsDoc, 0);
+    final useLayout = layout ?? _layout;
+    if (useLayout == null) return null;
+
+    // Try the original point first
+    final initialResult = pageIndex != null
+        ? _hitTestWithLayout(point: start, layout: useLayout, pageIndex: pageIndex)
+        : _getPdfPageHitTestResult(start, useDocumentLayoutCoordinates: true);
+    if (initialResult != null) {
+      return (point: Offset.zero, hit: initialResult);
     }
+
+    // Find the nearest page by checking which page rect is closest to the start point
+    Rect? nearestPageRect;
+    int? nearestPageIndex;
+    var minDistance = double.infinity;
+
+    for (var i = 0; i < useLayout.pageLayouts.length; i++) {
+      final pageRect = useLayout.pageLayouts[i];
+
+      // Calculate distance from point to page rect
+      final dx = start.dx < pageRect.left
+          ? pageRect.left - start.dx
+          : start.dx > pageRect.right
+          ? start.dx - pageRect.right
+          : 0.0;
+      final dy = start.dy < pageRect.top
+          ? pageRect.top - start.dy
+          : start.dy > pageRect.bottom
+          ? start.dy - pageRect.bottom
+          : 0.0;
+      final distance = dx * dx + dy * dy; // Squared distance (no need for sqrt for comparison)
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        nearestPageRect = pageRect;
+        nearestPageIndex = i;
+      }
+    }
+
+    if (nearestPageRect == null || nearestPageIndex == null) return null;
+
+    // Determine the direction to nudge based on where start is relative to the nearest page
+    double nudgeDx = 0;
+    double nudgeDy = 0;
+
+    if (start.dx < nearestPageRect.left) {
+      // Point is to the left of the page - nudge right
+      nudgeDx = nearestPageRect.left - start.dx + epsDoc;
+    } else if (start.dx > nearestPageRect.right) {
+      // Point is to the right of the page - nudge left
+      nudgeDx = nearestPageRect.right - start.dx - epsDoc;
+    } /*else {
+      // Point is horizontally within page bounds - nudge slightly right to ensure we're inside
+      nudgeDx = epsDoc;
+    } */
+
+    if (start.dy < nearestPageRect.top) {
+      // Point is above the page - nudge down
+      nudgeDy = nearestPageRect.top - start.dy + epsDoc;
+    } else if (start.dy > nearestPageRect.bottom) {
+      // Point is below the page - nudge up
+      nudgeDy = nearestPageRect.bottom - start.dy - epsDoc;
+    } /* else {
+      // Point is vertically within page bounds - nudge slightly down to ensure we're inside
+      nudgeDy = epsDoc;
+    } */
+
+    final nudgeOffset = Offset(nudgeDx, nudgeDy);
+    final tryPoint = start.translate(nudgeDx, nudgeDy);
+
+    final result = _hitTestWithLayout(point: tryPoint, layout: useLayout, pageIndex: nearestPageIndex);
+    if (result != null) {
+      return (point: nudgeOffset, hit: result);
+    }
+
+    /* // If that didn't work, try nudging to the top-left corner of the nearest page
+    final cornerOffset = Offset(
+      nearestPageRect.left + epsDoc - start.dx,
+      nearestPageRect.top + epsDoc - start.dy,
+    );
+    final cornerPoint = Offset(nearestPageRect.left + epsDoc, nearestPageRect.top + epsDoc);
+
+    final cornerResult = _hitTestWithLayout(point: cornerPoint, layout: useLayout, pageIndex: nearestPageIndex);
+    if (cornerResult != null) {
+      return (point: cornerOffset, hit: cornerResult);
+    } */
+
     return null;
   }
 
@@ -814,15 +1045,73 @@ class _PdfViewerState extends State<PdfViewer>
     });
   }
 
-  void _onInteractionEnd(ScaleEndDetails details) {
+  // State for discrete page transitions
+  Matrix4? _interactionStartMatrix;
+  double? _interactionStartScale;
+  int? _interactionStartPage;
+  bool _hadScaleChangeInInteraction = false;
+  Offset _lastPanDelta = Offset.zero;
+
+  Future<void> _onInteractionEnd(ScaleEndDetails details) async {
+    _isActiveGesture = false;
+    _isActivelyZooming = false;
+
     widget.params.onInteractionEnd?.call(details);
+
+    final shouldHandleDiscrete =
+        (widget.params.pageTransition == PageTransition.discrete &&
+        (!_hadScaleChangeInInteraction && !_hasActiveAnimations));
+
+    if (shouldHandleDiscrete) {
+      await _handleDiscretePageTransition(details);
+    }
+
+    _interactionStartMatrix = null;
+    _interactionStartScale = null;
     _stopInteraction();
   }
 
   void _onInteractionStart(ScaleStartDetails details) {
     _startInteraction();
     _requestFocus();
+    _isActiveGesture = true; // User is now actively dragging
+    if (widget.params.pageTransition == PageTransition.discrete) {
+      _interactionStartMatrix = _txController.value.clone();
+      _interactionStartScale = _currentZoom;
+      _interactionStartPage = _pageNumber;
+      _hadScaleChangeInInteraction = false; // Reset for new interaction
+      _lastPanDelta = Offset.zero; // Reset pan delta for new interaction
+    }
     widget.params.onInteractionStart?.call(details);
+  }
+
+  void _onInteractionUpdate(ScaleUpdateDetails details) {
+    // Track pan delta for boundary extension logic
+    _lastPanDelta = details.focalPointDelta;
+
+    // Track if scale changed during the interaction
+    if (widget.params.pageTransition == PageTransition.discrete && _interactionStartScale != null) {
+      final currentScale = _currentZoom;
+      final scaleChanged = (_interactionStartScale! - currentScale).abs() > 0.01;
+      if (scaleChanged) {
+        _hadScaleChangeInInteraction = true;
+        _isActivelyZooming = true;
+        _hasActiveAnimations = true;
+      }
+    }
+    widget.params.onInteractionUpdate?.call(details);
+  }
+
+  void _onAnimationEnd() {
+    // Check if all animations have completed
+    final hasAnimations = (_interactiveViewerState?.hasActiveAnimations == true) || _animController.isAnimating;
+
+    if (!hasAnimations) {
+      // Animations complete, clear flags
+      _hasActiveAnimations = false;
+      _hadScaleChangeInInteraction = false;
+      setState(() {}); // Trigger repaint
+    }
   }
 
   /// Last page number that is explicitly requested to go to.
@@ -895,14 +1184,298 @@ class _PdfViewerState extends State<PdfViewer>
     _txController.value = _makeMatrixInSafeRange(m, forceClamp: true);
   }
 
+  /// Handles discrete page transition logic when interaction ends.
+  ///
+  /// Determines whether to snap back to current page/spread or advance to next/previous
+  /// based on swipe velocity or drag threshold (50% of page/spread width).
+  Future<void> _handleDiscretePageTransition(ScaleEndDetails details) async {
+    final startMatrix = _interactionStartMatrix;
+    if (startMatrix == null || _layout == null || _pageNumber == null || _interactionStartPage == null) {
+      return;
+    }
+
+    final currentPage = _interactionStartPage!;
+    final layout = _layout!;
+    final isPrimaryVertical = layout.primaryAxis == Axis.vertical;
+
+    // Calculate viewport movement for threshold-based page transitions
+    final startRect = startMatrix.calcVisibleRect(_viewSize!);
+    final endRect = _txController.value.calcVisibleRect(_viewSize!);
+    final verticalDelta = endRect.top - startRect.top;
+    final horizontalDelta = endRect.left - startRect.left;
+    final scrollDelta = isPrimaryVertical ? verticalDelta : horizontalDelta;
+
+    // Extract velocity components
+    final scrollVelocity = isPrimaryVertical
+        ? details.velocity.pixelsPerSecond.dy
+        : details.velocity.pixelsPerSecond.dx;
+    final crossAxisVelocity = isPrimaryVertical
+        ? details.velocity.pixelsPerSecond.dx
+        : details.velocity.pixelsPerSecond.dy;
+
+    // Ignore cross-axis dominant movements, unless there's significant velocity on primary axis
+    // Use velocity (not delta) to detect user's intent at release time
+    const minFlingVelocity = 50.0;
+    final hasSignificantVelocity = scrollVelocity.abs() > minFlingVelocity;
+    if (!hasSignificantVelocity && crossAxisVelocity.abs() > scrollVelocity.abs() * 3) {
+      return;
+    }
+
+    // Stop animation before making snap decision
+    _stopInteractiveViewerAnimation();
+    await Future.delayed(const Duration(milliseconds: 5));
+
+    // Determine target page based on fling velocity or drag threshold
+    int targetPage;
+    if (hasSignificantVelocity) {
+      // Check if velocity direction matches drag direction to detect snapback
+      // scrollDelta: positive = viewport moved down/right, negative = viewport moved up/left
+      // scrollVelocity: positive = finger moving down/right → viewport moves opposite direction
+      // So we need to INVERT velocity to get viewport movement direction
+      final dragDirection = scrollDelta > 0 ? 1 : (scrollDelta < 0 ? -1 : 0);
+      final velocityDirection = scrollVelocity > 0
+          ? -1
+          : 1; // INVERTED: positive velocity = viewport moves up (previous page)
+
+      // If velocity contradicts drag direction, this is likely a snapback - ignore velocity
+      if (dragDirection != 0 && dragDirection != velocityDirection) {
+        targetPage = _getTargetPageBasedOnThreshold(currentPage, scrollDelta, isPrimaryVertical);
+      } else {
+        // Velocity matches drag direction - use velocity for page transition
+        // Only advance if at boundary when fling started
+        if (_isAtBoundary(startRect, currentPage, layout, isPrimaryVertical, velocityDirection)) {
+          targetPage = _getAdjacentPage(currentPage, layout, velocityDirection);
+        } else {
+          return; // Not at boundary - let InteractiveViewer handle fling
+        }
+      }
+    } else {
+      // No fling - use visible page area threshold
+      targetPage = _getTargetPageBasedOnThreshold(currentPage, scrollDelta, isPrimaryVertical);
+    }
+
+    final snapAnchor = _getSnapAnchor(
+      targetPageNumber: targetPage,
+      currentPageNumber: currentPage,
+      layout: layout,
+      isPrimaryVertical: isPrimaryVertical,
+      endRect: endRect,
+    );
+
+    await _snapToPage(targetPage, anchor: snapAnchor, currentPageNumber: currentPage);
+  }
+
+  /// Checks if viewport is at a page boundary in the given direction.
+  bool _isAtBoundary(Rect visibleRect, int pageNumber, PdfPageLayout layout, bool isPrimaryVertical, int direction) {
+    final isMovingForward = direction > 0;
+
+    final pageRect = _getEffectivePageBounds(pageNumber, layout);
+    final currentScale = _txController.value.getMaxScaleOnAxis();
+    // Increase tolerance for clamping physics - user may not be able to get exactly to the boundary
+    const baseTolerance = 10; // pixels in screen space
+    final tolerance = baseTolerance * currentScale; // scale to document coordinates
+
+    // Check appropriate boundary based on direction
+    if (isMovingForward) {
+      return isPrimaryVertical
+          ? visibleRect.bottom >= pageRect.bottom - tolerance
+          : visibleRect.right >= pageRect.right - tolerance;
+    } else {
+      return isPrimaryVertical
+          ? visibleRect.top <= pageRect.top + tolerance
+          : visibleRect.left <= pageRect.left + tolerance;
+    }
+  }
+
+  /// Gets the adjacent page/spread in the given direction.
+  int _getAdjacentPage(int currentPage, PdfPageLayout layout, int direction) {
+    if (layout is PdfSpreadLayout) {
+      final currentSpreadIndex = layout.pageToSpreadIndex[currentPage - 1]; // Convert to 0-based
+      final nextSpreadIndex = currentSpreadIndex + direction;
+
+      return layout.getFirstPageOfSpread(nextSpreadIndex) ?? currentPage;
+    } else {
+      final candidatePage = currentPage + direction;
+      return candidatePage.clamp(1, _document!.pages.length);
+    }
+  }
+
+  /// Determines the snap anchor based on target page and current position.
+  PdfPageAnchor _getSnapAnchor({
+    required int targetPageNumber,
+    required int currentPageNumber,
+    required PdfPageLayout layout,
+    required bool isPrimaryVertical,
+    required Rect endRect,
+  }) {
+    // Check if page/spread overflows on primary and cross axes at current zoom
+    final pageRect = layout.getSpreadBounds(targetPageNumber);
+
+    final pagePrimarySize = isPrimaryVertical ? pageRect.height : pageRect.width;
+    final pageCrossSize = isPrimaryVertical ? pageRect.width : pageRect.height;
+    final viewportPrimarySize = isPrimaryVertical ? _viewSize!.height : _viewSize!.width;
+    final viewportCrossSize = isPrimaryVertical ? _viewSize!.width : _viewSize!.height;
+
+    final primaryOverflows = pagePrimarySize * _currentZoom > viewportPrimarySize;
+    final crossOverflows = pageCrossSize * _currentZoom > viewportCrossSize;
+
+    if (!primaryOverflows && !crossOverflows) {
+      // Page fits entirely - center it
+      return PdfPageAnchor.center;
+    }
+
+    // Page overflows on at least one axis
+    if (targetPageNumber == currentPageNumber) {
+      // Staying on current page - snap to nearest edge
+      final pageCenter = isPrimaryVertical
+          ? (pageRect.top + pageRect.bottom) / 2
+          : (pageRect.left + pageRect.right) / 2;
+      final visibleCenter = isPrimaryVertical ? (endRect.top + endRect.bottom) / 2 : (endRect.left + endRect.right) / 2;
+
+      if (isPrimaryVertical) {
+        // If cross overflows, anchor to top-left or bottom-left instead of centering
+        return crossOverflows
+            ? (visibleCenter < pageCenter ? PdfPageAnchor.topLeft : PdfPageAnchor.bottomLeft)
+            : (visibleCenter < pageCenter ? PdfPageAnchor.topCenter : PdfPageAnchor.bottomCenter);
+      } else {
+        // If cross overflows, anchor to top-left or top-right instead of centering
+        return crossOverflows
+            ? (visibleCenter < pageCenter ? PdfPageAnchor.topLeft : PdfPageAnchor.topRight)
+            : (visibleCenter < pageCenter ? PdfPageAnchor.centerLeft : PdfPageAnchor.centerRight);
+      }
+    } else {
+      // Advancing to different page - snap to entry edge
+      if (isPrimaryVertical) {
+        // If cross overflows, anchor to top-left/bottom-left instead of top-center/bottom-center
+        return crossOverflows
+            ? (targetPageNumber > currentPageNumber ? PdfPageAnchor.topLeft : PdfPageAnchor.bottomLeft)
+            : (targetPageNumber > currentPageNumber ? PdfPageAnchor.topCenter : PdfPageAnchor.bottomCenter);
+      } else {
+        // If cross overflows, anchor to top-left/top-right instead of center-left/center-right
+        return crossOverflows
+            ? (targetPageNumber > currentPageNumber ? PdfPageAnchor.topLeft : PdfPageAnchor.topRight)
+            : (targetPageNumber > currentPageNumber ? PdfPageAnchor.centerLeft : PdfPageAnchor.centerRight);
+      }
+    }
+  }
+
+  /// Determines target page based on visible area of pages.
+  ///
+  /// Transitions to whichever page has the most visible area on the primary axis.
+  /// This works correctly at any zoom level, including when zoomed in.
+  int _getTargetPageBasedOnThreshold(int currentPageNumber, double scrollDelta, bool isPrimaryVertical) {
+    final layout = _layout!;
+    final visibleRect = _txController.value.calcVisibleRect(_viewSize!);
+
+    // Calculate visible area for current page and adjacent pages
+    final currentPageBounds = layout.getSpreadBounds(currentPageNumber);
+    final currentPageVisibleArea = _calcPageIntersectionArea(visibleRect, currentPageBounds, isPrimaryVertical);
+
+    // Check previous page (if exists)
+    double prevPageVisibleArea = 0;
+    if (currentPageNumber >= 2) {
+      final prevPageBounds = layout.pageLayouts[currentPageNumber - 2];
+      prevPageVisibleArea = _calcPageIntersectionArea(visibleRect, prevPageBounds, isPrimaryVertical);
+    }
+
+    // Check next page (if exists)
+    double nextPageVisibleArea = 0;
+    if (currentPageNumber < layout.pageLayouts.length) {
+      final nextPageBounds = layout.pageLayouts[currentPageNumber];
+      nextPageVisibleArea = _calcPageIntersectionArea(visibleRect, nextPageBounds, isPrimaryVertical);
+    }
+
+    // Transition to the page with the most visible area
+    if (prevPageVisibleArea > currentPageVisibleArea && prevPageVisibleArea > nextPageVisibleArea) {
+      return _getAdjacentPage(currentPageNumber, layout, -1);
+    } else if (nextPageVisibleArea > currentPageVisibleArea && nextPageVisibleArea > prevPageVisibleArea) {
+      return _getAdjacentPage(currentPageNumber, layout, 1);
+    }
+
+    // Current page has most visible area - snap back to current page
+    return currentPageNumber;
+  }
+
+  /// Calculate the visible intersection area on the primary axis between visible rect and page bounds.
+  double _calcPageIntersectionArea(Rect visibleRect, Rect pageBounds, bool isPrimaryVertical) {
+    final intersection = visibleRect.intersect(pageBounds);
+    if (intersection.isEmpty) {
+      return 0;
+    }
+    // Return the primary axis length of intersection (not full area)
+    // This gives us how much of the page is visible on the scroll axis
+    return isPrimaryVertical ? intersection.height : intersection.width;
+  }
+
+  /// Snaps to the target page/spread with animation.
+  Future<void> _snapToPage(int targetPageNumber, {required PdfPageAnchor anchor, int? currentPageNumber}) async {
+    final duration = const Duration(milliseconds: 400);
+
+    // Only reset scale when advancing to a different page, not when snapping back to current page
+    final isAdvancingToNewPage = currentPageNumber != null && targetPageNumber != currentPageNumber;
+
+    if (!isAdvancingToNewPage) {
+      // let InteractiveViewer's scroll physics handle snap back to current page
+      return;
+    }
+
+    if (isAdvancingToNewPage && _viewSize != null) {
+      // Calculate fit scale for the target page
+      _calcFitScale(targetPageNumber);
+      _adjustBoundaryMargins(_viewSize!, _fitScale);
+    }
+
+    // Check if the target page fits in viewport and use centered anchor if so
+    var effectiveAnchor = anchor;
+    final layout = _layout;
+    if (layout != null && _viewSize != null && anchor != PdfPageAnchor.center) {
+      // Calculate what the scale will be for this page
+      final targetScale = _fitScale;
+      final isPrimaryVertical = layout.primaryAxis == Axis.vertical;
+      final pageRect = layout.getSpreadBounds(targetPageNumber);
+
+      final pagePrimarySize = isPrimaryVertical ? pageRect.height : pageRect.width;
+      final pageCrossSize = isPrimaryVertical ? pageRect.width : pageRect.height;
+      final viewportPrimarySize = isPrimaryVertical ? _viewSize!.height : _viewSize!.width;
+      final viewportCrossSize = isPrimaryVertical ? _viewSize!.width : _viewSize!.height;
+
+      final primaryFits = pagePrimarySize * targetScale <= viewportPrimarySize;
+      final crossFits = pageCrossSize * targetScale <= viewportCrossSize;
+
+      // Only use center anchor if page fits on BOTH axes
+      if (primaryFits && crossFits) {
+        effectiveAnchor = PdfPageAnchor.center;
+      }
+    }
+
+    final targetZoom = _fitScale;
+
+    _setCurrentPageNumber(targetPageNumber, targetZoom: targetZoom, doSetState: true);
+
+    final targetMatrix = _calcMatrixForPage(
+      pageNumber: targetPageNumber,
+      anchor: effectiveAnchor,
+      forceScale: targetZoom,
+    );
+
+    await _goTo(targetMatrix, duration: duration, curve: Curves.easeInOutCubic);
+
+    _onAnimationEnd();
+  }
+
   Rect get _visibleRect => _txController.value.calcVisibleRect(_viewSize!);
 
   /// Set the current page number.
   ///
   /// Please note that the function does not scroll/zoom to the specified page but changes the current page number.
-  void _setCurrentPageNumber(int? pageNumber, {bool doSetState = false}) {
+  void _setCurrentPageNumber(int? pageNumber, {bool doSetState = false, double? targetZoom}) {
     if (pageNumber != null && _pageNumber != pageNumber) {
       _pageNumber = pageNumber;
+      // Update boundary margins for the new page (for discrete mode with overflow)
+      // Use targetZoom if provided (for transitions), otherwise use current zoom
+      if (_viewSize != null) {
+        _adjustBoundaryMargins(_viewSize!, targetZoom ?? _currentZoom);
+      }
       if (doSetState) {
         _invalidate();
       }
@@ -926,16 +1499,32 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
+  double _calcPageIntersectionPercentage(int pageNumber, Rect visibleRect) {
+    final rect = _layout!.pageLayouts[pageNumber - 1];
+    final intersection = rect.intersect(visibleRect);
+    if (intersection.isEmpty) return 0;
+    final area = intersection.width * intersection.height;
+    return area / (rect.width * rect.height);
+  }
+
+  static const double _kPageIntersectionThreshold = 0.2;
+
   int? _guessCurrentPageNumber() {
-    if (_layout == null || _viewSize == null) return null;
+    if (_layout == null || _viewSize == null) {
+      _visiblePageRange = null;
+      return null;
+    }
+    final visibleRect = _visibleRect;
+    _updateVisiblePageRange(visibleRect);
     if (widget.params.calculateCurrentPageNumber != null) {
-      return widget.params.calculateCurrentPageNumber!(_visibleRect, _layout!.pageLayouts, _controller!);
+      final pageNumber = widget.params.calculateCurrentPageNumber!(visibleRect, _layout!.pageLayouts, _controller!);
+      return pageNumber;
     }
 
-    final visibleRect = _visibleRect;
     final layout = _layout!;
-    final isHorizontal = layout.documentSize.width > layout.documentSize.height;
-    final isSimple = _isSimpleLayout(layout.pageLayouts, isHorizontal);
+    final isHorizontal =
+        layout.primaryAxis == Axis.horizontal || layout.documentSize.width > layout.documentSize.height;
+    final isSimple = _isSimpleLayout(layout, isHorizontal);
 
     // Calculate primary axis visibility for all pages (map: page number -> visibility %)
     final visible = <int, double>{};
@@ -1002,7 +1591,17 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// Detect if layout is "simple" (sequential pages) vs "complex" (facing pages)
   /// In facing pages, multiple pages can share the same PRIMARY SCROLL axis coordinate
-  bool _isSimpleLayout(List<Rect> pageLayouts, bool isHorizontalLayout) {
+  bool _isSimpleLayout(PdfPageLayout layout, bool isHorizontal) {
+    final pageLayouts = layout.pageLayouts;
+    if (layout is PdfSpreadLayout) {
+      // Spread layouts are always complex
+      return false;
+    }
+    if (layout is SequentialPagesLayout) {
+      // Sequential layouts are always simple
+      return true;
+    }
+
     if (pageLayouts.length <= 1) return true;
 
     // Check if any two consecutive pages overlap along the PRIMARY SCROLL axis
@@ -1012,7 +1611,7 @@ class _PdfViewerState extends State<PdfViewer>
       final page1 = pageLayouts[i];
       final page2 = pageLayouts[i + 1];
 
-      if (isHorizontalLayout) {
+      if (isHorizontal) {
         // Horizontal scroll: pages are "complex" if they overlap horizontally (facing pages side-by-side)
         // In sequential horizontal, page2.left should be >= page1.right (no overlap)
         if (page2.left < page1.right - 1.0) {
@@ -1030,13 +1629,46 @@ class _PdfViewerState extends State<PdfViewer>
     return true;
   }
 
+  /// Calculate the range of all pages that have any intersection with the visible viewport.
+  void _updateVisiblePageRange(Rect visibleRect) {
+    if (_layout == null || _document == null) {
+      _visiblePageRange = null;
+      return;
+    }
+
+    int? firstVisible;
+    int? lastVisible;
+    for (var i = 1; i <= _document!.pages.length; i++) {
+      final ratio = _calcPageIntersectionPercentage(i, visibleRect);
+      if (ratio > _kPageIntersectionThreshold) {
+        firstVisible ??= i;
+        lastVisible = i;
+      }
+    }
+
+    if (firstVisible != null && lastVisible != null) {
+      _visiblePageRange = PdfPageRange(firstVisible, lastVisible);
+    } else {
+      _visiblePageRange = null;
+    }
+  }
+
   /// Returns true if page layouts are changed.
   bool _relayoutPages() {
     if (_document == null) {
       _layout = null;
       return false;
     }
-    final newLayout = (widget.params.layoutPages ?? _layoutPages)(_document!.pages, widget.params);
+
+    final helper = PdfLayoutHelper.fromParams(widget.params, viewSize: _viewSize ?? Size.zero);
+    var newLayout = (widget.params.layoutPages ?? _layoutPages)(_document!.pages, widget.params, helper);
+
+    // In discrete mode, add spacing between pages to fill viewport and prevent neighboring pages from showing
+    if (widget.params.pageTransition == PageTransition.discrete) {
+      newLayout = _addDiscreteSpacing(newLayout, helper);
+    }
+
+    // Only update if layout actually changed
     if (_layout == newLayout) {
       return false;
     }
@@ -1045,55 +1677,90 @@ class _PdfViewerState extends State<PdfViewer>
     return true;
   }
 
-  void _calcCoverFitScale() {
-    final params = widget.params;
-    final bmh = params.boundaryMargin?.horizontal == double.infinity ? 0 : params.boundaryMargin?.horizontal ?? 0;
-    final bmv = params.boundaryMargin?.vertical == double.infinity ? 0 : params.boundaryMargin?.vertical ?? 0;
+  double _getInitialZoom() {
+    if (_viewSize != null && _layout != null) {
+      final params = widget.params;
 
-    if (_viewSize != null) {
-      final s1 = _viewSize!.width / (_layout!.documentSize.width + bmh);
-      final s2 = _viewSize!.height / (_layout!.documentSize.height + bmv);
-      _coverScale = max(s1, s2);
-    }
-    final pageNumber = _pageNumber ?? _gotoTargetPageNumber;
-    if (pageNumber != null && pageNumber >= 1 && pageNumber <= _layout!.pageLayouts.length) {
-      final rect = _layout!.pageLayouts[pageNumber - 1];
-      final m2 = params.margin * 2;
-      _alternativeFitScale = min(
-        (_viewSize!.width) / (rect.width + bmh + m2),
-        (_viewSize!.height) / (rect.height + bmv + m2),
-      );
-      if (_alternativeFitScale! <= 0) {
-        _alternativeFitScale = null;
+      // In discrete mode, pages are already scaled in the layout, so zoom should be 1.0
+      if (params.pageTransition == PageTransition.discrete) {
+        return 1.0;
       }
-    } else {
-      _alternativeFitScale = null;
+
+      // For continuous mode, calculate fit scale for the current fitMode
+      return _calculateScaleForMode(params.fitMode);
     }
-    if (_coverScale == null) {
-      _minScale = _defaultMinScale;
+    // Fall back to fitScale
+    return _fitScale;
+  }
+
+  /// Calculate scale for a specific fit mode on-demand.
+  /// Used for backward compatibility with deprecated APIs.
+  double _calculateScaleForMode(FitMode mode) {
+    if (_viewSize == null || _layout == null) {
+      return _defaultMinScale;
+    }
+
+    final params = widget.params;
+    final helper = PdfLayoutHelper.fromParams(params, viewSize: _viewSize!);
+
+    return _layout!.calculateFitScale(helper, mode);
+  }
+
+  void _calcFitScale([int? pageNumber]) {
+    if (_viewSize == null || _layout == null) {
+      _fitScale = _defaultMinScale;
       return;
     }
-    _minScale = !widget.params.useAlternativeFitScaleAsMinScale
-        ? widget.params.minScale
-        : _alternativeFitScale == null
-        ? _coverScale!
-        : min(_coverScale!, _alternativeFitScale!);
+
+    final helper = PdfLayoutHelper.fromParams(widget.params, viewSize: _viewSize!);
+    final effectivePageNumber = pageNumber ?? _pageNumber ?? _gotoTargetPageNumber;
+    if (widget.params.useAlternativeFitScaleAsMinScale) {
+      // Legacy useAlternativeFitScaleAsMinScale behavior (deprecated)
+      // This maps to FitMode.fit (show whole page)
+      _fitScale = _layout!.calculateFitScale(
+        helper,
+        FitMode.fit,
+        pageTransition: widget.params.pageTransition,
+        pageNumber: effectivePageNumber,
+      );
+    } else {
+      // Calculate fit scale based on fitMode for page positioning
+      // In discrete mode, calculate fit scale for the current/target page
+      // In continuous mode, calculate for the entire document
+      _fitScale = _layout!.calculateFitScale(
+        helper,
+        widget.params.fitMode,
+        pageTransition: widget.params.pageTransition,
+        pageNumber: effectivePageNumber,
+      );
+    }
   }
 
   void _calcZoomStopTable() {
     _zoomStops.clear();
     double z;
-    if (_alternativeFitScale != null && !_areZoomsAlmostIdentical(_alternativeFitScale!, _coverScale!)) {
-      if (_alternativeFitScale! < _coverScale!) {
-        _zoomStops.add(_alternativeFitScale!);
-        z = _coverScale!;
+
+    // Calculate both fit and cover scales to provide good zoom stops
+    // even when only one fitMode is selected
+    final fitScale = _calculateScaleForMode(FitMode.fit);
+    final coverScale = _calculateScaleForMode(FitMode.fill);
+
+    // Use the primary scale based on current fitMode (or legacy behavior)
+    final primaryScale = _fitScale;
+
+    // Add both scales to zoom stops if they're significantly different
+    if (!_areZoomsAlmostIdentical(fitScale, coverScale)) {
+      if (fitScale < coverScale) {
+        _zoomStops.add(fitScale);
+        z = coverScale;
       } else {
-        _zoomStops.add(_coverScale!);
-        z = _alternativeFitScale!;
+        _zoomStops.add(coverScale);
+        z = fitScale;
       }
     } else {
-      z = _coverScale!;
+      z = primaryScale;
     }
+
     // in some case, z may be 0 and it causes infinite loop.
     if (z < 1 / 128) {
       _zoomStops.add(1.0);
@@ -1107,14 +1774,16 @@ class _PdfViewerState extends State<PdfViewer>
       _zoomStops.add(widget.params.maxScale);
     }
 
-    if (!widget.params.useAlternativeFitScaleAsMinScale) {
+    // Add smaller zoom stops down to the minimum scale
+    if (widget.params.minScale != null || !widget.params.useAlternativeFitScaleAsMinScale) {
       z = _zoomStops.first;
-      while (z > widget.params.minScale) {
+
+      while (z > minScale) {
         z /= 2;
         _zoomStops.insert(0, z);
       }
-      if (!_areZoomsAlmostIdentical(z, widget.params.minScale)) {
-        _zoomStops.insert(0, widget.params.minScale);
+      if (!_areZoomsAlmostIdentical(z, minScale)) {
+        _zoomStops.insert(0, minScale);
       }
     }
   }
@@ -1144,11 +1813,367 @@ class _PdfViewerState extends State<PdfViewer>
 
   static bool _areZoomsAlmostIdentical(double z1, double z2) => (z1 - z2).abs() < 0.01;
 
+  /// Adds spacing between pages in discrete mode to fill viewport and prevent neighboring pages from showing.
+  /// This modifies the page positions to add viewport-sized gaps on the primary scroll axis.
+  /// For spread layouts, positions spreads as units rather than individual pages.
+  PdfPageLayout _addDiscreteSpacing(PdfPageLayout layout, PdfLayoutHelper helper) {
+    final isPrimaryVertical = layout.primaryAxis == Axis.vertical;
+    final viewportSize = isPrimaryVertical ? helper.viewHeight : helper.viewWidth;
+    final margin = widget.params.margin;
+
+    final newPageLayouts = <Rect>[];
+    var offset = 0.0;
+
+    // For spread layouts, we need to iterate through spreads, not individual pages
+    if (layout is PdfSpreadLayout) {
+      // Track which pages we've already positioned
+      final processedPages = <int>{};
+
+      for (var pageNum = 1; pageNum <= layout.pageLayouts.length; pageNum++) {
+        if (processedPages.contains(pageNum)) continue;
+
+        // Get all pages in this spread
+        final range = layout.getPageRange(pageNum);
+        final spreadBounds = layout.getSpreadBounds(pageNum);
+
+        // Calculate scale for this spread
+        final spreadScale = layout.calculateFitScale(
+          helper,
+          widget.params.fitMode,
+          pageTransition: PageTransition.discrete,
+          pageNumber: pageNum,
+        );
+
+        // Get spread size on primary axis, scaled to final rendered size
+        final scaledSpreadWidthWithMargins = (spreadBounds.width + margin * 2) * spreadScale;
+        final scaledSpreadHeightWithMargins = (spreadBounds.height + margin * 2) * spreadScale;
+        final spreadSizeWithMargins = isPrimaryVertical ? scaledSpreadHeightWithMargins : scaledSpreadWidthWithMargins;
+
+        // Calculate slot size: if spread+margins fits in viewport, use viewport to add centering padding
+        final slotSize = spreadSizeWithMargins < viewportSize ? viewportSize : spreadSizeWithMargins;
+
+        // Calculate viewport padding to center the spread in its slot on primary axis
+        final viewportPaddingPrimary = (slotSize - spreadSizeWithMargins) / 2;
+
+        // The spread content (without margins) starts at: offset + padding + scaled margin
+        final spreadContentStart = offset + viewportPaddingPrimary + (margin * spreadScale);
+
+        // Center the spread on cross-axis
+        final crossAxisSpreadSizeWithMargins = isPrimaryVertical
+            ? scaledSpreadWidthWithMargins
+            : scaledSpreadHeightWithMargins;
+        final crossAxisViewport = isPrimaryVertical ? helper.viewWidth : helper.viewHeight;
+
+        // Calculate viewport padding on cross-axis
+        final viewportPaddingCross = max(0.0, (crossAxisViewport - crossAxisSpreadSizeWithMargins) / 2);
+
+        // Spread content starts at: padding + scaled margin
+        final crossAxisSpreadContentStart = viewportPaddingCross + (margin * spreadScale);
+
+        // Position all pages in this spread
+        for (var p = range.firstPageNumber; p <= range.lastPageNumber; p++) {
+          final pageRect = layout.pageLayouts[p - 1];
+          final scaledPageWidth = pageRect.width * spreadScale;
+          final scaledPageHeight = pageRect.height * spreadScale;
+
+          // Calculate page position relative to spread bounds on both axes
+          final pageOffsetInSpreadPrimary = isPrimaryVertical
+              ? pageRect.top - spreadBounds.top
+              : pageRect.left - spreadBounds.left;
+          final pageOffsetInSpreadCross = isPrimaryVertical
+              ? pageRect.left - spreadBounds.left
+              : pageRect.top - spreadBounds.top;
+
+          final scaledPageOffsetInSpreadPrimary = pageOffsetInSpreadPrimary * spreadScale;
+          final scaledPageOffsetInSpreadCross = pageOffsetInSpreadCross * spreadScale;
+
+          // Position pages relative to the centered spread content position on both axes
+          final newRect = isPrimaryVertical
+              ? Rect.fromLTWH(
+                  crossAxisSpreadContentStart +
+                      scaledPageOffsetInSpreadCross, // Horizontal: relative to centered spread content
+                  spreadContentStart + scaledPageOffsetInSpreadPrimary, // Vertical: relative to centered spread content
+                  scaledPageWidth,
+                  scaledPageHeight,
+                )
+              : Rect.fromLTWH(
+                  spreadContentStart +
+                      scaledPageOffsetInSpreadPrimary, // Horizontal: relative to centered spread content
+                  crossAxisSpreadContentStart +
+                      scaledPageOffsetInSpreadCross, // Vertical: relative to centered spread content
+                  scaledPageWidth,
+                  scaledPageHeight,
+                );
+
+          newPageLayouts.add(newRect);
+          processedPages.add(p);
+        }
+
+        // Move offset for next spread
+        offset += slotSize;
+      }
+    } else {
+      // Single page layout - original logic
+      for (var i = 0; i < layout.pageLayouts.length; i++) {
+        final pageRect = layout.pageLayouts[i];
+
+        // Calculate the scale that will be applied to this page in discrete mode
+        final pageScale = layout.calculateFitScale(
+          helper,
+          widget.params.fitMode,
+          pageTransition: PageTransition.discrete,
+          pageNumber: i + 1,
+        );
+
+        // Get page size on primary axis, scaled to final rendered size
+        final scaledPageWidthWithMargins = (helper.getWidthWithMargins(pageRect.width)) * pageScale;
+        final scaledPageHeightWithMargins = (helper.getHeightWithMargins(pageRect.height)) * pageScale;
+        final pageSizeWithMargins = isPrimaryVertical ? scaledPageHeightWithMargins : scaledPageWidthWithMargins;
+
+        // Calculate slot size: if page+margins fits in viewport, use viewport to add centering padding
+        final slotSize = pageSizeWithMargins < viewportSize ? viewportSize : pageSizeWithMargins;
+
+        // Calculate viewport padding to center the page in its slot on primary axis
+        final viewportPaddingPrimary = (slotSize - pageSizeWithMargins) / 2;
+
+        // The page content (without margins) starts at: offset + padding + scaled margin
+        final scaledPageWidth = pageRect.width * pageScale;
+        final scaledPageHeight = pageRect.height * pageScale;
+        final pageContentStart = offset + viewportPaddingPrimary /*+ (margin * pageScale) */;
+
+        // Position page on cross-axis
+        final crossAxisPageSizeWithMargins = isPrimaryVertical
+            ? scaledPageWidthWithMargins
+            : scaledPageHeightWithMargins;
+        final crossAxisViewport = isPrimaryVertical ? helper.viewWidth : helper.viewHeight;
+
+        // Calculate viewport padding on cross-axis
+        final viewportPaddingCross = max(0.0, (crossAxisViewport - crossAxisPageSizeWithMargins) / 2);
+
+        // Page content starts at: padding + scaled margin
+        final crossAxisPageContentStart = viewportPaddingCross /*+ (margin * pageScale) */;
+        final newRect = isPrimaryVertical
+            ? Rect.fromLTWH(crossAxisPageContentStart, pageContentStart, scaledPageWidth, scaledPageHeight)
+            : Rect.fromLTWH(pageContentStart, crossAxisPageContentStart, scaledPageWidth, scaledPageHeight);
+
+        newPageLayouts.add(newRect);
+
+        offset += slotSize;
+      }
+    }
+
+    // offset now represents the total document size on primary axis (including all padding and margins)
+
+    // Calculate new document size
+    // On cross-axis, use viewport size to accommodate centered pages with different aspect ratios
+    final crossAxisViewportSize = isPrimaryVertical ? helper.viewWidth : helper.viewHeight;
+
+    // Also consider the maximum page extent on cross-axis to ensure no clipping
+    final maxCrossAxisExtent = newPageLayouts.fold(0.0, (max, rect) {
+      final extent = isPrimaryVertical ? rect.right : rect.bottom;
+      return extent > max ? extent : max;
+    });
+
+    final crossAxisSize = max(crossAxisViewportSize, maxCrossAxisExtent);
+
+    final newDocSize = isPrimaryVertical ? Size(crossAxisSize, offset) : Size(offset, crossAxisSize);
+
+    // Preserve spread layout information if present
+    if (layout is PdfSpreadLayout) {
+      // Recalculate spread bounds based on new page positions
+      final newSpreadLayouts = <Rect>[];
+      for (var spreadIndex = 0; spreadIndex < layout.spreadLayouts.length; spreadIndex++) {
+        var minLeft = double.infinity;
+        var minTop = double.infinity;
+        var maxRight = 0.0;
+        var maxBottom = 0.0;
+
+        for (var pageIndex = 0; pageIndex < layout.pageToSpreadIndex.length; pageIndex++) {
+          if (layout.pageToSpreadIndex[pageIndex] == spreadIndex) {
+            final pageRect = newPageLayouts[pageIndex];
+            minLeft = min(minLeft, pageRect.left);
+            minTop = min(minTop, pageRect.top);
+            maxRight = max(maxRight, pageRect.right);
+            maxBottom = max(maxBottom, pageRect.bottom);
+          }
+        }
+
+        newSpreadLayouts.add(Rect.fromLTRB(minLeft, minTop, maxRight, maxBottom));
+      }
+
+      return PdfSpreadLayout(
+        pageLayouts: newPageLayouts,
+        documentSize: newDocSize,
+        spreadLayouts: newSpreadLayouts,
+        pageToSpreadIndex: layout.pageToSpreadIndex,
+      );
+    }
+
+    return PdfPageLayout(pageLayouts: newPageLayouts, documentSize: newDocSize);
+  }
+
+  /// Returns the boundary rect for discrete mode (current page/spread bounds).
+  /// Used by boundaryProvider to restrict scrolling to current page.
+  Rect? _getDiscreteBoundaryRect(Rect visibleRect, Size childSize, {double? zoom}) {
+    final layout = _layout;
+    final currentPageNumber = _gotoTargetPageNumber ?? _pageNumber;
+
+    if (layout == null ||
+        currentPageNumber == null ||
+        currentPageNumber < 1 ||
+        currentPageNumber > layout.pageLayouts.length) {
+      return null;
+    }
+
+    // Get base page/spread bounds
+    final baseBounds = layout.getSpreadBounds(currentPageNumber);
+
+    // Add margin
+    var result = baseBounds.inflate(widget.params.margin);
+
+    // Add boundary margins for discrete mode
+    final userBoundaryMargin = (widget.params.boundaryMargin ?? EdgeInsets.zero);
+    if (!userBoundaryMargin.containsInfinite && _viewSize != null) {
+      final isPrimaryVertical = layout.primaryAxis == Axis.vertical;
+      final currentZoom = zoom ?? _currentZoom;
+      //  result = (userBoundaryMargin * currentZoom).inflateRect(baseBounds);
+      // Check if page content extends beyond viewport on each axis at current zoom
+      final primaryAxisSize = isPrimaryVertical ? result.height : result.width;
+      final crossAxisSize = isPrimaryVertical ? result.width : result.height;
+      final primaryAxisViewport = isPrimaryVertical ? _viewSize!.height : _viewSize!.width;
+      final crossAxisViewport = isPrimaryVertical ? _viewSize!.width : _viewSize!.height;
+      final scaledPrimaryAxisSize = primaryAxisSize * currentZoom;
+      final scaledCrossAxisSize = crossAxisSize * currentZoom;
+
+      // For positive margins: only apply when content exceeds viewport to prevent unwanted scrolling
+      // For negative margins: always apply (they're meant to restrict boundaries regardless of zoom)
+      final needsPrimaryAxisMargin =
+          scaledPrimaryAxisSize >= primaryAxisViewport ||
+          (isPrimaryVertical
+              ? (userBoundaryMargin.top < 0 || userBoundaryMargin.bottom < 0)
+              : (userBoundaryMargin.left < 0 || userBoundaryMargin.right < 0));
+      final needsCrossAxisMargin =
+          scaledCrossAxisSize >= crossAxisViewport ||
+          (isPrimaryVertical
+              ? (userBoundaryMargin.left < 0 || userBoundaryMargin.right < 0)
+              : (userBoundaryMargin.top < 0 || userBoundaryMargin.bottom < 0));
+
+      if (isPrimaryVertical) {
+        // Vertical layout: add top/bottom margins only if content exceeds viewport height
+        // Add left/right margins only if content exceeds viewport width
+        result = Rect.fromLTRB(
+          needsCrossAxisMargin ? result.left - userBoundaryMargin.left : result.left,
+          needsPrimaryAxisMargin ? result.top - userBoundaryMargin.top : result.top,
+          needsCrossAxisMargin ? result.right + userBoundaryMargin.right : result.right,
+          needsPrimaryAxisMargin ? result.bottom + userBoundaryMargin.bottom : result.bottom,
+        );
+      } else {
+        // Horizontal layout: add left/right margins only if content exceeds viewport width
+        // Add top/bottom margins only if content exceeds viewport height
+        result = Rect.fromLTRB(
+          needsPrimaryAxisMargin ? result.left - userBoundaryMargin.left : result.left,
+          needsCrossAxisMargin ? result.top - userBoundaryMargin.top : result.top,
+          needsPrimaryAxisMargin ? result.right + userBoundaryMargin.right : result.right,
+          needsCrossAxisMargin ? result.bottom + userBoundaryMargin.bottom : result.bottom,
+        );
+      }
+    }
+
+    // Extend boundaries into adjacent pages during pan gestures
+    // This allows smooth page transitions when panning on the primary axis
+    final shouldExtendBoundaries =
+        _isActiveGesture && !_hadScaleChangeInInteraction && !_isActivelyZooming && _viewSize != null;
+
+    if (shouldExtendBoundaries) {
+      final isPrimaryVertical = layout.primaryAxis == Axis.vertical;
+      const extensionRatio = 0.5; // Extend 50% into adjacent pages
+
+      final viewportPrimarySize = isPrimaryVertical ? _viewSize!.height : _viewSize!.width;
+
+      // Calculate extension distance based on viewport size (not page size)
+      // This ensures proper extension even when viewport is much larger than page (discrete mode with spacing)
+      final extensionDistance = viewportPrimarySize * extensionRatio;
+
+      // Determine swipe direction to only extend boundaries in the direction being swiped
+      // This prevents unwanted scrolling beyond document boundaries on first/last pages
+      var shouldExtendToPrev = true;
+      var shouldExtendToNext = true;
+
+      final panDelta = isPrimaryVertical ? _lastPanDelta.dy : _lastPanDelta.dx;
+
+      if (currentPageNumber == 1) {
+        // First page: only extend upward/leftward if user is panning down/right
+        // This allows smooth transition toward page 2 but prevents scrolling before page 1
+        shouldExtendToPrev = panDelta < 0;
+      } else if (currentPageNumber == layout.pageLayouts.length) {
+        // Last page: only extend downward/rightward if user is panning up/left
+        // This allows smooth transition toward previous page but prevents scrolling after last page
+        shouldExtendToNext = panDelta > 0;
+      }
+
+      // Extend to previous page (if exists and should extend)
+      if (shouldExtendToPrev) {
+        if (isPrimaryVertical) {
+          final newTop = result.top - extensionDistance;
+          result = Rect.fromLTRB(result.left, newTop, result.right, result.bottom);
+        } else {
+          final newLeft = result.left - extensionDistance;
+          result = Rect.fromLTRB(newLeft, result.top, result.right, result.bottom);
+        }
+      }
+
+      // Extend to next page (if exists and should extend)
+      if (shouldExtendToNext) {
+        if (isPrimaryVertical) {
+          final newBottom = result.bottom + extensionDistance;
+          result = Rect.fromLTRB(result.left, result.top, result.right, newBottom);
+        } else {
+          final newRight = result.right + extensionDistance;
+          result = Rect.fromLTRB(result.left, result.top, newRight, result.bottom);
+        }
+      }
+    }
+    return result;
+  }
+
   // Auto-adjust boundaries when content is smaller than the view, centering
   // the content and ensuring InteractiveViewer's scrollPhysics works when specified
   void _adjustBoundaryMargins(Size viewSize, double zoom) {
     final boundaryMargin = widget.params.boundaryMargin ?? EdgeInsets.zero;
 
+    // Discrete mode: restrict scrolling to current page/spread only
+    if (widget.params.pageTransition == PageTransition.discrete) {
+      final layout = _layout;
+      final currentPageNumber = _pageNumber;
+
+      if (layout == null ||
+          currentPageNumber == null ||
+          currentPageNumber < 1 ||
+          currentPageNumber > layout.pageLayouts.length) {
+        _adjustedBoundaryMargins = boundaryMargin;
+        return;
+      }
+
+      // TODO: should we need _implicit margins if not SpreadLayout?
+      // If we don't need it, I once remove getPageRectWithMargins function.
+      // Rect pageBounds;
+      // if (layout is PdfSpreadLayout) {
+      //   pageBounds = layout.getSpreadBounds(currentPageNumber);
+      // } else {
+      //   pageBounds = layout.getPageRectWithMargins(currentPageNumber);
+      // }
+      final pageBounds = layout.getSpreadBounds(currentPageNumber);
+
+      var left = -pageBounds.left;
+      var top = -pageBounds.top;
+      var right = pageBounds.right - layout.documentSize.width;
+      var bottom = pageBounds.bottom - layout.documentSize.height;
+
+      _adjustedBoundaryMargins = EdgeInsets.fromLTRB(left, top, right, bottom);
+      return;
+    }
+
+    // Continuous mode: add extra boundary margin to center content when zoomed out
     if (boundaryMargin.containsInfinite) {
       _adjustedBoundaryMargins = boundaryMargin;
       return;
@@ -1158,8 +2183,9 @@ class _PdfViewerState extends State<PdfViewer>
     final effectiveWidth = currentDocumentSize.width * zoom;
     final effectiveHeight = currentDocumentSize.height * zoom;
     final extraWidth = effectiveWidth - viewSize.width;
-    final extraBoundaryHorizontal = extraWidth < 0 ? (-extraWidth / 2) / zoom : 0.0;
     final extraHeight = effectiveHeight - viewSize.height;
+
+    final extraBoundaryHorizontal = extraWidth < 0 ? (-extraWidth / 2) / zoom : 0.0;
     final extraBoundaryVertical = extraHeight < 0 ? (-extraHeight / 2) / zoom : 0.0;
 
     _adjustedBoundaryMargins =
@@ -1283,7 +2309,23 @@ class _PdfViewerState extends State<PdfViewer>
     for (var i = 0; i < _document!.pages.length; i++) {
       final rect = _layout!.pageLayouts[i];
       final intersection = rect.intersect(cacheTargetRect);
-      if (intersection.isEmpty) {
+
+      // In discrete mode, only render current page(s)/spread during zoom and its animations
+      // This ensures that pinch zooming out doesn't show neighboring pages
+      var shouldSkipForDiscrete = false;
+      if (widget.params.pageTransition == PageTransition.discrete &&
+          _pageNumber != null &&
+          (_isActivelyZooming || _hasActiveAnimations)) {
+        final layout = _layout;
+        if (layout is PdfSpreadLayout) {
+          final range = layout.getPageRange(_pageNumber!);
+          shouldSkipForDiscrete = i + 1 < range.firstPageNumber || i + 1 > range.lastPageNumber;
+        } else {
+          shouldSkipForDiscrete = i + 1 != _pageNumber;
+        }
+      }
+
+      if (intersection.isEmpty || shouldSkipForDiscrete) {
         final page = _document!.pages[i];
         cache.cancelPendingRenderings(page.pageNumber);
         if (cache.pageImages.containsKey(i + 1)) {
@@ -1382,20 +2424,20 @@ class _PdfViewerState extends State<PdfViewer>
           callback(canvas, rect, page);
         }
       }
+    }
 
-      if (unusedPageList.isNotEmpty) {
-        final currentPageNumber = _pageNumber;
-        if (currentPageNumber != null && currentPageNumber > 0) {
-          final currentPage = _document!.pages[currentPageNumber - 1];
-          cache.removeCacheImagesIfCacheBytesExceedsLimit(
-            unusedPageList,
-            maxImageCacheBytes,
-            currentPage,
-            dist: (pageNumber) =>
-                (_layout!.pageLayouts[pageNumber - 1].center - _layout!.pageLayouts[currentPage.pageNumber - 1].center)
-                    .distanceSquared,
-          );
-        }
+    if (unusedPageList.isNotEmpty) {
+      final currentPageNumber = _pageNumber;
+      if (currentPageNumber != null && currentPageNumber > 0) {
+        final currentPage = _document!.pages[currentPageNumber - 1];
+        cache.removeCacheImagesIfCacheBytesExceedsLimit(
+          unusedPageList,
+          maxImageCacheBytes,
+          currentPage,
+          dist: (pageNumber) =>
+              (_layout!.pageLayouts[pageNumber - 1].center - _layout!.pageLayouts[currentPage.pageNumber - 1].center)
+                  .distanceSquared,
+        );
       }
     }
   }
@@ -1455,19 +2497,8 @@ class _PdfViewerState extends State<PdfViewer>
     return false;
   }
 
-  PdfPageLayout _layoutPages(List<PdfPage> pages, PdfViewerParams params) {
-    final width = pages.fold(0.0, (w, p) => max(w, p.width)) + params.margin * 2;
-
-    final pageLayout = <Rect>[];
-    var y = params.margin;
-    for (var i = 0; i < pages.length; i++) {
-      final page = pages[i];
-      final rect = Rect.fromLTWH((width - page.width) / 2, y, page.width, page.height);
-      pageLayout.add(rect);
-      y += page.height + params.margin;
-    }
-
-    return PdfPageLayout(pageLayouts: pageLayout, documentSize: Size(width, y));
+  PdfPageLayout _layoutPages(List<PdfPage> pages, PdfViewerParams params, PdfLayoutHelper helper) {
+    return SequentialPagesLayout.fromPages(pages, params, helper: helper);
   }
 
   void _invalidate() => _updateStream.add(_txController.value);
@@ -1613,7 +2644,7 @@ class _PdfViewerState extends State<PdfViewer>
         // NOTE: I believe that either only dx or dy is set, but I don't know which one is guaranteed to be set.
         // So, I just add both values.
         var zoomFactor = -(event.scrollDelta.dx + event.scrollDelta.dy) / 120.0;
-        final newZoom = (_currentZoom * (pow(1.2, zoomFactor))).clamp(widget.params.minScale, widget.params.maxScale);
+        final newZoom = (_currentZoom * (pow(1.2, zoomFactor))).clamp(minScale, widget.params.maxScale);
         if (_areZoomsAlmostIdentical(newZoom, _currentZoom)) return;
         // NOTE: _onWheelDelta may be called from other widget's context and localPosition may be incorrect.
         _controller!.zoomOnLocalPosition(
@@ -1657,19 +2688,40 @@ class _PdfViewerState extends State<PdfViewer>
       vec.Vector3(
         zoom,
         zoom,
-        zoom, // setting zoom of 1 on z caused a call to Matrix4.getMaxScaleOnAxis() to return 1 even when x and y are < 1
-      ),
+        zoom,
+      ), // setting zoom of 1 on z caused a call to matrix.maxScaleOnAxis() to return 1 even when x and y are < 1
     );
   }
 
   /// The minimum zoom ratio allowed.
-  double get minScale => _minScale;
+  double get minScale {
+    // In discrete mode, prevent zooming out below fit scale
+    if (widget.params.pageTransition == PageTransition.discrete) {
+      return _fitScale;
+    }
+
+    if (widget.params.minScale != null) {
+      return widget.params.minScale!;
+    }
+
+    return _fitScale;
+  }
 
   Matrix4 _calcMatrixForRect(Rect rect, {double? zoomMax, double? margin}) {
     margin ??= 0;
-    var zoom = min((_viewSize!.width - margin * 2) / rect.width, (_viewSize!.height - margin * 2) / rect.height);
-    if (zoomMax != null && zoom > zoomMax) zoom = zoomMax;
-    return _calcMatrixFor(rect.center, zoom: zoom, viewSize: _viewSize!);
+
+    // Calculate zoom to fit rect in viewport with margins
+    var calculatedZoom = min(
+      (_viewSize!.width - margin * 2) / rect.width,
+      (_viewSize!.height - margin * 2) / rect.height,
+    );
+
+    // Clamp to zoomMax if provided
+    if (zoomMax != null && calculatedZoom > zoomMax) {
+      calculatedZoom = zoomMax;
+    }
+
+    return _calcMatrixFor(rect.center, zoom: calculatedZoom, viewSize: _viewSize!);
   }
 
   Matrix4 _calcMatrixForArea({required Rect rect, double? zoomMax, double? margin, PdfPageAnchor? anchor}) =>
@@ -1680,10 +2732,15 @@ class _PdfViewerState extends State<PdfViewer>
       );
 
   /// The function calculate the rectangle which should be shown in the view.
+  ///
+  /// If the rect is smaller than the view size, it will
   Rect _calcRectForArea({required Rect rect, required PdfPageAnchor anchor}) {
-    final viewSize = _visibleRect.size;
+    // Use physical viewport size, not current visible rect
+    // _visibleRect.size varies with zoom, but we want consistent anchor behavior
+    final viewSize = _viewSize!;
     final w = min(rect.width, viewSize.width);
     final h = min(rect.height, viewSize.height);
+
     switch (anchor) {
       case PdfPageAnchor.top:
         return Rect.fromLTWH(rect.left, rect.top, rect.width, h);
@@ -1702,7 +2759,7 @@ class _PdfViewerState extends State<PdfViewer>
       case PdfPageAnchor.centerLeft:
         return Rect.fromLTWH(rect.left, rect.center.dy - h / 2, viewSize.width, viewSize.height);
       case PdfPageAnchor.center:
-        return Rect.fromLTWH(rect.center.dx - w / 2, rect.center.dy - h / 2, viewSize.width, viewSize.height);
+        return Rect.fromLTWH(rect.center.dx - w / 2, rect.center.dy - h / 2, w, h);
       case PdfPageAnchor.centerRight:
         return Rect.fromLTWH(rect.right - w, rect.center.dy - h / 2, viewSize.width, viewSize.height);
       case PdfPageAnchor.bottomLeft:
@@ -1716,14 +2773,70 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
-  Matrix4 _calcMatrixForPage({required int pageNumber, PdfPageAnchor? anchor}) {
-    final boundaryMargin = _adjustedBoundaryMargins;
-    final pageRect = _layout!.pageLayouts[pageNumber - 1].inflate(widget.params.margin);
+  /// Gets the effective page bounds for a given page, including margins.
+  /// Optionally includes boundary margins for positioning purposes.
+  Rect _getEffectivePageBounds(int pageNumber, PdfPageLayout layout, {bool includingBoundaryMargins = true}) {
+    final baseRect = layout.getSpreadBounds(pageNumber);
 
-    // If boundaryMargin is infinite, don't inflate the rect
-    final targetRect = boundaryMargin.inflateRectIfFinite(pageRect);
+    var result = baseRect.inflate(widget.params.margin);
 
-    return _calcMatrixForArea(rect: targetRect, anchor: anchor, zoomMax: _currentZoom);
+    // Add boundary margins for positioning when appropriate
+    if (includingBoundaryMargins) {
+      if (widget.params.pageTransition == PageTransition.continuous) {
+        // Continuous mode: apply boundary margins on cross-axis throughout,
+        // and on primary axis only at document ends
+        final margins = _adjustedBoundaryMargins;
+        final isPrimaryVertical = layout.primaryAxis == Axis.vertical;
+        final isFirstPage = pageNumber == 1;
+        final isLastPage = pageNumber == layout.pageLayouts.length;
+
+        if (isPrimaryVertical) {
+          // Vertical scrolling: margins on left/right (cross-axis), top/bottom only at ends
+          result = Rect.fromLTRB(
+            result.left - margins.left, // Cross-axis: left margin
+            isFirstPage ? result.top - margins.top : result.top, // Primary: top margin only on first page
+            result.right + margins.right, // Cross-axis: right margin
+            isLastPage ? result.bottom + margins.bottom : result.bottom, // Primary: bottom margin only on last page
+          );
+        } else {
+          // Horizontal scrolling: margins on top/bottom (cross-axis), left/right only at ends
+          result = Rect.fromLTRB(
+            isFirstPage ? result.left - margins.left : result.left, // Primary: left margin only on first page
+            result.top - margins.top, // Cross-axis: top margin
+            isLastPage ? result.right + margins.right : result.right, // Primary: right margin only on last page
+            result.bottom + margins.bottom, // Cross-axis: bottom margin
+          );
+        }
+      } else {
+        // Discrete mode: always use the user's boundary margins for positioning
+        final userBoundaryMargin = widget.params.boundaryMargin ?? EdgeInsets.zero;
+        result = userBoundaryMargin.inflateRectIfFinite(result);
+      }
+    }
+    return result;
+  }
+
+  Matrix4 _calcMatrixForPage({
+    required int pageNumber,
+    PdfPageAnchor? anchor,
+    double? forceScale,
+    bool maintainCurrentZoom = false,
+  }) {
+    final layout = _layout!;
+    final targetRect = _getEffectivePageBounds(pageNumber, layout);
+
+    // Simple priority: forceScale > maintainCurrentZoom > calculate fit
+    final double zoom;
+    if (forceScale != null) {
+      zoom = forceScale;
+    } else if (maintainCurrentZoom) {
+      zoom = _currentZoom;
+    } else {
+      // Calculate zoom to fit page in viewport
+      zoom = min(_viewSize!.width / targetRect.width, _viewSize!.height / targetRect.height);
+    }
+
+    return _calcMatrixForArea(rect: targetRect, anchor: anchor, zoomMax: zoom);
   }
 
   Rect _calcRectForRectInsidePage({required int pageNumber, required PdfRect rect}) {
@@ -1810,24 +2923,30 @@ class _PdfViewerState extends State<PdfViewer>
     return null;
   }
 
-  Future<void> _goTo(Matrix4? destination, {Duration duration = const Duration(milliseconds: 200)}) async {
+  Future<void> _goTo(
+    Matrix4? destination, {
+    Duration duration = const Duration(milliseconds: 200),
+    Curve curve = Curves.easeInOut,
+  }) async {
     void update() {
       if (_animationResettingGuard != 0) return;
       _txController.value = _animGoTo!.value;
     }
 
     try {
-      if (destination == null) return; // do nothing
+      if (destination == null) {
+        return; // do nothing
+      }
+
+      final safeDestination = _makeMatrixInSafeRange(destination, forceClamp: true);
+
       _stopInteractiveViewerAnimation();
       _animationResettingGuard++;
       _animController.reset();
       _animationResettingGuard--;
-      _animGoTo = Matrix4Tween(
-        begin: _txController.value,
-        end: _makeMatrixInSafeRange(destination, forceClamp: true),
-      ).animate(_animController);
+      _animGoTo = Matrix4Tween(begin: _txController.value, end: safeDestination).animate(_animController);
       _animGoTo!.addListener(update);
-      await _animController.animateTo(1.0, duration: duration, curve: Curves.easeInOut);
+      await _animController.animateTo(1.0, duration: duration, curve: curve);
     } finally {
       _animGoTo?.removeListener(update);
     }
@@ -1875,6 +2994,8 @@ class _PdfViewerState extends State<PdfViewer>
     required int pageNumber,
     PdfPageAnchor? anchor,
     Duration duration = const Duration(milliseconds: 200),
+    bool maintainCurrentZoom = true,
+    double? forceScale,
   }) async {
     final pageCount = _document!.pages.length;
     final int targetPageNumber;
@@ -1890,7 +3011,12 @@ class _PdfViewerState extends State<PdfViewer>
 
     await _goTo(
       _calcMatrixForClampedToNearestBoundary(
-        _calcMatrixForPage(pageNumber: targetPageNumber, anchor: anchor),
+        _calcMatrixForPage(
+          pageNumber: targetPageNumber,
+          anchor: anchor,
+          maintainCurrentZoom: maintainCurrentZoom,
+          forceScale: forceScale,
+        ),
         viewSize: _viewSize!,
       ),
       duration: duration,
@@ -1900,10 +3026,15 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// Scrolls/zooms so that the specified PDF document coordinate appears at
   /// the top-left corner of the viewport.
+  ///
+  /// If [pageNumber] and [wasAtBoundaries] are provided, applies margin snapping
+  /// to ensure points that were at boundaries are positioned at the correct boundaries
+  /// with new margins applied.
   Future<void> _goToPosition({
     required Offset documentOffset,
     Duration duration = const Duration(milliseconds: 0),
     double? zoom,
+    int? pageNumber,
   }) async {
     // Clear any cached partial images to avoid stale tiles after
     // going to the new matrix
@@ -1912,11 +3043,19 @@ class _PdfViewerState extends State<PdfViewer>
     zoom = zoom ?? _currentZoom;
     final tx = -documentOffset.dx * zoom;
     final ty = -documentOffset.dy * zoom;
-
     final m = Matrix4.compose(vec.Vector3(tx, ty, 0), vec.Quaternion.identity(), vec.Vector3(zoom, zoom, zoom));
 
     _adjustBoundaryMargins(_viewSize!, zoom);
-    final clamped = _calcMatrixForClampedToNearestBoundary(m, viewSize: _viewSize!);
+
+    // Apply margin snapping if page number and boundary info are provided
+    final marginAdjusted = pageNumber != null
+        ? _calcMatrixForMarginSnappedToNearestBoundary(m, pageNumber: pageNumber, viewSize: _viewSize!)
+        : m;
+
+    // Then clamp to nearest boundary to handle out-of-bounds cases
+    // When preserving position (wasAtBoundaries provided), don't use extended boundaries
+    final clamped = _calcMatrixForClampedToNearestBoundary(marginAdjusted, viewSize: _viewSize!);
+
     await _goTo(clamped, duration: duration);
   }
 
@@ -1993,13 +3132,31 @@ class _PdfViewerState extends State<PdfViewer>
     bool loop = false,
     Offset? zoomCenter,
     Duration duration = const Duration(milliseconds: 200),
-  }) => _setZoom(zoomCenter ?? _centerPosition, _getNextZoom(loop: loop), duration: duration);
+  }) async {
+    final newZoom = _getNextZoom(loop: loop);
+
+    // In discrete mode, zoom to the current page to avoid jumping to other pages
+    if (widget.params.pageTransition == PageTransition.discrete && zoomCenter == null && _pageNumber != null) {
+      await _goToPage(pageNumber: _pageNumber!, duration: duration, anchor: PdfPageAnchor.center, forceScale: newZoom);
+    } else {
+      await _setZoom(zoomCenter ?? _centerPosition, newZoom, duration: duration);
+    }
+  }
 
   Future<void> _zoomDown({
     bool loop = false,
     Offset? zoomCenter,
     Duration duration = const Duration(milliseconds: 200),
-  }) => _setZoom(zoomCenter ?? _centerPosition, _getPreviousZoom(loop: loop), duration: duration);
+  }) async {
+    final newZoom = _getPreviousZoom(loop: loop);
+
+    // In discrete mode, zoom to the current page to avoid jumping to other pages
+    if (widget.params.pageTransition == PageTransition.discrete && zoomCenter == null && _pageNumber != null) {
+      await _goToPage(pageNumber: _pageNumber!, duration: duration, anchor: PdfPageAnchor.center, forceScale: newZoom);
+    } else {
+      await _setZoom(zoomCenter ?? _centerPosition, newZoom, duration: duration);
+    }
+  }
 
   RenderBox? get _renderBox {
     final renderBox = context.findRenderObject();
@@ -2568,31 +3725,12 @@ class _PdfViewerState extends State<PdfViewer>
           : null;
 
       Offset? a, b;
-      if (isMobile) {
-        a = localOffset;
-        switch (_textSelA?.direction) {
-          case PdfTextDirection.ltr:
-            a ??= _anchorARect?.topLeft;
-            b = localOffset == null ? _anchorBRect?.bottomLeft : null;
-          case PdfTextDirection.rtl:
-          case PdfTextDirection.vrtl:
-            a ??= _anchorARect?.topRight;
-            b = localOffset == null ? _anchorBRect?.bottomRight : null;
-          default:
-        }
-      } else {
-        // NOTE:
-        // On Desktop, AdaptiveTextSelectionToolbar determines the context menu position by only the first anchor (a).
-        // So, we need to be careful about where to place the anchor (a).
-        if (!_isSelectingAWord && localOffset != null) {
-          a = localOffset;
-        } else {
-          // NOTE: it's still a little strange behavior when selecting a word by long-pressing on it on Desktop
-          if (_isSelectingAWord) {
-            _isSelectingAWord = false;
-            a = _anchorBRect?.bottomRight ?? _anchorARect?.center;
-          }
-          a ??= _pointerOffset;
+      switch (Theme.of(context).platform) {
+        case TargetPlatform.fuchsia:
+        case TargetPlatform.linux:
+        case TargetPlatform.windows:
+        case TargetPlatform.macOS:
+          a = _pointerOffset;
           if (_anchorARect != null && _anchorBRect != null) {
             switch (_textSelA?.direction) {
               case PdfTextDirection.ltr:
@@ -2608,8 +3746,8 @@ class _PdfViewerState extends State<PdfViewer>
                 }
               case PdfTextDirection.rtl:
               case PdfTextDirection.vrtl:
-                final distA = (a - _anchorARect!.center).distanceSquared;
-                final distB = (a - _anchorBRect!.center).distanceSquared;
+                final distA = (_pointerOffset - _anchorARect!.center).distanceSquared;
+                final distB = (_pointerOffset - _anchorBRect!.center).distanceSquared;
                 if (distA < distB) {
                   a = _anchorARect!.bottomLeft.translate(8, 8);
                 } else {
@@ -2617,9 +3755,19 @@ class _PdfViewerState extends State<PdfViewer>
                 }
               default:
             }
-            _contextMenuDocumentPosition = offsetToDocument(context, a);
           }
-        }
+        default:
+          a = localOffset;
+          switch (_textSelA?.direction) {
+            case PdfTextDirection.ltr:
+              a ??= _anchorARect?.topLeft;
+              b = localOffset == null ? _anchorBRect?.bottomLeft : null;
+            case PdfTextDirection.rtl:
+            case PdfTextDirection.vrtl:
+              a ??= _anchorARect?.topRight;
+              b = localOffset == null ? _anchorBRect?.bottomRight : null;
+            default:
+          }
       }
 
       contextMenu = createContextMenu(a, b, _contextMenuFor);
@@ -3229,11 +4377,9 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     _selPartMoving = _TextSelectionPart.none;
-    _selPartLastMoved = _TextSelectionPart.b;
+    _selPartLastMoved = _TextSelectionPart.a;
     _isSelectingAllText = false;
     _selectionPointerDeviceKind = deviceKind;
-    _contextMenuDocumentPosition = null;
-    _isSelectingAWord = true;
     _notifyTextSelectionChange();
   }
 
@@ -3637,21 +4783,38 @@ class PdfTextSelectionAnchor {
 /// It can be either [a] or [b], which represents the start and end of the selection respectively.
 enum PdfTextSelectionAnchorType { a, b }
 
-/// Defines page layout.
-class PdfPageLayout {
-  PdfPageLayout({required this.pageLayouts, required this.documentSize});
-  final List<Rect> pageLayouts;
-  final Size documentSize;
+/// Defines how the PDF pages should fit within the viewport.
+enum FitMode {
+  /// Entire page/spread visible (may have letterboxing).
+  fit,
 
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    if (other is! PdfPageLayout) return false;
-    return listEquals(pageLayouts, other.pageLayouts) && documentSize == other.documentSize;
-  }
+  /// Fill viewport along the cross axis (may crop content).
+  fill,
 
-  @override
-  int get hashCode => pageLayouts.hashCode ^ documentSize.hashCode;
+  /// Legacy cover mode - ensures the whole document fills the viewport (may crop content).
+  cover,
+
+  /// No scaling applied.
+  none,
+}
+
+/// Defines how pages transition when navigating through the document.
+enum PageTransition {
+  /// Pages flow continuously in an uninterrupted scrollable view.
+  /// Similar to browsing a webpage - all pages are laid out sequentially.
+  continuous,
+
+  /// Pages transition discretely, one page (or spread for facing pages) at a time.
+  ///
+  /// When a pan gesture ends at fit zoom, the viewer snaps to either:
+  /// - The current page/spread (if insufficient movement)
+  /// - The next/previous page/spread (if swipe velocity > 300 px/s or dragged > 50% threshold)
+  ///
+  /// Important behaviors:
+  /// - Only applies to pan-only gestures (zoom/pinch gestures work normally)
+  /// - Only active when at or near fit zoom level (free panning when zoomed in)
+  /// - Provides a controlled, book-like reading experience
+  discrete,
 }
 
 /// Represents the result of the hit test on the page.
@@ -3718,11 +4881,19 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// The view port size (The widget's client area's size)
   Size get viewSize => _state._viewSize!;
 
-  /// The zoom ratio that fits the page's smaller side (either horizontal or vertical) to the view port.
-  double get coverScale => _state._coverScale!;
+  /// **DEPRECATED:** The zoom ratio for FitMode.cover (fills viewport, may crop content).
+  ///
+  /// This getter calculates the cover scale on-demand. Consider using `PdfViewerParams(fitMode: FitMode.cover)` instead.
+  /// This API will be removed in a future version.
+  @Deprecated('Use PdfViewerParams(fitMode: FitMode.cover) to set cover mode. This getter will be removed.')
+  double get coverScale => _state._calculateScaleForMode(FitMode.cover);
 
-  /// The zoom ratio that fits whole the page to the view port.
-  double? get alternativeFitScale => _state._alternativeFitScale;
+  /// **DEPRECATED:** The zoom ratio for FitMode.fit (shows whole page in viewport).
+  ///
+  /// This getter calculates the fit scale on-demand. Consider using `PdfViewerParams(fitMode: FitMode.fit)` instead.
+  /// This API will be removed in a future version.
+  @Deprecated('Use PdfViewerParams(fitMode: FitMode.fit) to set fit mode. This getter will be removed.')
+  double? get alternativeFitScale => _state._calculateScaleForMode(FitMode.fit);
 
   /// The minimum zoom ratio allowed.
   double get minScale => _state.minScale;
@@ -3750,6 +4921,12 @@ class PdfViewerController extends ValueListenable<Matrix4> {
 
   /// The current page number if available.
   int? get pageNumber => _state._pageNumber;
+
+  /// The range of all visible pages (any page with any intersection with the viewport).
+  /// Returns null if no pages are visible.
+  /// This is useful for displaying page ranges in UI elements like scroll thumbs,
+  /// especially when zoomed out or using spread layouts where multiple pages are visible.
+  PdfPageRange? get visiblePageRange => _state._visiblePageRange;
 
   /// The document reference associated to the [PdfViewer].
   PdfDocumentRef get documentRef => _state.widget.documentRef;
