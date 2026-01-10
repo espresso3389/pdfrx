@@ -210,7 +210,7 @@ class PdfViewer extends StatefulWidget {
 }
 
 class _PdfViewerState extends State<PdfViewer>
-    with TickerProviderStateMixin
+    with SingleTickerProviderStateMixin
     implements PdfTextSelectionDelegate, PdfViewerCoordinateConverter {
   PdfViewerController? _controller;
   late final _txController = _PdfViewerTransformationController(this);
@@ -283,32 +283,18 @@ class _PdfViewerState extends State<PdfViewer>
   // the viewport
   EdgeInsets _adjustedBoundaryMargins = EdgeInsets.zero;
 
-  PdfViewerScrollInteractionDelegate? _interactionDelegate;
-
   @override
   void initState() {
     super.initState();
     pdfrxFlutterInitialize();
     _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
     _widgetUpdated(null);
-    _updateInteractionDelegate();
   }
 
   @override
   void didUpdateWidget(covariant PdfViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
     _widgetUpdated(oldWidget);
-    if (widget.params.interactionDelegateProvider != oldWidget.params.interactionDelegateProvider) {
-      _updateInteractionDelegate();
-    }
-  }
-
-  void _updateInteractionDelegate() {
-    _interactionDelegate?.dispose();
-    _interactionDelegate = widget.params.interactionDelegateProvider.create();
-    if (_controller != null) {
-      _interactionDelegate!.init(_controller!, this);
-    }
   }
 
   Future<void> _widgetUpdated(PdfViewer? oldWidget) async {
@@ -330,8 +316,6 @@ class _PdfViewerState extends State<PdfViewer>
         ..addListener(_onDocumentChanged)
         ..load();
     }
-
-    // we dont check/update `_interactionDelegate` here because we dont assume the user
 
     _onDocumentChanged();
   }
@@ -373,7 +357,6 @@ class _PdfViewerState extends State<PdfViewer>
     _controller!._attach(this);
     _txController.addListener(_onMatrixChanged);
     _documentSubscription = document.events.listen(_onDocumentEvent);
-    _interactionDelegate?.init(_controller!, this);
 
     if (mounted) {
       setState(() {});
@@ -408,7 +391,6 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   void dispose() {
-    _interactionDelegate?.dispose();
     focusReportForPreventingContextMenuWeb(this, false);
     _documentSubscription?.cancel();
     _textSelectionChangedDebounceTimer?.cancel();
@@ -523,7 +505,6 @@ class _PdfViewerState extends State<PdfViewer>
                         onInteractionUpdate: widget.params.onInteractionUpdate,
                         interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
                         onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
-                        onPointerScale: _onPointerScale,
                         scrollPhysics: widget.params.scrollPhysics,
                         scrollPhysicsScale: widget.params.scrollPhysicsScale,
                         scrollPhysicsAutoAdjustBoundaries: false,
@@ -839,7 +820,6 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _onInteractionStart(ScaleStartDetails details) {
-    _interactionDelegate?.stop(); // Stop physics when user touches
     _startInteraction();
     _requestFocus();
     widget.params.onInteractionStart?.call(details);
@@ -1633,54 +1613,26 @@ class _PdfViewerState extends State<PdfViewer>
         // NOTE: I believe that either only dx or dy is set, but I don't know which one is guaranteed to be set.
         // So, I just add both values.
         var zoomFactor = -(event.scrollDelta.dx + event.scrollDelta.dy) / 120.0;
-        final rawScaleFactor = pow(1.2, zoomFactor).toDouble();
-
-        final dampening = widget.params.scaleByPointerScale;
-        final scaleFactor = (rawScaleFactor - 1.0) * dampening + 1.0;
-
+        final newZoom = (_currentZoom * (pow(1.2, zoomFactor))).clamp(widget.params.minScale, widget.params.maxScale);
+        if (_areZoomsAlmostIdentical(newZoom, _currentZoom)) return;
         // NOTE: _onWheelDelta may be called from other widget's context and localPosition may be incorrect.
-        _interactionDelegate?.zoom(scaleFactor, _controller!.globalToLocal(event.position)!);
+        _controller!.zoomOnLocalPosition(
+          localPosition: _controller!.globalToLocal(event.position)!,
+          newZoom: newZoom,
+          duration: Duration.zero,
+        );
         return;
       }
 
-      final scrollMultiplier = widget.params.scrollByMouseWheel ?? 1.0;
-
-      var rawDx = -event.scrollDelta.dx;
-      var rawDy = -event.scrollDelta.dy;
-
-      // Shift + Vertical Scroll = Horizontal Scroll
-      // Standard behavior for desktop applications
-      if (HardwareKeyboard.instance.isShiftPressed && rawDy != 0 && rawDx == 0) {
-        rawDx = rawDy;
-        rawDy = 0;
-      }
-
-      final dx = rawDx * scrollMultiplier;
-      final dy = rawDy * scrollMultiplier;
-
-      final Offset delta;
-      // If the parameter forces horizontal scrolling, we swap the axes.
-      // Note: If user held SHIFT (already swapped to horizontal), this swap
-      // effectively turns it back to vertical, which is generally acceptable
-      // (axis inversion) if the user explicitly configured this param.
+      final dx = -event.scrollDelta.dx * widget.params.scrollByMouseWheel! / _currentZoom;
+      final dy = -event.scrollDelta.dy * widget.params.scrollByMouseWheel! / _currentZoom;
+      final m = _txController.value.clone();
       if (widget.params.scrollHorizontallyByMouseWheel) {
-        delta = Offset(dy, dx);
+        m.translateByDouble(dy, dx, 0, 1);
       } else {
-        delta = Offset(dx, dy);
+        m.translateByDouble(dx, dy, 0, 1);
       }
-
-      _interactionDelegate?.pan(delta);
-    } finally {
-      _stopInteraction();
-    }
-  }
-
-  void _onPointerScale(PointerScaleEvent event) {
-    _startInteraction();
-    try {
-      final dampening = widget.params.scaleByPointerScale;
-      final scaleFactor = (event.scale - 1.0) * dampening + 1.0;
-      _interactionDelegate?.zoom(scaleFactor, event.localPosition);
+      _txController.value = _makeMatrixInSafeRange(m, forceClamp: true);
     } finally {
       _stopInteraction();
     }

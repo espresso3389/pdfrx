@@ -51,7 +51,6 @@ class PdfViewerParams {
     this.onPageChanged,
     this.getPageRenderingScale,
     this.scrollByMouseWheel = 0.2,
-    this.scaleByPointerScale = 1.0,
     this.scrollHorizontallyByMouseWheel = false,
     this.enableKeyboardNavigation = true,
     this.scrollByArrowKey = 25.0,
@@ -75,7 +74,6 @@ class PdfViewerParams {
     this.forceReload = false,
     this.scrollPhysics,
     this.scrollPhysicsScale,
-    this.interactionDelegateProvider = const PdfViewerScrollInteractionDelegateProviderInstant(),
   });
 
   /// Margin around the page.
@@ -360,15 +358,6 @@ class PdfViewerParams {
   /// null to disable scroll-by-mouse-wheel.
   final double? scrollByMouseWheel;
 
-  /// Scale sensitivity for pointer scale events (e.g. Trackpad pinch) and Ctrl+Scroll zoom interactions.
-  ///
-  /// Defaults to 1.0.
-  /// *   Values < 1.0 reduce the zoom speed (finer control).
-  /// *   Values > 1.0 increase the zoom speed (faster).
-  ///
-  /// This factor is applied to the raw scale delta received from the platform to determine the target zoom level.
-  final double scaleByPointerScale;
-
   /// If true, the scroll direction is horizontal when the mouse wheel is scrolled in primary direction.
   final bool scrollHorizontallyByMouseWheel;
 
@@ -580,14 +569,6 @@ class PdfViewerParams {
   /// Scroll physics for scaling within the viewer. If null, it uses the same value as [scrollPhysics].
   final ScrollPhysics? scrollPhysicsScale;
 
-  /// Provider to create a delegate that handles scroll/zoom interactions (Mouse Wheel / Trackpad).
-  ///
-  /// Defaults to [PdfViewerScrollInteractionDelegateProviderInstant] which provides
-  /// instant updates (legacy behavior).
-  ///
-  /// To enable smooth, physics-based animations, use [PdfViewerScrollInteractionDelegateProviderPhysics].
-  final PdfViewerScrollInteractionDelegateProvider interactionDelegateProvider;
-
   /// A convenience function to get platform-specific default scroll physics.
   ///
   /// On iOS/MacOS this is [BouncingScrollPhysics], and on Android this is [FixedOverscrollPhysics], a
@@ -626,15 +607,13 @@ class PdfViewerParams {
         other.scaleEnabled != scaleEnabled ||
         other.interactionEndFrictionCoefficient != interactionEndFrictionCoefficient ||
         other.scrollByMouseWheel != scrollByMouseWheel ||
-        other.scaleByPointerScale != scaleByPointerScale ||
         other.scrollHorizontallyByMouseWheel != scrollHorizontallyByMouseWheel ||
         other.enableKeyboardNavigation != enableKeyboardNavigation ||
         other.scrollByArrowKey != scrollByArrowKey ||
         other.horizontalCacheExtent != horizontalCacheExtent ||
         other.verticalCacheExtent != verticalCacheExtent ||
         other.linkHandlerParams != linkHandlerParams ||
-        other.scrollPhysics != scrollPhysics ||
-        other.interactionDelegateProvider != interactionDelegateProvider;
+        other.scrollPhysics != scrollPhysics;
   }
 
   @override
@@ -676,7 +655,6 @@ class PdfViewerParams {
         other.onPageChanged == onPageChanged &&
         other.getPageRenderingScale == getPageRenderingScale &&
         other.scrollByMouseWheel == scrollByMouseWheel &&
-        other.scaleByPointerScale == scaleByPointerScale &&
         other.scrollHorizontallyByMouseWheel == scrollHorizontallyByMouseWheel &&
         other.enableKeyboardNavigation == enableKeyboardNavigation &&
         other.scrollByArrowKey == scrollByArrowKey &&
@@ -697,8 +675,7 @@ class PdfViewerParams {
         other.keyHandlerParams == keyHandlerParams &&
         other.behaviorControlParams == behaviorControlParams &&
         other.forceReload == forceReload &&
-        other.scrollPhysics == scrollPhysics &&
-        other.interactionDelegateProvider == interactionDelegateProvider;
+        other.scrollPhysics == scrollPhysics;
   }
 
   @override
@@ -738,7 +715,6 @@ class PdfViewerParams {
         onPageChanged.hashCode ^
         getPageRenderingScale.hashCode ^
         scrollByMouseWheel.hashCode ^
-        scaleByPointerScale.hashCode ^
         scrollHorizontallyByMouseWheel.hashCode ^
         enableKeyboardNavigation.hashCode ^
         scrollByArrowKey.hashCode ^
@@ -759,8 +735,7 @@ class PdfViewerParams {
         keyHandlerParams.hashCode ^
         behaviorControlParams.hashCode ^
         forceReload.hashCode ^
-        scrollPhysics.hashCode ^
-        interactionDelegateProvider.hashCode;
+        scrollPhysics.hashCode;
   }
 }
 
