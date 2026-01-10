@@ -56,6 +56,8 @@ gh issue comment 123 --repo espresso3389/pdfrx --body "Comment text here"
 
 ## Common Commands
 
+Commands below use standard shell syntax. On Windows with Claude Code, wrap with `pwsh.exe -Command "..."` as shown in the Windows-Specific Notes section above.
+
 ### Flutter Plugin (packages/pdfrx)
 
 ```bash

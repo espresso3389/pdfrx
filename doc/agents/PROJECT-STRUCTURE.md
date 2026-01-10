@@ -4,14 +4,11 @@ pdfrx is a monorepo containing five packages with the following dependency hiera
 
 ```
 pdfium_dart (FFI bindings)
-    ↓
-pdfium_flutter (bundles PDFium binaries)
-    ↓
-pdfrx_engine (PDF API, pure Dart)
-    ↓
-pdfrx (Flutter widgets)
-    ↑
-pdfrx_coregraphics (alternative backend for Apple platforms)
+    ├──→ pdfium_flutter (bundles PDFium binaries)
+    │           ↓
+    └──→ pdfrx_engine (PDF API, pure Dart)
+                ├──→ pdfrx (Flutter widgets) ←── pdfium_flutter
+                └──→ pdfrx_coregraphics (alternative backend for Apple platforms)
 ```
 
 ## Packages
@@ -65,7 +62,7 @@ CoreGraphics-backed renderer for iOS/macOS.
 ### iOS/macOS
 
 - Uses pre-built PDFium binaries from [GitHub releases](https://github.com/espresso3389/pdfrx/releases)
-- CocoaPods integration via `packages/pdfrx/darwin/pdfrx.podspec`
+- CocoaPods integration via `packages/pdfium_flutter/darwin/pdfium_flutter.podspec`
 - Binaries downloaded during pod install (or use Swift Package Manager)
 
 ### Android
