@@ -241,6 +241,7 @@ class _PdfViewerState extends State<PdfViewer>
   // Changes to the stream rebuilds the viewer
   final _updateStream = BehaviorSubject<Matrix4>();
 
+  /// page-number keyed cache of extracted text
   final _textCache = <int, PdfPageText?>{};
   Timer? _textSelectionChangedDebounceTimer;
   final double _hitTestMargin = 3.0;
@@ -337,13 +338,17 @@ class _PdfViewerState extends State<PdfViewer>
     _txController.removeListener(_onMatrixChanged);
     _controller?._attach(null);
 
-    final document = widget.documentRef.resolveListenable().document;
+    final listenable = widget.documentRef.resolveListenable();
+    final document = listenable.document;
     if (document == null) {
       _document = null;
       if (mounted) {
         setState(() {});
       }
       _notifyOnDocumentChanged();
+      if (listenable.error != null) {
+        _notifyDocumentLoadFinished(succeeded: false);
+      }
       return;
     }
 
@@ -410,15 +415,32 @@ class _PdfViewerState extends State<PdfViewer>
     if (event is PdfDocumentPageStatusChangedEvent) {
       // FIXME: We can handle the event more efficiently by only updating the affected pages.
       for (final change in event.changes.entries) {
-        _imageCache.removeCacheImagesForPage(change.key);
-        _magnifierImageCache.removeCacheImagesForPage(change.key);
+        _imageCache.makeCacheImageForPageDirty(change.key);
+        _magnifierImageCache.makeCacheImageForPageDirty(change.key);
+        _canvasLinkPainter.releaseLinksForPage(change.key);
+        _textCache.remove(change.key);
       }
-      // very conservative approach: just clear all caches; we can optimize this later
-      _canvasLinkPainter.resetAll();
-      _textCache.clear();
       _clearTextSelections(invalidate: false);
       _invalidate();
+    } else if (event is PdfDocumentLoadCompleteEvent) {
+      _notifyDocumentLoadFinished(succeeded: true);
     }
+  }
+
+  Future<void> _notifyDocumentLoadFinished({required bool succeeded}) async {
+    if (succeeded) {
+      // FIXME: This is a temporary workaround to wait until the initial page is loaded.
+      while (mounted) {
+        if (_imageCache.pageImages.containsKey(widget.initialPageNumber)) break;
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+    }
+
+    Future.microtask(() async {
+      if (mounted) {
+        widget.params.onDocumentLoadFinished?.call(widget.documentRef, succeeded);
+      }
+    });
   }
 
   @override
@@ -2362,7 +2384,8 @@ class _PdfViewerState extends State<PdfViewer>
         );
       }
 
-      if (enableLowResolutionPagePreview && (previewImage == null || previewImage.scale != previewScaleLimit)) {
+      if (enableLowResolutionPagePreview &&
+          (previewImage == null || previewImage.isDirty || previewImage.scale != previewScaleLimit)) {
         _requestPagePreviewImageCached(cache, page, previewScaleLimit);
       }
 
@@ -2507,13 +2530,15 @@ class _PdfViewerState extends State<PdfViewer>
     double scale,
   ) async {
     if (!mounted) return;
-    if (cache.pageImages[page.pageNumber]?.scale == scale) return;
+    final prev = cache.pageImages[page.pageNumber];
+    if (prev != null && !prev.isDirty && prev.scale == scale) return;
     final cancellationToken = page.createCancellationToken();
 
     cache.addCancellationToken(page.pageNumber, cancellationToken);
     await cache.synchronized(() async {
       if (!mounted || cancellationToken.isCanceled) return;
-      if (cache.pageImages[page.pageNumber]?.scale == scale) return;
+      final prev = cache.pageImages[page.pageNumber];
+      if (prev != null && !prev.isDirty && prev.scale == scale) return;
       PdfImage? img;
       try {
         img = await page.render(
@@ -2547,7 +2572,7 @@ class _PdfViewerState extends State<PdfViewer>
     final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
     final rect = pageRect.intersect(targetRect);
     final prev = cache.pageImagesPartial[page.pageNumber];
-    if (prev?.rect == rect && prev?.scale == scale) return;
+    if (prev != null && !prev.isDirty && prev.rect == rect && prev.scale == scale) return;
     if (rect.width < 1 || rect.height < 1) return;
 
     cache.pageImagePartialRenderingRequests[page.pageNumber]?.cancel();
@@ -4485,6 +4510,17 @@ class _PdfPageImageCache {
     cancellationTokens.clear();
   }
 
+  void makeCacheImageForPageDirty(int pageNumber) {
+    final image = pageImages[pageNumber];
+    if (image != null) {
+      image.isDirty = true;
+    }
+    final imagePartial = pageImagesPartial[pageNumber];
+    if (imagePartial != null) {
+      imagePartial.isDirty = true;
+    }
+  }
+
   void removeCacheImagesForPage(int pageNumber) {
     final removed = pageImages.remove(pageNumber);
     if (removed != null) {
@@ -4540,6 +4576,8 @@ class _PdfImageWithScale {
 
   int get width => image.width;
   int get height => image.height;
+
+  bool isDirty = false;
 
   void dispose() {
     image.dispose();

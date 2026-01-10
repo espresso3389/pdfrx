@@ -1,3 +1,29 @@
+## 0.1.16
+
+- Updated to pdfrx_engine 0.3.9
+- NEW: `PdfrxEntryFunctions.stopBackgroundWorker()` support ([#184](https://github.com/espresso3389/pdfrx/issues/184), [#430](https://github.com/espresso3389/pdfrx/issues/430))
+
+## 0.1.15
+
+- Updated to pdfrx_engine 0.3.8
+- Implemented `PdfDocumentLoadCompleteEvent` for CoreGraphics backend
+
+## 0.1.12
+
+- FIXED: Inconsistent environment constraints - Flutter version now correctly requires 3.35.1+ to match Dart 3.9.0 requirement ([#553](https://github.com/espresso3389/pdfrx/issues/553))
+
+## 0.1.11
+
+- Updated to pdfrx_engine 0.3.7
+- Dependency configuration updates
+- WIP: Adding `PdfDocument.useNativeDocumentHandle`/`reloadPages`
+
+## 0.1.10
+
+- Updated to pdfrx_engine 0.3.6
+- NEW: [`PdfDateTime`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDateTime.html) extension type for PDF date string parsing
+- NEW: [`PdfAnnotation`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfAnnotation-class.html) class for PDF annotation metadata extraction ([#546](https://github.com/espresso3389/pdfrx/pull/546))
+
 ## 0.1.9
 
 - Updated to pdfrx_engine 0.3.4

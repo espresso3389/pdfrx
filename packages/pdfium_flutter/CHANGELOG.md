@@ -1,3 +1,11 @@
+## 0.1.9
+
+- FIXED: Inconsistent environment constraints - Flutter version now correctly requires 3.35.1+ to match Dart 3.9.0 requirement ([#553](https://github.com/espresso3389/pdfrx/issues/553))
+
+## 0.1.8
+
+- Dependency configuration updates.
+
 ## 0.1.7
 
 - Documentation updates.

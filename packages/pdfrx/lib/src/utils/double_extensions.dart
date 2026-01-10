@@ -14,5 +14,10 @@ extension DoubleExtensions on double {
   /// Round the double to keep 10-bits of precision under the binary point.
   ///
   /// It's almost 3 decimal places (i.e. 1.23456789 => 1.234) but cleaner in binary representation.
-  double round10BitFrac() => (this * 1024).round() / 1024;
+  double round10BitFrac() {
+    if (isInfinite || isNaN) {
+      return this;
+    }
+    return (this * 1024).round() / 1024;
+  }
 }

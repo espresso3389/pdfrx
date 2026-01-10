@@ -29,6 +29,31 @@ abstract class PdfrxEntryFunctions {
   /// To avoid such problems, you can wrap the code that calls those libraries with this function.
   Future<T> suspendPdfiumWorkerDuringAction<T>(FutureOr<T> Function() action);
 
+  /// Perform a computation in the background worker isolate.
+  ///
+  /// The [callback] function is executed in the background isolate with [message] as its argument.
+  /// The result of the [callback] function is returned as a [Future].
+  ///
+  /// The background worker isolate is same to the one used by pdfrx internally to call PDFium
+  /// functions.
+  ///
+  /// This function is only available for native PDFium backend; for other backends, calling this function
+  /// will throw an [UnimplementedError].
+  Future<R> compute<M, R>(FutureOr<R> Function(M message) callback, M message);
+
+  /// **Experimental**
+  /// Stop the background worker isolate.
+  ///
+  /// This function can be called anytime to stop the background worker isolate.
+  /// If you call [compute] after calling this function, the background worker isolate will be recreated automatically.
+  ///
+  /// The function internally calls `FPDF_DestroyLibrary` and then stops the isolate.
+  /// You should ensure any PDFium-related resources are properly released before calling this function.
+  ///
+  /// This function is only available for native PDFium backend; for other backends, calling this function
+  /// will throw an [UnimplementedError].
+  Future<void> stopBackgroundWorker();
+
   /// See [PdfDocument.openAsset].
   Future<PdfDocument> openAsset(
     String name, {
@@ -108,11 +133,11 @@ abstract class PdfrxEntryFunctions {
   Future<void> clearAllFontData();
 
   /// Backend in use.
-  PdfrxBackend get backend;
+  PdfrxBackendType get backendType;
 }
 
 /// Pdfrx backend types.
-enum PdfrxBackend {
+enum PdfrxBackendType {
   /// PDFium backend.
   pdfium,
 

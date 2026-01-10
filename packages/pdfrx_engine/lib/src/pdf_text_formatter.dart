@@ -4,7 +4,6 @@ import 'package:vector_math/vector_math_64.dart';
 
 import './mock/string_buffer_wrapper.dart' if (dart.library.io) './native/string_buffer_wrapper.dart';
 import 'pdf_page.dart';
-import 'pdf_page_proxies.dart';
 import 'pdf_rect.dart';
 import 'pdf_text.dart';
 import 'utils/unmodifiable_list.dart';
@@ -23,7 +22,7 @@ final class PdfTextFormatter {
   ///
   /// To access the raw text, use [PdfPage.loadText].
   ///
-  /// This implementation is shared among multiple [PdfPage] and [PdfPageProxy] implementations.
+  /// This implementation is shared among multiple [PdfPage] and [PdfPage] proxy implementations.
   static Future<PdfPageText> loadStructuredText(PdfPage page, {required int? pageNumberOverride}) async {
     pageNumberOverride ??= page.pageNumber;
     final raw = await _loadFormattedText(page);

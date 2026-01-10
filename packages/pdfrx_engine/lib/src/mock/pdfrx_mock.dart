@@ -27,6 +27,22 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   }
 
   @override
+  Future<R> compute<M, R>(FutureOr<R> Function(M message) callback, M message) async {
+    throw UnimplementedError(
+      'compute() is not implemented because PdfrxEntryFunctions.instance is not initialized. '
+      'Please call pdfrxInitialize()/pdfrxFlutterInitialize() or explicitly set PdfrxEntryFunctions.instance.',
+    );
+  }
+
+  @override
+  Future<void> stopBackgroundWorker() async {
+    throw UnimplementedError(
+      'stopBackgroundWorker() is not implemented because PdfrxEntryFunctions.instance is not initialized. '
+      'Please call pdfrxInitialize()/pdfrxFlutterInitialize() or explicitly set PdfrxEntryFunctions.instance.',
+    );
+  }
+
+  @override
   Future<PdfDocument> openAsset(
     String name, {
     PdfPasswordProvider? passwordProvider,
@@ -99,5 +115,5 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   Future<void> clearAllFontData() => unimplemented();
 
   @override
-  PdfrxBackend get backend => PdfrxBackend.mock;
+  PdfrxBackendType get backendType => PdfrxBackendType.mock;
 }

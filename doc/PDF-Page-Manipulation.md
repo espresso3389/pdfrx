@@ -101,12 +101,11 @@ doc.pages = [
 ];
 ```
 
-Technically, the functions on [PdfPageWithRotationExtension](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageWithRotationExtension.html) creates a ([PdfPageProxy](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageProxy-class.html)) with the specified rotation, which can be used in page manipulation operations.
+Technically, the functions on [PdfPageWithRotationExtension](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageWithRotationExtension.html) creates a proxy object with the specified rotation, which can be used in page manipulation operations.
 
 **Important Notes:**
 
 - If the specified rotation matches the page's current rotation, the original page is returned unchanged
-- The proxy page can be used in any context where a regular [PdfPage](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage-class.html) is expected
 
 ### Encoding to PDF
 

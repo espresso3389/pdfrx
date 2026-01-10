@@ -1,3 +1,23 @@
+## 0.3.9
+
+- NEW: `PdfrxEntryFunctions.stopBackgroundWorker()` to stop the background worker thread ([#184](https://github.com/espresso3389/pdfrx/issues/184), [#430](https://github.com/espresso3389/pdfrx/issues/430))
+- Code cleanup: removed unused native function lookup
+
+## 0.3.8
+
+- NEW: `PdfDocumentLoadCompleteEvent` for document load completion notification
+
+## 0.3.7
+
+- IMPROVED: Add `isDirty` flag to page image cache to prevent cache removal before re-rendering page ([#567](https://github.com/espresso3389/pdfrx/issues/567))
+- FIXED: `round10BitFrac` should not process `Infinity` or `NaN` ([#550](https://github.com/espresso3389/pdfrx/issues/550))
+- WIP: Adding `PdfDocument.useNativeDocumentHandle`/`reloadPages`
+
+## 0.3.6
+
+- NEW: [`PdfDateTime`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDateTime.html) extension type for PDF date string parsing ([PDF 32000-1:2008, 7.9.4 Dates](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=95))
+- NEW: [`PdfAnnotation`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfAnnotation-class.html) class for PDF annotation metadata extraction ([#546](https://github.com/espresso3389/pdfrx/pull/546))
+
 ## 0.3.5
 
 - Documentation updates.

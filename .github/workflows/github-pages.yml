@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Setup Flutter
         run: |
           git clone https://github.com/flutter/flutter.git --depth 1 --branch stable ~/flutter
@@ -42,7 +42,7 @@ jobs:
           flutter build web --wasm --release --base-href "/pdfrx/${{ matrix.example }}/" --dart-define=GITHUB_COMMIT=$GITHUB_SHA --dart-define=PDFRX_VERSION=$PDFRX_VERSION
           sed -i "s/__CONFIGS__/pdfrx=${PDFRX_VERSION},commit=${GITHUB_SHA},flutter=${FLUTTER_VERSION}/g" build/web/index.html
       - name: Upload build artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6.0.0
         with:
           name: ${{ matrix.example }}-web
           path: packages/pdfrx/example/${{ matrix.example }}/build/web/
@@ -57,9 +57,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Download all artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: artifacts/
       - name: Prepare deployment directory

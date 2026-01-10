@@ -1,13 +1,13 @@
 name: pdfium_flutter
 description: Flutter FFI plugin for loading PDFium native libraries. Bundles PDFium binaries for Android, iOS, Windows, macOS, and Linux.
-version: 0.1.7
+version: 0.1.9
 homepage: https://github.com/espresso3389/pdfrx
 repository: https://github.com/espresso3389/pdfrx/tree/master/packages/pdfium_flutter
 issue_tracker: https://github.com/espresso3389/pdfrx/issues
 
 environment:
   sdk: '>=3.9.0 <4.0.0'
-  flutter: '>=3.29.0'
+  flutter: '>=3.35.1'
 resolution: workspace
 
 dependencies:
@@ -20,7 +20,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0
+  flutter_lints:
 
 flutter:
   plugin:

@@ -56,7 +56,7 @@ final _readFuncPtr = _NativeFileReadCallable.isolateLocal(_read, exceptionalRetu
 
 /// Gets the read function pointer address on the background worker isolate.
 Future<int> _getReadFuncOnBackgroundWorker() async {
-  return await (await BackgroundWorker.instance).compute((m) => _readFuncPtr.address, {});
+  return await BackgroundWorker.compute((m) => _readFuncPtr.address, {});
 }
 
 int _read(Pointer<Void> param, int position, Pointer<UnsignedChar> buffer, int size) {

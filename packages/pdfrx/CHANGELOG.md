@@ -1,3 +1,41 @@
+# 2.2.24
+
+- Updated to pdfrx_engine 0.3.9
+- NEW: `PdfrxEntryFunctions.stopBackgroundWorker()` to stop the background worker thread ([#184](https://github.com/espresso3389/pdfrx/issues/184), [#430](https://github.com/espresso3389/pdfrx/issues/430))
+
+# 2.2.23
+
+- pdfrx_engine 0.3.8
+- NEW: `onDocumentLoadFinished` callback in `PdfViewerParams` to notify when document loading completes (or fails)
+- Implemented `PdfDocumentLoadCompleteEvent` for WASM backend
+
+# 2.2.20
+
+- FIXED: Inconsistent environment constraints - Flutter version now correctly requires 3.35.1+ to match Dart 3.9.0 requirement ([#553](https://github.com/espresso3389/pdfrx/issues/553))
+
+# 2.2.19
+
+- Updated to pdfrx_engine 0.3.7 and pdfium_flutter 0.1.8
+- IMPROVED: Add `isDirty` flag to page image cache to prevent cache removal before re-rendering page ([#567](https://github.com/espresso3389/pdfrx/issues/567))
+- FIXED: `round10BitFrac` should not process `Infinity` or `NaN` ([#550](https://github.com/espresso3389/pdfrx/issues/550))
+- Updated Gradle wrapper to version 8.12 and Android plugin to version 8.9.1
+- WIP: Adding `PdfDocument.useNativeDocumentHandle`/`reloadPages`
+
+# 2.2.18
+
+- FIXED: Dependency conflicts with `dart_pubspec_licenses` causing version resolution failures ([#563](https://github.com/espresso3389/pdfrx/issues/563), [#570](https://github.com/espresso3389/pdfrx/issues/570))
+  - Removed `dart_pubspec_licenses` dependency and reimplemented package path resolution internally
+  - This resolves conflicts with `pana`, `meta`, `lints`, and `analyzer` package versions
+
+# 2.2.17
+
+- Updated to pdfrx_engine 0.3.6
+- FIXED: Trackpad and mouse wheel boundary issues on Web ([#547](https://github.com/espresso3389/pdfrx/issues/547), [#548](https://github.com/espresso3389/pdfrx/pull/548))
+- FIXED: `_setZoom` now properly sets `boundaryMargins`
+- NEW: Ctrl+wheel zoom logic can be enabled on Web ([#538](https://github.com/espresso3389/pdfrx/issues/538))
+- NEW: [`PdfDateTime`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDateTime.html) extension type for PDF date string parsing
+- NEW: [`PdfAnnotation`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfAnnotation-class.html) class for PDF annotation metadata extraction ([#546](https://github.com/espresso3389/pdfrx/pull/546))
+
 # 2.2.16
 
 - Updated to pdfrx_engine 0.3.4
