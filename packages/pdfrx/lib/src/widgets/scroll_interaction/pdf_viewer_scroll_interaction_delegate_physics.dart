@@ -210,7 +210,7 @@ class _PdfViewerScrollInteractionDelegatePhysics implements PdfViewerScrollInter
     _zoomTarget ??= currentZoom;
 
     // Apply accumulated scale to target
-    _zoomTarget = (_zoomTarget! * scaleFactor).clamp(controller.minScale, controller.params.maxScale);
+    _zoomTarget = (_zoomTarget! * scaleFactor).clamp(controller.minScale, controller.maxScale);
 
     // Update last focal point for the animation tick
     _lastFocalPoint = focalPoint;

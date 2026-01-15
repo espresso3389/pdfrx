@@ -72,10 +72,9 @@ class _PdfViewerScrollInteractionDelegateInstant implements PdfViewerScrollInter
     }
 
     final currentZoom = controller.currentZoom;
-    final params = controller.params;
 
     // Calculate the target zoom level, clamped to the min/max allowed by params.
-    final newZoom = (currentZoom * scale).clamp(params.minScale, params.maxScale);
+    final newZoom = (currentZoom * scale).clamp(controller.minScale, controller.maxScale);
 
     // Optimization: Ignore negligible changes to prevent unnecessary rebuilds.
     if ((newZoom - currentZoom).abs() < 0.0001) {
