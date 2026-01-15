@@ -12,7 +12,7 @@ class PdfViewerZoomStepsDelegateProviderSmart extends PdfViewerZoomStepsDelegate
 
   /// The target geometric factor between zoom stops.
   ///
-  /// Used by [PdfViewerSizeDelegate.generateZoomStops] to fill gaps between semantic
+  /// Used by [PdfViewerZoomStepsDelegateSmart.generateZoomStops] to fill gaps between semantic
   /// zoom levels (like Fit Page and Fit Width).
   final double zoomStep;
 

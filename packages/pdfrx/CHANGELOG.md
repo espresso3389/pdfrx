@@ -1,3 +1,18 @@
+# 2.3.0
+
+- NEW: Pluggable scroll/zoom interaction architecture ([#581](https://github.com/espresso3389/pdfrx/pull/581))
+  - `PdfViewerScrollInteractionDelegateProviderInstant` (default) - instant updates (legacy behavior)
+  - `PdfViewerScrollInteractionDelegateProviderPhysics` - smooth, physics-based animations for mouse wheel and trackpad
+  - New parameter `scaleByPointerScale` to control trackpad pinch/Ctrl+scroll sensitivity
+  - Shift+scroll now triggers horizontal scrolling (standard desktop behavior)
+- NEW: Pluggable sizing/layout architecture ([#582](https://github.com/espresso3389/pdfrx/pull/582))
+  - `PdfViewerSizeDelegateProviderLegacy` (default) - maintains existing behavior
+  - `PdfViewerSizeDelegateProviderSmart` - responsive resizing with content centering and adaptive scaling
+  - `PdfViewerZoomStepsDelegate` for customizable double-tap zoom snap points
+- DEPRECATED: `maxScale`, `minScale`, `useAlternativeFitScaleAsMinScale`, `onePassRenderingScaleThreshold`, and `calculateInitialZoom` parameters in `PdfViewerParams` - use `sizeDelegateProvider` instead
+- NEW: `PdfViewerController.maxScale` getter
+- NEW: `PdfViewerController.goToPosition()` method
+
 # 2.2.24
 
 - Updated to pdfrx_engine 0.3.9
