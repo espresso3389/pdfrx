@@ -79,13 +79,15 @@ class PdfViewerParams {
     this.sizeDelegateProvider,
     this.zoomStepsDelegateProvider = const PdfViewerZoomStepsDelegateProviderDefault(),
   }) : assert(
-         (maxScale == null &&
-                     minScale == null &&
-                     useAlternativeFitScaleAsMinScale == null &&
-                     onePassRenderingScaleThreshold == null ||
-                 calculateInitialZoom == null) ||
-             sizeDelegateProvider == null,
-         'You cannot set both maxScale, minScale, useAlternativeFitScaleAsMinScale, onePassRenderingScaleThreshold and sizeDelegateProvider at the same time. Please set these in the sizeDelegateProvider instead.',
+         sizeDelegateProvider == null ||
+             (maxScale == null &&
+                 minScale == null &&
+                 useAlternativeFitScaleAsMinScale == null &&
+                 onePassRenderingScaleThreshold == null &&
+                 calculateInitialZoom == null),
+         'sizeDelegateProvider cannot be used together with the deprecated parameters: '
+         'maxScale, minScale, useAlternativeFitScaleAsMinScale, onePassRenderingScaleThreshold, or calculateInitialZoom. '
+         'Please configure these values in the sizeDelegateProvider instead.',
        );
 
   /// Margin around the page.
@@ -342,6 +344,7 @@ class PdfViewerParams {
 
   /// Function to customize the rendering scale of the page.
   ///
+  // ignore: deprecated_member_use_from_same_package
   /// In some cases, if [maxScale]/[onePassRenderingScaleThreshold] is too large,
   /// certain pages may not be rendered correctly due to memory limitation,
   /// or anyway they may take too long to render.
@@ -611,6 +614,8 @@ class PdfViewerParams {
   ///
   /// Defaults to [PdfViewerSizeDelegateProviderLegacy] which maintains
   /// relative positioning and boundary clamping.
+  ///
+  /// To get the actual delegate set, use [getSizeDelegateProvider].
   final PdfViewerSizeDelegateProvider? sizeDelegateProvider;
 
   /// Provider to create a delegate that generates zoom stops (snap points).
@@ -628,6 +633,10 @@ class PdfViewerParams {
     }
   }
 
+  /// Get the size delegate provider.
+  ///
+  /// If [sizeDelegateProvider] is non-null, it is returned; otherwise, a
+  /// [PdfViewerSizeDelegateProviderLegacy] is created with the deprecated parameters.
   PdfViewerSizeDelegateProvider getSizeDelegateProvider() {
     final sizeDelegateProvider = this.sizeDelegateProvider;
     if (sizeDelegateProvider != null) {
@@ -726,6 +735,7 @@ class PdfViewerParams {
         other.onDocumentChanged == onDocumentChanged &&
         other.onDocumentLoadFinished == onDocumentLoadFinished &&
         other.calculateInitialPageNumber == calculateInitialPageNumber &&
+        // ignore: deprecated_member_use_from_same_package
         other.calculateInitialZoom == calculateInitialZoom &&
         other.calculateCurrentPageNumber == calculateCurrentPageNumber &&
         other.onViewerReady == onViewerReady &&

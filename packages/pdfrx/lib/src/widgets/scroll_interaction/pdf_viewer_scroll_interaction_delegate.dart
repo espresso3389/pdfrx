@@ -21,7 +21,7 @@ abstract class PdfViewerScrollInteractionDelegateProvider {
 
   /// Creates the runtime delegate instance.
   ///
-  /// This is called by [PdfViewerState] when the widget initializes or when the
+  /// This is called by [PdfViewer] when the widget initializes or when the
   /// provider configuration changes.
   PdfViewerScrollInteractionDelegate create();
 
@@ -39,13 +39,13 @@ abstract class PdfViewerScrollInteractionDelegateProvider {
 /// the **Execution** (e.g., "Jump immediately" vs "Animate with friction").
 ///
 /// Lifecycle:
-/// 1. [create] is called by the Provider.
+/// 1. Created by [PdfViewerScrollInteractionDelegateProvider]'s instance.
 /// 2. [init] is called when the controller is attached.
 /// 3. [pan] / [zoom] are called on user interaction.
 /// 4. [stop] is called when the user interrupts (e.g., touches the screen).
 /// 5. [dispose] is called when the viewer is destroyed.
 abstract class PdfViewerScrollInteractionDelegate {
-  /// Called when the [PdfViewerState] is ready.
+  /// Called when the [PdfViewer] is ready.
   ///
   /// [controller]: Used to read/write the transformation matrix.
   /// [vsync]: Used to create [Ticker]s for physics-based animations.

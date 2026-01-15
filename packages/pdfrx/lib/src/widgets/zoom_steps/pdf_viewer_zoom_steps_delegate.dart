@@ -13,7 +13,7 @@ import '../../../pdfrx.dart';
 /// 1.  **Maintain Consistency:** Match the architecture of [PdfViewerSizeDelegate] and
 ///     [PdfViewerScrollInteractionDelegate].
 /// 2.  **Future Proofing:** Allow for potential stateful logic (e.g., caching calculations)
-///     or resource management (via [dispose]) in the future without breaking the API.
+///     or resource management (via `dispose`) in the future without breaking the API.
 abstract class PdfViewerZoomStepsDelegateProvider {
   const PdfViewerZoomStepsDelegateProvider();
 

@@ -17,3 +17,4 @@ export 'src/widgets/sizing/pdf_viewer_size_delegate.dart';
 export 'src/widgets/sizing/pdf_viewer_size_delegate_legacy.dart';
 export 'src/widgets/zoom_steps/pdf_viewer_zoom_steps_delegate.dart';
 export 'src/widgets/zoom_steps/pdf_viewer_zoom_steps_delegate_default.dart';
+export 'src/widgets/zoom_steps/pdf_viewer_zoom_steps_delegate_smart.dart';

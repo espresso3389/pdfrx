@@ -17,7 +17,7 @@ abstract class PdfViewerSizeDelegateProvider {
 
   /// Creates the runtime delegate instance.
   ///
-  /// This is called by [PdfViewerState] when the widget initializes or when the
+  /// This is called by [PdfViewer] when the widget initializes or when the
   /// provider configuration changes.
   PdfViewerSizeDelegate create();
 
@@ -36,7 +36,7 @@ abstract class PdfViewerSizeDelegateProvider {
 /// what the zoom limits are, and how it reacts when the viewport changes size.
 ///
 /// ### Lifecycle & Controller Access
-/// 1. [create] is called by the Provider.
+/// 1. Created by [PdfViewerSizeDelegateProvider]'s instance.
 /// 2. **[calculateMetrics] may be called immediately.**
 ///    *   **Warning:** At this stage, [init] has *not* been called yet.
 ///    *   Implementations must not access the controller or internal state here.
@@ -46,7 +46,7 @@ abstract class PdfViewerSizeDelegateProvider {
 /// 5. [onLayoutUpdate] is called **repeatedly** whenever the view size changes or the document layout changes.
 /// 6. [dispose] is called when the viewer is destroyed.
 abstract class PdfViewerSizeDelegate {
-  /// Called when the [PdfViewerState] initializes or dependencies change.
+  /// Called when the [PdfViewer] initializes or dependencies change.
   ///
   /// Implementations should store the [controller] to manipulate the view
   /// during [onLayoutInitialized] and [onLayoutUpdate].

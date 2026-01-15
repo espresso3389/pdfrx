@@ -69,7 +69,7 @@ class PdfViewerSizeDelegateProviderLegacy extends PdfViewerSizeDelegateProvider 
   /// So you may want to set the smaller value to reduce memory consumption.
   ///
   /// The default is 200 / 72, which implies rendering at 200 dpi.
-  /// If you want more granular control for each page, use [getPageRenderingScale].
+  /// If you want more granular control for each page, use [PdfViewerParams.getPageRenderingScale].
   final double onePassRenderingScaleThreshold;
 
   /// Optional callback to customize the initial zoom level calculation.
@@ -292,6 +292,4 @@ class PdfViewerSizeDelegateLegacy implements PdfViewerSizeDelegate {
       controller.value = clamped;
     }
   }
-
-  static bool _areZoomsAlmostIdentical(double z1, double z2) => (z1 - z2).abs() < 0.01;
 }
