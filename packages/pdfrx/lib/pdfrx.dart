@@ -15,6 +15,7 @@ export 'src/widgets/scroll_interaction/pdf_viewer_scroll_interaction_delegate_in
 export 'src/widgets/scroll_interaction/pdf_viewer_scroll_interaction_delegate_physics.dart';
 export 'src/widgets/sizing/pdf_viewer_size_delegate.dart';
 export 'src/widgets/sizing/pdf_viewer_size_delegate_legacy.dart';
+export 'src/widgets/sizing/pdf_viewer_size_delegate_smart.dart';
 export 'src/widgets/zoom_steps/pdf_viewer_zoom_steps_delegate.dart';
 export 'src/widgets/zoom_steps/pdf_viewer_zoom_steps_delegate_default.dart';
 export 'src/widgets/zoom_steps/pdf_viewer_zoom_steps_delegate_smart.dart';

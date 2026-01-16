@@ -4,8 +4,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:vector_math/vector_math_64.dart' as vec;
 
-import '../pdf_viewer.dart';
-import 'pdf_viewer_scroll_interaction_delegate.dart';
+import '../../../pdfrx.dart';
 
 /// A provider that creates a [PdfViewerScrollInteractionDelegate] with **Physics-based** behavior.
 ///
@@ -100,7 +99,7 @@ class _PdfViewerScrollInteractionDelegatePhysics implements PdfViewerScrollInter
   }
 
   @override
-  void pan(Offset delta) {
+  void pan(Offset delta, PdfViewerLayoutMetrics layoutMetrics) {
     final controller = _controller;
     final vsync = _vsync;
     if (controller == null || !controller.isReady || vsync == null) {
@@ -196,7 +195,7 @@ class _PdfViewerScrollInteractionDelegatePhysics implements PdfViewerScrollInter
   }
 
   @override
-  void zoom(double scaleFactor, Offset focalPoint) {
+  void zoom(double scaleFactor, Offset focalPoint, PdfViewerLayoutMetrics layoutMetrics) {
     final controller = _controller;
     final vsync = _vsync;
     if (controller == null || !controller.isReady || vsync == null) return;
@@ -210,7 +209,7 @@ class _PdfViewerScrollInteractionDelegatePhysics implements PdfViewerScrollInter
     _zoomTarget ??= currentZoom;
 
     // Apply accumulated scale to target
-    _zoomTarget = (_zoomTarget! * scaleFactor).clamp(controller.minScale, controller.maxScale);
+    _zoomTarget = (_zoomTarget! * scaleFactor).clamp(layoutMetrics.minScale, layoutMetrics.maxScale);
 
     // Update last focal point for the animation tick
     _lastFocalPoint = focalPoint;

@@ -356,8 +356,6 @@ class _PdfViewerState extends State<PdfViewer>
         ..load();
     }
 
-    // we dont check/update `_interactionDelegate` here because we dont assume the user
-
     _onDocumentChanged();
   }
 
@@ -1597,7 +1595,7 @@ class _PdfViewerState extends State<PdfViewer>
         final scaleFactor = (rawScaleFactor - 1.0) * dampening + 1.0;
 
         // NOTE: _onWheelDelta may be called from other widget's context and localPosition may be incorrect.
-        _interactionDelegate?.zoom(scaleFactor, _controller!.globalToLocal(event.position)!);
+        _interactionDelegate?.zoom(scaleFactor, _controller!.globalToLocal(event.position)!, _layoutMetrics);
         return;
       }
 
@@ -1627,7 +1625,7 @@ class _PdfViewerState extends State<PdfViewer>
         delta = Offset(dx, dy);
       }
 
-      _interactionDelegate?.pan(delta);
+      _interactionDelegate?.pan(delta, _layoutMetrics);
     } finally {
       _stopInteraction();
     }
@@ -1638,7 +1636,7 @@ class _PdfViewerState extends State<PdfViewer>
     try {
       final dampening = widget.params.scaleByPointerScale;
       final scaleFactor = (event.scale - 1.0) * dampening + 1.0;
-      _interactionDelegate?.zoom(scaleFactor, event.localPosition);
+      _interactionDelegate?.zoom(scaleFactor, event.localPosition, _layoutMetrics);
     } finally {
       _stopInteraction();
     }
