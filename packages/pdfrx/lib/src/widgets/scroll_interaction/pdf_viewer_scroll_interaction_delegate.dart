@@ -2,9 +2,8 @@ import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter/widgets.dart';
 
-import '../../../pdfrx.dart' show PdfViewerParams;
+import '../../../pdfrx.dart' show PdfViewerParams, PdfViewerLayoutMetrics;
 import '../pdf_viewer.dart';
-import '../pdf_viewer_params.dart' show PdfViewerParams;
 
 /// Interface for a factory that creates [PdfViewerScrollInteractionDelegate] instances.
 ///
@@ -66,12 +65,12 @@ abstract class PdfViewerScrollInteractionDelegate {
   ///
   /// [delta] is the requested move distance in **viewport logical pixels**.
   /// (e.g., [PointerScrollEvent.scrollDelta]).
-  void pan(Offset delta);
+  void pan(Offset delta, PdfViewerLayoutMetrics layoutMetrics);
 
   /// Request a zoom operation.
   ///
   /// [scale] is the relative scale factor (e.g., `1.1` means "increase zoom by 10%").
   /// [focalPoint] is the pixel position in the viewport that should remain stationary
   /// during the zoom (the anchor point).
-  void zoom(double scale, Offset focalPoint);
+  void zoom(double scale, Offset focalPoint, PdfViewerLayoutMetrics layoutMetrics);
 }
