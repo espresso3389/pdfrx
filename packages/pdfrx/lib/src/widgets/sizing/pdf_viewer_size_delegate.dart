@@ -156,7 +156,7 @@ class PdfViewerLayoutSnapshot {
   /// The document layout (position and size of all pages).
   final PdfPageLayout? layout;
 
-  //// The calculated minimum scale for this layout/size combination.
+  /// The calculated minimum scale for this layout/size combination.
   ///
   /// This is the "Effective Minimum" (often the "Fit Page" scale), derived from
   /// the delegate's calculation in [PdfViewerSizeDelegate.calculateMetrics].

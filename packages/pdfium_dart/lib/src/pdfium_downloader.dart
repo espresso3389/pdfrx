@@ -51,11 +51,11 @@ Future<pdfium_bindings.PDFium> getPdfium({
   }
 }
 
-/// PdfiumDownloader is a utility class to download the PDFium module for various platforms.
+/// [PDFiumDownloader] is a utility class to download the PDFium module for various platforms.
 class PDFiumDownloader {
   PDFiumDownloader._();
 
-  /// Downloads the pdfium module for the current platform and architecture.
+  /// Downloads the PDFium module for the current platform and architecture.
   ///
   /// Currently, the following platforms are supported:
   /// - Windows x64
