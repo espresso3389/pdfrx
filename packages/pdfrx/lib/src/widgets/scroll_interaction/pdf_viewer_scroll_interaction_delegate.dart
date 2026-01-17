@@ -2,8 +2,9 @@ import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter/widgets.dart';
 
-import '../../../pdfrx.dart' show PdfViewerParams, PdfViewerLayoutMetrics;
 import '../pdf_viewer.dart';
+import '../pdf_viewer_layout_metrics.dart';
+import '../pdf_viewer_params.dart';
 
 /// Interface for a factory that creates [PdfViewerScrollInteractionDelegate] instances.
 ///

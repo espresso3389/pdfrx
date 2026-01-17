@@ -1,4 +1,7 @@
-import '../../../pdfrx.dart';
+import '../pdf_viewer_layout_metrics.dart';
+import '../pdf_viewer_params.dart';
+import '../scroll_interaction/pdf_viewer_scroll_interaction_delegate.dart';
+import '../sizing/pdf_viewer_size_delegate.dart';
 
 /// Interface for a factory that creates [PdfViewerZoomStepsDelegate] instances.
 ///

@@ -1,7 +1,10 @@
 import 'package:flutter/rendering.dart';
+import 'package:pdfrx_engine/pdfrx_engine.dart';
 
-import '../../../pdfrx.dart';
-import '../interactive_viewer.dart' show InteractiveViewer;
+import '../interactive_viewer.dart';
+import '../pdf_viewer.dart';
+import '../pdf_viewer_layout_metrics.dart';
+import '../pdf_viewer_params.dart';
 
 /// Interface for a factory that creates [PdfViewerSizeDelegate] instances.
 ///

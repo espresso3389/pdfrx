@@ -1,4 +1,4 @@
-import '../../pdfrx.dart';
+import 'sizing/pdf_viewer_size_delegate.dart';
 
 /// A container for the calculated scaling limits of the viewer.
 ///

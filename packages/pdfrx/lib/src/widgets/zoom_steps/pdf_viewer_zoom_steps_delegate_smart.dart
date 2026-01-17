@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
-import '../../../pdfrx.dart';
+import '../pdf_viewer_layout_metrics.dart';
+import 'pdf_viewer_zoom_steps_delegate.dart';
 
 /// The smart provider that creates the standard zoom stepping behavior.
 class PdfViewerZoomStepsDelegateProviderSmart extends PdfViewerZoomStepsDelegateProvider {

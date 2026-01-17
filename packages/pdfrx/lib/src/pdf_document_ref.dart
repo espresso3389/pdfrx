@@ -2,9 +2,10 @@ import 'dart:async';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
+import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:synchronized/extension.dart';
 
-import '../pdfrx.dart';
+import 'pdfrx_flutter.dart';
 
 /// Callback function to notify download progress.
 ///

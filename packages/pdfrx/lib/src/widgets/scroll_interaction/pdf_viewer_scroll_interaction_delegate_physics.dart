@@ -4,7 +4,9 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:vector_math/vector_math_64.dart' as vec;
 
-import '../../../pdfrx.dart';
+import '../pdf_viewer.dart';
+import '../pdf_viewer_layout_metrics.dart';
+import 'pdf_viewer_scroll_interaction_delegate.dart';
 
 /// A provider that creates a [PdfViewerScrollInteractionDelegate] with **Physics-based** behavior.
 ///

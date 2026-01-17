@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../pdfrx.dart';
+import '../pdf_viewer_params.dart';
 
 /// A widget that handles key events for the PDF viewer.
 class PdfViewerKeyHandler extends StatelessWidget {

@@ -2,8 +2,12 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/rendering.dart';
+import 'package:pdfrx_engine/pdfrx_engine.dart';
 
-import '../../../pdfrx.dart';
+import '../pdf_viewer.dart';
+import '../pdf_viewer_layout_metrics.dart';
+import '../pdf_viewer_params.dart';
+import 'pdf_viewer_size_delegate.dart';
 
 /// A provider that creates a [PdfViewerSizeDelegateSmart] instance with smart scaling configuration.
 ///

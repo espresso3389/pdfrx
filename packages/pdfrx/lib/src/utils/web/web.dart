@@ -2,9 +2,9 @@ import 'dart:js_interop';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:web/web.dart' as web;
 
-import '../../../pdfrx.dart';
 import '../../wasm/pdfrx_wasm.dart';
 
 final isApple = false;

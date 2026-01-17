@@ -1,4 +1,5 @@
-import '../../../pdfrx.dart';
+import '../pdf_viewer_layout_metrics.dart';
+import 'pdf_viewer_zoom_steps_delegate.dart';
 
 /// The default provider that creates the standard zoom stepping behavior.
 ///

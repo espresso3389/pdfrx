@@ -3,9 +3,20 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pdfrx_engine/pdfrx_engine.dart';
 
-import '../../pdfrx.dart';
+import '../pdf_document_ref.dart';
+import '../utils/fixed_overscroll_physics.dart';
 import '../utils/platform.dart';
+import 'pdf_viewer.dart';
+import 'pdf_viewer_scroll_thumb.dart';
+import 'scroll_interaction/pdf_viewer_scroll_interaction_delegate.dart';
+import 'scroll_interaction/pdf_viewer_scroll_interaction_delegate_instant.dart';
+import 'scroll_interaction/pdf_viewer_scroll_interaction_delegate_physics.dart';
+import 'sizing/pdf_viewer_size_delegate.dart';
+import 'sizing/pdf_viewer_size_delegate_legacy.dart';
+import 'zoom_steps/pdf_viewer_zoom_steps_delegate.dart';
+import 'zoom_steps/pdf_viewer_zoom_steps_delegate_default.dart';
 
 /// Viewer customization parameters.
 ///
