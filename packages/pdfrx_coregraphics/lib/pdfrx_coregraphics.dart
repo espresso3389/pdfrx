@@ -759,6 +759,19 @@ class _CoreGraphicsPdfPage extends PdfPage {
       return const [];
     }
   }
+
+  @override
+  Future<void> insertText({
+    required String text,
+    required double fontSize,
+    double x = 0,
+    double y = 0,
+    double anchorX = 0.5,
+    double anchorY = 0.5,
+    double rotation = 0,
+    int textColor = 0xFF000000,
+    String fontName = 'Helvetica',
+  }) => throw PdfException('insertText not implemented for CoreGraphics');
 }
 
 class _CoreGraphicsPdfImage implements PdfImage {
