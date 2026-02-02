@@ -89,6 +89,26 @@ abstract class PdfPage {
   /// If the page is not loaded yet (progressive loading case only), this function returns null.
   Future<PdfPageRawText?> loadText();
 
+  /// Insert a text element
+  ///
+  /// [text] is the text to insert
+  /// [textColor] is `AARRGGBB` integer color notation
+  /// [fontSize] is the font size
+  /// [rotation] is the rotation in degrees
+  /// [anchorX] and [anchorY] are the anchor point position in the range 0..1
+  /// [x] and [y] are the position of the anchor point in page coordinates
+  Future<void> insertText({
+    required String text,
+    required double fontSize,
+    double x = 0,
+    double y = 0,
+    double anchorX = 0.5,
+    double anchorY = 0.5,
+    double rotation = 0,
+    int textColor = 0xFF000000,
+    String fontName = 'Helvetica',
+  });
+
   /// Load links.
   ///
   /// If [compact] is true, it tries to reduce memory usage by compacting the link data.

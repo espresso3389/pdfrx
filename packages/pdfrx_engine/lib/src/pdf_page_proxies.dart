@@ -103,6 +103,29 @@ class PdfPageRenumbered implements PdfPageProxy {
     cancellationToken: cancellationToken,
     rotationOverride: rotationOverride,
   );
+
+  @override
+  Future<void> insertText({
+    required String text,
+    required double fontSize,
+    double x = 0,
+    double y = 0,
+    double anchorX = 0.5,
+    double anchorY = 0.5,
+    double rotation = 0,
+    int textColor = 0xFF000000,
+    String fontName = 'Helvetica',
+  }) => basePage.insertText(
+    text: text,
+    x: x,
+    y: y,
+    anchorX: anchorX,
+    anchorY: anchorY,
+    rotation: rotation,
+    textColor: textColor,
+    fontSize: fontSize,
+    fontName: fontName,
+  );
 }
 
 /// PDF page wrapper that applies an absolute rotation to the base page.
@@ -179,4 +202,27 @@ class PdfPageRotated implements PdfPageProxy {
   @override
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) =>
       basePage.loadLinks(compact: compact, enableAutoLinkDetection: enableAutoLinkDetection);
+
+  @override
+  Future<void> insertText({
+    required String text,
+    required double fontSize,
+    double x = 0,
+    double y = 0,
+    double anchorX = 0.5,
+    double anchorY = 0.5,
+    double rotation = 0,
+    int textColor = 0xFF000000,
+    String fontName = 'Helvetica',
+  }) => basePage.insertText(
+    text: text,
+    x: x,
+    y: y,
+    anchorX: anchorX,
+    anchorY: anchorY,
+    rotation: rotation,
+    textColor: textColor,
+    fontSize: fontSize,
+    fontName: fontName,
+  );
 }
