@@ -982,7 +982,7 @@ function loadPagesProgressively(params) {
 }
 
 /**
- * 
+ *
  * @param {{docHandle: number, pageIndices: number[]|undefined, currentPagesCount: number}} params
  * @returns {{pages: PdfPage[], missingFonts: FontQueries}}
  */
@@ -2117,6 +2117,119 @@ function _setImageObjPixels(pageHandle, imageObj, pixels, pixelWidth, pixelHeigh
 }
 
 /**
+ * @param {{
+ * docHandle: number,
+ * pageIndex: number,
+ * text: string,
+ * fontSize: number,
+ * x: number,
+ * y: number,
+ * anchorX: number,
+ * anchorY: number,
+ * rotation: number,
+ * textColor: number,
+ * fontName: string,
+ * }} params
+ */
+function insertText(params) {
+  const {
+    docHandle,
+    pageIndex,
+    text,
+    fontSize,
+    x,
+    y,
+    anchorX,
+    anchorY,
+    rotation,
+    textColor,
+    fontName,
+  } = params;
+
+  let textUtf16 = StringUtils.allocateUTF16(text);
+  let fontNameUtf8 = StringUtils.allocateUTF8(fontName);
+  let pageHandle = 0;
+  let fontHandle = 0;
+  try {
+    pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
+    if (!pageHandle) {
+      throw new Error(`Failed to load page ${pageIndex} from document ${docHandle}`);
+    }
+
+    fontHandle = Pdfium.wasmExports.FPDFText_LoadStandardFont(docHandle, fontNameUtf8);
+    if (!fontHandle) {
+      const error = Pdfium.wasmExports.FPDF_GetLastError();
+      throw new Error(`FPDFText_LoadStandardFont failed (${_getErrorMessage(error)})`);
+    }
+
+    const textHandle = Pdfium.wasmExports.FPDFPageObj_CreateTextObj(docHandle, fontHandle, fontSize);
+    if (!textHandle) {
+      const error = Pdfium.wasmExports.FPDF_GetLastError();
+      throw new Error(`FPDFPageObj_CreateTextObj failed (${_getErrorMessage(error)})`);
+    }
+
+    if (!Pdfium.wasmExports.FPDFText_SetText(textHandle, textUtf16)) {
+      const error = Pdfium.wasmExports.FPDF_GetLastError();
+      throw new Error(`FPDFText_SetText failed (${_getErrorMessage(error)})`);
+    }
+
+    const a = (textColor >> 24) & 0xFF;
+    const r = (textColor >> 16) & 0xFF;
+    const g = (textColor >> 8) & 0xFF;
+    const b = textColor & 0xFF;
+
+    if (Pdfium.wasmExports.FPDFPageObj_SetFillColor(textHandle, r, g, b, a) == 0) {
+      throw PdfException('FPDFPageObj_SetFillColor failed.');
+    }
+
+
+    let ax, ay;
+
+    const boundsSize = 64;
+    const boundsWrite = Pdfium.wasmExports.malloc(boundsSize);
+    try {
+      if (Pdfium.wasmExports.FPDFPageObj_GetBounds(textHandle, boundsWrite, boundsWrite + 4, boundsWrite + 8, boundsWrite + 12) == 0) {
+        throw PdfException('could not determine text bounds');
+      }
+      const boundsView = new Float32Array(Pdfium.memory.buffer, boundsWrite, 4);
+
+      ax = (boundsView[2] - boundsView[0]) * anchorX;
+      ay = (boundsView[3] - boundsView[1]) * anchorY;
+    } finally {
+      Pdfium.wasmExports.free(boundsWrite);
+    }
+
+    const radians = rotation * (Math.PI / 180.0);
+    const cosR = Math.cos(radians);
+    const sinR = Math.sin(radians);
+
+    Pdfium.wasmExports.FPDFPageObj_Transform(
+      textHandle,
+      cosR,
+      sinR,
+      -sinR,
+      cosR,
+      x - ax * cosR + ay * sinR,
+      y - ax * sinR - ay * cosR,
+    );
+
+    Pdfium.wasmExports.FPDFPage_InsertObject(pageHandle, textHandle);
+    if (!Pdfium.wasmExports.FPDFPage_GenerateContent(pageHandle)) {
+      const error = Pdfium.wasmExports.FPDF_GetLastError();
+      throw new Error(`FPDFPage_InsertObject failed (${_getErrorMessage(error)})`);
+    }
+  } finally {
+    if (fontHandle) {
+      Pdfium.wasmExports.FPDFFont_Close(fontHandle);
+    }
+    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+    StringUtils.freeUTF8(fontNameUtf8);
+    StringUtils.freeUTF16(textUtf16);
+  }
+  return { message: 'Text inserted' };
+}
+
+/**
  * Functions that can be called from the main thread
  */
 const functions = {
@@ -2138,6 +2251,7 @@ const functions = {
   clearAllFontData,
   assemble,
   encodePdf,
+  insertText,
 };
 
 /**
@@ -2419,10 +2533,32 @@ class StringUtils {
     return ptr;
   }
   /**
+   * Allocate memory for UTF-16 string
+   * @param {string} str
+   * @returns {number} Pointer to allocated buffer that contains UTF-16 string. The buffer should be released by calling [freeUTF16].
+   */
+  static allocateUTF16(str) {
+    if (str == null) return 0;
+
+    const size = str.length * 2 + 1;
+    const ptr = Pdfium.wasmExports.malloc(size);
+    const view = new DataView(Pdfium.memory.buffer, ptr, size);
+    for (let i = 0; i < str.length; i++) view.setUint16(i * 2, str.charCodeAt(i), true);
+    view.setUint8(str.length * 2, 0);
+    return ptr;
+  }
+  /**
    * Release memory allocated for UTF-8 string
    * @param {number} ptr Pointer to allocated buffer
    */
   static freeUTF8(ptr) {
+    Pdfium.wasmExports.free(ptr);
+  }
+  /**
+   * Release memory allocated for UTF-16 string
+   * @param {number} ptr Pointer to allocated buffer
+   */
+  static freeUTF16(ptr) {
     Pdfium.wasmExports.free(ptr);
   }
 }

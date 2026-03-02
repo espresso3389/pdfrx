@@ -1291,6 +1291,86 @@ class _PdfPagePdfium extends PdfPage {
   PdfPageRenderCancellationTokenPdfium createCancellationToken() => PdfPageRenderCancellationTokenPdfium(this);
 
   @override
+  Future<void> insertText({
+    required String text,
+    required double fontSize,
+    double x = 0,
+    double y = 0,
+    double anchorX = 0.5,
+    double anchorY = 0.5,
+    double rotation = 0,
+    int textColor = 0xFF000000,
+    String fontName = 'Helvetica',
+  }) async {
+    if (document.isDisposed || !isLoaded) return;
+    return await BackgroundWorker.computeWithArena((arena, params) {
+      final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
+      final page = pdfium.FPDF_LoadPage(doc, params.pageNumber - 1);
+
+      try {
+        final font = pdfium.FPDFText_LoadStandardFont(doc, fontName.toUtf8(arena));
+        if (font == nullptr) {
+          throw PdfException('FPDFText_LoadStandardFont failed.');
+        }
+        try {
+          final textObj = pdfium.FPDFPageObj_CreateTextObj(doc, font, fontSize);
+          if (textObj == nullptr) {
+            throw PdfException('FPDFPageObj_CreateTextObj failed.');
+          }
+
+          if (pdfium.FPDFText_SetText(textObj, text.toNativeUtf16(allocator: arena).cast()) == 0) {
+            throw PdfException('FPDFText_SetText failed.');
+          }
+
+          final a = (textColor >> 24) & 0xFF;
+          final r = (textColor >> 16) & 0xFF;
+          final g = (textColor >> 8) & 0xFF;
+          final b = textColor & 0xFF;
+
+          if (pdfium.FPDFPageObj_SetFillColor(textObj, r, g, b, a) == 0) {
+            throw PdfException('FPDFPageObj_SetFillColor failed.');
+          }
+
+          final left = arena<Float>();
+          final bottom = arena<Float>();
+          final right = arena<Float>();
+          final top = arena<Float>();
+
+          if (pdfium.FPDFPageObj_GetBounds(textObj, left, bottom, right, top) == 0) {
+            throw PdfException('could not determine text bounds');
+          }
+
+          final ax = (right.value - left.value) * anchorX;
+          final ay = (top.value - bottom.value) * anchorY;
+
+          final radians = rotation * (pi / 180.0);
+          final cosR = cos(radians);
+          final sinR = sin(radians);
+
+          pdfium.FPDFPageObj_Transform(
+            textObj,
+            cosR,
+            sinR,
+            -sinR,
+            cosR,
+            x - ax * cosR + ay * sinR,
+            y - ax * sinR - ay * cosR,
+          );
+
+          pdfium.FPDFPage_InsertObject(page, textObj);
+          if (pdfium.FPDFPage_GenerateContent(page) == 0) {
+            throw PdfException('FPDFPage_GenerateContent failed.');
+          }
+        } finally {
+          pdfium.FPDFFont_Close(font);
+        }
+      } finally {
+        pdfium.FPDF_ClosePage(page);
+      }
+    }, (docHandle: document.document.address, pageNumber: pageNumber, bbLeft: bbLeft, bbBottom: bbBottom));
+  }
+
+  @override
   Future<PdfPageRawText?> loadText() async {
     if (document.isDisposed || !isLoaded) return null;
     return await BackgroundWorker.computeWithArena((arena, params) {
