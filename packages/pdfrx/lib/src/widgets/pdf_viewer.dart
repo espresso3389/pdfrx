@@ -322,6 +322,14 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _onDocumentChanged() async {
+    // Skip full reset if the document reference hasn't actually changed.
+    // PdfDocumentListenable._progress() calls notifyListeners() on every
+    // downloaded HTTP chunk during range-access loading. Without this guard,
+    // each chunk triggers a full reset (releaseAllImages, _initialized=false),
+    // causing visible pages to flash white hundreds of times.
+    final currentDoc = widget.documentRef.resolveListenable().document;
+    if (currentDoc != null && currentDoc == _document) return;
+
     _layout = null;
     _documentSubscription?.cancel();
     _documentSubscription = null;
