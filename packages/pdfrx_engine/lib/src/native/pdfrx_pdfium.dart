@@ -295,6 +295,10 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     required int? maxSizeToCacheOnMemory,
     required void Function()? onDispose,
   }) {
+    // Data is already in memory; always use FPDF_LoadMemDocument to avoid
+    // PdfiumFileAccess callback path which deadlocks on repeated open/close.
+    maxSizeToCacheOnMemory ??= data.length;
+
     return openCustom(
       read: (buffer, position, size) {
         if (position + size > data.length) {
