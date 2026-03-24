@@ -189,7 +189,7 @@ final class PdfTextFormatter {
     for (final match in _reNewLine.allMatches(inputFullText)) {
       if (lineStart < match.start) {
         handleLine(lineStart, match.start, newLineEnd: match.end);
-      } else {
+      } else if (outputCharRects.isNotEmpty) {
         final lastRect = outputCharRects.last;
         outputCharRects.add(PdfRect(lastRect.left, lastRect.top, lastRect.left, lastRect.bottom));
         outputText.write('\n');
