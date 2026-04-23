@@ -2963,24 +2963,33 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onSelectionHandlePanStart(_TextSelectionPart handle, DragStartDetails details) {
     if (_isInteractionGoingOn) return;
+    // A concurrent _clearTextSelections() or a tap outside the document can
+    // null out the anchors or make globalPosition unmappable between the time
+    // the gesture arena resolves and onPanStart fires. Bail out instead of
+    // force-unwrapping. See #602.
+    final position = _globalToDocument(details.globalPosition);
+    if (position == null) return;
     _selPartMoving = handle;
     _isSelectingAllText = false;
-    final position = _globalToDocument(details.globalPosition);
     final anchor = Offset(_txController.value.x, _txController.value.y);
     if (_selPartMoving == _TextSelectionPart.a) {
-      _textSelectAnchor = anchor + _textSelA!.rect.topLeft - position!;
-      final a = _findTextAndIndexForPoint(_textSelA!.rect.center);
+      final textSelA = _textSelA;
+      if (textSelA == null) return;
+      _textSelectAnchor = anchor + textSelA.rect.topLeft - position;
+      final a = _findTextAndIndexForPoint(textSelA.rect.center);
       if (a == null) return;
       _selA = a;
       // Notify drag start callback
-      widget.params.textSelectionParams?.onSelectionHandlePanStart?.call(_textSelA!);
+      widget.params.textSelectionParams?.onSelectionHandlePanStart?.call(textSelA);
     } else if (_selPartMoving == _TextSelectionPart.b) {
-      _textSelectAnchor = anchor + _textSelB!.rect.bottomRight - position!;
-      final b = _findTextAndIndexForPoint(_textSelB!.rect.center);
+      final textSelB = _textSelB;
+      if (textSelB == null) return;
+      _textSelectAnchor = anchor + textSelB.rect.bottomRight - position;
+      final b = _findTextAndIndexForPoint(textSelB.rect.center);
       if (b == null) return;
       _selB = b;
       // Notify drag start callback
-      widget.params.textSelectionParams?.onSelectionHandlePanStart?.call(_textSelB!);
+      widget.params.textSelectionParams?.onSelectionHandlePanStart?.call(textSelB);
     } else {
       return;
     }
