@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import '../pdf_viewer_params.dart';
 
 /// A widget that handles key events for the PDF viewer.
-class PdfViewerKeyHandler extends StatelessWidget {
+class PdfViewerKeyHandler extends StatefulWidget {
   const PdfViewerKeyHandler({
     required this.child,
     required this.onKeyRepeat,
@@ -24,33 +24,46 @@ class PdfViewerKeyHandler extends StatelessWidget {
   final Widget child;
 
   @override
+  State<PdfViewerKeyHandler> createState() => _PdfViewerKeyHandlerState();
+}
+
+class _PdfViewerKeyHandlerState extends State<PdfViewerKeyHandler> {
+  // Tracks keys whose KeyDown we reported as handled, so we can also claim
+  // their matching KeyUp. Unhandled keys (e.g. Android system back) must fall
+  // through to let the platform process them. See #585.
+  final _handledKeys = <LogicalKeyboardKey>{};
+
+  @override
   Widget build(BuildContext context) {
     final childBuilder = Builder(
       builder: (context) {
         final focusNode = Focus.maybeOf(context);
         if (focusNode == null) {
-          return child;
+          return widget.child;
         }
-        return ListenableBuilder(listenable: focusNode, builder: (context, _) => child);
+        return ListenableBuilder(listenable: focusNode, builder: (context, _) => widget.child);
       },
     );
-    if (!params.enabled) {
+    if (!widget.params.enabled) {
       return childBuilder;
     }
 
     return Focus(
-      focusNode: params.focusNode,
-      parentNode: params.parentNode,
-      autofocus: params.autofocus,
-      canRequestFocus: params.canRequestFocus,
-      onFocusChange: onFocusChange,
+      focusNode: widget.params.focusNode,
+      parentNode: widget.params.parentNode,
+      autofocus: widget.params.autofocus,
+      canRequestFocus: widget.params.canRequestFocus,
+      onFocusChange: widget.onFocusChange,
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent || event is KeyRepeatEvent) {
-          if (onKeyRepeat(params, event.logicalKey, event is KeyDownEvent)) {
+          if (widget.onKeyRepeat(widget.params, event.logicalKey, event is KeyDownEvent)) {
+            _handledKeys.add(event.logicalKey);
             return KeyEventResult.handled;
           }
         } else if (event is KeyUpEvent) {
-          return KeyEventResult.handled;
+          if (_handledKeys.remove(event.logicalKey)) {
+            return KeyEventResult.handled;
+          }
         }
         return KeyEventResult.ignored;
       },
