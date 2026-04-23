@@ -1620,7 +1620,11 @@ enum _GestureType { pan, scale, rotate }
 // Given a velocity and drag, calculate the time at which motion will come to
 // a stop, within the margin of effectivelyMotionless.
 double _getFinalTime(double velocity, double drag, {double effectivelyMotionless = 0.5}) {
-  return math.log(effectivelyMotionless / velocity) / math.log(drag / 100);
+  final t = math.log(effectivelyMotionless / velocity) / math.log(drag / 100);
+  // log(x/0) or log(1)==0 in the denominator can produce NaN/Infinity, which
+  // later crashes Duration.round() with "Infinity or NaN toInt". See #587.
+  if (!t.isFinite || t < 0) return 0;
+  return t;
 }
 
 // Return the translation from the given Matrix4 as an Offset.
