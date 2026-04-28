@@ -659,7 +659,7 @@ class _PdfDocumentPdfium extends PdfDocument {
   /// Notify missing fonts by sending [PdfDocumentMissingFontsEvent].
   Future<void> _notifyMissingFonts() async {
     final lastMissingFonts = await _getAndClearMissingFonts();
-    if (lastMissingFonts.isNotEmpty) {
+    if (lastMissingFonts.isNotEmpty && !isDisposed) {
       subject.add(PdfDocumentMissingFontsEvent(this, lastMissingFonts));
     }
   }
@@ -704,7 +704,9 @@ class _PdfDocumentPdfium extends PdfDocument {
   }
 
   void _notifyDocumentLoadComplete() {
-    subject.add(PdfDocumentLoadCompleteEvent(this));
+    if (!isDisposed) {
+      subject.add(PdfDocumentLoadCompleteEvent(this));
+    }
   }
 
   /// Loads pages in the document in a time-limited manner.
@@ -890,7 +892,9 @@ class _PdfDocumentPdfium extends PdfDocument {
     }
 
     _pages = List.unmodifiable(pages);
-    subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+    if (!isDisposed) {
+      subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+    }
   }
 
   /// Don't handle [_pages] directly unless you really understand what you're doing; use [pages] getter/setter instead.
