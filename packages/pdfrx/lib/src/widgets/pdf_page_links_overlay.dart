@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:pdfrx_engine/pdfrx_engine.dart';
 
-import '../pdfrx_flutter.dart';
-import 'pdf_viewer_params.dart';
+import '../../pdfrx.dart';
 
 typedef PdfPageLinkWrapperWidgetBuilder = Widget Function(Widget child);
 

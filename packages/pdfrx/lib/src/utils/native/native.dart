@@ -2,7 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:pdfrx_engine/pdfrx_engine.dart';
+
+import '../../../pdfrx.dart';
 
 final isApple = Platform.isMacOS || Platform.isIOS;
 final isAndroid = Platform.isAndroid;

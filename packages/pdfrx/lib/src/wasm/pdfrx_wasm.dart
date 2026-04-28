@@ -853,6 +853,38 @@ class _PdfPageWasm extends PdfPage {
 
     return PdfImageWeb(width: width, height: height, pixels: pixels);
   }
+
+  @override
+  Future<void> insertText({
+    required String text,
+    required double fontSize,
+    double x = 0,
+    double y = 0,
+    double anchorX = 0.5,
+    double anchorY = 0.5,
+    double rotation = 0,
+    int textColor = 0xFF000000,
+    String fontName = 'Helvetica',
+  }) async {
+    if (document.isDisposed) return;
+
+    await _sendCommand(
+      'insertText',
+      parameters: {
+        'docHandle': document.document['docHandle'],
+        'pageIndex': pageNumber - 1,
+        'text': text,
+        'fontSize': fontSize,
+        'x': x,
+        'y': y,
+        'anchorX': anchorX,
+        'anchorY': anchorY,
+        'rotation': rotation,
+        'textColor': textColor,
+        'fontName': fontName,
+      },
+    );
+  }
 }
 
 class PdfImageWeb extends PdfImage {

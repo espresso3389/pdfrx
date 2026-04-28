@@ -2,11 +2,8 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:pdfrx_engine/pdfrx_engine.dart';
 
-import '../pdfrx_flutter.dart';
-import 'pdf_viewer.dart';
-import 'pdf_viewer_params.dart' show PdfViewerParams;
+import '../../pdfrx.dart';
 
 /// Helper class to interactively search text in a PDF document.
 ///
