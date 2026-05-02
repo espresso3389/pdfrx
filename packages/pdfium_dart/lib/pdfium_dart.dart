@@ -6,4 +6,4 @@
 library pdfium_dart;
 
 export 'src/pdfium_bindings.dart';
-export 'src/pdfium_downloader.dart';
+export 'src/pdfium_loader.dart';

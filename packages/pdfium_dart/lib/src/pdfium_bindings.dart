@@ -3079,6 +3079,8 @@ late final _FPDF_MovePages = _FPDF_MovePagesPtr.asFunction<int Function(FPDF_DOC
 /// 1 - Rotated 90 degrees clockwise.
 /// 2 - Rotated 180 degrees clockwise.
 /// 3 - Rotated 270 degrees clockwise.
+/// 
+/// Or returns -1 on error.
 int FPDFPage_GetRotation(FPDF_PAGE page,
 ) {
   return _FPDFPage_GetRotation(page,
@@ -3111,10 +3113,14 @@ late final _FPDFPage_SetRotation = _FPDFPage_SetRotationPtr.asFunction<void Func
 
 /// Insert |page_object| into |page|.
 /// 
-/// page        - handle to a page
-/// page_object - handle to a page object. The |page_object| will be
-/// automatically freed.
-void FPDFPage_InsertObject(FPDF_PAGE page,
+/// page        - Handle to a page.
+/// page_object - Handle to a page object. FPDFPage_InsertObject() takes
+/// ownership. Ownership of |page_object| transfers to |page| on
+/// success. |page_object| is freed on failure. Null
+/// |page_object| causes a failure.
+/// 
+/// Returns true if successful.
+int FPDFPage_InsertObject(FPDF_PAGE page,
 FPDF_PAGEOBJECT page_object,
 ) {
   return _FPDFPage_InsertObject(page,
@@ -3123,8 +3129,8 @@ page_object,
 }
 
 late final _FPDFPage_InsertObjectPtr = _lookup<
-    ffi.NativeFunction<ffi.Void Function(FPDF_PAGE , FPDF_PAGEOBJECT )>>('FPDFPage_InsertObject');
-late final _FPDFPage_InsertObject = _FPDFPage_InsertObjectPtr.asFunction<void Function(FPDF_PAGE , FPDF_PAGEOBJECT )>();
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_PAGE , FPDF_PAGEOBJECT )>>('FPDFPage_InsertObject');
+late final _FPDFPage_InsertObject = _FPDFPage_InsertObjectPtr.asFunction<int Function(FPDF_PAGE , FPDF_PAGEOBJECT )>();
 
 /// Insert |page_object| into |page| at the specified |index|.
 /// 
@@ -8594,6 +8600,38 @@ late final _FPDFCatalog_IsTaggedPtr = _lookup<
 late final _FPDFCatalog_IsTagged = _FPDFCatalog_IsTaggedPtr.asFunction<int Function(FPDF_DOCUMENT )>();
 
 /// Experimental API.
+/// Gets the language of |document| from the catalog's /Lang entry.
+/// 
+/// document - handle to a document.
+/// buffer   - a buffer for the language string. May be NULL.
+/// buflen   - the length of the buffer, in bytes. May be 0.
+/// 
+/// Returns the number of bytes in the language string, including the
+/// trailing NUL character. The number of bytes is returned regardless of the
+/// |buffer| and |buflen| parameters.
+/// 
+/// Regardless of the platform, the |buffer| is always in UTF-16LE
+/// encoding. The string is terminated by a UTF16 NUL character. If
+/// |buflen| is less than the required length, or |buffer| is NULL,
+/// |buffer| will not be modified.
+/// 
+/// If |document| has no /Lang entry, an empty string is written to |buffer| and
+/// 2 is returned. On error, nothing is written to |buffer| and 0 is returned.
+int FPDFCatalog_GetLanguage(FPDF_DOCUMENT document,
+ffi.Pointer<FPDF_WCHAR> buffer,
+int buflen,
+) {
+  return _FPDFCatalog_GetLanguage(document,
+buffer,
+buflen,
+);
+}
+
+late final _FPDFCatalog_GetLanguagePtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_DOCUMENT , ffi.Pointer<FPDF_WCHAR> , ffi.UnsignedLong )>>('FPDFCatalog_GetLanguage');
+late final _FPDFCatalog_GetLanguage = _FPDFCatalog_GetLanguagePtr.asFunction<int Function(FPDF_DOCUMENT , ffi.Pointer<FPDF_WCHAR> , int )>();
+
+/// Experimental API.
 /// Sets the language of |document| to |language|.
 /// 
 /// document - handle to a document.
@@ -8601,7 +8639,7 @@ late final _FPDFCatalog_IsTagged = _FPDFCatalog_IsTaggedPtr.asFunction<int Funct
 /// 
 /// Returns TRUE on success.
 int FPDFCatalog_SetLanguage(FPDF_DOCUMENT document,
-FPDF_BYTESTRING language,
+FPDF_WIDESTRING language,
 ) {
   return _FPDFCatalog_SetLanguage(document,
 language,
@@ -8609,8 +8647,8 @@ language,
 }
 
 late final _FPDFCatalog_SetLanguagePtr = _lookup<
-    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_BYTESTRING )>>('FPDFCatalog_SetLanguage');
-late final _FPDFCatalog_SetLanguage = _FPDFCatalog_SetLanguagePtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_BYTESTRING )>();
+    ffi.NativeFunction<FPDF_BOOL Function(FPDF_DOCUMENT , FPDF_WIDESTRING )>>('FPDFCatalog_SetLanguage');
+late final _FPDFCatalog_SetLanguage = _FPDFCatalog_SetLanguagePtr.asFunction<int Function(FPDF_DOCUMENT , FPDF_WIDESTRING )>();
 
 /// Experimental API.
 /// Import pages to a FPDF_DOCUMENT.
@@ -8776,17 +8814,17 @@ late final _FPDF_CopyViewerPreferences = _FPDF_CopyViewerPreferencesPtr.asFuncti
 /// Parameters:
 /// document        -   Handle to document, as returned by
 /// FPDF_LoadDocument() or FPDF_CreateNewDocument().
-/// pFileWrite      -   A pointer to a custom file write structure.
+/// file_write      -   A pointer to a custom file write structure.
 /// flags           -   Flags above that affect how the PDF gets saved.
 /// Pass in 0 when there are no flags.
 /// Return value:
 /// TRUE for succeed, FALSE for failed.
 int FPDF_SaveAsCopy(FPDF_DOCUMENT document,
-ffi.Pointer<FPDF_FILEWRITE> pFileWrite,
+ffi.Pointer<FPDF_FILEWRITE> file_write,
 int flags,
 ) {
   return _FPDF_SaveAsCopy(document,
-pFileWrite,
+file_write,
 flags,
 );
 }
@@ -8800,21 +8838,21 @@ late final _FPDF_SaveAsCopy = _FPDF_SaveAsCopyPtr.asFunction<int Function(FPDF_D
 /// saved document can be specified by the caller.
 /// Parameters:
 /// document        -   Handle to document.
-/// pFileWrite      -   A pointer to a custom file write structure.
+/// file_write      -   A pointer to a custom file write structure.
 /// flags           -   The creating flags.
-/// fileVersion     -   The PDF file version. File version: 14 for 1.4,
+/// file_version    -   The PDF file version. File version: 14 for 1.4,
 /// 15 for 1.5, ...
 /// Return value:
 /// TRUE if succeed, FALSE if failed.
 int FPDF_SaveWithVersion(FPDF_DOCUMENT document,
-ffi.Pointer<FPDF_FILEWRITE> pFileWrite,
+ffi.Pointer<FPDF_FILEWRITE> file_write,
 int flags,
-int fileVersion,
+int file_version,
 ) {
   return _FPDF_SaveWithVersion(document,
-pFileWrite,
+file_write,
 flags,
-fileVersion,
+file_version,
 );
 }
 
@@ -9596,6 +9634,37 @@ buflen,
 late final _FPDF_StructElement_GetActualTextPtr = _lookup<
     ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDF_StructElement_GetActualText');
 late final _FPDF_StructElement_GetActualText = _FPDF_StructElement_GetActualTextPtr.asFunction<int Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , int )>();
+
+/// Experimental API.
+/// Function: FPDF_StructElement_GetExpansion
+/// Get the expansion of an abbreviation or acronym for a given element.
+/// Parameters:
+/// struct_element -   Handle to the struct element.
+/// buffer         -   A buffer for output the expansion text. May be
+/// NULL.
+/// buflen         -   The length of the buffer, in bytes. May be 0.
+/// Return value:
+/// The number of bytes in the expansion text, including the terminating
+/// NUL character. The number of bytes is returned regardless of the
+/// |buffer| and |buflen| parameters.
+/// Comments:
+/// Regardless of the platform, the |buffer| is always in UTF-16LE
+/// encoding. The string is terminated by a UTF16 NUL character. If
+/// |buflen| is less than the required length, or |buffer| is NULL,
+/// |buffer| will not be modified.
+int FPDF_StructElement_GetExpansion(FPDF_STRUCTELEMENT struct_element,
+ffi.Pointer<ffi.Void> buffer,
+int buflen,
+) {
+  return _FPDF_StructElement_GetExpansion(struct_element,
+buffer,
+buflen,
+);
+}
+
+late final _FPDF_StructElement_GetExpansionPtr = _lookup<
+    ffi.NativeFunction<ffi.UnsignedLong Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , ffi.UnsignedLong )>>('FPDF_StructElement_GetExpansion');
+late final _FPDF_StructElement_GetExpansion = _FPDF_StructElement_GetExpansionPtr.asFunction<int Function(FPDF_STRUCTELEMENT , ffi.Pointer<ffi.Void> , int )>();
 
 /// Function: FPDF_StructElement_GetID
 /// Get the ID for a given element.
@@ -11390,6 +11459,26 @@ enum FPDF_RENDERER_TYPE {
 
 }
 
+/// PDF font library types - Experimental.
+/// Selection of font backend library to use.
+enum FPDF_FONT_BACKEND_TYPE {
+  /// FreeType - https://freetype.org/
+  FPDF_FONTBACKENDTYPE_FREETYPE(0),
+  /// Fontations - https://github.com/googlefonts/fontations/
+  FPDF_FONTBACKENDTYPE_FONTATIONS(1);
+
+
+  final int value;
+  const FPDF_FONT_BACKEND_TYPE(this.value);
+
+  static FPDF_FONT_BACKEND_TYPE fromValue(int value) => switch (value) {
+    0 => FPDF_FONTBACKENDTYPE_FREETYPE,
+    1 => FPDF_FONTBACKENDTYPE_FONTATIONS,
+    _ => throw ArgumentError('Unknown value for FPDF_FONT_BACKEND_TYPE: $value'),
+  };
+
+}
+
 /// Process-wide options for initializing the library.
 final class FPDF_LIBRARY_CONFIG_ extends ffi.Struct{
   /// Version number of the interface. Currently must be 2.
@@ -11416,16 +11505,30 @@ final class FPDF_LIBRARY_CONFIG_ extends ffi.Struct{
   /// Pointer to the V8::Platform to use.
   external ffi.Pointer<ffi.Void> m_pPlatform;
 
-  /// Explicit specification of core renderer to use. |m_RendererType| must be
-  /// a valid value for |FPDF_LIBRARY_CONFIG| versions of this level or higher,
-  /// or else the initialization will fail with an immediate crash.
+  /// Explicit specification of 2D graphics rendering library to use.
+  /// |m_RendererType| must be a valid value for |FPDF_LIBRARY_CONFIG| versions
+  /// of this level or higher, or else the initialization will fail with an
+  /// immediate crash.
   /// Note that use of a specified |FPDF_RENDERER_TYPE| value for which the
-  /// corresponding render library is not included in the build will similarly
-  /// fail with an immediate crash.
+  /// corresponding 2D graphics rendering library is not included in the build
+  /// will similarly fail with an immediate crash.
   @ffi.UnsignedInt()
   external int m_RendererTypeAsInt;
 
 FPDF_RENDERER_TYPE get m_RendererType => FPDF_RENDERER_TYPE.fromValue(m_RendererTypeAsInt);
+
+  /// Explicit specification of font library to use when |m_RendererType| is set
+  /// to |FPDF_RENDERERTYPE_SKIA|.
+  /// |m_FontLibraryType| must be a valid value for |FPDF_LIBRARY_CONFIG|
+  /// versions of this level or higher, or else the initialization will fail with
+  /// an immediate crash.
+  /// Note that use of a specified |FPDF_FONT_BACKEND_TYPE| value for which the
+  /// corresponding font library is not included in the build will similarly fail
+  /// with an immediate crash.
+  @ffi.UnsignedInt()
+  external int m_FontLibraryTypeAsInt;
+
+FPDF_FONT_BACKEND_TYPE get m_FontLibraryType => FPDF_FONT_BACKEND_TYPE.fromValue(m_FontLibraryTypeAsInt);
 
 }
 
@@ -11556,7 +11659,10 @@ typedef FPDF_COLORSCHEME = FPDF_COLORSCHEME_;
 /// Interface: FPDF_SYSFONTINFO
 /// Interface for getting system font information and font mapping
 final class _FPDF_SYSFONTINFO extends ffi.Struct{
-  /// Version number of the interface. Currently must be 1.
+  /// Version number of the interface. Currently must be 1 or 2.
+  /// Version 1: Traditional behavior - calls EnumFonts during initialization.
+  /// Version 2: Per-request behavior - skips EnumFonts, relies on MapFont.
+  /// Experimental: Subject to change based on feedback.
   @ffi.Int()
   external int version;
 
@@ -11564,7 +11670,7 @@ final class _FPDF_SYSFONTINFO extends ffi.Struct{
   /// Give implementation a chance to release any data after the
   /// interface is no longer used.
   /// Interface Version:
-  /// 1
+  /// 1 and 2
   /// Implementation Required:
   /// No
   /// Parameters:
@@ -11591,13 +11697,15 @@ final class _FPDF_SYSFONTINFO extends ffi.Struct{
   /// Implementations should call FPDF_AddInstalledFont() function for
   /// each font found. Only TrueType/OpenType and Type1 fonts are
   /// accepted by PDFium.
+  /// NOTE: This method will not be called when version is set to 2.
+  /// Version 2 relies entirely on MapFont() for per-request matching.
   external ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<_FPDF_SYSFONTINFO> pThis, ffi.Pointer<ffi.Void> pMapper)>> EnumFonts;
 
   /// Method: MapFont
   /// Use the system font mapper to get a font handle from requested
   /// parameters.
   /// Interface Version:
-  /// 1
+  /// 1 and 2
   /// Implementation Required:
   /// Required if GetFont method is not implemented.
   /// Parameters:
@@ -11627,7 +11735,7 @@ final class _FPDF_SYSFONTINFO extends ffi.Struct{
   /// Method: GetFont
   /// Get a handle to a particular font by its internal ID
   /// Interface Version:
-  /// 1
+  /// 1 and 2
   /// Implementation Required:
   /// Required if MapFont method is not implemented.
   /// Return Value:
@@ -11643,7 +11751,7 @@ final class _FPDF_SYSFONTINFO extends ffi.Struct{
   /// Method: GetFontData
   /// Get font data from a font
   /// Interface Version:
-  /// 1
+  /// 1 and 2
   /// Implementation Required:
   /// Yes
   /// Parameters:
@@ -11665,7 +11773,7 @@ final class _FPDF_SYSFONTINFO extends ffi.Struct{
   /// Method: GetFaceName
   /// Get face name from a font handle
   /// Interface Version:
-  /// 1
+  /// 1 and 2
   /// Implementation Required:
   /// No
   /// Parameters:
@@ -11682,7 +11790,7 @@ final class _FPDF_SYSFONTINFO extends ffi.Struct{
   /// Method: GetFontCharset
   /// Get character set information for a font handle
   /// Interface Version:
-  /// 1
+  /// 1 and 2
   /// Implementation Required:
   /// No
   /// Parameters:
@@ -11695,7 +11803,7 @@ final class _FPDF_SYSFONTINFO extends ffi.Struct{
   /// Method: DeleteFont
   /// Delete a font handle
   /// Interface Version:
-  /// 1
+  /// 1 and 2
   /// Implementation Required:
   /// Yes
   /// Parameters:
@@ -12697,12 +12805,12 @@ final class FPDF_FILEWRITE_ extends ffi.Struct{
   /// Comments:
   /// Called by function FPDF_SaveDocument
   /// Parameters:
-  /// pThis       -   Pointer to the structure itself
-  /// pData       -   Pointer to a buffer to output
+  /// self        -   Pointer to the structure itself
+  /// data        -   Pointer to a buffer to output
   /// size        -   The size of the buffer.
   /// Return value:
   /// Should be non-zero if successful, zero for error.
-  external ffi.Pointer<ffi.NativeFunction<ffi.Int Function(ffi.Pointer<FPDF_FILEWRITE_> pThis, ffi.Pointer<ffi.Void> pData, ffi.UnsignedLong size)>> WriteBlock;
+  external ffi.Pointer<ffi.NativeFunction<ffi.Int Function(ffi.Pointer<FPDF_FILEWRITE_> self, ffi.Pointer<ffi.Void> data, ffi.UnsignedLong size)>> WriteBlock;
 
 }
 
@@ -13177,51 +13285,40 @@ final class _UNSUPPORT_INFO extends ffi.Struct{
 
 /// Interface for unsupported feature notifications.
 typedef UNSUPPORT_INFO = _UNSUPPORT_INFO;
-typedef __darwin_time_t = ffi.Long;
-typedef Dart__darwin_time_t = int;
-typedef time_t = __darwin_time_t;
+typedef __time_t = ffi.Long;
+typedef Dart__time_t = int;
+typedef time_t = __time_t;
 final class tm extends ffi.Struct{
-  /// seconds after the minute [0-60]
   @ffi.Int()
   external int tm_sec;
 
-  /// minutes after the hour [0-59]
   @ffi.Int()
   external int tm_min;
 
-  /// hours since midnight [0-23]
   @ffi.Int()
   external int tm_hour;
 
-  /// day of the month [1-31]
   @ffi.Int()
   external int tm_mday;
 
-  /// months since January [0-11]
   @ffi.Int()
   external int tm_mon;
 
-  /// years since 1900
   @ffi.Int()
   external int tm_year;
 
-  /// days since Sunday [0-6]
   @ffi.Int()
   external int tm_wday;
 
-  /// days since January 1 [0-365]
   @ffi.Int()
   external int tm_yday;
 
-  /// Daylight Savings Time flag
   @ffi.Int()
   external int tm_isdst;
 
-  /// offset from UTC in seconds
   @ffi.Long()
   external int tm_gmtoff;
 
-  /// timezone abbreviation
   external ffi.Pointer<ffi.Char> tm_zone;
 
 }
@@ -13860,7 +13957,13 @@ const int FPDF_INCREMENTAL = 1;
 const int FPDF_NO_INCREMENTAL = 2;
 
 
-const int FPDF_REMOVE_SECURITY = 3;
+const int FPDF_REMOVE_SECURITY_DEPRECATED = 3;
+
+
+const int FPDF_REMOVE_SECURITY = 4;
+
+
+const int FPDF_SUBSET_NEW_FONTS = 8;
 
 
 const int PDFACTION_UNSUPPORTED = 0;

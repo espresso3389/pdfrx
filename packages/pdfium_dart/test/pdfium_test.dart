@@ -10,7 +10,7 @@ PDFium? _pdfium;
 
 void main() {
   setUp(() async {
-    _pdfium = await getPdfium(cacheRootPath: tmpRoot.path);
+    _pdfium = await getPdfium();
   });
 
   test('PDFium Initialization', () {
