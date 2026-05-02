@@ -50,6 +50,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
   final _markers = <int, List<Marker>>{};
   List<PdfPageTextRange>? textSelections;
 
+  // ignore: unused_field
   bool _isDraggingHandle = false;
   // Magnifier animation controller
   late final AnimationController _magnifierAnimController = AnimationController(

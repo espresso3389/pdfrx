@@ -1,3 +1,8 @@
+## 0.3.9
+
+- NEW: `PdfrxEntryFunctions.stopBackgroundWorker()` to stop the background worker thread ([#184](https://github.com/espresso3389/pdfrx/issues/184), [#430](https://github.com/espresso3389/pdfrx/issues/430))
+- Code cleanup: removed unused native function lookup
+
 ## 0.3.8
 
 - NEW: `PdfDocumentLoadCompleteEvent` for document load completion notification

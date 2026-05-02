@@ -4,8 +4,8 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show WidgetsFlutterBinding;
 import 'package:flutter/services.dart';
+import 'package:pdfrx_engine/pdfrx_engine.dart';
 
-import '../pdfrx.dart';
 import 'utils/platform.dart';
 
 bool _isInitialized = false;

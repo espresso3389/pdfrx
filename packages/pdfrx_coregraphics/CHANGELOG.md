@@ -1,9 +1,11 @@
-## 0.1.14
+## 0.1.16
+
+- Updated to pdfrx_engine 0.3.9
+- NEW: `PdfrxEntryFunctions.stopBackgroundWorker()` support ([#184](https://github.com/espresso3389/pdfrx/issues/184), [#430](https://github.com/espresso3389/pdfrx/issues/430))
+
+## 0.1.15
 
 - Updated to pdfrx_engine 0.3.8
-
-## 0.1.13 (Invalid release - use 0.1.14)
-
 - Implemented `PdfDocumentLoadCompleteEvent` for CoreGraphics backend
 
 ## 0.1.12

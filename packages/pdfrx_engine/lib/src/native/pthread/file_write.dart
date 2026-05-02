@@ -52,7 +52,7 @@ final _writeFuncPtr = _NativeFileWriteCallable.isolateLocal(_write, exceptionalR
 
 /// Gets the write function pointer address on the background worker isolate.
 Future<int> _getWriteFuncOnBackgroundWorker() async {
-  return await (await BackgroundWorker.instance).compute((m) => _writeFuncPtr.address, {});
+  return await BackgroundWorker.compute((m) => _writeFuncPtr.address, {});
 }
 
 int _write(Pointer<Void> pThis, Pointer<Void> pData, int size) {

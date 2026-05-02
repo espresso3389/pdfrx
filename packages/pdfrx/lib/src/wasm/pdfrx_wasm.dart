@@ -117,6 +117,11 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     throw UnimplementedError('compute() is not implemented for WASM backend.');
   }
 
+  @override
+  Future<void> stopBackgroundWorker() async {
+    throw UnimplementedError('stopBackgroundWorker() is not implemented for WASM backend.');
+  }
+
   static String? _pdfiumWasmModulesUrlFromMetaTag() {
     final meta = web.document.querySelector('meta[name="pdfium-wasm-module-url"]') as web.HTMLMetaElement?;
     return meta?.content;
@@ -368,7 +373,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
   }
 
   @override
-  PdfrxBackend get backend => PdfrxBackend.pdfiumWasm;
+  PdfrxBackendType get backendType => PdfrxBackendType.pdfiumWasm;
 }
 
 class _PdfDocumentWasm extends PdfDocument {
