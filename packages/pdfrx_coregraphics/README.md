@@ -14,8 +14,8 @@ Add the package to your Flutter app:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.2.22
-  pdfrx_coregraphics: ^0.1.14
+  pdfrx: ^2.3.0
+  pdfrx_coregraphics: ^0.2.0
 ```
 
 Set the CoreGraphics entry functions before initializing pdfrx:
@@ -37,7 +37,7 @@ through CoreGraphics.
 
 ## Removing PDFium Dependencies (Reducing App Size)
 
-By default, pdfrx bundles PDFium shared libraries for iOS and macOS even when using `pdfrx_coregraphics`. If you're only using the CoreGraphics backend, you can remove these PDFium dependencies to reduce your app size.
+By default, pdfrx includes the PDFium XCFramework for iOS and macOS even when using `pdfrx_coregraphics`. If you're only using the CoreGraphics backend, you can remove these PDFium dependencies to reduce your app size.
 
 Run this command from your project root:
 

@@ -22,7 +22,7 @@ The `pdfium_dart` package provides:
 
 - The `PDFium` class for accessing PDFium functions
 - Auto-generated FFI bindings for all PDFium C API functions
-- `getPdfium()` function for on-demand PDFium binary downloads
+- `getPdfium()` function for loading the PDFium native asset bundled at build time
 
 ### Initialization
 
@@ -39,6 +39,18 @@ import 'dart:ffi';
 // Load PDFium library manually
 final pdfium = PDFium(DynamicLibrary.open('path/to/libpdfium.so'));
 pdfium.FPDF_InitLibrary(); // or pdfium.FPDF_InitLibraryWithConfig(...)
+```
+
+#### Native Asset Loading
+
+```dart
+import 'package:pdfium_dart/pdfium_dart.dart';
+
+Future<void> initializePdfium() async {
+  // Loads the PDFium native asset produced by the build hook.
+  final pdfium = await getPdfium();
+  pdfium.FPDF_InitLibrary(); // or pdfium.FPDF_InitLibraryWithConfig(...)
+}
 ```
 
 #### Initialization for Flutter App
@@ -71,7 +83,7 @@ import 'dart:ffi';
 import 'package:ffi/ffi.dart';
 
 void example() async {
-  // Get PDFium bindings (downloads binaries if needed)
+  // Get PDFium bindings from the bundled native asset.
   final pdfium = await getPdfium();
 
   // Use arena to automatically manage memory

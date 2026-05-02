@@ -23,7 +23,7 @@ Detailed guidance is split into focused files in `doc/agents/`:
 pdfrx is a monorepo containing five packages:
 
 1. **pdfium_dart** - Low-level Dart FFI bindings for PDFium
-2. **pdfium_flutter** - Flutter FFI plugin bundling PDFium binaries
+2. **pdfium_flutter** - Flutter FFI plugin for native PDFium packaging
 3. **pdfrx_engine** - Platform-agnostic PDF rendering API (pure Dart)
 4. **pdfrx** - Cross-platform PDF viewer Flutter plugin
 5. **pdfrx_coregraphics** - CoreGraphics-backed renderer for iOS/macOS (experimental)

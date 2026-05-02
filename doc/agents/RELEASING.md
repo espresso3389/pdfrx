@@ -11,8 +11,8 @@
 Packages must be published in dependency order:
 
 1. **pdfium_dart** (if changed)
-2. **pdfium_flutter** (depends on pdfium_dart)
-3. **pdfrx_engine** (depends on pdfium_dart)
+2. **pdfrx_engine** (depends on pdfium_dart)
+3. **pdfium_flutter** (depends on pdfium_dart)
 4. **pdfrx_coregraphics** (depends on pdfrx_engine)
 5. **pdfrx** (depends on pdfrx_engine, pdfium_flutter)
 
@@ -24,7 +24,8 @@ For each package being released:
 2. Update version in `pubspec.yaml`
 3. Update dependency versions in dependent packages
 4. Update version references in `README.md` examples
-5. Run dry-run: `dart pub publish --dry-run` or `flutter pub publish --dry-run`
+5. For `pdfium_dart`, verify native asset build hooks still download and expose PDFium correctly
+6. Run dry-run: `dart pub publish --dry-run` or `flutter pub publish --dry-run`
 
 ## Publishing
 
@@ -46,11 +47,11 @@ After publishing, create git tags for each released package and push them:
 
 ```bash
 # Tag format: <package>-v<version>
-git tag pdfium_dart-v0.1.3
-git tag pdfium_flutter-v0.1.8
-git tag pdfrx_engine-v0.3.7
-git tag pdfrx-v2.2.19
-git tag pdfrx_coregraphics-v0.1.11
+git tag pdfium_dart-vX.Y.Z
+git tag pdfium_flutter-vX.Y.Z
+git tag pdfrx_engine-vX.Y.Z
+git tag pdfrx-vX.Y.Z
+git tag pdfrx_coregraphics-vX.Y.Z
 
 # Push all tags
 git push --tags
@@ -62,7 +63,7 @@ Before tagging, commit all release changes:
 
 ```bash
 git add -A
-git commit -m "Release pdfrx 2.2.19, pdfrx_engine 0.3.7, etc."
+git commit -m "Release pdfrx X.Y.Z, pdfrx_engine X.Y.Z, etc."
 git push
 ```
 

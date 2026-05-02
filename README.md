@@ -45,19 +45,20 @@ Low-level Dart FFI bindings for the [PDFium](https://pdfium.googlesource.com/pdf
 
 - Pure Dart package with auto-generated FFI bindings using [ffigen](https://pub.dev/packages/ffigen)
 - Provides direct access to PDFium's C API from Dart
-- Includes [getPdfium()](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html) function that downloads PDFium binaries on demand
+- Provides PDFium as a Dart native asset, downloaded and bundled at build time
+- Includes [getPdfium()](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html) for loading the bundled native asset or a custom module path
 - Used as a foundation by higher-level packages
 
 [View repo](packages/pdfium_dart/) | [API reference](https://pub.dev/documentation/pdfium_dart/latest/)
 
 ### [pdfium_flutter](https://pub.dev/packages/pdfium_flutter)
 
-Flutter FFI plugin for loading [PDFium](https://pdfium.googlesource.com/pdfium/) native libraries.
+Flutter FFI plugin for [PDFium](https://pdfium.googlesource.com/pdfium/) integration on native Flutter platforms.
 
-- Bundles pre-built PDFium binaries for all Flutter platforms (Android, iOS, Windows, macOS, Linux)
-- Provides utilities for loading PDFium at runtime
-- Re-exports [pdfium_dart](https://pub.dev/packages/pdfium_dart) FFI bindings
-- Simplifies PDFium integration in Flutter applications
+- Supports Android, iOS, Windows, macOS, and Linux
+- Provides the platform packaging needed to deploy PDFium in Flutter apps
+- Uses the iOS/macOS PDFium XCFramework through CocoaPods or Swift Package Manager
+- Includes low-level PDFium FFI bindings
 
 [View repo](packages/pdfium_flutter/) | [API reference](https://pub.dev/documentation/pdfium_flutter/latest/)
 
@@ -66,8 +67,8 @@ Flutter FFI plugin for loading [PDFium](https://pdfium.googlesource.com/pdfium/)
 - **Use [pdfrx](https://pub.dev/packages/pdfrx)** if you're building a Flutter application and need PDF viewing and manipulation capabilities with UI
 - **Use [pdfrx_engine](https://pub.dev/packages/pdfrx_engine)** if you need PDF rendering and manipulation without Flutter dependencies (e.g., server-side PDF processing, CLI tools, PDF combining utilities)
 - **Use [pdfrx_coregraphics](https://pub.dev/packages/pdfrx_coregraphics)** (experimental) if you want to use CoreGraphics/PDFKit instead of [PDFium](https://pdfium.googlesource.com/pdfium/) on iOS/macOS
-- **Use [pdfium_dart](https://pub.dev/packages/pdfium_dart)** if you need low-level PDFium FFI bindings for Dart projects or want on-demand PDFium binary downloads
-- **Use [pdfium_flutter](https://pub.dev/packages/pdfium_flutter)** if you're building a Flutter plugin that needs PDFium integration with bundled binaries
+- **Use [pdfium_flutter](https://pub.dev/packages/pdfium_flutter)** if you're building Flutter apps or plugins that need direct PDFium access on native platforms
+- **Use [pdfium_dart](https://pub.dev/packages/pdfium_dart)** if you need low-level PDFium FFI bindings for pure Dart projects
 
 ## Getting Started
 
@@ -77,7 +78,7 @@ Add [pdfrx](https://pub.dev/packages/pdfrx) to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.2.15
+  pdfrx: ^2.3.0
 ```
 
 ### For Pure Dart Applications
@@ -86,7 +87,7 @@ Add [pdfrx_engine](https://pub.dev/packages/pdfrx_engine) to your `pubspec.yaml`
 
 ```yaml
 dependencies:
-  pdfrx_engine: ^0.3.0
+  pdfrx_engine: ^0.4.0
 ```
 
 ## Documentation

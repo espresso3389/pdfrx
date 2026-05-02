@@ -66,7 +66,7 @@ The monorepo contains five packages:
    - Follow semantic versioning based on the scope of changes.
 2. Update `packages/pdfium_dart/CHANGELOG.md` with user-facing changes.
    - Include PDFium version updates if applicable.
-   - Document any changes to the FFI bindings or `getPdfium()` functionality.
+   - Document any changes to the FFI bindings, build hook, native assets, or `getPdfium()` functionality.
 3. Update `packages/pdfium_dart/README.md` if necessary.
 4. Run tests: `dart test` inside `packages/pdfium_dart/`.
 5. Run `pana` inside `packages/pdfium_dart/` to validate the package.
@@ -81,14 +81,12 @@ The monorepo contains five packages:
    - If `pdfium_dart` was updated, update the dependency version here as well.
 2. Update `packages/pdfium_flutter/CHANGELOG.md` with user-facing changes.
    - Include PDFium binary version updates if applicable.
-   - Document platform-specific changes (iOS, Android, Windows, macOS, Linux).
+   - Document platform-specific changes for iOS/macOS XCFramework integration.
 3. Update `packages/pdfium_flutter/README.md` if necessary.
 4. Update platform-specific build configurations if PDFium binaries changed:
    - `darwin/pdfium_flutter.podspec` for iOS/macOS (CocoaPods)
    - `darwin/pdfium_flutter/Package.swift` for Swift Package Manager
-   - `android/CMakeLists.txt` for Android
-   - `windows/CMakeLists.txt` for Windows
-   - `linux/CMakeLists.txt` for Linux
+   - Android, Windows, and Linux PDFium binaries are handled by `pdfium_dart` native assets
 5. Run tests: `flutter test` inside `packages/pdfium_flutter/`.
 6. Run `pana` inside `packages/pdfium_flutter/` to validate the package.
 7. Commit changes with `Release pdfium_flutter vX.Y.Z`.
@@ -113,8 +111,8 @@ The monorepo contains five packages:
 When releasing multiple packages, follow this order to respect dependencies:
 
 1. **pdfium_dart** (no dependencies on other packages in monorepo)
-2. **pdfium_flutter** (depends on pdfium_dart)
-3. **pdfrx_engine** (depends on pdfium_dart)
+2. **pdfrx_engine** (depends on pdfium_dart)
+3. **pdfium_flutter** (depends on pdfium_dart)
 4. **pdfrx** (depends on pdfrx_engine and pdfium_flutter)
 5. **pdfrx_coregraphics** (depends on pdfrx_engine, independent of pdfium_flutter)
 
@@ -123,4 +121,4 @@ When releasing multiple packages, follow this order to respect dependencies:
 - Keep `CHANGELOG.md` entries user-focused and concise.
 - Coordinate with the repository owner if any release blockers appear.
 - When releasing multiple packages together, create a single commit with all version changes.
-- Tag format: `<package_name>-vX.Y.Z` (e.g., `pdfium_dart-v0.1.3`, `pdfrx-v2.2.11`).
+- Tag format: `<package_name>-vX.Y.Z` (e.g., `pdfium_dart-vX.Y.Z`, `pdfrx-vX.Y.Z`).

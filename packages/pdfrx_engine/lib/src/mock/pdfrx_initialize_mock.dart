@@ -10,7 +10,7 @@ import '../pdfrx_entry_functions.dart';
 /// - [Pdfrx.getCacheDirectory] is set to return the system temporary directory.
 /// - [Pdfrx.pdfiumModulePath] is configured to point to the pdfium module.
 ///   - The function checks for the `PDFIUM_PATH` environment variable to find an existing pdfium module.
-///   - If Pdfium module is not found, it will be downloaded from the internet.
+///   - If Pdfium module is not found, PDFium is loaded from pdfium_dart's native asset.
 /// - [Pdfrx.loadAsset] is set to throw an error by default (Dart does not support assets like Flutter does).
 /// - Calls [PdfrxEntryFunctions.init] to initialize the library.
 ///

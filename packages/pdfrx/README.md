@@ -60,7 +60,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.2.20
+  pdfrx: ^2.3.0
 ```
 
 **Note:** You only need to add `pdfrx` to your dependencies. The `pdfrx_engine` package is automatically included as a dependency of `pdfrx`.
@@ -119,7 +119,7 @@ dart run pdfrx:remove_wasm_modules --revert
 
 ## Note for iOS/macOS: Using CoreGraphics Instead of PDFium
 
-For iOS and macOS apps, you can optionally use [pdfrx_coregraphics](https://pub.dev/packages/pdfrx_coregraphics) to render PDFs with Apple's native CoreGraphics/PDFKit instead of the bundled PDFium library. This can significantly reduce your app size by removing PDFium dependencies on Darwin platforms.
+For iOS and macOS apps, you can optionally use [pdfrx_coregraphics](https://pub.dev/packages/pdfrx_coregraphics) to render PDFs with Apple's native CoreGraphics/PDFKit instead of the PDFium XCFramework. This can significantly reduce your app size by removing PDFium dependencies on Darwin platforms.
 
 **⚠️ Note: `pdfrx_coregraphics` is experimental and has some limitations. See the [package documentation](https://pub.dev/packages/pdfrx_coregraphics#limitations) for details.**
 

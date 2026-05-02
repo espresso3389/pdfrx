@@ -3,15 +3,12 @@
 pdfrx is a monorepo containing five packages with the following dependency hierarchy:
 
 ```
-pdfium_dart (FFI bindings)
-    ↓
-pdfium_flutter (bundles PDFium binaries)
-    ↓
-pdfrx_engine (PDF API, pure Dart)
-    ↓
-pdfrx (Flutter widgets)
-    ↑
-pdfrx_coregraphics (alternative backend for Apple platforms)
+pdfium_dart (FFI bindings + native assets)
+    |-- pdfrx_engine (PDF API, pure Dart)
+    |   |-- pdfrx (Flutter widgets)
+    |   `-- pdfrx_coregraphics (alternative backend for Apple platforms)
+    `-- pdfium_flutter (Flutter native platform packaging)
+        `-- pdfrx
 ```
 
 ## Packages
@@ -22,16 +19,18 @@ Low-level Dart FFI bindings for PDFium.
 
 - Pure Dart package with auto-generated FFI bindings using `ffigen`
 - Provides direct access to PDFium's C API
-- Includes `getPdfium()` function for on-demand PDFium binary downloads
+- Downloads and bundles PDFium at build time using Dart native assets
+- Includes `getPdfium()` for loading the bundled native asset or an explicit module path
 - Used as a foundation by higher-level packages
 
 ### pdfium_flutter (`packages/pdfium_flutter/`)
 
-Flutter FFI plugin for loading PDFium native libraries.
+Flutter FFI plugin for PDFium packaging on native Flutter platforms.
 
-- Bundles pre-built PDFium binaries for all Flutter platforms (Android, iOS, Windows, macOS, Linux)
-- Provides utilities for loading PDFium at runtime
-- Re-exports `pdfium_dart` FFI bindings
+- Recommended import for Flutter projects that need direct PDFium access
+- Supports Android, iOS, Windows, macOS, and Linux
+- Provides iOS/macOS PDFium XCFramework integration through CocoaPods or Swift Package Manager
+- Includes low-level PDFium FFI bindings
 
 ### pdfrx_engine (`packages/pdfrx_engine/`)
 
@@ -47,10 +46,10 @@ Platform-agnostic PDF rendering API built on top of PDFium.
 Cross-platform PDF viewer plugin for Flutter.
 
 - Depends on pdfrx_engine for PDF rendering functionality
-- Depends on pdfium_flutter for bundled PDFium binaries
+- Depends on pdfium_flutter for native PDFium packaging
 - Provides Flutter widgets and UI components
 - Supports iOS, Android, Windows, macOS, Linux, and Web
-- Uses PDFium for native platforms and PDFium WASM for web platforms
+- Uses pdfium_flutter native packaging for Android/iOS/Windows/macOS/Linux and PDFium WASM for web platforms
 
 ### pdfrx_coregraphics (`packages/pdfrx_coregraphics/`)
 
@@ -64,15 +63,14 @@ CoreGraphics-backed renderer for iOS/macOS.
 
 ### iOS/macOS
 
-- Uses pre-built PDFium binaries from [GitHub releases](https://github.com/espresso3389/pdfrx/releases)
-- CocoaPods integration via `packages/pdfrx/darwin/pdfrx.podspec`
-- Binaries downloaded during pod install (or use Swift Package Manager)
+- Uses a pre-built PDFium XCFramework from [espresso3389/pdfium-xcframework](https://github.com/espresso3389/pdfium-xcframework/releases)
+- CocoaPods integration via `packages/pdfium_flutter/darwin/pdfium_flutter.podspec`
+- Swift Package Manager integration via `packages/pdfium_flutter/darwin/pdfium_flutter/Package.swift`
 
 ### Android
 
-- Uses CMake for native build
-- Requires Android NDK
-- Downloads PDFium binaries during build
+- Uses native asset packaging through `pdfium_flutter`
+- The PDFium native asset is downloaded during the Dart/Flutter build hook
 
 ### Web
 
@@ -82,8 +80,8 @@ CoreGraphics-backed renderer for iOS/macOS.
 
 ### Windows/Linux
 
-- CMake-based build
-- Downloads PDFium binaries during build
+- Uses native asset packaging through `pdfium_flutter`
+- Flutter desktop apps copy native assets from `build/native_assets/<platform>/` when that directory exists
 
 ## Architecture Resources
 
