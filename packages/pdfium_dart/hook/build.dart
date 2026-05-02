@@ -79,7 +79,9 @@ final class _PdfiumTarget {
 
   static _PdfiumTarget fromCodeConfig(CodeConfig config) {
     final arch = switch (config.targetArchitecture) {
+      Architecture.ia32 => 'x86',
       Architecture.x64 => 'x64',
+      Architecture.arm => 'arm',
       Architecture.arm64 => 'arm64',
       _ => throw UnsupportedError(
         'Unsupported PDFium architecture: ${config.targetArchitecture}',
@@ -87,6 +89,12 @@ final class _PdfiumTarget {
     };
 
     return switch (config.targetOS) {
+        OS.android => _PdfiumTarget(
+        archivePlatform: 'android',
+        archiveArch: arch,
+        archiveLibraryPath: 'lib/libpdfium.so',
+        libraryFileName: 'libpdfium.so',
+      ),
       OS.windows => _PdfiumTarget(
         archivePlatform: 'win',
         archiveArch: arch,

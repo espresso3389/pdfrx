@@ -1,18 +1,18 @@
 name: pdfrx_engine
 description: pdfrx_engine is a PDF rendering and manipulation API built on top of PDFium, designed to be used with the pdfrx plugin. Supports viewing, editing, and combining PDF documents.
-version: 0.3.8
+version: 0.4.0
 homepage: https://github.com/espresso3389/pdfrx
 repository: https://github.com/espresso3389/pdfrx/tree/master/packages/pdfrx_engine
 issue_tracker: https://github.com/espresso3389/pdfrx/issues
 
 environment:
-  sdk: ^3.9.0
+  sdk: ^3.10.0
 resolution: workspace
 
 # Some of the dependencies are intentionally not pinned to a specific version
 # to allow for more flexibility in resolving versions when used in larger projects.
 dependencies:
-  pdfium_dart: ^0.1.2
+  pdfium_dart: ^0.2.0
   collection:
   crypto: ^3.0.6
   ffi:
