@@ -11,6 +11,7 @@ const _assetName = 'libpdfium';
 void main(List<String> args) async {
   await build(args, (input, output) async {
     if (!input.config.buildCodeAssets) return;
+    if (input.config.code.targetOS == OS.iOS) return;
 
     final target = _PdfiumTarget.fromCodeConfig(input.config.code);
     final outputFile = input.outputDirectory.resolve(target.libraryFileName);
@@ -89,7 +90,7 @@ final class _PdfiumTarget {
     };
 
     return switch (config.targetOS) {
-        OS.android => _PdfiumTarget(
+      OS.android => _PdfiumTarget(
         archivePlatform: 'android',
         archiveArch: arch,
         archiveLibraryPath: 'lib/libpdfium.so',
@@ -113,7 +114,9 @@ final class _PdfiumTarget {
         archiveLibraryPath: 'lib/libpdfium.dylib',
         libraryFileName: 'libpdfium.dylib',
       ),
-      _ => throw UnsupportedError('Unsupported PDFium platform: ${config.targetOS}'),
+      _ => throw UnsupportedError(
+        'Unsupported PDFium platform: ${config.targetOS}',
+      ),
     };
   }
 }
