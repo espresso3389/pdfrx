@@ -170,7 +170,7 @@ abstract class PdfDocument {
 
   /// Opening the PDF from URI.
   ///
-  /// For Flutter Web, the implementation uses browser's function and restricted by CORS.
+  /// For Flutter Web, the implementation uses browser APIs and is restricted by CORS.
   // ignore: comment_references
   /// For other platforms, it uses [pdfDocumentFromUri] that uses HTTP's range request to download the file.
   ///
@@ -184,7 +184,8 @@ abstract class PdfDocument {
   ///
   /// [progressCallback] is called when the download progress is updated.
   ///
-  /// [preferRangeAccess] to prefer range access to download the PDF. The default is false (Not supported on Web).
+  /// [preferRangeAccess] to prefer range access to download the PDF. The default is false.
+  /// On Web, range access requires a CORS-enabled server that supports range requests.
   /// It is not supported if pdfrx is running without libpdfrx (**typically on Dart only**).
   ///
   /// [headers] is used to specify additional HTTP headers especially for authentication/authorization.
