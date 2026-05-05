@@ -6,6 +6,11 @@ const _pdfiumFlutterXcframeworkProvider = 'pdfium_flutter_xcframework';
 
 void main(List<String> args) async {
   await link(args, (input, output) async {
+    if (!input.config.buildCodeAssets) {
+      output.assets.addEncodedAssets(input.assets.encodedAssets);
+      return;
+    }
+
     final targetOS = input.config.code.targetOS;
     if (targetOS == OS.iOS || targetOS == OS.macOS) {
       output.metadata.add(
