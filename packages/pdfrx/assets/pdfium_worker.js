@@ -618,6 +618,12 @@ const emEnv = {
     tm[7] = 0; // dst
     tm[8] = 0; // gmtoff
   },
+  _mmap_js: function (len, prot, flags, fd, offset_low, offset_high, allocated, addr) {
+    _notImplemented('_mmap_js');
+  },
+  _munmap_js: function (addr, len, prot, flags, fd, offset_low, offset_high) {
+    _notImplemented('_munmap_js');
+  },
   _localtime_js: function (time, tmPtr) {
     time = Number(time);
     const date = new Date(time * 1000);
