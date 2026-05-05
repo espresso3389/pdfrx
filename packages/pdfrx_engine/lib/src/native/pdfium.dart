@@ -8,7 +8,7 @@ pdfium_bindings.PDFium? _pdfium;
 
 /// Loaded PDFium module.
 pdfium_bindings.PDFium get pdfium {
-  _pdfium ??= pdfium_bindings.loadPdfium(modulePath: Pdfrx.pdfiumModulePath);
+  _pdfium ??= pdfium_bindings.getPdfium(modulePath: Pdfrx.pdfiumModulePath);
   return _pdfium!;
 }
 

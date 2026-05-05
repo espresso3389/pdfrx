@@ -14,7 +14,7 @@ This package contains auto-generated FFI bindings for PDFium using [ffigen](http
 - Auto-generated FFI bindings using [ffigen](https://pub.dev/packages/ffigen)
 - Provides direct access to PDFium's C API
 - Downloads and bundles PDFium at build time using Dart native assets
-- Includes [getPdfium()](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html) for loading the bundled native asset or a custom module path
+- Includes [getPdfium()](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html) for resolving PDFium across Dart and Flutter runtimes
 - Supports Windows, Linux, Android, and macOS build hooks
 
 ## Usage
@@ -31,26 +31,32 @@ import 'dart:ffi';
 final pdfium = PDFium(DynamicLibrary.open('/path/to/libpdfium.so'));
 ```
 
-### Native Asset Loading
+### PDFium Loading
 
-The [getPdfium](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html) function loads the PDFium native asset that is downloaded during the Dart or Flutter build. You can also pass an explicit module path for custom deployments or tests:
+The [getPdfium](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html) function resolves the PDFium library for the current runtime. You can also pass an explicit module path for custom deployments or tests:
 
 ```dart
 import 'package:pdfium_dart/pdfium_dart.dart';
 
 void main() async {
-  // Loads the PDFium native asset produced by the build hook.
-  final pdfium = await getPdfium();
+  // Resolves PDFium for the current Dart or Flutter runtime.
+  final pdfium = getPdfium();
 
   // Or load a specific shared library.
-  final customPdfium = await getPdfium(modulePath: '/path/to/libpdfium.so');
+  final customPdfium = getPdfium(modulePath: '/path/to/libpdfium.so');
 
   // Use PDFium API
   // ...
 }
 ```
 
-The build hook downloads binaries from [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries/releases) and exposes them through Dart native assets. At runtime, `modulePath` can still be used when you need to override the bundled library.
+The build hook downloads binaries from [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries/releases) and exposes them through Dart native assets. At runtime, `getPdfium()` chooses the appropriate loading strategy:
+
+- `modulePath` is used first when explicitly provided.
+- Flutter apps on iOS/macOS use the PDFium XCFramework that is already linked into the app by `pdfium_flutter`.
+- Pure Dart commands on macOS, such as `dart test`, `dart run`, and `dart compile`, use the `libpdfium.dylib` native asset.
+- Flutter apps on Linux look for `libpdfium.so` in the shared library directory relative to the resolved executable.
+- Other supported platforms first try the platform library name, then fall back to the bundled native asset recorded in `.dart_tool/native_assets.yaml`.
 
 ## Generating Bindings
 

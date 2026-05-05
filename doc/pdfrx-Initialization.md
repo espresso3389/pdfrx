@@ -34,10 +34,11 @@ Init. Func. | Underlying API | Notes
 
 ## PDFium Native Library
 
-For pure Dart apps, PDFium is provided as a Dart native asset. The native library is downloaded and bundled at build time by the package build hook.
+For pure Dart apps, PDFium is provided as a Dart native asset. The native library is downloaded and bundled at build time by the package build hook. This includes macOS CLI commands such as `dart test`, `dart run`, and `dart compile`, which use the native asset `libpdfium.dylib`.
 
-For Flutter apps, `pdfium_flutter` is the recommended PDFium integration package for every native platform except Web. It uses native asset packaging on Android, Windows, and Linux, and the PDFium XCFramework on iOS and macOS.
+For Flutter apps, `pdfium_flutter` is the recommended PDFium integration package for every native platform except Web. It uses native asset packaging on Android, Windows, and Linux, and the PDFium XCFramework on iOS and macOS. `pdfium_dart` detects Flutter on iOS/macOS and resolves PDFium from the linked XCFramework rather than loading the macOS native asset.
 
 - PDFium binaries are downloaded from <https://github.com/bblanchon/pdfium-binaries/releases> during build
+- Linux Flutter builds resolve `libpdfium.so` from the app's shared library directory relative to the executable
 - You can explicitly specify a `libpdfium` shared library path by setting the `PDFIUM_PATH` environment variable
 - Web builds use PDFium WASM instead of FFI

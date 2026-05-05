@@ -20,7 +20,7 @@ Low-level Dart FFI bindings for PDFium.
 - Pure Dart package with auto-generated FFI bindings using `ffigen`
 - Provides direct access to PDFium's C API
 - Downloads and bundles PDFium at build time using Dart native assets
-- Includes `getPdfium()` for loading the bundled native asset or an explicit module path
+- Includes `getPdfium()` for resolving PDFium from an explicit module path, a Flutter-packaged library, or the bundled native asset
 - Used as a foundation by higher-level packages
 
 ### pdfium_flutter (`packages/pdfium_flutter/`)
@@ -66,6 +66,7 @@ CoreGraphics-backed renderer for iOS/macOS.
 - Uses a pre-built PDFium XCFramework from [espresso3389/pdfium-xcframework](https://github.com/espresso3389/pdfium-xcframework/releases)
 - CocoaPods integration via `packages/pdfium_flutter/darwin/pdfium_flutter.podspec`
 - Swift Package Manager integration via `packages/pdfium_flutter/darwin/pdfium_flutter/Package.swift`
+- `pdfium_dart` uses the XCFramework symbols in Flutter apps, while pure Dart macOS commands use `libpdfium.dylib` from native assets
 
 ### Android
 
@@ -82,6 +83,7 @@ CoreGraphics-backed renderer for iOS/macOS.
 
 - Uses native asset packaging through `pdfium_flutter`
 - Flutter desktop apps copy native assets from `build/native_assets/<platform>/` when that directory exists
+- On Linux, `pdfium_dart` resolves `libpdfium.so` from the shared library directory relative to the Flutter executable before falling back to native assets
 
 ## Architecture Resources
 

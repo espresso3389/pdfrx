@@ -9,8 +9,8 @@ final testPdfFile = File('../pdfrx/example/viewer/assets/hello.pdf');
 PDFium? _pdfium;
 
 void main() {
-  setUp(() async {
-    _pdfium = await getPdfium();
+  setUp(() {
+    _pdfium = getPdfium();
   });
 
   test('PDFium Initialization', () {

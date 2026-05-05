@@ -121,7 +121,7 @@ dart run ffigen
 
 ### PDFium Native Assets
 
-The `pdfium_dart` package downloads PDFium during the Dart/Flutter build hook and exposes it as a native asset. `getPdfium()` loads that native asset, or a custom library path when `modulePath` is provided. `pdfrxInitialize()` also honors `PDFIUM_PATH`.
+The `pdfium_dart` package downloads PDFium during the Dart/Flutter build hook and exposes it as a native asset. `getPdfium()` first honors an explicit `modulePath`, uses Flutter-packaged PDFium when appropriate (for example the iOS/macOS XCFramework and Linux shared library directory), and falls back to the bundled native asset. `pdfrxInitialize()` also honors `PDFIUM_PATH`.
 
 ## Testing
 

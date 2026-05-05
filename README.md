@@ -46,7 +46,7 @@ Low-level Dart FFI bindings for the [PDFium](https://pdfium.googlesource.com/pdf
 - Pure Dart package with auto-generated FFI bindings using [ffigen](https://pub.dev/packages/ffigen)
 - Provides direct access to PDFium's C API from Dart
 - Provides PDFium as a Dart native asset, downloaded and bundled at build time
-- Includes [getPdfium()](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html) for loading the bundled native asset or a custom module path
+- Includes [getPdfium()](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html) for resolving PDFium from a custom module path, Flutter-packaged library, or bundled native asset
 - Used as a foundation by higher-level packages
 
 [View repo](packages/pdfium_dart/) | [API reference](https://pub.dev/documentation/pdfium_dart/latest/)

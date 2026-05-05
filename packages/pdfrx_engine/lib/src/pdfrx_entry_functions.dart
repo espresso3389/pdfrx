@@ -15,7 +15,14 @@ abstract class PdfrxEntryFunctions {
   /// Singleton instance of [PdfrxEntryFunctions].
   ///
   /// [PdfDocument] internally calls this instance to open PDF files.
-  static PdfrxEntryFunctions instance = PdfrxEntryFunctionsImpl();
+  static PdfrxEntryFunctions _instance = PdfrxEntryFunctionsImpl();
+
+  static PdfrxEntryFunctions get instance => _instance;
+
+  static set instance(PdfrxEntryFunctions entryFunctions) {
+    print('Setting PdfrxEntryFunctions instance: $entryFunctions');
+    _instance = entryFunctions;
+  }
 
   /// Call `FPDF_InitLibraryWithConfig` to initialize the PDFium library.
   ///

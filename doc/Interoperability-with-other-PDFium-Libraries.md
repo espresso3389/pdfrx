@@ -134,8 +134,8 @@ class LowLevelPdfiumAccess {
     // Initialize PDFium through pdfrx
     await pdfrxFlutterInitialize();
 
-    // Get PDFium bindings
-    final pdfium = await getPdfium();
+    // Resolve PDFium bindings for the current Flutter runtime
+    final pdfium = getPdfium();
 
     // Now you can use all PDFium C API functions through the bindings
     // Remember to wrap calls with suspendPdfiumWorkerDuringAction
@@ -148,7 +148,7 @@ class LowLevelPdfiumAccess {
   }
 
   Future<Map<String, String>> extractCustomMetadata(Uint8List pdfData) async {
-    final pdfium = await getPdfium();
+    final pdfium = getPdfium();
 
     return await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
       return using((arena) {

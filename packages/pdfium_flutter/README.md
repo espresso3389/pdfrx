@@ -35,17 +35,17 @@ import 'package:pdfium_flutter/pdfium_flutter.dart';
 final pdfium = pdfiumBindings;
 
 // Or load with custom path
-final customPdfium = loadPdfium(modulePath: '/custom/path/to/pdfium.so');
+final customPdfium = getPdfium(modulePath: '/custom/path/to/pdfium.so');
 ```
 
 ## Native Libraries
 
 ### Android/Windows/Linux
 
-PDFium binaries are downloaded and bundled at build time using Dart native assets.
+PDFium binaries are downloaded and bundled at build time using Dart native assets. On Linux, `pdfium_dart` resolves the shared library from the Flutter app's shared library directory relative to the executable.
 
 ### iOS/macOS
 
-PDFium XCFramework is downloaded using CocoaPods/SwiftPM install from [espresso3389/pdfium-xcframework](https://github.com/espresso3389/pdfium-xcframework/releases).
+PDFium XCFramework is downloaded using CocoaPods/SwiftPM install from [espresso3389/pdfium-xcframework](https://github.com/espresso3389/pdfium-xcframework/releases). `pdfium_dart` detects Flutter on iOS/macOS and uses the PDFium symbols from the XCFramework instead of loading its own `libpdfium.dylib` native asset.
 
 **Implementation note:** `pdfium_flutter` re-exports the lower-level `pdfium_dart` bindings. Flutter apps should normally import `pdfium_flutter` so all native platform packaging is included.

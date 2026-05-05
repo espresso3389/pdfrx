@@ -12,9 +12,11 @@ resolution: workspace
 
 dependencies:
   pdfium_dart: ^0.2.0
+  code_assets: ^1.0.0
   ffi: ^2.1.4
   flutter:
     sdk: flutter
+  hooks: ^1.0.3
   path: ^1.9.1
 
 dev_dependencies:

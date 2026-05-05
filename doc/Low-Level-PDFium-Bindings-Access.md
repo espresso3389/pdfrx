@@ -22,7 +22,7 @@ The `pdfium_dart` package provides:
 
 - The `PDFium` class for accessing PDFium functions
 - Auto-generated FFI bindings for all PDFium C API functions
-- `getPdfium()` function for loading the PDFium native asset bundled at build time
+- `getPdfium()` function for resolving the PDFium library for the current Dart or Flutter runtime
 
 ### Initialization
 
@@ -41,17 +41,19 @@ final pdfium = PDFium(DynamicLibrary.open('path/to/libpdfium.so'));
 pdfium.FPDF_InitLibrary(); // or pdfium.FPDF_InitLibraryWithConfig(...)
 ```
 
-#### Native Asset Loading
+#### Runtime PDFium Loading
 
 ```dart
 import 'package:pdfium_dart/pdfium_dart.dart';
 
 Future<void> initializePdfium() async {
-  // Loads the PDFium native asset produced by the build hook.
-  final pdfium = await getPdfium();
+  // Resolves PDFium for the current Dart or Flutter runtime.
+  final pdfium = getPdfium();
   pdfium.FPDF_InitLibrary(); // or pdfium.FPDF_InitLibraryWithConfig(...)
 }
 ```
+
+`getPdfium()` uses explicit module paths first, resolves Flutter-packaged PDFium where applicable, and falls back to the native asset produced by the build hook.
 
 #### Initialization for Flutter App
 
@@ -83,8 +85,8 @@ import 'dart:ffi';
 import 'package:ffi/ffi.dart';
 
 void example() async {
-  // Get PDFium bindings from the bundled native asset.
-  final pdfium = await getPdfium();
+  // Resolve PDFium bindings for the current runtime.
+  final pdfium = getPdfium();
 
   // Use arena to automatically manage memory
   using((arena) {
@@ -132,8 +134,8 @@ import 'package:pdfium_dart/pdfium_dart.dart';
 import 'dart:ffi';
 import 'package:ffi/ffi.dart';
 
-void memoryExample() async {
-  final pdfium = await getPdfium();
+void memoryExample() {
+  final pdfium = getPdfium();
 
   // Use arena for automatic memory management
   using((arena) {
@@ -153,8 +155,8 @@ void memoryExample() async {
 }
 
 // Alternative: Manual memory management (not recommended)
-void manualMemoryExample() async {
-  final pdfium = await getPdfium();
+void manualMemoryExample() {
+  final pdfium = getPdfium();
   final pathPtr = 'path/to/file.pdf'.toNativeUtf8();
 
   try {
@@ -185,7 +187,7 @@ PDFium is not thread-safe. Ensure all PDFium calls are made from the same thread
 Always check return values from PDFium functions:
 
 ```dart
-final pdfium = await getPdfium();
+final pdfium = getPdfium();
 
 using((arena) {
   final pathPtr = 'path/to/file.pdf'.toNativeUtf8(allocator: arena);
