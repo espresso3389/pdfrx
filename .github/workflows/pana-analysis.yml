@@ -49,6 +49,32 @@ jobs:
           dart pub global activate pana
           echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
 
+      - name: Prepare package for pana (${{ matrix.package_name }})
+        run: |
+          PANA_WORKDIR="$(mktemp -d)"
+          mkdir -p "$PANA_WORKDIR/packages"
+
+          cp -R packages/pdfium_dart "$PANA_WORKDIR/packages/pdfium_dart"
+          cp -R packages/pdfium_flutter "$PANA_WORKDIR/packages/pdfium_flutter"
+          cp -R packages/pdfrx_engine "$PANA_WORKDIR/packages/pdfrx_engine"
+          cp -R packages/pdfrx "$PANA_WORKDIR/packages/pdfrx"
+
+          for pubspec in "$PANA_WORKDIR"/packages/*/pubspec.yaml; do
+            perl -0pi -e 's/^resolution: workspace\n//m' "$pubspec"
+          done
+
+          export PDFIUM_DART_PATH="$PANA_WORKDIR/packages/pdfium_dart"
+          export PDFIUM_FLUTTER_PATH="$PANA_WORKDIR/packages/pdfium_flutter"
+          export PDFRX_ENGINE_PATH="$PANA_WORKDIR/packages/pdfrx_engine"
+
+          perl -0pi -e 's|^  pdfium_dart: .+$|  pdfium_dart:\n    path: $ENV{PDFIUM_DART_PATH}|m' "$PANA_WORKDIR/packages/pdfium_flutter/pubspec.yaml"
+          perl -0pi -e 's|^  pdfium_dart: .+$|  pdfium_dart:\n    path: $ENV{PDFIUM_DART_PATH}|m' "$PANA_WORKDIR/packages/pdfrx_engine/pubspec.yaml"
+          perl -0pi -e 's|^  pdfium_flutter: .+$|  pdfium_flutter:\n    path: $ENV{PDFIUM_FLUTTER_PATH}|m' "$PANA_WORKDIR/packages/pdfrx/pubspec.yaml"
+          perl -0pi -e 's|^  pdfrx_engine: .+$|  pdfrx_engine:\n    path: $ENV{PDFRX_ENGINE_PATH}|m' "$PANA_WORKDIR/packages/pdfrx/pubspec.yaml"
+
+          echo "PANA_PACKAGE_PATH=$PANA_WORKDIR/${{ matrix.package_path }}" >> "$GITHUB_ENV"
+
       - name: Run pana (${{ matrix.package_name }})
-        working-directory: ${{ matrix.package_path }}
-        run: ~/.pub-cache/bin/pana --json --no-warning --exit-code-threshold 0 | jq -e '.tags | any(. == "is:wasm-ready")'
+        run: |
+          cd "$PANA_PACKAGE_PATH"
+          ~/.pub-cache/bin/pana --json --no-warning --exit-code-threshold 0 | jq -e 'select(has("tags")) | .tags | any(. == "is:wasm-ready")'
