@@ -84,6 +84,14 @@ For more information, see [pdfrx Initialization](https://github.com/espresso3389
 
 Tip: To silence debug-time WASM warnings, call `pdfrxFlutterInitialize(dismissPdfiumWasmWarnings: true)` during startup.
 
+### Native PDFium Packaging
+
+Native Flutter builds use `pdfium_flutter` and `pdfium_dart` to provide PDFium:
+
+- Android, Linux, and Windows bundle PDFium through Dart native assets.
+- iOS and macOS link the PDFium XCFramework through CocoaPods or Swift Package Manager.
+- The native-assets link hooks avoid bundling an extra `libpdfium.dylib` from `pdfium_dart` on iOS/macOS Flutter apps.
+
 ### Note for Windows
 
 **REQUIRED: You must enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development#activate-developer-mode) to build pdfrx on Windows.**

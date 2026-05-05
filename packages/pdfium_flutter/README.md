@@ -48,4 +48,8 @@ PDFium binaries are downloaded and bundled at build time using Dart native asset
 
 PDFium XCFramework is downloaded using CocoaPods/SwiftPM install from [espresso3389/pdfium-xcframework](https://github.com/espresso3389/pdfium-xcframework/releases). `pdfium_dart` detects Flutter on iOS/macOS and uses the PDFium symbols from the XCFramework instead of loading its own `libpdfium.dylib` native asset.
 
+The native-assets link hooks coordinate this behavior at build time so the Flutter app links the XCFramework once and does not also bundle the native asset dylib from `pdfium_dart`.
+
+The packaged Darwin XCFramework uses [PDFium chromium/7811, build 20260502-190206](https://github.com/espresso3389/pdfium-xcframework/releases/tag/v144.0.7811.0-20260502-190206).
+
 **Implementation note:** `pdfium_flutter` re-exports the lower-level `pdfium_dart` bindings. Flutter apps should normally import `pdfium_flutter` so all native platform packaging is included.

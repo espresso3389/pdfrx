@@ -1,3 +1,8 @@
+## 0.2.0
+
+- Updated to `pdfrx_engine` 0.4.0.
+- Updated documentation for use with `pdfrx` 2.3.0.
+
 ## 0.1.16
 
 - Updated to pdfrx_engine 0.3.9

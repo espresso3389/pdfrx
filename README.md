@@ -47,6 +47,7 @@ Low-level Dart FFI bindings for the [PDFium](https://pdfium.googlesource.com/pdf
 - Provides direct access to PDFium's C API from Dart
 - Provides PDFium as a Dart native asset, downloaded and bundled at build time
 - Includes [getPdfium()](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html) for resolving PDFium from a custom module path, Flutter-packaged library, or bundled native asset
+- Coordinates with `pdfium_flutter` so iOS/macOS Flutter apps use the PDFium XCFramework instead of bundling a duplicate dylib
 - Used as a foundation by higher-level packages
 
 [View repo](packages/pdfium_dart/) | [API reference](https://pub.dev/documentation/pdfium_dart/latest/)
@@ -57,6 +58,7 @@ Flutter FFI plugin for [PDFium](https://pdfium.googlesource.com/pdfium/) integra
 
 - Supports Android, iOS, Windows, macOS, and Linux
 - Provides the platform packaging needed to deploy PDFium in Flutter apps
+- Uses Dart native assets for Android, Linux, and Windows
 - Uses the iOS/macOS PDFium XCFramework through CocoaPods or Swift Package Manager
 - Includes low-level PDFium FFI bindings
 

@@ -54,6 +54,7 @@ The build hook downloads binaries from [bblanchon/pdfium-binaries](https://githu
 
 - `modulePath` is used first when explicitly provided.
 - Flutter apps on iOS/macOS use the PDFium XCFramework that is already linked into the app by `pdfium_flutter`.
+- Native PDFium assets are not built for iOS; Flutter iOS apps should depend on `pdfium_flutter` so the XCFramework is linked by the Flutter plugin.
 - Pure Dart commands on macOS, such as `dart test`, `dart run`, and `dart compile`, use the `libpdfium.dylib` native asset.
 - Flutter apps on Linux look for `libpdfium.so` in the shared library directory relative to the resolved executable.
 - Other supported platforms first try the platform library name, then fall back to the bundled native asset recorded in `.dart_tool/native_assets.yaml`.

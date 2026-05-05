@@ -1,5 +1,11 @@
 # 2.3.0
 
+- Updated to `pdfrx_engine` 0.4.0 and `pdfium_flutter` 0.2.0.
+- Updated native PDFium binaries to chromium/7811.
+- Improved native PDFium packaging:
+  - Android, Linux, and Windows use Dart native assets.
+  - iOS and macOS use the PDFium XCFramework without bundling a duplicate `libpdfium.dylib`.
+  - Flutter Web and other non-code-asset builds skip native PDFium link handling correctly.
 - NEW: Pluggable scroll/zoom interaction architecture ([#581](https://github.com/espresso3389/pdfrx/pull/581))
   - `PdfViewerScrollInteractionDelegateProviderInstant` (default) - instant updates (legacy behavior)
   - `PdfViewerScrollInteractionDelegateProviderPhysics` - smooth, physics-based animations for mouse wheel and trackpad

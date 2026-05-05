@@ -15,6 +15,10 @@ This package depends on [pdfium_dart](https://pub.dartlang.org/packages/pdfium_d
 - Linux (even on Raspberry Pi)
 - Web (WASM) supported only on Flutter by [pdfrx](https://pub.dartlang.org/packages/pdfrx)
 
+## PDFium Runtime
+
+`pdfrx_engine` uses `pdfium_dart.getPdfium()` to resolve PDFium. Pure Dart commands can use the PDFium native asset downloaded by `pdfium_dart`, while Flutter apps should normally use [pdfrx](https://pub.dev/packages/pdfrx) or [pdfium_flutter](https://pub.dev/packages/pdfium_flutter) so platform-specific packaging is included. On iOS and macOS Flutter apps, PDFium is provided by the `pdfium_flutter` XCFramework instead of a separate bundled dylib.
+
 ## Example Codes
 
 ### Page Image Export

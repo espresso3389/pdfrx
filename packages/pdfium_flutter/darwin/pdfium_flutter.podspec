@@ -1,7 +1,7 @@
 # PDFium xcframework configuration
 # https://github.com/espresso3389/pdfium-xcframework/releases
-PDFIUM_URL = "https://github.com/espresso3389/pdfium-xcframework/releases/download/v144.0.7520.0-20251111-190355/PDFium-chromium-7520-20251111-190355.xcframework.zip"
-PDFIUM_HASH = "bd2a9542f13c78b06698c7907936091ceee2713285234cbda2e16bc03c64810b"
+PDFIUM_URL = "https://github.com/espresso3389/pdfium-xcframework/releases/download/v144.0.7811.0-20260502-190206/PDFium-chromium-7811-20260502-190206.xcframework.zip"
+PDFIUM_HASH = "948d9257f53f01cbed74b81bb8adc8758e52ac9390751772de7889026d32d5a1"
 
 Pod::Spec.new do |s|
   s.name             = 'pdfium_flutter'

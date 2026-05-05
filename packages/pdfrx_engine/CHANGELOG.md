@@ -1,3 +1,10 @@
+## 0.4.0
+
+- Updated to `pdfium_dart` 0.2.0.
+- Improved PDFium loading for pure Dart commands and Flutter apps through `pdfium_dart.getPdfium()`.
+- Added support for Dart native-assets based PDFium packaging on native Dart targets.
+- Improved compatibility with Flutter iOS/macOS apps that receive PDFium from `pdfium_flutter`'s XCFramework.
+
 ## 0.3.9
 
 - NEW: `PdfrxEntryFunctions.stopBackgroundWorker()` to stop the background worker thread ([#184](https://github.com/espresso3389/pdfrx/issues/184), [#430](https://github.com/espresso3389/pdfrx/issues/430))
