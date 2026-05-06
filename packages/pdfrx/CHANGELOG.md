@@ -1,3 +1,8 @@
+# 2.3.1
+
+- WASM backend now supports `preferRangeAccess` ([#616](https://github.com/espresso3389/pdfrx/issues/616)).
+- Updated PDFium WASM to chromium/7811.
+
 # 2.3.0
 
 - Updated to `pdfrx_engine` 0.4.0 and `pdfium_flutter` 0.2.0.
