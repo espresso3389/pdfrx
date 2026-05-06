@@ -825,6 +825,7 @@ class PdfRangeCache {
     /** @type {{offset: number, data: Uint8Array}[]} */
     this.chunks = [];
     this.bytesCached = 0;
+    this.nextUnhintedBlockOffset = 0;
   }
 
   /**
@@ -912,6 +913,28 @@ class PdfRangeCache {
       missing.push({ offset: position, end });
     }
     return missing;
+  }
+
+  /**
+   * @returns {Promise<ByteRange|null>}
+   */
+  async nextUnhintedBlock() {
+    await this.ensureFileSize();
+
+    const tailOffset = Math.floor((this.fileSize - 1) / PDF_RANGE_DOWNLOAD_BLOCK_SIZE) * PDF_RANGE_DOWNLOAD_BLOCK_SIZE;
+    if (!this.isDataAvailable(tailOffset, this.fileSize - tailOffset)) {
+      return { offset: tailOffset, end: this.fileSize };
+    }
+
+    for (let offset = this.nextUnhintedBlockOffset; offset < this.fileSize; offset += PDF_RANGE_DOWNLOAD_BLOCK_SIZE) {
+      const end = Math.min(offset + PDF_RANGE_DOWNLOAD_BLOCK_SIZE, this.fileSize);
+      this.nextUnhintedBlockOffset = end;
+      if (!this.isDataAvailable(offset, end - offset)) {
+        return { offset, end };
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -1225,7 +1248,16 @@ async function _waitForPdfAvailability(
     if (result === errorResult) return result;
     if (result !== PDF_DATA_NOTAVAIL && result !== PDF_FORM_NOTAVAIL) return result;
     if (segments.length === 0) {
-      throw new Error('PDFium requested no download segments while data was unavailable');
+      const segment = await cache.nextUnhintedBlock();
+      if (!segment) {
+        return availableResults[0];
+      }
+      const size = segment.end - segment.offset;
+      const rangeUsable = await cache.download(segment.offset, size);
+      if (!rangeUsable && !cache.isDataAvailable(segment.offset, size)) {
+        throw new Error('PDF range response did not expose usable Content-Range metadata');
+      }
+      continue;
     }
     for (const segment of _mergeDownloadSegments(segments)) {
       for (const missing of cache.missingRanges(segment.offset, segment.end - segment.offset)) {
