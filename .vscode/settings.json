@@ -50,6 +50,7 @@
     "dirfd",
     "dirp",
     "dont",
+    "DOWNLOADHINTS",
     "DUPLEXTYPE",
     "DWORD",
     "dylib",
@@ -63,6 +64,7 @@
     "ffigen",
     "FILEACCESS",
     "FILEATTACHMENT",
+    "FILEAVAIL",
     "FILEHANDLER",
     "FILEIDTYPE",
     "FILEWRITE",
@@ -129,13 +131,17 @@
     "MATCHWHOLEWORD",
     "maxage",
     "microtask",
+    "mmap",
     "MOVETO",
+    "munmap",
     "Naskh",
     "NATIVETEXT",
     "NESW",
     "newfstatat",
     "NOEXPORT",
     "NOROTATE",
+    "NOTAVAIL",
+    "NOTEXIST",
     "noto",
     "NOVIEW",
     "NOZOOM",
@@ -207,6 +213,7 @@
     "uleb",
     "unawaited",
     "uncollapsed",
+    "Unhinted",
     "unlinkat",
     "unregister",
     "VBEAM",
@@ -307,16 +314,12 @@
   "[dart]": {
     "editor.formatOnSave": true,
     "editor.formatOnType": true,
-    "editor.rulers": [
-        120
-    ]
+    "editor.rulers": [120]
   },
   "[swift]": {
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "vknabel.vscode-swiftformat",
-    "editor.rulers": [
-        120
-    ]
+    "editor.rulers": [120]
   },
   "swiftformat.enable": true,
   "swiftformat.onlyEnableOnSwiftPMProjects": false,

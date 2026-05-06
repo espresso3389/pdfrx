@@ -2306,7 +2306,7 @@ class _PdfViewerState extends State<PdfViewer>
         null,
         _contextMenuFor,
       );
-      return [if (contextMenu != null) contextMenu];
+      return [?contextMenu];
     }
 
     final renderBox = _renderBox;
@@ -2723,8 +2723,8 @@ class _PdfViewerState extends State<PdfViewer>
             ),
           ),
         ),
-      if (magnifier != null) magnifier,
-      if (contextMenu != null) contextMenu,
+      ?magnifier,
+      ?contextMenu,
     ];
   }
 

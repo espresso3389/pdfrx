@@ -264,7 +264,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
             'useProgressiveLoading': useProgressiveLoading,
             if (progressCallbackReg != null) 'progressCallbackId': progressCallbackReg.id,
             'preferRangeAccess': preferRangeAccess,
-            if (headers != null) 'headers': headers,
+            'headers': ?headers,
             'withCredentials': withCredentials,
           },
         ),
@@ -492,7 +492,7 @@ class _PdfDocumentWasm extends PdfDocument {
         'reloadPages',
         parameters: {
           'docHandle': document['docHandle'],
-          if (pageIndices != null) 'pageIndices': pageIndices,
+          'pageIndices': ?pageIndices,
           'currentPagesCount': pages.length,
         },
       );

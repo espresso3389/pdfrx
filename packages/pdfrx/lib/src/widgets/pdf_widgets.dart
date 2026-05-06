@@ -380,7 +380,7 @@ class _PdfPageViewState extends State<PdfPageView> {
                     boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 4, offset: Offset(2, 2))],
                   ),
             ),
-            if (pageImage != null) pageImage,
+            ?pageImage,
           ],
         ),
       ),

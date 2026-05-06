@@ -137,7 +137,7 @@ class HttpCacheControlState {
 
   Map<String, String> getHeadersForFetch() {
     return {
-      if (etag != null) 'If-None-Match': etag!,
+      'If-None-Match': ?etag,
       if (etag == null && lastModified != null) 'If-Modified-Since': lastModified!.toHttpDate(),
     };
   }
