@@ -2077,11 +2077,16 @@ function _pdfDestFromDest(dest, docHandle) {
 /**
  * Setup the system font info in PDFium.
  */
-function _initializeFontEnvironment() {
+async function _initializeFontEnvironment() {
   const cachedFonts = pdfFontMapper?.cachedFonts() ?? [];
   const oldFontMapper = pdfFontMapper;
   const newFontMapper = new PdfFontMapper();
   newFontMapper.restoreCachedFonts(cachedFonts);
+  if (!oldFontMapper) {
+    for (const font of await PdfFontPersistentCache.instance.loadAll()) {
+      newFontMapper.addFontData(font);
+    }
+  }
   newFontMapper.install();
   pdfFontMapper = newFontMapper;
 
@@ -2094,22 +2099,95 @@ function _initializeFontEnvironment() {
  *
  * The function is based on the fact that PDFium reloads all the fonts when FPDF_SetSystemFontInfo is called.
  */
-function reloadFonts() {
+async function reloadFonts() {
   console.log('Reloading system fonts in PDFium...');
-  _initializeFontEnvironment();
+  await _initializeFontEnvironment();
   return { message: 'Fonts reloaded' };
 }
-/**
- * @type {{[face: string]: string}}
- */
-let fontFileNames = {};
-let fontFilesId = 0;
 let pdfFontMapper = null;
 
 const fontNamesToIgnore = {
   Symbol: true,
   ZapfDingbats: true,
 };
+
+class PdfFontPersistentCache {
+  static instance = new PdfFontPersistentCache();
+
+  constructor() {
+    this.dbName = 'pdfrx.fonts';
+    this.storeName = 'fonts';
+    this.dbPromise = null;
+  }
+
+  async open() {
+    if (this.dbPromise) return this.dbPromise;
+    if (!self.indexedDB) {
+      this.dbPromise = Promise.resolve(null);
+      return this.dbPromise;
+    }
+    this.dbPromise = new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName, { keyPath: 'face' });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+      request.onblocked = () => reject(new Error(`Opening IndexedDB ${this.dbName} was blocked.`));
+    }).catch((error) => {
+      console.warn('Failed to open font cache database:', error);
+      return null;
+    });
+    return this.dbPromise;
+  }
+
+  async loadAll() {
+    const db = await this.open();
+    if (!db) return [];
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(this.storeName, 'readonly');
+      const request = transaction.objectStore(this.storeName).getAll();
+      request.onsuccess = () => resolve(request.result ?? []);
+      request.onerror = () => reject(request.error);
+      transaction.onerror = () => reject(transaction.error);
+    }).catch((error) => {
+      console.warn('Failed to load cached fonts:', error);
+      return [];
+    });
+  }
+
+  async put({ face, data, resolvedFace }) {
+    const db = await this.open();
+    if (!db) return;
+    const storedData = data instanceof ArrayBuffer ? data.slice(0) : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(this.storeName, 'readwrite');
+      transaction.objectStore(this.storeName).put({ face, resolvedFace, data: storedData });
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    }).catch((error) => {
+      console.warn(`Failed to store cached font "${face}":`, error);
+    });
+  }
+
+  async clear() {
+    const db = await this.open();
+    if (!db) return;
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(this.storeName, 'readwrite');
+      transaction.objectStore(this.storeName).clear();
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    }).catch((error) => {
+      console.warn('Failed to clear cached fonts:', error);
+    });
+  }
+}
 
 class PdfFontMapper {
   constructor() {
@@ -2289,28 +2367,21 @@ function readUint32(data, offset) {
 }
 
 /**
- * Add font data to the file system.
- * @param {{face: string, data: ArrayBuffer}} params
+ * Add font data to the font cache.
+ * @param {{face: string, data: ArrayBuffer, resolvedFace: string|undefined}} params
  */
-function addFontData(params) {
+async function addFontData(params) {
   console.log(`Adding font data for face: ${params.face}`);
   const { face, data, resolvedFace } = params;
-  fontFileNames[face] ??= `font_${++fontFilesId}.ttf`;
   pdfFontMapper?.addFontData({ face, data, resolvedFace });
-  fileSystem.registerFileWithData(`/usr/share/fonts/${fontFileNames[face]}`, data);
-  fileSystem.registerFile('/usr/share/fonts', { entries: Object.values(fontFileNames) });
-  return { message: `Font ${face} added`, face: face, fileName: fontFileNames[face] };
+  await PdfFontPersistentCache.instance.put({ face, data, resolvedFace });
+  return { message: `Font ${face} added`, face: face };
 }
 
-function clearAllFontData() {
+async function clearAllFontData() {
   console.log(`Clearing all font data`);
-  for (const face in fontFileNames) {
-    const fileName = fontFileNames[face];
-    fileSystem.unregisterFile(`/usr/share/fonts/${fileName}`);
-  }
-  fileSystem.registerFile('/usr/share/fonts', { entries: [] });
-  fontFileNames = {};
   pdfFontMapper?.clear();
+  await PdfFontPersistentCache.instance.clear();
   return { message: 'All font data cleared' };
 }
 
@@ -2953,7 +3024,7 @@ async function initializePdfium(params = {}) {
 
     Pdfium.initWith(result.instance.exports);
     Pdfium.wasmExports.FPDF_InitLibrary();
-    _initializeFontEnvironment();
+    await _initializeFontEnvironment();
 
     pdfiumInitialized = true;
 
