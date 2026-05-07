@@ -1,3 +1,8 @@
+# 2.3.2
+
+- Updated to `pdfrx_engine` 0.4.1.
+- [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) now supports PdfFontManager to natively support platform's font loading/additional font downloading.
+
 # 2.3.1
 
 - WASM backend now supports `preferRangeAccess` ([#616](https://github.com/espresso3389/pdfrx/issues/616)).

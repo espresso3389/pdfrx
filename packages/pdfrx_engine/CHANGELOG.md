@@ -1,3 +1,7 @@
+## 0.4.1
+
+- Added [PdfFontManager](https://pub.dev/documentation/pdfrx/latest/pdfrx_engine/PdfFontManager-class.html) for improved font loading/downloading.
+
 ## 0.4.0
 
 - Updated to `pdfium_dart` 0.2.0.
