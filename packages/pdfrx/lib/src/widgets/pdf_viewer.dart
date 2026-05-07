@@ -380,6 +380,7 @@ class _PdfViewerState extends State<PdfViewer>
     } else {
       oldWidget?.documentRef.resolveListenable().removeListener(_onDocumentChanged);
       final documentRef = widget.documentRef;
+      await pdfrxFlutterInitialize();
       await widget.fontManager?.prepare();
       if (!mounted || !identical(documentRef, widget.documentRef)) {
         return;

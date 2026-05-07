@@ -79,11 +79,18 @@ class MyFontResolver implements PdfFontResolver {
 
 ## Using PdfDocument Directly
 
-If you use [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) without `PdfViewer`, associate the manager with the document yourself:
+If you use [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) without `PdfViewer`, associate the manager with the document yourself.
+
+Unlike `PdfViewer`, direct Dart/API usage does not automatically prepare the font manager before opening a document. Call `fontManager.prepare()` explicitly before `PdfDocument.open*()` if cached fonts or local `fontPaths` should participate in the first load:
 
 ```dart
+final fontManager = PdfFontManager(
+  resolvers: [
+    CompositeGoogleFontsResolver(), // just an example
+  ],
+);
 await fontManager.prepare();
-final document = await PdfDocument.openFile(path);
+var document = await PdfDocument.openFile(path);
 
 final association = document.associateFontManager(
   fontManager,
@@ -92,7 +99,8 @@ final association = document.associateFontManager(
   },
   onLoadComplete: (result) async {
     if (result.hasLoadedFonts) {
-      // Reopen or reload the document in your own document lifecycle.
+      // Reopen with the newly downloaded fonts
+      document = await PdfDocument.openFile(path);
     }
   },
 );
@@ -178,7 +186,7 @@ await PdfrxEntryFunctions.instance.clearAllFontData();
 
 Use these directly only when you already know the exact PDF-facing `face` name to register. In normal missing-font workflows, `PdfFontManager` is less error-prone because it uses `PdfFontQuery.face` as the registration target and keeps track of already registered faces.
 
-`reloadFonts` refreshes the backend font lookup state. It does not, by itself, re-render or reopen already loaded PDF documents. `PdfViewer` handles that when it owns the font-manager association; direct `PdfDocument` users must do it in their own document lifecycle.
+`reloadFonts` refreshes the backend font mapper state, such as newly scanned local font files. It does not, by itself, re-render or reopen already loaded PDF documents. `PdfViewer` handles that when it owns the font-manager association; direct `PdfDocument` users must do it in their own document lifecycle.
 
 ## See Also
 
@@ -190,5 +198,5 @@ Use these directly only when you already know the exact PDF-facing `face` name t
 - [PdfDocument.associateFontManager](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/associateFontManager.html) - Document-level missing font handling
 - [Pdfrx.cacheDirectoryPath](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/Pdfrx/cacheDirectoryPath.html) - Base cache directory used by the default font cache path
 - [PdfrxEntryFunctions.addFontData](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/addFontData.html) - Low-level font registration
-- [PdfrxEntryFunctions.reloadFonts](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/reloadFonts.html) - Refresh backend font lookup state
+- [PdfrxEntryFunctions.reloadFonts](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/reloadFonts.html) - Refresh backend font mapper state
 - [PdfrxEntryFunctions.clearAllFontData](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/clearAllFontData.html) - Clear fonts registered through `addFontData`

@@ -2075,33 +2075,29 @@ function _pdfDestFromDest(dest, docHandle) {
 }
 
 /**
- * Setup the system font info in PDFium.
+ * Install the system font info in PDFium.
  */
-async function _initializeFontEnvironment() {
-  const cachedFonts = pdfFontMapper?.cachedFonts() ?? [];
-  const oldFontMapper = pdfFontMapper;
-  const newFontMapper = new PdfFontMapper();
-  newFontMapper.restoreCachedFonts(cachedFonts);
-  if (!oldFontMapper) {
-    for (const font of await PdfFontPersistentCache.instance.loadAll()) {
-      newFontMapper.addFontData(font);
-    }
-  }
-  newFontMapper.install();
-  pdfFontMapper = newFontMapper;
+async function _installFontMapper() {
+  if (pdfFontMapper) return;
+  const fontMapper = new PdfFontMapper();
+  fontMapper.install();
+  pdfFontMapper = fontMapper;
+  Pdfium.wasmExports.FPDF_SetSystemFontInfo(fontMapper.sysFontInfo);
+  await _reloadFontCache();
+}
 
-  Pdfium.wasmExports.FPDF_SetSystemFontInfo(newFontMapper.sysFontInfo);
-  oldFontMapper?.dispose();
+async function _reloadFontCache() {
+  for (const font of await PdfFontPersistentCache.instance.loadAll()) {
+    pdfFontMapper?.addFontData(font);
+  }
 }
 
 /**
- * Reload fonts in PDFium.
- *
- * The function is based on the fact that PDFium reloads all the fonts when FPDF_SetSystemFontInfo is called.
+ * Reload fonts into the current mapper.
  */
 async function reloadFonts() {
-  console.log('Reloading system fonts in PDFium...');
-  await _initializeFontEnvironment();
+  console.log('Reloading fonts in PDFium font mapper...');
+  await _reloadFontCache();
   return { message: 'Fonts reloaded' };
 }
 let pdfFontMapper = null;
@@ -2231,20 +2227,6 @@ class PdfFontMapper {
     const pointer = Pdfium.addFunction(func, sig);
     this.functionPointers.push(pointer);
     return pointer;
-  }
-
-  cachedFonts() {
-    return [...new Set(Object.values(this.cachedFontsByFace))];
-  }
-
-  restoreCachedFonts(fonts) {
-    for (const font of fonts) {
-      this.cachedFontsByFace[font.face] = font;
-      if (font.resolvedFace && font.resolvedFace !== font.face) {
-        this.aliases[font.face] = font.resolvedFace;
-        this.cachedFontsByFace[font.resolvedFace] = font;
-      }
-    }
   }
 
   addFontData({ face, data, resolvedFace }) {
@@ -3024,7 +3006,7 @@ async function initializePdfium(params = {}) {
 
     Pdfium.initWith(result.instance.exports);
     Pdfium.wasmExports.FPDF_InitLibrary();
-    await _initializeFontEnvironment();
+    await _installFontMapper();
 
     pdfiumInitialized = true;
 

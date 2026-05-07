@@ -131,7 +131,7 @@ abstract class PdfrxEntryFunctions {
   /// [fontPaths] are additional font files or directories scanned by backends that support local files.
   Future<void> configureFontEnvironment({String? fontCachePath, List<String> fontPaths = const []});
 
-  /// Reload the fonts.
+  /// Refresh the backend font mapper state.
   Future<void> reloadFonts();
 
   /// Add font data to font cache.

@@ -137,11 +137,12 @@ class PdfFontManager {
   /// [resolvers] can be an empty list, in which case the manager will not be able to resolve any fonts.
   ///
   /// [fontCachePath] is the app-local font cache directory used for fonts loaded by this manager. If omitted, the
-  /// manager uses `${Pdfrx.cacheDirectoryPath}/pdfrx.fonts` when [Pdfrx.cacheDirectoryPath] is available.
+  /// manager resolves `${Pdfrx.cacheDirectoryPath}/pdfrx.fonts` when [prepare] runs and [Pdfrx.cacheDirectoryPath] is
+  /// available.
   /// [fontPaths] are additional font files or directories scanned by backends that support local font files.
   PdfFontManager({required List<PdfFontResolver> resolvers, String? fontCachePath, List<String> fontPaths = const []})
     : _resolver = _PdfFontResolverChain._bundleResolvers(resolvers),
-      _fontCachePath = fontCachePath ?? _getDefaultFontCachePath(),
+      _fontCachePath = fontCachePath,
       _fontPaths = List.unmodifiable(fontPaths);
 
   final PdfFontResolver _resolver;
@@ -158,15 +159,18 @@ class PdfFontManager {
   /// Multiple calls to this method will wait for the same preparation process to complete.
   Future<void> prepare() {
     return _prepareFuture ??= () async {
-      await PdfrxEntryFunctions.instance.configureFontEnvironment(fontCachePath: _fontCachePath, fontPaths: _fontPaths);
+      await PdfrxEntryFunctions.instance.configureFontEnvironment(
+        fontCachePath: _fontCachePath ?? _getDefaultFontCachePath(),
+        fontPaths: _fontPaths,
+      );
     }();
   }
 
   /// Resolves and registers [queries].
   ///
   /// If [reloadFonts] is true and at least one font is registered, this calls
-  /// [PdfrxEntryFunctions.reloadFonts] after registration. That refreshes the
-  /// backend font lookup state, but it does not reload already opened
+  /// [PdfrxEntryFunctions.reloadFonts] after registration. That refreshes the backend font mapper state, but it does
+  /// not reload already opened
   /// documents; callers still need to reopen or reload those documents.
   ///
   /// [onProgress] is called when a resolver reports byte progress while loading

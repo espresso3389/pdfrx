@@ -54,7 +54,7 @@ Future<void> _init() async {
     }, null);
   });
 
-  await _initializeFontEnvironment();
+  await _installFontMapper();
 }
 
 Future<void> _deinit() async {
@@ -69,24 +69,26 @@ Future<void> _deinit() async {
 
 _PdfFontMapper? _fontMapper;
 
-/// Setup the system font info in PDFium.
-Future<void> _initializeFontEnvironment({bool forceAddFontFiles = false}) async {
+/// Install the system font info in PDFium.
+Future<void> _installFontMapper() async {
   await BackgroundWorker.compute((params) {
-    final cachedFonts = _fontMapper?.cachedFonts.toList(growable: false);
-    final oldFontMapper = _fontMapper;
-    final shouldAddFontFiles = oldFontMapper == null;
-    final newFontMapper = _PdfFontMapper()
-      ..restoreCachedFonts(cachedFonts ?? const <_CachedFont>[])
-      ..install();
-    if (shouldAddFontFiles || params.forceAddFontFiles) {
-      newFontMapper.addFontFiles(fontCachePath: params.fontCachePath, fontPaths: params.fontPaths);
+    if (_fontMapper != null) {
+      return;
     }
-    _fontMapper = newFontMapper;
+    final fontMapper = _PdfFontMapper()..install();
+    fontMapper.addFontFiles(fontCachePath: params.fontCachePath, fontPaths: params.fontPaths);
+    _fontMapper = fontMapper;
 
-    // PDFium keeps only the latest system font info pointer.
-    pdfium.FPDF_SetSystemFontInfo(newFontMapper.sysFontInfo);
-    oldFontMapper?.dispose();
-  }, (fontCachePath: _fontCachePath, fontPaths: _fontPaths, forceAddFontFiles: forceAddFontFiles));
+    // PDFium keeps this pointer. The mapper instance must remain alive until PDFium is destroyed.
+    pdfium.FPDF_SetSystemFontInfo(fontMapper.sysFontInfo);
+  }, (fontCachePath: _fontCachePath, fontPaths: _fontPaths));
+}
+
+/// Reload font files into the current mapper without reinstalling PDFium callbacks.
+Future<void> _reloadFontFiles() async {
+  await BackgroundWorker.compute((params) {
+    _fontMapper?.addFontFiles(fontCachePath: params.fontCachePath, fontPaths: params.fontPaths);
+  }, (fontCachePath: _fontCachePath, fontPaths: _fontPaths));
 }
 
 /// Retrieve and clear the last missing fonts from the worker-side font mapper.
@@ -197,14 +199,6 @@ class _PdfFontMapper {
     final fonts = _missingFonts.values.toList();
     _missingFonts.clear();
     return fonts;
-  }
-
-  Iterable<_CachedFont> get cachedFonts => _cachedFonts.values.toSet();
-
-  void restoreCachedFonts(Iterable<_CachedFont> fonts) {
-    for (final font in fonts) {
-      _addCachedFont(font);
-    }
   }
 
   void addFontFiles({required String? fontCachePath, required List<String> fontPaths}) {
@@ -899,7 +893,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     _fontCachePath = fontCachePath;
     _fontPaths = List.unmodifiable(fontPaths);
     if (_initialized) {
-      await _initializeFontEnvironment(forceAddFontFiles: true);
+      await _reloadFontFiles();
     } else {
       await _init();
     }
@@ -907,7 +901,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
 
   @override
   Future<void> reloadFonts() async {
-    await _initializeFontEnvironment();
+    await _reloadFontFiles();
   }
 
   @override
