@@ -249,6 +249,32 @@ Future<Uint8List> _downloadGoogleFontsFile(_GoogleFontsFile font, {PdfFontDataLo
 }
 
 /// Resolves standard/Core fonts first, then falls back to Noto coverage fonts.
+///
+/// The resolver downloads the following Google Fonts files:
+///
+/// | Font | License | Weights |
+/// | --- | --- | --- |
+/// | [Arimo](https://fonts.google.com/specimen/Arimo) | Apache 2.0| 400, 500, 600, 700; same weights for italic |
+/// | [Tinos](https://fonts.google.com/specimen/Tinos) | Apache 2.0| 400, 700; same weights for italic |
+/// | [Cousine](https://fonts.google.com/specimen/Cousine) | Apache 2.0| 400, 700; same weights for italic |
+/// | [Noto Sans](https://fonts.google.com/specimen/Noto+Sans) | SIL OFL 1.1 | 100, 200, 300, 400, 500, 600, 700, 800, 900; same weights for italic |
+/// | [Noto Sans SC](https://fonts.google.com/specimen/Noto+Sans+SC) | SIL OFL 1.1 | 100, 200, 300, 400, 500, 600, 700, 800, 900 |
+/// | [Noto Sans TC](https://fonts.google.com/specimen/Noto+Sans+TC) | SIL OFL 1.1 | 100, 200, 300, 400, 500, 600, 700, 800, 900 |
+/// | [Noto Sans JP](https://fonts.google.com/specimen/Noto+Sans+JP) | SIL OFL 1.1 | 100, 200, 300, 400, 500, 600, 700, 800, 900 |
+/// | [Noto Sans KR](https://fonts.google.com/specimen/Noto+Sans+KR) | SIL OFL 1.1 | 100, 200, 300, 400, 500, 600, 700, 800, 900 |
+/// | [Noto Sans Thai](https://fonts.google.com/specimen/Noto+Sans+Thai) | SIL OFL 1.1 | 100, 200, 300, 400, 500, 600, 700, 800, 900 |
+/// | [Noto Sans Hebrew](https://fonts.google.com/specimen/Noto+Sans+Hebrew) | SIL OFL 1.1 | 100, 200, 300, 400, 500, 600, 700, 800, 900 |
+/// | [Noto Sans Arabic](https://fonts.google.com/specimen/Noto+Sans+Arabic) | SIL OFL 1.1 | 100, 200, 300, 400, 500, 600, 700, 800, 900 |
+/// | [Noto Serif](https://fonts.google.com/specimen/Noto+Serif) | SIL OFL 1.1 | 100, 200, 300, 400, 500, 600, 700, 800, 900; same weights for italic |
+/// | [Noto Serif SC](https://fonts.google.com/specimen/Noto+Serif+SC) | SIL OFL 1.1 | 200, 300, 400, 500, 600, 700, 800, 900 |
+/// | [Noto Serif TC](https://fonts.google.com/specimen/Noto+Serif+TC) | SIL OFL 1.1 | 200, 300, 400, 500, 600, 700, 800, 900 |
+/// | [Noto Serif JP](https://fonts.google.com/specimen/Noto+Serif+JP) | SIL OFL 1.1 | 200, 300, 400, 500, 600, 700, 800, 900 |
+/// | [Noto Serif KR](https://fonts.google.com/specimen/Noto+Serif+KR) | SIL OFL 1.1 | 200, 300, 400, 500, 600, 700, 800, 900 |
+/// | [Noto Serif Thai](https://fonts.google.com/specimen/Noto+Serif+Thai) | SIL OFL 1.1 | 100, 200, 300, 400, 500, 600, 700, 800, 900 |
+/// | [Noto Serif Hebrew](https://fonts.google.com/specimen/Noto+Serif+Hebrew) | SIL OFL 1.1 | 100, 200, 300, 400, 500, 600, 700, 800, 900 |
+/// | [Noto Naskh Arabic](https://fonts.google.com/specimen/Noto+Naskh+Arabic) | SIL OFL 1.1 | 400, 500, 600, 700 |
+/// | [Noto Sans CJK](https://github.com/notofonts/noto-cjk) | SIL OFL 1.1 | Variable OTC collection |
+/// | [Noto Serif CJK](https://github.com/notofonts/noto-cjk) | SIL OFL 1.1 | Variable OTC collection |
 class CompositeGoogleFontsResolver implements PdfFontResolver {
   /// Creates a composite Google Fonts resolver suitable for the example viewer.
   CompositeGoogleFontsResolver({bool preferCJK = true})
