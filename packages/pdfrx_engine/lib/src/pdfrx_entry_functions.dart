@@ -129,7 +129,8 @@ abstract class PdfrxEntryFunctions {
 
   /// Add font data to font cache.
   ///
-  /// For Web platform, this is the only way to add custom fonts (the fonts are cached on memory).
+  /// For Web platform, this is the only way to add custom fonts. The fonts are persisted in IndexedDB and
+  /// restored into the WASM worker memory cache when the worker initializes.
   ///
   /// For other platforms, the font data is cached on temporary files in the cache directory; if you want to keep
   /// the font data permanently, you should save the font data to some other persistent storage and set its path

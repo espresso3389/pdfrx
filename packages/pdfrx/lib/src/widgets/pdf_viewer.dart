@@ -42,6 +42,7 @@ class PdfViewer extends StatefulWidget {
   ///
   /// - [documentRef] is the [PdfDocumentRef].
   /// - [controller] is the controller to control the viewer.
+  /// - [fontManager] is the font manager to handle missing fonts.
   /// - [params] is the parameters to customize the viewer.
   /// - [initialPageNumber] is the page number to show initially.
   const PdfViewer(
@@ -60,6 +61,7 @@ class PdfViewer extends StatefulWidget {
   /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
   /// - [controller] is the controller to control the viewer.
+  /// - [fontManager] is the font manager to handle missing fonts.
   /// - [params] is the parameters to customize the viewer.
   /// - [initialPageNumber] is the page number to show initially.
   PdfViewer.asset(
@@ -86,6 +88,7 @@ class PdfViewer extends StatefulWidget {
   /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
   /// - [controller] is the controller to control the viewer.
+  /// - [fontManager] is the font manager to handle missing fonts.
   /// - [params] is the parameters to customize the viewer.
   /// - [initialPageNumber] is the page number to show initially.
   PdfViewer.file(
@@ -112,6 +115,7 @@ class PdfViewer extends StatefulWidget {
   /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
   /// - [controller] is the controller to control the viewer.
+  /// - [fontManager] is the font manager to handle missing fonts.
   /// - [params] is the parameters to customize the viewer.
   /// - [initialPageNumber] is the page number to show initially.
   /// - [preferRangeAccess] to prefer range access to download the PDF. The default is false.
@@ -153,6 +157,7 @@ class PdfViewer extends StatefulWidget {
   /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
   /// - [controller] is the controller to control the viewer.
+  /// - [fontManager] is the font manager to handle missing fonts.
   /// - [params] is the parameters to customize the viewer.
   /// - [initialPageNumber] is the page number to show initially.
   PdfViewer.data(
@@ -184,6 +189,7 @@ class PdfViewer extends StatefulWidget {
   /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
   /// - [controller] is the controller to control the viewer.
+  /// - [fontManager] is the font manager to handle missing fonts.
   /// - [params] is the parameters to customize the viewer.
   /// - [initialPageNumber] is the page number to show initially.
   PdfViewer.custom({
