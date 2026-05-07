@@ -48,6 +48,7 @@ class PdfViewer extends StatefulWidget {
     this.documentRef, {
     super.key,
     this.controller,
+    this.fontManager,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
   });
@@ -68,6 +69,7 @@ class PdfViewer extends StatefulWidget {
     bool useProgressiveLoading = true,
     super.key,
     this.controller,
+    this.fontManager,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
   }) : documentRef = PdfDocumentRefAsset(
@@ -93,6 +95,7 @@ class PdfViewer extends StatefulWidget {
     bool useProgressiveLoading = true,
     super.key,
     this.controller,
+    this.fontManager,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
   }) : documentRef = PdfDocumentRefFile(
@@ -123,6 +126,7 @@ class PdfViewer extends StatefulWidget {
     bool useProgressiveLoading = true,
     super.key,
     this.controller,
+    this.fontManager,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
     bool preferRangeAccess = false,
@@ -159,6 +163,7 @@ class PdfViewer extends StatefulWidget {
     bool useProgressiveLoading = true,
     super.key,
     this.controller,
+    this.fontManager,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
   }) : documentRef = PdfDocumentRefData(
@@ -190,6 +195,7 @@ class PdfViewer extends StatefulWidget {
     bool useProgressiveLoading = true,
     super.key,
     this.controller,
+    this.fontManager,
     this.params = const PdfViewerParams(),
     this.initialPageNumber = 1,
   }) : documentRef = PdfDocumentRefCustom(
@@ -206,6 +212,9 @@ class PdfViewer extends StatefulWidget {
 
   /// Controller to control the viewer.
   final PdfViewerController? controller;
+
+  /// Font manager to handle font loading/substitution for missing fonts.
+  final PdfFontManager? fontManager;
 
   /// Parameters to customize the display of the PDF document.
   final PdfViewerParams params;
@@ -235,6 +244,8 @@ class _PdfViewerState extends State<PdfViewer>
   bool _usingScrollPercentageMode = false;
 
   StreamSubscription<PdfDocumentEvent>? _documentSubscription;
+  PdfFontManagerAssociation? _fontManagerAssociation;
+  PdfFontManager? _associatedFontManager;
   final _interactiveViewerKey = GlobalKey<iv.InteractiveViewerState>();
 
   List<double> _zoomStops = const [1.0];
@@ -321,6 +332,9 @@ class _PdfViewerState extends State<PdfViewer>
     if (widget.params.zoomStepsDelegateProvider != oldWidget.params.zoomStepsDelegateProvider) {
       _updateZoomStepsDelegate();
     }
+    if (!identical(widget.fontManager, oldWidget.fontManager)) {
+      _updateFontManagerAssociation();
+    }
   }
 
   void _updateInteractionDelegate() {
@@ -371,6 +385,7 @@ class _PdfViewerState extends State<PdfViewer>
     _layout = null;
     _documentSubscription?.cancel();
     _documentSubscription = null;
+    _clearFontManagerAssociation();
     _textSelectionChangedDebounceTimer?.cancel();
     _stopInteraction();
     _imageCache.releaseAllImages();
@@ -406,6 +421,7 @@ class _PdfViewerState extends State<PdfViewer>
     _documentSubscription = document.events.listen(_onDocumentEvent);
     _interactionDelegate?.init(_controller!, this);
     _sizeDelegate?.init(_controller!);
+    _updateFontManagerAssociation();
 
     if (mounted) {
       setState(() {});
@@ -445,6 +461,7 @@ class _PdfViewerState extends State<PdfViewer>
     _zoomStepsDelegate?.dispose();
     focusReportForPreventingContextMenuWeb(this, false);
     _documentSubscription?.cancel();
+    _clearFontManagerAssociation();
     _textSelectionChangedDebounceTimer?.cancel();
     _interactionEndedTimer?.cancel();
     _imageCache.cancelAllPendingRenderings();
@@ -461,6 +478,24 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _onMatrixChanged() => _invalidate();
+
+  void _updateFontManagerAssociation() {
+    final fontManager = widget.fontManager;
+    if (identical(_associatedFontManager, fontManager)) {
+      return;
+    }
+    _clearFontManagerAssociation();
+    if (fontManager != null && _controller != null) {
+      _fontManagerAssociation = _controller!.associateFontManager(fontManager);
+      _associatedFontManager = fontManager;
+    }
+  }
+
+  void _clearFontManagerAssociation() {
+    _fontManagerAssociation?.dispose();
+    _fontManagerAssociation = null;
+    _associatedFontManager = null;
+  }
 
   void _onDocumentEvent(PdfDocumentEvent event) {
     if (event is PdfDocumentPageStatusChangedEvent) {

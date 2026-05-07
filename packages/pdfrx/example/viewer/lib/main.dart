@@ -306,6 +306,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                       // Set password provider to show password dialog
                       //passwordProvider: () => passwordDialog(context),
                       controller: controller,
+                      fontManager: _fontManager,
                       params: PdfViewerParams(
                         layoutPages: _layoutPages[_layoutTypeIndex],
                         scrollHorizontallyByMouseWheel: isHorizontalLayout,
@@ -564,7 +565,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                           outline.value = await document.loadOutline();
                           textSearcher.value = PdfTextSearcher(controller)..addListener(_update);
                           controller.requestFocus();
-                          controller.associateFontManager(_fontManager);
                         },
                       ),
                     );
