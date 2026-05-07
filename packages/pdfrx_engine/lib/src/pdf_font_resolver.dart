@@ -136,32 +136,41 @@ class PdfFontManager {
   /// The [resolvers] are tried in order until one returns a resolution for a query.
   /// [resolvers] can be an empty list, in which case the manager will not be able to resolve any fonts.
   ///
-  /// [fontCachePath] is the app-local font cache directory used for fonts loaded by this manager. If omitted, the
-  /// manager resolves `${Pdfrx.cacheDirectoryPath}/pdfrx.fonts` when [prepare] runs and [Pdfrx.cacheDirectoryPath] is
-  /// available.
-  /// [fontPaths] are additional font files or directories scanned by backends that support local font files.
-  PdfFontManager({required List<PdfFontResolver> resolvers, String? fontCachePath, List<String> fontPaths = const []})
-    : _resolver = _PdfFontResolverChain._bundleResolvers(resolvers),
-      _fontCachePath = fontCachePath,
-      _fontPaths = List.unmodifiable(fontPaths);
+  PdfFontManager({required List<PdfFontResolver> resolvers})
+    : _resolver = _PdfFontResolverChain._bundleResolvers(resolvers);
 
   final PdfFontResolver _resolver;
-  final String? _fontCachePath;
-  final List<String> _fontPaths;
   final _registeredFaces = <String>{};
   Future<void>? _prepareFuture;
 
-  /// Prepares the backend font environment using the configured font cache path and font paths.
+  /// Prepares the backend font environment.
+  ///
+  /// [fontCachePath] is the app-local font cache directory used for fonts loaded by this manager. If omitted, the
+  /// manager resolves `${Pdfrx.cacheDirectoryPath}/pdfrx.fonts` when [Pdfrx.cacheDirectoryPath] is available.
+  ///
+  /// [fontPaths] are additional font files or directories scanned by backends that support local font files.
   ///
   /// This is called automatically by [loadMissingFonts] before resolving any fonts. PdfViewer also calls it before
-  /// loading a document when its font manager is set, so cached fonts and local font paths can be used during
-  /// the first load. Direct PdfDocument users can call this before opening a document to get the same behavior.
-  /// Multiple calls to this method will wait for the same preparation process to complete.
-  Future<void> prepare() {
-    return _prepareFuture ??= () async {
+  /// loading a document when its font manager is set, so cached fonts can be used during the first load. Direct
+  /// PdfDocument users can call this before opening a document to get the same behavior or to configure local
+  /// [fontPaths].
+  ///
+  /// Multiple calls to this method will wait for the same preparation process to complete. Once preparation has
+  /// started, calling this method again with [fontCachePath] or [fontPaths] throws [StateError].
+  Future<void> prepare({String? fontCachePath, List<String>? fontPaths}) {
+    final prepareFuture = _prepareFuture;
+    if (prepareFuture != null) {
+      if (fontCachePath != null || fontPaths != null) {
+        throw StateError(
+          'PdfFontManager.prepare has already been called. Configure fontCachePath and fontPaths before the first prepare call.',
+        );
+      }
+      return prepareFuture;
+    }
+    return _prepareFuture = () async {
       await PdfrxEntryFunctions.instance.configureFontEnvironment(
-        fontCachePath: _fontCachePath ?? _getDefaultFontCachePath(),
-        fontPaths: _fontPaths,
+        fontCachePath: fontCachePath ?? _getDefaultFontCachePath(),
+        fontPaths: List.unmodifiable(fontPaths ?? const <String>[]),
       );
     }();
   }

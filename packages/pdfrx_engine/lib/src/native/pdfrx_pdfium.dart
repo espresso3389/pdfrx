@@ -233,11 +233,16 @@ class _PdfFontMapper {
   }
 
   void _addFontFile(File file, {required bool decodeFaceFromFileName}) {
-    final source = _FontSource.fromFile(file);
-    if (source == null) {
+    final metadataData = _FontSource.readHeaderDataFromFile(file);
+    if (metadataData == null) {
       return;
     }
-    final fontNames = _CachedFont.extractFontNames(source);
+    final fontOffset = _FontSource.getFontOffsetFromData(metadataData);
+    if (fontOffset == null) {
+      return;
+    }
+    final fontNames = _CachedFont.extractFontNames(metadataData, fontOffset);
+    final source = _FontSource.fromFile(file, fontOffset: fontOffset);
     final resolvedFace = fontNames.isEmpty ? null : fontNames.first;
     final faceFromFileName = decodeFaceFromFileName ? _decodeFontCacheFileName(file) : null;
     if (faceFromFileName != null) {
@@ -396,12 +401,8 @@ class _CachedFont {
 
   Uint8List get data => source.fullData;
 
-  static Set<String> extractFontNames(_FontSource source) {
-    final fontOffset = source.fontOffset;
-    if (fontOffset == null) {
-      return const {};
-    }
-    final nameTable = source.getTableData(_nameTableTag);
+  static Set<String> extractFontNames(Uint8List data, int fontOffset) {
+    final nameTable = _FontSource.getTableDataFromData(data, fontOffset, _nameTableTag);
     if (nameTable == null || nameTable.length < 6) {
       return const {};
     }
@@ -456,20 +457,20 @@ class _CachedFont {
 }
 
 class _FontSource {
-  _FontSource._({required Uint8List headerData, required Uint8List Function() loadFullData})
-    : _headerData = headerData,
-      _loadFullData = loadFullData {
-    fontOffset = _getFontOffsetFromData(_headerData);
-  }
+  _FontSource._({required this.fontOffset, required Uint8List Function() loadFullData}) : _loadFullData = loadFullData;
 
-  factory _FontSource.memory(Uint8List data) => _FontSource._(headerData: data, loadFullData: () => data);
+  factory _FontSource.memory(Uint8List data) =>
+      _FontSource._(fontOffset: getFontOffsetFromData(data), loadFullData: () => data);
 
-  static _FontSource? fromFile(File file) {
+  factory _FontSource.fromFile(File file, {required int fontOffset}) =>
+      _FontSource._(fontOffset: fontOffset, loadFullData: file.readAsBytesSync);
+
+  static Uint8List? readHeaderDataFromFile(File file, {int maxHeaderSize = 1024 * 1024}) {
     final length = file.lengthSync();
     if (length <= 0) {
       return null;
     }
-    final headerLength = min(length, 1024 * 1024);
+    final headerLength = min(length, maxHeaderSize);
     final openedFile = file.openSync();
     late final Uint8List headerData;
     try {
@@ -480,12 +481,11 @@ class _FontSource {
     if (headerData.isEmpty) {
       return null;
     }
-    return _FontSource._(headerData: headerData, loadFullData: file.readAsBytesSync);
+    return headerData;
   }
 
-  final Uint8List _headerData;
   final Uint8List Function() _loadFullData;
-  late final int? fontOffset;
+  final int? fontOffset;
   Uint8List? _fullData;
 
   Uint8List get fullData => _fullData ??= _loadFullData();
@@ -495,10 +495,10 @@ class _FontSource {
     if (fontOffset == null) {
       return null;
     }
-    return _getTableDataFromData(_headerData, fontOffset, table) ?? _getTableDataFromData(fullData, fontOffset, table);
+    return getTableDataFromData(fullData, fontOffset, table);
   }
 
-  static Uint8List? _getTableDataFromData(Uint8List data, int fontOffset, int table) {
+  static Uint8List? getTableDataFromData(Uint8List data, int fontOffset, int table) {
     if (fontOffset + 12 > data.length) {
       return null;
     }
@@ -522,7 +522,7 @@ class _FontSource {
     return null;
   }
 
-  static int? _getFontOffsetFromData(Uint8List data) {
+  static int? getFontOffsetFromData(Uint8List data) {
     if (data.length < 12) {
       return null;
     }
