@@ -14,7 +14,10 @@ void main(List<String> args) async {
     if (input.config.code.targetOS == OS.iOS) return;
 
     final target = _PdfiumTarget.fromCodeConfig(input.config.code);
-    final outputFile = input.outputDirectory.resolve(target.libraryFileName);
+    final outputSubdir = _pdfiumRelease.replaceAll('%2F', '_');
+    final outputFile = input.outputDirectoryShared.resolve(
+      '$outputSubdir/${target.libraryFileName}',
+    );
 
     await _downloadPdfium(
       outputFile: outputFile,
