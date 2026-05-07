@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
 
+import 'pdf_document_event.dart';
 import 'pdf_font_query.dart';
 import 'pdfrx_entry_functions.dart';
 
@@ -132,19 +133,11 @@ class PdfFontManager {
   ///
   /// The [resolvers] are tried in order until one returns a resolution for a query.
   /// [resolvers] can be an empty list, in which case the manager will not be able to resolve any fonts.
-  ///
-  /// The [entryFunctions] parameter allows for dependency injection, which can be useful for testing
-  /// or if you have a custom implementation of the entry functions.
-  /// In most cases, you can omit it and use the default instance.
-  PdfFontManager({required List<PdfFontResolver> resolvers, PdfrxEntryFunctions? entryFunctions})
-    : _resolver = _PdfFontResolverChain._bundleResolvers(resolvers),
-      _entryFunctions = entryFunctions;
+  PdfFontManager({required List<PdfFontResolver> resolvers})
+    : _resolver = _PdfFontResolverChain._bundleResolvers(resolvers);
 
   final PdfFontResolver _resolver;
-  final PdfrxEntryFunctions? _entryFunctions;
   final _registeredFaces = <String>{};
-
-  PdfrxEntryFunctions get _entryFunctionsInstance => _entryFunctions ?? PdfrxEntryFunctions.instance;
 
   /// Resolves and registers [queries].
   ///
@@ -190,7 +183,11 @@ class PdfFontManager {
                   ),
                 ),
         );
-        await _entryFunctionsInstance.addFontData(face: targetFace, data: data, resolvedFace: resolution.resolvedFace);
+        await PdfrxEntryFunctions.instance.addFontData(
+          face: targetFace,
+          data: data,
+          resolvedFace: resolution.resolvedFace,
+        );
         final loadedFont = PdfLoadedFont(
           query: query,
           targetFace: targetFace,
@@ -206,7 +203,7 @@ class PdfFontManager {
     }
 
     if (reloadFonts && loaded.isNotEmpty) {
-      await _entryFunctionsInstance.reloadFonts();
+      await PdfrxEntryFunctions.instance.reloadFonts();
     }
     return PdfFontLoadResult(
       loaded: loaded,
@@ -311,4 +308,12 @@ class PdfFontLoadFailure {
   final PdfFontQuery query;
   final Object error;
   final StackTrace stackTrace;
+}
+
+class PdfFontManagerAssociation {
+  PdfFontManagerAssociation(this.fontManager, this.subscription);
+  final PdfFontManager fontManager;
+  final StreamSubscription<PdfDocumentEvent> subscription;
+
+  void dispose() => subscription.cancel();
 }

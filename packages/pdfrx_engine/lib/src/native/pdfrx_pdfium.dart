@@ -51,30 +51,10 @@ Future<void> _init() async {
 
     _appLocalFontPath = await getCacheDirectory('pdfrx.fonts');
 
-    BackgroundWorker.computeWithArena((arena, params) {
-      final config = arena<pdfium_bindings.FPDF_LIBRARY_CONFIG>();
-      config.ref.version = 2;
-
-      final fontPaths = [?params.appLocalFontPath?.path, ...params.fontPaths];
-      if (fontPaths.isNotEmpty) {
-        // NOTE: m_pUserFontPaths must not be freed until FPDF_DestroyLibrary is called; on pdfrx, it's never freed.
-        final fontPathArray = malloc<Pointer<Char>>(fontPaths.length + 1);
-        for (var i = 0; i < fontPaths.length; i++) {
-          fontPathArray[i] = fontPaths[i]
-              .toNativeUtf8()
-              .cast<Char>(); // NOTE: the block allocated by toNativeUtf8 never released
-        }
-        fontPathArray[fontPaths.length] = nullptr;
-        config.ref.m_pUserFontPaths = fontPathArray;
-      } else {
-        config.ref.m_pUserFontPaths = nullptr;
-      }
-
-      config.ref.m_pIsolate = nullptr;
-      config.ref.m_v8EmbedderSlot = 0;
-      pdfium.FPDF_InitLibraryWithConfig(config);
+    BackgroundWorker.compute((params) {
+      pdfium.FPDF_InitLibrary();
       _initialized = true;
-    }, (appLocalFontPath: _appLocalFontPath, fontPaths: Pdfrx.fontPaths));
+    }, null);
   });
 
   await _initializeFontEnvironment();
@@ -92,22 +72,24 @@ Future<void> _deinit() async {
 
 _PdfFontMapper? _fontMapper;
 
-final _fontNamesToIgnore = {'Symbol', 'ZapfDingbats'};
-
 /// Setup the system font info in PDFium.
 Future<void> _initializeFontEnvironment() async {
   await BackgroundWorker.compute((params) {
     final cachedFonts = _fontMapper?.cachedFonts.toList(growable: false);
     final oldFontMapper = _fontMapper;
+    final shouldAddFontFiles = oldFontMapper == null;
     final newFontMapper = _PdfFontMapper()
       ..restoreCachedFonts(cachedFonts ?? const <_CachedFont>[])
       ..install();
+    if (shouldAddFontFiles) {
+      newFontMapper.addFontFiles(appLocalFontPath: params.appLocalFontPath, fontPaths: params.fontPaths);
+    }
     _fontMapper = newFontMapper;
 
     // PDFium keeps only the latest system font info pointer.
     pdfium.FPDF_SetSystemFontInfo(newFontMapper.sysFontInfo);
     oldFontMapper?.dispose();
-  }, {});
+  }, (appLocalFontPath: _appLocalFontPath?.path, fontPaths: Pdfrx.fontPaths));
 }
 
 /// Retrieve and clear the last missing fonts from the worker-side font mapper.
@@ -224,23 +206,89 @@ class _PdfFontMapper {
 
   void restoreCachedFonts(Iterable<_CachedFont> fonts) {
     for (final font in fonts) {
-      _cachedFonts[font.face] = font;
-      final resolvedFace = font.resolvedFace;
-      if (resolvedFace != null && resolvedFace != font.face) {
-        _aliases[font.face] = resolvedFace;
-        _cachedFonts[resolvedFace] = font;
+      _addCachedFont(font);
+    }
+  }
+
+  void addFontFiles({required String? appLocalFontPath, required List<String> fontPaths}) {
+    final appLocalPath = appLocalFontPath;
+    if (appLocalPath != null) {
+      _addFontFilesFromDirectory(Directory(appLocalPath), decodeFaceFromFileName: true);
+    }
+    for (final path in fontPaths) {
+      final type = FileSystemEntity.typeSync(path);
+      if (type == FileSystemEntityType.directory) {
+        _addFontFilesFromDirectory(Directory(path), decodeFaceFromFileName: false);
+      } else if (type == FileSystemEntityType.file) {
+        _addFontFile(File(path), decodeFaceFromFileName: false);
       }
     }
   }
 
+  void _addFontFilesFromDirectory(Directory directory, {required bool decodeFaceFromFileName}) {
+    if (!directory.existsSync()) {
+      return;
+    }
+    for (final entity in directory.listSync(recursive: true, followLinks: false)) {
+      if (entity is File && _isFontFile(entity.path)) {
+        _addFontFile(entity, decodeFaceFromFileName: decodeFaceFromFileName);
+      }
+    }
+  }
+
+  bool _isFontFile(String path) {
+    final lower = path.toLowerCase();
+    return lower.endsWith('.ttf') || lower.endsWith('.otf') || lower.endsWith('.ttc') || lower.endsWith('.otc');
+  }
+
+  void _addFontFile(File file, {required bool decodeFaceFromFileName}) {
+    final source = _FontSource.fromFile(file);
+    if (source == null) {
+      return;
+    }
+    final fontNames = _CachedFont.extractFontNames(source);
+    final resolvedFace = fontNames.isEmpty ? null : fontNames.first;
+    final faceFromFileName = decodeFaceFromFileName ? _decodeFontCacheFileName(file) : null;
+    if (faceFromFileName != null) {
+      stderr.writeln('Caching font "$faceFromFileName" from file ${file.path}');
+      _addCachedFont(_CachedFont(face: faceFromFileName, resolvedFace: resolvedFace, source: source, charset: null));
+    }
+    for (final fontName in fontNames) {
+      stderr.writeln('Caching font "$fontName" from file ${file.path}');
+      _addCachedFont(_CachedFont(face: fontName, resolvedFace: fontName, source: source, charset: null));
+    }
+  }
+
+  String? _decodeFontCacheFileName(File file) {
+    final fileName = file.uri.pathSegments.last;
+    final dotIndex = fileName.lastIndexOf('.');
+    final encodedName = dotIndex < 0 ? fileName : fileName.substring(0, dotIndex);
+    try {
+      return utf8.decode(base64Decode(encodedName));
+    } catch (_) {
+      return null;
+    }
+  }
+
   void addFontData({required String face, required Uint8List data, String? resolvedFace}) {
-    final font = _CachedFont(face: face, resolvedFace: resolvedFace, data: Uint8List.fromList(data), charset: null);
-    _cachedFonts[face] = font;
-    if (resolvedFace != null && resolvedFace != face) {
-      _aliases[face] = resolvedFace;
+    final font = _CachedFont(
+      face: face,
+      resolvedFace: resolvedFace,
+      source: _FontSource.memory(Uint8List.fromList(data)),
+      charset: null,
+    );
+    _addCachedFont(font);
+    _missingFonts.remove(face);
+  }
+
+  void _addCachedFont(_CachedFont font) {
+    _cachedFonts[font.face] = font;
+    final resolvedFace = font.resolvedFace;
+    if (resolvedFace != null && resolvedFace != font.face) {
+      stderr.writeln('Caching font "$resolvedFace" as alias for "${font.face}"');
+      _aliases[font.face] = resolvedFace;
       _cachedFonts[resolvedFace] = font;
     }
-    _missingFonts.remove(face);
   }
 
   void clear() {
@@ -248,6 +296,8 @@ class _PdfFontMapper {
     _aliases.clear();
     _missingFonts.clear();
   }
+
+  static final _fontNamesToIgnore = {'Symbol', 'ZapfDingbats'};
 
   Pointer<Void> _mapFontCallback(
     Pointer<pdfium_bindings.FPDF_SYSFONTINFO> sysFontInfo,
@@ -346,27 +396,131 @@ class _PdfFontMapper {
 }
 
 class _CachedFont {
-  _CachedFont({required this.face, required this.data, required this.charset, this.resolvedFace});
+  _CachedFont({required this.face, required this.source, required this.charset, this.resolvedFace});
 
   final String face;
   final String? resolvedFace;
-  final Uint8List data;
+  final _FontSource source;
   int? charset;
 
+  Uint8List get data => source.fullData;
+
+  static Set<String> extractFontNames(_FontSource source) {
+    final fontOffset = source.fontOffset;
+    if (fontOffset == null) {
+      return const {};
+    }
+    final nameTable = source.getTableData(_nameTableTag);
+    if (nameTable == null || nameTable.length < 6) {
+      return const {};
+    }
+    final count = _FontSource.readUint16From(nameTable, 2);
+    final stringOffset = _FontSource.readUint16From(nameTable, 4);
+    final names = <String>{};
+    var recordOffset = 6;
+    for (var i = 0; i < count; i++) {
+      if (recordOffset + 12 > nameTable.length) {
+        break;
+      }
+      final platformId = _FontSource.readUint16From(nameTable, recordOffset);
+      final nameId = _FontSource.readUint16From(nameTable, recordOffset + 6);
+      final length = _FontSource.readUint16From(nameTable, recordOffset + 8);
+      final offset = _FontSource.readUint16From(nameTable, recordOffset + 10);
+      recordOffset += 12;
+      if (nameId != 1 && nameId != 4 && nameId != 6 && nameId != 16) {
+        continue;
+      }
+      final start = stringOffset + offset;
+      if (start < 0 || start + length > nameTable.length) {
+        continue;
+      }
+      final name = _decodeNameString(Uint8List.sublistView(nameTable, start, start + length), platformId);
+      if (name != null && name.isNotEmpty) {
+        names.add(name);
+      }
+    }
+    return names;
+  }
+
   Uint8List? getTableData(int table) {
-    final fontOffset = _getFontOffset();
-    if (fontOffset == null || fontOffset + 12 > data.length) {
+    return source.getTableData(table);
+  }
+
+  static String? _decodeNameString(Uint8List bytes, int platformId) {
+    try {
+      if (platformId == 0 || platformId == 3) {
+        final codeUnits = <int>[];
+        for (var i = 0; i + 1 < bytes.length; i += 2) {
+          codeUnits.add((bytes[i] << 8) | bytes[i + 1]);
+        }
+        return String.fromCharCodes(codeUnits).trim();
+      }
+      return latin1.decode(bytes).trim();
+    } catch (_) {
       return null;
     }
-    final numTables = _readUint16(fontOffset + 4);
+  }
+
+  static const _nameTableTag = 0x6e616d65;
+}
+
+class _FontSource {
+  _FontSource._({required Uint8List headerData, required Uint8List Function() loadFullData})
+    : _headerData = headerData,
+      _loadFullData = loadFullData {
+    fontOffset = _getFontOffsetFromData(_headerData);
+  }
+
+  factory _FontSource.memory(Uint8List data) => _FontSource._(headerData: data, loadFullData: () => data);
+
+  static _FontSource? fromFile(File file) {
+    final length = file.lengthSync();
+    if (length <= 0) {
+      return null;
+    }
+    final headerLength = min(length, 1024 * 1024);
+    final openedFile = file.openSync();
+    late final Uint8List headerData;
+    try {
+      headerData = openedFile.readSync(headerLength);
+    } finally {
+      openedFile.closeSync();
+    }
+    if (headerData.isEmpty) {
+      return null;
+    }
+    return _FontSource._(headerData: headerData, loadFullData: file.readAsBytesSync);
+  }
+
+  final Uint8List _headerData;
+  final Uint8List Function() _loadFullData;
+  late final int? fontOffset;
+  Uint8List? _fullData;
+
+  Uint8List get fullData => _fullData ??= _loadFullData();
+
+  Uint8List? getTableData(int table) {
+    final fontOffset = this.fontOffset;
+    if (fontOffset == null) {
+      return null;
+    }
+    return _getTableDataFromData(_headerData, fontOffset, table) ?? _getTableDataFromData(fullData, fontOffset, table);
+  }
+
+  static Uint8List? _getTableDataFromData(Uint8List data, int fontOffset, int table) {
+    if (fontOffset + 12 > data.length) {
+      return null;
+    }
+    final numTables = readUint16From(data, fontOffset + 4);
+    final recordsEnd = fontOffset + 12 + numTables * 16;
+    if (recordsEnd > data.length) {
+      return null;
+    }
     var tableRecordOffset = fontOffset + 12;
     for (var i = 0; i < numTables; i++) {
-      if (tableRecordOffset + 16 > data.length) {
-        return null;
-      }
-      if (_readUint32(tableRecordOffset) == table) {
-        final offset = _readUint32(tableRecordOffset + 8);
-        final length = _readUint32(tableRecordOffset + 12);
+      if (readUint32From(data, tableRecordOffset) == table) {
+        final offset = readUint32From(data, tableRecordOffset + 8);
+        final length = readUint32From(data, tableRecordOffset + 12);
         if (offset < 0 || length < 0 || offset + length > data.length) {
           return null;
         }
@@ -377,32 +531,32 @@ class _CachedFont {
     return null;
   }
 
-  int? _getFontOffset() {
+  static int? _getFontOffsetFromData(Uint8List data) {
     if (data.length < 12) {
       return null;
     }
     const ttcTag = 0x74746366;
-    final signature = _readUint32(0);
+    final signature = readUint32From(data, 0);
     if (signature != ttcTag) {
       return 0;
     }
     if (data.length < 16) {
       return null;
     }
-    final numFonts = _readUint32(8);
+    final numFonts = readUint32From(data, 8);
     if (numFonts < 1) {
       return null;
     }
-    final offset = _readUint32(12);
+    final offset = readUint32From(data, 12);
     if (offset < 0 || offset >= data.length) {
       return null;
     }
     return offset;
   }
 
-  int _readUint16(int offset) => (data[offset] << 8) | data[offset + 1];
+  static int readUint16From(Uint8List data, int offset) => (data[offset] << 8) | data[offset + 1];
 
-  int _readUint32(int offset) =>
+  static int readUint32From(Uint8List data, int offset) =>
       (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3];
 }
 

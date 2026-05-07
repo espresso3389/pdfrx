@@ -4182,48 +4182,35 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// to manually dispose it by calling [PdfFontManagerAssociation.dispose].
   PdfFontManagerAssociation associateFontManager(
     PdfFontManager fontManager, {
-    bool verbose = false,
     PdfFontLoadProgressCallback? onProgress,
+    bool verbose = true,
   }) {
-    final subscription = document.events.listen((event) {
-      if (event is PdfDocumentMissingFontsEvent) {
-        Future.microtask(() async {
-          if (verbose) {
-            debugPrint('Missing fonts: ${event.missingFonts.map((f) => f.toString()).join(', ')}');
+    return document.associateFontManager(
+      fontManager,
+      onLoadComplete: (result) async {
+        if (verbose) {
+          for (final font in result.loaded) {
+            debugPrint(
+              'Loaded font "${font.resolvedFace}" for "${font.targetFace}" '
+              'from ${font.source} (${font.length} bytes)',
+            );
           }
-          final result = await fontManager.loadMissingFonts(event.missingFonts, onProgress: onProgress);
-          if (verbose) {
-            for (final font in result.loaded) {
-              debugPrint(
-                'Loaded font "${font.resolvedFace}" for "${font.targetFace}" '
-                'from ${font.source} (${font.length} bytes)',
-              );
-            }
-            for (final failure in result.failed) {
-              debugPrint('Failed to load font for ${failure.query}: ${failure.error}');
-            }
+          for (final failure in result.failed) {
+            debugPrint('Failed to load font for ${failure.query}: ${failure.error}');
           }
-          if (result.hasLoadedFonts) {
-            // Because the loading operation is asynchronous, the document might be already disposed when the font
-            // loading is completed; in that case, we should not try to reload the document.
-            final listenable = documentRef.resolveListenable();
-            if (listenable.document != null) {
-              await listenable.load(forceReload: true);
-            }
+        }
+        if (result.hasLoadedFonts) {
+          // Because the loading operation is asynchronous, the document might be already disposed when the font
+          // loading is completed; in that case, we should not try to reload the document.
+          final listenable = documentRef.resolveListenable();
+          if (listenable.document != null) {
+            await listenable.load(forceReload: true);
           }
-        });
-      }
-    });
-    return PdfFontManagerAssociation._(fontManager, subscription);
+        }
+      },
+      onProgress: onProgress,
+    );
   }
-}
-
-class PdfFontManagerAssociation {
-  PdfFontManagerAssociation._(this.fontManager, this.subscription);
-  final PdfFontManager fontManager;
-  final StreamSubscription<PdfDocumentEvent> subscription;
-
-  void dispose() => subscription.cancel();
 }
 
 /// [PdfViewerController.calcFitZoomMatrices] returns the list of this class.

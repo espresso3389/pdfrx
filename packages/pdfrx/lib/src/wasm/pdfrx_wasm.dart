@@ -365,7 +365,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     final jsData = data.buffer.toJS;
     await _sendCommand(
       'addFontData',
-      parameters: {'face': face, 'data': jsData, if (resolvedFace != null) 'resolvedFace': resolvedFace},
+      parameters: {'face': face, 'data': jsData, 'resolvedFace': ?resolvedFace},
       transfer: [jsData].toJS,
     );
   }
