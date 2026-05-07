@@ -3,12 +3,11 @@ import 'dart:math' as math;
 import 'package:file_selector/file_selector.dart' as fs;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'google_fonts_resolver.dart';
 import 'markers_view.dart';
-import 'noto_google_fonts.dart';
 import 'outline_view.dart';
 import 'password_dialog.dart';
 import 'search_view.dart';
@@ -48,6 +47,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
   final outline = ValueNotifier<List<PdfOutlineNode>?>(null);
   final textSearcher = ValueNotifier<PdfTextSearcher?>(null);
   final _markers = <int, List<Marker>>{};
+  final _fontManager = PdfFontManager(resolvers: [CompositeGoogleFontsResolver()]);
   List<PdfPageTextRange>? textSelections;
 
   // ignore: unused_field
@@ -564,31 +564,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                           outline.value = await document.loadOutline();
                           textSearcher.value = PdfTextSearcher(controller)..addListener(_update);
                           controller.requestFocus();
-                          controller.document.events.listen((event) {
-                            if (event is PdfDocumentMissingFontsEvent) {
-                              Future.microtask(() async {
-                                // NOTE: This is just an example of downloading missing fonts from Google Fonts.
-                                // In real-world use cases, you might want to have a more sophisticated
-                                // mechanism to manage the fonts.
-                                debugPrint('Missing fonts: ${event.missingFonts.map((f) => f.toString()).join(', ')}');
-                                int count = 0;
-                                for (final font in event.missingFonts) {
-                                  final gf = getGoogleFontsUriFromFontQuery(font);
-                                  if (gf != null) {
-                                    debugPrint('Downloading font "${gf.faceName}" from ${gf.uri}...');
-                                    final downloaded = (await http.get(gf.uri)).bodyBytes;
-                                    debugPrint('  Downloaded ${downloaded.length} bytes');
-                                    await PdfrxEntryFunctions.instance.addFontData(face: font.face, data: downloaded);
-                                    count++;
-                                  }
-                                }
-                                if (count > 0) {
-                                  await PdfrxEntryFunctions.instance.reloadFonts();
-                                  await controller.documentRef.resolveListenable().load(forceReload: true);
-                                }
-                              });
-                            }
-                          });
+                          controller.associateFontManager(_fontManager);
                         },
                       ),
                     );

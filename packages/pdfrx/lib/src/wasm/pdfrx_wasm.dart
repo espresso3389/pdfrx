@@ -360,10 +360,14 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
   }
 
   @override
-  Future<void> addFontData({required String face, required Uint8List data}) async {
+  Future<void> addFontData({required String face, required Uint8List data, String? resolvedFace}) async {
     await init();
     final jsData = data.buffer.toJS;
-    await _sendCommand('addFontData', parameters: {'face': face, 'data': jsData}, transfer: [jsData].toJS);
+    await _sendCommand(
+      'addFontData',
+      parameters: {'face': face, 'data': jsData, if (resolvedFace != null) 'resolvedFace': resolvedFace},
+      transfer: [jsData].toJS,
+    );
   }
 
   @override

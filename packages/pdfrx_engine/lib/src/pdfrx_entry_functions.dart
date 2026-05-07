@@ -134,7 +134,7 @@ abstract class PdfrxEntryFunctions {
   /// For other platforms, the font data is cached on temporary files in the cache directory; if you want to keep
   /// the font data permanently, you should save the font data to some other persistent storage and set its path
   /// to [Pdfrx.fontPaths].
-  Future<void> addFontData({required String face, required Uint8List data});
+  Future<void> addFontData({required String face, required Uint8List data, String? resolvedFace});
 
   /// Clear all font data added by [addFontData].
   Future<void> clearAllFontData();

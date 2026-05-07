@@ -2078,60 +2078,15 @@ function _pdfDestFromDest(dest, docHandle) {
  * Setup the system font info in PDFium.
  */
 function _initializeFontEnvironment() {
-  // kBase14FontNames
-  const fontNamesToIgnore = {
-    Courier: true,
-    'Courier-Bold': true,
-    'Courier-BoldOblique': true,
-    'Courier-Oblique': true,
-    Helvetica: true,
-    'Helvetica-Bold': true,
-    'Helvetica-BoldOblique': true,
-    'Helvetica-Oblique': true,
-    'Times-Roman': true,
-    'Times-Bold': true,
-    'Times-BoldItalic': true,
-    'Times-Italic': true,
-    Symbol: true,
-    ZapfDingbats: true,
-  };
+  const cachedFonts = pdfFontMapper?.cachedFonts() ?? [];
+  const oldFontMapper = pdfFontMapper;
+  const newFontMapper = new PdfFontMapper();
+  newFontMapper.restoreCachedFonts(cachedFonts);
+  newFontMapper.install();
+  pdfFontMapper = newFontMapper;
 
-  // load the default system font info and modify only MapFont (index=3) entry with our one, which
-  // wraps the original function and adds our custom logic
-  const sysFontInfoBuffer = Pdfium.wasmExports.FPDF_GetDefaultSystemFontInfo();
-  const sysFontInfo = new Int32Array(Pdfium.memory.buffer, sysFontInfoBuffer, 9); // struct _FPDF_SYSFONTINFO
-
-  // void* MapFont(
-  //   struct _FPDF_SYSFONTINFO* pThis,
-  //   int weight,
-  //   FPDF_BOOL bItalic,
-  //   int charset,
-  //   int pitch_family,
-  //   const char* face,
-  //   FPDF_BOOL* bExact);
-  const mapFont = sysFontInfo[3];
-  sysFontInfo[3] = Pdfium.addFunction((pThis, weight, bItalic, charset, pitchFamily, face, bExact) => {
-    const result = Pdfium.invokeFunc(mapFont, (func) =>
-      func(sysFontInfoBuffer, weight, bItalic, charset, pitchFamily, face, bExact)
-    );
-    if (!result) {
-      // the font face is missing
-      const faceName = StringUtils.utf8BytesToString(new Uint8Array(Pdfium.memory.buffer, face));
-      if (fontNamesToIgnore[faceName] || lastMissingFonts[faceName]) return 0;
-      lastMissingFonts[faceName] = {
-        face: faceName,
-        weight: weight,
-        italic: !!bItalic,
-        charset: charset,
-        pitchFamily: pitchFamily,
-      };
-    }
-    return result;
-  }, 'iiiiiiii');
-
-  // when registering a new SetSystemFontInfo, the previous one is automatically released
-  // and the only last one remains on memory
-  Pdfium.wasmExports.FPDF_SetSystemFontInfo(sysFontInfoBuffer);
+  Pdfium.wasmExports.FPDF_SetSystemFontInfo(newFontMapper.sysFontInfo);
+  oldFontMapper?.dispose();
 }
 
 /**
@@ -2147,8 +2102,191 @@ function reloadFonts() {
 /**
  * @type {{[face: string]: string}}
  */
-const fontFileNames = {};
+let fontFileNames = {};
 let fontFilesId = 0;
+let pdfFontMapper = null;
+
+const fontNamesToIgnore = {
+  Symbol: true,
+  ZapfDingbats: true,
+};
+
+class PdfFontMapper {
+  constructor() {
+    this.sysFontInfo = Pdfium.wasmExports.malloc(9 * 4);
+    new Int32Array(Pdfium.memory.buffer, this.sysFontInfo, 9).fill(0);
+    new Int32Array(Pdfium.memory.buffer, this.sysFontInfo, 1)[0] = 2;
+    this.missingFonts = {};
+    this.cachedFontsByFace = {};
+    this.mappedFonts = {};
+    this.aliases = {};
+    this.functionPointers = [];
+    this.nextMappedFontHandle = 1;
+  }
+
+  install() {
+    const sysFontInfo = new Int32Array(Pdfium.memory.buffer, this.sysFontInfo, 9);
+    sysFontInfo[3] = this._addFunction(
+      (pThis, weight, bItalic, charset, pitchFamily, face, bExact) =>
+        this.mapFont(pThis, weight, bItalic, charset, pitchFamily, face, bExact),
+      'iiiiiiii'
+    );
+    sysFontInfo[5] = this._addFunction(
+      (pThis, hFont, table, buffer, bufSize) => this.getFontData(pThis, hFont, table, buffer, bufSize),
+      'iiiiii'
+    );
+    sysFontInfo[6] = this._addFunction((pThis, hFont, buffer, bufSize) => this.getFaceName(pThis, hFont, buffer, bufSize), 'iiiii');
+    sysFontInfo[7] = this._addFunction((pThis, hFont) => this.getFontCharset(pThis, hFont), 'iii');
+    sysFontInfo[8] = this._addFunction((pThis, hFont) => this.deleteFont(pThis, hFont), 'vii');
+  }
+
+  dispose() {
+    this.mappedFonts = {};
+    for (const pointer of this.functionPointers) {
+      Pdfium.removeFunction(pointer);
+    }
+    this.functionPointers = [];
+    Pdfium.wasmExports.free(this.sysFontInfo);
+  }
+
+  _addFunction(func, sig) {
+    const pointer = Pdfium.addFunction(func, sig);
+    this.functionPointers.push(pointer);
+    return pointer;
+  }
+
+  cachedFonts() {
+    return [...new Set(Object.values(this.cachedFontsByFace))];
+  }
+
+  restoreCachedFonts(fonts) {
+    for (const font of fonts) {
+      this.cachedFontsByFace[font.face] = font;
+      if (font.resolvedFace && font.resolvedFace !== font.face) {
+        this.aliases[font.face] = font.resolvedFace;
+        this.cachedFontsByFace[font.resolvedFace] = font;
+      }
+    }
+  }
+
+  addFontData({ face, data, resolvedFace }) {
+    const font = { face, resolvedFace, data: new Uint8Array(data), charset: null };
+    this.cachedFontsByFace[face] = font;
+    if (resolvedFace && resolvedFace !== face) {
+      this.aliases[face] = resolvedFace;
+      this.cachedFontsByFace[resolvedFace] = font;
+    }
+    delete this.missingFonts[face];
+    delete lastMissingFonts[face];
+  }
+
+  clear() {
+    this.cachedFontsByFace = {};
+    this.aliases = {};
+    this.missingFonts = {};
+  }
+
+  getAndClearMissingFonts() {
+    const result = this.missingFonts;
+    this.missingFonts = {};
+    return result;
+  }
+
+  mapFont(_pThis, weight, bItalic, charset, pitchFamily, face, bExact) {
+    const faceName = StringUtils.utf8BytesToString(new Uint8Array(Pdfium.memory.buffer, face));
+    const cachedFont = this.cachedFontsByFace[faceName] ?? this.cachedFontsByFace[this.aliases[faceName]];
+    if (cachedFont) {
+      cachedFont.charset ??= charset;
+      if (bExact) new Int32Array(Pdfium.memory.buffer, bExact, 1)[0] = 1;
+      return this._createMappedFontHandle(cachedFont);
+    }
+    if (!fontNamesToIgnore[faceName] && !this.missingFonts[faceName]) {
+      this.missingFonts[faceName] = {
+        face: faceName,
+        weight: weight,
+        italic: !!bItalic,
+        charset: charset,
+        pitchFamily: pitchFamily,
+      };
+      lastMissingFonts[faceName] = this.missingFonts[faceName];
+    }
+    return 0;
+  }
+
+  getFontData(_pThis, hFont, table, buffer, bufSize) {
+    const font = this.mappedFonts[hFont];
+    if (!font) return 0;
+    const data = table === 0 ? font.data : getFontTableData(font.data, table);
+    if (!data) return 0;
+    if (!buffer || bufSize < data.byteLength) return data.byteLength;
+    new Uint8Array(Pdfium.memory.buffer, buffer, data.byteLength).set(data);
+    return data.byteLength;
+  }
+
+  getFaceName(_pThis, hFont, buffer, bufSize) {
+    const font = this.mappedFonts[hFont];
+    if (!font) return 0;
+    const name = font.resolvedFace ?? font.face;
+    const length = StringUtils.lengthBytesUTF8(name) + 1;
+    if (!buffer || bufSize < length) return length;
+    StringUtils.stringToUtf8Bytes(name, new Uint8Array(Pdfium.memory.buffer, buffer, length));
+    return length;
+  }
+
+  getFontCharset(_pThis, hFont) {
+    const font = this.mappedFonts[hFont];
+    return font?.charset ?? 1;
+  }
+
+  deleteFont(_pThis, hFont) {
+    if (!this.mappedFonts[hFont]) return;
+    delete this.mappedFonts[hFont];
+  }
+
+  _createMappedFontHandle(font) {
+    const handle = this.nextMappedFontHandle++;
+    this.mappedFonts[handle] = font;
+    return handle;
+  }
+}
+
+function getFontTableData(data, table) {
+  const fontOffset = getFontOffset(data);
+  if (fontOffset === null || fontOffset + 12 > data.byteLength) return null;
+  const numTables = readUint16(data, fontOffset + 4);
+  let tableRecordOffset = fontOffset + 12;
+  for (let i = 0; i < numTables; i++) {
+    if (tableRecordOffset + 16 > data.byteLength) return null;
+    if (readUint32(data, tableRecordOffset) === table) {
+      const offset = readUint32(data, tableRecordOffset + 8);
+      const length = readUint32(data, tableRecordOffset + 12);
+      if (offset + length > data.byteLength) return null;
+      return data.subarray(offset, offset + length);
+    }
+    tableRecordOffset += 16;
+  }
+  return null;
+}
+
+function getFontOffset(data) {
+  if (data.byteLength < 12) return null;
+  const ttcTag = 0x74746366;
+  if (readUint32(data, 0) !== ttcTag) return 0;
+  if (data.byteLength < 16) return null;
+  const numFonts = readUint32(data, 8);
+  if (numFonts < 1) return null;
+  const offset = readUint32(data, 12);
+  if (offset >= data.byteLength) return null;
+  return offset;
+}
+
+function readUint16(data, offset) {
+  return (data[offset] << 8) | data[offset + 1];
+}
+
+function readUint32(data, offset) {
+  return (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3];
+}
 
 /**
  * Add font data to the file system.
@@ -2156,8 +2294,9 @@ let fontFilesId = 0;
  */
 function addFontData(params) {
   console.log(`Adding font data for face: ${params.face}`);
-  const { face, data } = params;
+  const { face, data, resolvedFace } = params;
   fontFileNames[face] ??= `font_${++fontFilesId}.ttf`;
+  pdfFontMapper?.addFontData({ face, data, resolvedFace });
   fileSystem.registerFileWithData(`/usr/share/fonts/${fontFileNames[face]}`, data);
   fileSystem.registerFile('/usr/share/fonts', { entries: Object.values(fontFileNames) });
   return { message: `Font ${face} added`, face: face, fileName: fontFileNames[face] };
@@ -2171,6 +2310,7 @@ function clearAllFontData() {
   }
   fileSystem.registerFile('/usr/share/fonts', { entries: [] });
   fontFileNames = {};
+  pdfFontMapper?.clear();
   return { message: 'All font data cleared' };
 }
 

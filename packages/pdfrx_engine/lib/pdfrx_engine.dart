@@ -8,6 +8,7 @@ export 'src/pdf_document.dart';
 export 'src/pdf_document_event.dart';
 export 'src/pdf_exception.dart';
 export 'src/pdf_font_query.dart';
+export 'src/pdf_font_resolver.dart';
 export 'src/pdf_image.dart';
 export 'src/pdf_link.dart';
 export 'src/pdf_outline_node.dart';
