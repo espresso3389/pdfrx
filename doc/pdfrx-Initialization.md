@@ -17,7 +17,7 @@ For pure Dart apps (or even some of Flutter apps), you can use [pdfrxInitialize]
 Basically, these initialization functions do the following things:
 
 - Call [WidgetsFlutterBinding.ensureInitialized](https://api.flutter.dev/flutter/widgets/WidgetsFlutterBinding/ensureInitialized.html) (Flutter only)
-- Set [Pdfrx.getCacheDirectory](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pdfrx/getCacheDirectory.html)
+- Set [Pdfrx.cacheDirectoryPath](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pdfrx/cacheDirectoryPath.html)
 - Map PdfDocument [factory/interop functions](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions-class.html) to actual platform ones
 - Set [Pdfrx.loadAsset](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pdfrx/loadAsset.html) (Flutter only)
 - Configure the PDFium module path from `PDFIUM_PATH` when explicitly provided
@@ -25,12 +25,14 @@ Basically, these initialization functions do the following things:
 
 ## Cache Directory
 
-The mechanism to locate cache directory is different between pure Dart apps and Flutter apps:
+The mechanism to set [Pdfrx.cacheDirectoryPath](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pdfrx/cacheDirectoryPath.html) is different between pure Dart apps and Flutter apps:
 
 Init. Func. | Underlying API | Notes
 ------------|----------------|-------------------
 [pdfrxInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html) | [Directory.systemTemp](https://api.flutter.dev/flutter/dart-io/Directory/systemTemp.html) | May not be suitable for mobile apps.
 [pdfrxFlutterInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) | [path_provider.getTemporaryDirectory](https://pub.dev/documentation/path_provider/latest/path_provider/getTemporaryDirectory.html) | Always app local directory.
+
+`PdfFontManager` uses `${Pdfrx.cacheDirectoryPath}/pdfrx.fonts` as its default font cache directory. If you use [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) directly and want cached fonts to be available during the first document load, initialize pdfrx or set `Pdfrx.cacheDirectoryPath` before creating/preparing the font manager.
 
 ## PDFium Native Library
 

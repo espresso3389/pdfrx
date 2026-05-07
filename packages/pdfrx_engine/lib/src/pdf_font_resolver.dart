@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart' as crypto;
+import 'package:path/path.dart' as path;
 
 import 'pdf_document_event.dart';
 import 'pdf_font_query.dart';
+import 'pdfrx.dart';
 import 'pdfrx_entry_functions.dart';
 
 /// Called while a font resolution is loading font bytes.
@@ -133,11 +135,32 @@ class PdfFontManager {
   ///
   /// The [resolvers] are tried in order until one returns a resolution for a query.
   /// [resolvers] can be an empty list, in which case the manager will not be able to resolve any fonts.
-  PdfFontManager({required List<PdfFontResolver> resolvers})
-    : _resolver = _PdfFontResolverChain._bundleResolvers(resolvers);
+  ///
+  /// [fontCachePath] is the app-local font cache directory used for fonts loaded by this manager. If omitted, the
+  /// manager uses `${Pdfrx.cacheDirectoryPath}/pdfrx.fonts` when [Pdfrx.cacheDirectoryPath] is available.
+  /// [fontPaths] are additional font files or directories scanned by backends that support local font files.
+  PdfFontManager({required List<PdfFontResolver> resolvers, String? fontCachePath, List<String> fontPaths = const []})
+    : _resolver = _PdfFontResolverChain._bundleResolvers(resolvers),
+      _fontCachePath = fontCachePath ?? _getDefaultFontCachePath(),
+      _fontPaths = List.unmodifiable(fontPaths);
 
   final PdfFontResolver _resolver;
+  final String? _fontCachePath;
+  final List<String> _fontPaths;
   final _registeredFaces = <String>{};
+  Future<void>? _prepareFuture;
+
+  /// Prepares the backend font environment using the configured font cache path and font paths.
+  ///
+  /// This is called automatically by [loadMissingFonts] before resolving any fonts. PdfViewer also calls it before
+  /// loading a document when its font manager is set, so cached fonts and local font paths can be used during
+  /// the first load. Direct PdfDocument users can call this before opening a document to get the same behavior.
+  /// Multiple calls to this method will wait for the same preparation process to complete.
+  Future<void> prepare() {
+    return _prepareFuture ??= () async {
+      await PdfrxEntryFunctions.instance.configureFontEnvironment(fontCachePath: _fontCachePath, fontPaths: _fontPaths);
+    }();
+  }
 
   /// Resolves and registers [queries].
   ///
@@ -154,6 +177,7 @@ class PdfFontManager {
     bool reloadFonts = true,
     PdfFontLoadProgressCallback? onProgress,
   }) async {
+    await prepare();
     final loaded = <PdfLoadedFont>[];
     final unresolved = <PdfFontQuery>[];
     final failed = <PdfFontLoadFailure>[];
@@ -225,6 +249,18 @@ class PdfFontManager {
 
   String _cacheKeyFor(PdfFontQuery query) =>
       '${query.face}\x1f${query.weight}\x1f${query.isItalic}\x1f${query.charset.pdfiumCharsetId}\x1f${query.pitchFamily}';
+
+  static String? _getDefaultFontCachePath() {
+    final cacheDirectoryPath = Pdfrx.cacheDirectoryPath;
+    if (cacheDirectoryPath == null) {
+      return null;
+    }
+    try {
+      return path.join(cacheDirectoryPath, 'pdfrx.fonts');
+    } on UnimplementedError {
+      return null;
+    }
+  }
 }
 
 /// Progress for a font load handled by [PdfFontManager].

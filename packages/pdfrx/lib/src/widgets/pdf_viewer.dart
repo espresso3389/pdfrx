@@ -379,6 +379,11 @@ class _PdfViewerState extends State<PdfViewer>
       return;
     } else {
       oldWidget?.documentRef.resolveListenable().removeListener(_onDocumentChanged);
+      final documentRef = widget.documentRef;
+      await widget.fontManager?.prepare();
+      if (!mounted || !identical(documentRef, widget.documentRef)) {
+        return;
+      }
       widget.documentRef.resolveListenable()
         ..addListener(_onDocumentChanged)
         ..load();
@@ -492,8 +497,16 @@ class _PdfViewerState extends State<PdfViewer>
     }
     _clearFontManagerAssociation();
     if (fontManager != null && _controller != null) {
-      _fontManagerAssociation = _controller!.associateFontManager(fontManager);
-      _associatedFontManager = fontManager;
+      unawaited(
+        fontManager.prepare().then((_) {
+          if (!mounted || !identical(widget.fontManager, fontManager) || _controller == null || _document == null) {
+            return;
+          }
+          _clearFontManagerAssociation();
+          _fontManagerAssociation = _controller!.associateFontManager(fontManager);
+          _associatedFontManager = fontManager;
+        }),
+      );
     }
   }
 

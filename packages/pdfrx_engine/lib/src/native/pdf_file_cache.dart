@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
+import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
 import 'package:synchronized/extension.dart';
 
 import '../pdf_document.dart';
@@ -16,7 +17,6 @@ import '../pdfrx_entry_functions.dart';
 import '../pdfrx_initialize_dart.dart';
 import 'http_cache_control.dart';
 import 'native_utils.dart';
-import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
 
 final _rafFinalizer = Finalizer<RandomAccessFile>((raf) {
   // Attempt to close the file if it hasn't been closed explicitly.
@@ -32,10 +32,10 @@ final _rafFinalizer = Finalizer<RandomAccessFile>((raf) {
 
 /// PDF file cache backed by a file.
 ///
-/// The cache directory used by this class is obtained using [Pdfrx.getCacheDirectory].
+/// The cache directory used by this class is obtained using [Pdfrx.cacheDirectoryPath].
 ///
 /// For Flutter, `pdfrxFlutterInitialize` should be called explicitly or implicitly before using this class.
-/// For Dart only, call [pdfrxInitialize] or explicitly set [Pdfrx.getCacheDirectory].
+/// For Dart only, call [pdfrxInitialize] or explicitly set [Pdfrx.cacheDirectoryPath].
 class PdfFileCache {
   PdfFileCache(this.file);
 
@@ -252,8 +252,8 @@ class PdfFileCache {
   }
 
   static Future<File> getCacheFilePathForUri(Uri uri) async {
-    if (Pdfrx.getCacheDirectory == null) {
-      throw StateError('Pdfrx.getCacheDirectory is not set. Please set it to get cache directory.');
+    if (Pdfrx.cacheDirectoryPath == null) {
+      throw StateError('Pdfrx.cacheDirectoryPath is not set. Please initialize pdfrx or set it explicitly.');
     }
     final fnHash = sha1
         .convert(utf8.encode(uri.toString()))

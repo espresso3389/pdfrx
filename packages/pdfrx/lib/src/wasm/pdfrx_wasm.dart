@@ -354,6 +354,11 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
   }
 
   @override
+  Future<void> configureFontEnvironment({String? fontCachePath, List<String> fontPaths = const []}) async {
+    await init();
+  }
+
+  @override
   Future<void> reloadFonts() async {
     await init();
     await _sendCommand('reloadFonts', parameters: {'dummy': true});

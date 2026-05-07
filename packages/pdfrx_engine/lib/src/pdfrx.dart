@@ -14,13 +14,6 @@ class Pdfrx {
   /// It is not supported on Flutter Web.
   static String? pdfiumModulePath;
 
-  /// Font paths scanned by pdfium if supported.
-  ///
-  /// It should be set before calling any Pdfrx's functions.
-  ///
-  /// It is not supported on Flutter Web.
-  static final fontPaths = <String>[];
-
   /// Overriding the default HTTP client for PDF download.
   ///
   /// It is not supported on Flutter Web.
@@ -48,13 +41,14 @@ class Pdfrx {
   /// For Dart only, you can set this function to load assets from your own asset management system.
   static Future<Uint8List> Function(String name)? loadAsset;
 
-  /// Function to determine the cache directory.
+  /// Path to the cache directory.
   ///
-  /// You can override the default cache directory by setting this variable.
+  /// You can override the default cache directory by setting this variable before initialization.
   ///
-  /// For Flutter, `pdfrxFlutterInitialize` should be called explicitly or implicitly before using this class.
-  /// For Dart only, you can set this function to obtain the cache directory from your own file system.
-  static FutureOr<String> Function()? getCacheDirectory;
+  /// For Flutter, `pdfrxFlutterInitialize` sets this to the temporary directory from `path_provider`.
+  /// For Dart only, `pdfrxInitialize` sets this to `Directory.systemTemp`. You can also set this explicitly to a
+  /// directory on your own file system.
+  static String? cacheDirectoryPath;
 
   static Map<String, int>? pdfiumNativeBindings;
 }

@@ -5,6 +5,8 @@ import 'package:path/path.dart' as path;
 import '../pdfrx.dart';
 
 /// Helper function to get the cache directory for a specific purpose and name.
+///
+/// The returned directory is created under [Pdfrx.cacheDirectoryPath].
 Future<Directory> getCacheDirectory(
   String part1, [
   String? part2,
@@ -22,12 +24,12 @@ Future<Directory> getCacheDirectory(
   String? part14,
   String? part15,
 ]) async {
-  if (Pdfrx.getCacheDirectory == null) {
-    throw StateError('Pdfrx.getCacheDirectory is not set. Please set it to get cache directory.');
+  if (Pdfrx.cacheDirectoryPath == null) {
+    throw StateError('Pdfrx.cacheDirectoryPath is not set. Please initialize pdfrx or set it explicitly.');
   }
   final dir = Directory(
     path.join(
-      await Pdfrx.getCacheDirectory!(),
+      Pdfrx.cacheDirectoryPath!,
       part1,
       part2,
       part3,

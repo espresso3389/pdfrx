@@ -14,7 +14,7 @@ bool _isInitialized = false;
 ///
 /// This function actually sets up the following functions:
 /// - [Pdfrx.loadAsset]: Loads an asset by name and returns its byte data.
-/// - [Pdfrx.getCacheDirectory]: Returns the path to the temporary directory for caching.
+/// - [Pdfrx.cacheDirectoryPath]: The path to the temporary directory for caching (For Web, it is not applicable).
 /// - Call [PdfrxEntryFunctions.init] to initialize the library.
 ///
 /// For Dart (non-Flutter) programs, you should call [pdfrxInitialize] instead.
@@ -34,7 +34,10 @@ Future<void> pdfrxFlutterInitialize({bool dismissPdfiumWasmWarnings = false}) as
     final asset = await rootBundle.load(name);
     return asset.buffer.asUint8List();
   };
-  Pdfrx.getCacheDirectory ??= getCacheDirectory;
+
+  if (!kIsWeb) {
+    Pdfrx.cacheDirectoryPath ??= await getCacheDirectory();
+  }
 
   // Checking pdfium.wasm availability for Web and debug builds.
   if (kDebugMode && !dismissPdfiumWasmWarnings) {

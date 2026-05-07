@@ -11,7 +11,7 @@ bool _isInitialized = false;
 ///
 /// This function sets up the following:
 ///
-/// - [Pdfrx.getCacheDirectory] is set to return the system temporary directory.
+/// - [Pdfrx.cacheDirectoryPath] is set to the pdfrx cache directory.
 /// - [Pdfrx.pdfiumModulePath] is configured to point to the pdfium module.
 ///   - The function checks for the `PDFIUM_PATH` environment variable to find an existing pdfium module.
 ///   - If Pdfium module is not found, PDFium is loaded from pdfium_dart's native asset.
@@ -27,7 +27,7 @@ Future<void> pdfrxInitialize({String? tmpPath, String? pdfiumRelease}) async {
   };
 
   final tmpDir = tmpPath != null ? Directory(tmpPath) : _getPdfrxCacheDirectory();
-  Pdfrx.getCacheDirectory ??= () => tmpDir.path;
+  Pdfrx.cacheDirectoryPath ??= tmpDir.path;
 
   final pdfiumPath = Platform.environment['PDFIUM_PATH'];
   if (pdfiumPath != null && await File(pdfiumPath).exists()) {

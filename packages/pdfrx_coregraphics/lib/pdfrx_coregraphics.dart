@@ -248,6 +248,14 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
   }
 
   @override
+  Future<void> configureFontEnvironment({
+    String? fontCachePath,
+    List<String> fontPaths = const [],
+  }) async {
+    // Custom font registration is not currently supported by the CoreGraphics bridge.
+  }
+
+  @override
   Future<void> reloadFonts() async {
     // CoreGraphics does not use PDFium's system font info callbacks.
   }

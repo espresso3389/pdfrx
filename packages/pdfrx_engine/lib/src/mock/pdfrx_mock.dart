@@ -106,6 +106,9 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   }) => unimplemented();
 
   @override
+  Future<void> configureFontEnvironment({String? fontCachePath, List<String> fontPaths = const []}) => unimplemented();
+
+  @override
   Future<void> reloadFonts() => unimplemented();
 
   @override

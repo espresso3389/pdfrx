@@ -32,13 +32,13 @@ import '../pdf_text.dart';
 import '../pdfrx.dart';
 import '../pdfrx_entry_functions.dart';
 import '../utils/shuffle_in_place.dart';
-import 'native_utils.dart';
 import 'pdf_file_cache.dart';
 import 'pdfium.dart';
 import 'pdfium_file_access.dart';
 import 'worker.dart';
 
-Directory? _appLocalFontPath;
+String? _fontCachePath;
+List<String> _fontPaths = const [];
 
 bool _initialized = false;
 final _initSync = Object();
@@ -48,9 +48,6 @@ Future<void> _init() async {
   if (_initialized) return;
   await _initSync.synchronized(() async {
     if (_initialized) return;
-
-    _appLocalFontPath = await getCacheDirectory('pdfrx.fonts');
-
     BackgroundWorker.compute((params) {
       pdfium.FPDF_InitLibrary();
       _initialized = true;
@@ -73,7 +70,7 @@ Future<void> _deinit() async {
 _PdfFontMapper? _fontMapper;
 
 /// Setup the system font info in PDFium.
-Future<void> _initializeFontEnvironment() async {
+Future<void> _initializeFontEnvironment({bool forceAddFontFiles = false}) async {
   await BackgroundWorker.compute((params) {
     final cachedFonts = _fontMapper?.cachedFonts.toList(growable: false);
     final oldFontMapper = _fontMapper;
@@ -81,15 +78,15 @@ Future<void> _initializeFontEnvironment() async {
     final newFontMapper = _PdfFontMapper()
       ..restoreCachedFonts(cachedFonts ?? const <_CachedFont>[])
       ..install();
-    if (shouldAddFontFiles) {
-      newFontMapper.addFontFiles(appLocalFontPath: params.appLocalFontPath, fontPaths: params.fontPaths);
+    if (shouldAddFontFiles || params.forceAddFontFiles) {
+      newFontMapper.addFontFiles(fontCachePath: params.fontCachePath, fontPaths: params.fontPaths);
     }
     _fontMapper = newFontMapper;
 
     // PDFium keeps only the latest system font info pointer.
     pdfium.FPDF_SetSystemFontInfo(newFontMapper.sysFontInfo);
     oldFontMapper?.dispose();
-  }, (appLocalFontPath: _appLocalFontPath?.path, fontPaths: Pdfrx.fontPaths));
+  }, (fontCachePath: _fontCachePath, fontPaths: _fontPaths, forceAddFontFiles: forceAddFontFiles));
 }
 
 /// Retrieve and clear the last missing fonts from the worker-side font mapper.
@@ -210,10 +207,10 @@ class _PdfFontMapper {
     }
   }
 
-  void addFontFiles({required String? appLocalFontPath, required List<String> fontPaths}) {
-    final appLocalPath = appLocalFontPath;
-    if (appLocalPath != null) {
-      _addFontFilesFromDirectory(Directory(appLocalPath), decodeFaceFromFileName: true);
+  void addFontFiles({required String? fontCachePath, required List<String> fontPaths}) {
+    final cachePath = fontCachePath;
+    if (cachePath != null) {
+      _addFontFilesFromDirectory(Directory(cachePath), decodeFaceFromFileName: true);
     }
     for (final path in fontPaths) {
       final type = FileSystemEntity.typeSync(path);
@@ -898,28 +895,46 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   };
 
   @override
+  Future<void> configureFontEnvironment({String? fontCachePath, List<String> fontPaths = const []}) async {
+    _fontCachePath = fontCachePath;
+    _fontPaths = List.unmodifiable(fontPaths);
+    if (_initialized) {
+      await _initializeFontEnvironment(forceAddFontFiles: true);
+    } else {
+      await _init();
+    }
+  }
+
+  @override
   Future<void> reloadFonts() async {
     await _initializeFontEnvironment();
   }
 
   @override
   Future<void> addFontData({required String face, required Uint8List data, String? resolvedFace}) async {
-    await _appLocalFontPath!.create(recursive: true);
-    final name = base64Encode(utf8.encode(face));
-    final file = File('${_appLocalFontPath!.path}/$name.ttf');
-    await file.writeAsBytes(data);
+    final fontCachePath = _fontCachePath;
+    File? file;
+    if (fontCachePath != null) {
+      await Directory(fontCachePath).create(recursive: true);
+      final name = base64Encode(utf8.encode(face));
+      file = File('$fontCachePath/$name.ttf');
+      await file.writeAsBytes(data);
+    }
     await BackgroundWorker.compute((params) {
       _fontMapper?.addFontData(face: params.face, data: params.data, resolvedFace: params.resolvedFace);
     }, (face: face, data: data, resolvedFace: resolvedFace));
-    stderr.writeln('Added font data: $face (${data.length} bytes) at ${file.path}');
+    stderr.writeln('Added font data: $face (${data.length} bytes)${file == null ? '' : ' at ${file.path}'}');
   }
 
   @override
   Future<void> clearAllFontData() async {
-    try {
-      await _appLocalFontPath!.delete(recursive: true);
-    } catch (e) {
-      // ignored
+    final fontCachePath = _fontCachePath;
+    if (fontCachePath != null) {
+      try {
+        await Directory(fontCachePath).delete(recursive: true);
+      } catch (e) {
+        // ignored
+      }
     }
     await BackgroundWorker.compute((params) {
       _fontMapper?.clear();
