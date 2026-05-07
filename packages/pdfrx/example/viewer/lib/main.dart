@@ -47,7 +47,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
   final outline = ValueNotifier<List<PdfOutlineNode>?>(null);
   final textSearcher = ValueNotifier<PdfTextSearcher?>(null);
   final _markers = <int, List<Marker>>{};
-  final _fontManager = PdfFontManager(resolvers: [CompositeGoogleFontsResolver()]);
+  final _fontManager = PdfFontManager.platform(resolvers: [CompositeGoogleFontsResolver()]);
   List<PdfPageTextRange>? textSelections;
 
   // ignore: unused_field

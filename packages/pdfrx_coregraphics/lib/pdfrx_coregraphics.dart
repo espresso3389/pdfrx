@@ -270,6 +270,15 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
   }
 
   @override
+  Future<void> addFontFile({
+    required String face,
+    required String filePath,
+    String? resolvedFace,
+  }) async {
+    // Custom font registration is not currently supported by the CoreGraphics bridge.
+  }
+
+  @override
   Future<void> clearAllFontData() async {
     // Custom font registration is not currently supported by the CoreGraphics bridge.
   }

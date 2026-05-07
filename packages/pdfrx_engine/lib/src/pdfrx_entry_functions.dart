@@ -142,6 +142,12 @@ abstract class PdfrxEntryFunctions {
   /// For other platforms, the font data is cached under the font cache path configured by [configureFontEnvironment].
   Future<void> addFontData({required String face, required Uint8List data, String? resolvedFace});
 
+  /// Add a local font file without copying it into the app-local font cache.
+  ///
+  /// Native PDFium uses this for fonts found in configured platform font directories. Backends that cannot
+  /// synchronously read arbitrary local files may ignore this.
+  Future<void> addFontFile({required String face, required String filePath, String? resolvedFace});
+
   /// Clear all font data added by [addFontData].
   Future<void> clearAllFontData();
 

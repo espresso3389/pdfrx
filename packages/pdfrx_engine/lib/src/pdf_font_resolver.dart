@@ -6,6 +6,9 @@ import 'package:path/path.dart' as path;
 
 import 'pdf_document_event.dart';
 import 'pdf_font_query.dart';
+import 'pdf_font_resolver_platform_stub.dart'
+    if (dart.library.io) 'pdf_font_resolver_platform_io.dart'
+    as platform_fonts;
 import 'pdfrx.dart';
 import 'pdfrx_entry_functions.dart';
 
@@ -46,16 +49,33 @@ class PdfFontResolveContext {
 /// A resolved font candidate.
 class PdfFontResolution {
   const PdfFontResolution({
-    required this.loadData,
+    required PdfFontDataLoader this.loadData,
     this.targetFace,
     this.resolvedFace,
     this.source,
     this.expectedLength,
     this.expectedSha256,
-  });
+  }) : fontFilePath = null;
+
+  /// Creates a resolution backed by a local font file.
+  ///
+  /// Backends that can synchronously read local font files may register the file
+  /// directly without copying it into the app-local font cache.
+  PdfFontResolution.localFontFile({required this.fontFilePath, this.targetFace, this.resolvedFace, Uri? source})
+    : loadData = null,
+      source = source ?? Uri.file(fontFilePath!),
+      expectedLength = null,
+      expectedSha256 = null;
 
   /// Loads the font bytes.
-  final PdfFontDataLoader loadData;
+  final PdfFontDataLoader? loadData;
+
+  /// Local font file path, if this resolution is backed by an existing file.
+  ///
+  /// Native backends can use this to register a local font file directly. This
+  /// avoids copying platform or application font files into the pdfrx font
+  /// cache.
+  final String? fontFilePath;
 
   /// The PDF face name to register the font against.
   ///
@@ -78,6 +98,10 @@ class PdfFontResolution {
 
   /// Loads and validates the font data.
   Future<Uint8List> _loadValidatedData({PdfFontDataLoadProgressCallback? onProgress}) async {
+    final loadData = this.loadData;
+    if (loadData == null) {
+      throw StateError('This font resolution is backed by a local file and does not load font bytes.');
+    }
     final data = await loadData(onProgress: onProgress);
     final expectedLength = this.expectedLength;
     if (expectedLength != null && data.length != expectedLength) {
@@ -138,6 +162,41 @@ class PdfFontManager {
   ///
   PdfFontManager({required List<PdfFontResolver> resolvers})
     : _resolver = _PdfFontResolverChain._bundleResolvers(resolvers);
+
+  /// Creates a font manager that prefers Windows system fonts.
+  ///
+  /// The manager registers a Windows-specific resolver before [resolvers]. Its
+  /// `prepare` implementation also prepends the Windows fonts directory to
+  /// `fontPaths`.
+  factory PdfFontManager.windows({List<PdfFontResolver> resolvers = const []}) {
+    return platform_fonts.createWindowsFontManager(resolvers: resolvers);
+  }
+
+  /// Creates a font manager that prefers Linux system fonts.
+  ///
+  /// The manager registers a Linux-specific resolver before [resolvers]. Its
+  /// `prepare` implementation also prepends common Linux font directories to
+  /// `fontPaths`.
+  factory PdfFontManager.linux({List<PdfFontResolver> resolvers = const []}) {
+    return platform_fonts.createLinuxFontManager(resolvers: resolvers);
+  }
+
+  /// Creates a font manager that prefers macOS system fonts.
+  ///
+  /// The manager registers a macOS-specific resolver before [resolvers]. Its
+  /// `prepare` implementation also prepends common macOS font directories to
+  /// `fontPaths`.
+  factory PdfFontManager.macos({List<PdfFontResolver> resolvers = const []}) {
+    return platform_fonts.createMacOSFontManager(resolvers: resolvers);
+  }
+
+  /// Creates a font manager for the current desktop platform.
+  ///
+  /// This currently adds platform-specific font support on Windows, Linux, and
+  /// macOS. On other platforms, it returns a normal [PdfFontManager].
+  factory PdfFontManager.platform({List<PdfFontResolver> resolvers = const []}) {
+    return platform_fonts.createPlatformFontManager(resolvers: resolvers);
+  }
 
   final PdfFontResolver _resolver;
   final _registeredFaces = <String>{};
@@ -204,6 +263,24 @@ class PdfFontManager {
         }
         final targetFace = resolution.targetFace ?? query.face;
         if (_registeredFaces.contains(targetFace)) {
+          continue;
+        }
+        final fontFilePath = resolution.fontFilePath;
+        if (fontFilePath != null) {
+          await PdfrxEntryFunctions.instance.addFontFile(
+            face: targetFace,
+            filePath: fontFilePath,
+            resolvedFace: resolution.resolvedFace,
+          );
+          final loadedFont = PdfLoadedFont(
+            query: query,
+            targetFace: targetFace,
+            resolvedFace: resolution.resolvedFace,
+            source: resolution.source,
+            length: 0,
+          );
+          _registeredFaces.add(targetFace);
+          loaded.add(loadedFont);
           continue;
         }
         final data = await resolution._loadValidatedData(
@@ -347,6 +424,11 @@ class PdfLoadedFont {
   final String targetFace;
   final String? resolvedFace;
   final Uri? source;
+
+  /// Loaded byte length.
+  ///
+  /// This can be zero when the backend registered an existing local font file
+  /// directly without loading its bytes through [PdfFontResolution.loadData].
   final int length;
 }
 
@@ -362,7 +444,7 @@ class PdfFontLoadFailure {
 class PdfFontManagerAssociation {
   PdfFontManagerAssociation(this.fontManager, this.subscription);
   final PdfFontManager fontManager;
-  final StreamSubscription<PdfDocumentEvent> subscription;
+  final StreamSubscription<PdfDocumentEvent>? subscription;
 
-  void dispose() => subscription.cancel();
+  void dispose() => subscription?.cancel();
 }

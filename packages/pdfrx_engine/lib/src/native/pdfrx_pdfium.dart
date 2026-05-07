@@ -277,6 +277,28 @@ class _PdfFontMapper {
     _missingFonts.remove(face);
   }
 
+  void addFontFile({required String face, required String filePath, String? resolvedFace}) {
+    // Register the existing file directly. This path is used for platform
+    // fonts, so unlike addFontData it must not write a copy into the app cache.
+    final file = File(filePath);
+    final metadataData = _FontSource.readHeaderDataFromFile(file);
+    if (metadataData == null) {
+      return;
+    }
+    final fontOffset = _FontSource.getFontOffsetFromData(metadataData);
+    if (fontOffset == null) {
+      return;
+    }
+    final fontNames = _CachedFont.extractFontNames(metadataData, fontOffset);
+    final source = _FontSource.fromFile(file, fontOffset: fontOffset);
+    final resolvedFontFace = resolvedFace ?? (fontNames.isEmpty ? null : fontNames.first);
+    _addCachedFont(_CachedFont(face: face, resolvedFace: resolvedFontFace, source: source, charset: null));
+    for (final fontName in fontNames) {
+      _addCachedFont(_CachedFont(face: fontName, resolvedFace: fontName, source: source, charset: null));
+    }
+    _missingFonts.remove(face);
+  }
+
   void _addCachedFont(_CachedFont font) {
     _cachedFonts[font.face] = font;
     final resolvedFace = font.resolvedFace;
@@ -918,6 +940,14 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
       _fontMapper?.addFontData(face: params.face, data: params.data, resolvedFace: params.resolvedFace);
     }, (face: face, data: data, resolvedFace: resolvedFace));
     stderr.writeln('Added font data: $face (${data.length} bytes)${file == null ? '' : ' at ${file.path}'}');
+  }
+
+  @override
+  Future<void> addFontFile({required String face, required String filePath, String? resolvedFace}) async {
+    await BackgroundWorker.compute((params) {
+      _fontMapper?.addFontFile(face: params.face, filePath: params.filePath, resolvedFace: params.resolvedFace);
+    }, (face: face, filePath: filePath, resolvedFace: resolvedFace));
+    stderr.writeln('Added font file: $face at $filePath');
   }
 
   @override

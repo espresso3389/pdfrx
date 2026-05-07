@@ -376,6 +376,11 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
   }
 
   @override
+  Future<void> addFontFile({required String face, required String filePath, String? resolvedFace}) async {
+    // Browser workers cannot synchronously read arbitrary local files.
+  }
+
+  @override
   Future<void> clearAllFontData() async {
     await init();
     await _sendCommand('clearAllFontData', parameters: {'dummy': true});

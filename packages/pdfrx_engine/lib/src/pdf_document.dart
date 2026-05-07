@@ -309,17 +309,22 @@ abstract class PdfDocument {
   /// to remove the association when it's no longer needed.
   PdfFontManagerAssociation associateFontManager(
     PdfFontManager fontManager, {
-    required PdfFontLoadResultCallback onLoadComplete,
+    PdfFontLoadResultCallback? onLoadComplete,
     PdfFontLoadProgressCallback? onProgress,
   }) {
-    final subscription = events.listen((event) {
-      if (event is PdfDocumentMissingFontsEvent) {
-        Future.microtask(
-          () async => onLoadComplete(await fontManager.loadMissingFonts(event.missingFonts, onProgress: onProgress)),
-        );
-      }
-    });
-    return PdfFontManagerAssociation(fontManager, subscription);
+    return PdfFontManagerAssociation(
+      fontManager,
+      onLoadComplete == null
+          ? null
+          : events.listen((event) {
+              if (event is PdfDocumentMissingFontsEvent) {
+                Future.microtask(
+                  () async =>
+                      onLoadComplete(await fontManager.loadMissingFonts(event.missingFonts, onProgress: onProgress)),
+                );
+              }
+            }),
+    );
   }
 }
 
