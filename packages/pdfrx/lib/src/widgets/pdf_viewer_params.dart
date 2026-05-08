@@ -41,6 +41,7 @@ class PdfViewerParams {
     this.onePassRenderingScaleThreshold,
     this.onePassRenderingSizeThreshold = 2000,
     this.textSelectionParams,
+    this.forceEnableTextSemantics = false,
     this.matchTextColor,
     this.activeMatchTextColor,
     this.pageDropShadow = const BoxShadow(color: Colors.black54, blurRadius: 4, spreadRadius: 2, offset: Offset(2, 2)),
@@ -234,6 +235,16 @@ class PdfViewerParams {
 
   /// Parameters for text selection.
   final PdfTextSelectionParams? textSelectionParams;
+
+  /// If true, the viewer exposes extracted PDF text as Flutter semantics nodes
+  /// even when Flutter semantics are not currently enabled.
+  ///
+  /// By default, the viewer exposes text semantics only while Flutter semantics
+  /// are enabled, such as when a screen reader or the semantics debugger is active.
+  ///
+  /// This only works for PDFs whose text can be extracted as structured text.
+  /// Image-only scanned PDFs require OCR before they can expose readable text.
+  final bool forceEnableTextSemantics;
 
   /// Color for text search match.
   ///
@@ -690,6 +701,7 @@ class PdfViewerParams {
         other.onePassRenderingScaleThreshold != onePassRenderingScaleThreshold ||
         other.onePassRenderingSizeThreshold != onePassRenderingSizeThreshold ||
         other.textSelectionParams != textSelectionParams ||
+        other.forceEnableTextSemantics != forceEnableTextSemantics ||
         other.matchTextColor != matchTextColor ||
         other.activeMatchTextColor != activeMatchTextColor ||
         other.pageDropShadow != pageDropShadow ||
@@ -732,6 +744,7 @@ class PdfViewerParams {
         other.onePassRenderingScaleThreshold == onePassRenderingScaleThreshold &&
         other.onePassRenderingSizeThreshold == onePassRenderingSizeThreshold &&
         other.textSelectionParams == textSelectionParams &&
+        other.forceEnableTextSemantics == forceEnableTextSemantics &&
         other.matchTextColor == matchTextColor &&
         other.activeMatchTextColor == activeMatchTextColor &&
         other.pageDropShadow == pageDropShadow &&
@@ -801,6 +814,7 @@ class PdfViewerParams {
         onePassRenderingScaleThreshold.hashCode ^
         onePassRenderingSizeThreshold.hashCode ^
         textSelectionParams.hashCode ^
+        forceEnableTextSemantics.hashCode ^
         matchTextColor.hashCode ^
         activeMatchTextColor.hashCode ^
         pageDropShadow.hashCode ^

@@ -7,6 +7,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:rxdart/rxdart.dart';
@@ -313,6 +314,7 @@ class _PdfViewerState extends State<PdfViewer>
   @override
   void initState() {
     super.initState();
+    SemanticsBinding.instance.addSemanticsEnabledListener(_onSemanticsEnabledChanged);
     pdfrxFlutterInitialize();
     _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
     _widgetUpdated(null);
@@ -476,6 +478,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   void dispose() {
+    SemanticsBinding.instance.removeSemanticsEnabledListener(_onSemanticsEnabledChanged);
     _interactionDelegate?.dispose();
     _sizeDelegate?.dispose();
     _zoomStepsDelegate?.dispose();
@@ -496,6 +499,8 @@ class _PdfViewerState extends State<PdfViewer>
     _txController.dispose();
     super.dispose();
   }
+
+  void _onSemanticsEnabledChanged() => _invalidate();
 
   void _onMatrixChanged() => _invalidate();
 
@@ -593,6 +598,7 @@ class _PdfViewerState extends State<PdfViewer>
               builder: (context, constraints) {
                 final isCopyTextEnabled = _document!.permissions?.allowsCopying != false;
                 final viewSize = Size(constraints.maxWidth, constraints.maxHeight);
+                final shouldBuildTextSemantics = _shouldBuildTextSemantics;
 
                 _updateLayout(viewSize);
 
@@ -603,69 +609,74 @@ class _PdfViewerState extends State<PdfViewer>
                   onPointerHover: (event) => _handlePointerEvent(event, event.localPosition, event.kind),
                   child: Stack(
                     children: [
-                      iv.InteractiveViewer(
-                        key: _interactiveViewerKey,
-                        transformationController: _txController,
-                        constrained: false,
-                        boundaryMargin: widget.params.scrollPhysics == null
-                            ? const EdgeInsets.all(double.infinity) // NOTE: boundaryMargin is handled manually
-                            : _adjustedBoundaryMargins,
-                        maxScale: _layoutMetrics.maxScale,
-                        minScale: _layoutMetrics.minScale,
-                        panAxis: widget.params.panAxis,
-                        panEnabled: widget.params.panEnabled,
-                        scaleEnabled: widget.params.scaleEnabled,
-                        onInteractionEnd: _onInteractionEnd,
-                        onInteractionStart: _onInteractionStart,
-                        onInteractionUpdate: widget.params.onInteractionUpdate,
-                        interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
-                        onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
-                        onPointerScale: _onPointerScale,
-                        scrollPhysics: widget.params.scrollPhysics,
-                        scrollPhysicsScale: widget.params.scrollPhysicsScale,
-                        scrollPhysicsAutoAdjustBoundaries: false,
-                        // PDF pages
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTapUp: (d) => _handleGeneralTap(d.globalPosition, PdfViewerGeneralTapType.tap),
-                          onDoubleTapDown: (d) =>
-                              _handleGeneralTap(d.globalPosition, PdfViewerGeneralTapType.doubleTap),
-                          onLongPressStart: (d) =>
-                              _handleGeneralTap(d.globalPosition, PdfViewerGeneralTapType.longPress),
-                          onSecondaryTapUp: (d) =>
-                              _handleGeneralTap(d.globalPosition, PdfViewerGeneralTapType.secondaryTap),
-                          child: !isTextSelectionEnabled
-                              // show PDF pages without text selection
-                              ? CustomPaint(
-                                  foregroundPainter: _CustomPainter.fromFunctions(_paintPages),
-                                  size: _layout!.documentSize,
-                                )
-                              // show PDF pages with text selection
-                              : MouseRegion(
-                                  cursor: SystemMouseCursors.text,
-                                  hitTestBehavior: HitTestBehavior.deferToChild,
-                                  child: GestureDetector(
-                                    onPanStart: enableSelectionHandles ? null : _onTextPanStart,
-                                    onPanUpdate: enableSelectionHandles ? null : _onTextPanUpdate,
-                                    onPanEnd: enableSelectionHandles ? null : _onTextPanEnd,
-                                    supportedDevices: {
-                                      // PointerDeviceKind.trackpad is intentionally not included here
-                                      PointerDeviceKind.mouse,
-                                      PointerDeviceKind.stylus,
-                                      PointerDeviceKind.touch,
-                                      PointerDeviceKind.invertedStylus,
-                                    },
-                                    child: CustomPaint(
-                                      painter: _CustomPainter.fromFunctions(
-                                        _paintPages,
-                                        hitTestFunction: _hitTestForTextSelection,
+                      ExcludeSemantics(
+                        excluding: shouldBuildTextSemantics,
+                        child: iv.InteractiveViewer(
+                          key: _interactiveViewerKey,
+                          transformationController: _txController,
+                          constrained: false,
+                          boundaryMargin: widget.params.scrollPhysics == null
+                              ? const EdgeInsets.all(double.infinity) // NOTE: boundaryMargin is handled manually
+                              : _adjustedBoundaryMargins,
+                          maxScale: _layoutMetrics.maxScale,
+                          minScale: _layoutMetrics.minScale,
+                          panAxis: widget.params.panAxis,
+                          panEnabled: widget.params.panEnabled,
+                          scaleEnabled: widget.params.scaleEnabled,
+                          onInteractionEnd: _onInteractionEnd,
+                          onInteractionStart: _onInteractionStart,
+                          onInteractionUpdate: widget.params.onInteractionUpdate,
+                          interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
+                          onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
+                          onPointerScale: _onPointerScale,
+                          scrollPhysics: widget.params.scrollPhysics,
+                          scrollPhysicsScale: widget.params.scrollPhysicsScale,
+                          scrollPhysicsAutoAdjustBoundaries: false,
+                          // PDF pages
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTapUp: (d) => _handleGeneralTap(d.globalPosition, PdfViewerGeneralTapType.tap),
+                            onDoubleTapDown: (d) =>
+                                _handleGeneralTap(d.globalPosition, PdfViewerGeneralTapType.doubleTap),
+                            onLongPressStart: (d) =>
+                                _handleGeneralTap(d.globalPosition, PdfViewerGeneralTapType.longPress),
+                            onSecondaryTapUp: (d) =>
+                                _handleGeneralTap(d.globalPosition, PdfViewerGeneralTapType.secondaryTap),
+                            child: !isTextSelectionEnabled
+                                // show PDF pages without text selection
+                                ? CustomPaint(
+                                    foregroundPainter: _CustomPainter.fromFunctions(_paintPages),
+                                    size: _layout!.documentSize,
+                                  )
+                                // show PDF pages with text selection
+                                : MouseRegion(
+                                    cursor: SystemMouseCursors.text,
+                                    hitTestBehavior: HitTestBehavior.deferToChild,
+                                    child: GestureDetector(
+                                      onPanStart: enableSelectionHandles ? null : _onTextPanStart,
+                                      onPanUpdate: enableSelectionHandles ? null : _onTextPanUpdate,
+                                      onPanEnd: enableSelectionHandles ? null : _onTextPanEnd,
+                                      supportedDevices: {
+                                        // PointerDeviceKind.trackpad is intentionally not included here
+                                        PointerDeviceKind.mouse,
+                                        PointerDeviceKind.stylus,
+                                        PointerDeviceKind.touch,
+                                        PointerDeviceKind.invertedStylus,
+                                      },
+                                      child: CustomPaint(
+                                        painter: _CustomPainter.fromFunctions(
+                                          _paintPages,
+                                          hitTestFunction: _hitTestForTextSelection,
+                                        ),
+                                        size: _layout!.documentSize,
                                       ),
-                                      size: _layout!.documentSize,
                                     ),
                                   ),
-                                ),
+                          ),
                         ),
                       ),
+                      if (_initialized && shouldBuildTextSemantics) ..._buildPageTextSemanticsWidgets(context),
+                      if (_initialized && shouldBuildTextSemantics) ..._buildPageLinkSemanticsWidgets(context),
                       if (_initialized && _canvasLinkPainter.isLaidUnderPageOverlays)
                         _canvasLinkPainter.linkHandlingOverlay(viewSize),
                       if (_initialized) ..._buildPageOverlayWidgets(context),
@@ -1273,6 +1284,144 @@ class _PdfViewerState extends State<PdfViewer>
 
     return [...linkWidgets, ...overlayWidgets];
   }
+
+  List<Widget> _buildPageTextSemanticsWidgets(BuildContext context) {
+    final renderBox = context.findRenderObject();
+    if (renderBox is! RenderBox) return [];
+
+    final widgets = <Widget>[];
+    final targetRect = _visibleRect;
+
+    for (var i = 0; i < _document!.pages.length; i++) {
+      final pageRect = _layout!.pageLayouts[i];
+      final intersection = pageRect.intersect(targetRect);
+      if (intersection.isEmpty) continue;
+
+      final page = _document!.pages[i];
+      final text = _getCachedTextOrDelayLoadText(page.pageNumber);
+      if (text == null || text.fullText.trim().isEmpty || text.charRects.isEmpty) continue;
+
+      var lineIndex = 0;
+      for (final line in _enumerateTextSemanticsLines(text)) {
+        final lineRect = line.bounds.toRectInDocument(page: page, pageRect: pageRect);
+        final rectExternal = _documentToRenderBox(lineRect, renderBox);
+        if (rectExternal == null || rectExternal.isEmpty) continue;
+
+        widgets.add(
+          Positioned.fromRect(
+            key: Key('#__pageTextSemantics__:${page.pageNumber}:$lineIndex'),
+            rect: rectExternal,
+            child: Focus(
+              canRequestFocus: false,
+              child: Semantics(
+                container: true,
+                focusable: true,
+                label: line.text,
+                readOnly: true,
+                sortKey: OrdinalSortKey(page.pageNumber * 1000000.0 + lineIndex),
+                textDirection: _toFlutterTextDirection(line.direction),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+        );
+        lineIndex++;
+      }
+    }
+
+    return widgets;
+  }
+
+  List<Widget> _buildPageLinkSemanticsWidgets(BuildContext context) {
+    if (widget.params.linkHandlerParams == null) return [];
+
+    final renderBox = context.findRenderObject();
+    if (renderBox is! RenderBox) return [];
+
+    final widgets = <Widget>[];
+    final targetRect = _visibleRect;
+
+    for (var i = 0; i < _document!.pages.length; i++) {
+      final pageRect = _layout!.pageLayouts[i];
+      final intersection = pageRect.intersect(targetRect);
+      if (intersection.isEmpty) continue;
+
+      final page = _document!.pages[i];
+      final links = _canvasLinkPainter._ensureLinksLoaded(page);
+      if (links == null || links.isEmpty) continue;
+
+      var linkIndex = 0;
+      for (final link in links) {
+        for (final rect in link.rects) {
+          final linkRect = rect.toRectInDocument(page: page, pageRect: pageRect);
+          final rectExternal = _documentToRenderBox(linkRect, renderBox);
+          if (rectExternal == null || rectExternal.isEmpty) continue;
+
+          widgets.add(
+            Positioned.fromRect(
+              key: Key('#__pageLinkSemantics__:${page.pageNumber}:$linkIndex'),
+              rect: rectExternal,
+              child: Semantics(
+                container: true,
+                link: true,
+                label: _getLinkSemanticsLabel(link),
+                onTap: () => widget.params.linkHandlerParams?.onLinkTap(link),
+                sortKey: OrdinalSortKey(page.pageNumber * 1000000.0 + 500000.0 + linkIndex),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          );
+          linkIndex++;
+        }
+      }
+    }
+
+    return widgets;
+  }
+
+  String _getLinkSemanticsLabel(PdfLink link) {
+    final url = link.url;
+    if (url != null) {
+      return url.toString();
+    }
+    final dest = link.dest;
+    if (dest != null) {
+      return 'Page ${dest.pageNumber}';
+    }
+    return 'Link';
+  }
+
+  Iterable<({String text, PdfRect bounds, PdfTextDirection direction})> _enumerateTextSemanticsLines(
+    PdfPageText pageText,
+  ) sync* {
+    var lineStart = 0;
+    for (var i = 0; i <= pageText.fullText.length; i++) {
+      if (i < pageText.fullText.length && pageText.fullText.codeUnitAt(i) != 0x0a) continue;
+
+      final lineEnd = i;
+      if (lineStart < lineEnd) {
+        final lineText = pageText.fullText.substring(lineStart, lineEnd).trim();
+        if (lineText.isNotEmpty) {
+          yield (
+            text: lineText,
+            bounds: pageText.charRects.boundingRect(start: lineStart, end: lineEnd),
+            direction: pageText.getFragmentForTextIndex(lineStart)?.direction ?? PdfTextDirection.ltr,
+          );
+        }
+      }
+      lineStart = i + 1;
+    }
+  }
+
+  TextDirection _toFlutterTextDirection(PdfTextDirection direction) {
+    return switch (direction) {
+      PdfTextDirection.rtl => TextDirection.rtl,
+      PdfTextDirection.ltr || PdfTextDirection.vrtl || PdfTextDirection.unknown => TextDirection.ltr,
+    };
+  }
+
+  bool get _shouldBuildTextSemantics =>
+      widget.params.forceEnableTextSemantics || SemanticsBinding.instance.semanticsEnabled;
 
   void _onSelectionChange() {
     _textSelectionChangedDebounceTimer?.cancel();
