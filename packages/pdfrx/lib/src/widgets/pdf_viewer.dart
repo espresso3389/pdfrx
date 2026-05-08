@@ -675,13 +675,12 @@ class _PdfViewerState extends State<PdfViewer>
                           ),
                         ),
                       ),
-                      if (_initialized && shouldBuildTextSemantics) ..._buildPageTextSemanticsWidgets(context),
-                      if (_initialized && shouldBuildTextSemantics) ..._buildPageLinkSemanticsWidgets(context),
+                      if (_initialized && shouldBuildTextSemantics) ..._buildPageSemanticsWidgets(context),
                       if (_initialized && _canvasLinkPainter.isLaidUnderPageOverlays)
-                        _canvasLinkPainter.linkHandlingOverlay(viewSize),
+                        ExcludeSemantics(child: _canvasLinkPainter.linkHandlingOverlay(viewSize)),
                       if (_initialized) ..._buildPageOverlayWidgets(context),
                       if (_initialized && _canvasLinkPainter.isLaidOverPageOverlays)
-                        _canvasLinkPainter.linkHandlingOverlay(viewSize),
+                        ExcludeSemantics(child: _canvasLinkPainter.linkHandlingOverlay(viewSize)),
                       if (_initialized && widget.params.viewerOverlayBuilder != null)
                         ...widget.params.viewerOverlayBuilder!(context, viewSize, _canvasLinkPainter._handleTapUp),
                       if (_initialized) ..._placeTextSelectionWidgets(context, viewSize, isCopyTextEnabled),
@@ -1285,7 +1284,7 @@ class _PdfViewerState extends State<PdfViewer>
     return [...linkWidgets, ...overlayWidgets];
   }
 
-  List<Widget> _buildPageTextSemanticsWidgets(BuildContext context) {
+  List<Widget> _buildPageSemanticsWidgets(BuildContext context) {
     final renderBox = context.findRenderObject();
     if (renderBox is! RenderBox) return [];
 
@@ -1298,82 +1297,85 @@ class _PdfViewerState extends State<PdfViewer>
       if (intersection.isEmpty) continue;
 
       final page = _document!.pages[i];
+      final pageRectExternal = _documentToRenderBox(pageRect, renderBox);
+      if (pageRectExternal == null || pageRectExternal.isEmpty) continue;
+
+      final children = <Widget>[];
       final text = _getCachedTextOrDelayLoadText(page.pageNumber);
-      if (text == null || text.fullText.trim().isEmpty || text.charRects.isEmpty) continue;
-
-      var lineIndex = 0;
-      for (final line in _enumerateTextSemanticsLines(text)) {
-        final lineRect = line.bounds.toRectInDocument(page: page, pageRect: pageRect);
-        final rectExternal = _documentToRenderBox(lineRect, renderBox);
-        if (rectExternal == null || rectExternal.isEmpty) continue;
-
-        widgets.add(
-          Positioned.fromRect(
-            key: Key('#__pageTextSemantics__:${page.pageNumber}:$lineIndex'),
-            rect: rectExternal,
-            child: Focus(
-              canRequestFocus: false,
-              child: Semantics(
-                container: true,
-                focusable: true,
-                label: line.text,
-                readOnly: true,
-                sortKey: OrdinalSortKey(page.pageNumber * 1000000.0 + lineIndex),
-                textDirection: _toFlutterTextDirection(line.direction),
-                child: const SizedBox.expand(),
-              ),
-            ),
-          ),
-        );
-        lineIndex++;
-      }
-    }
-
-    return widgets;
-  }
-
-  List<Widget> _buildPageLinkSemanticsWidgets(BuildContext context) {
-    if (widget.params.linkHandlerParams == null) return [];
-
-    final renderBox = context.findRenderObject();
-    if (renderBox is! RenderBox) return [];
-
-    final widgets = <Widget>[];
-    final targetRect = _visibleRect;
-
-    for (var i = 0; i < _document!.pages.length; i++) {
-      final pageRect = _layout!.pageLayouts[i];
-      final intersection = pageRect.intersect(targetRect);
-      if (intersection.isEmpty) continue;
-
-      final page = _document!.pages[i];
-      final links = _canvasLinkPainter._ensureLinksLoaded(page);
-      if (links == null || links.isEmpty) continue;
-
-      var linkIndex = 0;
-      for (final link in links) {
-        for (final rect in link.rects) {
-          final linkRect = rect.toRectInDocument(page: page, pageRect: pageRect);
-          final rectExternal = _documentToRenderBox(linkRect, renderBox);
+      if (text != null && text.fullText.trim().isNotEmpty && text.charRects.isNotEmpty) {
+        var lineIndex = 0;
+        for (final line in _enumerateTextSemanticsLines(text)) {
+          final lineRect = line.bounds.toRectInDocument(page: page, pageRect: pageRect);
+          final rectExternal = _documentToRenderBox(lineRect, renderBox);
           if (rectExternal == null || rectExternal.isEmpty) continue;
 
-          widgets.add(
+          children.add(
             Positioned.fromRect(
-              key: Key('#__pageLinkSemantics__:${page.pageNumber}:$linkIndex'),
-              rect: rectExternal,
-              child: Semantics(
-                container: true,
-                link: true,
-                label: _getLinkSemanticsLabel(link),
-                onTap: () => widget.params.linkHandlerParams?.onLinkTap(link),
-                sortKey: OrdinalSortKey(page.pageNumber * 1000000.0 + 500000.0 + linkIndex),
-                child: const SizedBox.expand(),
+              key: Key('#__pageTextSemantics__:${page.pageNumber}:$lineIndex'),
+              rect: rectExternal.translate(-pageRectExternal.left, -pageRectExternal.top),
+              child: Focus(
+                canRequestFocus: false,
+                child: Semantics(
+                  focusable: true,
+                  label: line.text,
+                  readOnly: true,
+                  sortKey: OrdinalSortKey(lineIndex.toDouble()),
+                  textDirection: _toFlutterTextDirection(line.direction),
+                  child: const SizedBox.expand(),
+                ),
               ),
             ),
           );
-          linkIndex++;
+          lineIndex++;
         }
       }
+
+      final linkHandlerParams = widget.params.linkHandlerParams;
+      if (linkHandlerParams != null) {
+        final links = _canvasLinkPainter._ensureLinksLoaded(page);
+        if (links != null && links.isNotEmpty) {
+          var linkIndex = 0;
+          for (final link in links) {
+            for (final rect in link.rects) {
+              final linkRect = rect.toRectInDocument(page: page, pageRect: pageRect);
+              final rectExternal = _documentToRenderBox(linkRect, renderBox);
+              if (rectExternal == null || rectExternal.isEmpty) continue;
+
+              children.add(
+                Positioned.fromRect(
+                  key: Key('#__pageLinkSemantics__:${page.pageNumber}:$linkIndex'),
+                  rect: rectExternal.translate(-pageRectExternal.left, -pageRectExternal.top),
+                  child: Semantics(
+                    link: true,
+                    //label: _getLinkSemanticsLabel(link),
+                    linkUrl: link.url,
+                    onTap: () => linkHandlerParams.onLinkTap(link),
+                    sortKey: OrdinalSortKey(500000.0 + linkIndex),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              );
+              linkIndex++;
+            }
+          }
+        }
+      }
+
+      if (children.isEmpty) continue;
+
+      widgets.add(
+        Positioned.fromRect(
+          key: Key('#__pageSemantics__:${page.pageNumber}'),
+          rect: pageRectExternal,
+          child: Semantics(
+            container: true,
+            explicitChildNodes: true,
+            label: 'Page ${page.pageNumber}',
+            sortKey: OrdinalSortKey(page.pageNumber.toDouble()),
+            child: Stack(fit: StackFit.expand, children: children),
+          ),
+        ),
+      );
     }
 
     return widgets;
