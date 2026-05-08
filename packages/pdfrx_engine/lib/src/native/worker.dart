@@ -30,7 +30,7 @@ class BackgroundWorker {
       _sendPort = await receivePort.first as SendPort;
 
       // propagate the pdfium module path to the worker
-      _compute((params) {
+      await _compute((params) {
         Pdfrx.pdfiumModulePath = params.modulePath;
         Pdfrx.pdfiumNativeBindings = params.bindings;
       }, (modulePath: Pdfrx.pdfiumModulePath, bindings: Pdfrx.pdfiumNativeBindings));
