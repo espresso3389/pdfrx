@@ -1110,7 +1110,9 @@ class _PdfDocumentPdfium extends PdfDocument {
   }
 
   void _notifyDocumentLoadComplete() {
-    subject.add(PdfDocumentLoadCompleteEvent(this));
+    if (!isDisposed) {
+      subject.add(PdfDocumentLoadCompleteEvent(this));
+    }
   }
 
   /// Loads pages in the document in a time-limited manner.
@@ -1296,7 +1298,9 @@ class _PdfDocumentPdfium extends PdfDocument {
     }
 
     _pages = List.unmodifiable(pages);
-    subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+    if (!isDisposed) {
+      subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+    }
   }
 
   /// Don't handle [_pages] directly unless you really understand what you're doing; use [pages] getter/setter instead.
