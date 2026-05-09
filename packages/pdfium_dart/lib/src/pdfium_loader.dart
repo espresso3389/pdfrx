@@ -5,6 +5,7 @@ import 'dart:io';
 import 'pdfium_bindings.dart' as pdfium_bindings;
 
 const _isFlutter = bool.fromEnvironment('dart.library.ui');
+bool get _isFlutterTest => Platform.environment.containsKey('FLUTTER_TEST');
 
 /// Helper function to get PDFium instance.
 ///
@@ -38,7 +39,8 @@ DynamicLibrary _getModule({String? modulePath}) {
   if (modulePath != null) return DynamicLibrary.open(modulePath);
   try {
     // For Flutter on iOS/macOS, PDFium is linked into the app by the XCFramework.
-    if (_isFlutter && (Platform.isIOS || Platform.isMacOS)) {
+    if ((_isFlutter && !_isFlutterTest) &&
+        (Platform.isIOS || Platform.isMacOS)) {
       return DynamicLibrary.process();
     }
     return DynamicLibrary.open(_getModuleFileName());
