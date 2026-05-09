@@ -16,8 +16,10 @@ void main(List<String> args) async {
     final pdfiumProvidedByFlutter =
         input.metadata[_darwinPdfiumProviderMetadataKey] ==
         _pdfiumFlutterXcframeworkProvider;
+    // On macOS, PDFium is linked into the app by the XCFramework, but Flutter tests still need to load the PDFium asset
+    // directly. Therefore we omit the PDFium asset only for iOS when provided by Flutter, but include it for macOS.
     final shouldOmitDarwinPdfiumAsset =
-        pdfiumProvidedByFlutter && (targetOS == OS.iOS || targetOS == OS.macOS);
+        pdfiumProvidedByFlutter && targetOS == OS.iOS;
 
     for (final asset in input.assets.encodedAssets) {
       final isPdfiumAsset =
