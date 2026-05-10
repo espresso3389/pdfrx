@@ -156,6 +156,10 @@ jobs:
         working-directory: packages/pdfrx/example/viewer
         run: flutter build macos --debug --verbose
 
+      - name: Test pdfrx on macOS - ${{ matrix.package_manager }}
+        working-directory: packages/pdfrx
+        run: flutter test test/pdfium_loading_test.dart
+
   # Linux build
   linux:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_linux }}
