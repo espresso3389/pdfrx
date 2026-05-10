@@ -156,6 +156,10 @@ jobs:
         working-directory: packages/pdfrx/example/viewer
         run: flutter build macos --debug --verbose
 
+      - name: Prepare PDFium native asset for macOS Flutter tests - ${{ matrix.package_manager }}
+        working-directory: packages/pdfium_dart
+        run: dart test test/pdfium_test.dart
+
       - name: Test pdfrx on macOS - ${{ matrix.package_manager }}
         working-directory: packages/pdfrx
         run: flutter test test/pdfium_loading_test.dart
