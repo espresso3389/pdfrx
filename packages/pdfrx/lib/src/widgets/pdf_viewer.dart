@@ -1347,7 +1347,6 @@ class _PdfViewerState extends State<PdfViewer>
                   rect: rectExternal.translate(-pageRectExternal.left, -pageRectExternal.top),
                   child: Semantics(
                     link: true,
-                    //label: _getLinkSemanticsLabel(link),
                     linkUrl: link.url,
                     onTap: () => linkHandlerParams.onLinkTap(link),
                     sortKey: OrdinalSortKey(500000.0 + linkIndex),
@@ -1379,18 +1378,6 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     return widgets;
-  }
-
-  String _getLinkSemanticsLabel(PdfLink link) {
-    final url = link.url;
-    if (url != null) {
-      return url.toString();
-    }
-    final dest = link.dest;
-    if (dest != null) {
-      return 'Page ${dest.pageNumber}';
-    }
-    return 'Link';
   }
 
   Iterable<({String text, PdfRect bounds, PdfTextDirection direction})> _enumerateTextSemanticsLines(

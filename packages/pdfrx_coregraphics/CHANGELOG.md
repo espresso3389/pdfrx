@@ -1,3 +1,7 @@
+## 0.2.1
+
+- Updated to `pdfrx_engine` 0.4.2.
+
 ## 0.2.0
 
 - Updated to `pdfrx_engine` 0.4.0.

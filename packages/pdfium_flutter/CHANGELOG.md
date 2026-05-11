@@ -1,3 +1,7 @@
+## 0.2.1
+
+- Updated to `pdfium_dart` 0.2.1 to fix PDFium loading in Flutter tests on macOS ([#640](https://github.com/espresso3389/pdfrx/issues/640)).
+
 ## 0.2.0
 
 - Updated to `pdfium_dart` 0.2.0.

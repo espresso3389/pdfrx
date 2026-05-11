@@ -1,3 +1,8 @@
+# 2.3.3
+
+- Updated to `pdfrx_engine` 0.4.2 and `pdfium_flutter` 0.2.1.
+- Fixed PDFium loading in Flutter tests on macOS ([#640](https://github.com/espresso3389/pdfrx/issues/640)).
+
 # 2.3.2
 
 - Updated to `pdfrx_engine` 0.4.1.

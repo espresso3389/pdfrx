@@ -1,3 +1,7 @@
+## 0.4.2
+
+- Updated to `pdfium_dart` 0.2.1 to fix PDFium loading in Flutter tests on macOS ([#640](https://github.com/espresso3389/pdfrx/issues/640)).
+
 ## 0.4.1
 
 - Added [PdfFontManager](https://pub.dev/documentation/pdfrx/latest/pdfrx_engine/PdfFontManager-class.html) for improved font loading/downloading.

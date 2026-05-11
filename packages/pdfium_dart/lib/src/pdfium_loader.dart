@@ -58,8 +58,9 @@ String _getModuleFileName() {
   if (Platform.isWindows) return 'pdfium.dll';
   if (Platform.isLinux) {
     // For Flutter on Linux, the PDFium library is bundled in the app's shared library directory.
-    if (_isFlutter)
+    if (_isFlutter) {
       return '${File(Platform.resolvedExecutable).parent.path}/lib/libpdfium.so';
+    }
     return 'libpdfium.so';
   }
   throw UnsupportedError('Unsupported platform');
@@ -88,16 +89,18 @@ File _findNativeAssetsFile() {
     if (candidate.existsSync()) return candidate;
 
     final parent = directory.parent;
-    if (parent.path == directory.path)
+    if (parent.path == directory.path) {
       throw Exception('Native assets file not found.');
+    }
     directory = parent;
   }
 }
 
 String _targetKey() {
   final match = RegExp(r'"([^_]+)_([^_]+)"').firstMatch(Platform.version);
-  if (match == null)
+  if (match == null) {
     throw Exception('Failed to parse platform version: ${Platform.version}');
+  }
   final os = switch (match[1]!) {
     'macos' => 'macos',
     final value => value,

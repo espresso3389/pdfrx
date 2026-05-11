@@ -1,3 +1,7 @@
+## 0.2.1
+
+- Fixed PDFium loading in Flutter tests on macOS when PDFium is provided by the Flutter XCFramework ([#640](https://github.com/espresso3389/pdfrx/issues/640)).
+
 ## 0.2.0
 
 - BREAKING: `getPdfium()` now resolves PDFium synchronously.
