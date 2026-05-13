@@ -1,3 +1,7 @@
+## 0.2.2
+
+- Fixed macOS universal builds by writing PDFium native assets to architecture-specific build hook output paths ([#643](https://github.com/espresso3389/pdfrx/issues/643)).
+
 ## 0.2.1
 
 - Fixed PDFium loading in Flutter tests on macOS when PDFium is provided by the Flutter XCFramework ([#640](https://github.com/espresso3389/pdfrx/issues/640)).
