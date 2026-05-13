@@ -16,7 +16,7 @@ void main(List<String> args) async {
     final target = _PdfiumTarget.fromCodeConfig(input.config.code);
     final outputSubdir = _pdfiumRelease.replaceAll('%2F', '_');
     final outputFile = input.outputDirectoryShared.resolve(
-      '$outputSubdir/${target.libraryFileName}',
+      '$outputSubdir/${target.archiveArch}/${target.libraryFileName}',
     );
 
     await _downloadPdfium(
