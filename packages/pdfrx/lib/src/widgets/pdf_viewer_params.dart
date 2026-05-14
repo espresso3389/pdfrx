@@ -40,6 +40,7 @@ class PdfViewerParams {
     this.annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     this.limitRenderingCache = true,
     this.pageAnchor = PdfPageAnchor.top,
+    this.underflowAnchor,
     this.pageAnchorEnd = PdfPageAnchor.bottom,
     @Deprecated(
       'Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(onePassRenderingScaleThreshold: ...) instead',
@@ -215,8 +216,21 @@ class PdfViewerParams {
   /// to reduce the memory consumption by image caching.
   final bool limitRenderingCache;
 
-  /// Anchor to position the page.
+  /// Anchor to position the page when navigating to a page or area.
+  ///
+  /// This does not control the legacy underflow centering behavior; use
+  /// [underflowAnchor] to control how the document is placed when it is smaller
+  /// than the viewport.
   final PdfPageAnchor pageAnchor;
+
+  /// Anchor to position the document when it is smaller than the viewport.
+  ///
+  /// If null, the document is centered on the underflowing axis to preserve
+  /// the legacy behavior. This legacy centering is different from
+  /// [PdfPageAnchor.center]: it only applies to axes where the document
+  /// underflows the viewport, while normal page navigation still uses
+  /// [pageAnchor].
+  final PdfPageAnchor? underflowAnchor;
 
   /// Anchor to position the page at the end of the page.
   final PdfPageAnchor pageAnchorEnd;
@@ -703,6 +717,7 @@ class PdfViewerParams {
         other.annotationRenderingMode != annotationRenderingMode ||
         other.limitRenderingCache != limitRenderingCache ||
         other.pageAnchor != pageAnchor ||
+        other.underflowAnchor != underflowAnchor ||
         other.pageAnchorEnd != pageAnchorEnd ||
         // ignore: deprecated_member_use_from_same_package
         other.onePassRenderingScaleThreshold != onePassRenderingScaleThreshold ||
@@ -746,6 +761,7 @@ class PdfViewerParams {
         other.annotationRenderingMode == annotationRenderingMode &&
         other.limitRenderingCache == limitRenderingCache &&
         other.pageAnchor == pageAnchor &&
+        other.underflowAnchor == underflowAnchor &&
         other.pageAnchorEnd == pageAnchorEnd &&
         // ignore: deprecated_member_use_from_same_package
         other.onePassRenderingScaleThreshold == onePassRenderingScaleThreshold &&
@@ -816,6 +832,7 @@ class PdfViewerParams {
         annotationRenderingMode.hashCode ^
         limitRenderingCache.hashCode ^
         pageAnchor.hashCode ^
+        underflowAnchor.hashCode ^
         pageAnchorEnd.hashCode ^
         // ignore: deprecated_member_use_from_same_package
         onePassRenderingScaleThreshold.hashCode ^

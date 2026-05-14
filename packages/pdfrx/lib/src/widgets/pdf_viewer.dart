@@ -713,13 +713,17 @@ class _PdfViewerState extends State<PdfViewer>
     final bottomBoundary =
         layout.documentSize.height + boundaryMargin.bottom; // negative margin reduces allowed downward scroll
 
-    if (visible.left < leftBoundary) {
+    if (rightBoundary - leftBoundary <= visible.width) {
+      dxDoc = (leftBoundary + rightBoundary - visible.left - visible.right) / 2;
+    } else if (visible.left < leftBoundary) {
       dxDoc = leftBoundary - visible.left;
     } else if (visible.right > rightBoundary) {
       dxDoc = rightBoundary - visible.right;
     }
 
-    if (visible.top < topBoundary) {
+    if (bottomBoundary - topBoundary <= visible.height) {
+      dyDoc = (topBoundary + bottomBoundary - visible.top - visible.bottom) / 2;
+    } else if (visible.top < topBoundary) {
       dyDoc = topBoundary - visible.top;
     } else if (visible.bottom > bottomBoundary) {
       dyDoc = bottomBoundary - visible.bottom;
@@ -727,9 +731,9 @@ class _PdfViewerState extends State<PdfViewer>
     return Offset(dxDoc, dyDoc);
   }
 
-  Matrix4 _calcMatrixForClampedToNearestBoundary(Matrix4 candidate, {required Size viewSize}) {
+  Matrix4 _calcMatrixForClampedToNearestBoundary(Matrix4 candidate, {required Size viewSize, PdfPageAnchor? anchor}) {
     if (widget.params.scrollPhysics == null) {
-      _adjustBoundaryMargins(_viewSize!, candidate.zoom);
+      _adjustBoundaryMargins(_viewSize!, candidate.zoom, anchor: anchor);
     }
     final overScroll = _calcOverscroll(candidate, viewSize: viewSize);
     if (overScroll == Offset.zero) {
@@ -1203,7 +1207,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   // Auto-adjust boundaries when content is smaller than the view, centering
   // the content and ensuring InteractiveViewer's scrollPhysics works when specified
-  void _adjustBoundaryMargins(Size viewSize, double zoom) {
+  void _adjustBoundaryMargins(Size viewSize, double zoom, {PdfPageAnchor? anchor}) {
     final boundaryMargin = widget.params.boundaryMargin ?? EdgeInsets.zero;
 
     if (boundaryMargin.containsInfinite) {
@@ -1214,19 +1218,34 @@ class _PdfViewerState extends State<PdfViewer>
     final currentDocumentSize = boundaryMargin.inflateSize(_layout!.documentSize);
     final effectiveWidth = currentDocumentSize.width * zoom;
     final effectiveHeight = currentDocumentSize.height * zoom;
-    final extraWidth = effectiveWidth - viewSize.width;
-    final extraBoundaryHorizontal = extraWidth < 0 ? (-extraWidth / 2) / zoom : 0.0;
-    final extraHeight = effectiveHeight - viewSize.height;
-    final extraBoundaryVertical = extraHeight < 0 ? (-extraHeight / 2) / zoom : 0.0;
+    final extraBoundaryHorizontal = effectiveWidth < viewSize.width ? (viewSize.width - effectiveWidth) / zoom : 0.0;
+    final extraBoundaryVertical = effectiveHeight < viewSize.height ? (viewSize.height - effectiveHeight) / zoom : 0.0;
+    final underflowAnchor = anchor ?? widget.params.underflowAnchor;
+    final (leftExtra, rightExtra) = _splitHorizontalBoundaryExtra(extraBoundaryHorizontal, underflowAnchor);
+    final (topExtra, bottomExtra) = _splitVerticalBoundaryExtra(extraBoundaryVertical, underflowAnchor);
 
-    _adjustedBoundaryMargins =
-        boundaryMargin +
-        EdgeInsets.fromLTRB(
-          extraBoundaryHorizontal,
-          extraBoundaryVertical,
-          extraBoundaryHorizontal,
-          extraBoundaryVertical,
-        );
+    _adjustedBoundaryMargins = boundaryMargin + EdgeInsets.fromLTRB(leftExtra, topExtra, rightExtra, bottomExtra);
+  }
+
+  (double, double) _splitHorizontalBoundaryExtra(double extra, PdfPageAnchor? anchor) {
+    final leadingRatio = switch (anchor) {
+      PdfPageAnchor.left || PdfPageAnchor.topLeft || PdfPageAnchor.centerLeft || PdfPageAnchor.bottomLeft => 0.0,
+      PdfPageAnchor.right || PdfPageAnchor.topRight || PdfPageAnchor.centerRight || PdfPageAnchor.bottomRight => 1.0,
+      _ => 0.5,
+    };
+    return (extra * leadingRatio, extra * (1 - leadingRatio));
+  }
+
+  (double, double) _splitVerticalBoundaryExtra(double extra, PdfPageAnchor? anchor) {
+    final leadingRatio = switch (anchor) {
+      PdfPageAnchor.top || PdfPageAnchor.topLeft || PdfPageAnchor.topCenter || PdfPageAnchor.topRight => 0.0,
+      PdfPageAnchor.bottom ||
+      PdfPageAnchor.bottomLeft ||
+      PdfPageAnchor.bottomCenter ||
+      PdfPageAnchor.bottomRight => 1.0,
+      _ => 0.5,
+    };
+    return (extra * leadingRatio, extra * (1 - leadingRatio));
   }
 
   List<Widget> _buildPageOverlayWidgets(BuildContext context) {
@@ -1856,12 +1875,12 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   /// Restrict matrix to the safe range.
-  Matrix4 _makeMatrixInSafeRange(Matrix4 newValue, {bool forceClamp = false}) {
+  Matrix4 _makeMatrixInSafeRange(Matrix4 newValue, {bool forceClamp = false, PdfPageAnchor? anchor}) {
     if (!forceClamp && (_layout == null || _viewSize == null || widget.params.scrollPhysics != null)) return newValue;
     if (widget.params.normalizeMatrix != null) {
       return widget.params.normalizeMatrix!(newValue, _viewSize!, _layout!, _controller);
     }
-    return _calcMatrixForClampedToNearestBoundary(newValue, viewSize: _viewSize!);
+    return _calcMatrixForClampedToNearestBoundary(newValue, viewSize: _viewSize!, anchor: anchor);
   }
 
   /// Calculate matrix to center the specified position.
@@ -1916,7 +1935,7 @@ class _PdfViewerState extends State<PdfViewer>
       case PdfPageAnchor.centerLeft:
         return Rect.fromLTWH(rect.left, rect.center.dy - h / 2, viewSize.width, viewSize.height);
       case PdfPageAnchor.center:
-        return Rect.fromLTWH(rect.center.dx - w / 2, rect.center.dy - h / 2, viewSize.width, viewSize.height);
+        return Rect.fromCenter(center: rect.center, width: w, height: h);
       case PdfPageAnchor.centerRight:
         return Rect.fromLTWH(rect.right - w, rect.center.dy - h / 2, viewSize.width, viewSize.height);
       case PdfPageAnchor.bottomLeft:
@@ -1931,13 +1950,19 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   Matrix4 _calcMatrixForPage({required int pageNumber, PdfPageAnchor? anchor}) {
-    final boundaryMargin = _adjustedBoundaryMargins;
+    final effectiveAnchor = anchor ?? widget.params.pageAnchor;
     final pageRect = _layout!.pageLayouts[pageNumber - 1].inflate(widget.params.margin);
+    if (effectiveAnchor == PdfPageAnchor.center) {
+      return _calcMatrixFor(pageRect.center, zoom: _currentZoom, viewSize: _viewSize!);
+    }
 
-    // If boundaryMargin is infinite, don't inflate the rect
+    final boundaryMargin = anchor == null ? _adjustedBoundaryMargins : widget.params.boundaryMargin ?? EdgeInsets.zero;
+
+    // Preserve the old default behavior by using the adjusted underflow margin
+    // unless the caller explicitly requested an anchor.
     final targetRect = boundaryMargin.inflateRectIfFinite(pageRect);
 
-    return _calcMatrixForArea(rect: targetRect, anchor: anchor, zoomMax: _currentZoom);
+    return _calcMatrixForArea(rect: targetRect, anchor: effectiveAnchor, zoomMax: _currentZoom);
   }
 
   Rect _calcRectForRectInsidePage({required int pageNumber, required PdfRect rect}) {
@@ -2024,10 +2049,14 @@ class _PdfViewerState extends State<PdfViewer>
     return null;
   }
 
-  Future<void> _goTo(Matrix4? destination, {Duration duration = const Duration(milliseconds: 200)}) async {
+  Future<void> _goTo(
+    Matrix4? destination, {
+    Duration duration = const Duration(milliseconds: 200),
+    PdfPageAnchor? anchor,
+  }) async {
     void update() {
       if (_animationResettingGuard != 0) return;
-      _txController.value = _animGoTo!.value;
+      _txController.setValueWithoutNormalization(_animGoTo!.value);
     }
 
     try {
@@ -2036,10 +2065,12 @@ class _PdfViewerState extends State<PdfViewer>
       _animationResettingGuard++;
       _animController.reset();
       _animationResettingGuard--;
-      _animGoTo = Matrix4Tween(
-        begin: _txController.value,
-        end: _makeMatrixInSafeRange(destination, forceClamp: true),
-      ).animate(_animController);
+      final destinationInSafeRange = _makeMatrixInSafeRange(destination, forceClamp: true, anchor: anchor);
+      if (duration == Duration.zero) {
+        _txController.setValueWithoutNormalization(destinationInSafeRange);
+        return;
+      }
+      _animGoTo = Matrix4Tween(begin: _txController.value, end: destinationInSafeRange).animate(_animController);
       _animGoTo!.addListener(update);
       await _animController.animateTo(1.0, duration: duration, curve: Curves.easeInOut);
     } finally {
@@ -2083,6 +2114,7 @@ class _PdfViewerState extends State<PdfViewer>
   }) => _goTo(
     _calcMatrixForArea(rect: rect, anchor: anchor),
     duration: duration,
+    anchor: anchor,
   );
 
   Future<void> _goToPage({
@@ -2106,8 +2138,10 @@ class _PdfViewerState extends State<PdfViewer>
       _calcMatrixForClampedToNearestBoundary(
         _calcMatrixForPage(pageNumber: targetPageNumber, anchor: anchor),
         viewSize: _viewSize!,
+        anchor: anchor,
       ),
       duration: duration,
+      anchor: anchor,
     );
     _setCurrentPageNumber(targetPageNumber);
   }
@@ -2144,6 +2178,7 @@ class _PdfViewerState extends State<PdfViewer>
     await _goTo(
       _calcMatrixForRectInsidePage(pageNumber: pageNumber, rect: rect, anchor: anchor),
       duration: duration,
+      anchor: anchor,
     );
     _setCurrentPageNumber(pageNumber);
   }
@@ -3700,6 +3735,10 @@ class _PdfViewerTransformationController extends TransformationController {
   @override
   set value(Matrix4 newValue) {
     super.value = _state._makeMatrixInSafeRange(newValue);
+  }
+
+  void setValueWithoutNormalization(Matrix4 newValue) {
+    super.value = newValue;
   }
 }
 
