@@ -1541,12 +1541,11 @@ class _PdfViewerState extends State<PdfViewer>
         partial.draw(canvas, filterQuality);
       }
 
-      final selectionColor =
-          Theme.of(context).textSelectionTheme.selectionColor ?? DefaultSelectionStyle.of(context).selectionColor!;
       final text = _getCachedTextOrDelayLoadText(page.pageNumber);
       if (text != null) {
         final selectionInPage = _loadTextSelectionForPageNumber(page.pageNumber);
         if (selectionInPage != null) {
+          final selectionColor = _selectionColorOf(context);
           for (final r in selectionInPage.enumerateFragmentBoundingRects()) {
             canvas.drawRect(
               r.bounds.toRectInDocument(page: page, pageRect: rect),
@@ -1584,6 +1583,11 @@ class _PdfViewerState extends State<PdfViewer>
       }
     }
   }
+
+  Color _selectionColorOf(BuildContext context) =>
+      Theme.of(context).textSelectionTheme.selectionColor ??
+      DefaultSelectionStyle.of(context).selectionColor ??
+      DefaultSelectionStyle.defaultColor;
 
   /// Loads text for the specified page number.
   ///
@@ -2966,8 +2970,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   Widget _buildHandle(BuildContext context, Path path, PdfViewerTextSelectionAnchorHandleState state) {
-    final baseColor =
-        Theme.of(context).textSelectionTheme.selectionColor ?? DefaultSelectionStyle.of(context).selectionColor!;
+    final baseColor = _selectionColorOf(context);
     final (selectionColor, shadow) = switch (state) {
       PdfViewerTextSelectionAnchorHandleState.normal => (baseColor.withValues(alpha: .7), true),
       PdfViewerTextSelectionAnchorHandleState.dragging => (baseColor.withValues(alpha: 1), false),
