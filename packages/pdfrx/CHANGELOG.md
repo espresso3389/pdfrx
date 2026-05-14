@@ -1,3 +1,11 @@
+# 2.4.0
+
+- NEW: Added `PdfOverlayInteractionRegion` for tap-like interactions on page/viewer overlays without blocking viewer pan, zoom, text selection, or link handling ([#376](https://github.com/espresso3389/pdfrx/issues/376)).
+- NEW: Added `PdfViewerParams.underflowAnchor` to control how pages are aligned when they are smaller than the viewport ([#111](https://github.com/espresso3389/pdfrx/issues/111)).
+- FIXED: `PdfViewerParams.scaleEnabled: false` now also disables Ctrl+mouse wheel and pointer-scale zoom paths ([#603](https://github.com/espresso3389/pdfrx/issues/603)).
+- DOCUMENTED: Added a dark mode workaround for Flutter's text field selection color issue ([#492](https://github.com/espresso3389/pdfrx/issues/492)).
+- Improved deprecation messages for legacy `PdfViewerParams` sizing parameters ([#637](https://github.com/espresso3389/pdfrx/issues/637)).
+
 # 2.3.4
 
 - Fixed a crash when `PdfTextSelectionParams.enabled` is false and no selection color is provided by the app theme ([#644](https://github.com/espresso3389/pdfrx/issues/644)).
