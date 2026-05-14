@@ -1,3 +1,7 @@
+# 2.3.4
+
+- Fixed a crash when `PdfTextSelectionParams.enabled` is false and no selection color is provided by the app theme ([#644](https://github.com/espresso3389/pdfrx/issues/644)).
+
 # 2.3.3
 
 - Updated to `pdfrx_engine` 0.4.2 and `pdfium_flutter` 0.2.1.
