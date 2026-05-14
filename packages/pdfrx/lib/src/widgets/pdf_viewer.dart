@@ -1812,6 +1812,10 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _onWheelDelta(PointerScrollEvent event) {
+    if (HardwareKeyboard.instance.isControlPressed && !widget.params.scaleEnabled) {
+      return;
+    }
+
     _startInteraction();
     try {
       // Handle Ctrl+wheel for zooming
@@ -1864,6 +1868,10 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _onPointerScale(PointerScaleEvent event) {
+    if (!widget.params.scaleEnabled) {
+      return;
+    }
+
     _startInteraction();
     try {
       final dampening = widget.params.scaleByPointerScale;

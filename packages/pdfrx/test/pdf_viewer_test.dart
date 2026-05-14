@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -180,6 +182,59 @@ void main() {
 
     expect(pageTopInViewport, moreOrLessEquals(controller.params.margin * controller.currentZoom, epsilon: 0.1));
 
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('scale disabled ignores ctrl wheel zoom', (tester) async {
+    await binding.setSurfaceSize(Size(1000, 2000));
+    addTearDown(() => binding.setSurfaceSize(null));
+    final controller = PdfViewerController();
+    final document = await tester.runAsync(
+      () async => PdfDocument.openData(
+        await testPdfFile.readAsBytes(),
+        sourceName: 'scale-disabled-ctrl-wheel-test.pdf',
+        useProgressiveLoading: false,
+      ),
+    );
+    addTearDown(() => document?.dispose());
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document!),
+          controller: controller,
+          params: const PdfViewerParams(
+            scaleEnabled: false,
+            behaviorControlParams: PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
+          ),
+        ),
+      ),
+    );
+
+    for (var i = 0; i < 20 && (!controller.isReady || controller.alternativeFitScale == null); i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+    }
+    expect(controller.isReady, isTrue);
+    expect(controller.alternativeFitScale, isNotNull);
+    await tester.pump();
+
+    final zoomBefore = controller.currentZoom;
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+
+    binding.handlePointerEvent(
+      const PointerScrollEvent(
+        position: Offset(500, 1000),
+        scrollDelta: Offset(0, -120),
+        kind: PointerDeviceKind.mouse,
+      ),
+    );
+    await tester.pump();
+
+    expect(controller.currentZoom, zoomBefore);
+
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 100));
   });
