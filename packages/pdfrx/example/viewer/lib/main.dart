@@ -452,8 +452,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                           },
                         ),
                         keyHandlerParams: PdfViewerKeyHandlerParams(autofocus: true),
-                        useAlternativeFitScaleAsMinScale: false,
-                        maxScale: 8,
+                        sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(
+                          useAlternativeFitScaleAsMinScale: false,
+                          maxScale: 8,
+                        ),
                         // #547: At least, on Flutter Web on Windows, the default scroll physics
                         // seems to have some issues with zooming and we don't use it here.
                         //scrollPhysics: PdfViewerParams.getScrollPhysics(context),

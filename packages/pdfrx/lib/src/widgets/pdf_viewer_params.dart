@@ -29,8 +29,11 @@ class PdfViewerParams {
     this.backgroundColor = Colors.grey,
     this.layoutPages,
     this.normalizeMatrix,
-    this.maxScale,
-    this.minScale,
+    @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(maxScale: ...) instead') this.maxScale,
+    @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(minScale: ...) instead') this.minScale,
+    @Deprecated(
+      'Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(useAlternativeFitScaleAsMinScale: ...) instead',
+    )
     this.useAlternativeFitScaleAsMinScale,
     this.panAxis = PanAxis.free,
     this.boundaryMargin,
@@ -38,6 +41,9 @@ class PdfViewerParams {
     this.limitRenderingCache = true,
     this.pageAnchor = PdfPageAnchor.top,
     this.pageAnchorEnd = PdfPageAnchor.bottom,
+    @Deprecated(
+      'Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(onePassRenderingScaleThreshold: ...) instead',
+    )
     this.onePassRenderingScaleThreshold,
     this.onePassRenderingSizeThreshold = 2000,
     this.textSelectionParams,
@@ -56,6 +62,7 @@ class PdfViewerParams {
     this.onDocumentChanged,
     this.onDocumentLoadFinished,
     this.calculateInitialPageNumber,
+    @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(calculateInitialZoom: ...) instead')
     this.calculateInitialZoom,
     this.calculateCurrentPageNumber,
     this.onViewerReady,
