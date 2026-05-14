@@ -480,8 +480,15 @@ class PdfViewerParams {
   ///
   /// For more information, see [PdfViewerScrollThumb].
   ///
+  /// To handle tap-like overlay interactions while still allowing the viewer to
+  /// handle panning, zooming, and link taps, wrap the overlay with
+  /// `PdfOverlayInteractionRegion`.
+  ///
   /// ### Note for using [GestureDetector] inside [viewerOverlayBuilder]:
-  /// You may want to use [GestureDetector] inside [viewerOverlayBuilder] to handle certain gesture events.
+  /// Prefer `PdfOverlayInteractionRegion` when the overlay only needs tap,
+  /// double tap, long press, or secondary tap.
+  ///
+  /// You may want to use [GestureDetector] inside [viewerOverlayBuilder] to handle lower-level gesture events.
   /// In such cases, your [GestureDetector] eats the gestures and the viewer cannot handle them directly.
   /// So, when you use [GestureDetector] inside [viewerOverlayBuilder], please ensure the following things:
   ///
@@ -523,6 +530,12 @@ class PdfViewerParams {
   /// - Overlay widgets returned by this function
   ///
   /// The most typical use case is to add page number footer to each page.
+  ///
+  /// If an overlay widget should handle gestures and still allow normal viewer
+  /// panning or zooming over it, wrap the overlay with `PdfOverlayInteractionRegion`.
+  /// It lets [PdfViewer] classify the gesture and dispatch tap-like interactions
+  /// to the overlay without making the overlay compete with the viewer in
+  /// Flutter's gesture arena.
   ///
   /// The following fragment illustrates how to add page number footer to each page:
   /// ```dart
