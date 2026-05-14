@@ -10,12 +10,12 @@
 ## 0.1.16
 
 - Updated to pdfrx_engine 0.3.9
-- NEW: `PdfrxEntryFunctions.stopBackgroundWorker()` support ([#184](https://github.com/espresso3389/pdfrx/issues/184), [#430](https://github.com/espresso3389/pdfrx/issues/430))
+- NEW: [`PdfrxEntryFunctions.stopBackgroundWorker()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/stopBackgroundWorker.html) support ([#184](https://github.com/espresso3389/pdfrx/issues/184), [#430](https://github.com/espresso3389/pdfrx/issues/430))
 
 ## 0.1.15
 
 - Updated to pdfrx_engine 0.3.8
-- Implemented `PdfDocumentLoadCompleteEvent` for CoreGraphics backend
+- Implemented [PdfDocumentLoadCompleteEvent](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocumentLoadCompleteEvent-class.html) for CoreGraphics backend
 
 ## 0.1.12
 
@@ -25,12 +25,12 @@
 
 - Updated to pdfrx_engine 0.3.7
 - Dependency configuration updates
-- WIP: Adding `PdfDocument.useNativeDocumentHandle`/`reloadPages`
+- WIP: Adding [PdfDocument.useNativeDocumentHandle](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/useNativeDocumentHandle.html)/[reloadPages](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/reloadPages.html)
 
 ## 0.1.10
 
 - Updated to pdfrx_engine 0.3.6
-- NEW: [`PdfDateTime`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDateTime.html) extension type for PDF date string parsing
+- NEW: [`PdfDateTime`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDateTime-extension-type.html) extension type for PDF date string parsing
 - NEW: [`PdfAnnotation`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfAnnotation-class.html) class for PDF annotation metadata extraction ([#546](https://github.com/espresso3389/pdfrx/pull/546))
 
 ## 0.1.9
@@ -58,12 +58,12 @@
 ## 0.1.4
 
 - Updated to pdfrx_engine 0.2.2
-- Updated README example to remove explicit `WidgetsFlutterBinding.ensureInitialized()` call (now handled internally by `pdfrxFlutterInitialize()`)
-- Implemented `PdfrxBackend` enum support
+- Updated README example to remove explicit `WidgetsFlutterBinding.ensureInitialized()` call (now handled internally by [`pdfrxFlutterInitialize()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html))
+- Implemented [PdfrxBackendType](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxBackendType.html) enum support
 
 ## 0.1.3
 
-- **BREAKING**: Renamed `PdfrxEntryFunctions.initPdfium()` to `PdfrxEntryFunctions.init()` for consistency
+- **BREAKING**: Renamed `PdfrxEntryFunctions.initPdfium()` to [`PdfrxEntryFunctions.init()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/init.html) for consistency
 - Updated README with documentation for `dart run pdfrx:remove_darwin_pdfium_modules` command to reduce app size
 - Updated to pdfrx_engine 0.2.0
 

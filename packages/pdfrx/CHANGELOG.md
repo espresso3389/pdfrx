@@ -1,14 +1,14 @@
 # 2.4.0
 
-- NEW: Added `PdfOverlayInteractionRegion` for tap-like interactions on page/viewer overlays without blocking viewer pan, zoom, text selection, or link handling ([#376](https://github.com/espresso3389/pdfrx/issues/376)).
-- NEW: Added `PdfViewerParams.underflowAnchor` to control how pages are aligned when they are smaller than the viewport ([#111](https://github.com/espresso3389/pdfrx/issues/111)).
-- FIXED: `PdfViewerParams.scaleEnabled: false` now also disables Ctrl+mouse wheel and pointer-scale zoom paths ([#603](https://github.com/espresso3389/pdfrx/issues/603)).
+- NEW: Added [PdfOverlayInteractionRegion](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfOverlayInteractionRegion-class.html) for tap-like interactions on page/viewer overlays without blocking viewer pan, zoom, text selection, or link handling ([#376](https://github.com/espresso3389/pdfrx/issues/376)).
+- NEW: Added [PdfViewerParams.underflowAnchor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/underflowAnchor.html) to control how pages are aligned when they are smaller than the viewport ([#111](https://github.com/espresso3389/pdfrx/issues/111)).
+- FIXED: [PdfViewerParams.scaleEnabled](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/scaleEnabled.html): false now also disables Ctrl+mouse wheel and pointer-scale zoom paths ([#603](https://github.com/espresso3389/pdfrx/issues/603)).
 - DOCUMENTED: Added a dark mode workaround for Flutter's text field selection color issue ([#492](https://github.com/espresso3389/pdfrx/issues/492)).
-- Improved deprecation messages for legacy `PdfViewerParams` sizing parameters ([#637](https://github.com/espresso3389/pdfrx/issues/637)).
+- Improved deprecation messages for legacy [PdfViewerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams-class.html) sizing parameters ([#637](https://github.com/espresso3389/pdfrx/issues/637)).
 
 # 2.3.4
 
-- Fixed a crash when `PdfTextSelectionParams.enabled` is false and no selection color is provided by the app theme ([#644](https://github.com/espresso3389/pdfrx/issues/644)).
+- Fixed a crash when [PdfTextSelectionParams.enabled](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionParams/enabled.html) is false and no selection color is provided by the app theme ([#644](https://github.com/espresso3389/pdfrx/issues/644)).
 
 # 2.3.3
 
@@ -18,7 +18,7 @@
 # 2.3.2
 
 - Updated to `pdfrx_engine` 0.4.1.
-- [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) now supports PdfFontManager to natively support platform's font loading/additional font downloading.
+- [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) now supports [PdfFontManager](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfFontManager-class.html) to natively support platform's font loading/additional font downloading.
 
 # 2.3.1
 
@@ -34,28 +34,28 @@
   - iOS and macOS use the PDFium XCFramework without bundling a duplicate `libpdfium.dylib`.
   - Flutter Web and other non-code-asset builds skip native PDFium link handling correctly.
 - NEW: Pluggable scroll/zoom interaction architecture ([#581](https://github.com/espresso3389/pdfrx/pull/581))
-  - `PdfViewerScrollInteractionDelegateProviderInstant` (default) - instant updates (legacy behavior)
-  - `PdfViewerScrollInteractionDelegateProviderPhysics` - smooth, physics-based animations for mouse wheel and trackpad
-  - New parameter `scaleByPointerScale` to control trackpad pinch/Ctrl+scroll sensitivity
+  - [PdfViewerScrollInteractionDelegateProviderInstant](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerScrollInteractionDelegateProviderInstant-class.html) (default) - instant updates (legacy behavior)
+  - [PdfViewerScrollInteractionDelegateProviderPhysics](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerScrollInteractionDelegateProviderPhysics-class.html) - smooth, physics-based animations for mouse wheel and trackpad
+  - New parameter [PdfViewerParams.scaleByPointerScale](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/scaleByPointerScale.html) to control trackpad pinch/Ctrl+scroll sensitivity
   - Shift+scroll now triggers horizontal scrolling (standard desktop behavior)
 - NEW: Pluggable sizing/layout architecture ([#582](https://github.com/espresso3389/pdfrx/pull/582))
-  - `PdfViewerSizeDelegateProviderLegacy` (default) - maintains existing behavior
-  - `PdfViewerSizeDelegateProviderSmart` - responsive resizing with content centering and adaptive scaling
-  - `PdfViewerZoomStepsDelegate` for customizable double-tap zoom snap points
-- DEPRECATED: `maxScale`, `minScale`, `useAlternativeFitScaleAsMinScale`, `onePassRenderingScaleThreshold`, and `calculateInitialZoom` parameters in `PdfViewerParams` - use `sizeDelegateProvider` instead
-- NEW: `PdfViewerController.maxScale` getter
-- NEW: `PdfViewerController.goToPosition()` method
+  - [PdfViewerSizeDelegateProviderLegacy](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerSizeDelegateProviderLegacy-class.html) (default) - maintains existing behavior
+  - [PdfViewerSizeDelegateProviderSmart](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerSizeDelegateProviderSmart-class.html) - responsive resizing with content centering and adaptive scaling
+  - [PdfViewerZoomStepsDelegate](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerZoomStepsDelegate-class.html) for customizable double-tap zoom snap points
+- DEPRECATED: [maxScale](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/maxScale.html), [minScale](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/minScale.html), [useAlternativeFitScaleAsMinScale](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/useAlternativeFitScaleAsMinScale.html), [onePassRenderingScaleThreshold](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/onePassRenderingScaleThreshold.html), and [calculateInitialZoom](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/calculateInitialZoom.html) parameters in [PdfViewerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams-class.html) - use [sizeDelegateProvider](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/sizeDelegateProvider.html) instead
+- NEW: [PdfViewerController.maxScale](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/maxScale.html) getter
+- NEW: [PdfViewerController.goToPosition()](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/goToPosition.html) method
 
 # 2.2.24
 
 - Updated to pdfrx_engine 0.3.9
-- NEW: `PdfrxEntryFunctions.stopBackgroundWorker()` to stop the background worker thread ([#184](https://github.com/espresso3389/pdfrx/issues/184), [#430](https://github.com/espresso3389/pdfrx/issues/430))
+- NEW: [`PdfrxEntryFunctions.stopBackgroundWorker()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/stopBackgroundWorker.html) to stop the background worker thread ([#184](https://github.com/espresso3389/pdfrx/issues/184), [#430](https://github.com/espresso3389/pdfrx/issues/430))
 
 # 2.2.23
 
 - pdfrx_engine 0.3.8
-- NEW: `onDocumentLoadFinished` callback in `PdfViewerParams` to notify when document loading completes (or fails)
-- Implemented `PdfDocumentLoadCompleteEvent` for WASM backend
+- NEW: [PdfViewerParams.onDocumentLoadFinished](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/onDocumentLoadFinished.html) callback to notify when document loading completes (or fails)
+- Implemented [PdfDocumentLoadCompleteEvent](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocumentLoadCompleteEvent-class.html) for WASM backend
 
 # 2.2.20
 
@@ -67,7 +67,7 @@
 - IMPROVED: Add `isDirty` flag to page image cache to prevent cache removal before re-rendering page ([#567](https://github.com/espresso3389/pdfrx/issues/567))
 - FIXED: `round10BitFrac` should not process `Infinity` or `NaN` ([#550](https://github.com/espresso3389/pdfrx/issues/550))
 - Updated Gradle wrapper to version 8.12 and Android plugin to version 8.9.1
-- WIP: Adding `PdfDocument.useNativeDocumentHandle`/`reloadPages`
+- WIP: Adding [PdfDocument.useNativeDocumentHandle](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/useNativeDocumentHandle.html)/[reloadPages](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/reloadPages.html)
 
 # 2.2.18
 
@@ -93,7 +93,7 @@
 
 # 2.2.15
 
-- FIXED: Focus context retrieval issue in [PdfViewerKeyHandler](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerKeyHandler-class.html) ([#518](https://github.com/espresso3389/pdfrx/issues/518))
+- FIXED: Focus context retrieval issue in `PdfViewerKeyHandler` ([#518](https://github.com/espresso3389/pdfrx/issues/518))
 
 # 2.2.14
 
@@ -114,7 +114,7 @@
 # 2.2.11
 
 - FIXED: Magnifier content location calculated incorrectly ([#532](https://github.com/espresso3389/pdfrx/issues/532))
-- NEW: Added `PdfViewerController.localToDocument()` and `PdfViewerController.documentToLocal()` methods for coordinate conversion
+- NEW: Added [PdfViewerController.localToDocument()](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/localToDocument.html) and [PdfViewerController.documentToLocal()](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/documentToLocal.html) methods for coordinate conversion
 - Updated to pdfrx_engine 0.3.3
 
 # 2.2.10
@@ -127,23 +127,23 @@
 
 # 2.2.8
 
-- NEW: `PdfDocument` now supports page re-arrangement and accepts `PdfPage` instances from other documents, enabling PDF combine/merge functionality
+- NEW: [PdfDocument](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) now supports page re-arrangement and accepts [PdfPage](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage-class.html) instances from other documents, enabling PDF combine/merge functionality
 - Added `pdf_combine` app example demonstrating PDF merging capabilities
 - Updated to pdfrx_engine 0.2.4
 
 # 2.2.7
 
-- `PdfViewer.uri` now supports timeout parameter ([#508](https://github.com/espresso3389/pdfrx/issues/508))
+- [PdfViewer.uri](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.uri.html) now supports timeout parameter ([#508](https://github.com/espresso3389/pdfrx/issues/508))
 
 # 2.2.6
 
-- Added configurable timeout parameter to `openUri` and `pdfDocumentFromUri` functions ([#509](https://github.com/espresso3389/pdfrx/pull/509))
+- Added configurable timeout parameter to [PdfDocument.openUri](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openUri.html) and `pdfDocumentFromUri` functions ([#509](https://github.com/espresso3389/pdfrx/pull/509))
 - Updated to pdfrx_engine 0.2.3
 
 # 2.2.5
 
 - Experimental iOS/macOS direct symbol lookup to address SwiftPM TestFlight/App Store symbol lookup issues ([#501](https://github.com/espresso3389/pdfrx/issues/501))
-- `pdfrxFlutterInitialize()` now internally calls `WidgetsFlutterBinding.ensureInitialized()` - no need to call it explicitly
+- [`pdfrxFlutterInitialize()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) now internally calls `WidgetsFlutterBinding.ensureInitialized()` - no need to call it explicitly
 - Updated to pdfrx_engine 0.2.2
 
 # 2.2.4
@@ -165,7 +165,7 @@
 
 # 2.2.0
 
-- **BREAKING**: Renamed `PdfrxEntryFunctions.initPdfium()` to `PdfrxEntryFunctions.init()` for consistency
+- **BREAKING**: Renamed `PdfrxEntryFunctions.initPdfium()` to [`PdfrxEntryFunctions.init()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/init.html) for consistency
 - NEW: Added `dart run pdfrx:remove_darwin_pdfium_modules` command to remove PDFium dependencies from iOS/macOS when using alternative backends like pdfrx_coregraphics
 - Updated to pdfrx_engine 0.2.0
 
@@ -184,7 +184,7 @@
 # 2.1.23
 
 - FIXED: WASM+Safari StringBuffer issue with workaround ([#483](https://github.com/espresso3389/pdfrx/issues/483))
-- Introduces `PdfDocumentRefKey` for more flexible `PdfDocumentRef` identification
+- Introduces [PdfDocumentRefKey](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRefKey-class.html) for more flexible [PdfDocumentRef](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRef-class.html) identification
 - Updated to pdfrx_engine 0.1.21
 
 # 2.1.22
@@ -217,7 +217,7 @@
 
 # 2.1.16
 
-- [#474](https://github.com/espresso3389/pdfrx/issues/474) Add [PdfrxEntryFunctions.initPdfium](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/initPdfium.html) to explicitly call FPDF_InitLibraryWithConfig and [pdfrxInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html)/[pdfrxFlutterInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) internally call it
+- [#474](https://github.com/espresso3389/pdfrx/issues/474) Add `PdfrxEntryFunctions.initPdfium` to explicitly call FPDF_InitLibraryWithConfig and [pdfrxInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html)/[pdfrxFlutterInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) internally call it
 - [#474](https://github.com/espresso3389/pdfrx/issues/474) Add [PdfrxEntryFunctions.suspendPdfiumWorkerDuringAction](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/suspendPdfiumWorkerDuringAction.html)
 - Documentation improvements for low-level PDFium bindings access/PDFium interoperability and initialization
 - Updated to pdfrx_engine 0.1.17
@@ -252,7 +252,7 @@
 
 # 2.1.10
 
-- NEW: Add `dismissPdfiumWasmWarnings` to `pdfrxFlutterInitialize` to optionally hide WASM warnings in debug ([#452](https://github.com/espresso3389/pdfrx/issues/452))
+- NEW: Add `dismissPdfiumWasmWarnings` to [`pdfrxFlutterInitialize`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) to optionally hide WASM warnings in debug ([#452](https://github.com/espresso3389/pdfrx/issues/452))
 - FIXED: Remove use of `.orCancel` on `animateTo` to prevent animation cancellation errors ([#454](https://github.com/espresso3389/pdfrx/issues/454))
 
 # 2.1.9
@@ -269,7 +269,7 @@
 
 # 2.1.6
 
-- DOCS: Document initialization for Flutter (`pdfrxFlutterInitialize`) and link to non-Flutter initialization (`pdfrxInitialize`). Closes [#447](https://github.com/espresso3389/pdfrx/issues/447)
+- DOCS: Document initialization for Flutter ([`pdfrxFlutterInitialize`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html)) and link to non-Flutter initialization ([`pdfrxInitialize`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/pdfrxInitialize.html)). Closes [#447](https://github.com/espresso3389/pdfrx/issues/447)
 - No functional changes
 
 # 2.1.5
@@ -279,7 +279,7 @@
 # 2.1.4
 
 - FIXED: Text coordinate calculation when CropBox/MediaBox has non-zero origin ([#441](https://github.com/espresso3389/pdfrx/issues/441))
-- Add support for dynamic font loading in WASM with `PdfDocumentMissingFontsEvent`
+- Add support for dynamic font loading in WASM with [PdfDocumentMissingFontsEvent](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocumentMissingFontsEvent-class.html)
 - Improve WASM stability and font handling mechanisms
 - Update pdfrx_engine dependency to 0.1.13
 
@@ -306,9 +306,9 @@
   - Non-touch input hides handles for cleaner interaction
   - Removing some of text selection related parameters to simplify the API
 - BREAKING CHANGE: Now context menu is not only for text selection but also for general tap events
-  - `PdfViewerParams.buildContextMenu` and `PdfViewerParams.customizeContextMenuItems` to customize context menu
-  - Introduces `PdfViewerContextMenuBuilderParams` (many context menu related parameters are moved to this class)
-- BREAKING CHANGE: Tap handler functions are integrated into `PdfViewerParams.onGeneralTap` for better consistency
+  - [PdfViewerParams.buildContextMenu](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/buildContextMenu.html) and [PdfViewerParams.customizeContextMenuItems](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/customizeContextMenuItems.html) to customize context menu
+  - Introduces [PdfViewerContextMenuBuilderParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerContextMenuBuilderParams-class.html) (many context menu related parameters are moved to this class)
+- BREAKING CHANGE: Tap handler functions are integrated into [PdfViewerParams.onGeneralTap](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/onGeneralTap.html) for better consistency
 
 # 2.0.4
 
@@ -325,7 +325,7 @@
 
 # 2.0.1
 
-- FIXED: Added missing `PdfTextSelectionParams.enabled` property to control text selection functionality
+- FIXED: Added missing [PdfTextSelectionParams.enabled](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionParams/enabled.html) property to control text selection functionality
 
 # 2.0.0
 
@@ -341,7 +341,7 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.3.4
 
-- FIXED: `PdfDocumentViewBuilder` did not properly handle progressive loading ([#419](https://github.com/espresso3389/pdfrx/pull/419))
+- FIXED: [PdfDocumentViewBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentViewBuilder-class.html) did not properly handle progressive loading ([#419](https://github.com/espresso3389/pdfrx/pull/419))
 
 # 1.3.3
 
@@ -350,12 +350,12 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.3.2
 
-- NEW FEATURE: Added `useProgressiveLoading` parameter for all `PdfViewer` constructors to enable progressive page loading
-- NEW FEATURE: Added `PdfDocument.changes` stream to notify page status changes and loading progress
+- NEW FEATURE: Added `useProgressiveLoading` parameter for all [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) constructors to enable progressive page loading
+- NEW FEATURE: Added [PdfDocument.events](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/events.html) stream to notify page status changes and loading progress
 
 # 1.3.1
 
-- NEW FEATURE: Added `PdfViewerParams.calculateInitialZoom` to customize initial zoom calculation ([#406](https://github.com/espresso3389/pdfrx/pull/406))
+- NEW FEATURE: Added [PdfViewerParams.calculateInitialZoom](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/calculateInitialZoom.html) to customize initial zoom calculation ([#406](https://github.com/espresso3389/pdfrx/pull/406))
 - Removed deprecated `PdfrxWebRuntimeType` API
 
 # 1.3.0
@@ -416,14 +416,14 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.1.35
 
-- Add `limitRenderingCache` parameter to `PdfViewerParams` to control rendering cache behavior ([#394](https://github.com/espresso3389/pdfrx/pull/394))
-- Add rendering flags support to `PdfPage.render` method
+- Add [`limitRenderingCache`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/limitRenderingCache.html) parameter to [`PdfViewerParams`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams-class.html) to control rendering cache behavior ([#394](https://github.com/espresso3389/pdfrx/pull/394))
+- Add rendering flags support to [`PdfPage.render`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/render.html) method
 
 # 1.1.34
 
 - Add `CLAUDE.md` for Claude Code integration
 - FIXED: preserve null `max-age` in cache control ([#387](https://github.com/espresso3389/pdfrx/pull/387))
-- FIXED: `ArgumentError` parameter name in `PdfRect` ([#385](https://github.com/espresso3389/pdfrx/pull/385))
+- FIXED: `ArgumentError` parameter name in [`PdfRect`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfRect-class.html) ([#385](https://github.com/espresso3389/pdfrx/pull/385))
 - Windows ARM64 support ([#388](https://github.com/espresso3389/pdfrx/issues/388))
 - Documentation updates and improvements
 
@@ -439,7 +439,7 @@ This is a major release that introduces significant architectural changes and ne
 
 - SwiftPM support for iOS/macOS
 - PDFium 138.0.7202.0
-- FIXED: null assertion exception when laying out view and `calculateCurrentPageNumber` is overridden ([#367](https://github.com/espresso3389/pdfrx/issues/367))
+- FIXED: null assertion exception when laying out view and [`PdfViewerParams.calculateCurrentPageNumber`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/calculateCurrentPageNumber.html) is overridden ([#367](https://github.com/espresso3389/pdfrx/issues/367))
 
 # 1.1.30
 
@@ -465,7 +465,7 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.1.26
 
-- Introduces `PdfPoint`, which work with `Offset` for conversion between PDF page coordinates and Flutter coordinates
+- Introduces [`PdfPoint`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPoint-class.html), which work with `Offset` for conversion between PDF page coordinates and Flutter coordinates
 - FIXED: [#352](https://github.com/espresso3389/pdfrx/issues/352) Link click/text selection are completely broken if PDF page is rotated
 
 # 1.1.25
@@ -477,7 +477,7 @@ This is a major release that introduces significant architectural changes and ne
 - FIXED: [#336](https://github.com/espresso3389/pdfrx/issues/336) zoom out does not cover entire page after changing layout
   - Updates to viewer example to support page layout switching
   - Minor `goToPage` and other `goTo` functions behavior changes (`normalizeMatrix` and other)
-- MERGED: PR [#349](https://github.com/espresso3389/pdfrx/pull/349) that fixes resource leaks on `PdfPageView`
+- MERGED: PR [#349](https://github.com/espresso3389/pdfrx/pull/349) that fixes resource leaks on [`PdfPageView`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageView-class.html)
 - FIXED: [#215](https://github.com/espresso3389/pdfrx/issues/215) Wrong link highlight position on searching a word
 - FIXED: [#344](https://github.com/espresso3389/pdfrx/issues/344) New "key event handling" feature in version 1.1.22 prevents `TextFormField` in page overlay from receiving key events
 
@@ -489,7 +489,7 @@ This is a major release that introduces significant architectural changes and ne
 
 - `PdfDocumentFactory` refactoring to improve the code integrity
   - Introduces `getDocumentFactory`/`getPdfjsDocumentFactory`/`getPdffiumDocumentFactory` to get the direct/internal document factory
-- Introduces `PdfViewerParams.onKey`/`PdfViewerKeyHandlerParams` to handle key events on `PdfViewer`
+- Introduces [`PdfViewerParams.onKey`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/onKey.html)/[`PdfViewerKeyHandlerParams`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerKeyHandlerParams-class.html) to handle key events on [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html)
 
 # 1.1.21
 
@@ -543,7 +543,7 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.1.7
 
-- Introducing `allowDataOwnershipTransfer` on `PdfDocument.openData` to allow transfer data ownership of the passed data; it is false by default to keep consistency with the previous behavior
+- Introducing `allowDataOwnershipTransfer` on [`PdfDocument.openData`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openData.html) to allow transfer data ownership of the passed data; it is false by default to keep consistency with the previous behavior
   - This actually fixes [#303](https://github.com/espresso3389/pdfrx/issues/303) but the drawback is that extra memory may be consumed on Flutter Web...
 
 # 1.1.6
@@ -576,13 +576,13 @@ This is a major release that introduces significant architectural changes and ne
 # 1.0.103
 
 - Change the default CDN for Pdf.js to `https://cdn.jsdelivr.net/npm/pdfjs-dist@<VERSION>/build/pdf.js` to deal with CORS error on loading CMAP files
-- FIXED: `pdfjsGetDocumentFromData`, which is used by various `PdfDocument` open functions, does not propagate `cMapUrl`/`cMapPacked` to the Pdf.js
+- FIXED: `pdfjsGetDocumentFromData`, which is used by various [`PdfDocument`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) open functions, does not propagate `cMapUrl`/`cMapPacked` to the Pdf.js
 
 # 1.0.102
 
 - dart2wasm compatibility updates
 - Pdf.js 4.10.38
-- `PdfTextSearcher` correctly releases its listeners on dispose
+- [`PdfTextSearcher`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html) correctly releases its listeners on dispose
 - Example viewer code updates
 
 # 1.0.101
@@ -592,8 +592,8 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.100
 
-- `PdfTextSearcher` introduces text caches ([#293](https://github.com/espresso3389/pdfrx/issues/293))
-- `PdfTextSearcher` search reset issue ([#291](https://github.com/espresso3389/pdfrx/issues/291))
+- [`PdfTextSearcher`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html) introduces text caches ([#293](https://github.com/espresso3389/pdfrx/issues/293))
+- [`PdfTextSearcher`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html) search reset issue ([#291](https://github.com/espresso3389/pdfrx/issues/291))
 - collection's version spec. reverted to pre-1.0.95
 
 # 1.0.99
@@ -602,7 +602,7 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.98
 
-- Introduces `PdfViewerController.calcFitZoomMatrices` to realize fit-to-width easier
+- Introduces [`PdfViewerController.calcFitZoomMatrices`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/calcFitZoomMatrices.html) to realize fit-to-width easier
 
 # 1.0.97
 
@@ -610,7 +610,7 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.96
 
-- FIXED: [#260](https://github.com/espresso3389/pdfrx/issues/260) `onTextSelectionChange` callback cant be called
+- FIXED: [#260](https://github.com/espresso3389/pdfrx/issues/260) [`PdfTextSelectionParams.onTextSelectionChange`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionParams/onTextSelectionChange.html) callback cant be called
 
 # 1.0.95
 
@@ -622,8 +622,8 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.93
 
-- Merge PR [#264](https://github.com/espresso3389/pdfrx/pull/264); Check for non-existent zoom element in `PdfDest.params` in some PDFs
-- FIXED: Widget tests starts to fail when using `PdfViewer` widget [#263](https://github.com/espresso3389/pdfrx/issues/263)
+- Merge PR [#264](https://github.com/espresso3389/pdfrx/pull/264); Check for non-existent zoom element in [`PdfDest.params`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDest/params.html) in some PDFs
+- FIXED: Widget tests starts to fail when using [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) widget [#263](https://github.com/espresso3389/pdfrx/issues/263)
 
 # 1.0.92
 
@@ -647,11 +647,11 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.87
 
-- BREAKING CHANGE: add more parameters to `PdfViewerParams.normalizeMatrix` to make it easier to handle more complex situations ([#239](https://github.com/espresso3389/pdfrx/issues/239))
+- BREAKING CHANGE: add more parameters to [`PdfViewerParams.normalizeMatrix`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/normalizeMatrix.html) to make it easier to handle more complex situations ([#239](https://github.com/espresso3389/pdfrx/issues/239))
 
 # 1.0.86
 
-- Add `PdfViewerParams.normalizeMatrix` to customize the transform matrix restriction; customizing existing logic on `_PdfViewerState._makeMatrixInSafeRange`; for issues like [#239](https://github.com/espresso3389/pdfrx/issues/239)
+- Add [`PdfViewerParams.normalizeMatrix`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/normalizeMatrix.html) to customize the transform matrix restriction; customizing existing logic on `_PdfViewerState._makeMatrixInSafeRange`; for issues like [#239](https://github.com/espresso3389/pdfrx/issues/239)
 
 # 1.0.85
 
@@ -669,7 +669,7 @@ This is a major release that introduces significant architectural changes and ne
   - Remove dependency to `dart:js_interop_unsafe`
   - Remove unnecessary synchronized call
 - Improve text selection stability ([#4](https://github.com/espresso3389/pdfrx/issues/4), [#185](https://github.com/espresso3389/pdfrx/issues/185))
-- Add more mounted checks to improve `PdfViewer` stability and speed
+- Add more mounted checks to improve [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) stability and speed
 
 # 1.0.82
 
@@ -677,18 +677,18 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.81
 
-- Introduces `PdfViewerController.useDocument` to make it easy to use `PdfDocument` safely
-- Introduces `PdfViewerController.pageCount` to get page count without explicitly access `PdfViewerController.pages`
-- `PdfViewerController.document`/`PdfViewerController.pages` are now deprecated
+- Introduces [`PdfViewerController.useDocument`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/useDocument.html) to make it easy to use [`PdfDocument`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) safely
+- Introduces [`PdfViewerController.pageCount`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/pageCount.html) to get page count without explicitly access [`PdfViewerController.pages`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/pages.html)
+- [`PdfViewerController.document`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/document.html)/[`PdfViewerController.pages`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/pages.html) are now deprecated
 
 # 1.0.80
 
-- BREAKING CHANGE: `PdfViewerParams.viewerOverlayBuilder` introduces third parameter named `handleLinkTap`, which is used with `GestureDetector` to handle link-tap events on user code ([#175](https://github.com/espresso3389/pdfrx/issues/175))
+- BREAKING CHANGE: [`PdfViewerParams.viewerOverlayBuilder`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html) introduces third parameter named `handleLinkTap`, which is used with `GestureDetector` to handle link-tap events on user code ([#175](https://github.com/espresso3389/pdfrx/issues/175))
 - Fix typos on `README.md`
 
 # 1.0.79
 
-- FIXED: `RangeError` on `PdfViewer.uri` when missing "Expires" header ([#206](https://github.com/espresso3389/pdfrx/issues/206))
+- FIXED: `RangeError` on [`PdfViewer.uri`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.uri.html) when missing "Expires" header ([#206](https://github.com/espresso3389/pdfrx/issues/206))
 
 # 1.0.78
 
@@ -702,8 +702,8 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.76
 
-- Add several tweaks to reduce `PdfLink`'s memory footprint (Related: [#175](https://github.com/espresso3389/pdfrx/issues/175))
-- Introduces `PdfViewerParam.linkHandlerParams` and `PdfLinkHandlerParams` to show/handle PDF links without using Flutter Widgets ([#175](https://github.com/espresso3389/pdfrx/issues/175))
+- Add several tweaks to reduce [`PdfLink`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfLink-class.html)'s memory footprint (Related: [#175](https://github.com/espresso3389/pdfrx/issues/175))
+- Introduces [`PdfViewerParams.linkHandlerParams`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/linkHandlerParams.html) and [`PdfLinkHandlerParams`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams-class.html) to show/handle PDF links without using Flutter Widgets ([#175](https://github.com/espresso3389/pdfrx/issues/175))
 
 # 1.0.75
 
@@ -711,12 +711,12 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.74
 
-- Introduces `PdfViewerController.getPdfPageHitTestResult`
-- Introduces `PdfViewerController.layout` to get page layout
+- Introduces [`PdfViewerController.getPdfPageHitTestResult`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/getPdfPageHitTestResult.html)
+- Introduces [`PdfViewerController.layout`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/layout.html) to get page layout
 
 # 1.0.73
 
-- Introduces `PdfViewerParams.onViewSizeChanged`, which is called on view size change
+- Introduces [`PdfViewerParams.onViewSizeChanged`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/onViewSizeChanged.html), which is called on view size change
   - The feature can be used to keep the screen center on device screen rotation ([#194](https://github.com/espresso3389/pdfrx/issues/194))
 
 # 1.0.72
@@ -735,8 +735,8 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.70
 
-- `PdfViewer` calls re-layout logic on every zoom ratio changes ([#131](https://github.com/espresso3389/pdfrx/issues/131))
-- Add `PdfViewerParams.interactionEndFrictionCoefficient` ([#176](https://github.com/espresso3389/pdfrx/issues/176))
+- [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) calls re-layout logic on every zoom ratio changes ([#131](https://github.com/espresso3389/pdfrx/issues/131))
+- Add [`PdfViewerParams.interactionEndFrictionCoefficient`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/interactionEndFrictionCoefficient.html) ([#176](https://github.com/espresso3389/pdfrx/issues/176))
 - Minor fix for downloading cache
 - `rxdart` gets back to 0.27.7 because 0.28.0 causes incompatibility with several other plugins...
 
@@ -746,11 +746,11 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.68
 
-- Introduces `PdfViewerController.setCurrentPageNumber` ([#152](https://github.com/espresso3389/pdfrx/issues/152))
+- Introduces [`PdfViewerController.setCurrentPageNumber`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/setCurrentPageNumber.html) ([#152](https://github.com/espresso3389/pdfrx/issues/152))
 - BREAKING CHANGE: Current page number behavior change ([#152](https://github.com/espresso3389/pdfrx/issues/152))
-- BREAKING CHANGE: `PdfPageAnchor` behavior changes for existing `PdfPageAnchor` enumeration values.
-- Introduces `PdfPageAnchor.top`/`left`/`right`/`bottom`
-- Introduces `PdfViewerController.calcMatrixToEnsureRectVisible`
+- BREAKING CHANGE: [`PdfPageAnchor`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageAnchor.html) behavior changes for existing [`PdfPageAnchor`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageAnchor.html) enumeration values.
+- Introduces [`PdfPageAnchor.top`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageAnchor.html#top)/[`left`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageAnchor.html#left)/[`right`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageAnchor.html#right)/[`bottom`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageAnchor.html#bottom)
+- Introduces [`PdfViewerController.calcMatrixToEnsureRectVisible`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/calcMatrixToEnsureRectVisible.html)
 
 # 1.0.67
 
@@ -783,8 +783,8 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.61
 
-- Introduces `PdfViewerParams.pageDropShadow`
-- Introduces `PdfViewerParams.pageBackgroundPaintCallbacks`
+- Introduces [`PdfViewerParams.pageDropShadow`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pageDropShadow.html)
+- Introduces [`PdfViewerParams.pageBackgroundPaintCallbacks`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pageBackgroundPaintCallbacks.html)
 
 # 1.0.60
 
@@ -793,13 +793,13 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.59
 
-- Fixes concurrency issue on `PdfDocument` dispose ([#143](https://github.com/espresso3389/pdfrx/issues/143))
+- Fixes concurrency issue on [`PdfDocument`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) dispose ([#143](https://github.com/espresso3389/pdfrx/issues/143))
 - FIXED: Null check operator used on `_guessCurrentPage` ([#147](https://github.com/espresso3389/pdfrx/issues/147))
 
 # 1.0.58
 
 - Any API calls that wraps PDFium are now completely synchronized. They are run in an app-wide single worker isolate
-  - This is because PDFium does not support any kind of concurrency and even different `PdfDocument` instances could not be called concurrently
+  - This is because PDFium does not support any kind of concurrency and even different [`PdfDocument`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) instances could not be called concurrently
 
 # 1.0.57
 
@@ -811,7 +811,7 @@ This is a major release that introduces significant architectural changes and ne
 # 1.0.56
 
 - Reduce total number of Isolates used when opening PDF documents
-- Add `PdfViewerParams.calculateCurrentPageNumber`
+- Add [`PdfViewerParams.calculateCurrentPageNumber`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/calculateCurrentPageNumber.html)
 - FIXED: Could not handle certain destination coordinates correctly ([#135](https://github.com/espresso3389/pdfrx/issues/135))
 
 # 1.0.55
@@ -821,8 +821,8 @@ This is a major release that introduces significant architectural changes and ne
 # 1.0.54
 
 - Improves [End] button behavior to reach the actual end of document rather than the top of the last page
-  - `PdfViewerParams.pageAnchorEnd` for specifying anchor for the "virtual" page next to the last page
-- `PdfViewerParams.onePassRenderingScaleThreshold` to specify maximum scale that is rendered in single rendering call
+  - [`PdfViewerParams.pageAnchorEnd`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pageAnchorEnd.html) for specifying anchor for the "virtual" page next to the last page
+- [`PdfViewerParams.onePassRenderingScaleThreshold`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/onePassRenderingScaleThreshold.html) to specify maximum scale that is rendered in single rendering call
   - If a page is scaled over the threshold scale, the page is once rendered in the threshold scale and after a some delay, the real scaled image is rendered partially that fits in the view port
 - `PdfViewerParams.perPageSelectionAreaInjector` is introduced to customize text selection behavior
 
@@ -843,7 +843,7 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.50
 
-- Introduces `PdfViewerParams.useAlternativeFitScaleAsMinScale` but it's not recommended to set the value to false because it may degrade the viewer performance
+- Introduces [`PdfViewerParams.useAlternativeFitScaleAsMinScale`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/useAlternativeFitScaleAsMinScale.html) but it's not recommended to set the value to false because it may degrade the viewer performance
 
 # 1.0.49
 
@@ -863,7 +863,7 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.9
 
-- `PdfRect.toRect`: `scaledTo` -> `scaledPageSize`
+- [`PdfRect.toRect`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfRectExt/toRect.html): `scaledTo` -> `scaledPageSize`
 - FIXED: `PdfJsConfiguration.cMapUrl`/`cMapPacked` does not have correct default values
 
 # 1.0.8
@@ -914,12 +914,12 @@ _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packa
 
 # 0.4.44
 
-- FIXED: `PdfViewerParams.boundaryMargin` does not work correctly.
+- FIXED: [`PdfViewerParams.boundaryMargin`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/boundaryMargin.html) does not work correctly.
 
 # 0.4.43
 
 - Add note for dark/night mode support on `README.md`; the trick is originally introduced by [pckimlong](https://github.com/pckimlong) on [#46](https://github.com/espresso3389/pdfrx/issues/46).
-- FIXED: wrong `PdfPageAnchor` behavior with landscape pages
+- FIXED: wrong [`PdfPageAnchor`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageAnchor.html) behavior with landscape pages
 
 # 0.4.42
 
@@ -927,12 +927,12 @@ _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packa
 
 # 0.4.41
 
-- Marker example for `PdfViewerParams.onTextSelectionChange` ([#65](https://github.com/espresso3389/pdfrx/issues/65))
+- Marker example for [`PdfTextSelectionParams.onTextSelectionChange`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionParams/onTextSelectionChange.html) ([#65](https://github.com/espresso3389/pdfrx/issues/65))
 - Add more explanation for `sourceName` ([#66](https://github.com/espresso3389/pdfrx/issues/66))
 
 # 0.4.40
 
-- Introduces `PdfViewerParams.onTextSelectionChange` ([#65](https://github.com/espresso3389/pdfrx/issues/65)) to know the last text selection
+- Introduces [`PdfTextSelectionParams.onTextSelectionChange`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionParams/onTextSelectionChange.html) ([#65](https://github.com/espresso3389/pdfrx/issues/65)) to know the last text selection
 
 # 0.4.39
 
@@ -941,7 +941,7 @@ _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packa
 # 0.4.38
 
 - Minor updates on text selection (still experimental...)
-- Minor fix on `PdfPageView`
+- Minor fix on [`PdfPageView`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageView-class.html)
 
 # 0.4.37
 
@@ -965,8 +965,8 @@ _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packa
 
 # 0.4.32
 
-- Add `PdfViewerParams.calculateInitialPageNumber` to calculate the initial page number dynamically
-- Add `PdfViewerParams.onViewerReady` to know when the viewer gets ready
+- Add [`PdfViewerParams.calculateInitialPageNumber`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/calculateInitialPageNumber.html) to calculate the initial page number dynamically
+- Add [`PdfViewerParams.onViewerReady`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/onViewerReady.html) to know when the viewer gets ready
 
 # 0.4.31
 
@@ -976,13 +976,13 @@ _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packa
 
 - FIXED: Link URI contains null-terminator
 - Add support text/links on rotated pages
-- Stability updates for `PdfTextSearcher`
+- Stability updates for [`PdfTextSearcher`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html)
 - `README.md`/example updates
-- Revival of `PdfViewer.data`/`PdfViewer.custom`
+- Revival of [`PdfViewer.data`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.data.html)/[`PdfViewer.custom`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.custom.html)
 
 # 0.4.29
 
-- Minor fixes to `PdfTextSearcher`
+- Minor fixes to [`PdfTextSearcher`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html)
 
 # 0.4.28
 
@@ -994,7 +994,7 @@ _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packa
 
 # 0.4.26
 
-- Introduces `PdfTextSearcher` that helps you to implement search UI feature ([#47](https://github.com/espresso3389/pdfrx/issues/47))
+- Introduces [`PdfTextSearcher`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html) that helps you to implement search UI feature ([#47](https://github.com/espresso3389/pdfrx/issues/47))
 - Example code is vastly changed to explain more about the widget functions
 
 # 0.4.25
@@ -1003,29 +1003,29 @@ _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packa
 
 # 0.4.24
 
-- Huge refactoring on `PdfViewerController`; it's no longer `TransformationController` but just a `ValueListenable<Matrix4>`
+- Huge refactoring on [`PdfViewerController`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController-class.html); it's no longer `TransformationController` but just a `ValueListenable<Matrix4>`
   - This fixes an "Unhandled Exception: Null check operator used on a null value" on widget state disposal ([#46](https://github.com/espresso3389/pdfrx/issues/46))
 
 # 0.4.23
 
-- Introduces `PdfDocumentViewBuilder`/`PdfPageView` widgets
+- Introduces [`PdfDocumentViewBuilder`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentViewBuilder-class.html)/[`PdfPageView`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageView-class.html) widgets
 - Example code is super updated with index and thumbnails.
 
 # 0.4.22
 
 - Web: Now Pdf.js is loaded automatically and no modification to `index.html` is required!
-- Default implementation for `PdfViewerParams.errorBannerBuilder` to show internally thrown errors
-- `PdfPasswordException` is introduced to notify password error
-- `PdfDocumentRef` now has `stackTrace` for error
+- Default implementation for [`PdfViewerParams.errorBannerBuilder`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/errorBannerBuilder.html) to show internally thrown errors
+- [`PdfPasswordException`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPasswordException-class.html) is introduced to notify password error
+- [`PdfDocumentRef`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRef-class.html) now has `stackTrace` for error
 - `PdfFileCache` now uses dedicated `http.Client` instance
 
 # 0.4.21
 
-- Now `PdfDocumentRef` has const constructor and `PdfViewer.documentRef` is also const
+- Now [`PdfDocumentRef`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRef-class.html) has const constructor and [`PdfViewer.documentRef`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/documentRef.html) is also const
 
 # 0.4.20
 
-- Removes `PdfDocumentProvider` (Actually `PdfDocumentRef` does everything)
+- Removes `PdfDocumentProvider` (Actually [`PdfDocumentRef`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRef-class.html) does everything)
 - Fixes breakage introduced by 0.4.18
 
 # 0.4.19
@@ -1036,7 +1036,7 @@ _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packa
 
 - `PdfDocumentProvider` supercedes `PdfDocumentStore` ([#42](https://github.com/espresso3389/pdfrx/pull/42))
 - PDFium 6259 for Windows, Linux, and Android
-- FIXED: Bug: Tests fail due to null operator check on `PdfViewerController` ([#44](https://github.com/espresso3389/pdfrx/issues/44))
+- FIXED: Bug: Tests fail due to null operator check on [`PdfViewerController`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController-class.html) ([#44](https://github.com/espresso3389/pdfrx/issues/44))
 
 # 0.4.17
 
@@ -1045,29 +1045,29 @@ _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packa
 # 0.4.16
 
 - Remove password parameters; use `passwordProvider` instead.
-- Fixes several resource leak scenarios on `PdfDocument` open failures
+- Fixes several resource leak scenarios on [`PdfDocument`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) open failures
 - Restrict text selection if PDF permission does not allow copying
-- Remove `PdfViewer.documentRef`; unnamed constructor is enough for the purpose
+- Remove [`PdfViewer.documentRef`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.html); unnamed constructor is enough for the purpose
 
 # 0.4.15
 
-- Introduces `PdfViewer.documentRef` ([#36](https://github.com/espresso3389/pdfrx/issues/36))
-- FIXED: `PdfViewer.uri` is broken on web for non relative paths ([#37](https://github.com/espresso3389/pdfrx/issues/37))
+- Introduces [`PdfViewer.documentRef`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.html) ([#36](https://github.com/espresso3389/pdfrx/issues/36))
+- FIXED: [`PdfViewer.uri`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.uri.html) is broken on web for non relative paths ([#37](https://github.com/espresso3389/pdfrx/issues/37))
 - FIXED: Don't Animate to `initialPage` ([#39](https://github.com/espresso3389/pdfrx/issues/39))
 
 # 0.4.14
 
-- Introduces `PdfViewerParams.onDocumentChanged` event
-- Introduces `PdfDocument.loadOutline` to load outline (a.k.a. bookmark)
+- Introduces [`PdfViewerParams.onDocumentChanged`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/onDocumentChanged.html) event
+- Introduces [`PdfDocument.loadOutline`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/loadOutline.html) to load outline (a.k.a. bookmark)
 
 # 0.4.13
 
 - Improves document password handling by async `PasswordProvider` ([#20](https://github.com/espresso3389/pdfrx/issues/20))
-- Introduces `PdfViewerParams.errorBannerBuilder`
+- Introduces [`PdfViewerParams.errorBannerBuilder`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/errorBannerBuilder.html)
 
 # 0.4.12
 
-- Introduces `PdfViewerParams.maxImageBytesCachedOnMemory`, which restricts the maximum cache memory consumption
+- Introduces [`PdfViewerParams.maxImageBytesCachedOnMemory`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/maxImageBytesCachedOnMemory.html), which restricts the maximum cache memory consumption
   - Better than logic based on `maxThumbCacheCount`
 - Remove the following parameters from `PdfViewerParams`:
   - `maxThumbCacheCount`
@@ -1093,8 +1093,8 @@ _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packa
 # 0.4.7
 
 - FIXED: Android build broken? Cannot find `libpdfium.so` error ([#25](https://github.com/espresso3389/pdfrx/issues/25))
-- `PdfViewerParams.loadingBannerBuilder` to customize HTTP download progress
-- `PdfViewerParams.linkWidgetBuilder` to support embedded links
+- [`PdfViewerParams.loadingBannerBuilder`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/loadingBannerBuilder.html) to customize HTTP download progress
+- [`PdfViewerParams.linkWidgetBuilder`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/linkWidgetBuilder.html) to support embedded links
 - WIP: Updated text selection mechanism, which is faster and stable but still certain issues
   - Pan-to-scroll does not work on Desktop/Web
   - Selection does not work as expected on mobile devices
@@ -1102,28 +1102,28 @@ _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packa
 
 # 0.4.6
 
-- Introduces `PdfPage.render` cancellation mechanism
-  - `PdfPageRenderCancellationToken` to cancel the rendering process
-  - BREAKING CHANGE: `PdfPage.render` may return null if the rendering process is canceled
+- Introduces [`PdfPage.render`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/render.html) cancellation mechanism
+  - [`PdfPageRenderCancellationToken`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageRenderCancellationToken-class.html) to cancel the rendering process
+  - BREAKING CHANGE: [`PdfPage.render`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/render.html) may return null if the rendering process is canceled
 - `PdfPageRender.render` limits render resolution up to 300-dpi unless you use `getPageRenderingScale`
   - Even with the restriction, image size may get large and you'd better implement `getPageRenderingScale` to restrict such large image rendering
 - `PdfViewerParams` default changes:
   - `scrollByMouseWheel` default is 0.2
   - `maxRealSizeImageCount` default is 3
-- `PdfViewerParams.scrollByArrowKey` to enable keyboard navigation
+- [`PdfViewerParams.scrollByArrowKey`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/scrollByArrowKey.html) to enable keyboard navigation
 
 # 0.4.5
 
-- `PdfViewerParams` updates
-  - `PdfViewerParams.onPageChanged` replaces `onPageChanged` parameter on `PdfViewer` factories
-  - `PdfViewerParams.pageAnchor` replaces `anchor` parameter on `PdfViewer` factories
+- [`PdfViewerParams`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams-class.html) updates
+  - [`PdfViewerParams.onPageChanged`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/onPageChanged.html) replaces `onPageChanged` parameter on [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) factories
+  - [`PdfViewerParams.pageAnchor`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pageAnchor.html) replaces `anchor` parameter on [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) factories
 - `pdfDocumentFromUri`/`PdfFileCache` improves mechanism to cache downloaded PDF file
   - ETag check to invalidate the existing cache
   - Better downloaded region handling
 
 # 0.4.4
 
-- `PdfPage.render` can render Annotations and FORMS
+- [`PdfPage.render`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/render.html) can render Annotations and FORMS
 - `PdfFileCache`: More realistic file cache mechanism
 - Introduces `PasswordProvider` to repeatedly test passwords (only API layer)
 
@@ -1143,11 +1143,11 @@ _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packa
 # 0.4.0
 
 - Many breaking changes but they improve the code integrity:
-  - `PdfDocument.pages` supersedes `PdfDocument.getPage`
+  - [`PdfDocument.pages`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/pages.html) supersedes `PdfDocument.getPage`
   - `PdfDocument.pageCount` is removed
   - `PdfViewerParams.devicePixelRatioOverride` is removed; use `getPageRenderingScale` instead
-- Add `PdfPageAnchor.all`
-- `PdfViewerParams.viewerOverlayBuilder`/`PdfViewerScrollThumb` to support scroll thumbs
+- Add [`PdfPageAnchor.all`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageAnchor.html#all)
+- [`PdfViewerParams.viewerOverlayBuilder`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html)/[`PdfViewerScrollThumb`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerScrollThumb-class.html) to support scroll thumbs
 
 # 0.3.6
 
@@ -1179,7 +1179,7 @@ _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packa
 - Minor API changes
 - Internal integrity updates that controls the viewer behaviors
 - FIX: example code does not have `android.permission.INTERNET` on `AndroidManifest.xml`
-- `PdfViewerParams.devicePixelRatioOverride` is deprecated and introduces `PdfViewerParams.getPageRenderingScale`
+- `PdfViewerParams.devicePixelRatioOverride` is deprecated and introduces [`PdfViewerParams.getPageRenderingScale`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/getPageRenderingScale.html)
 
 # 0.3.0
 
@@ -1200,15 +1200,15 @@ _NOTE: On pub.dev, 1.0.0+ versions gets [[ANALYSIS ISSUE]](https://pub.dev/packa
 # 0.2.1
 
 - Stabilizing API surface
-  - Introducing `PdfViewer.asset`/`file`/`uri`/`custom`
-  - `PdfViewer` has `documentLoader` to accept function to load `PdfDocument`
-- Fixes minor issues on `PdfViewer`
+  - Introducing [`PdfViewer.asset`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.asset.html)/[`file`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.file.html)/[`uri`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.uri.html)/[`custom`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.custom.html)
+  - [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) has `documentLoader` to accept function to load [`PdfDocument`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html)
+- Fixes minor issues on [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html)
 
 # 0.2.0
 
-- Introducing `PdfDocument.openUri`/`PdfFileCache*` classes
-- Introducing `PdfPermissions`
-- `PdfPage.loadText`/`PdfPageText` for text extraction
+- Introducing [`PdfDocument.openUri`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openUri.html)/`PdfFileCache` classes
+- Introducing [`PdfPermissions`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPermissions-class.html)
+- [`PdfPage.loadText`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/loadText.html)/[`PdfPageText`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageText-class.html) for text extraction
 - Android NDK CMake to 3.18.1
 
 # 0.1.1

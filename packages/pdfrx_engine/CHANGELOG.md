@@ -4,33 +4,33 @@
 
 ## 0.4.1
 
-- Added [PdfFontManager](https://pub.dev/documentation/pdfrx/latest/pdfrx_engine/PdfFontManager-class.html) for improved font loading/downloading.
+- Added [PdfFontManager](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfFontManager-class.html) for improved font loading/downloading.
 
 ## 0.4.0
 
 - Updated to `pdfium_dart` 0.2.0.
-- Improved PDFium loading for pure Dart commands and Flutter apps through `pdfium_dart.getPdfium()`.
+- Improved PDFium loading for pure Dart commands and Flutter apps through [`pdfium_dart.getPdfium()`](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html).
 - Added support for Dart native-assets based PDFium packaging on native Dart targets.
 - Improved compatibility with Flutter iOS/macOS apps that receive PDFium from `pdfium_flutter`'s XCFramework.
 
 ## 0.3.9
 
-- NEW: `PdfrxEntryFunctions.stopBackgroundWorker()` to stop the background worker thread ([#184](https://github.com/espresso3389/pdfrx/issues/184), [#430](https://github.com/espresso3389/pdfrx/issues/430))
+- NEW: [`PdfrxEntryFunctions.stopBackgroundWorker()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/stopBackgroundWorker.html) to stop the background worker thread ([#184](https://github.com/espresso3389/pdfrx/issues/184), [#430](https://github.com/espresso3389/pdfrx/issues/430))
 - Code cleanup: removed unused native function lookup
 
 ## 0.3.8
 
-- NEW: `PdfDocumentLoadCompleteEvent` for document load completion notification
+- NEW: [PdfDocumentLoadCompleteEvent](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocumentLoadCompleteEvent-class.html) for document load completion notification
 
 ## 0.3.7
 
 - IMPROVED: Add `isDirty` flag to page image cache to prevent cache removal before re-rendering page ([#567](https://github.com/espresso3389/pdfrx/issues/567))
 - FIXED: `round10BitFrac` should not process `Infinity` or `NaN` ([#550](https://github.com/espresso3389/pdfrx/issues/550))
-- WIP: Adding `PdfDocument.useNativeDocumentHandle`/`reloadPages`
+- WIP: Adding [PdfDocument.useNativeDocumentHandle](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/useNativeDocumentHandle.html)/[reloadPages](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/reloadPages.html)
 
 ## 0.3.6
 
-- NEW: [`PdfDateTime`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDateTime.html) extension type for PDF date string parsing ([PDF 32000-1:2008, 7.9.4 Dates](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=95))
+- NEW: [`PdfDateTime`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDateTime-extension-type.html) extension type for PDF date string parsing ([PDF 32000-1:2008, 7.9.4 Dates](https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf#page=95))
 - NEW: [`PdfAnnotation`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfAnnotation-class.html) class for PDF annotation metadata extraction ([#546](https://github.com/espresso3389/pdfrx/pull/546))
 
 ## 0.3.5
@@ -63,25 +63,25 @@
 
 ## 0.3.0
 
-- NEW: `PdfDocument.createFromJpegData()` - Create PDF documents from JPEG image data
+- NEW: [`PdfDocument.createFromJpegData()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/createFromJpegData.html) - Create PDF documents from JPEG image data
 - CHANGED: Now uses `pdfium_dart` package for PDFium FFI bindings instead of bundled bindings
 - CHANGED: File structure refactoring - moved from monolithic API file to separate files for better organization
 - Dependency updates
 
 ## 0.2.4
 
-- NEW: `PdfDocument` now supports page re-arrangement and accepts `PdfPage` instances from other documents, enabling PDF combine/merge functionality
+- NEW: [PdfDocument](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) now supports page re-arrangement and accepts [PdfPage](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage-class.html) instances from other documents, enabling PDF combine/merge functionality
 - Added additional PDFium functions for page manipulation
 - FIXED: Type parameter 'T' shadowing issue in pdfium.dart
 
 ## 0.2.3
 
-- Added configurable timeout parameter to `openUri` and `pdfDocumentFromUri` functions ([#509](https://github.com/espresso3389/pdfrx/pull/509))
+- Added configurable timeout parameter to [`PdfDocument.openUri`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/openUri.html) and `pdfDocumentFromUri` functions ([#509](https://github.com/espresso3389/pdfrx/pull/509))
 
 ## 0.2.2
 
 - Experimental support for Apple platforms direct symbol lookup to address TestFlight/App Store symbol lookup issues ([#501](https://github.com/espresso3389/pdfrx/issues/501))
-- Added `PdfrxBackend` enum to identify which PDF backend is being used
+- Added [PdfrxBackendType](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxBackendType.html) enum to identify which PDF backend is being used
 - Internal refactoring to support lookup-based function loading on iOS/macOS
 
 ## 0.2.1
@@ -90,7 +90,7 @@
 
 ## 0.2.0
 
-- **BREAKING**: Renamed `PdfrxEntryFunctions.initPdfium()` to `PdfrxEntryFunctions.init()` for consistency
+- **BREAKING**: Renamed `PdfrxEntryFunctions.initPdfium()` to [`PdfrxEntryFunctions.init()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/init.html) for consistency
 
 ## 0.1.21
 
@@ -131,8 +131,8 @@
 
 ## 0.1.13
 
-- Add font loading APIs for WASM: `reloadFonts()` and `addFontData()` methods
-- Add `PdfDocumentMissingFontsEvent` to notify about missing fonts in PDF documents
+- Add font loading APIs for WASM: [`reloadFonts()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/reloadFonts.html) and [`addFontData()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/addFontData.html) methods
+- Add [PdfDocumentMissingFontsEvent](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocumentMissingFontsEvent-class.html) to notify about missing fonts in PDF documents
 - FIXED: Text coordinate calculation when CropBox/MediaBox has non-zero origin ([#441](https://github.com/espresso3389/pdfrx/issues/441))
 - Improve WASM stability and font handling
 
@@ -164,7 +164,7 @@
 
 ## 0.1.6
 
-- Add premultiplied alpha support with new flag `PdfPageRenderFlags.premultipliedAlpha`
+- Add premultiplied alpha support with new flag [PdfPageRenderFlags.premultipliedAlpha](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageRenderFlags/premultipliedAlpha-constant.html)
 
 ## 0.1.5
 

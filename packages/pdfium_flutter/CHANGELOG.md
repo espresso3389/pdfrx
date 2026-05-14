@@ -7,7 +7,7 @@
 - Updated to `pdfium_dart` 0.2.0.
 - Updated native PDFium binaries to chromium/7811.
 - Updated the iOS/macOS PDFium XCFramework build to chromium/7811.
-- Delegated PDFium runtime loading to `pdfium_dart.getPdfium()`.
+- Delegated PDFium runtime loading to [`pdfium_dart.getPdfium()`](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html).
 - Added native-assets link-hook metadata so iOS/macOS Flutter apps use the PDFium XCFramework without bundling a duplicate `libpdfium.dylib`.
 - Improved native platform packaging:
   - Android, Linux, and Windows use Dart native assets.

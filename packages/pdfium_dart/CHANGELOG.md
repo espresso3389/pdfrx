@@ -8,7 +8,7 @@
 
 ## 0.2.0
 
-- BREAKING: `getPdfium()` now resolves PDFium synchronously.
+- BREAKING: [`getPdfium()`](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html) now resolves PDFium synchronously.
 - Updated PDFium native assets to chromium/7811.
 - Added Dart native-assets packaging for PDFium on Android, Linux, macOS, and Windows.
 - Improved runtime PDFium resolution across pure Dart commands and Flutter apps:
@@ -26,7 +26,7 @@
 
 - Updated PDFium to version 144.0.7520.0.
 - Improved cache directory structure to support multiple PDFium releases.
-- Changed `tmpPath` parameter to `cacheRootPath` in `getPdfium()` for better clarity.
+- Changed `tmpPath` parameter to `cacheRootPath` in [`getPdfium()`](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html) for better clarity.
 - Enhanced documentation for PDFium download and caching mechanism.
 
 ## 0.1.1
