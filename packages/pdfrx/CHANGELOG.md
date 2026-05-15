@@ -1,3 +1,8 @@
+# 2.4.1
+
+- DOCUMENTED: Added usage guidance for [PdfOverlayInteractionRegion](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfOverlayInteractionRegion-class.html) in overlay examples.
+- DOCUMENTED: Added [PdfViewerParams.underflowAnchor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/underflowAnchor.html) guidance to page layout documentation.
+
 # 2.4.0
 
 - NEW: Added [PdfOverlayInteractionRegion](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfOverlayInteractionRegion-class.html) for tap-like interactions on page/viewer overlays without blocking viewer pan, zoom, text selection, or link handling ([#376](https://github.com/espresso3389/pdfrx/issues/376)).
