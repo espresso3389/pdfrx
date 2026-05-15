@@ -3,8 +3,10 @@
 ## Environment Notes
 
 - This project uses a **pub workspace**. Running `dart pub get` in any directory fetches dependencies for all packages.
-- `pdfium_dart` uses Dart native assets and requires Dart 3.10+ / recent Flutter tooling.
+- Published package pubspecs currently require Dart 3.10+ and Flutter 3.41+ where Flutter is used; workspace/example pubspecs may allow older SDKs for local tooling.
+- `pdfium_dart` uses Dart native assets and requires recent Dart/Flutter tooling.
 - Prefer `rg`/`rg --files` for search and discovery tasks; they are significantly faster than alternatives.
+- When running commands as an agent, prefer an explicit command `workdir`. The `cd ...` examples below are for humans running commands manually.
 
 ## Windows-Specific Notes (Claude Code)
 
@@ -66,7 +68,7 @@ cd packages/pdfrx
 flutter pub get
 flutter analyze
 flutter test
-flutter format .
+dart format .
 ```
 
 ### Core Engine (packages/pdfrx_engine)

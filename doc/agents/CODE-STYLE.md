@@ -11,9 +11,9 @@
 
 ```bash
 dart format .
-# or
-flutter format .
 ```
+
+Use `dart format` for both Dart and Flutter packages.
 
 ## Documentation Guidelines
 
@@ -37,7 +37,9 @@ flutter format .
 
 - Include links to issues/PRs when relevant
   - Format: `[#NNN](https://github.com/espresso3389/pdfrx/issues/NNN)`
-- Use links to [API reference](https://pub.dev/documentation/pdfrx/latest/pdfrx/) for public APIs
+- Use links to pub.dev API references for public APIs mentioned in Markdown files:
+  - `pdfrx`: `https://pub.dev/documentation/pdfrx/latest/pdfrx/...`
+  - `pdfrx_engine`: `https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/...`
 - `README.md` should provide an overview of the project, how to use it, and important notes
 
 ### Changelog

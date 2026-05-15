@@ -5,7 +5,7 @@
 - **Never bump versions or changelog entries preemptively** - only when explicitly releasing
 - Surface blockers or uncertainties to the user before continuing a release flow
 - `CHANGELOG.md` should be updated only when releasing a new version
-- Skip CI/CD updates and meta-doc changes (`CLAUDE.md`, `AGENTS.md`, and `doc/agents/*md`) in changelogs unless significant
+- Skip CI/CD updates and meta-doc changes (`CLAUDE.md`, `AGENTS.md`, and `doc/agents/*.md`) in changelogs unless significant
 
 ## Release Order
 
@@ -86,7 +86,7 @@ Before tagging, commit all release changes:
 
 ```bash
 git add -A
-git commit -m "Release pdfrx 2.2.19, pdfrx_engine 0.3.7, etc."
+git commit -m "Release pdfrx X.Y.Z and related packages"
 git push
 ```
 

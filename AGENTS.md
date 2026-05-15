@@ -4,8 +4,9 @@ This file provides guidance to AI agents and developers when working with code i
 
 ## Quick Start for Agents
 
-- Keep existing user changes intact; if you notice unexpected edits you didn't make, pause and ask the user how to proceed.
-- Prefer fast, non-destructive tools (`rg`, `rg --files`, targeted tests) and run commands with an explicit `workdir`; avoid wandering `cd` commands.
+- Keep existing user changes intact. If unexpected edits overlap your task and make the next step ambiguous, pause and ask how to proceed; otherwise work around them without reverting.
+- Prefer fast, non-destructive tools (`rg`, `rg --files`, targeted tests) and run commands with an explicit `workdir`; avoid wandering `cd` commands in agent-run shells.
+- Read the relevant `doc/agents/` file before changing package structure, commands, style, or release/publishing flow.
 - Leave release artifacts (`CHANGELOG.md`, version numbers, tags) untouched unless the task is explicitly about publishing.
 - Default to ASCII output and add only brief clarifying comments when the code is non-obvious.
 
