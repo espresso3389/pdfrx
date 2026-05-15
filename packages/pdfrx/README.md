@@ -164,6 +164,8 @@ PdfViewer.asset(
 
 The `scrollPhysics` and `scrollPhysicsScale` hooks let you plug in your own [ScrollPhysics](https://api.flutter.dev/flutter/widgets/ScrollPhysics-class.html) (or the bundled [FixedOverscrollPhysics](https://pub.dev/documentation/pdfrx/latest/pdfrx/FixedOverscrollPhysics-class.html)) to tune drag and zoom behavior per platform.
 
+For page alignment, [PdfViewerParams.underflowAnchor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/underflowAnchor.html) controls where the document is placed when it is smaller than the viewport.
+
 ## Deal with Password Protected PDF Files
 
 ```dart
@@ -217,6 +219,7 @@ For more text selection customization, see [Text Selection](https://github.com/e
 - [Dark/Night Mode Support](https://github.com/espresso3389/pdfrx/blob/master/doc/Dark-Night-Mode-Support.md)
 - [Document Loading Indicator](https://github.com/espresso3389/pdfrx/blob/master/doc/Document-Loading-Indicator.md)
 - [Viewer Customization using Widget Overlay](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html)
+- [PdfOverlayInteractionRegion](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfOverlayInteractionRegion-class.html) for tap-like overlay interactions that do not block viewer gestures
 - [Custom Scroll Physics for Drag/Zoom](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/scrollPhysics.html)
 
 ### Additional Customizations

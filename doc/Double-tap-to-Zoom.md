@@ -1,27 +1,18 @@
 
 # Double-tap to Zoom
 
-You can implement double-tap-to-zoom feature using [PdfViewerParams.viewerOverlayBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html):
+You can implement double-tap-to-zoom feature using [PdfViewerParams.viewerOverlayBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html) and [PdfOverlayInteractionRegion](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfOverlayInteractionRegion-class.html):
 
 ```dart
 viewerOverlayBuilder: (context, size, handleLinkTap) => [
-  GestureDetector(
-    behavior: HitTestBehavior.translucent,
-    // Your code here:
-    onDoubleTap: () {
+  PdfOverlayInteractionRegion(
+    onDoubleTap: (details) {
       controller.zoomUp(loop: true);
+      return true;
     },
-    // If you use GestureDetector on viewerOverlayBuilder, it breaks link-tap handling
-    // and you should manually handle it using onTapUp callback
-    onTapUp: (details) {
-      handleLinkTap(details.localPosition);
-    },
-    // Make the GestureDetector covers all the viewer widget's area
-    // but also make the event go through to the viewer.
-    child: IgnorePointer(
-      child:
-          SizedBox(width: size.width, height: size.height),
-    ),
+    // Make the region cover the whole viewer while keeping pointer events
+    // available to the viewer itself.
+    child: SizedBox(width: size.width, height: size.height),
   ),
   ...
 ],

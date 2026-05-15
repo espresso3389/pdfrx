@@ -32,6 +32,18 @@ layoutPages: (pages, params) {
 },
 ```
 
+## Underflow Alignment
+
+When the laid-out document is smaller than the viewport, [PdfViewerParams.underflowAnchor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/underflowAnchor.html) controls how the document is aligned on the underflowing axis:
+
+```dart
+params: const PdfViewerParams(
+  underflowAnchor: PdfPageAnchor.topLeft,
+),
+```
+
+If [PdfViewerParams.underflowAnchor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/underflowAnchor.html) is null, pdfrx keeps the legacy behavior and centers only the axes where the document is smaller than the viewport. Set it to a [PdfPageAnchor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageAnchor.html) value when you need deterministic top, bottom, left, right, or corner alignment.
+
 ## Facing Pages
 
 The following code will show pages in "facing-sequential-layout" that is often used in PDF viewer apps:

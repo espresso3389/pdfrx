@@ -9,23 +9,27 @@ Offset? _offsetInPage;
 ...
 
 viewerOverlayBuilder: (context, size, handleLinkTap) => [
-  Positioned.fill(child: GestureDetector(
-    onTapDown: (details) {
-      // global position -> in-document position
-      final posInDoc = controller.globalToDocument(details.globalPosition);
-      if (posInDoc == null) return;
-      // determine which page contains the point (position)
-      final pageIndex = controller.layout.pageLayouts.indexWhere((pageRect) => pageRect.contains(posInDoc));
-      if (pageIndex < 0) return;
-      // in-document position -> in-page offset
-      _offsetInPage = posInDoc - controller.layout.pageLayouts[pageIndex].topLeft;
-      _pageNumber = pageIndex + 1;
+  Positioned.fill(
+    child: PdfOverlayInteractionRegion(
+      onTap: (details) {
+        // global position -> in-document position
+        final posInDoc = controller.globalToDocument(details.globalPosition);
+        if (posInDoc == null) return false;
+        // determine which page contains the point (position)
+        final pageIndex = controller.layout.pageLayouts.indexWhere((pageRect) => pageRect.contains(posInDoc));
+        if (pageIndex < 0) return false;
+        // in-document position -> in-page offset
+        _offsetInPage = posInDoc - controller.layout.pageLayouts[pageIndex].topLeft;
+        _pageNumber = pageIndex + 1;
 
-      // NOTE: you're hosting PdfViewer inside some StatefulWidget
-      // or inside StatefulBuilder
-      setState(() {});
-    },
-  )),
+        // NOTE: you're hosting PdfViewer inside some StatefulWidget
+        // or inside StatefulBuilder
+        setState(() {});
+        return true;
+      },
+      child: const SizedBox.expand(),
+    ),
+  ),
 ],
 pageOverlaysBuilder: (context, pageRect, page) {
   return [
@@ -45,6 +49,7 @@ pageOverlaysBuilder: (context, pageRect, page) {
 
 On [PdfViewerParams.viewerOverlayBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html);
 
+- Use [PdfOverlayInteractionRegion](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfOverlayInteractionRegion-class.html) when an overlay needs tap-like interactions without blocking viewer pan, zoom, text selection, or link handling.
 - Convert the global tap position to in-document position using [PdfViewerController.globalToDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/globalToDocument.html)
   - The in-document position is position in document structure (i.e., page layout in 72-dpi).
 - Determine which page contains the position using [PdfViewerController.layout.pageLayouts](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageLayout/pageLayouts.html)
