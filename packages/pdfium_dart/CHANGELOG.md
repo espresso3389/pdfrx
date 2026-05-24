@@ -1,3 +1,7 @@
+## 0.2.3
+
+- Fixed PDFium native asset output paths so platform-specific libraries with the same CPU architecture do not collide ([#648](https://github.com/espresso3389/pdfrx/pull/648)).
+
 ## 0.2.2
 
 - Fixed macOS universal builds by writing PDFium native assets to architecture-specific build hook output paths ([#643](https://github.com/espresso3389/pdfrx/issues/643)).

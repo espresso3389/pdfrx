@@ -1,6 +1,6 @@
-# Unreleased
+# 2.4.2
 
-- Removed `dart run pdfrx:remove_wasm_modules`. WASM assets are now exclusively bundled with web builds automatically.
+- Removed `dart run pdfrx:remove_wasm_modules`. WASM assets are now exclusively bundled with web builds automatically. ([#647](https://github.com/espresso3389/pdfrx/pull/647))
 
 # 2.4.1
 
