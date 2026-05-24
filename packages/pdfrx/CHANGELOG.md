@@ -1,3 +1,7 @@
+# Unreleased
+
+- Removed `dart run pdfrx:remove_wasm_modules`. WASM assets are now exclusively bundled with web builds automatically.
+
 # 2.4.1
 
 - DOCUMENTED: Added usage guidance for [PdfOverlayInteractionRegion](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfOverlayInteractionRegion-class.html) in overlay examples.
