@@ -29,13 +29,6 @@
       "request": "launch",
       "type": "dart",
       "program": "packages/pdfrx/example/pdf_combine/lib/main.dart"
-    },
-    {
-      "name": "pdfrx:remove_wasm_modules",
-      "request": "launch",
-      "type": "dart",
-      "program": "packages/pdfrx/bin/remove_wasm_modules.dart",
-      "args": []
     }
   ]
 }

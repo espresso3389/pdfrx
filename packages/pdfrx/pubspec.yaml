@@ -39,9 +39,9 @@ dev_dependencies:
   archive: ^4.0.7
 
 executables:
-  remove_wasm_modules:
   remove_darwin_pdfium_modules:
 
 flutter:
   assets:
-    - assets/
+    - path: assets/
+      platforms: [web]

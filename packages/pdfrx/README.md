@@ -82,8 +82,6 @@ Future<void> main() {
 
 For more information, see [pdfrx Initialization](https://github.com/espresso3389/pdfrx/blob/master/doc/pdfrx-Initialization.md)
 
-Tip: To silence debug-time WASM warnings, call `pdfrxFlutterInitialize(dismissPdfiumWasmWarnings: true)` during startup.
-
 ### Native PDFium Packaging
 
 Native Flutter builds use `pdfium_flutter` and `pdfium_dart` to provide PDFium:
@@ -103,27 +101,6 @@ The build process uses *symbolic links* which requires Developer Mode to be enab
 - You must enable Developer Mode and restart your computer before building
 
 Please follow Microsoft's official guide to enable Developer Mode as the exact steps may vary depending on your Windows version.
-
-## Note for Building Release Builds
-
-*Please note that the section is not applicable to Web.*
-
-Because the plugin contains WASM binaries as its assets and they increase the size of the app regardless of the platform.
-This is normally OK for development or debugging but you may want to remove them when building release builds.
-
-To do this, do `dart run pdfrx:remove_wasm_modules` between `flutter pub get` and `flutter build ...` on your app project's root directory:
-
-```bash
-flutter pub get
-dart run pdfrx:remove_wasm_modules
-flutter build ...
-```
-
-To restore the WASM binaries, run the following command:
-
-```bash
-dart run pdfrx:remove_wasm_modules --revert
-```
 
 ## Note for iOS/macOS: Using CoreGraphics Instead of PDFium
 
