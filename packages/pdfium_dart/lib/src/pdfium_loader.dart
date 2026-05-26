@@ -56,6 +56,7 @@ DynamicLibrary _getModule({String? modulePath}) {
 String _getModuleFileName() {
   if (Platform.isAndroid) return 'libpdfium.so';
   if (Platform.isWindows) return 'pdfium.dll';
+  if (Platform.isMacOS) return 'libpdfium.dylib';
   if (Platform.isLinux) {
     // For Flutter on Linux, the PDFium library is bundled in the app's shared library directory.
     if (_isFlutter) {
