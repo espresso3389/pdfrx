@@ -1,3 +1,7 @@
+## 0.2.4
+
+- Improved PDFium loading diagnostics so fallback failures preserve the original dynamic library load error ([#645](https://github.com/espresso3389/pdfrx/issues/645)).
+
 ## 0.2.3
 
 - Fixed PDFium native asset output paths so platform-specific libraries with the same CPU architecture do not collide ([#648](https://github.com/espresso3389/pdfrx/pull/648)).

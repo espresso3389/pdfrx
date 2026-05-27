@@ -1,3 +1,9 @@
+# 2.4.3
+
+- FIXED: Cancel offscreen preview and partial page rendering requests to reduce memory spikes during rapid scrolling or dragging ([#604](https://github.com/espresso3389/pdfrx/issues/604), [#626](https://github.com/espresso3389/pdfrx/issues/626)).
+- FIXED: Avoid a `PdfViewer` null-check crash when layout temporarily receives zero-height constraints ([#646](https://github.com/espresso3389/pdfrx/issues/646)).
+- Added a Firebase Test Lab reproduction test for Android PDFium loading diagnostics ([#645](https://github.com/espresso3389/pdfrx/issues/645)).
+
 # 2.4.2
 
 - Removed `dart run pdfrx:remove_wasm_modules`. WASM assets are now exclusively bundled with web builds automatically. ([#647](https://github.com/espresso3389/pdfrx/pull/647))
