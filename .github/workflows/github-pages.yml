@@ -194,9 +194,26 @@ jobs:
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
           git remote set-url origin https://x-access-token:${{ secrets.TOKEN_FOR_GHPAGE_DEPLOYMENT }}@github.com/${{ github.repository }}.git
-      - name: Deploy to GitHub Pages using subtree push
+      - name: Deploy to GitHub Pages
         run: |
-          git add -f deploy_temp
+          mv deploy_temp /tmp/deploy_temp
+
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git fetch origin gh-pages
+            git checkout -B gh-pages origin/gh-pages
+          else
+            git checkout --orphan gh-pages
+            git rm -rf . || true
+          fi
+
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a /tmp/deploy_temp/. .
+
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to deploy"
+            exit 0
+          fi
+
           git commit -m "$PDFRX_VERSION $GITHUB_SHA"
-          git subtree split --prefix deploy_temp -b tmp
-          git push -f origin tmp:gh-pages
+          git push origin gh-pages
