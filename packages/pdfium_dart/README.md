@@ -87,19 +87,18 @@ The [ffigen](https://pub.dev/packages/ffigen) process requires LLVM/Clang to be 
 
 To regenerate the FFI bindings:
 
-1. Run tests once to download PDFium headers into `test/.tmp`:
+1. Run the ffigen helper:
 
    ```bash
-   dart test
+   dart tool/ffigen.dart
    ```
 
-2. Generate bindings:
+   The helper downloads PDFium headers into `.dart_tool/pdfium_headers/` before running `ffigen`.
 
-   ```bash
-   dart run ffigen
-   ```
+   Use `dart tool/ffigen.dart --force` to refresh the downloaded headers, or
+   `dart tool/ffigen.dart --download-only` to only prepare the headers.
 
-The bindings are generated from PDFium headers using the configuration in `ffigen.yaml`.
+The bindings are generated from PDFium headers using the `ffigen` configuration in `pubspec.yaml`.
 
 ## Platform Support
 

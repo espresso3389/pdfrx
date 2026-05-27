@@ -1,5 +1,5 @@
 name: pdfrx_example
-description: "Demonstrates how to use the pdfrx plugin."
+description: 'Demonstrates how to use the pdfrx plugin.'
 publish_to: 'none'
 
 environment:
@@ -15,12 +15,12 @@ dependencies:
   pdfrx:
     path: ../../
 
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^1.0.9
   rxdart: ^0.28.0
   url_launcher: ^6.3.2
   synchronized: ^3.4.0
-  file_selector: ^1.0.4
-  http: ^1.5.0
+  file_selector: ^1.1.0
+  http: ^1.6.0
 
 dev_dependencies:
   integration_test:

@@ -112,8 +112,7 @@ The `ffigen` process requires LLVM/Clang:
 ```bash
 # For pdfium_dart package
 cd packages/pdfium_dart
-dart test  # Downloads PDFium headers into test/.tmp and runs build hooks
-dart run ffigen
+dart tool/ffigen.dart  # Downloads PDFium headers and runs ffigen
 
 # For pdfrx_engine (if needed)
 cd packages/pdfrx_engine

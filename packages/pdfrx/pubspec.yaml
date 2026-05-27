@@ -17,26 +17,25 @@ dependencies:
   pdfrx_engine: ^0.4.2
   pdfium_flutter: ^0.2.1
   collection:
-  crypto: ^3.0.6
+  crypto:
   ffi:
   flutter:
     sdk: flutter
   http:
   path:
-  path_provider: ^2.1.5
+  path_provider:
   rxdart:
-  synchronized: ^3.4.0
-  url_launcher: ^6.3.2
-  vector_math: ^2.2.0
-  web: ^1.1.1
+  synchronized:
+  url_launcher:
+  vector_math:
+  web:
   yaml:
 
 dev_dependencies:
-  ffigen: ^19.1.0
   flutter_test:
     sdk: flutter
   flutter_lints:
-  archive: ^4.0.7
+  archive:
 
 executables:
   remove_darwin_pdfium_modules:
