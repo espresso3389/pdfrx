@@ -36,19 +36,39 @@ pdfium_bindings.PDFium getPdfium({String? modulePath}) {
 /// Use [modulePath] for custom paths, otherwise it tries system paths first and
 /// falls back to bundled assets.
 DynamicLibrary _getModule({String? modulePath}) {
-  if (modulePath != null) return DynamicLibrary.open(modulePath);
+  if (modulePath != null) {
+    try {
+      return DynamicLibrary.open(modulePath);
+    } catch (e) {
+      throw Exception(
+        'Failed to load explicit PDFium module path "$modulePath": $e',
+      );
+    }
+  }
+
+  String? moduleFileName;
   try {
     // For Flutter on iOS/macOS, PDFium is linked into the app by the XCFramework.
     if ((_isFlutter && !_isFlutterTest) &&
         (Platform.isIOS || Platform.isMacOS)) {
       return DynamicLibrary.process();
     }
-    return DynamicLibrary.open(_getModuleFileName());
-  } catch (_) {
-    // Fallback to loading from bundled native asset if not found in system paths.
-    return DynamicLibrary.open(
-      _resolveNativeAssetPath('package:pdfium_dart/libpdfium'),
-    );
+    moduleFileName = _getModuleFileName();
+    return DynamicLibrary.open(moduleFileName);
+  } catch (primaryError) {
+    try {
+      // Fallback to loading from bundled native asset if not found in system paths.
+      final nativeAssetPath = _resolveNativeAssetPath(
+        'package:pdfium_dart/libpdfium',
+      );
+      return DynamicLibrary.open(nativeAssetPath);
+    } catch (fallbackError) {
+      throw Exception(
+        'Tried to load the default PDFium module'
+        '${moduleFileName == null ? '' : ' "$moduleFileName"'} but it failed: $primaryError. '
+        'Then tried to load the bundled native asset, but that also failed: $fallbackError',
+      );
+    }
   }
 }
 
