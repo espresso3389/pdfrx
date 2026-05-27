@@ -34,6 +34,54 @@ void main() {
     expect(find.byType(PdfViewer), findsOneWidget);
   });
 
+  testWidgets('zero-height constraints before layout initialization do not crash', (tester) async {
+    await binding.setSurfaceSize(Size(500, 1000));
+    addTearDown(() => binding.setSurfaceSize(null));
+    final controller = PdfViewerController();
+    final document = await tester.runAsync(
+      () async => PdfDocument.openData(
+        await testPdfFile.readAsBytes(),
+        sourceName: 'zero-height-layout-test.pdf',
+        useProgressiveLoading: false,
+      ),
+    );
+    addTearDown(() => document?.dispose());
+
+    Widget buildViewer(double height) {
+      return MaterialApp(
+        home: SizedBox(
+          width: 500,
+          height: height,
+          child: PdfViewer(
+            PdfDocumentRefDirect(document!, autoDispose: false),
+            controller: controller,
+            params: const PdfViewerParams(
+              behaviorControlParams: PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
+            ),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(buildViewer(0));
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(buildViewer(800));
+
+    for (var i = 0; i < 20 && !controller.isReady; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+    }
+
+    expect(tester.takeException(), isNull);
+    expect(controller.isReady, isTrue);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('top page anchor keeps underflowing page top aligned', (tester) async {
     await binding.setSurfaceSize(Size(1000, 2000));
     addTearDown(() => binding.setSurfaceSize(null));

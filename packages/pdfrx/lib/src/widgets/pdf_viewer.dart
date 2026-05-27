@@ -602,6 +602,9 @@ class _PdfViewerState extends State<PdfViewer>
                 final shouldBuildTextSemantics = _shouldBuildTextSemantics;
 
                 _updateLayout(viewSize);
+                if (_layout == null) {
+                  return const SizedBox.shrink();
+                }
 
                 return Listener(
                   onPointerDown: (details) => _handlePointerEvent(details, details.localPosition, details.kind),
