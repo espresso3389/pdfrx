@@ -1762,18 +1762,29 @@ class _PdfViewerState extends State<PdfViewer>
     cache.pageImagePartialRenderingRequests[page.pageNumber]?.cancel();
 
     final cancellationToken = page.createCancellationToken();
-    cache.pageImagePartialRenderingRequests[page.pageNumber] = _PdfPartialImageRenderingRequest(
+    late final _PdfPartialImageRenderingRequest request;
+    request = _PdfPartialImageRenderingRequest(
       Timer(widget.params.behaviorControlParams.partialImageLoadingDelay, () async {
-        if (!mounted || cancellationToken.isCanceled) return;
-        final newImage = await _createRealSizePartialImage(cache, page, scale, rect, cancellationToken);
-        if (newImage != null) {
-          cache.pageImagesPartial.remove(page.pageNumber)?.dispose();
-          cache.pageImagesPartial[page.pageNumber] = newImage;
-          _invalidate();
+        if (cache.pageImagePartialRenderingRequests[page.pageNumber] != request) return;
+        try {
+          if (!mounted || cancellationToken.isCanceled) return;
+          final newImage = await _createRealSizePartialImage(cache, page, scale, rect, cancellationToken);
+          if (newImage != null && cache.pageImagePartialRenderingRequests[page.pageNumber] == request) {
+            cache.pageImagesPartial.remove(page.pageNumber)?.dispose();
+            cache.pageImagesPartial[page.pageNumber] = newImage;
+            _invalidate();
+          } else {
+            newImage?.dispose();
+          }
+        } finally {
+          if (cache.pageImagePartialRenderingRequests[page.pageNumber] == request) {
+            cache.pageImagePartialRenderingRequests.remove(page.pageNumber);
+          }
         }
       }),
       cancellationToken,
     );
+    cache.pageImagePartialRenderingRequests[page.pageNumber] = request;
   }
 
   Future<_PdfImageWithScaleAndRect?> _createRealSizePartialImage(
@@ -3644,6 +3655,8 @@ class _PdfPageImageCache {
   }
 
   void cancelPendingRenderings(int pageNumber) {
+    pageImageRenderingTimers.remove(pageNumber)?.cancel();
+    pageImagePartialRenderingRequests.remove(pageNumber)?.cancel();
     final tokens = cancellationTokens[pageNumber];
     if (tokens != null) {
       for (final token in tokens) {
