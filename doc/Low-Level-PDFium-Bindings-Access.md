@@ -1,6 +1,6 @@
 # Low-Level PDFium Bindings Access
 
-This document explains how to access low-level PDFium bindings directly when working with the pdfrx_engine package.
+This document explains how to access low-level PDFium bindings directly.
 
 ## Overview
 
@@ -26,84 +26,61 @@ The `pdfium_dart` package provides:
 
 ### Initialization
 
-PDFium must be initialized before use. The high-level API handles this automatically, but when using raw bindings directly, you may need to ensure initialization.
-
-There are basically three ways to initialize PDFium:
-
-#### Manual Initialization
-
-```dart
-import 'package:pdfium_dart/pdfium_dart.dart';
-import 'dart:ffi';
-
-// Load PDFium library manually
-final pdfium = PDFium(DynamicLibrary.open('path/to/libpdfium.so'));
-pdfium.FPDF_InitLibrary(); // or pdfium.FPDF_InitLibraryWithConfig(...)
-```
-
-#### Runtime PDFium Loading
+If your program uses only `pdfium_dart` and does not use any pdfrx or pdfrx_engine API, you can own the PDFium lifecycle directly:
 
 ```dart
 import 'package:pdfium_dart/pdfium_dart.dart';
 
-Future<void> initializePdfium() async {
-  // Resolves PDFium for the current Dart or Flutter runtime.
-  final pdfium = getPdfium();
-  pdfium.FPDF_InitLibrary(); // or pdfium.FPDF_InitLibraryWithConfig(...)
+final pdfium = getPdfium();
+pdfium.FPDF_InitLibrary();
+
+try {
+  // Call PDFium APIs here.
+} finally {
+  pdfium.FPDF_DestroyLibrary();
 }
 ```
 
 `getPdfium()` uses explicit module paths first, resolves Flutter-packaged PDFium where applicable, and falls back to the native asset produced by the build hook.
 
-#### Initialization for Flutter App
-
-```dart
-import 'package:pdfrx/pdfrx.dart';
-
-pdfrxFlutterInitialize();
-```
-
-#### Initialization for pure Dart
-
-```dart
-import 'package:pdfrx_engine/pdfrx_engine.dart';
-
-await pdfrxInitialize();
-```
+Do not call `FPDF_InitLibrary()` or `FPDF_DestroyLibrary()` yourself if the same process also uses pdfrx or pdfrx_engine.
+In that case, let pdfrx initialize and own the shared PDFium runtime. See [Using with pdfrx APIs](#using-with-pdfrx-apis).
 
 For more information about initialization, see [pdfrx Initialization](pdfrx-Initialization.md).
-
-**Important:** pdfrx does not support unloading PDFium. Never call `FPDF_DestroyLibrary` as it will cause undefined behavior. PDFium remains loaded for the lifetime of the application.
 
 ## Usage Examples
 
 ### Basic PDFium Function Access
 
 ```dart
-import 'package:pdfium_dart/pdfium_dart.dart';
 import 'dart:ffi';
 import 'package:ffi/ffi.dart';
+import 'package:pdfium_dart/pdfium_dart.dart';
 
-void example() async {
-  // Resolve PDFium bindings for the current runtime.
+void example() {
   final pdfium = getPdfium();
+  pdfium.FPDF_InitLibrary();
 
-  // Use arena to automatically manage memory
-  using((arena) {
-    // Access PDFium functions
-    final doc = pdfium.FPDF_LoadDocument(
-      'path/to/file.pdf'.toNativeUtf8(allocator: arena).cast<Char>(),
-      nullptr,
-    );
+  try {
+    // Use arena to automatically manage memory
+    using((arena) {
+      // Access PDFium functions
+      final doc = pdfium.FPDF_LoadDocument(
+        'path/to/file.pdf'.toNativeUtf8(allocator: arena).cast<Char>(),
+        nullptr,
+      );
 
-    if (doc != nullptr) {
-      final pageCount = pdfium.FPDF_GetPageCount(doc);
-      print('Page count: $pageCount');
+      if (doc != nullptr) {
+        final pageCount = pdfium.FPDF_GetPageCount(doc);
+        print('Page count: $pageCount');
 
-      // Don't forget to clean up
-      pdfium.FPDF_CloseDocument(doc);
-    }
-  });
+        // Don't forget to clean up
+        pdfium.FPDF_CloseDocument(doc);
+      }
+    });
+  } finally {
+    pdfium.FPDF_DestroyLibrary();
+  }
 }
 ```
 
@@ -180,7 +157,65 @@ void manualMemoryExample() {
 
 ### Thread Safety
 
-PDFium is not thread-safe. Ensure all PDFium calls are made from the same thread, typically the main isolate.
+PDFium is not thread-safe. If your application owns the PDFium lifecycle directly, keep related raw PDFium calls serialized
+and avoid calling the same PDFium instance concurrently from multiple isolates or threads.
+
+### Using with pdfrx APIs
+
+When the same process also uses pdfrx or pdfrx_engine APIs, initialize through pdfrx instead of calling
+`FPDF_InitLibrary()` yourself.
+
+For Flutter apps:
+
+```dart
+import 'package:pdfrx/pdfrx.dart';
+
+await pdfrxFlutterInitialize();
+```
+
+For pure Dart apps:
+
+```dart
+import 'package:pdfrx_engine/pdfrx_engine.dart';
+
+await pdfrxInitialize();
+```
+
+After that, direct PDFium calls should be wrapped with `PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction()`.
+This temporarily pauses pdfrx's PDFium worker while your raw calls run:
+
+```dart
+import 'dart:ffi';
+import 'package:ffi/ffi.dart';
+import 'package:pdfium_dart/pdfium_dart.dart';
+import 'package:pdfrx_engine/pdfrx_engine.dart';
+
+Future<void> exampleWithPdfrx() async {
+  await pdfrxInitialize();
+
+  final pdfium = getPdfium();
+
+  await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
+    using((arena) {
+      final doc = pdfium.FPDF_LoadDocument(
+        'path/to/file.pdf'.toNativeUtf8(allocator: arena).cast<Char>(),
+        nullptr,
+      );
+
+      if (doc != nullptr) {
+        try {
+          print('Page count: ${pdfium.FPDF_GetPageCount(doc)}');
+        } finally {
+          pdfium.FPDF_CloseDocument(doc);
+        }
+      }
+    });
+  });
+}
+```
+
+When pdfrx owns the runtime, do not call `FPDF_DestroyLibrary()`. PDFium remains loaded for the lifetime of the
+application.
 
 ### Error Handling
 
@@ -219,11 +254,12 @@ Using low-level bindings bypasses many safety checks and conveniences provided b
 
 - Properly manage memory allocation and deallocation
 - Handle errors appropriately
-- Follow PDFium's threading requirements
+- Coordinate direct PDFium calls with pdfrx's worker when the app also uses pdfrx APIs
 - Test thoroughly on all target platforms
 
 ## See Also
 
+- [Interoperability with other PDFium Libraries](Interoperability-with-other-PDFium-Libraries.md)
 - [PDFium API Documentation](https://pdfium.googlesource.com/pdfium/+/refs/heads/main/public/)
 - [FFI Package Documentation](https://pub.dev/packages/ffi)
 - [pdfrx_engine API Reference](https://pub.dev/documentation/pdfrx_engine/latest/)

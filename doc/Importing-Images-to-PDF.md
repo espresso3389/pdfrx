@@ -298,12 +298,12 @@ doc.dispose();
 
 Choose your image resolution based on the intended use:
 
-| Use Case | DPI | A4 Page Size (pixels) | Description |
-|----------|-----|----------------------|-------------|
-| Screen viewing | 72-96 | 595×842 to 794×1123 | Smallest file size |
-| Standard printing | 150 | 1240×1754 | Good balance |
-| High-quality printing | 300 | 2480×3508 | Professional quality |
-| Archival/Photo printing | 600 | 4960×7016 | Maximum quality |
+| Use Case                | DPI   | A4 Page Size (pixels) | Description          |
+| ----------------------- | ----- | --------------------- | -------------------- |
+| Screen viewing          | 72-96 | 595×842 to 794×1123   | Smallest file size   |
+| Standard printing       | 150   | 1240×1754             | Good balance         |
+| High-quality printing   | 300   | 2480×3508             | Professional quality |
+| Archival/Photo printing | 600   | 4960×7016             | Maximum quality      |
 
 **Rule of thumb:** Match the image pixel dimensions to your target DPI and page size to avoid unnecessarily large files.
 

@@ -1,6 +1,6 @@
 # Text Selection
 
-On pdfrx 2.1.X, text selection related parameters are moved to [PdfViewerParams.textSelectionParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/textSelectionParams.html).
+Text selection is configured through [PdfViewerParams.textSelectionParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/textSelectionParams.html).
 
 ## Enabling/Disabling Text Selection
 
@@ -43,7 +43,7 @@ PdfViewer.asset(
 
 ## Programmatic Text Selection Control
 
-Starting from commit [941c2ab](https://github.com/espresso3389/pdfrx/commit/941c2abb3c1c608d628f0e824edfb61628768314), you can programmatically control text selection using [PdfTextSelectionDelegate](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionDelegate-class.html). This is particularly useful for implementing save/restore functionality for text selections (see [#513](https://github.com/espresso3389/pdfrx/issues/513)).
+You can programmatically control text selection using [PdfTextSelectionDelegate](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionDelegate-class.html). This is particularly useful for implementing save/restore functionality for text selections.
 
 ### Getting Current Text Selection
 
@@ -78,31 +78,29 @@ final controller = PdfViewerController();
 ...
 
 // First, load the page text for the target page
-final page = await controller.document![pageNumber - 1];
-final pageText = await page?.loadStructuredText();
+final page = controller.document.pages[pageNumber - 1];
+final pageText = await page.loadStructuredText();
 
-if (pageText != null) {
-  // Create selection points with page text and character indices
-  final startPoint = PdfTextSelectionPoint(pageText, startCharIndex);
-  final endPoint = PdfTextSelectionPoint(pageText, endCharIndex);
+// Create selection points with page text and character indices
+final startPoint = PdfTextSelectionPoint(pageText, startCharIndex);
+final endPoint = PdfTextSelectionPoint(pageText, endCharIndex);
 
-  // Create range and set the selection
-  final range = PdfTextSelectionRange.fromPoints(startPoint, endPoint);
-  await controller.textSelection.setTextSelectionPointRange(range);
-}
+// Create range and set the selection
+final range = PdfTextSelectionRange.fromPoints(startPoint, endPoint);
+await controller.textSelection.setTextSelectionPointRange(range);
 ```
 
 **Note:** Text selection can span across multiple pages. The start and end points can be on different pages:
 
 ```dart
 // Example: Select from the beginning of page 1 to the end of page 3
-final startPage = await controller.document.pages[0];
+final startPage = controller.document.pages[0];
 final startPageText = await startPage.loadStructuredText();
 
-final endPage = await controller.document.pages[2];
+final endPage = controller.document.pages[2];
 final endPageText = await endPage.loadStructuredText();
 
-if (startPageText != null && endPageText != null && endPageText.fullText.isNotEmpty) {
+if (endPageText.fullText.isNotEmpty) {
   final startPoint = PdfTextSelectionPoint(startPageText, 0);
   // NOTE: The index is inclusive - it points to the last selected character.
   // To select to the end of page, use (fullText.length - 1).
