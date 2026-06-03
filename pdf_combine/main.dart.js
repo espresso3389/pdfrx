@@ -27544,7 +27544,7 @@ $S:2}
 A.avi.prototype={
 $1(a){var s=A.d0().b
 s=s==null?null:s.canvasKitBaseUrl
-return(s==null?"https://www.gstatic.com/flutter-canvaskit/4c525dac5ebe5971c5708ef73558ed8edcf4a362/":s)+a},
+return(s==null?"https://www.gstatic.com/flutter-canvaskit/c416acfeb8126e097f758c664aaa3da929e27da0/":s)+a},
 $S:63}
 A.My.prototype={
 gn(a){var s=this.a
@@ -44266,8 +44266,8 @@ new A.vP(o,"error",!1,p).gZ(0).bt(new A.a2L(o,q),s)
 o.addEventListener("cancel",A.ec(new A.a2M(o,q)))
 o.click()
 return r},
-a86(a){var s=v.G.URL.createObjectURL(a),r=a.name,q=a.size
-return A.aFk(s,null,new A.fs(A.oR(a.lastModified,0,!1),0,!1),q,null,r)}}
+a86(a){var s=a.type,r=v.G.URL.createObjectURL(a),q=a.name,p=a.size
+return A.aFk(r,null,new A.fs(A.oR(a.lastModified,0,!1),0,!1),p,s,q)}}
 A.a2K.prototype={
 $1(a){var s=this.b,r=A.ayg(s.files.length,new A.a2J(s),t.m).fQ(0,this.a.ga85(),t.rx).ef(0)
 s.remove()

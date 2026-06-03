@@ -793,6 +793,7 @@ class CompiledApp {
       _7957: x0 => x0.value,
       _7959: x0 => x0.done,
       _8139: x0 => x0.size,
+      _8140: x0 => x0.type,
       _8147: x0 => x0.name,
       _8148: x0 => x0.lastModified,
       _8153: x0 => x0.length,
