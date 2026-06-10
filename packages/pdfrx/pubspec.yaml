@@ -18,10 +18,8 @@ dependencies:
   pdfium_flutter: ^0.2.1
   collection:
   crypto:
-  ffi:
   flutter:
     sdk: flutter
-  http:
   path:
   path_provider:
   rxdart:
@@ -36,6 +34,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints:
   archive:
+  http:
 
 executables:
   remove_darwin_pdfium_modules:
