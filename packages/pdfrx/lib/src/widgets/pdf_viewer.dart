@@ -3460,7 +3460,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   Future<void> selectAllText() async {
-    if (_document!.pages.isEmpty && _layout != null) return;
+    if (_document!.pages.isEmpty || _layout == null) return;
     PdfPageText? first;
     for (var i = 1; i <= _document!.pages.length; i++) {
       final text = await _loadTextAsync(i);
