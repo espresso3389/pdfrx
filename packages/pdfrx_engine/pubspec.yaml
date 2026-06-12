@@ -17,6 +17,7 @@ dependencies:
   crypto:
   ffi:
   http:
+  meta:
   path:
   rxdart:
   synchronized:
