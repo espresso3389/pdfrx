@@ -27544,7 +27544,7 @@ $S:2}
 A.avi.prototype={
 $1(a){var s=A.d0().b
 s=s==null?null:s.canvasKitBaseUrl
-return(s==null?"https://www.gstatic.com/flutter-canvaskit/c416acfeb8126e097f758c664aaa3da929e27da0/":s)+a},
+return(s==null?"https://www.gstatic.com/flutter-canvaskit/77e2e94772b6eb43759e34ed1ad7da4674e19cab/":s)+a},
 $S:63}
 A.My.prototype={
 gn(a){var s=this.a
@@ -90127,7 +90127,7 @@ pd(){var s=0,r=A.F(t.H),q,p=this,o,n,m,l,k,j,i
 var $async$pd=A.G(function(a,b){if(a===1)return A.C(b,r)
 for(;;)switch(s){case 0:i=p.x.r
 i===$&&A.a()
-if(i.length===0&&p.y!=null){s=1
+if(i.length===0||p.y==null){s=1
 break}n=1
 case 3:i=p.x.r
 i===$&&A.a()
