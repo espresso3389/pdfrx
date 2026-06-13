@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
+import 'package:pdfrx_engine/src/native/pdfrx_pdfium.dart' show isPdfiumInitialized;
 import 'package:test/test.dart';
 
 import 'utils.dart';
@@ -14,6 +15,16 @@ void main() {
   setUp(() => pdfrxInitialize(tmpPath: tmpRoot.path));
 
   test('PdfDocument.openFile', () async => await testDocument(await PdfDocument.openFile(testPdfFile.path)));
+  test('PDFium is initialized on the caller isolate', () async {
+    // Reset so this test owns its precondition instead of depending on order.
+    await PdfrxEntryFunctions.instance.stopBackgroundWorker();
+    expect(isPdfiumInitialized, isFalse);
+
+    // Opening a document initializes PDFium. The flag must be set on the caller's
+    // isolate; if set on the worker isolate, it stays false here.
+    await PdfDocument.openFile(testPdfFile.path).then((doc) => doc.dispose());
+    expect(isPdfiumInitialized, isTrue);
+  });
   test('PdfDocument.openData', () async {
     final data = await testPdfFile.readAsBytes();
     await testDocument(await PdfDocument.openData(data));

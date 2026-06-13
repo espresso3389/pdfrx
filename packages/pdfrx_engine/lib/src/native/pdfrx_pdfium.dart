@@ -9,6 +9,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:ffi/ffi.dart';
+import 'package:meta/meta.dart';
 import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
@@ -43,15 +44,20 @@ List<String> _fontPaths = const [];
 bool _initialized = false;
 final _initSync = Object();
 
+/// Whether PDFium has been initialized on the caller's isolate.
+@visibleForTesting
+bool get isPdfiumInitialized => _initialized;
+
 /// Initializes PDFium library.
 Future<void> _init() async {
   if (_initialized) return;
   await _initSync.synchronized(() async {
     if (_initialized) return;
-    BackgroundWorker.compute((params) {
+    await BackgroundWorker.compute((params) {
       pdfium.FPDF_InitLibrary();
-      _initialized = true;
     }, null);
+    // Set on this isolate, not inside the worker callback: top-level variables are per-isolate.
+    _initialized = true;
   });
 
   await _installFontMapper();
