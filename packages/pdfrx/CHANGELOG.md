@@ -1,3 +1,10 @@
+# 2.4.4
+
+- Updated to `pdfrx_engine` 0.4.3 and `pdfium_flutter` 0.2.2.
+- FIXED: `PdfViewer.selectAllText()` no longer attempts text selection before layout is available, avoiding a null-check crash ([#654](https://github.com/espresso3389/pdfrx/pull/654)).
+- FIXED: PDFium initialization is now tracked on the caller isolate, avoiding repeated initialization attempts after worker-isolate initialization ([#655](https://github.com/espresso3389/pdfrx/pull/655)).
+- Relaxed dependency constraints for broader compatibility with Flutter package resolution.
+
 # 2.4.3
 
 - FIXED: Cancel offscreen preview and partial page rendering requests to reduce memory spikes during rapid scrolling or dragging ([#604](https://github.com/espresso3389/pdfrx/issues/604), [#626](https://github.com/espresso3389/pdfrx/issues/626)).

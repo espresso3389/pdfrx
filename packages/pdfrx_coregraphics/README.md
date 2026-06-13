@@ -14,8 +14,8 @@ Add the package to your Flutter app:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.3.3
-  pdfrx_coregraphics: ^0.2.1
+  pdfrx: ^2.4.4
+  pdfrx_coregraphics: ^0.2.2
 ```
 
 Set the CoreGraphics entry functions before initializing pdfrx:

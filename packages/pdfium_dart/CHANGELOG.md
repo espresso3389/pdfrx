@@ -1,3 +1,8 @@
+## 0.2.5
+
+- Relaxed dependency constraints for broader compatibility with Dart package resolution.
+- Improved the `ffigen` workflow for regenerating PDFium bindings.
+
 ## 0.2.4
 
 - Improved PDFium loading diagnostics so fallback failures preserve the original dynamic library load error ([#645](https://github.com/espresso3389/pdfrx/issues/645)).

@@ -1,3 +1,9 @@
+## 0.4.3
+
+- Updated to `pdfium_dart` 0.2.5.
+- FIXED: PDFium initialization is now tracked on the caller isolate, avoiding repeated initialization attempts after worker-isolate initialization ([#655](https://github.com/espresso3389/pdfrx/pull/655)).
+- Relaxed dependency constraints for broader compatibility with Dart package resolution.
+
 ## 0.4.2
 
 - Updated to `pdfium_dart` 0.2.1 to fix PDFium loading in Flutter tests on macOS ([#640](https://github.com/espresso3389/pdfrx/issues/640)).

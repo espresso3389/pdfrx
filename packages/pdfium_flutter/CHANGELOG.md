@@ -1,3 +1,8 @@
+## 0.2.2
+
+- Updated to `pdfium_dart` 0.2.5.
+- Relaxed dependency constraints for broader compatibility with Flutter package resolution.
+
 ## 0.2.1
 
 - Updated to `pdfium_dart` 0.2.1 to fix PDFium loading in Flutter tests on macOS ([#640](https://github.com/espresso3389/pdfrx/issues/640)).
