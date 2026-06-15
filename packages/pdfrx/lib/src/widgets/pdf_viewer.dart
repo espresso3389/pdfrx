@@ -664,7 +664,7 @@ class _PdfViewerState extends State<PdfViewer>
                                         // position. With the default DragStartBehavior.start, free
                                         // text-drag selection begins ~kTouchSlop (18px) after the
                                         // touch-down, skipping the first 1-2 characters on touch
-                                        // devices (notably iPad/tablets).
+                                        // devices (notably iPad/tablets). See espresso3389/pdfrx#665.
                                         dragStartBehavior: DragStartBehavior.down,
                                         onPanStart: enableSelectionHandles ? null : _onTextPanStart,
                                         onPanUpdate: enableSelectionHandles ? null : _onTextPanUpdate,
