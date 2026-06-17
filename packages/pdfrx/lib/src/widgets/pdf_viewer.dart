@@ -659,6 +659,13 @@ class _PdfViewerState extends State<PdfViewer>
                                       cursor: SystemMouseCursors.text,
                                       hitTestBehavior: HitTestBehavior.deferToChild,
                                       child: GestureDetector(
+                                        // Use DragStartBehavior.down so onPanStart reports the
+                                        // original pointer-down position instead of the post-slop
+                                        // position. With the default DragStartBehavior.start, free
+                                        // text-drag selection begins ~kTouchSlop (18px) after the
+                                        // touch-down, skipping the first 1-2 characters on touch
+                                        // devices (notably iPad/tablets).
+                                        dragStartBehavior: DragStartBehavior.down,
                                         onPanStart: enableSelectionHandles ? null : _onTextPanStart,
                                         onPanUpdate: enableSelectionHandles ? null : _onTextPanUpdate,
                                         onPanEnd: enableSelectionHandles ? null : _onTextPanEnd,
