@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:vector_math/vector_math_64.dart' as vec;
 
+import '../layout/pdf_fit_mode.dart';
 import '../pdf_viewer.dart';
 import '../pdf_viewer_layout_metrics.dart';
 import '../pdf_viewer_params.dart';
@@ -64,6 +65,10 @@ class PdfViewerSizeDelegateProviderLegacy extends PdfViewerSizeDelegateProvider 
   /// If the minimum scale is small value, it makes many pages visible inside the view and it finally
   /// renders many pages at once. It may make the viewer to be slow or even crash due to high memory consumption.
   /// So, it is recommended to set this to false if you want to show PDF documents with many pages.
+  ///
+  /// **Precedence:** used only when [PdfViewerParams.fitMode] is [PdfFitMode.none]. With any
+  /// other fit mode the min scale is floored at that mode's fit (fit-width for `fill`/`cover`,
+  /// fit-page for `fit`) and this flag is ignored. (`true` is roughly `fitMode: fit`.)
   final bool useAlternativeFitScaleAsMinScale;
 
   /// If a page is rendered over the scale threshold, the page is rendered with the threshold scale
@@ -154,6 +159,7 @@ class PdfViewerSizeDelegateLegacy implements PdfViewerSizeDelegate {
     required int? pageNumber,
     required double pageMargin,
     required EdgeInsets? boundaryMargin,
+    PdfFitMode fitMode = PdfFitMode.none,
   }) {
     final bmh = boundaryMargin?.horizontal == double.infinity ? 0 : boundaryMargin?.horizontal ?? 0;
     final bmv = boundaryMargin?.vertical == double.infinity ? 0 : boundaryMargin?.vertical ?? 0;
@@ -180,12 +186,25 @@ class PdfViewerSizeDelegateLegacy implements PdfViewerSizeDelegate {
       alternativeFitScale = null;
     }
 
-    // Determine effective minScale based on delegate rules
-    final effectiveMinScale = !_useAlternativeFitScaleAsMinScale
-        ? _minScale
-        : alternativeFitScale == null
-        ? coverScale
-        : math.min(coverScale, alternativeFitScale);
+    // Min scale floored at the fit for the active mode, so e.g. `fill` can't zoom out below
+    // fit-width.
+    final double effectiveMinScale;
+    switch (fitMode) {
+      case PdfFitMode.fill:
+      case PdfFitMode.cover:
+        // Floor at fit-width (for `fill` geometry this is about 1.0).
+        effectiveMinScale = coverScale;
+      case PdfFitMode.fit:
+        // Floor at fit-page.
+        effectiveMinScale = alternativeFitScale ?? coverScale;
+      case PdfFitMode.none:
+        // Previous behavior, unchanged.
+        effectiveMinScale = !_useAlternativeFitScaleAsMinScale
+            ? _minScale
+            : alternativeFitScale == null
+            ? coverScale
+            : math.min(coverScale, alternativeFitScale);
+    }
 
     return PdfViewerLayoutMetrics(
       minScale: effectiveMinScale,
