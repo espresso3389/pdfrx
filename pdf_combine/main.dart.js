@@ -27544,7 +27544,7 @@ $S:2}
 A.avi.prototype={
 $1(a){var s=A.d0().b
 s=s==null?null:s.canvasKitBaseUrl
-return(s==null?"https://www.gstatic.com/flutter-canvaskit/a4ce257c68517c1410f4b48ac9852ab5642a3f8d/":s)+a},
+return(s==null?"https://www.gstatic.com/flutter-canvaskit/a10d8ac38de835021c8d2f920dbf50a920ccc030/":s)+a},
 $S:63}
 A.My.prototype={
 gn(a){var s=this.a

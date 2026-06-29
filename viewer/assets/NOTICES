@@ -2182,6 +2182,7 @@ file_selector_windows
 path_provider
 path_provider_android
 path_provider_foundation
+path_provider_linux
 path_provider_platform_interface
 url_launcher_android
 url_launcher_ios
@@ -6047,7 +6048,6 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --------------------------------------------------------------------------------
 flutter_lints
-path_provider_linux
 path_provider_windows
 plugin_platform_interface
 url_launcher
