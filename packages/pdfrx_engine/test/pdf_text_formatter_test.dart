@@ -54,9 +54,27 @@ void main() {
       final spaceRect = text.charRects[2];
       // Attached to the preceding character...
       expect(spaceRect.left, 10);
-      // ...and clamped to 1.5x line height (10pt) instead of the 190pt gap.
-      expect(spaceRect.width, lessThanOrEqualTo(15));
+      // ...and clamped to a typical space advance (0.25x line height of 10pt)
+      // instead of the 190pt gap.
+      expect(spaceRect.width, lessThanOrEqualTo(2.5));
       expect(spaceRect.right, lessThan(200));
+    });
+
+    test('clamps a real wide space rect to 1.5x line height', () async {
+      // A real space glyph (non-degenerate box) spanning an unusually wide gap
+      // keeps spanning it up to the looser 1.5x line-height limit.
+      final raw = PdfPageRawText('ab cd', [
+        const PdfRect(0, 10, 5, 0), // a
+        const PdfRect(5, 10, 10, 0), // b
+        const PdfRect(10, 10, 60, 0), // space (real glyph, 50pt wide)
+        const PdfRect(200, 10, 205, 0), // c
+        const PdfRect(205, 10, 210, 0), // d
+      ]);
+      final text = await PdfTextFormatter.loadStructuredText(_FakePage(raw), pageNumberOverride: null);
+
+      final spaceRect = text.charRects[2];
+      expect(spaceRect.left, 10);
+      expect(spaceRect.width, lessThanOrEqualTo(15));
     });
   });
 }

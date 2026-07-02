@@ -24,6 +24,15 @@ final class PdfTextFormatter {
   /// characters covers the entire gap (hundreds of points), so a drag
   /// selection highlights the whole gap and jumps across it at once.
   static const _maxSpaceExtentToLineHeightRatio = 1.5;
+
+  /// Maximum extent of a *generated* (point-box) space rect, as a ratio to
+  /// the line height (or the line width for vertical text).
+  ///
+  /// A generated space has a degenerate char box (zero width and height), so
+  /// its rect is entirely synthesized from the surrounding characters. Keep it
+  /// close to a typical space advance (~0.25em) so selecting a word does not
+  /// visually bleed into a large gap next to it.
+  static const _generatedSpaceExtentToLineHeightRatio = 0.25;
   static final _reNewLine = RegExp(r'\r?\n', unicode: true);
 
   /// Load structured text with character bounding boxes for the page.
@@ -80,19 +89,31 @@ final class PdfTextFormatter {
             // Clamp the space extent so a generated space representing a large
             // gap (e.g. a table column gap) does not become one huge selectable
             // rect; the rect stays attached to the preceding character and the
-            // remaining gap is left unselectable.
+            // remaining gap is left unselectable. Generated spaces (degenerate
+            // point boxes) get a typical space advance, real spaces keep their
+            // gap up to a looser limit.
+            var isGeneratedGap = true;
+            for (var i = wordStart; i < wordEnd; i++) {
+              final r = inputCharRects[i];
+              if (r.width > 0 || r.height > 0) {
+                isGeneratedGap = false;
+                break;
+              }
+            }
+            final extentRatio =
+                isGeneratedGap ? _generatedSpaceExtentToLineHeightRatio : _maxSpaceExtentToLineHeightRatio;
             switch (dir) {
               case PdfTextDirection.ltr:
               case PdfTextDirection.unknown:
-                final maxExtent = bounds.height * _maxSpaceExtentToLineHeightRatio;
+                final maxExtent = bounds.height * extentRatio;
                 final right = a.right < b.left ? b.left : a.right;
                 outputCharRects.add(PdfRect(a.right, bounds.top, math.min(right, a.right + maxExtent), bounds.bottom));
               case PdfTextDirection.rtl:
-                final maxExtent = bounds.height * _maxSpaceExtentToLineHeightRatio;
+                final maxExtent = bounds.height * extentRatio;
                 final right = b.right < a.left ? a.left : b.right;
                 outputCharRects.add(PdfRect(math.max(b.right, right - maxExtent), bounds.top, right, bounds.bottom));
               case PdfTextDirection.vrtl:
-                final maxExtent = bounds.width * _maxSpaceExtentToLineHeightRatio;
+                final maxExtent = bounds.width * extentRatio;
                 final bottom = a.bottom > b.top ? b.top : a.bottom;
                 outputCharRects.add(PdfRect(bounds.left, a.bottom, bounds.right, math.max(bottom, a.bottom - maxExtent)));
             }
