@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:math' as math;
 
 import 'package:vector_math/vector_math_64.dart';
 
@@ -13,6 +14,16 @@ import 'utils/unmodifiable_list.dart';
 /// The class provides functions to load structured text with character bounding boxes.
 final class PdfTextFormatter {
   static final _reSpaces = RegExp(r'(\s+)', unicode: true);
+
+  /// Maximum extent of a combined space rect, as a ratio to the line height
+  /// (or the line width for vertical text).
+  ///
+  /// PDFium inserts zero-width *generated* spaces to represent large gaps
+  /// between text runs sharing the same baseline (e.g. table column gaps).
+  /// Without a limit, the space rect interpolated between the surrounding
+  /// characters covers the entire gap (hundreds of points), so a drag
+  /// selection highlights the whole gap and jumps across it at once.
+  static const _maxSpaceExtentToLineHeightRatio = 1.5;
   static final _reNewLine = RegExp(r'\r?\n', unicode: true);
 
   /// Load structured text with character bounding boxes for the page.
@@ -66,14 +77,24 @@ final class PdfTextFormatter {
             // combine several spaces into one space
             final a = inputCharRects[wordStart - 1];
             final b = inputCharRects[wordEnd];
+            // Clamp the space extent so a generated space representing a large
+            // gap (e.g. a table column gap) does not become one huge selectable
+            // rect; the rect stays attached to the preceding character and the
+            // remaining gap is left unselectable.
             switch (dir) {
               case PdfTextDirection.ltr:
               case PdfTextDirection.unknown:
-                outputCharRects.add(PdfRect(a.right, bounds.top, a.right < b.left ? b.left : a.right, bounds.bottom));
+                final maxExtent = bounds.height * _maxSpaceExtentToLineHeightRatio;
+                final right = a.right < b.left ? b.left : a.right;
+                outputCharRects.add(PdfRect(a.right, bounds.top, math.min(right, a.right + maxExtent), bounds.bottom));
               case PdfTextDirection.rtl:
-                outputCharRects.add(PdfRect(b.right, bounds.top, b.right < a.left ? a.left : b.right, bounds.bottom));
+                final maxExtent = bounds.height * _maxSpaceExtentToLineHeightRatio;
+                final right = b.right < a.left ? a.left : b.right;
+                outputCharRects.add(PdfRect(math.max(b.right, right - maxExtent), bounds.top, right, bounds.bottom));
               case PdfTextDirection.vrtl:
-                outputCharRects.add(PdfRect(bounds.left, a.bottom, bounds.right, a.bottom > b.top ? b.top : a.bottom));
+                final maxExtent = bounds.width * _maxSpaceExtentToLineHeightRatio;
+                final bottom = a.bottom > b.top ? b.top : a.bottom;
+                outputCharRects.add(PdfRect(bounds.left, a.bottom, bounds.right, math.max(bottom, a.bottom - maxExtent)));
             }
             outputText.write(' ');
           }
