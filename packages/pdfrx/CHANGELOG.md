@@ -1,3 +1,11 @@
+# 2.4.5
+
+- Updated to `pdfrx_engine` 0.4.4.
+- FIXED: Text selection no longer treats generated spaces between distant text runs as huge selectable gaps.
+- FIXED: Free text-drag selection now starts at the initial touch-down position, avoiding skipped leading characters on touch devices.
+- FIXED: Text selection handles and context menus now keep stable widget identity when selection UI elements appear or disappear.
+- FIXED: Nullable cache access in PDF file caching.
+
 # 2.4.4
 
 - Updated to `pdfrx_engine` 0.4.3 and `pdfium_flutter` 0.2.2.

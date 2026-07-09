@@ -1,3 +1,8 @@
+## 0.4.4
+
+- FIXED: Text selection no longer treats generated spaces between distant text runs as huge selectable gaps.
+- FIXED: Nullable cache access in PDF file caching.
+
 ## 0.4.3
 
 - Updated to `pdfium_dart` 0.2.5.
