@@ -1,3 +1,8 @@
+# 2.4.6
+
+- Updated to `pdfrx_engine` 0.4.5 to fix pub.dev documentation generation ([#664](https://github.com/espresso3389/pdfrx/issues/664)).
+- Added dependency lower bounds required by the current API usage.
+
 # 2.4.5
 
 - Updated to `pdfrx_engine` 0.4.4.

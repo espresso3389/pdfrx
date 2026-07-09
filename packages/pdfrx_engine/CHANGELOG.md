@@ -1,3 +1,8 @@
+## 0.4.5
+
+- FIXED: Removed a `@docImport` directive that could crash dartdoc 9.0.6 during pub.dev documentation generation ([#664](https://github.com/espresso3389/pdfrx/issues/664)).
+- Added dependency lower bounds required by the current API usage.
+
 ## 0.4.4
 
 - FIXED: Text selection no longer treats generated spaces between distant text runs as huge selectable gaps.
