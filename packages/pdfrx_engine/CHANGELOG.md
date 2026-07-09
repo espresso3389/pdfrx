@@ -1,3 +1,8 @@
+## 0.4.6
+
+- FIXED: Windows ARM64 builds no longer fail on nullable PDF file cache access.
+- Added lower bounds for remaining dependencies required by package validation.
+
 ## 0.4.5
 
 - FIXED: Removed a `@docImport` directive that could crash dartdoc 9.0.6 during pub.dev documentation generation ([#664](https://github.com/espresso3389/pdfrx/issues/664)).

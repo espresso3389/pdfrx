@@ -303,16 +303,18 @@ Future<PdfDocument> pdfDocumentFromUri(
 }) async {
   entryFunctions ??= PdfrxEntryFunctions.instance;
   progressCallback?.call(0);
-  cache ??= await PdfFileCache.fromUri(uri);
+  // Keep the cache in a non-null local variable. Some Dart backends used by Windows ARM64 builds do not
+  // promote the nullable parameter reliably after `??=` once it is captured by the read/onDispose callbacks.
+  final resolvedCache = cache ?? await PdfFileCache.fromUri(uri);
   final httpClientWrapper = _HttpClientWrapper(Pdfrx.createHttpClient ?? () => http.Client());
 
   try {
-    if (!cache.isInitialized) {
-      cache.setBlockSize(blockSize ?? PdfFileCache.defaultBlockSize);
+    if (!resolvedCache.isInitialized) {
+      resolvedCache.setBlockSize(blockSize ?? PdfFileCache.defaultBlockSize);
       final result = await _downloadBlock(
         httpClientWrapper,
         uri,
-        cache,
+        resolvedCache,
         progressCallback,
         0,
         useRangeAccess: useRangeAccess,
@@ -321,7 +323,7 @@ Future<PdfDocument> pdfDocumentFromUri(
       );
       if (result.isFullDownload) {
         return await entryFunctions.openFile(
-          cache.filePath,
+          resolvedCache.filePath,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
           useProgressiveLoading: useProgressiveLoading,
@@ -329,13 +331,14 @@ Future<PdfDocument> pdfDocumentFromUri(
       }
     } else {
       // Check if the file is fresh (no-need-to-reload).
-      if (cache.cacheControlState.cacheControl.mustRevalidate && cache.cacheControlState.isFresh(now: DateTime.now())) {
+      if (resolvedCache.cacheControlState.cacheControl.mustRevalidate &&
+          resolvedCache.cacheControlState.isFresh(now: DateTime.now())) {
         // cache is valid; no need to download.
       } else {
         final result = await _downloadBlock(
           httpClientWrapper,
           uri,
-          cache,
+          resolvedCache,
           progressCallback,
           0,
           addCacheControlHeaders: true,
@@ -346,10 +349,10 @@ Future<PdfDocument> pdfDocumentFromUri(
         // cached file has expired
         // if the file has fully downloaded again or has not been modified
         if (result.isFullDownload || result.notModified) {
-          cache.close(); // close the cache file before opening it.
+          resolvedCache.close(); // close the cache file before opening it.
           httpClientWrapper.reset();
           return await entryFunctions.openFile(
-            cache.filePath,
+            resolvedCache.filePath,
             passwordProvider: passwordProvider,
             firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
             useProgressiveLoading: useProgressiveLoading,
@@ -364,22 +367,22 @@ Future<PdfDocument> pdfDocumentFromUri(
         final end = position + size;
         var bufferPosition = 0;
         for (var p = position; p < end;) {
-          final blockId = p ~/ cache!.blockSize;
-          final isAvailable = cache.isCached(blockId);
+          final blockId = p ~/ resolvedCache.blockSize;
+          final isAvailable = resolvedCache.isCached(blockId);
           if (!isAvailable) {
             await _downloadBlock(
               httpClientWrapper,
               uri,
-              cache,
+              resolvedCache,
               progressCallback,
               blockId,
               headers: headers,
               timeout: timeout,
             );
           }
-          final readEnd = min(p + size, (blockId + 1) * cache.blockSize);
+          final readEnd = min(p + size, (blockId + 1) * resolvedCache.blockSize);
           final sizeToRead = readEnd - p;
-          await cache.read(buffer, bufferPosition, p, sizeToRead);
+          await resolvedCache.read(buffer, bufferPosition, p, sizeToRead);
           p += sizeToRead;
           bufferPosition += sizeToRead;
           size -= sizeToRead;
@@ -389,10 +392,10 @@ Future<PdfDocument> pdfDocumentFromUri(
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       useProgressiveLoading: useProgressiveLoading,
-      fileSize: cache.fileSize,
+      fileSize: resolvedCache.fileSize,
       sourceName: uri.toString(),
       onDispose: () {
-        cache!.close();
+        resolvedCache.close();
         httpClientWrapper.reset();
       },
     );
@@ -400,9 +403,9 @@ Future<PdfDocument> pdfDocumentFromUri(
     if (e is PdfException && e.errorCode == pdfium_bindings.FPDF_ERR_FORMAT) {
       // the file seems broken; delete the cache file.
       // NOTE: the trick does not work on Windows :(
-      await cache.deleteCacheFile();
+      await resolvedCache.deleteCacheFile();
     }
-    cache.close();
+    resolvedCache.close();
     httpClientWrapper.reset();
     rethrow;
   }
