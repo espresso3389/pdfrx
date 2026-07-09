@@ -50,3 +50,6 @@ pubspec_overrides.yaml
 build/ios/
 
 .flutter-plugins-dependencies
+
+doc/api/
+
