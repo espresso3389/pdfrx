@@ -27544,7 +27544,7 @@ $S:2}
 A.avi.prototype={
 $1(a){var s=A.d0().b
 s=s==null?null:s.canvasKitBaseUrl
-return(s==null?"https://www.gstatic.com/flutter-canvaskit/a10d8ac38de835021c8d2f920dbf50a920ccc030/":s)+a},
+return(s==null?"https://www.gstatic.com/flutter-canvaskit/83675ed27633283e7fc296c8bca22e841224c096/":s)+a},
 $S:63}
 A.My.prototype={
 gn(a){var s=this.a
@@ -91417,39 +91417,50 @@ s=this.b
 return this.a.$1(s[a].gaE().WW(s[b-1].gaE()))},
 $S:612}
 A.abi.prototype={
-$6$isNewLine$isSpace(a,b,c,d,e,f){var s,r,q,p,o,n,m,l,k,j,i=this
-if(a<b){s=i.a
+$6$isNewLine$isSpace(a,b,a0,a1,a2,a3){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e,d,c=this
+if(a<b){s=c.a
 r=s.a.length
-if(f){if(a>0&&b<i.b.length){q=i.b
+if(a3){if(a>0&&b<c.b.length){q=c.b
 p=q[a-1]
 o=q[b]
-switch(c.a){case 0:case 3:q=p.c
-n=o.a
-n=q<n?n:q
-i.c.push(new A.cC(q,d.b,n,d.d))
+m=a
+for(;;){if(!(m<b)){n=!0
+break}l=q[m]
+if(l.c-l.a>0||l.b-l.d>0){n=!1
+break}++m}k=n?0.25:1.5
+switch(a0.a){case 0:case 3:q=a1.b
+j=a1.d
+i=p.c
+h=o.a
+h=i<h?h:i
+c.c.push(new A.cC(i,q,Math.min(h,i+(q-j)*k),j))
 break
-case 1:q=o.c
-n=p.a
-n=q<n?n:q
-i.c.push(new A.cC(q,d.b,n,d.d))
+case 1:q=a1.b
+j=a1.d
+i=o.c
+h=p.a
+h=i<h?h:i
+c.c.push(new A.cC(Math.max(i,h-(q-j)*k),q,h,j))
 break
-case 2:q=p.d
-n=o.b
-n=q>n?n:q
-i.c.push(new A.cC(d.a,q,d.c,n))
-break}s.lO(" ")}}else if(e){if(a>0){switch(c.a){case 0:case 3:q=d.c
-i.c.push(new A.cC(q,d.b,q,d.d))
+case 2:q=a1.c
+j=a1.a
+g=p.d
+f=o.b
+f=g>f?f:g
+c.c.push(new A.cC(j,g,q,Math.max(f,g-(q-j)*k)))
+break}s.lO(" ")}}else if(a2){if(a>0){switch(a0.a){case 0:case 3:q=a1.c
+c.c.push(new A.cC(q,a1.b,q,a1.d))
 break
-case 1:q=d.a
-i.c.push(new A.cC(q,d.b,q,d.d))
+case 1:q=a1.a
+c.c.push(new A.cC(q,a1.b,q,a1.d))
 break
-case 2:q=d.d
-i.c.push(new A.cC(d.a,q,d.c,q))
-break}s.lO("\n")}}else{switch(c.a){case 0:case 1:case 3:for(q=i.b,n=i.c,m=d.b,l=d.d,k=a;k<b;++k){j=q[k]
-n.push(new A.cC(j.a,m,j.c,l))}break
-case 2:for(q=i.b,n=i.c,m=d.a,l=d.c,k=a;k<b;++k){j=q[k]
-n.push(new A.cC(m,j.b,l,j.d))}break}s.lO(B.d.ah(i.d,a,b))}s=s.a.length
-if(s>r)i.e.push(new A.VI(c,s-r))}},
+case 2:q=a1.d
+c.c.push(new A.cC(a1.a,q,a1.c,q))
+break}s.lO("\n")}}else{switch(a0.a){case 0:case 1:case 3:for(q=c.b,j=c.c,e=a1.b,d=a1.d,m=a;m<b;++m){l=q[m]
+j.push(new A.cC(l.a,e,l.c,d))}break
+case 2:for(q=c.b,j=c.c,e=a1.a,d=a1.c,m=a;m<b;++m){l=q[m]
+j.push(new A.cC(e,l.b,d,l.d))}break}s.lO(B.d.ah(c.d,a,b))}s=s.a.length
+if(s>r)c.e.push(new A.VI(a0,s-r))}},
 $4(a,b,c,d){return this.$6$isNewLine$isSpace(a,b,c,d,!1,!1)},
 $5$isNewLine(a,b,c,d,e){return this.$6$isNewLine$isSpace(a,b,c,d,e,!1)},
 $5$isSpace(a,b,c,d,e){return this.$6$isNewLine$isSpace(a,b,c,d,!1,e)},
