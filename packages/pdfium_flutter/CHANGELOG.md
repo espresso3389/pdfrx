@@ -1,3 +1,7 @@
+## 0.2.3
+
+- Fixed iOS/macOS plugin metadata so Flutter and pub.dev recognize Swift Package Manager support.
+
 ## 0.2.2
 
 - Updated to `pdfium_dart` 0.2.5.

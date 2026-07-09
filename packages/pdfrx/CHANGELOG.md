@@ -1,6 +1,7 @@
 # 2.4.6
 
 - Updated to `pdfrx_engine` 0.4.5 to fix pub.dev documentation generation ([#664](https://github.com/espresso3389/pdfrx/issues/664)).
+- Updated to `pdfium_flutter` 0.2.3 so iOS/macOS Swift Package Manager support is recognized by Flutter and pub.dev.
 - Added dependency lower bounds required by the current API usage.
 
 # 2.4.5
