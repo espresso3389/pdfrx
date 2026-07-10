@@ -1628,7 +1628,9 @@ class _PdfViewerState extends State<PdfViewer>
   /// and [onTextLoaded] callback will be called when the text is loaded.
   /// If [onTextLoaded] is not provided and [invalidate] is true, the widget will be rebuilt when the text is loaded.
   PdfPageText? _getCachedTextOrDelayLoadText(int pageNumber, {void Function()? onTextLoaded, bool invalidate = true}) {
-    final page = _document!.pages[pageNumber - 1];
+    final document = _document;
+    if (document == null || pageNumber > document.pages.length) return null;
+    final page = document.pages[pageNumber - 1];
     if (!page.isLoaded) return null;
     if (_textCache.containsKey(pageNumber)) return _textCache[pageNumber];
     if (onTextLoaded == null && invalidate) {
@@ -1639,12 +1641,19 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   Future<PdfPageText?> _loadTextAsync(int pageNumber, {void Function()? onTextLoaded}) async {
-    final page = _document!.pages[pageNumber - 1];
+    final document = _document;
+    if (document == null || pageNumber > document.pages.length) return null;
+    final page = document.pages[pageNumber - 1];
     if (!page.isLoaded) return null;
     if (_textCache.containsKey(pageNumber)) return _textCache[pageNumber]!;
     return await synchronized(() async {
       if (_textCache.containsKey(pageNumber)) return _textCache[pageNumber]!;
-      final page = _document!.pages[pageNumber - 1];
+      // The document may be unloaded or replaced while this closure waits in
+      // the synchronized queue (e.g. the tab/page was closed or the widget
+      // switched documents); bail out instead of crashing on _document!.
+      final document = _document;
+      if (document == null || !mounted || pageNumber > document.pages.length) return null;
+      final page = document.pages[pageNumber - 1];
       if (!page.isLoaded) return null;
       final text = await page.loadStructuredText();
       _textCache[pageNumber] = text;
