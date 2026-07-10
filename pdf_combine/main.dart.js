@@ -89266,21 +89266,32 @@ ahB(a,b,c,d,e,f,g){return this.RY(a,b,null,c,d,e,f,g)},
 ak_(a){var s=A.a_(a).eo.b
 if(s==null){s=a.ai(t.Uf)
 s=(s==null?B.ct:s).x}return s==null?B.fP:s},
-EV(a,b,c){var s=this,r=s.x.r
-r===$&&A.a()
-if(!r[a-1].gmQ())return null
-r=s.fx
-if(r.ae(a))return r.h(0,a)
-s.u_(a,c==null&&b?s.gaeI():c)
+EV(a,b,c){var s,r=this,q=r.x
+if(q!=null){s=q.r
+s===$&&A.a()
+s=a>s.length}else s=!0
+if(s)return null
+s=q.r
+s===$&&A.a()
+if(!s[a-1].gmQ())return null
+s=r.fx
+if(s.ae(a))return s.h(0,a)
+r.u_(a,c==null&&b?r.gaeI():c)
 return null},
 PQ(a,b){return this.EV(a,!0,b)},
 aad(a,b){return this.EV(a,b,null)},
 PP(a){return this.EV(a,!0,null)},
 u_(a,b){return this.afc(a,b)},
 y3(a){return this.u_(a,null)},
-afc(a,b){var s=0,r=A.F(t.aC),q,p=this,o
+afc(a,b){var s=0,r=A.F(t.aC),q,p=this,o,n
 var $async$u_=A.G(function(c,d){if(c===1)return A.C(d,r)
-for(;;)switch(s){case 0:o=p.x.r
+for(;;)switch(s){case 0:n=p.x
+if(n!=null){o=n.r
+o===$&&A.a()
+o=a>o.length}else o=!0
+if(o){q=null
+s=1
+break}o=n.r
 o===$&&A.a()
 if(!o[a-1].gmQ()){q=null
 s=1
@@ -90426,27 +90437,35 @@ $1(a){var s=this.a.y.a
 return s[a-1].gaE().M(0,s[this.b.gc5()-1].gaE()).gkj()},
 $S:591}
 A.aq_.prototype={
-$0(){var s=0,r=A.F(t.aC),q,p=this,o,n,m,l,k
+$0(){var s=0,r=A.F(t.aC),q,p=this,o,n,m,l,k,j,i
 var $async$$0=A.G(function(a,b){if(a===1)return A.C(b,r)
-for(;;)switch(s){case 0:m=p.a
-l=m.fx
-k=p.b
-if(l.ae(k)){m=l.h(0,k)
-m.toString
-q=m
+for(;;)switch(s){case 0:k=p.a
+j=k.fx
+i=p.b
+if(j.ae(i)){k=j.h(0,i)
+k.toString
+q=k
 s=1
-break}m=m.x.r
-m===$&&A.a()
-o=m[k-1]
-if(!o.gmQ()){q=null
+break}o=k.x
+n=!0
+if(o!=null)if(k.c!=null){k=o.r
+k===$&&A.a()
+k=i>k.length}else k=n
+else k=n
+if(k){q=null
+s=1
+break}k=o.r
+k===$&&A.a()
+m=k[i-1]
+if(!m.gmQ()){q=null
 s=1
 break}s=3
-return A.I(A.abh(o,o.gc5()),$async$$0)
-case 3:n=b
-l.m(0,k,n)
-m=p.c
-if(m!=null)m.$0()
-q=n
+return A.I(A.abh(m,m.gc5()),$async$$0)
+case 3:l=b
+j.m(0,i,l)
+k=p.c
+if(k!=null)k.$0()
+q=l
 s=1
 break
 case 1:return A.D(q,r)}})
