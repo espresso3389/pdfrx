@@ -35,7 +35,7 @@ jobs:
           name: pdfium-macos
           path: ./packages/pdfrx/darwin/pdfium/
       - name: Release PDFium
-        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v0.1.15
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v0.1.15
         with:
           token: ${{ secrets.TOKEN_FOR_RELEASE }}
           tag_name: ${{ github.ref_name }}
