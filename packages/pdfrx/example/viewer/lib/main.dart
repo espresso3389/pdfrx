@@ -308,6 +308,11 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                       controller: controller,
                       fontManager: _fontManager,
                       params: PdfViewerParams(
+                        // Declarative layout; used instead of layoutPages when non-null.
+                        layout: isDeclarativeLayout
+                            ? const SequentialPagesLayout(scrollDirection: Axis.vertical)
+                            : null,
+                        fitMode: isDeclarativeLayout ? PdfFitMode.fit : PdfFitMode.none,
                         layoutPages: _layoutPages[_layoutTypeIndex],
                         scrollHorizontallyByMouseWheel: isHorizontalLayout,
                         pageAnchor: isHorizontalLayout ? PdfPageAnchor.left : PdfPageAnchor.top,
@@ -605,6 +610,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
 
   bool get isHorizontalLayout => _layoutTypeIndex == 1;
 
+  /// Declarative value-type layout (params.layout + params.fitMode) instead of a
+  /// layoutPages closure.
+  bool get isDeclarativeLayout => _layoutTypeIndex == 3;
+
   /// Page reading order; true to L-to-R that is commonly used by books like manga or such
   var isRightToLeftReadingOrder = false;
 
@@ -666,6 +675,8 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
         documentSize: Size((params.margin + width) * 2 + params.margin, y),
       );
     },
+    // Declarative SequentialPagesLayout; geometry comes from params.layout (above).
+    null,
   ];
 
   void _addCurrentSelectionToMarkers(Color color) {
