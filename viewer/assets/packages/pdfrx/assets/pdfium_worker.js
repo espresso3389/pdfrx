@@ -2700,8 +2700,9 @@ function encodePdf(params) {
       throw new Error('FPDF_SaveAsCopy failed');
     }
 
-    // Trim buffer to actual size
-    const combined = buffer.subarray(0, totalSize);
+    // Trim to the bytes actually written: subarray would keep the whole
+    // (over-allocated, zero-padded) buffer alive behind combined.buffer.
+    const combined = buffer.slice(0, totalSize);
 
     return {
       result: { data: combined.buffer },
