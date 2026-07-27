@@ -216,6 +216,25 @@ jobs:
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
 
+      - name: Patch jni va_list handling on ARM64
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          candidates = sorted(Path.home().glob('.pub-cache/hosted/pub.dev/jni-*/src/third_party/global_jni_env.c'))
+          if not candidates:
+            raise SystemExit('jni global_jni_env.c not found in pub cache')
+
+          target = candidates[-1]
+          src = target.read_text()
+          dst = src.replace('methodID, args);', 'methodID, &args);')
+          count = src.count('methodID, args);')
+          if count == 0:
+            raise SystemExit(f'No JNI vararg callsites matched in {target}')
+          target.write_text(dst)
+          print(f'Patched {count} JNI vararg callsites in {target}')
+          PY
+
       - name: Build Linux
         working-directory: packages/pdfrx/example/viewer
         run: flutter build linux --debug --verbose
