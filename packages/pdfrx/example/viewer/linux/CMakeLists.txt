@@ -89,6 +89,12 @@ set_target_properties(${BINARY_NAME}
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
+set(GENERATED_PLUGINS_FILE "${FLUTTER_MANAGED_DIR}/generated_plugins.cmake")
+if(EXISTS "${GENERATED_PLUGINS_FILE}")
+  file(READ "${GENERATED_PLUGINS_FILE}" GENERATED_PLUGINS_CONTENT)
+  string(REPLACE "  jni\n" "" GENERATED_PLUGINS_CONTENT "${GENERATED_PLUGINS_CONTENT}")
+  file(WRITE "${GENERATED_PLUGINS_FILE}" "${GENERATED_PLUGINS_CONTENT}")
+endif()
 include(flutter/generated_plugins.cmake)
 
 
