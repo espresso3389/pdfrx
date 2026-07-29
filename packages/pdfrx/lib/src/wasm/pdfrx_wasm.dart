@@ -693,7 +693,7 @@ class _PdfPageRenderCancellationTokenWasm extends PdfPageRenderCancellationToken
   bool get isCanceled => _isCanceled;
 }
 
-class _PdfPageWasm extends PdfPage {
+class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
   _PdfPageWasm(
     this.document,
     int pageIndex,
@@ -715,7 +715,7 @@ class _PdfPageWasm extends PdfPage {
   final _PdfDocumentWasm document;
 
   @override
-  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async {
+  Future<List<PdfLink>> loadLinksUncached(bool enableAutoLinkDetection) async {
     if (document.isDisposed || !isLoaded) return [];
     final result = await _sendCommand(
       'loadLinks',
@@ -725,48 +725,50 @@ class _PdfPageWasm extends PdfPage {
         'enableAutoLinkDetection': enableAutoLinkDetection,
       },
     );
-    return (result['links'] as List).map((link) {
-      if (link is! Map<Object?, dynamic>) {
-        throw FormatException('Unexpected link structure: $link');
-      }
-      final rects = (link['rects'] as List).map((r) {
-        final rect = r as List;
-        return PdfRect(
-          (rect[0] as double) - bbLeft,
-          (rect[1] as double) - bbBottom,
-          (rect[2] as double) - bbLeft,
-          (rect[3] as double) - bbBottom,
-        );
-      }).toList();
+    return List.unmodifiable(
+      (result['links'] as List).map((link) {
+        if (link is! Map<Object?, dynamic>) {
+          throw FormatException('Unexpected link structure: $link');
+        }
+        final rects = (link['rects'] as List).map((r) {
+          final rect = r as List;
+          return PdfRect(
+            (rect[0] as double) - bbLeft,
+            (rect[1] as double) - bbBottom,
+            (rect[2] as double) - bbLeft,
+            (rect[3] as double) - bbBottom,
+          );
+        }).toList();
 
-      final url = link['url'];
-      final dest = link['dest'];
+        final url = link['url'];
+        final dest = link['dest'];
 
-      final annotationData = link['annotation'] as Map<Object?, dynamic>?;
-      final annotation = annotationData != null
-          ? PdfAnnotation(
-              title: annotationData['title'] as String?,
-              content: annotationData['content'] as String?,
-              subject: annotationData['subject'] as String?,
-              modificationDate: PdfDateTime.fromPdfDateString(annotationData['modificationDate']),
-              creationDate: PdfDateTime.fromPdfDateString(annotationData['creationDate']),
-            )
-          : null;
+        final annotationData = link['annotation'] as Map<Object?, dynamic>?;
+        final annotation = annotationData != null
+            ? PdfAnnotation(
+                title: annotationData['title'] as String?,
+                content: annotationData['content'] as String?,
+                subject: annotationData['subject'] as String?,
+                modificationDate: PdfDateTime.fromPdfDateString(annotationData['modificationDate']),
+                creationDate: PdfDateTime.fromPdfDateString(annotationData['creationDate']),
+              )
+            : null;
 
-      if (url is String) {
-        return PdfLink(rects, url: Uri.tryParse(url), annotation: annotation);
-      }
+        if (url is String) {
+          return PdfLink(rects, url: Uri.tryParse(url), annotation: annotation);
+        }
 
-      if (dest != null && dest is Map<Object?, dynamic>) {
-        return PdfLink(rects, dest: _pdfDestFromMap(dest), annotation: annotation);
-      }
+        if (dest != null && dest is Map<Object?, dynamic>) {
+          return PdfLink(rects, dest: _pdfDestFromMap(dest), annotation: annotation);
+        }
 
-      if (annotation != null) {
-        return PdfLink(rects, annotation: annotation);
-      }
+        if (annotation != null) {
+          return PdfLink(rects, annotation: annotation);
+        }
 
-      return PdfLink(rects);
-    }).toList();
+        return PdfLink(rects);
+      }),
+    );
   }
 
   @override

@@ -560,7 +560,7 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
   }
 }
 
-class _CoreGraphicsPdfPage extends PdfPage {
+class _CoreGraphicsPdfPage extends PdfPage with PdfPageLinkCache {
   _CoreGraphicsPdfPage({
     required _CoreGraphicsPdfDocument document,
     required this.index,
@@ -710,10 +710,7 @@ class _CoreGraphicsPdfPage extends PdfPage {
   }
 
   @override
-  Future<List<PdfLink>> loadLinks({
-    bool compact = false,
-    bool enableAutoLinkDetection = true,
-  }) async {
+  Future<List<PdfLink>> loadLinksUncached(bool enableAutoLinkDetection) async {
     try {
       final result = await _document.channel
           .invokeListMethod<Object?>('loadPageLinks', {
@@ -747,7 +744,6 @@ class _CoreGraphicsPdfPage extends PdfPage {
             final url = map['url'] as String?;
             final destMap = map['dest'] as Map<Object?, Object?>?;
 
-            // Parse annotation from Swift
             final annotationData = map['annotation'] as Map<Object?, Object?>?;
             final annotation = annotationData != null
                 ? PdfAnnotation(
@@ -763,13 +759,12 @@ class _CoreGraphicsPdfPage extends PdfPage {
                   )
                 : null;
 
-            final link = PdfLink(
+            return PdfLink(
               rects,
               url: url == null ? null : Uri.tryParse(url),
               dest: _parseDest(destMap, defaultPageNumber: pageNumber),
               annotation: annotation,
             );
-            return compact ? link.compact() : link;
           })
           .toList(growable: false);
       return List.unmodifiable(links);

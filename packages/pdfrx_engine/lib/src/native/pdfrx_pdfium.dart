@@ -1525,7 +1525,7 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
   }
 }
 
-class _PdfPagePdfium extends PdfPage {
+class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
   @override
   final _PdfDocumentPdfium document;
   @override
@@ -1740,16 +1740,11 @@ class _PdfPagePdfium extends PdfPage {
   }
 
   @override
-  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async {
+  Future<List<PdfLink>> loadLinksUncached(bool enableAutoLinkDetection) async {
     if (document.isDisposed || !isLoaded) return [];
     final links = await _loadAnnotLinks();
     if (enableAutoLinkDetection) {
       links.addAll(await _loadWebLinks());
-    }
-    if (compact) {
-      for (var i = 0; i < links.length; i++) {
-        links[i] = links[i].compact();
-      }
     }
     return List.unmodifiable(links);
   }
