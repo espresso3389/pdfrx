@@ -489,8 +489,13 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
 
   @override
   set pages(List<PdfPage> newPages) {
+    final previousPageCount = _pages.length;
     final pages = <PdfPage>[];
     final changes = <int, PdfPageStatusChange>{};
+    late final oldPageIndices = Map<PdfPage, int>.identity()
+      ..addEntries([
+        for (var i = 0; i < _pages.length; i++) MapEntry(_pages[i], i),
+      ]);
     for (final newPage in newPages) {
       if (pages.length < _pages.length) {
         final old = _pages[pages.length];
@@ -511,7 +516,7 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
       final updated = newPage.withPageNumber(newPageNumber);
       pages.add(updated);
 
-      final oldPageIndex = _pages.indexWhere((p) => identical(p, newPage));
+      final oldPageIndex = oldPageIndices[newPage] ?? -1;
       if (oldPageIndex != -1) {
         changes[newPageNumber] = PdfPageStatusChange.moved(
           page: updated,
@@ -523,7 +528,9 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
     }
 
     _pages = pages;
-    subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+    if (changes.isNotEmpty || pages.length != previousPageCount) {
+      subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+    }
   }
 
   @override

@@ -405,12 +405,16 @@ class _PdfDocumentWasm extends PdfDocument {
   }
 
   void _notifyDocumentLoadComplete() {
-    subject.add(PdfDocumentLoadCompleteEvent(this));
+    if (!isDisposed && !_documentLoadCompleteNotified) {
+      _documentLoadCompleteNotified = true;
+      subject.add(PdfDocumentLoadCompleteEvent(this));
+    }
   }
 
   final Map<Object?, dynamic> document;
   final void Function()? disposeCallback;
   bool isDisposed = false;
+  bool _documentLoadCompleteNotified = false;
   final subject = BehaviorSubject<PdfDocumentEvent>();
 
   @override
@@ -460,39 +464,47 @@ class _PdfDocumentWasm extends PdfDocument {
   }) async {
     if (isDisposed) return;
     await synchronized(() async {
-      var firstPageIndex = pages.indexWhere((page) => !page.isLoaded);
-      if (firstPageIndex < 0) return; // All pages are already loaded
-
-      final newPages = pages.toList(growable: false);
-      for (; firstPageIndex < newPages.length;) {
+      for (;;) {
         if (isDisposed) return;
+        final firstPageIndex = pages.indexWhere((page) => !page.isLoaded);
+        if (firstPageIndex < 0) {
+          _notifyDocumentLoadComplete();
+          return;
+        }
+        final newPages = pages.toList(growable: false);
+        final loadedPageIndices = <int>[
+          for (var i = firstPageIndex + 1; i < newPages.length; i++)
+            if (newPages[i].isLoaded) i,
+        ];
         final result = await _sendCommand(
           'loadPagesProgressively',
           parameters: {
             'docHandle': document['docHandle'],
             'firstPageIndex': firstPageIndex,
+            'loadedPageIndices': loadedPageIndices,
             'loadUnitDuration': loadUnitDuration.inMilliseconds,
           },
         );
         final pagesLoaded = parsePages(this, result['pages'] as List<dynamic>);
-        firstPageIndex += pagesLoaded.length;
         for (final page in pagesLoaded) {
           newPages[page.pageNumber - 1] = page; // Update the existing page
         }
         pages = newPages;
-
         updateMissingFonts(result['missingFonts']);
+        if (pagesLoaded.isEmpty) return;
+
+        final firstUnloadedPageIndex = pages.indexWhere((page) => !page.isLoaded);
+        final pageCountLoaded = firstUnloadedPageIndex < 0 ? pages.length : firstUnloadedPageIndex;
 
         if (onPageLoadProgress != null) {
-          if (!await onPageLoadProgress(firstPageIndex, pages.length, data)) {
+          if (!await onPageLoadProgress(pageCountLoaded, pages.length, data)) {
+            if (pages.every((page) => page.isLoaded)) {
+              _notifyDocumentLoadComplete();
+            }
             // If the callback returns false, stop loading more pages
-            break;
+            return;
           }
         }
-      }
-      // All pages loaded
-      if (firstPageIndex >= pages.length) {
-        _notifyDocumentLoadComplete();
       }
     });
   }
@@ -511,9 +523,14 @@ class _PdfDocumentWasm extends PdfDocument {
         },
       );
       final reloadedPages = parsePages(this, result['pages'] as List<dynamic>);
-      final newPages = pages.toList(growable: false);
+      final newPages = pages.toList();
       for (final page in reloadedPages) {
-        newPages[page.pageNumber - 1] = page; // Update the existing page
+        final pageIndex = page.pageNumber - 1;
+        if (pageIndex < newPages.length) {
+          newPages[pageIndex] = page;
+        } else {
+          newPages.add(page);
+        }
       }
       pages = newPages;
 
@@ -531,8 +548,11 @@ class _PdfDocumentWasm extends PdfDocument {
 
   @override
   set pages(Iterable<PdfPage> newPages) {
+    final previousPageCount = _pages.length;
     final pages = <PdfPage>[];
     final changes = <int, PdfPageStatusChange>{};
+    late final oldPageIndices = Map<PdfPage, int>.identity()
+      ..addEntries([for (var i = 0; i < _pages.length; i++) MapEntry(_pages[i], i)]);
 
     for (final newPage in newPages) {
       if (pages.length < _pages.length) {
@@ -551,7 +571,7 @@ class _PdfDocumentWasm extends PdfDocument {
       final updated = newPage.withPageNumber(newPageNumber);
       pages.add(updated);
 
-      final oldPageIndex = _pages.indexWhere((p) => identical(p, newPage));
+      final oldPageIndex = oldPageIndices[newPage] ?? -1;
       if (oldPageIndex != -1) {
         changes[newPageNumber] = PdfPageStatusChange.moved(page: updated, oldPageNumber: oldPageIndex + 1);
       } else {
@@ -560,7 +580,10 @@ class _PdfDocumentWasm extends PdfDocument {
     }
 
     _pages = List.unmodifiable(pages);
-    subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+    if (changes.isNotEmpty || pages.length != previousPageCount) {
+      _documentLoadCompleteNotified = false;
+      subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+    }
   }
 
   void updateMissingFonts(Map<dynamic, dynamic>? missingFonts) {

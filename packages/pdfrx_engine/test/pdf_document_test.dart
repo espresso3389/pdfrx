@@ -29,6 +29,280 @@ void main() {
     final data = await testPdfFile.readAsBytes();
     await testDocument(await PdfDocument.openData(data));
   });
+  test('reloadPages loads a sparse progressive page at its original index', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path, useProgressiveLoading: true);
+    addTearDown(document.dispose);
+
+    expect(document.pages.map((page) => page.isLoaded), [true, false, false]);
+
+    final eventFuture = document.events
+        .where((event) => event is PdfDocumentPageStatusChangedEvent)
+        .cast<PdfDocumentPageStatusChangedEvent>()
+        .firstWhere((event) => event.changes.containsKey(3));
+
+    await document.reloadPages(pageNumbersToReload: [3]);
+    final event = await eventFuture;
+
+    expect(document.pages.map((page) => page.pageNumber), [1, 2, 3]);
+    expect(document.pages.map((page) => page.isLoaded), [true, false, true]);
+    expect(event.changes.keys, [3]);
+    expect(event.changes[3]!.page, same(document.pages[2]));
+  });
+  test('reloadPages deduplicates and orders sparse page requests', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path, useProgressiveLoading: true);
+    addTearDown(document.dispose);
+    final eventFuture = document.events
+        .where((event) => event is PdfDocumentPageStatusChangedEvent)
+        .cast<PdfDocumentPageStatusChangedEvent>()
+        .firstWhere((event) => event.changes.containsKey(2));
+
+    await document.reloadPages(pageNumbersToReload: [3, 2, 3]);
+    final event = await eventFuture;
+
+    expect(document.pages.map((page) => page.pageNumber), [1, 2, 3]);
+    expect(document.pages.every((page) => page.isLoaded), isTrue);
+    expect(event.changes.keys, [2, 3]);
+  });
+  test('reloadPages rejects invalid page numbers without mutation', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path, useProgressiveLoading: true);
+    addTearDown(document.dispose);
+    final pages = document.pages.toList();
+
+    await expectLater(document.reloadPages(pageNumbersToReload: [0, 2]), throwsArgumentError);
+    await expectLater(document.reloadPages(pageNumbersToReload: [4]), throwsArgumentError);
+
+    expect(document.pages, orderedEquals(pages));
+  });
+  test('reloadPages with an empty list emits no page status event', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path);
+    addTearDown(document.dispose);
+    var statusEventCount = 0;
+    final subscription = document.events
+        .where((event) => event is PdfDocumentPageStatusChangedEvent)
+        .listen((_) => statusEventCount++);
+    addTearDown(subscription.cancel);
+
+    await document.reloadPages(pageNumbersToReload: const []);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(statusEventCount, 0);
+  });
+  test('pages setter reports moved pages by identity', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path);
+    addTearDown(document.dispose);
+    final originalPages = document.pages.toList();
+    final eventFuture = document.events
+        .where((event) => event is PdfDocumentPageStatusChangedEvent)
+        .cast<PdfDocumentPageStatusChangedEvent>()
+        .first;
+
+    document.pages = [originalPages[1], originalPages[0], originalPages[2]];
+    final event = await eventFuture;
+
+    expect(event.changes.keys, [1, 2]);
+    expect(event.changes[1], isA<PdfPageStatusMoved>());
+    expect(event.changes[2], isA<PdfPageStatusMoved>());
+  });
+  test('pages setter reports page removal', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path);
+    addTearDown(document.dispose);
+    final events = <PdfDocumentPageStatusChangedEvent>[];
+    final subscription = document.events
+        .where((event) => event is PdfDocumentPageStatusChangedEvent)
+        .cast<PdfDocumentPageStatusChangedEvent>()
+        .listen(events.add);
+    addTearDown(subscription.cancel);
+
+    document.pages = document.pages.sublist(0, document.pages.length - 1);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(document.pages, hasLength(2));
+    expect(events, hasLength(1));
+    expect(events.single.changes, isEmpty);
+  });
+  test('pages setter resets completion after adding a page', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path);
+    addTearDown(document.dispose);
+    final completionEvents = <PdfDocumentLoadCompleteEvent>[];
+    final subscription = document.events
+        .where((event) => event is PdfDocumentLoadCompleteEvent)
+        .cast<PdfDocumentLoadCompleteEvent>()
+        .listen(completionEvents.add);
+    addTearDown(subscription.cancel);
+    await Future<void>.delayed(Duration.zero);
+    completionEvents.clear();
+
+    document.pages = [...document.pages, document.pages.last];
+    await document.loadPagesProgressively();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(completionEvents, hasLength(1));
+  });
+  test('pages setter resets completion after reordering pages', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path);
+    addTearDown(document.dispose);
+    final completionEvents = <PdfDocumentLoadCompleteEvent>[];
+    final subscription = document.events
+        .where((event) => event is PdfDocumentLoadCompleteEvent)
+        .cast<PdfDocumentLoadCompleteEvent>()
+        .listen(completionEvents.add);
+    addTearDown(subscription.cancel);
+    await Future<void>.delayed(Duration.zero);
+    completionEvents.clear();
+
+    document.pages = [document.pages[1], document.pages[0], document.pages[2]];
+    await document.loadPagesProgressively();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(completionEvents, hasLength(1));
+  });
+  test('consecutive completed loads do not duplicate completion', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path);
+    addTearDown(document.dispose);
+    final completionEvents = <PdfDocumentLoadCompleteEvent>[];
+    final subscription = document.events
+        .where((event) => event is PdfDocumentLoadCompleteEvent)
+        .cast<PdfDocumentLoadCompleteEvent>()
+        .listen(completionEvents.add);
+    addTearDown(subscription.cancel);
+    await Future<void>.delayed(Duration.zero);
+    completionEvents.clear();
+
+    await document.loadPagesProgressively();
+    await document.loadPagesProgressively();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(completionEvents, isEmpty);
+  });
+  test('missing-font events do not duplicate completion', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path);
+    addTearDown(document.dispose);
+    final events = <PdfDocumentEvent>[];
+    final subscription = document.events.listen(events.add);
+    addTearDown(subscription.cancel);
+    await Future<void>.delayed(Duration.zero);
+    expect(events.whereType<PdfDocumentLoadCompleteEvent>(), hasLength(1));
+    final missingFontEvent = document.events.where((event) => event is PdfDocumentMissingFontsEvent).first;
+
+    final image = await document.pages.first.render();
+    image?.dispose();
+    await missingFontEvent.timeout(const Duration(seconds: 1));
+    expect(events.whereType<PdfDocumentMissingFontsEvent>(), isNotEmpty);
+    final completionCount = events.whereType<PdfDocumentLoadCompleteEvent>().length;
+
+    await document.loadPagesProgressively();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(events.whereType<PdfDocumentLoadCompleteEvent>(), hasLength(completionCount));
+  });
+  test('progressive loading preserves pages loaded out of order', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path, useProgressiveLoading: true);
+    addTearDown(document.dispose);
+    await document.reloadPages(pageNumbersToReload: [3]);
+
+    final eventFuture = document.events
+        .where((event) => event is PdfDocumentPageStatusChangedEvent)
+        .cast<PdfDocumentPageStatusChangedEvent>()
+        .firstWhere((event) => event.changes.containsKey(2));
+    await document.loadPagesProgressively(loadUnitDuration: Duration.zero, onPageLoadProgress: (_, _, _) => false);
+    final event = await eventFuture;
+
+    expect(document.pages.map((page) => page.isLoaded), [true, true, true]);
+    expect(event.changes.keys, [2]);
+  });
+  test('progressive loading skips pages loaded out of order', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path, useProgressiveLoading: true);
+    addTearDown(document.dispose);
+    await document.reloadPages(pageNumbersToReload: [3]);
+    final prefetchedPage = document.pages[2];
+
+    await document.loadPagesProgressively(loadUnitDuration: const Duration(seconds: 1));
+
+    expect(document.pages.every((page) => page.isLoaded), isTrue);
+    expect(document.pages[2], same(prefetchedPage));
+  });
+  test('progressive loading resynchronizes after callback changes pages', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path, useProgressiveLoading: true);
+    addTearDown(document.dispose);
+    var rearranged = false;
+
+    await document.loadPagesProgressively(
+      loadUnitDuration: Duration.zero,
+      onPageLoadProgress: (_, _, _) {
+        if (!rearranged) {
+          rearranged = true;
+          document.pages = [document.pages[0], document.pages[2], document.pages[1]];
+        }
+        return true;
+      },
+    );
+
+    expect(rearranged, isTrue);
+    expect(document.pages.every((page) => page.isLoaded), isTrue);
+  });
+  test('progressive loading notifies completion after prefetch loads every page', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path, useProgressiveLoading: true);
+    addTearDown(document.dispose);
+    await document.reloadPages(pageNumbersToReload: [2, 3]);
+    final completionEvent = document.events.where((event) => event is PdfDocumentLoadCompleteEvent).first;
+
+    await document.loadPagesProgressively();
+
+    await expectLater(completionEvent.timeout(const Duration(seconds: 1)), completes);
+  });
+  test('progressive loading notifies completion when final callback stops', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path, useProgressiveLoading: true);
+    addTearDown(document.dispose);
+    final completionEvent = document.events.where((event) => event is PdfDocumentLoadCompleteEvent).first;
+
+    await document.loadPagesProgressively(
+      loadUnitDuration: const Duration(seconds: 1),
+      onPageLoadProgress: (_, _, _) => false,
+    );
+
+    expect(document.pages.every((page) => page.isLoaded), isTrue);
+    await expectLater(completionEvent.timeout(const Duration(seconds: 1)), completes);
+  });
+  test('loadLinks reuses raw and compact results', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path);
+    addTearDown(document.dispose);
+    final page = document.pages.first;
+
+    final raw = await page.loadLinks(enableAutoLinkDetection: false);
+    final rawAgain = await page.loadLinks(enableAutoLinkDetection: false);
+    final compact = await page.loadLinks(compact: true, enableAutoLinkDetection: false);
+    final compactAgain = await page.loadLinks(compact: true, enableAutoLinkDetection: false);
+
+    expect(raw, isNotEmpty);
+    expect(rawAgain, same(raw));
+    expect(compact, same(raw));
+    expect(compactAgain, same(compact));
+    expect(() => compact.first.rects.add(const PdfRect(0, 1, 1, 0)), throwsUnsupportedError);
+  });
+  test('loadLinks coalesces concurrent requests', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path);
+    addTearDown(document.dispose);
+    final page = document.pages.first;
+
+    final results = await Future.wait([for (var i = 0; i < 8; i++) page.loadLinks()]);
+
+    expect(results.first, isNotEmpty);
+    expect(results.skip(1).every((links) => identical(links, results.first)), isTrue);
+  });
+  test('reloadPages replaces the page link cache', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path);
+    addTearDown(document.dispose);
+    final oldPage = document.pages.first;
+    final oldLinks = await oldPage.loadLinks(enableAutoLinkDetection: false);
+
+    await document.reloadPages(pageNumbersToReload: [1]);
+    final newPage = document.pages.first;
+    final newLinks = await newPage.loadLinks(enableAutoLinkDetection: false);
+
+    expect(newPage, isNot(same(oldPage)));
+    expect(newLinks, oldLinks);
+    expect(newLinks, isNot(same(oldLinks)));
+  });
   test('PdfDocument.openUri', () async {
     Pdfrx.createHttpClient = () =>
         MockClient((request) async => http.Response.bytes(await testPdfFile.readAsBytes(), 200));
