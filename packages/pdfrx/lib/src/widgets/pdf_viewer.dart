@@ -368,7 +368,7 @@ class _PdfViewerState extends State<PdfViewer>
     _textCache.clear();
     _clearTextSelections(invalidate: false);
     _pagesBeingMeasured.clear();
-    _pagesFailedMeasurement.clear();
+    _measurementFailures.clear();
     _pageNumber = null;
     _gotoTargetPageNumber = null;
     _initialized = false;
@@ -1493,19 +1493,17 @@ class _PdfViewerState extends State<PdfViewer>
   /// Pages whose real dimensions have been requested but not yet applied.
   final _pagesBeingMeasured = <int>{};
 
-  /// Pages whose measurement threw. Not retried, so that a persistently failing
-  /// page cannot drive a measure/repaint/measure loop.
-  final _pagesFailedMeasurement = <int>{};
-
-  /// Serialises measurement so that only one [PdfDocument.reloadPages] call is
-  /// ever in flight.
+  /// How many times measuring each page has thrown.
   ///
-  /// reloadPages snapshots the page list, awaits pdfium (which can block for
-  /// seconds on a range fetch), then writes the whole list back. Two overlapping
-  /// calls therefore clobber each other: the one that finishes last restores the
-  /// pages the other had just measured, they repaint as unmeasured, and get
-  /// requested all over again.
-  Future<void> _measureQueue = Future.value();
+  /// A page is given up on only after [_maxMeasurementAttempts] failures, rather
+  /// than on the first one. Measurement can fail for reasons that have nothing to
+  /// do with the page -- the document being disposed while the reader navigates
+  /// away, a range request timing out -- and blacklisting on those leaves a page
+  /// permanently blank. The cap still stops a genuinely unreadable page from
+  /// driving a measure/repaint/measure loop out of paint.
+  final _measurementFailures = <int, int>{};
+
+  static const _maxMeasurementAttempts = 3;
 
   /// Replaces the estimated dimensions of [pageNumbers] with real ones.
   ///
@@ -1518,18 +1516,21 @@ class _PdfViewerState extends State<PdfViewer>
 
     final toMeasure = <int>[];
     for (final pageNumber in pageNumbers) {
-      if (_pagesFailedMeasurement.contains(pageNumber)) continue;
+      if ((_measurementFailures[pageNumber] ?? 0) >= _maxMeasurementAttempts) continue;
       if (_pagesBeingMeasured.add(pageNumber)) toMeasure.add(pageNumber);
     }
     if (toMeasure.isEmpty) return;
 
-    _measureQueue = _measureQueue.then((_) async {
+    // Deliberately not serialised. reloadPages reads the page list *after* its
+    // await and writes it back synchronously, so concurrent calls cannot clobber
+    // one another. Queueing them would mean one slow page -- a measurement that
+    // faults a block and waits on the network -- holding up every other visible
+    // page behind it, which shows up as a screen of blank pages instead of one.
+    Future.microtask(() async {
       if (!mounted || _document != document) {
         _pagesBeingMeasured.removeAll(toMeasure);
         return;
       }
-      // An earlier queued batch may already have covered some of these while
-      // this one waited its turn.
       final pending = toMeasure.where((n) => !document.pages[n - 1].isLoaded).toList();
       if (pending.isEmpty) {
         _pagesBeingMeasured.removeAll(toMeasure);
@@ -1559,16 +1560,22 @@ class _PdfViewerState extends State<PdfViewer>
           );
         }
       } catch (e) {
-        debugPrint('PdfViewer: failed to measure pages $pending: $e');
-        _pagesFailedMeasurement.addAll(pending);
+        // Only hold this against the page if the viewer and document are still
+        // the ones that asked. A throw during teardown says nothing about
+        // whether the page is readable, and counting it would leave the page
+        // blank for the rest of the session.
+        if (mounted && _document == document) {
+          for (final n in pending) {
+            _measurementFailures[n] = (_measurementFailures[n] ?? 0) + 1;
+          }
+          debugPrint(
+            'PdfViewer: failed to measure pages $pending '
+            '(attempt ${_measurementFailures[pending.first]} of $_maxMeasurementAttempts): $e',
+          );
+        }
       } finally {
         _pagesBeingMeasured.removeAll(toMeasure);
       }
-      // Keep the queue alive: an unhandled throw here would leave _measureQueue
-      // in the error state and every later measurement would be dropped.
-    }).catchError((Object e) {
-      debugPrint('PdfViewer: measurement queue error: $e');
-      _pagesBeingMeasured.removeAll(toMeasure);
     });
   }
 
