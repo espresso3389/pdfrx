@@ -1,13 +1,38 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+
+/// Emits a [Pdfrx.debugLazyLoading] trace line.
+///
+/// Callers are expected to check the flag themselves so that building the
+/// message costs nothing when tracing is off.
+void pdfrxLazyLog(String message) => developer.log(message, name: 'pdfrx.lazy');
 
 /// Class to provide Pdfrx's configuration.
 /// The parameters should be set before calling any Pdfrx's functions.
 ///
 class Pdfrx {
   Pdfrx._();
+
+  /// Trace demand-paged loading to the console.
+  ///
+  /// When enabled, every HTTP range fetch is logged with the block it filled,
+  /// the byte range requested and how much of the file is resident so far. The
+  /// viewer additionally logs which pages it measures on demand, and when a
+  /// measurement changes the document layout.
+  ///
+  /// Intended for working out what a network document actually pulls down. Off
+  /// by default; costs nothing while disabled.
+  static bool debugLazyLoading = false;
+
+  /// Total bytes pulled over HTTP since process start, across all documents.
+  ///
+  /// Sampled around an operation to attribute its wall-clock time: a slow page
+  /// measurement that moves this counter was waiting on the network, one that
+  /// does not was waiting on the pdfium worker.
+  static int debugBytesFetched = 0;
 
   /// Explicitly specify pdfium module path for special purpose.
   ///

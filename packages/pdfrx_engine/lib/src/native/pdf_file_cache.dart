@@ -18,6 +18,10 @@ import 'http_cache_control.dart';
 import 'native_utils.dart';
 import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
 
+String _fmtBytes(int bytes) => bytes >= 1024 * 1024
+    ? '${(bytes / (1024 * 1024)).toStringAsFixed(2)}MB'
+    : '${(bytes / 1024).toStringAsFixed(1)}KB';
+
 final _rafFinalizer = Finalizer<RandomAccessFile>((raf) {
   // Attempt to close the file if it hasn't been closed explicitly.
   // Use try-catch as close might fail or already be closed.
@@ -486,10 +490,13 @@ Future<_DownloadResult> _downloadBlock(
 
   var offset = blockOffset;
   var cachedBytesSoFar = cache.cachedBytes;
+  var bytesThisRequest = 0;
   await for (final bytes in response.stream) {
     await cache.write(offset, bytes);
     offset += bytes.length;
     cachedBytesSoFar += bytes.length;
+    bytesThisRequest += bytes.length;
+    Pdfrx.debugBytesFetched += bytes.length;
     progressCallback?.call(cachedBytesSoFar, fileSize);
   }
 
@@ -505,6 +512,22 @@ Future<_DownloadResult> _downloadBlock(
     await cache.setCached(0, lastBlock: cache.totalBlocks - 1);
   } else {
     await cache.setCached(blockId, lastBlock: blockId + blockCount - 1);
+  }
+
+  if (Pdfrx.debugLazyLoading) {
+    if (isFullDownload) {
+      pdfrxLazyLog(
+        'FETCH whole file ${_fmtBytes(bytesThisRequest)} -- the server ignored '
+        'the Range header, so demand paging is NOT in effect',
+      );
+    } else {
+      final resident = cache.fileSize > 0 ? cache.cachedBytes * 100 ~/ cache.fileSize : 0;
+      pdfrxLazyLog(
+        'FETCH block $blockId  bytes=$blockOffset-${end - 1}  HTTP ${response.statusCode}  '
+        'got ${_fmtBytes(bytesThisRequest)}  '
+        'resident ${_fmtBytes(cache.cachedBytes)}/${_fmtBytes(cache.fileSize)} ($resident%)',
+      );
+    }
   }
 
   return _DownloadResult(fileSize!, isFullDownload, false);

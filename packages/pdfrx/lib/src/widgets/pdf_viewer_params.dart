@@ -1673,12 +1673,40 @@ class PdfViewerBehaviorControlParams {
     this.enableLowResolutionPagePreview = true,
     this.pageImageCachingDelay = const Duration(milliseconds: kIsWeb ? 20 : 20),
     this.partialImageLoadingDelay = const Duration(milliseconds: kIsWeb ? 100 : 0),
+    this.loadPageDimensionsOnDemand = false,
   });
 
   /// How long to wait before loading the trailing pages after the initial page load.
   ///
   /// This is to ensure that the initial page is displayed quickly, and the trailing pages are loaded in the background.
   final Duration trailingPageLoadingDelay;
+
+  /// Measure only the pages the user can actually see, instead of walking the
+  /// whole document at open time.
+  ///
+  /// The default (false) calls [PdfDocument.loadPagesProgressively], which runs
+  /// `FPDF_LoadPage` over every page to obtain its size. For a network document
+  /// served by range requests, that measurement pass faults in whichever blocks
+  /// the page objects happen to live in; when page objects are spread through
+  /// the file, that is the whole file, before the first page can be painted.
+  ///
+  /// When true, off-screen pages keep the estimated size assigned at open time
+  /// (the last known page's dimensions) and are measured for real only once
+  /// they enter the render cache extent. Cold-open cost then scales with what
+  /// is on screen rather than with the page count.
+  ///
+  /// The trade-offs:
+  ///
+  /// - The layout of unvisited pages is an estimate, so in a document with
+  ///   varying page sizes the scroll extent settles as the user moves through
+  ///   it. Where page sizes are uniform -- scanned books, generated reports --
+  ///   the estimate is exact and nothing shifts.
+  /// - Anything that reads a page without displaying it sees an unmeasured
+  ///   page and gets nothing back: `PdfPage.loadText` returns an empty list
+  ///   while `isLoaded` is false, so whole-document text search and text
+  ///   extraction only cover pages the user has already visited. Leave this
+  ///   off if you rely on [PdfTextSearcher] or document-wide text extraction.
+  final bool loadPageDimensionsOnDemand;
 
   /// Whether to enable low resolution page preview.
   final bool enableLowResolutionPagePreview;
@@ -1697,7 +1725,8 @@ class PdfViewerBehaviorControlParams {
         other.trailingPageLoadingDelay == trailingPageLoadingDelay &&
         other.enableLowResolutionPagePreview == enableLowResolutionPagePreview &&
         other.pageImageCachingDelay == pageImageCachingDelay &&
-        other.partialImageLoadingDelay == partialImageLoadingDelay;
+        other.partialImageLoadingDelay == partialImageLoadingDelay &&
+        other.loadPageDimensionsOnDemand == loadPageDimensionsOnDemand;
   }
 
   @override
@@ -1705,5 +1734,6 @@ class PdfViewerBehaviorControlParams {
       trailingPageLoadingDelay.hashCode ^
       enableLowResolutionPagePreview.hashCode ^
       pageImageCachingDelay.hashCode ^
-      partialImageLoadingDelay.hashCode;
+      partialImageLoadingDelay.hashCode ^
+      loadPageDimensionsOnDemand.hashCode;
 }

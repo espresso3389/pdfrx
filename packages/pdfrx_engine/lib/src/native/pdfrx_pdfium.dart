@@ -833,11 +833,15 @@ class _PdfDocumentPdfium extends PdfDocument {
       }, (docAddress: document.address, pageNumbersToReload: pageNumbersToReload, currentPageCount: _pages.length));
 
       final newPages = [..._pages];
-      for (var i = 0; i < results.pages.length; i++) {
-        final pageData = results.pages[i];
+      for (final pageData in results.pages) {
+        // When [pageNumbersToReload] is given the worker returns only that
+        // subset, so a result's position in the list says nothing about which
+        // page it is; keying off it would write page N's dimensions over page 1.
+        // The worker records the real index, so use that.
+        final index = pageData.pageIndex;
         final newPage = _PdfPagePdfium._(
           document: this,
-          pageNumber: i + 1,
+          pageNumber: index + 1,
           width: pageData.width,
           height: pageData.height,
           rotation: PdfPageRotation.values[pageData.rotation],
@@ -845,9 +849,11 @@ class _PdfDocumentPdfium extends PdfDocument {
           bbBottom: pageData.bbBottom,
           isLoaded: true,
         );
-        if (i < newPages.length) {
-          newPages[i] = newPage;
+        if (index < newPages.length) {
+          newPages[index] = newPage;
         } else {
+          // Pages appended because the document grew. pageNumbersToLoad is a
+          // sorted set, so these arrive in ascending order and stay contiguous.
           newPages.add(newPage);
         }
       }
