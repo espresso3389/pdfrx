@@ -1356,6 +1356,9 @@ class _PdfViewerState extends State<PdfViewer>
   }) {
     final unusedPageList = <int>[];
     final unmeasuredPageList = <int>[];
+    // Bounds of what this paint considers on-screen, so the trace can show
+    // whether measurement is following the viewport or running away from it.
+    int? firstInExtent, lastInExtent;
     final dropShadowPaint = widget.params.pageDropShadow?.toPaint()?..style = PaintingStyle.fill;
     cacheTargetRect ??= targetRect;
 
@@ -1372,6 +1375,8 @@ class _PdfViewerState extends State<PdfViewer>
       }
 
       final page = _document!.pages[i];
+      firstInExtent ??= page.pageNumber;
+      lastInExtent = page.pageNumber;
       // A page that has never been measured cannot render -- PdfPage.render
       // returns null while isLoaded is false -- so collect it and measure it
       // after this paint. Only reachable when loadPageDimensionsOnDemand is on;
@@ -1486,6 +1491,13 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     if (unmeasuredPageList.isNotEmpty) {
+      if (Pdfrx.debugLazyLoading) {
+        pdfrxLazyLog(
+          '#$_viewerInstanceId EXTENT pages $firstInExtent-$lastInExtent on screen '
+          '(${lastInExtent! - firstInExtent! + 1} of ${_document!.pages.length}), '
+          'unmeasured $unmeasuredPageList',
+        );
+      }
       _ensureVisiblePagesMeasured(unmeasuredPageList);
     }
   }
