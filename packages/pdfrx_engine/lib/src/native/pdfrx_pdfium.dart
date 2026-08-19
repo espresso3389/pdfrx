@@ -1278,6 +1278,10 @@ class _PdfDocumentPdfium extends PdfDocument {
   set pages(Iterable<PdfPage> newPages) {
     final pages = <PdfPage>[];
     final changes = <int, PdfPageStatusChange>{};
+    final oldIndexByPage = HashMap<PdfPage, int>.identity();
+    for (var i = 0; i < _pages.length; i++) {
+      oldIndexByPage[_pages[i]] = i;
+    }
     for (final newPage in newPages) {
       if (pages.length < _pages.length) {
         final old = _pages[pages.length];
@@ -1295,7 +1299,7 @@ class _PdfDocumentPdfium extends PdfDocument {
       final updated = newPage.withPageNumber(newPageNumber);
       pages.add(updated);
 
-      final oldPageIndex = _pages.indexWhere((p) => identical(p, newPage));
+      final oldPageIndex = oldIndexByPage[newPage] ?? -1;
       if (oldPageIndex != -1) {
         changes[newPageNumber] = PdfPageStatusChange.moved(page: updated, oldPageNumber: oldPageIndex + 1);
       } else {
