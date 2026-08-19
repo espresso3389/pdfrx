@@ -540,7 +540,15 @@ class _PdfViewerState extends State<PdfViewer>
         _canvasLinkPainter.releaseLinksForPage(change.key);
         _textCache.remove(change.key);
       }
-      _clearTextSelections(invalidate: false);
+      // Only drop the selection if one of the changed pages is actually part of it;
+      // otherwise incremental loading of unrelated pages would keep clearing it.
+      if (hasSelectedText) {
+        final pageFrom = min(_selA!.text.pageNumber, _selB!.text.pageNumber);
+        final pageTo = max(_selA!.text.pageNumber, _selB!.text.pageNumber);
+        if (event.changes.keys.any((page) => page >= pageFrom && page <= pageTo)) {
+          _clearTextSelections(invalidate: false);
+        }
+      }
       _invalidate();
     } else if (event is PdfDocumentLoadCompleteEvent) {
       _notifyDocumentLoadFinished(succeeded: true);
