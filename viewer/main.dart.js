@@ -28158,7 +28158,7 @@ $S:2}
 A.awr.prototype={
 $1(a){var s=A.cQ().b
 s=s==null?null:s.canvasKitBaseUrl
-return(s==null?"https://www.gstatic.com/flutter-canvaskit/5f77625673248ee5846fbcaf5d3e1a3878386fd7/":s)+a},
+return(s==null?"https://www.gstatic.com/flutter-canvaskit/5d531788691ec3404cac0cee66ead4007b177363/":s)+a},
 $S:82}
 A.Mm.prototype={
 gm(a){var s=this.a
@@ -91691,8 +91691,12 @@ break}p=5
 s=8
 return A.q(A.azS(m),$async$uQ)
 case 8:l=a4
+if(n.c==null){l.l()
+s=1
+break}b=n.d
+if(b!=null)b.l()
 n.d=l
-if(n.c!=null)n.aj(new A.aqc())
+n.aj(new A.aqc())
 p=2
 s=7
 break

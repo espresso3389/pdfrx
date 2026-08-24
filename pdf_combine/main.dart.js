@@ -27677,7 +27677,7 @@ $S:2}
 A.avC.prototype={
 $1(a){var s=A.cM().b
 s=s==null?null:s.canvasKitBaseUrl
-return(s==null?"https://www.gstatic.com/flutter-canvaskit/5f77625673248ee5846fbcaf5d3e1a3878386fd7/":s)+a},
+return(s==null?"https://www.gstatic.com/flutter-canvaskit/5d531788691ec3404cac0cee66ead4007b177363/":s)+a},
 $S:64}
 A.My.prototype={
 gn(a){var s=this.a
@@ -91255,8 +91255,12 @@ break}p=5
 s=8
 return A.F(A.ayW(m),$async$uv)
 case 8:l=a4
+if(n.c==null){l.l()
+s=1
+break}c=n.d
+if(c!=null)c.l()
 n.d=l
-if(n.c!=null)n.a7(new A.apX())
+n.a7(new A.apX())
 p=2
 s=7
 break
