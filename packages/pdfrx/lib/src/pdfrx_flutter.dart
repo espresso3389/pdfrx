@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -58,7 +57,11 @@ extension PdfImageExt on PdfImage {
   /// while maintaining the aspect ratio.
   ///
   /// The returned [Image] must be disposed of when no longer needed.
-  Future<Image> createImage({int? pixelSizeThreshold}) {
+  ///
+  /// Throws if the engine cannot decode the pixel buffer, which in practice
+  /// means it failed to allocate for it - a large page on a memory-constrained
+  /// device. The returned future never completes with null.
+  Future<Image> createImage({int? pixelSizeThreshold}) async {
     int? targetWidth;
     int? targetHeight;
     if (pixelSizeThreshold != null && (width > pixelSizeThreshold || height > pixelSizeThreshold)) {
@@ -72,17 +75,27 @@ extension PdfImageExt on PdfImage {
       }
     }
 
-    final comp = Completer<Image>();
-    decodeImageFromPixels(
-      pixels,
-      width,
-      height,
-      PixelFormat.bgra8888,
-      (image) => comp.complete(image),
-      targetWidth: targetWidth,
-      targetHeight: targetHeight,
-    );
-    return comp.future;
+    // This is what `decodeImageFromPixels` does internally, driven directly
+    // instead. That function only takes a success callback, so a decode or
+    // allocation failure leaves the caller awaiting a future that never
+    // completes: the page stays blank, the `pixels` buffer is never freed
+    // because the caller's `dispose()` sits after the await, and the error
+    // surfaces as an unhandled zone error with no context. Awaiting the codec
+    // ourselves lets the failure propagate to the caller as an exception.
+    final buffer = await ImmutableBuffer.fromUint8List(pixels);
+    ImageDescriptor? descriptor;
+    try {
+      descriptor = ImageDescriptor.raw(buffer, width: width, height: height, pixelFormat: PixelFormat.bgra8888);
+      final codec = await descriptor.instantiateCodec(targetWidth: targetWidth, targetHeight: targetHeight);
+      try {
+        return (await codec.getNextFrame()).image;
+      } finally {
+        codec.dispose();
+      }
+    } finally {
+      descriptor?.dispose();
+      buffer.dispose();
+    }
   }
 }
 

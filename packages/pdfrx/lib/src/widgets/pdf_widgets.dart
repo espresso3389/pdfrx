@@ -436,6 +436,7 @@ class _PdfPageViewState extends State<PdfPageView> {
     }
 
     if (pageSize == _pageSize) return;
+    final previousPageSize = _pageSize;
     _pageSize = pageSize;
 
     _cancellationToken?.cancel();
@@ -449,7 +450,6 @@ class _PdfPageViewState extends State<PdfPageView> {
     if (pageImage == null) return;
     try {
       final newImage = await pageImage.createImage();
-      pageImage.dispose();
       if (!mounted) {
         newImage.dispose();
         return;
@@ -459,6 +459,11 @@ class _PdfPageViewState extends State<PdfPageView> {
       setState(() {});
     } catch (e) {
       developer.log('Error creating image: $e');
+      // Restore the size we came in with, but only if a newer call has not
+      // already claimed `_pageSize`. Otherwise the equality guard above locks
+      // this page out of ever retrying and it stays blank for good.
+      if (_pageSize == pageSize) _pageSize = previousPageSize;
+    } finally {
       pageImage.dispose();
     }
   }
