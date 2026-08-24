@@ -450,10 +450,13 @@ class _PdfPageViewState extends State<PdfPageView> {
     try {
       final newImage = await pageImage.createImage();
       pageImage.dispose();
-      _image = newImage;
-      if (mounted) {
-        setState(() {});
+      if (!mounted) {
+        newImage.dispose();
+        return;
       }
+      _image?.dispose();
+      _image = newImage;
+      setState(() {});
     } catch (e) {
       developer.log('Error creating image: $e');
       pageImage.dispose();
