@@ -109,7 +109,17 @@ class BackgroundWorker {
   /// Inside [callback], you can only use passed message and create new objects.
   /// You cannot access any variables from the outer scope, otherwise, it will throw an error.
   Future<R> _compute<M, R>(PdfrxComputeCallback<M, R> callback, M message) async {
-    return await _sendComputeParams((sendPort) => _ExecuteParams(sendPort, callback, message)) as R;
+    final result = await _sendComputeParams((sendPort) => _ExecuteParams(sendPort, callback, message));
+    if (result is _ComputeError) {
+      // The original error/stack trace object may itself be unsendable (arbitrary user exception types can hold
+      // non-sendable fields), so only their string forms cross the isolate boundary; reconstruct a generic
+      // exception here rather than losing the failure silently.
+      Error.throwWithStackTrace(
+        _WorkerComputeException(result.errorString),
+        StackTrace.fromString(result.stackTraceString),
+      );
+    }
+    return (result as _ComputeResult<R>).value;
   }
 
   /// Runs [callback] in the worker isolate with a new [Arena].
@@ -162,8 +172,43 @@ class _ExecuteParams<M, R> extends _ComputeParams {
   final PdfrxComputeCallback<M, R> callback;
   final M message;
 
+  // A pending Future is not a sendable isolate message on its own (SendPort.send throws
+  // "object is unsendable" for it), so a callback returning FutureOr<R> only worked by
+  // accident for callbacks that happened to complete synchronously. Awaiting the result
+  // here, and always sending a plain, sendable wrapper (value or stringified error),
+  // makes genuinely asynchronous callbacks (and synchronous throws) work correctly too.
   @override
-  void execute() => sendPort.send(callback(message));
+  void execute() {
+    Future<R> asFuture() async => callback(message);
+    asFuture().then(
+      (value) => sendPort.send(_ComputeResult<R>(value)),
+      onError: (Object error, StackTrace stackTrace) =>
+          sendPort.send(_ComputeError(error.toString(), stackTrace.toString())),
+    );
+  }
+}
+
+class _ComputeResult<R> {
+  _ComputeResult(this.value);
+  final R value;
+}
+
+class _ComputeError {
+  _ComputeError(this.errorString, this.stackTraceString);
+  final String errorString;
+  final String stackTraceString;
+}
+
+/// Thrown on the caller's isolate when a [BackgroundWorker.compute] callback throws.
+///
+/// The original error object is not necessarily sendable across the isolate boundary,
+/// so only its [toString] representation survives the round trip; [message] carries it.
+class _WorkerComputeException implements Exception {
+  _WorkerComputeException(this.message);
+  final String message;
+
+  @override
+  String toString() => 'Exception in BackgroundWorker.compute callback: $message';
 }
 
 class _SuspendRequest extends _ComputeParams {
