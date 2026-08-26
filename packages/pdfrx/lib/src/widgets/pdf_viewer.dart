@@ -247,7 +247,9 @@ class _PdfViewerState extends State<PdfViewer>
   Size? _viewSize;
   late PdfViewerLayoutMetrics _layoutMetrics;
   int? _pageNumber;
+  int? _initialPageNumber;
   bool _initialized = false;
+  bool _documentLoadFinishedNotified = false;
   bool _usingScrollPercentageMode = false;
 
   StreamSubscription<PdfDocumentEvent>? _documentSubscription;
@@ -417,6 +419,8 @@ class _PdfViewerState extends State<PdfViewer>
     _textCache.clear();
     _clearTextSelections(invalidate: false);
     _pageNumber = null;
+    _initialPageNumber = null;
+    _documentLoadFinishedNotified = false;
     _gotoTargetPageNumber = null;
     _initialized = false;
     _txController.removeListener(_onMatrixChanged);
@@ -451,15 +455,42 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     _notifyOnDocumentChanged();
-    _loadDelayed();
+    unawaited(_loadPagesInBackground());
   }
 
-  Future<void> _loadDelayed() async {
-    // To make the page image loading more smooth, delay the loading of pages
+  /// Prefetches the initial viewport, then progressively loads the remaining pages.
+  Future<void> _loadPagesInBackground() async {
+    final document = _document;
+    if (document == null) return;
+
+    if (document.pages.isNotEmpty) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || document != _document) return;
+      final initialPageNumber = _clampInitialPageNumber(document, _initialPageNumber ?? widget.initialPageNumber);
+      final priorityPageNumbers = <int>[
+        initialPageNumber - 1,
+        initialPageNumber,
+        initialPageNumber + 1,
+      ].where((pageNumber) => pageNumber >= 1 && pageNumber <= document.pages.length);
+      final unloadedPageNumbers = priorityPageNumbers
+          .where((pageNumber) => !document.pages[pageNumber - 1].isLoaded)
+          .toList();
+      if (unloadedPageNumbers.isNotEmpty) {
+        try {
+          await document.reloadPages(pageNumbersToReload: unloadedPageNumbers);
+        } catch (error) {
+          debugPrint('PdfViewer: Priority page loading failed: $error');
+        }
+      }
+    }
+    if (!mounted || document != _document) return;
+
+    // Delay trailing pages to keep visible-page rendering smooth.
     await Future.delayed(widget.params.behaviorControlParams.trailingPageLoadingDelay);
+    if (!mounted || document != _document) return;
 
     final stopwatch = Stopwatch()..start();
-    await _document?.loadPagesProgressively(
+    await document.loadPagesProgressively(
       onPageLoadProgress: (pageNumber, totalPageCount, document) {
         if (document == _document && mounted) {
           debugPrint('PdfViewer: Loaded page $pageNumber of $totalPageCount in ${stopwatch.elapsedMilliseconds} ms');
@@ -469,6 +500,10 @@ class _PdfViewerState extends State<PdfViewer>
       },
       data: _document,
     );
+    if (!mounted || document != _document) return;
+    if (document.pages.every((page) => page.isLoaded)) {
+      await _notifyDocumentLoadFinished(succeeded: true);
+    }
   }
 
   void _notifyOnDocumentChanged() {
@@ -556,17 +591,26 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   Future<void> _notifyDocumentLoadFinished({required bool succeeded}) async {
-    if (succeeded) {
+    if (_documentLoadFinishedNotified) return;
+    _documentLoadFinishedNotified = true;
+    final document = _document;
+    final documentRef = widget.documentRef;
+    if (succeeded && document != null && document.pages.isNotEmpty) {
       // FIXME: This is a temporary workaround to wait until the initial page is loaded.
-      while (mounted) {
-        if (_imageCache.pageImages.containsKey(widget.initialPageNumber)) break;
+      while (mounted && document == _document) {
+        final initialPageNumber = _clampInitialPageNumber(document, _initialPageNumber ?? widget.initialPageNumber);
+        if (_imageCache.pageImages.containsKey(initialPageNumber)) break;
         await Future.delayed(const Duration(milliseconds: 100));
       }
+      if (!mounted || document != _document) return;
     }
 
     Future.microtask(() async {
-      if (mounted) {
-        widget.params.onDocumentLoadFinished?.call(widget.documentRef, succeeded);
+      if (!mounted) return;
+      if (succeeded && document == _document) {
+        widget.params.onDocumentLoadFinished?.call(widget.documentRef, true);
+      } else if (!succeeded && identical(widget.documentRef, documentRef)) {
+        widget.params.onDocumentLoadFinished?.call(documentRef, false);
       }
     });
   }
@@ -809,7 +853,7 @@ class _PdfViewerState extends State<PdfViewer>
 
         // Calculate initial page (using params or default)
         // We set it here so internal state is consistent before delegate runs
-        _pageNumber = _gotoTargetPageNumber = _calcInitialPageNumber();
+        _pageNumber = _gotoTargetPageNumber = _resolveInitialPageNumber();
 
         // RECALCULATE for specific initial page
         _recalculateMetrics();
@@ -882,6 +926,22 @@ class _PdfViewerState extends State<PdfViewer>
     }
     return pageNumber ?? widget.initialPageNumber;
   }
+
+  int _resolveInitialPageNumber() {
+    final initialPageNumber = _initialPageNumber;
+    if (initialPageNumber != null) return initialPageNumber;
+    int calculatedPageNumber;
+    try {
+      calculatedPageNumber = _calcInitialPageNumber();
+    } catch (error) {
+      debugPrint('PdfViewer: Initial page calculation failed: $error');
+      calculatedPageNumber = widget.initialPageNumber;
+    }
+    return _initialPageNumber = _clampInitialPageNumber(_document!, calculatedPageNumber);
+  }
+
+  int _clampInitialPageNumber(PdfDocument document, int pageNumber) =>
+      document.pages.isEmpty ? pageNumber : pageNumber.clamp(1, document.pages.length);
 
   PdfPageHitTestResult? _getClosestPageHit(int currentPageNumber, PdfPageLayout oldLayout, ui.Rect oldVisibleRect) {
     for (final pageIndex in <int>[currentPageNumber, currentPageNumber - 1, currentPageNumber + 1]) {

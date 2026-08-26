@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:rxdart/rxdart.dart';
 
 import 'pdf_document.dart';
@@ -91,8 +92,10 @@ abstract class PdfPage {
 
   /// Load links.
   ///
-  /// If [compact] is true, it tries to reduce memory usage by compacting the link data.
-  /// See [PdfLink.compact] for more info.
+  /// Results may be cached for this page instance. Reload the page after modifying its annotations.
+  ///
+  /// If [compact] is true, the link data may be compacted. Cached implementations may return compact data for both
+  /// values to avoid retaining duplicate results. See [PdfLink.compact] for more info.
   ///
   /// If [enableAutoLinkDetection] is true, the function tries to detect Web links automatically.
   /// This is useful if the PDF file contains text that looks like Web links but not defined as links in the PDF.
@@ -100,6 +103,48 @@ abstract class PdfPage {
   ///
   /// If the page is not loaded yet (progressive loading case only), this function returns an empty list.
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true});
+}
+
+/// Caches [loadLinksUncached] once for each auto-detection mode used by [PdfPage.loadLinks].
+///
+/// Cached links are compacted with [PdfLink.compact], made unmodifiable, and shared by raw and compact requests.
+/// Failures are not cached, and results live for the lifetime of the [PdfPage] instance.
+mixin PdfPageLinkCache on PdfPage {
+  Future<List<PdfLink>>? _linksWithAutoDetection;
+  Future<List<PdfLink>>? _linksWithoutAutoDetection;
+
+  @override
+  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) {
+    if (!isLoaded) return Future.value(const <PdfLink>[]);
+    final cached = enableAutoLinkDetection ? _linksWithAutoDetection : _linksWithoutAutoDetection;
+    if (cached != null) return cached;
+
+    final loading = _loadAndCompactLinks(enableAutoLinkDetection);
+    if (enableAutoLinkDetection) {
+      _linksWithAutoDetection = loading;
+    } else {
+      _linksWithoutAutoDetection = loading;
+    }
+    return loading;
+  }
+
+  Future<List<PdfLink>> _loadAndCompactLinks(bool enableAutoLinkDetection) async {
+    try {
+      final links = await Future<List<PdfLink>>.sync(() => loadLinksUncached(enableAutoLinkDetection));
+      return List<PdfLink>.unmodifiable([for (final link in links) link.compact()]);
+    } catch (_) {
+      if (enableAutoLinkDetection) {
+        _linksWithAutoDetection = null;
+      } else {
+        _linksWithoutAutoDetection = null;
+      }
+      rethrow;
+    }
+  }
+
+  /// Loads links for one auto-detection mode without using the page cache.
+  @protected
+  Future<List<PdfLink>> loadLinksUncached(bool enableAutoLinkDetection);
 }
 
 /// Extension methods for [PdfPage].

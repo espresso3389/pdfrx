@@ -489,8 +489,13 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
 
   @override
   set pages(List<PdfPage> newPages) {
+    final previousPageCount = _pages.length;
     final pages = <PdfPage>[];
     final changes = <int, PdfPageStatusChange>{};
+    late final oldPageIndices = Map<PdfPage, int>.identity()
+      ..addEntries([
+        for (var i = 0; i < _pages.length; i++) MapEntry(_pages[i], i),
+      ]);
     for (final newPage in newPages) {
       if (pages.length < _pages.length) {
         final old = _pages[pages.length];
@@ -511,7 +516,7 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
       final updated = newPage.withPageNumber(newPageNumber);
       pages.add(updated);
 
-      final oldPageIndex = _pages.indexWhere((p) => identical(p, newPage));
+      final oldPageIndex = oldPageIndices[newPage] ?? -1;
       if (oldPageIndex != -1) {
         changes[newPageNumber] = PdfPageStatusChange.moved(
           page: updated,
@@ -523,7 +528,9 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
     }
 
     _pages = pages;
-    subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+    if (changes.isNotEmpty || pages.length != previousPageCount) {
+      subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+    }
   }
 
   @override
@@ -560,7 +567,7 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
   }
 }
 
-class _CoreGraphicsPdfPage extends PdfPage {
+class _CoreGraphicsPdfPage extends PdfPage with PdfPageLinkCache {
   _CoreGraphicsPdfPage({
     required _CoreGraphicsPdfDocument document,
     required this.index,
@@ -710,10 +717,7 @@ class _CoreGraphicsPdfPage extends PdfPage {
   }
 
   @override
-  Future<List<PdfLink>> loadLinks({
-    bool compact = false,
-    bool enableAutoLinkDetection = true,
-  }) async {
+  Future<List<PdfLink>> loadLinksUncached(bool enableAutoLinkDetection) async {
     try {
       final result = await _document.channel
           .invokeListMethod<Object?>('loadPageLinks', {
@@ -747,7 +751,6 @@ class _CoreGraphicsPdfPage extends PdfPage {
             final url = map['url'] as String?;
             final destMap = map['dest'] as Map<Object?, Object?>?;
 
-            // Parse annotation from Swift
             final annotationData = map['annotation'] as Map<Object?, Object?>?;
             final annotation = annotationData != null
                 ? PdfAnnotation(
@@ -763,13 +766,12 @@ class _CoreGraphicsPdfPage extends PdfPage {
                   )
                 : null;
 
-            final link = PdfLink(
+            return PdfLink(
               rects,
               url: url == null ? null : Uri.tryParse(url),
               dest: _parseDest(destMap, defaultPageNumber: pageNumber),
               annotation: annotation,
             );
-            return compact ? link.compact() : link;
           })
           .toList(growable: false);
       return List.unmodifiable(links);
