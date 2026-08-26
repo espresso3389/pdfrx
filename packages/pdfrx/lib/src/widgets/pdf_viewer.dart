@@ -318,6 +318,10 @@ class _PdfViewerState extends State<PdfViewer>
   void initState() {
     super.initState();
     SemanticsBinding.instance.addSemanticsEnabledListener(_onSemanticsEnabledChanged);
+    _viewerInstanceId = ++_viewerInstanceCounter;
+    if (Pdfrx.debugLazyLoading) {
+      pdfrxLazyLog('#$_viewerInstanceId STATE created (initState)');
+    }
     pdfrxFlutterInitialize();
     _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 200));
     _widgetUpdated(null);
@@ -329,6 +333,11 @@ class _PdfViewerState extends State<PdfViewer>
     // (Layout is null here, so it will return defaults)
     _recalculateMetrics();
   }
+
+  /// Distinguishes viewer instances in [Pdfrx.debugLazyLoading] traces; several
+  /// live at once when the viewer sits inside a PageView or an IndexedStack.
+  late final int _viewerInstanceId;
+  static int _viewerInstanceCounter = 0;
 
   @override
   void didUpdateWidget(covariant PdfViewer oldWidget) {
@@ -383,6 +392,12 @@ class _PdfViewerState extends State<PdfViewer>
       }
       return;
     } else {
+      if (Pdfrx.debugLazyLoading) {
+        pdfrxLazyLog(
+          '#$_viewerInstanceId REF key changed ${oldWidget?.documentRef.key} -> ${widget.documentRef.key} '
+          '-- dropping the old listener (which disposes the document) and reloading',
+        );
+      }
       oldWidget?.documentRef.resolveListenable().removeListener(_onDocumentChanged);
       final documentRef = widget.documentRef;
       await pdfrxFlutterInitialize();
@@ -399,14 +414,27 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _onDocumentChanged() async {
-    // Skip full reset if the document reference hasn't actually changed.
-    // PdfDocumentListenable._progress() calls notifyListeners() on every
-    // downloaded HTTP chunk during range-access loading. Without this guard,
-    // each chunk triggers a full reset (releaseAllImages, _initialized=false),
-    // causing visible pages to flash white hundreds of times.
-    final currentDoc = widget.documentRef.resolveListenable().document;
-    if (currentDoc != null && currentDoc == _document) return;
+    // PdfDocumentListenable notifies for download progress as well as for a real
+    // document change. Under range access those progress ticks never stop -- every
+    // block faulted in while scrolling fires one -- and reconfiguring here would
+    // clear _initialized and send the viewer back to the initial page. So ignore
+    // notifications that arrive while the document instance is unchanged.
+    //
+    // The document is still null during the initial load, and that case must fall
+    // through so the loading banner keeps updating.
+    final currentDocument = widget.documentRef.resolveListenable().document;
+    if (_document != null && identical(currentDocument, _document)) {
+      return;
+    }
 
+    if (Pdfrx.debugLazyLoading) {
+      final listenable = widget.documentRef.resolveListenable();
+      pdfrxLazyLog(
+        '#$_viewerInstanceId DOCUMENT changed ${_document == null ? "(none)" : "#${identityHashCode(_document)}"} '
+        '-> ${currentDocument == null ? "(none)" : "#${identityHashCode(currentDocument)}"}  '
+        'error=${listenable.error}  -- resetting _initialized/_pageNumber',
+      );
+    }
     _layout = null;
     _documentSubscription?.cancel();
     _documentSubscription = null;
@@ -418,6 +446,8 @@ class _PdfViewerState extends State<PdfViewer>
     _canvasLinkPainter.resetAll();
     _textCache.clear();
     _clearTextSelections(invalidate: false);
+    _pagesBeingMeasured.clear();
+    _measurementFailures.clear();
     _pageNumber = null;
     _initialPageNumber = null;
     _documentLoadFinishedNotified = false;
@@ -488,6 +518,21 @@ class _PdfViewerState extends State<PdfViewer>
     // Delay trailing pages to keep visible-page rendering smooth.
     await Future.delayed(widget.params.behaviorControlParams.trailingPageLoadingDelay);
     if (!mounted || document != _document) return;
+
+    // With on-demand measurement the pages keep the estimated sizes they were
+    // given at open time; _ensureVisiblePagesMeasured replaces those with real
+    // ones as pages scroll into the cache extent. Walking every page here would
+    // defeat that, so skip it entirely.
+    if (widget.params.behaviorControlParams.loadPageDimensionsOnDemand) {
+      _invalidate();
+      // loadPagesProgressively is what normally emits
+      // PdfDocumentLoadCompleteEvent, and only once every page has been
+      // measured; that event is what drives onDocumentLoadFinished. Since this
+      // mode never makes that pass, report completion here instead -- the
+      // document is as loaded as it is going to get up front.
+      _notifyDocumentLoadFinished(succeeded: true);
+      return;
+    }
 
     final stopwatch = Stopwatch()..start();
     await document.loadPagesProgressively(
@@ -570,8 +615,8 @@ class _PdfViewerState extends State<PdfViewer>
     if (event is PdfDocumentPageStatusChangedEvent) {
       // FIXME: We can handle the event more efficiently by only updating the affected pages.
       for (final change in event.changes.entries) {
-        _imageCache.makeCacheImageForPageDirty(change.key);
-        _magnifierImageCache.makeCacheImageForPageDirty(change.key);
+        _imageCache.makeCacheImageForPageDirty(change.key, page: change.value.page);
+        _magnifierImageCache.makeCacheImageForPageDirty(change.key, page: change.value.page);
         _canvasLinkPainter.releaseLinksForPage(change.key);
         _textCache.remove(change.key);
       }
@@ -849,6 +894,13 @@ class _PdfViewerState extends State<PdfViewer>
       Future.microtask(() {
         if (!mounted) {
           return;
+        }
+
+        if (Pdfrx.debugLazyLoading) {
+          pdfrxLazyLog(
+            '#$_viewerInstanceId INIT first layout -- will jump to the initial page. '
+            'If this appears mid-session, something reset the viewer.',
+          );
         }
 
         // Calculate initial page (using params or default)
@@ -1563,6 +1615,14 @@ class _PdfViewerState extends State<PdfViewer>
     FilterQuality filterQuality = FilterQuality.high,
   }) {
     final unusedPageList = <int>[];
+    final unmeasuredPageList = <int>[];
+    // Pages inside the extent that are painting as a blank white rectangle
+    // because no preview image has landed for them yet. This is the white-page
+    // symptom itself, so trace it rather than inferring it from measurement.
+    final whitePageList = <int>[];
+    // Bounds of what this paint considers on-screen, so the trace can show
+    // whether measurement is following the viewport or running away from it.
+    int? firstInExtent, lastInExtent;
     final dropShadowPaint = widget.params.pageDropShadow?.toPaint()?..style = PaintingStyle.fill;
     cacheTargetRect ??= targetRect;
 
@@ -1579,6 +1639,15 @@ class _PdfViewerState extends State<PdfViewer>
       }
 
       final page = _document!.pages[i];
+      firstInExtent ??= page.pageNumber;
+      lastInExtent = page.pageNumber;
+      // A page that has never been measured cannot render -- PdfPage.render
+      // returns null while isLoaded is false -- so collect it and measure it
+      // after this paint. Only reachable when loadPageDimensionsOnDemand is on;
+      // otherwise every page was measured at open time.
+      if (!page.isLoaded) {
+        unmeasuredPageList.add(page.pageNumber);
+      }
       final previewImage = cache.pageImages[page.pageNumber];
       final partial = cache.pageImagesPartial[page.pageNumber];
 
@@ -1612,6 +1681,10 @@ class _PdfViewerState extends State<PdfViewer>
         }
       }
 
+      if (enableLowResolutionPagePreview && previewImage == null) {
+        whitePageList.add(page.pageNumber);
+      }
+
       if (enableLowResolutionPagePreview && previewImage != null) {
         canvas.drawImageRect(
           previewImage.image,
@@ -1642,7 +1715,11 @@ class _PdfViewerState extends State<PdfViewer>
         partial.draw(canvas, filterQuality);
       }
 
-      final text = _getCachedTextOrDelayLoadText(page.pageNumber);
+      // Guarded on the selection flag. Without this, paint loads structured text
+      // for every page in the cache extent even when nothing can select it --
+      // and on a scanned document that means parsing the entire content stream,
+      // on the same worker isolate the render needs, to return zero fragments.
+      final text = isTextSelectionEnabled ? _getCachedTextOrDelayLoadText(page.pageNumber) : null;
       if (text != null) {
         final selectionInPage = _loadTextSelectionForPageNumber(page.pageNumber);
         if (selectionInPage != null) {
@@ -1683,6 +1760,116 @@ class _PdfViewerState extends State<PdfViewer>
         }
       }
     }
+
+    if (Pdfrx.debugLazyLoading && (unmeasuredPageList.isNotEmpty || whitePageList.isNotEmpty)) {
+      // Paint runs on every frame, so log only when the picture actually
+      // changes -- otherwise a single scroll buries the trace.
+      final signature = '$firstInExtent-$lastInExtent/$unmeasuredPageList/$whitePageList';
+      if (signature != _lastExtentSignature) {
+        _lastExtentSignature = signature;
+        pdfrxLazyLog(
+          '#$_viewerInstanceId EXTENT pages $firstInExtent-$lastInExtent on screen '
+          '(${lastInExtent! - firstInExtent! + 1} of ${_document!.pages.length}), '
+          'unmeasured $unmeasuredPageList, white $whitePageList',
+        );
+      }
+    }
+
+    if (widget.params.behaviorControlParams.loadPageDimensionsOnDemand && unmeasuredPageList.isNotEmpty) {
+      _ensureVisiblePagesMeasured(unmeasuredPageList);
+    }
+  }
+
+  /// Last logged extent/unmeasured/white tuple, to keep the trace to changes.
+  String? _lastExtentSignature;
+
+  /// Pages whose real dimensions have been requested but not yet applied.
+  final _pagesBeingMeasured = <int>{};
+
+  /// How many times measuring each page has thrown.
+  ///
+  /// A page is given up on only after [_maxMeasurementAttempts] failures, rather
+  /// than on the first one. Measurement can fail for reasons that have nothing to
+  /// do with the page -- the document being disposed while the reader navigates
+  /// away, a range request timing out -- and blacklisting on those leaves a page
+  /// permanently blank. The cap still stops a genuinely unreadable page from
+  /// driving a measure/repaint/measure loop out of paint.
+  final _measurementFailures = <int, int>{};
+
+  static const _maxMeasurementAttempts = 3;
+
+  /// Replaces the estimated dimensions of [pageNumbers] with real ones.
+  ///
+  /// Called from paint, so it has to be cheap and re-entrant: pages already in
+  /// flight are skipped, and the resulting [PdfDocumentPageStatusChangedEvent]
+  /// invalidates the viewer, which re-runs layout and picks the new sizes up.
+  void _ensureVisiblePagesMeasured(List<int> pageNumbers) {
+    final document = _document;
+    if (document == null) return;
+
+    final toMeasure = <int>[];
+    for (final pageNumber in pageNumbers) {
+      if ((_measurementFailures[pageNumber] ?? 0) >= _maxMeasurementAttempts) continue;
+      if (_pagesBeingMeasured.add(pageNumber)) toMeasure.add(pageNumber);
+    }
+    if (toMeasure.isEmpty) return;
+
+    // Deliberately not serialised. reloadPages reads the page list *after* its
+    // await and writes it back synchronously, so concurrent calls cannot clobber
+    // one another. Queueing them would mean one slow page -- a measurement that
+    // faults a block and waits on the network -- holding up every other visible
+    // page behind it, which shows up as a screen of blank pages instead of one.
+    Future.microtask(() async {
+      if (!mounted || _document != document) {
+        _pagesBeingMeasured.removeAll(toMeasure);
+        return;
+      }
+      final pending = toMeasure.where((n) => !document.pages[n - 1].isLoaded).toList();
+      if (pending.isEmpty) {
+        _pagesBeingMeasured.removeAll(toMeasure);
+        return;
+      }
+      if (Pdfrx.debugLazyLoading) {
+        pdfrxLazyLog('#$_viewerInstanceId MEASURE requesting pages $pending');
+      }
+      final sw = Pdfrx.debugLazyLoading ? (Stopwatch()..start()) : null;
+      final bytesAtStart = Pdfrx.debugBytesFetched;
+      try {
+        final before = Pdfrx.debugLazyLoading
+            ? {for (final n in pending) n: _fmtPageSize(document.pages[n - 1])}
+            : null;
+        await document.reloadPages(pageNumbersToReload: pending);
+        if (Pdfrx.debugLazyLoading && mounted && _document == document) {
+          final changed = <String>[];
+          for (final n in pending) {
+            final after = _fmtPageSize(document.pages[n - 1]);
+            if (before![n] != after) changed.add('p$n ${before[n]} -> $after');
+          }
+          final fetched = Pdfrx.debugBytesFetched - bytesAtStart;
+          pdfrxLazyLog(
+            '#$_viewerInstanceId MEASURE done ${pending.length} page(s) in ${sw!.elapsedMilliseconds}ms  '
+            '${fetched > 0 ? 'NETWORK ${(fetched / 1024).toStringAsFixed(0)}KB fetched' : 'cache hit, no network'}'
+            '${changed.isEmpty ? '' : '; size changed: ${changed.join(", ")}'}',
+          );
+        }
+      } catch (e) {
+        // Only hold this against the page if the viewer and document are still
+        // the ones that asked. A throw during teardown says nothing about
+        // whether the page is readable, and counting it would leave the page
+        // blank for the rest of the session.
+        if (mounted && _document == document) {
+          for (final n in pending) {
+            _measurementFailures[n] = (_measurementFailures[n] ?? 0) + 1;
+          }
+          debugPrint(
+            'PdfViewer: failed to measure pages $pending '
+            '(attempt ${_measurementFailures[pending.first]} of $_maxMeasurementAttempts): $e',
+          );
+        }
+      } finally {
+        _pagesBeingMeasured.removeAll(toMeasure);
+      }
+    });
   }
 
   Color _selectionColorOf(BuildContext context) =>
@@ -1723,7 +1910,20 @@ class _PdfViewerState extends State<PdfViewer>
       if (document == null || !mounted || pageNumber > document.pages.length) return null;
       final page = document.pages[pageNumber - 1];
       if (!page.isLoaded) return null;
+      // Paint asks for this for every measured page in the cache extent. On a
+      // scanned document it parses the whole content stream -- the same bytes
+      // and the same worker isolate the render needs -- so trace what it costs.
+      final sw = Pdfrx.debugLazyLoading ? (Stopwatch()..start()) : null;
+      final bytesAtStart = Pdfrx.debugBytesFetched;
       final text = await page.loadStructuredText();
+      if (sw != null) {
+        final fetched = Pdfrx.debugBytesFetched - bytesAtStart;
+        pdfrxLazyLog(
+          '#$_viewerInstanceId TEXT p$pageNumber loaded ${text.fragments.length} fragment(s) '
+          'in ${sw.elapsedMilliseconds}ms  '
+          '${fetched > 0 ? 'NETWORK ${(fetched / 1024).toStringAsFixed(0)}KB' : 'cache hit'}',
+        );
+      }
       _textCache[pageNumber] = text;
       if (onTextLoaded != null) {
         onTextLoaded();
@@ -1803,8 +2003,24 @@ class _PdfViewerState extends State<PdfViewer>
     final cancellationToken = page.createCancellationToken();
 
     cache.addCancellationToken(page.pageNumber, cancellationToken);
+
+    // Every preview render in this viewer queues on one lock (the extension is
+    // keyed on the cache object), so a page can sit here for as long as all the
+    // pages ahead of it take. Time the wait separately from the render to tell
+    // "slow to draw" apart from "stuck in the queue".
+    final sw = Pdfrx.debugLazyLoading ? (Stopwatch()..start()) : null;
+    final bytesAtRequest = Pdfrx.debugBytesFetched;
     await cache.synchronized(() async {
-      if (!mounted || cancellationToken.isCanceled) return;
+      final waitedMs = sw?.elapsedMilliseconds ?? 0;
+      if (!mounted || cancellationToken.isCanceled) {
+        if (sw != null) {
+          pdfrxLazyLog(
+            '#$_viewerInstanceId RENDER p${page.pageNumber} abandoned after ${waitedMs}ms in queue '
+            '(${!mounted ? 'viewer gone' : 'cancelled -- page left the cache extent'})',
+          );
+        }
+        return;
+      }
       final prev = cache.pageImages[page.pageNumber];
       if (prev != null && !prev.isDirty && prev.scale == scale) return;
       PdfImage? img;
@@ -1817,13 +2033,37 @@ class _PdfViewerState extends State<PdfViewer>
           flags: widget.params.limitRenderingCache ? PdfPageRenderFlags.limitedImageCache : PdfPageRenderFlags.none,
           cancellationToken: cancellationToken,
         );
-        if (img == null || !mounted || cancellationToken.isCanceled) return;
+        if (img == null || !mounted || cancellationToken.isCanceled) {
+          if (sw != null) {
+            // A null here is a silent failure that leaves the page white --
+            // pdfium declined to produce a bitmap and nothing upstream records
+            // it. Note render does not require the page to be measured: it
+            // happily renders at the estimated size.
+            final why = img == null ? 'pdfium returned no image' : (!mounted ? 'viewer gone' : 'cancelled mid-render');
+            pdfrxLazyLog(
+              '#$_viewerInstanceId RENDER p${page.pageNumber} FAILED -- $why '
+              '(queued ${waitedMs}ms, total ${sw.elapsedMilliseconds}ms)',
+            );
+          }
+          return;
+        }
 
-        final newImage = _PdfImageWithScale(await img.createImage(), scale);
+        final newImage = _PdfImageWithScale(await img.createImage(), scale, pageGeometry: _pageGeometryOf(page));
         cache.pageImages[page.pageNumber]?.dispose();
         cache.pageImages[page.pageNumber] = newImage;
+        if (sw != null) {
+          final fetched = Pdfrx.debugBytesFetched - bytesAtRequest;
+          pdfrxLazyLog(
+            '#$_viewerInstanceId RENDER p${page.pageNumber} ok ${width.round()}x${height.round()} '
+            'in ${sw.elapsedMilliseconds - waitedMs}ms (queued ${waitedMs}ms)  '
+            '${fetched > 0 ? 'NETWORK ${(fetched / 1024).toStringAsFixed(0)}KB' : 'cache hit'}',
+          );
+        }
         _invalidate();
       } catch (e) {
+        if (sw != null) {
+          pdfrxLazyLog('#$_viewerInstanceId RENDER p${page.pageNumber} THREW after ${sw.elapsedMilliseconds}ms: $e');
+        }
         return; // ignore error
       } finally {
         img?.dispose();
@@ -1905,7 +2145,7 @@ class _PdfViewerState extends State<PdfViewer>
         cancellationToken: cancellationToken,
       );
       if (img == null || !mounted || cancellationToken.isCanceled) return null;
-      return _PdfImageWithScaleAndRect(await img.createImage(), scale, rect, x, y);
+      return _PdfImageWithScaleAndRect(await img.createImage(), scale, rect, x, y, pageGeometry: _pageGeometryOf(page));
     } catch (e) {
       return null; // ignore error
     } finally {
@@ -3766,13 +4006,23 @@ class _PdfPageImageCache {
     cancellationTokens.clear();
   }
 
-  void makeCacheImageForPageDirty(int pageNumber) {
+  /// Marks the cached bitmaps for [pageNumber] as needing a re-render.
+  ///
+  /// When [page] is given, bitmaps already rendered from that same geometry are
+  /// left alone: re-rendering them would burn a full page render on the worker
+  /// isolate to produce a pixel-identical image. This matters under on-demand
+  /// measurement, where every page raises a status change as its estimated size
+  /// is replaced -- usually by the very same size.
+  void makeCacheImageForPageDirty(int pageNumber, {PdfPage? page}) {
+    final geometry = page == null ? null : _pageGeometryOf(page);
+    bool stillValid(_PdfImageWithScale image) => geometry != null && image.pageGeometry == geometry;
+
     final image = pageImages[pageNumber];
-    if (image != null) {
+    if (image != null && !stillValid(image)) {
       image.isDirty = true;
     }
     final imagePartial = pageImagesPartial[pageNumber];
-    if (imagePartial != null) {
+    if (imagePartial != null && !stillValid(imagePartial)) {
       imagePartial.isDirty = true;
     }
   }
@@ -3825,10 +4075,22 @@ class _PdfPartialImageRenderingRequest {
   }
 }
 
+/// Identifies the page geometry a cached bitmap was rendered from.
+///
+/// Used to tell a page-status change that actually moved something apart from
+/// one that did not. With on-demand measurement every page raises a change event
+/// when its estimate is replaced by real dimensions, and for a document of
+/// uniformly sized pages -- a scanned book -- the two are identical.
+String _pageGeometryOf(PdfPage page) => '${page.width}x${page.height}/${page.rotation.index}';
+
 class _PdfImageWithScale {
-  _PdfImageWithScale(this.image, this.scale);
+  _PdfImageWithScale(this.image, this.scale, {this.pageGeometry});
   final ui.Image image;
   final double scale;
+
+  /// Geometry of the page at the time this bitmap was rendered, or null when it
+  /// was not recorded -- in which case any change is treated as invalidating.
+  final String? pageGeometry;
 
   int get width => image.width;
   int get height => image.height;
@@ -3841,7 +4103,7 @@ class _PdfImageWithScale {
 }
 
 class _PdfImageWithScaleAndRect extends _PdfImageWithScale {
-  _PdfImageWithScaleAndRect(super.image, super.scale, this.rect, this.left, this.top);
+  _PdfImageWithScaleAndRect(super.image, super.scale, this.rect, this.left, this.top, {super.pageGeometry});
   final Rect rect;
   final int left;
   final int top;
@@ -4044,6 +4306,8 @@ class PdfTextSelectionAnchor {
 enum PdfTextSelectionAnchorType { a, b }
 
 /// Defines page layout.
+String _fmtPageSize(PdfPage page) => '${page.width.toStringAsFixed(0)}x${page.height.toStringAsFixed(0)}';
+
 class PdfPageLayout {
   PdfPageLayout({required this.pageLayouts, required this.documentSize});
   final List<Rect> pageLayouts;

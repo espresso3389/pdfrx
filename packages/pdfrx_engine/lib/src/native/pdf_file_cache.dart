@@ -18,6 +18,9 @@ import '../pdfrx_initialize_dart.dart';
 import 'http_cache_control.dart';
 import 'native_utils.dart';
 
+String _fmtBytes(int bytes) =>
+    bytes >= 1024 * 1024 ? '${(bytes / (1024 * 1024)).toStringAsFixed(2)}MB' : '${(bytes / 1024).toStringAsFixed(1)}KB';
+
 final _rafFinalizer = Finalizer<RandomAccessFile>((raf) {
   // Attempt to close the file if it hasn't been closed explicitly.
   // Use try-catch as close might fail or already be closed.
@@ -75,6 +78,21 @@ class PdfFileCache {
       }
     }
     return min(countCached * blockSize, fileSize);
+  }
+
+  /// Whether every block of the file is resident, so the cache file holds the
+  /// complete document rather than a sparse copy of it.
+  ///
+  /// Only worth asking before treating the cache file as a plain PDF. A sparse
+  /// cache file is not a truncated PDF -- it is a full-length one with holes of
+  /// zeroes where blocks were never fetched -- which pdfium opens without
+  /// complaint and renders as blank pages.
+  bool get isFullyCached {
+    if (!isInitialized) return false;
+    for (var i = 0; i < totalBlocks; i++) {
+      if (!isCached(i)) return false;
+    }
+    return true;
   }
 
   bool get isInitialized => _initialized;
@@ -348,7 +366,18 @@ Future<PdfDocument> pdfDocumentFromUri(
         );
         // cached file has expired
         // if the file has fully downloaded again or has not been modified
-        if (result.isFullDownload || result.notModified) {
+        //
+        // Only take this shortcut when the cache file really is the whole
+        // document. A 304 says the blocks we hold are still valid -- it says
+        // nothing about how many we hold. Opening a sparse cache file as a plain
+        // PDF hands pdfium a full-length file whose unfetched blocks are zeroes:
+        // it finds the header, rebuilds the xref from whatever objects happen to
+        // be present, and opens successfully. Every page backed by a block that
+        // was never fetched then renders blank, permanently and without an
+        // error, because this path has no way to fetch anything else. Falling
+        // through to the demand-paging reader below is both correct and what the
+        // 304 actually licenses.
+        if (result.isFullDownload || (result.notModified && resolvedCache.isFullyCached)) {
           resolvedCache.close(); // close the cache file before opening it.
           httpClientWrapper.reset();
           return await entryFunctions.openFile(
@@ -356,6 +385,13 @@ Future<PdfDocument> pdfDocumentFromUri(
             passwordProvider: passwordProvider,
             firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
             useProgressiveLoading: useProgressiveLoading,
+          );
+        }
+        if (result.notModified && Pdfrx.debugLazyLoading) {
+          pdfrxLazyLog(
+            'REVALIDATE 304 for $uri -- cache holds ${_fmtBytes(resolvedCache.cachedBytes)} of '
+            '${_fmtBytes(resolvedCache.fileSize)}, so continuing with demand paging instead of '
+            'opening the sparse cache file directly',
           );
         }
       }
@@ -489,10 +525,13 @@ Future<_DownloadResult> _downloadBlock(
 
   var offset = blockOffset;
   var cachedBytesSoFar = cache.cachedBytes;
+  var bytesThisRequest = 0;
   await for (final bytes in response.stream) {
     await cache.write(offset, bytes);
     offset += bytes.length;
     cachedBytesSoFar += bytes.length;
+    bytesThisRequest += bytes.length;
+    Pdfrx.debugBytesFetched += bytes.length;
     progressCallback?.call(cachedBytesSoFar, fileSize);
   }
 
@@ -507,7 +546,43 @@ Future<_DownloadResult> _downloadBlock(
     await cache.initializeWithFileSize(fileSize, truncateExistingContent: false);
     await cache.setCached(0, lastBlock: cache.totalBlocks - 1);
   } else {
-    await cache.setCached(blockId, lastBlock: blockId + blockCount - 1);
+    // Mark only what actually arrived. A block marked resident on bytes that
+    // never landed is unrecoverable: every later read is served from the cache
+    // file, returns the zeroes sitting in the hole, and the page renders blank
+    // with no error and no retry. Short responses should not happen against a
+    // well-behaved server, which is exactly why this needs to be loud.
+    final bytesExpected = min(cache.blockSize * blockCount, cache.fileSize - blockOffset);
+    if (bytesThisRequest < bytesExpected) {
+      final blocksFilled = bytesThisRequest ~/ cache.blockSize;
+      if (Pdfrx.debugLazyLoading) {
+        pdfrxLazyLog(
+          'FETCH block $blockId SHORT -- asked for ${_fmtBytes(bytesExpected)}, got '
+          '${_fmtBytes(bytesThisRequest)}; marking $blocksFilled of $blockCount block(s) resident '
+          'so the rest is re-fetched rather than read back as zeroes',
+        );
+      }
+      if (blocksFilled > 0) {
+        await cache.setCached(blockId, lastBlock: blockId + blocksFilled - 1);
+      }
+    } else {
+      await cache.setCached(blockId, lastBlock: blockId + blockCount - 1);
+    }
+  }
+
+  if (Pdfrx.debugLazyLoading) {
+    if (isFullDownload) {
+      pdfrxLazyLog(
+        'FETCH whole file ${_fmtBytes(bytesThisRequest)} -- the server ignored '
+        'the Range header, so demand paging is NOT in effect',
+      );
+    } else {
+      final resident = cache.fileSize > 0 ? cache.cachedBytes * 100 ~/ cache.fileSize : 0;
+      pdfrxLazyLog(
+        'FETCH block $blockId  bytes=$blockOffset-${end - 1}  HTTP ${response.statusCode}  '
+        'got ${_fmtBytes(bytesThisRequest)}  '
+        'resident ${_fmtBytes(cache.cachedBytes)}/${_fmtBytes(cache.fileSize)} ($resident%)',
+      );
+    }
   }
 
   return _DownloadResult(fileSize!, isFullDownload, false);
