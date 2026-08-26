@@ -1,3 +1,12 @@
+# 2.4.8
+
+- Updated to `pdfrx_engine` 0.4.7.
+- FIXED: `PdfPageView` now disposes the previous page image before replacing it, avoiding image memory growth during scrolling ([#698](https://github.com/espresso3389/pdfrx/pull/698)).
+- FIXED: A failed page image decode now surfaces an error instead of leaving the render future pending forever ([#699](https://github.com/espresso3389/pdfrx/pull/699)).
+- FIXED: Text selection is no longer dropped while pages are still progressively loading ([#695](https://github.com/espresso3389/pdfrx/pull/695)).
+- FIXED: Null-check crash when text loading completes after the document has been unloaded ([#671](https://github.com/espresso3389/pdfrx/pull/671)).
+- FIXED: `encodePdf` on the WASM backend now returns only the bytes actually written.
+
 # 2.4.7
 
 - Updated to `pdfium_flutter` 0.2.3 so iOS/macOS Swift Package Manager support is recognized by Flutter and pub.dev.

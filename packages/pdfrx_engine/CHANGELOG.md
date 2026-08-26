@@ -1,3 +1,7 @@
+## 0.4.7
+
+- FIXED: Updating `PdfDocument.pages` no longer scales quadratically with the page count on the native backend ([#694](https://github.com/espresso3389/pdfrx/pull/694)).
+
 ## 0.4.6
 
 - FIXED: Windows ARM64 builds no longer fail on nullable PDF file cache access.
