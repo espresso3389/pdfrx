@@ -1,12 +1,7 @@
-import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:pdfrx_engine/src/native/worker.dart';
 import 'package:test/test.dart';
 
-import 'utils.dart';
-
 void main() {
-  setUp(() => pdfrxInitialize(tmpPath: tmpRoot.path));
-
   group('BackgroundWorker.compute', () {
     test('still supports a synchronous callback (regression)', () async {
       final result = await BackgroundWorker.compute((message) => message * 2, 21);

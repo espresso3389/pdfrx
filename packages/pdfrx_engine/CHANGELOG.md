@@ -1,3 +1,8 @@
+## 0.4.7
+
+- FIXED: `BackgroundWorker.compute()` now supports genuinely asynchronous callbacks and propagates callback errors instead of hanging ([#693](https://github.com/espresso3389/pdfrx/pull/693)).
+- FIXED: Updating `PdfDocument.pages` no longer scales quadratically with the page count on the native backend ([#694](https://github.com/espresso3389/pdfrx/pull/694)).
+
 ## 0.4.6
 
 - FIXED: Windows ARM64 builds no longer fail on nullable PDF file cache access.
