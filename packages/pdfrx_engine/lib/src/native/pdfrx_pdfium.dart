@@ -713,7 +713,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
       final buffer = malloc<Uint8>(fileSize);
       try {
         await read(buffer.asTypedList(fileSize), 0, fileSize);
-        return _openByFunc(
+        return await _openByFunc(
           (password) async => BackgroundWorker.computeWithArena(
             (arena, params) => pdfium.FPDF_LoadMemDocument(
               Pointer<Void>.fromAddress(params.buffer),
@@ -743,7 +743,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     // Otherwise, load the file on demand
     final fa = await PdfiumFileAccess.create(fileSize, read);
     try {
-      return _openByFunc(
+      return await _openByFunc(
         (password) async => BackgroundWorker.computeWithArena(
           (arena, params) => pdfium.FPDF_LoadCustomDocument(
             Pointer<pdfium_bindings.FPDF_FILEACCESS>.fromAddress(params.fileAccess),
@@ -881,7 +881,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
           sourceName: sourceName,
         ),
       );
-      return _PdfDocumentPdfium.fromPdfDocument(
+      return await _PdfDocumentPdfium.fromPdfDocument(
         pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
         sourceName: sourceName,
         useProgressiveLoading: false,

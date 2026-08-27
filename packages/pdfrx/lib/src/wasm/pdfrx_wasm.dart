@@ -255,7 +255,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
         );
       }
 
-      return _openByFunc(
+      return await _openByFunc(
         (password) => _sendCommand(
           'loadDocumentFromUrl',
           parameters: {
