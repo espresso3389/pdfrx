@@ -252,11 +252,9 @@ class _PdfFontMapper {
     final resolvedFace = fontNames.isEmpty ? null : fontNames.first;
     final faceFromFileName = decodeFaceFromFileName ? _decodeFontCacheFileName(file) : null;
     if (faceFromFileName != null) {
-      stderr.writeln('Caching font "$faceFromFileName" from file ${file.path}');
       _addCachedFont(_CachedFont(face: faceFromFileName, resolvedFace: resolvedFace, source: source, charset: null));
     }
     for (final fontName in fontNames) {
-      stderr.writeln('Caching font "$fontName" from file ${file.path}');
       _addCachedFont(_CachedFont(face: fontName, resolvedFace: fontName, source: source, charset: null));
     }
   }
@@ -309,7 +307,6 @@ class _PdfFontMapper {
     _cachedFonts[font.face] = font;
     final resolvedFace = font.resolvedFace;
     if (resolvedFace != null && resolvedFace != font.face) {
-      stderr.writeln('Caching font "$resolvedFace" as alias for "${font.face}"');
       _aliases[font.face] = resolvedFace;
       _cachedFonts[resolvedFace] = font;
     }
@@ -945,7 +942,6 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     await BackgroundWorker.compute((params) {
       _fontMapper?.addFontData(face: params.face, data: params.data, resolvedFace: params.resolvedFace);
     }, (face: face, data: data, resolvedFace: resolvedFace));
-    stderr.writeln('Added font data: $face (${data.length} bytes)${file == null ? '' : ' at ${file.path}'}');
   }
 
   @override
@@ -953,7 +949,6 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     await BackgroundWorker.compute((params) {
       _fontMapper?.addFontFile(face: params.face, filePath: params.filePath, resolvedFace: params.resolvedFace);
     }, (face: face, filePath: filePath, resolvedFace: resolvedFace));
-    stderr.writeln('Added font file: $face at $filePath');
   }
 
   @override
@@ -987,7 +982,9 @@ class _PdfDocumentPdfium extends PdfDocument {
   final Pointer<pdfium_bindings.FPDF_FORMFILLINFO> formInfo;
   bool isDisposed = false;
   bool _documentLoadCompleteNotified = false;
-  final subject = BehaviorSubject<PdfDocumentEvent>();
+  // Opening a document can produce both a load-complete event and a missing-font event before callers can subscribe.
+  // Retain both so late subscribers do not have to race document creation.
+  final subject = ReplaySubject<PdfDocumentEvent>(maxSize: 2);
 
   @override
   bool get isEncrypted => securityHandlerRevision != -1;
@@ -1061,7 +1058,9 @@ class _PdfDocumentPdfium extends PdfDocument {
       if (!useProgressiveLoading) {
         pdfDoc._notifyDocumentLoadComplete();
       }
-      pdfDoc._notifyMissingFonts();
+      // Complete the initial missing-font query before exposing the document. The replaying event stream ensures that
+      // a font manager associated immediately after open receives this event instead of racing it.
+      await pdfDoc._notifyMissingFonts();
       return pdfDoc;
     } catch (e) {
       pdfDoc?.dispose();

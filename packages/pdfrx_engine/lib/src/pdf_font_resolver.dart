@@ -165,27 +165,24 @@ class PdfFontManager {
 
   /// Creates a font manager that prefers Windows system fonts.
   ///
-  /// The manager registers a Windows-specific resolver before [resolvers]. Its
-  /// `prepare` implementation also prepends the Windows fonts directory to
-  /// `fontPaths`.
+  /// The manager registers a Windows-specific resolver before [resolvers]. The resolver looks up candidate files for
+  /// missing fonts directly, without eagerly scanning the Windows fonts directory.
   factory PdfFontManager.windows({List<PdfFontResolver> resolvers = const []}) {
     return platform_fonts.createWindowsFontManager(resolvers: resolvers);
   }
 
   /// Creates a font manager that prefers Linux system fonts.
   ///
-  /// The manager registers a Linux-specific resolver before [resolvers]. Its
-  /// `prepare` implementation also prepends common Linux font directories to
-  /// `fontPaths`.
+  /// The manager registers a Linux-specific resolver before [resolvers]. The resolver looks up candidate files for
+  /// missing fonts directly, without eagerly scanning common Linux font directories.
   factory PdfFontManager.linux({List<PdfFontResolver> resolvers = const []}) {
     return platform_fonts.createLinuxFontManager(resolvers: resolvers);
   }
 
   /// Creates a font manager that prefers macOS system fonts.
   ///
-  /// The manager registers a macOS-specific resolver before [resolvers]. Its
-  /// `prepare` implementation also prepends common macOS font directories to
-  /// `fontPaths`.
+  /// The manager registers a macOS-specific resolver before [resolvers]. The resolver looks up candidate files for
+  /// missing fonts directly, without eagerly scanning common macOS font directories.
   factory PdfFontManager.macos({List<PdfFontResolver> resolvers = const []}) {
     return platform_fonts.createMacOSFontManager(resolvers: resolvers);
   }
@@ -209,10 +206,8 @@ class PdfFontManager {
   ///
   /// [fontPaths] are additional font files or directories scanned by backends that support local font files.
   ///
-  /// This is called automatically by [loadMissingFonts] before resolving any fonts. PdfViewer also calls it before
-  /// loading a document when its font manager is set, so cached fonts can be used during the first load. Direct
-  /// PdfDocument users can call this before opening a document to get the same behavior or to configure local
-  /// [fontPaths].
+  /// This is called automatically by [loadMissingFonts] before resolving any fonts. PdfViewer waits for a document to
+  /// report missing fonts before triggering preparation, avoiding an eager scan of platform font directories.
   ///
   /// Multiple calls to this method will wait for the same preparation process to complete. Once preparation has
   /// started, calling this method again with [fontCachePath] or [fontPaths] throws [StateError].
@@ -442,9 +437,30 @@ class PdfFontLoadFailure {
 }
 
 class PdfFontManagerAssociation {
-  PdfFontManagerAssociation(this.fontManager, this.subscription);
-  final PdfFontManager fontManager;
-  final StreamSubscription<PdfDocumentEvent>? subscription;
+  PdfFontManagerAssociation(this.fontManager);
 
-  void dispose() => subscription?.cancel();
+  PdfFontManagerAssociation.listen(
+    this.fontManager,
+    Stream<PdfDocumentEvent> events,
+    Future<void> Function(PdfDocumentMissingFontsEvent event) load,
+  ) {
+    _subscription = events.listen((event) {
+      if (event is PdfDocumentMissingFontsEvent) {
+        _enqueueLoad(() => load(event));
+      }
+    });
+  }
+
+  final PdfFontManager fontManager;
+  StreamSubscription<PdfDocumentEvent>? _subscription;
+  Future<void> _pendingLoads = Future<void>.value();
+
+  void _enqueueLoad(Future<void> Function() load) {
+    _pendingLoads = _pendingLoads.then((_) => load());
+  }
+
+  /// Waits for all missing-font loads and their completion callbacks that have started so far.
+  Future<void> waitForPendingLoads() => _pendingLoads;
+
+  void dispose() => _subscription?.cancel();
 }

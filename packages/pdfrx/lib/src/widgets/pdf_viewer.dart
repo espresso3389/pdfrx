@@ -401,7 +401,6 @@ class _PdfViewerState extends State<PdfViewer>
       oldWidget?.documentRef.resolveListenable().removeListener(_onDocumentChanged);
       final documentRef = widget.documentRef;
       await pdfrxFlutterInitialize();
-      await widget.fontManager?.prepare();
       if (!mounted || !identical(documentRef, widget.documentRef)) {
         return;
       }
@@ -495,6 +494,8 @@ class _PdfViewerState extends State<PdfViewer>
 
     if (document.pages.isNotEmpty) {
       await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || document != _document) return;
+      await _fontManagerAssociation?.waitForPendingLoads();
       if (!mounted || document != _document) return;
       final initialPageNumber = _clampInitialPageNumber(document, _initialPageNumber ?? widget.initialPageNumber);
       final priorityPageNumbers = <int>[
@@ -592,16 +593,10 @@ class _PdfViewerState extends State<PdfViewer>
     }
     _clearFontManagerAssociation();
     if (fontManager != null && _controller != null) {
-      unawaited(
-        fontManager.prepare().then((_) {
-          if (!mounted || !identical(widget.fontManager, fontManager) || _controller == null || _document == null) {
-            return;
-          }
-          _clearFontManagerAssociation();
-          _fontManagerAssociation = _controller!.associateFontManager(fontManager);
-          _associatedFontManager = fontManager;
-        }),
-      );
+      // Font loading is part of the document recovery path. Keep console output out of this path because desktop
+      // release executables may not have valid standard-output handles when launched directly.
+      _fontManagerAssociation = _controller!.associateFontManager(fontManager, verbose: false);
+      _associatedFontManager = fontManager;
     }
   }
 

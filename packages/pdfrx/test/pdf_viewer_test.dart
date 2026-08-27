@@ -251,6 +251,33 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('font manager preparation is deferred until missing fonts are reported', (tester) async {
+    final document = _TestDocument(1);
+    final fontManager = _TestFontManager();
+    addTearDown(document.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          fontManager: fontManager,
+          params: const PdfViewerParams(
+            behaviorControlParams: PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
+          ),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(fontManager.prepareCount, 0);
+
+    document.reportMissingFonts();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(fontManager.prepareCount, 1);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('initial page callback failure falls back without stopping loading', (tester) async {
     final document = _TestDocument(9);
     addTearDown(document.dispose);
@@ -616,6 +643,14 @@ class _TestDocument extends PdfDocument {
   final reloadRequests = <List<int>?>[];
   bool progressiveLoadingStarted = false;
 
+  void reportMissingFonts() {
+    _events.add(
+      PdfDocumentMissingFontsEvent(this, const [
+        PdfFontQuery(face: 'Missing Font', weight: 400, isItalic: false, charset: PdfFontCharset.ansi, pitchFamily: 0),
+      ]),
+    );
+  }
+
   @override
   Stream<PdfDocumentEvent> get events async* {
     for (final event in replayedEvents) {
@@ -695,6 +730,17 @@ class _TestDocument extends PdfDocument {
 
   @override
   Future<T> useNativeDocumentHandle<T>(FutureOr<T> Function(int nativeDocumentHandle) task) async => await task(0);
+}
+
+class _TestFontManager extends PdfFontManager {
+  _TestFontManager() : super(resolvers: const []);
+
+  int prepareCount = 0;
+
+  @override
+  Future<void> prepare({String? fontCachePath, List<String>? fontPaths}) async {
+    prepareCount++;
+  }
 }
 
 class _TestPage implements PdfPage {

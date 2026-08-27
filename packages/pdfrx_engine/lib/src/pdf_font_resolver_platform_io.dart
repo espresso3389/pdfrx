@@ -39,23 +39,7 @@ PdfFontManager createMacOSFontManager({required List<PdfFontResolver> resolvers}
 }
 
 PdfFontManager _createPlatformFontManager(_PlatformFontProfile profile, List<PdfFontResolver> resolvers) {
-  return _PlatformPdfFontManager(profile: profile, resolvers: [_PlatformFontResolver(profile), ...resolvers]);
-}
-
-class _PlatformPdfFontManager extends PdfFontManager {
-  _PlatformPdfFontManager({required this.profile, required super.resolvers});
-
-  final _PlatformFontProfile profile;
-  bool _prepareStarted = false;
-
-  @override
-  Future<void> prepare({String? fontCachePath, List<String>? fontPaths}) {
-    if (_prepareStarted) {
-      return super.prepare(fontCachePath: fontCachePath, fontPaths: fontPaths);
-    }
-    _prepareStarted = true;
-    return super.prepare(fontCachePath: fontCachePath, fontPaths: [...profile.fontPaths, ...?fontPaths]);
-  }
+  return PdfFontManager(resolvers: [_PlatformFontResolver(profile), ...resolvers]);
 }
 
 /// Resolves well-known PDF/system font names to files that already exist in
@@ -70,18 +54,30 @@ class _PlatformFontResolver implements PdfFontResolver {
 
   @override
   PdfFontResolution? resolve(PdfFontQuery query, PdfFontResolveContext context) {
-    final candidates = profile.getCandidateFiles(query);
+    final match = profile.findFontFile(query);
+    if (match == null) {
+      return null;
+    }
+    return PdfFontResolution.localFontFile(
+      fontFilePath: match.file.path,
+      targetFace: query.face,
+      resolvedFace: match.candidate.resolvedFace,
+    );
+  }
+}
+
+typedef _PlatformFontFileMatch = ({File file, _FontCandidate candidate});
+
+extension on _PlatformFontProfile {
+  _PlatformFontFileMatch? findFontFile(PdfFontQuery query) {
+    final candidates = getCandidateFiles(query);
     for (final candidate in candidates) {
-      for (final fontPath in profile.fontPaths) {
+      for (final fontPath in fontPaths) {
         final file = File(path.join(fontPath, candidate.fileName));
         if (!file.existsSync()) {
           continue;
         }
-        return PdfFontResolution.localFontFile(
-          fontFilePath: file.path,
-          targetFace: query.face,
-          resolvedFace: candidate.resolvedFace,
-        );
+        return (file: file, candidate: candidate);
       }
     }
     return null;

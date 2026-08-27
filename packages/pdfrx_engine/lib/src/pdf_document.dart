@@ -310,23 +310,17 @@ abstract class PdfDocument {
     PdfFontLoadResultCallback? onLoadComplete,
     PdfFontLoadProgressCallback? onProgress,
   }) {
-    return PdfFontManagerAssociation(
-      fontManager,
-      onLoadComplete == null
-          ? null
-          : events.listen((event) {
-              if (event is PdfDocumentMissingFontsEvent) {
-                Future.microtask(
-                  () async =>
-                      onLoadComplete(await fontManager.loadMissingFonts(event.missingFonts, onProgress: onProgress)),
-                );
-              }
-            }),
-    );
+    if (onLoadComplete == null) {
+      return PdfFontManagerAssociation(fontManager);
+    }
+    return PdfFontManagerAssociation.listen(fontManager, events, (event) async {
+      final result = await fontManager.loadMissingFonts(event.missingFonts, onProgress: onProgress);
+      await onLoadComplete(result);
+    });
   }
 }
 
-typedef PdfFontLoadResultCallback = void Function(PdfFontLoadResult result);
+typedef PdfFontLoadResultCallback = FutureOr<void> Function(PdfFontLoadResult result);
 
 typedef PdfPageLoadingCallback<T> = FutureOr<bool> Function(int currentPageNumber, int totalPageCount, T? data);
 
