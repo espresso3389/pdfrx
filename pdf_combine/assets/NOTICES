@@ -2215,6 +2215,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 --------------------------------------------------------------------------------
 cross_file
+cupertino_ui
 file_selector
 file_selector_ios
 file_selector_linux
@@ -2222,6 +2223,7 @@ file_selector_macos
 file_selector_platform_interface
 file_selector_web
 file_selector_windows
+material_ui
 path_provider
 path_provider_android
 path_provider_foundation
