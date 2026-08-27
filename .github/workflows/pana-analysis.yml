@@ -46,7 +46,9 @@ jobs:
 
       - name: Activate pana
         run: |
-          dart pub global activate pana
+          # pana 0.23.18 incorrectly follows material_ui's VM-only about implementation on Web.
+          # Keep WASM validation enabled while https://github.com/flutter/flutter/issues/184093 is unresolved.
+          dart pub global activate pana 0.23.5
           echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
 
       - name: Prepare package for pana (${{ matrix.package_name }})
