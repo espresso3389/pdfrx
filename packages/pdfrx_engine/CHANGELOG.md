@@ -1,3 +1,12 @@
+## 0.5.0
+
+- Added demand-paged loading support for linearized PDFs, allowing viewers to defer off-screen page measurements.
+- Added per-page link caching across native, Web, and Core Graphics backends.
+- Added asynchronous missing-font load completion and a way to wait for pending font loads.
+- Improved progressive loading so sparse page metadata remains available while a document is still loading.
+- Improved platform font lookup by resolving requested fonts on demand instead of eagerly scanning font directories.
+- FIXED: Native document buffers remain valid until asynchronous document opening completes.
+
 ## 0.4.7
 
 - FIXED: `BackgroundWorker.compute()` now supports genuinely asynchronous callbacks and propagates callback errors instead of hanging ([#693](https://github.com/espresso3389/pdfrx/pull/693)).

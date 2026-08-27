@@ -1,3 +1,14 @@
+# 2.5.0
+
+- Added optional on-demand page dimension loading for faster initial display of linearized PDFs over HTTP.
+- Improved initial-page prioritization and concurrent page measurement during progressive loading.
+- Added cached page-link loading to avoid repeated backend work.
+- Improved WebAssembly handling of sparse page metadata during progressive loading.
+- Improved WebAssembly cleanup when opening a document URL fails asynchronously.
+- Improved platform font loading so direct Windows release builds no longer stall or open to a blank page.
+- Migrated Material widgets to the standalone `material_ui` package and raised the minimum Flutter version to 3.47.
+- FIXED: Pages whose bitmaps were evicted before being fetched can be rendered again instead of remaining blank.
+
 # 2.4.8
 
 - Updated to `pdfrx_engine` 0.4.7.

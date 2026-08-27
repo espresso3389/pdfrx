@@ -1,3 +1,8 @@
+## 0.3.0
+
+- Updated to `pdfrx_engine` 0.5.0.
+- Added per-page link caching and improved progressive page-list update performance.
+
 ## 0.2.2
 
 - Updated to `pdfrx_engine` 0.4.3.
