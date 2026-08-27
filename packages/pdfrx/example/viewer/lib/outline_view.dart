@@ -1,7 +1,7 @@
 //
 // Just a rough implementation of the document index
 //
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 class OutlineView extends StatelessWidget {

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Extensions for EdgeInsets to provide additional utility methods.
 extension EdgeInsetsExtensions on EdgeInsets {

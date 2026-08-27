@@ -1,6 +1,6 @@
 import 'dart:js_interop';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:web/web.dart' as web;

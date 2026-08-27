@@ -9,8 +9,8 @@ screenshots:
     path: screenshot.jpg
 
 environment:
-  sdk: ^3.10.0
-  flutter: '>=3.41.0'
+  sdk: ^3.12.0
+  flutter: '>=3.47.0'
 resolution: workspace
 
 dependencies:
@@ -29,6 +29,7 @@ dependencies:
   web: ^1.1.1
   yaml:
 
+  material_ui: ^1.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

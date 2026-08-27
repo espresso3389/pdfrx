@@ -3,7 +3,7 @@
 The following code is a minimum example usage of pdfrx:
 
 ```dart
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 void main() {

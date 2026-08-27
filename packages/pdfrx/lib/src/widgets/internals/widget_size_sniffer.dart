@@ -2,7 +2,7 @@
 
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A widget that sniffs the size of its child and calls the callback when the size changes.
 class WidgetSizeSniffer extends StatefulWidget {

@@ -3,7 +3,7 @@ import 'dart:developer' as developer;
 import 'dart:math';
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 
 import '../pdf_document_ref.dart';

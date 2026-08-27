@@ -1,7 +1,7 @@
 //
 // Simple password dialog
 //
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 Future<String?> passwordDialog(BuildContext context) async {
   final textController = TextEditingController();

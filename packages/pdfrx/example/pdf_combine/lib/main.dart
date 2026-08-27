@@ -5,7 +5,7 @@ import 'package:animated_reorderable_list/animated_reorderable_list.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import 'helper_web.dart' if (dart.library.io) 'helper_io.dart';
