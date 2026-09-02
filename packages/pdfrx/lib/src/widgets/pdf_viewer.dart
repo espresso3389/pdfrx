@@ -1703,7 +1703,12 @@ class _PdfViewerState extends State<PdfViewer>
 
       final pageScale = scale * max(rect.width / page.width, rect.height / page.height);
       if (!enableLowResolutionPagePreview || pageScale > previewScaleLimit) {
-        _requestRealSizePartialImage(cache, page, pageScale, targetRect);
+        // `scale` (not `pageScale`) converts document units to physical pixels.
+        // `pageScale` additionally carries the layout-to-page-size ratio, which
+        // `_createRealSizePartialImage` would apply a second time via
+        // `pageRect.width * scale` -- under-rendering a custom `layoutPages`
+        // that does not lay pages out at their natural size.
+        _requestRealSizePartialImage(cache, page, scale, targetRect);
       }
 
       if ((!enableLowResolutionPagePreview || pageScale > previewScaleLimit) && partial != null) {
