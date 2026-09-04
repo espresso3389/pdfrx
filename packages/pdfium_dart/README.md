@@ -108,5 +108,8 @@ The bindings are generated from PDFium headers using the `ffigen` configuration 
 | Linux    | x64, ARM64, ARM, x86 | ✅ |
 | Android  | ARM64, ARMv7, x86, x86_64 | ✅ |
 | macOS    | x64, ARM64  | ✅      |
+| HarmonyOS (OHOS) | ARM64 | ✅ (bring your own `libpdfium.so`) |
 
 **Note:** For Flutter applications, use [pdfium_flutter](https://pub.dev/packages/pdfium_flutter) unless you specifically need the lower-level Dart bindings directly. `pdfium_flutter` includes the Flutter deployment layer for all native platforms except Web.
+
+**HarmonyOS note:** the build hook does not download PDFium for OHOS targets. Bundle a `libpdfium.so` under the HAP's `libs/<abi>/` directory; the loader resolves it via a bare-name `dlopen` from the app's native library directory at runtime.
