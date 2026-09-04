@@ -1224,46 +1224,49 @@ class _PdfDocumentPdfium extends PdfDocument {
 
   @override
   Future<void> reloadPages({List<int>? pageNumbersToReload}) async {
-    final results = await BackgroundWorker.computeWithArena((arena, params) {
-      final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docAddress);
-      final pageCount = pdfium.FPDF_GetPageCount(doc);
-      int? invalidPageNumber;
-      if (params.pageNumbersToReload != null) {
-        for (final pageNumber in params.pageNumbersToReload!) {
-          if (pageNumber < 1 || pageNumber > pageCount) {
-            invalidPageNumber = pageNumber;
-            break;
+    final results = await BackgroundWorker.computeWithArena(
+      (arena, params) {
+        final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docAddress);
+        final pageCount = pdfium.FPDF_GetPageCount(doc);
+        int? invalidPageNumber;
+        if (params.pageNumbersToReload != null) {
+          for (final pageNumber in params.pageNumbersToReload!) {
+            if (pageNumber < 1 || pageNumber > pageCount) {
+              invalidPageNumber = pageNumber;
+              break;
+            }
           }
         }
-      }
 
-      final pageNumbersToLoad = SplayTreeSet.from(params.pageNumbersToReload ?? []);
-      pageNumbersToLoad.addAll(
-        Iterable.generate(pageCount - params.currentPageCount, (index) => params.currentPageCount + index + 1),
-      );
+        final pageNumbersToLoad = SplayTreeSet.from(params.pageNumbersToReload ?? []);
+        pageNumbersToLoad.addAll(
+          Iterable.generate(pageCount - params.currentPageCount, (index) => params.currentPageCount + index + 1),
+        );
 
-      final pages = <({int pageIndex, double width, double height, int rotation, double bbLeft, double bbBottom})>[];
-      if (invalidPageNumber == null) {
-        for (final pageNumber in pageNumbersToLoad) {
-          final page = pdfium.FPDF_LoadPage(doc, pageNumber - 1);
-          try {
-            final rect = arena<pdfium_bindings.FS_RECTF>();
-            pdfium.FPDF_GetPageBoundingBox(page, rect);
-            pages.add((
-              pageIndex: pageNumber - 1,
-              width: pdfium.FPDF_GetPageWidthF(page),
-              height: pdfium.FPDF_GetPageHeightF(page),
-              rotation: pdfium.FPDFPage_GetRotation(page),
-              bbLeft: rect.ref.left.toDouble(),
-              bbBottom: rect.ref.bottom.toDouble(),
-            ));
-          } finally {
-            pdfium.FPDF_ClosePage(page);
+        final pages = <({int pageIndex, double width, double height, int rotation, double bbLeft, double bbBottom})>[];
+        if (invalidPageNumber == null) {
+          for (final pageNumber in pageNumbersToLoad) {
+            final page = pdfium.FPDF_LoadPage(doc, pageNumber - 1);
+            try {
+              final rect = arena<pdfium_bindings.FS_RECTF>();
+              pdfium.FPDF_GetPageBoundingBox(page, rect);
+              pages.add((
+                pageIndex: pageNumber - 1,
+                width: pdfium.FPDF_GetPageWidthF(page),
+                height: pdfium.FPDF_GetPageHeightF(page),
+                rotation: pdfium.FPDFPage_GetRotation(page),
+                bbLeft: rect.ref.left.toDouble(),
+                bbBottom: rect.ref.bottom.toDouble(),
+              ));
+            } finally {
+              pdfium.FPDF_ClosePage(page);
+            }
           }
         }
-      }
-      return (pages: pages, invalidPageNumber: invalidPageNumber);
-    }, (docAddress: document.address, pageNumbersToReload: pageNumbersToReload, currentPageCount: _pages.length));
+        return (pages: pages, invalidPageNumber: invalidPageNumber);
+      },
+      (docAddress: document.address, pageNumbersToReload: pageNumbersToReload, currentPageCount: _pages.length),
+    );
     if (results.invalidPageNumber != null) {
       throw ArgumentError.value(
         results.invalidPageNumber,
@@ -1617,53 +1620,38 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
     const rgbaSize = 4;
     Pointer<Uint8> buffer = nullptr;
     try {
-      buffer = malloc<Uint8>(width * height * rgbaSize);
-      final isSucceeded = await using((arena) async {
+      final bufferAddress = await using((arena) async {
         final cancelFlag = arena<Bool>();
         ct?.attach(cancelFlag);
 
-        if (cancelFlag.value || document.isDisposed) return false;
+        if (cancelFlag.value || document.isDisposed) return 0;
         return await BackgroundWorker.compute(
           (params) {
             final cancelFlag = Pointer<Bool>.fromAddress(params.cancelFlag);
-            if (cancelFlag.value) return false;
-            final bmp = pdfium.FPDFBitmap_CreateEx(
-              params.width,
-              params.height,
-              pdfium_bindings.FPDFBitmap_BGRA,
-              Pointer.fromAddress(params.buffer),
-              params.width * rgbaSize,
-            );
-            if (bmp == nullptr) {
-              throw PdfException('FPDFBitmap_CreateEx(${params.width}, ${params.height}) failed.');
-            }
-            pdfium_bindings.FPDF_PAGE page = nullptr;
+            if (cancelFlag.value) return 0;
+            Pointer<Uint8> buffer = nullptr;
             try {
-              final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
-              page = pdfium.FPDF_LoadPage(doc, params.pageNumber - 1);
-              if (page == nullptr) {
-                throw PdfException('FPDF_LoadPage(${params.pageNumber}) failed.');
-              }
-              pdfium.FPDFBitmap_FillRect(bmp, 0, 0, params.width, params.height, params.backgroundColor!);
-
-              pdfium.FPDF_RenderPageBitmap(
-                bmp,
-                page,
-                -params.x,
-                -params.y,
-                params.fullWidth,
-                params.fullHeight,
-                params.rotation,
-                params.flags |
-                    (params.annotationRenderingMode != PdfAnnotationRenderingMode.none
-                        ? pdfium_bindings.FPDF_ANNOT
-                        : 0),
+              buffer = malloc<Uint8>(params.width * params.height * rgbaSize);
+              final bmp = pdfium.FPDFBitmap_CreateEx(
+                params.width,
+                params.height,
+                pdfium_bindings.FPDFBitmap_BGRA,
+                buffer.cast(),
+                params.width * rgbaSize,
               );
+              if (bmp == nullptr) {
+                throw PdfException('FPDFBitmap_CreateEx(${params.width}, ${params.height}) failed.');
+              }
+              pdfium_bindings.FPDF_PAGE page = nullptr;
+              try {
+                final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
+                page = pdfium.FPDF_LoadPage(doc, params.pageNumber - 1);
+                if (page == nullptr) {
+                  throw PdfException('FPDF_LoadPage(${params.pageNumber}) failed.');
+                }
+                pdfium.FPDFBitmap_FillRect(bmp, 0, 0, params.width, params.height, params.backgroundColor!);
 
-              if (params.formHandle != 0 &&
-                  params.annotationRenderingMode == PdfAnnotationRenderingMode.annotationAndForms) {
-                pdfium.FPDF_FFLDraw(
-                  pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle),
+                pdfium.FPDF_RenderPageBitmap(
                   bmp,
                   page,
                   -params.x,
@@ -1671,19 +1659,39 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
                   params.fullWidth,
                   params.fullHeight,
                   params.rotation,
-                  params.flags,
+                  params.flags |
+                      (params.annotationRenderingMode != PdfAnnotationRenderingMode.none
+                          ? pdfium_bindings.FPDF_ANNOT
+                          : 0),
                 );
+
+                if (params.formHandle != 0 &&
+                    params.annotationRenderingMode == PdfAnnotationRenderingMode.annotationAndForms) {
+                  pdfium.FPDF_FFLDraw(
+                    pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle),
+                    bmp,
+                    page,
+                    -params.x,
+                    -params.y,
+                    params.fullWidth,
+                    params.fullHeight,
+                    params.rotation,
+                    params.flags,
+                  );
+                }
+              } finally {
+                pdfium.FPDF_ClosePage(page);
+                pdfium.FPDFBitmap_Destroy(bmp);
               }
-              return true;
-            } finally {
-              pdfium.FPDF_ClosePage(page);
-              pdfium.FPDFBitmap_Destroy(bmp);
+              return buffer.address;
+            } catch (_) {
+              malloc.free(buffer);
+              rethrow;
             }
           },
           (
             document: document.document.address,
             pageNumber: pageNumber,
-            buffer: buffer.address,
             x: x,
             y: y,
             width: width!,
@@ -1703,10 +1711,11 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
 
       document._notifyMissingFonts();
 
-      if (!isSucceeded) {
+      if (bufferAddress == 0) {
         return null;
       }
 
+      buffer = Pointer<Uint8>.fromAddress(bufferAddress);
       final resultBuffer = buffer;
       buffer = nullptr;
 

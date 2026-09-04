@@ -1995,6 +1995,7 @@ class _PdfViewerState extends State<PdfViewer>
     if (!mounted) return;
     final prev = cache.pageImages[page.pageNumber];
     if (prev != null && !prev.isDirty && prev.scale == scale) return;
+    if (!cache.beginPagePreviewRendering(page.pageNumber)) return;
     final cancellationToken = page.createCancellationToken();
 
     cache.addCancellationToken(page.pageNumber, cancellationToken);
@@ -2005,65 +2006,76 @@ class _PdfViewerState extends State<PdfViewer>
     // "slow to draw" apart from "stuck in the queue".
     final sw = Pdfrx.debugLazyLoading ? (Stopwatch()..start()) : null;
     final bytesAtRequest = Pdfrx.debugBytesFetched;
-    await cache.synchronized(() async {
-      final waitedMs = sw?.elapsedMilliseconds ?? 0;
-      if (!mounted || cancellationToken.isCanceled) {
-        if (sw != null) {
-          pdfrxLazyLog(
-            '#$_viewerInstanceId RENDER p${page.pageNumber} abandoned after ${waitedMs}ms in queue '
-            '(${!mounted ? 'viewer gone' : 'cancelled -- page left the cache extent'})',
-          );
-        }
-        return;
-      }
-      final prev = cache.pageImages[page.pageNumber];
-      if (prev != null && !prev.isDirty && prev.scale == scale) return;
-      PdfImage? img;
-      try {
-        img = await page.render(
-          fullWidth: width,
-          fullHeight: height,
-          backgroundColor: 0xffffffff,
-          annotationRenderingMode: widget.params.annotationRenderingMode,
-          flags: widget.params.limitRenderingCache ? PdfPageRenderFlags.limitedImageCache : PdfPageRenderFlags.none,
-          cancellationToken: cancellationToken,
-        );
-        if (img == null || !mounted || cancellationToken.isCanceled) {
+    try {
+      await cache.synchronized(() async {
+        final waitedMs = sw?.elapsedMilliseconds ?? 0;
+        if (!mounted || cancellationToken.isCanceled) {
           if (sw != null) {
-            // A null here is a silent failure that leaves the page white --
-            // pdfium declined to produce a bitmap and nothing upstream records
-            // it. Note render does not require the page to be measured: it
-            // happily renders at the estimated size.
-            final why = img == null ? 'pdfium returned no image' : (!mounted ? 'viewer gone' : 'cancelled mid-render');
             pdfrxLazyLog(
-              '#$_viewerInstanceId RENDER p${page.pageNumber} FAILED -- $why '
-              '(queued ${waitedMs}ms, total ${sw.elapsedMilliseconds}ms)',
+              '#$_viewerInstanceId RENDER p${page.pageNumber} abandoned after ${waitedMs}ms in queue '
+              '(${!mounted ? 'viewer gone' : 'cancelled -- page left the cache extent'})',
             );
           }
           return;
         }
-
-        final newImage = _PdfImageWithScale(await img.createImage(), scale, pageGeometry: _pageGeometryOf(page));
-        cache.pageImages[page.pageNumber]?.dispose();
-        cache.pageImages[page.pageNumber] = newImage;
-        if (sw != null) {
-          final fetched = Pdfrx.debugBytesFetched - bytesAtRequest;
-          pdfrxLazyLog(
-            '#$_viewerInstanceId RENDER p${page.pageNumber} ok ${width.round()}x${height.round()} '
-            'in ${sw.elapsedMilliseconds - waitedMs}ms (queued ${waitedMs}ms)  '
-            '${fetched > 0 ? 'NETWORK ${(fetched / 1024).toStringAsFixed(0)}KB' : 'cache hit'}',
+        final prev = cache.pageImages[page.pageNumber];
+        if (prev != null && !prev.isDirty && prev.scale == scale) return;
+        PdfImage? img;
+        try {
+          img = await page.render(
+            fullWidth: width,
+            fullHeight: height,
+            backgroundColor: 0xffffffff,
+            annotationRenderingMode: widget.params.annotationRenderingMode,
+            flags: widget.params.limitRenderingCache ? PdfPageRenderFlags.limitedImageCache : PdfPageRenderFlags.none,
+            cancellationToken: cancellationToken,
           );
+          if (img == null || !mounted || cancellationToken.isCanceled) {
+            if (sw != null) {
+              // A null here is a silent failure that leaves the page white --
+              // pdfium declined to produce a bitmap and nothing upstream records
+              // it. Note render does not require the page to be measured: it
+              // happily renders at the estimated size.
+              final why = img == null
+                  ? 'pdfium returned no image'
+                  : (!mounted ? 'viewer gone' : 'cancelled mid-render');
+              pdfrxLazyLog(
+                '#$_viewerInstanceId RENDER p${page.pageNumber} FAILED -- $why '
+                '(queued ${waitedMs}ms, total ${sw.elapsedMilliseconds}ms)',
+              );
+            }
+            return;
+          }
+
+          final newImage = _PdfImageWithScale(await img.createImage(), scale, pageGeometry: _pageGeometryOf(page));
+          cache.pageImages[page.pageNumber]?.dispose();
+          cache.pageImages[page.pageNumber] = newImage;
+          if (sw != null) {
+            final fetched = Pdfrx.debugBytesFetched - bytesAtRequest;
+            pdfrxLazyLog(
+              '#$_viewerInstanceId RENDER p${page.pageNumber} ok ${width.round()}x${height.round()} '
+              'in ${sw.elapsedMilliseconds - waitedMs}ms (queued ${waitedMs}ms)  '
+              '${fetched > 0 ? 'NETWORK ${(fetched / 1024).toStringAsFixed(0)}KB' : 'cache hit'}',
+            );
+          }
+          _invalidate();
+        } catch (e) {
+          if (sw != null) {
+            pdfrxLazyLog('#$_viewerInstanceId RENDER p${page.pageNumber} THREW after ${sw.elapsedMilliseconds}ms: $e');
+          }
+          return; // ignore error
+        } finally {
+          img?.dispose();
         }
-        _invalidate();
-      } catch (e) {
-        if (sw != null) {
-          pdfrxLazyLog('#$_viewerInstanceId RENDER p${page.pageNumber} THREW after ${sw.elapsedMilliseconds}ms: $e');
-        }
-        return; // ignore error
-      } finally {
-        img?.dispose();
-      }
-    });
+      });
+    } finally {
+      cache.endPagePreviewRendering(page.pageNumber, cancellationToken);
+      // A page may leave the cache extent only transiently while progressive
+      // loading updates the layout. Repaint after its canceled request drains
+      // so the current extent, rather than the stale one, decides whether the
+      // page needs a new preview.
+      if (mounted && cancellationToken.isCanceled) _invalidate();
+    }
   }
 
   Future<void> _requestRealSizePartialImage(
@@ -3945,11 +3957,21 @@ class _PdfPageImageCache {
   final pageImageRenderingTimers = <int, Timer>{};
   final pageImagesPartial = <int, _PdfImageWithScaleAndRect>{};
   final cancellationTokens = <int, List<PdfPageRenderCancellationToken>>{};
+  final pagePreviewRenderings = <int>{};
   final pageImagePartialRenderingRequests = <int, _PdfPartialImageRenderingRequest>{};
 
   void addCancellationToken(int pageNumber, PdfPageRenderCancellationToken token) {
     var tokens = cancellationTokens.putIfAbsent(pageNumber, () => []);
     tokens.add(token);
+  }
+
+  bool beginPagePreviewRendering(int pageNumber) => pagePreviewRenderings.add(pageNumber);
+
+  void endPagePreviewRendering(int pageNumber, PdfPageRenderCancellationToken token) {
+    pagePreviewRenderings.remove(pageNumber);
+    final tokens = cancellationTokens[pageNumber];
+    tokens?.remove(token);
+    if (tokens?.isEmpty ?? false) cancellationTokens.remove(pageNumber);
   }
 
   void releasePartialImages() {

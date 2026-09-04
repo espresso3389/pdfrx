@@ -411,6 +411,49 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('a canceled preview is retried when its page becomes visible again', (tester) async {
+    await binding.setSurfaceSize(const Size(800, 600));
+    addTearDown(() => binding.setSurfaceSize(null));
+    final controller = PdfViewerController();
+    final document = _TestDocument(2);
+    addTearDown(document.dispose);
+    final renderControl = (document.pages.first as _TestPage).renderControl..block();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          controller: controller,
+          params: const PdfViewerParams(
+            verticalCacheExtent: 0,
+            getPageRenderingScale: _largePreviewScale,
+            behaviorControlParams: PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
+          ),
+        ),
+      ),
+    );
+    for (var i = 0; i < 30 && !renderControl.started; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+    }
+    expect(renderControl.renderCount, 1);
+
+    await controller.goToPage(pageNumber: 2, duration: Duration.zero);
+    await tester.pump();
+    await controller.goToPage(pageNumber: 1, duration: Duration.zero);
+    await tester.pump();
+
+    renderControl.release();
+    for (var i = 0; i < 30 && renderControl.renderCount < 2; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+    }
+    expect(renderControl.renderCount, 2);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('top page anchor keeps underflowing page top aligned', (tester) async {
     await binding.setSurfaceSize(Size(1000, 2000));
     addTearDown(() => binding.setSurfaceSize(null));
@@ -732,6 +775,8 @@ class _TestDocument extends PdfDocument {
   Future<T> useNativeDocumentHandle<T>(FutureOr<T> Function(int nativeDocumentHandle) task) async => await task(0);
 }
 
+double _largePreviewScale(BuildContext context, PdfPage page, PdfViewerController controller, double scale) => 10;
+
 class _TestFontManager extends PdfFontManager {
   _TestFontManager() : super(resolvers: const []);
 
@@ -806,9 +851,12 @@ class _TestPageRenderControl {
 
   Future<void> beforeRender() async {
     started = true;
+    renderCount++;
     final gate = _gate;
     if (gate != null) await gate.future;
   }
+
+  int renderCount = 0;
 }
 
 class _TestCancellationToken implements PdfPageRenderCancellationToken {
