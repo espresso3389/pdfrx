@@ -1771,7 +1771,17 @@ async function renderPage(params) {
     Pdfium.wasmExports.FPDF_RenderPageBitmap(bitmap, pageHandle, -x, -y, fullWidth, fullHeight, rotation, pdfiumFlags);
 
     if (formHandle && annotationRenderingMode == PdfAnnotationRenderingMode_annotationAndForms) {
-      Pdfium.wasmExports.FPDF_FFLDraw(formHandle, bitmap, pageHandle, -x, -y, fullWidth, fullHeight, rotation, flags);
+      Pdfium.wasmExports.FPDF_FFLDraw(
+        formHandle,
+        bitmap,
+        pageHandle,
+        -x,
+        -y,
+        fullWidth,
+        fullHeight,
+        rotation,
+        pdfiumFlags,
+      );
     }
     const src = new Uint8Array(Pdfium.memory.buffer, bufferPtr, bufferSize);
     let copiedBuffer = new ArrayBuffer(bufferSize);
