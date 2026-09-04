@@ -4,7 +4,7 @@ import 'package:archive/archive_io.dart';
 import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
 
-import 'proxy_http_client.dart';
+import '../lib/src/proxy_http_client.dart';
 
 const _pdfiumRelease = 'chromium%2F7811';
 const _assetName = 'libpdfium';

@@ -11,7 +11,7 @@ const _downloadRetryDelays = [
   Duration(seconds: 4),
 ];
 
-/// Creates an HTTP client that uses environment proxies and, on Windows, the user's static system proxy.
+/// Creates an HTTP client that uses environment proxies and the Windows user's static system proxy.
 Future<http.Client> createProxyAwareHttpClient() async {
   final systemProxyEnvironment = Platform.isWindows
       ? await _loadWindowsProxyEnvironment()

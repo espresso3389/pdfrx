@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
-import '../hook/proxy_http_client.dart';
+import '../lib/src/proxy_http_client.dart';
 
 void main() {
   test('retries a transient client failure', () async {
