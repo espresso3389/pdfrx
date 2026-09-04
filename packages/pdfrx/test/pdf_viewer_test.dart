@@ -642,6 +642,7 @@ class _TestDocument extends PdfDocument {
   late List<PdfPage> _pages;
   final reloadRequests = <List<int>?>[];
   bool progressiveLoadingStarted = false;
+  int? progressiveLoadingStartPageNumber;
 
   void reportMissingFonts() {
     _events.add(
@@ -684,8 +685,10 @@ class _TestDocument extends PdfDocument {
     PdfPageLoadingCallback<T>? onPageLoadProgress,
     T? data,
     Duration loadUnitDuration = const Duration(milliseconds: 250),
+    int? startPageNumber,
   }) async {
     progressiveLoadingStarted = true;
+    progressiveLoadingStartPageNumber = startPageNumber;
     _loadPages([for (var pageNumber = 1; pageNumber <= _pages.length; pageNumber++) pageNumber]);
     await onPageLoadProgress?.call(_pages.length, _pages.length, data);
     if (emitCompletionOnProgressive) {

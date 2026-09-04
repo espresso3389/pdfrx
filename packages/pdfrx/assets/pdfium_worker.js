@@ -1502,18 +1502,45 @@ async function _loadPagesInLimitedTimeAsync(
 }
 
 /**
- * @param {{docHandle: number, firstPageIndex: number, loadedPageIndices: number[], loadUnitDuration: number}} params
+ * Loads the pages listed in `pageIndices`, in that order, until `timeoutMs` elapses.
+ * At least one page is loaded per call. Indices outside the document are ignored.
+ * @param {number} docHandle
+ * @param {number[]} pageIndices
+ * @param {number} timeoutMs
+ * @returns {Promise<PdfPage[]>}
+ */
+async function _loadPageIndicesInLimitedTimeAsync(docHandle, pageIndices, timeoutMs) {
+  const pageCount = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
+  const t = Date.now() + timeoutMs;
+  /** @type {PdfPage[]} */
+  const pages = [];
+  _resetMissingFonts();
+  for (const i of pageIndices) {
+    if (i < 0 || i >= pageCount) {
+      continue;
+    }
+    await _ensurePageAvailable(docHandle, i);
+    pages.push(_loadPageMetadata(docHandle, i));
+    if (Date.now() > t) {
+      break;
+    }
+  }
+  _updateMissingFonts(docHandle);
+  return pages;
+}
+
+/**
+ * `pageIndices`, when present, lists the unloaded pages in the order they should be measured
+ * (e.g. spreading outward from the page being displayed); otherwise pages are measured from
+ * `firstPageIndex` onward, skipping `loadedPageIndices`.
+ * @param {{docHandle: number, firstPageIndex: number, loadedPageIndices: number[], pageIndices?: number[], loadUnitDuration: number}} params
  * @returns {{pages: PdfPage[], missingFonts: FontQueries}}
  */
 async function loadPagesProgressively(params) {
-  const { docHandle, firstPageIndex, loadedPageIndices, loadUnitDuration } = params;
-  const pages = await _loadPagesInLimitedTimeAsync(
-    docHandle,
-    firstPageIndex,
-    loadedPageIndices,
-    null,
-    loadUnitDuration,
-  );
+  const { docHandle, firstPageIndex, loadedPageIndices, pageIndices, loadUnitDuration } = params;
+  const pages = pageIndices
+    ? await _loadPageIndicesInLimitedTimeAsync(docHandle, pageIndices, loadUnitDuration)
+    : await _loadPagesInLimitedTimeAsync(docHandle, firstPageIndex, loadedPageIndices, null, loadUnitDuration);
   return { pages, missingFonts: missingFonts[docHandle] };
 }
 

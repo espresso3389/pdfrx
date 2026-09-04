@@ -1081,22 +1081,18 @@ class _PdfDocumentPdfium extends PdfDocument {
     PdfPageLoadingCallback<T>? onPageLoadProgress,
     T? data,
     Duration loadUnitDuration = const Duration(milliseconds: 250),
+    int? startPageNumber,
   }) async {
     for (;;) {
       if (isDisposed) return;
 
-      final firstUnloadedPageIndex = _pages.indexWhere((page) => !page.isLoaded);
-      if (firstUnloadedPageIndex == -1) {
+      final pageIndicesToLoad = _unloadedPageIndicesOrderedFrom(_pages, startPageNumber);
+      if (pageIndicesToLoad.isEmpty) {
         _notifyDocumentLoadComplete();
         return;
       }
-      final loadedPageIndicesToSkip = <int>[
-        for (var i = firstUnloadedPageIndex + 1; i < _pages.length; i++)
-          if (_pages[i].isLoaded) i,
-      ];
       final loaded = await _loadPagesInLimitedTime(
-        pagesLoadedCountSoFar: firstUnloadedPageIndex,
-        loadedPageIndicesToSkip: loadedPageIndicesToSkip,
+        pageIndicesToLoad: pageIndicesToLoad,
         pagesToPreserve: _pages,
         timeout: loadUnitDuration,
       );
@@ -1104,7 +1100,7 @@ class _PdfDocumentPdfium extends PdfDocument {
       pages = loaded.pages;
 
       if (onPageLoadProgress != null) {
-        final result = await onPageLoadProgress(loaded.pageCountLoadedTotal, loaded.pages.length, data);
+        final result = await onPageLoadProgress(loaded.loadedPageCount, loaded.pages.length, data);
         if (result == false) {
           if (_pages.every((page) => page.isLoaded)) {
             _notifyDocumentLoadComplete();
@@ -1123,10 +1119,36 @@ class _PdfDocumentPdfium extends PdfDocument {
     }
   }
 
+  /// Returns the indices of the unloaded pages in [pages], ordered by distance from [startPageNumber] (1-based).
+  ///
+  /// The order alternates after and before the start page (start, start+1, start-1, start+2, start-2, ...). When
+  /// [startPageNumber] is null (or out of range), the order starts from the first page, i.e. plain page order.
+  static List<int> _unloadedPageIndicesOrderedFrom(List<PdfPage> pages, int? startPageNumber) {
+    final pageCount = pages.length;
+    final startIndex = startPageNumber == null ? 0 : min(max(startPageNumber - 1, 0), max(pageCount - 1, 0));
+    final indices = <int>[];
+    void addIfUnloaded(int index) {
+      if (index >= 0 && index < pageCount && !pages[index].isLoaded) indices.add(index);
+    }
+
+    addIfUnloaded(startIndex);
+    for (var distance = 1; startIndex + distance < pageCount || startIndex - distance >= 0; distance++) {
+      addIfUnloaded(startIndex + distance);
+      addIfUnloaded(startIndex - distance);
+    }
+    return indices;
+  }
+
   /// Loads pages in the document in a time-limited manner.
-  Future<({List<PdfPage> pages, int pageCountLoadedTotal})> _loadPagesInLimitedTime({
-    int pagesLoadedCountSoFar = 0,
-    List<int> loadedPageIndicesToSkip = const [],
+  ///
+  /// [pageIndicesToLoad] lists the page indices to measure, in the order they should be measured. When null, all
+  /// pages of the document are measured in page order (used when the page count is not known yet). Indices outside
+  /// the document are ignored. The measurement stops early when [maxPageCountToLoadAdditionally] pages are measured
+  /// or when [timeout] elapses; at least one page is measured per call.
+  ///
+  /// The returned `loadedPageCount` is the number of loaded pages in the resulting page list.
+  Future<({List<PdfPage> pages, int loadedPageCount})> _loadPagesInLimitedTime({
+    List<int>? pageIndicesToLoad,
     List<PdfPage> pagesToPreserve = const [],
     int? maxPageCountToLoadAdditionally,
     Duration? timeout,
@@ -1135,11 +1157,11 @@ class _PdfDocumentPdfium extends PdfDocument {
       (arena, params) {
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docAddress);
         final pageCount = pdfium.FPDF_GetPageCount(doc);
-        final loadedPageIndicesToSkip = params.loadedPageIndicesToSkip.toSet();
+        final indices = params.pageIndicesToLoad ?? Iterable<int>.generate(pageCount);
         final t = params.timeoutUs != null ? (Stopwatch()..start()) : null;
         final pages = <({int pageIndex, double width, double height, int rotation, double bbLeft, double bbBottom})>[];
-        for (var i = params.pagesCountLoadedSoFar; i < pageCount; i++) {
-          if (loadedPageIndicesToSkip.contains(i)) continue;
+        for (final i in indices) {
+          if (i < 0 || i >= pageCount) continue;
           final page = pdfium.FPDF_LoadPage(doc, i);
           try {
             final rect = arena<pdfium_bindings.FS_RECTF>();
@@ -1166,8 +1188,7 @@ class _PdfDocumentPdfium extends PdfDocument {
       },
       (
         docAddress: document.address,
-        pagesCountLoadedSoFar: pagesLoadedCountSoFar,
-        loadedPageIndicesToSkip: loadedPageIndicesToSkip,
+        pageIndicesToLoad: pageIndicesToLoad,
         maxPageCountToLoadAdditionally: maxPageCountToLoadAdditionally,
         timeoutUs: timeout?.inMicroseconds,
       ),
@@ -1192,9 +1213,8 @@ class _PdfDocumentPdfium extends PdfDocument {
       }
     }
     _resizePagesWithPlaceholders(pages, results.totalPageCount);
-    final firstUnloadedPageIndex = pages.indexWhere((page) => !page.isLoaded);
-    final pageCountLoadedTotal = firstUnloadedPageIndex < 0 ? pages.length : firstUnloadedPageIndex;
-    return (pages: pages, pageCountLoadedTotal: pageCountLoadedTotal);
+    final loadedPageCount = pages.where((page) => page.isLoaded).length;
+    return (pages: pages, loadedPageCount: loadedPageCount);
   }
 
   /// Resizes [pages], using unloaded placeholders when the document grows.
