@@ -478,24 +478,16 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                         },
                         viewerOverlayBuilder: (context, size, handleLinkTap) => [
                           //
-                          // Example use of GestureDetector to handle custom gestures
+                          // Example use of PdfOverlayInteractionRegion to handle double-tap for zooming
                           //
-                          // GestureDetector(
-                          //   behavior: HitTestBehavior.translucent,
-                          //   // If you use GestureDetector on viewerOverlayBuilder, it breaks link-tap handling
-                          //   // and you should manually handle it using onTapUp callback
-                          //   onTapUp: (details) {
-                          //     handleLinkTap(details.localPosition);
-                          //   },
-                          //   onDoubleTap: () {
+                          // PdfOverlayInteractionRegion(
+                          //   onDoubleTap: (details) {
                           //     controller.zoomUp(loop: true);
+                          //     return true;
                           //   },
-                          //   // Make the GestureDetector covers all the viewer widget's area
-                          //   // but also make the event go through to the viewer.
-                          //   child: IgnorePointer(
-                          //     child:
-                          //         SizedBox(width: size.width, height: size.height),
-                          //   ),
+                          //   // Make the region cover the whole viewer while keeping pointer events
+                          //   // available to the viewer itself.
+                          //   child: SizedBox(width: size.width, height: size.height),
                           // ),
                           //
                           // Scroll-thumbs example
