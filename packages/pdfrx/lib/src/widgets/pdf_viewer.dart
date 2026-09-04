@@ -544,15 +544,21 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     final stopwatch = Stopwatch()..start();
+    // Measure outward from the initial page so its neighbours are ready first instead of waiting for pages 1..N-1.
+    // _initialPageNumber is only known once the first layout has run, hence it is read here and not earlier.
+    final initialPageNumber = _clampInitialPageNumber(document, _initialPageNumber ?? widget.initialPageNumber);
     await document.loadPagesProgressively(
-      onPageLoadProgress: (pageNumber, totalPageCount, document) {
+      onPageLoadProgress: (loadedPageCount, totalPageCount, document) {
         if (document == _document && mounted) {
-          debugPrint('PdfViewer: Loaded page $pageNumber of $totalPageCount in ${stopwatch.elapsedMilliseconds} ms');
+          debugPrint(
+            'PdfViewer: Loaded $loadedPageCount of $totalPageCount pages in ${stopwatch.elapsedMilliseconds} ms',
+          );
           return true;
         }
         return false;
       },
       data: _document,
+      startPageNumber: initialPageNumber,
     );
     if (!mounted || document != _document) return;
     if (document.pages.every((page) => page.isLoaded)) {

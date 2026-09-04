@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:js_interop';
+import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui_web' as ui_web;
 
@@ -461,17 +462,20 @@ class _PdfDocumentWasm extends PdfDocument {
     PdfPageLoadingCallback<T>? onPageLoadProgress,
     T? data,
     Duration loadUnitDuration = const Duration(milliseconds: 250),
+    int? startPageNumber,
   }) async {
     if (isDisposed) return;
     await synchronized(() async {
       for (;;) {
         if (isDisposed) return;
-        final firstPageIndex = pages.indexWhere((page) => !page.isLoaded);
-        if (firstPageIndex < 0) {
+        final pageIndicesToLoad = _unloadedPageIndicesOrderedFrom(pages, startPageNumber);
+        if (pageIndicesToLoad.isEmpty) {
           _notifyDocumentLoadComplete();
           return;
         }
         final newPages = pages.toList(growable: false);
+        // firstPageIndex/loadedPageIndices are kept for workers that predate pageIndices.
+        final firstPageIndex = pageIndicesToLoad.reduce(min);
         final loadedPageIndices = <int>[
           for (var i = firstPageIndex + 1; i < newPages.length; i++)
             if (newPages[i].isLoaded) i,
@@ -482,6 +486,7 @@ class _PdfDocumentWasm extends PdfDocument {
             'docHandle': document['docHandle'],
             'firstPageIndex': firstPageIndex,
             'loadedPageIndices': loadedPageIndices,
+            'pageIndices': pageIndicesToLoad,
             'loadUnitDuration': loadUnitDuration.inMilliseconds,
           },
         );
@@ -493,8 +498,7 @@ class _PdfDocumentWasm extends PdfDocument {
         updateMissingFonts(result['missingFonts']);
         if (pagesLoaded.isEmpty) return;
 
-        final firstUnloadedPageIndex = pages.indexWhere((page) => !page.isLoaded);
-        final pageCountLoaded = firstUnloadedPageIndex < 0 ? pages.length : firstUnloadedPageIndex;
+        final pageCountLoaded = pages.where((page) => page.isLoaded).length;
 
         if (onPageLoadProgress != null) {
           if (!await onPageLoadProgress(pageCountLoaded, pages.length, data)) {
@@ -507,6 +511,26 @@ class _PdfDocumentWasm extends PdfDocument {
         }
       }
     });
+  }
+
+  /// Returns the indices of the unloaded pages in [pages], ordered by distance from [startPageNumber] (1-based).
+  ///
+  /// The order alternates after and before the start page (start, start+1, start-1, start+2, start-2, ...). When
+  /// [startPageNumber] is null (or out of range), the order starts from the first page, i.e. plain page order.
+  static List<int> _unloadedPageIndicesOrderedFrom(List<PdfPage> pages, int? startPageNumber) {
+    final pageCount = pages.length;
+    final startIndex = startPageNumber == null ? 0 : min(max(startPageNumber - 1, 0), max(pageCount - 1, 0));
+    final indices = <int>[];
+    void addIfUnloaded(int index) {
+      if (index >= 0 && index < pageCount && !pages[index].isLoaded) indices.add(index);
+    }
+
+    addIfUnloaded(startIndex);
+    for (var distance = 1; startIndex + distance < pageCount || startIndex - distance >= 0; distance++) {
+      addIfUnloaded(startIndex + distance);
+      addIfUnloaded(startIndex - distance);
+    }
+    return indices;
   }
 
   @override

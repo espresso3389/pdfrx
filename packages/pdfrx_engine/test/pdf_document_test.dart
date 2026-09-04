@@ -10,6 +10,7 @@ import 'package:test/test.dart';
 import 'utils.dart';
 
 final testPdfFile = File('../pdfrx/example/viewer/assets/hello.pdf');
+final multiPageTestPdfFile = File('../pdfrx/test/assets/multipage40.pdf');
 
 void main() {
   setUp(() => pdfrxInitialize(tmpPath: tmpRoot.path));
@@ -262,6 +263,71 @@ void main() {
 
     expect(document.pages.every((page) => page.isLoaded), isTrue);
     await expectLater(completionEvent.timeout(const Duration(seconds: 1)), completes);
+  });
+  test('progressive loading measures pages outward from startPageNumber', () async {
+    final document = await PdfDocument.openFile(multiPageTestPdfFile.path, useProgressiveLoading: true);
+    addTearDown(document.dispose);
+    expect(document.pages.length, 40);
+    // Only the first page is loaded when the document is opened progressively.
+    expect(document.pages.map((page) => page.isLoaded).where((loaded) => loaded), hasLength(1));
+    final events = <PdfDocumentEvent>[];
+    final subscription = document.events.listen(events.add);
+    addTearDown(subscription.cancel);
+
+    // Stop after the first slice to inspect what was measured first.
+    final progress = <(int loadedPageCount, int totalPageCount)>[];
+    await document.loadPagesProgressively(
+      startPageNumber: 20,
+      loadUnitDuration: Duration.zero,
+      onPageLoadProgress: (loadedPageCount, totalPageCount, _) {
+        progress.add((loadedPageCount, totalPageCount));
+        return false;
+      },
+    );
+
+    expect(progress, hasLength(1));
+    expect(progress.single.$2, 40);
+    final loadedPageNumbers = document.pages.where((page) => page.isLoaded).map((page) => page.pageNumber).toList();
+    expect(progress.single.$1, loadedPageNumbers.length);
+    // Page 1 was loaded at open time; everything else measured so far must be the head of the outward sequence
+    // 20, 21, 19, 22, 18, ... rather than 2, 3, 4, ...
+    final measured = loadedPageNumbers.where((pageNumber) => pageNumber != 1).toList();
+    expect(measured, isNotEmpty);
+    expect(measured.length, lessThan(39), reason: 'a zero-length slice must not measure the whole document');
+    final expectedOrder = <int>[
+      20,
+      for (var distance = 1; distance < 40; distance++) ...[
+        if (20 + distance <= 40) 20 + distance,
+        if (20 - distance >= 2) 20 - distance,
+      ],
+    ];
+    expect(measured, unorderedEquals(expectedOrder.take(measured.length)));
+    expect(document.pages[19].isLoaded, isTrue);
+    expect(document.pages[1].isLoaded, isFalse);
+
+    // Resuming (from any start page) still ends with every page loaded and a single completion event.
+    await document.loadPagesProgressively(startPageNumber: 20, loadUnitDuration: Duration.zero);
+    await document.loadPagesProgressively(startPageNumber: 20);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(document.pages.every((page) => page.isLoaded), isTrue);
+    expect(document.pages.map((page) => page.pageNumber), List.generate(40, (index) => index + 1));
+    expect(events.whereType<PdfDocumentLoadCompleteEvent>(), hasLength(1));
+  });
+  test('progressive loading without startPageNumber still measures from the first page', () async {
+    final document = await PdfDocument.openFile(multiPageTestPdfFile.path, useProgressiveLoading: true);
+    addTearDown(document.dispose);
+
+    await document.loadPagesProgressively(
+      startPageNumber: null,
+      loadUnitDuration: Duration.zero,
+      onPageLoadProgress: (_, _, _) => false,
+    );
+
+    final loadedPageNumbers = document.pages.where((page) => page.isLoaded).map((page) => page.pageNumber).toList();
+    expect(loadedPageNumbers.length, greaterThan(1));
+    expect(loadedPageNumbers.length, lessThan(40));
+    expect(loadedPageNumbers, List.generate(loadedPageNumbers.length, (index) => index + 1));
   });
   test('loadLinks reuses raw and compact results', () async {
     final document = await PdfDocument.openFile(testPdfFile.path);

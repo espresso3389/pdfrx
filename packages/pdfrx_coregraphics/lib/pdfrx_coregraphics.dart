@@ -448,8 +448,9 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
     PdfPageLoadingCallback<T>? onPageLoadProgress,
     T? data,
     Duration loadUnitDuration = const Duration(milliseconds: 250),
+    int? startPageNumber,
   }) async {
-    // CoreGraphics loads all pages immediately; nothing to do.
+    // CoreGraphics loads all pages immediately; nothing to do, so startPageNumber has no effect here.
   }
 
   @override
