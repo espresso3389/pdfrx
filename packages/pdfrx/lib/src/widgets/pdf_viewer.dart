@@ -250,6 +250,12 @@ class _PdfViewerState extends State<PdfViewer>
   int? _initialPageNumber;
   bool _initialized = false;
   bool _documentLoadFinishedNotified = false;
+
+  /// Pending wait of [_notifyDocumentLoadFinished] for the initial page's preview image.
+  ///
+  /// Completed by [_completeInitialPageImageWaiterIfReady] once the image is in [_imageCache], or by
+  /// [_onDocumentChanged]/[dispose] so the waiting future can observe that it was abandoned.
+  Completer<void>? _initialPageImageWaiter;
   bool _usingScrollPercentageMode = false;
 
   StreamSubscription<PdfDocumentEvent>? _documentSubscription;
@@ -449,6 +455,8 @@ class _PdfViewerState extends State<PdfViewer>
     _measurementFailures.clear();
     _pageNumber = null;
     _initialPageNumber = null;
+    // Wake any load-finished wait for the previous document; it sees _document change and bails out.
+    _completeInitialPageImageWaiter();
     _documentLoadFinishedNotified = false;
     _gotoTargetPageNumber = null;
     _initialized = false;
@@ -571,6 +579,7 @@ class _PdfViewerState extends State<PdfViewer>
     _interactionEndedTimer?.cancel();
     _imageCache.cancelAllPendingRenderings();
     _magnifierImageCache.cancelAllPendingRenderings();
+    _completeInitialPageImageWaiter();
     _animController.dispose();
     widget.documentRef.resolveListenable().removeListener(_onDocumentChanged);
     _imageCache.releaseAllImages();
@@ -636,11 +645,13 @@ class _PdfViewerState extends State<PdfViewer>
     final document = _document;
     final documentRef = widget.documentRef;
     if (succeeded && document != null && document.pages.isNotEmpty) {
-      // FIXME: This is a temporary workaround to wait until the initial page is loaded.
-      while (mounted && document == _document) {
-        final initialPageNumber = _clampInitialPageNumber(document, _initialPageNumber ?? widget.initialPageNumber);
-        if (_imageCache.pageImages.containsKey(initialPageNumber)) break;
-        await Future.delayed(const Duration(milliseconds: 100));
+      // Hold the callback until the initial page's preview image is in the cache, so that the document is
+      // visibly rendered when onDocumentLoadFinished fires. The initial page is re-resolved every time an
+      // image lands because calculateInitialPageNumber runs at the first layout, which can be after a replayed
+      // PdfDocumentLoadCompleteEvent gets here. If that page never renders, this keeps waiting indefinitely.
+      if (!_isInitialPageImageCached()) {
+        final waiter = _initialPageImageWaiter ??= Completer<void>();
+        await waiter.future;
       }
       if (!mounted || document != _document) return;
     }
@@ -653,6 +664,27 @@ class _PdfViewerState extends State<PdfViewer>
         widget.params.onDocumentLoadFinished?.call(documentRef, false);
       }
     });
+  }
+
+  /// Whether [_imageCache] holds a preview image for the currently resolved initial page.
+  bool _isInitialPageImageCached() {
+    final document = _document;
+    if (document == null) return false;
+    final initialPageNumber = _clampInitialPageNumber(document, _initialPageNumber ?? widget.initialPageNumber);
+    return _imageCache.pageImages.containsKey(initialPageNumber);
+  }
+
+  /// Wakes [_notifyDocumentLoadFinished] if the initial page's preview image has just landed in [_imageCache].
+  void _completeInitialPageImageWaiterIfReady() {
+    if (_initialPageImageWaiter == null || !_isInitialPageImageCached()) return;
+    _completeInitialPageImageWaiter();
+  }
+
+  /// Releases the pending waiter, if any; the awaiting code re-checks its own exit conditions afterwards.
+  void _completeInitialPageImageWaiter() {
+    final waiter = _initialPageImageWaiter;
+    _initialPageImageWaiter = null;
+    waiter?.complete();
   }
 
   @override
@@ -2055,6 +2087,7 @@ class _PdfViewerState extends State<PdfViewer>
           final newImage = _PdfImageWithScale(await img.createImage(), scale, pageGeometry: _pageGeometryOf(page));
           cache.pageImages[page.pageNumber]?.dispose();
           cache.pageImages[page.pageNumber] = newImage;
+          if (identical(cache, _imageCache)) _completeInitialPageImageWaiterIfReady();
           if (sw != null) {
             final fetched = Pdfrx.debugBytesFetched - bytesAtRequest;
             pdfrxLazyLog(
