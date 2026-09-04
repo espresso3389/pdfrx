@@ -1263,9 +1263,9 @@ class PdfViewerSelectionMagnifierParams {
   /// To show magnifier on non-touch devices, set this and [PdfTextSelectionParams.enableSelectionHandles] to true.
   final bool? enabled;
 
-  /// If the character size (in pt.) is smaller than this value, the magnifier will be shown.
+  /// If the zoomed on-screen character size (in logical pixels) is smaller than this value, the magnifier will be shown.
   ///
-  /// The default is 72 pt.
+  /// The default is 72 logical pixels.
   final double magnifierSizeThreshold;
 
   /// Function to get the magnifier rectangle for the anchor.
@@ -1309,7 +1309,7 @@ class PdfViewerSelectionMagnifierParams {
   ///
   /// If [enabled] is false, this function is not called.
   ///
-  /// If the function is null, the magnifier is shown if the character height is smaller than
+  /// If the function is null, the magnifier is shown if the zoomed on-screen character height is smaller than
   /// [magnifierSizeThreshold].
   ///
   /// Please note that the function is called after evaluating [enabled] and [shouldShowMagnifier].

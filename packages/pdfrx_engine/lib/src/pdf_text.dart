@@ -107,7 +107,6 @@ class PdfPageText {
   Stream<PdfPageTextRange> allMatches(Pattern pattern, {bool caseInsensitive = true}) async* {
     final String text;
     if (pattern is RegExp) {
-      caseInsensitive = pattern.isCaseSensitive;
       text = fullText;
     } else if (pattern is String) {
       pattern = caseInsensitive ? pattern.toLowerCase() : pattern;

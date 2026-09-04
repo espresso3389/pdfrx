@@ -89,3 +89,41 @@ test('page metadata resources are released after a failure', () => {
     /failed/,
   );
 });
+
+test('page rendering premultiplies alpha once and masks internal flags', async () => {
+  const context = createContext();
+  const rendered = await vm.runInContext(
+    `
+      Pdfium.memory = new WebAssembly.Memory({ initial: 1 });
+      let formFlags;
+      Pdfium.wasmExports = {
+        FPDF_LoadPage: () => 1,
+        malloc: () => 32,
+        FPDFBitmap_CreateEx: () => 2,
+        FPDFBitmap_FillRect: () => {},
+        FPDF_RenderPageBitmap: () => {
+          new Uint8Array(Pdfium.memory.buffer, 32, 4).set([100, 50, 25, 128]);
+        },
+        FPDF_FFLDraw: (...args) => { formFlags = args.at(-1); },
+        FPDF_ClosePage: () => {},
+        FPDFBitmap_Destroy: () => {},
+        free: () => {},
+      };
+      renderPage({
+        docHandle: 1,
+        pageIndex: 0,
+        width: 1,
+        height: 1,
+        backgroundColor: 0,
+        rotation: 0,
+        annotationRenderingMode: 2,
+        flags: 0x80000000,
+        formHandle: 3,
+      }).then(({ result }) => ({ pixels: [...new Uint8Array(result.imageData)], formFlags }));
+    `,
+    context,
+  );
+
+  assert.deepEqual(Array.from(rendered.pixels), [50, 25, 13, 128]);
+  assert.equal(rendered.formFlags, 1);
+});

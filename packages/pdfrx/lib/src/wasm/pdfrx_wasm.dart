@@ -899,19 +899,6 @@ class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
     final bb = result['imageData'] as ByteBuffer;
     final pixels = Uint8List.view(bb.asByteData().buffer, 0, bb.lengthInBytes);
 
-    if ((flags & PdfPageRenderFlags.premultipliedAlpha) != 0) {
-      final count = width * height;
-      for (var i = 0; i < count; i++) {
-        final b = pixels[i * 4];
-        final g = pixels[i * 4 + 1];
-        final r = pixels[i * 4 + 2];
-        final a = pixels[i * 4 + 3];
-        pixels[i * 4] = b * a ~/ 255;
-        pixels[i * 4 + 1] = g * a ~/ 255;
-        pixels[i * 4 + 2] = r * a ~/ 255;
-      }
-    }
-
     document.updateMissingFonts(result['missingFonts']);
 
     return PdfImageWeb(width: width, height: height, pixels: pixels);
