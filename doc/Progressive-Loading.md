@@ -200,7 +200,7 @@ final document = await PdfDocument.openFile(
 
 // Load pages progressively with progress callback
 await document.loadPagesProgressively(
-  onPageLoadProgress: (data, loadedPageCount, totalPageCount) {
+  onPageLoadProgress: (loadedPageCount, totalPageCount, data) {
     print('Loaded $loadedPageCount of $totalPageCount pages');
 
     // Return true to continue loading, false to stop
@@ -211,6 +211,15 @@ await document.loadPagesProgressively(
 ```
 
 The callback is invoked periodically (every `loadUnitDuration`) as pages are loaded. Return `false` from the callback to stop the loading process early.
+
+The callback receives the number of pages loaded so far (`loadedPageCount`), the total number of pages, and the optional `data` value passed to [`loadPagesProgressively()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/loadPagesProgressively.html). `loadedPageCount` is a count of loaded pages, not a page index; it does not depend on the order in which the pages are measured.
+
+By default, pages are measured from page 1 onward. Pass `startPageNumber` to measure pages in order of their distance from a given page instead (`start`, `start+1`, `start-1`, `start+2`, `start-2`, ...), so that the pages around the one being displayed become available first. Pages that are already loaded are skipped, and all pages are loaded when the call completes without being cancelled. [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) does this automatically using its initial page:
+
+```dart
+// Measure pages 300, 301, 299, 302, 298, ... before the rest of the document
+await document.loadPagesProgressively(startPageNumber: 300);
+```
 
 ## Common Pitfalls and Solutions
 
@@ -324,7 +333,7 @@ Future<void> processPdfPages(String filePath) async {
   try {
     // Load pages progressively with progress reporting
     await document.loadPagesProgressively(
-      onPageLoadProgress: (_, loadedCount, totalCount) {
+      onPageLoadProgress: (loadedCount, totalCount, _) {
         final progress = (loadedCount / totalCount * 100).toStringAsFixed(1);
         print('Loading pages: $progress% ($loadedCount/$totalCount)');
         return true; // Continue loading

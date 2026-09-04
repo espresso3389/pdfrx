@@ -383,6 +383,34 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('progressive loading starts from the initial page', (tester) async {
+    final document = _TestDocument(9);
+    addTearDown(document.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          initialPageNumber: 8,
+          params: const PdfViewerParams(
+            behaviorControlParams: PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
+          ),
+        ),
+      ),
+    );
+    for (var i = 0; i < 20 && !document.progressiveLoadingStarted; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+    }
+
+    expect(document.progressiveLoadingStarted, isTrue);
+    expect(document.progressiveLoadingStartPageNumber, 8);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('progressive loading continues when priority loading fails', (tester) async {
     final document = _TestDocument(3, reloadError: UnimplementedError());
     addTearDown(document.dispose);
