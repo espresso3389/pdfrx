@@ -1,3 +1,6 @@
+// The named constructor parameters intentionally omit private field prefixes.
+// ignore_for_file: prefer_initializing_formals
+
 import 'package:flutter/widgets.dart';
 
 /// A ScrollPhysics that lets you overscroll by up to [maxOverscroll]

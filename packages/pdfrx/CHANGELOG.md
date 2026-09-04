@@ -1,3 +1,7 @@
+# 2.6.1
+
+- Fixed static analysis lints while preserving the existing public constructor parameter names.
+
 # 2.6.0
 
 - BREAKING: Raised the minimum requirements to Dart 3.13 and Flutter 3.47.

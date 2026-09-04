@@ -1,3 +1,6 @@
+// The public named constructor parameters intentionally omit private field prefixes.
+// ignore_for_file: prefer_initializing_formals
+
 import 'dart:math' as math;
 
 import '../pdf_viewer_layout_metrics.dart';
