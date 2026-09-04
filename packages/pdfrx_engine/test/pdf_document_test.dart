@@ -30,6 +30,120 @@ void main() {
     final data = await testPdfFile.readAsBytes();
     await testDocument(await PdfDocument.openData(data));
   });
+
+  group('open failures report the PDFium error code', () {
+    // PDFium keeps FPDF_GetLastError in thread-local storage; the code must read it on the worker isolate that
+    // performed the load. If it is read on the caller isolate instead, a non-PDF file used to be mistaken for a
+    // password-protected one and the password provider was asked over and over again.
+    late File nonPdfFile;
+
+    setUp(() async {
+      await tmpRoot.create(recursive: true);
+      nonPdfFile = File('${tmpRoot.path}/not_a_pdf.bin');
+      await nonPdfFile.writeAsBytes(List<int>.generate(4096, (i) => (i * 7919 + 13) & 0xff));
+    });
+
+    tearDown(() async {
+      if (await nonPdfFile.exists()) await nonPdfFile.delete();
+    });
+
+    Future<void> expectFormatError(Future<PdfDocument> Function(PdfPasswordProvider provider) open) async {
+      var passwordRequests = 0;
+      Future<String?> passwordProvider() async => ++passwordRequests <= 2 ? 'wrong' : null;
+
+      await expectLater(
+        open(passwordProvider),
+        throwsA(
+          isA<PdfException>()
+              .having((e) => e, 'type', isNot(isA<PdfPasswordException>()))
+              .having((e) => e.errorCode, 'errorCode', 3), // FPDF_ERR_FORMAT
+        ),
+      );
+      expect(passwordRequests, 0, reason: 'a corrupt file must not be mistaken for a password-protected one');
+    }
+
+    test('openFile of a non-PDF file throws PdfException with FPDF_ERR_FORMAT', () async {
+      await expectFormatError((provider) => PdfDocument.openFile(nonPdfFile.path, passwordProvider: provider));
+    });
+
+    test('openData of non-PDF bytes throws PdfException with FPDF_ERR_FORMAT', () async {
+      final data = await nonPdfFile.readAsBytes();
+      await expectFormatError((provider) => PdfDocument.openData(data, passwordProvider: provider));
+    });
+
+    test('openCustom (on-demand) of non-PDF bytes throws PdfException with FPDF_ERR_FORMAT', () async {
+      final data = await nonPdfFile.readAsBytes();
+      await expectFormatError(
+        (provider) => PdfDocument.openCustom(
+          read: (buffer, position, size) {
+            final n = size.clamp(0, data.length - position);
+            buffer.setRange(0, n, data, position);
+            return n;
+          },
+          fileSize: data.length,
+          sourceName: 'custom-non-pdf',
+          passwordProvider: provider,
+          maxSizeToCacheOnMemory: 0,
+        ),
+      );
+    });
+  });
+
+  group('password-protected PDF', () {
+    // test/assets/encrypted.pdf: one blank page, AES-256, user password 'user', owner password 'owner'.
+    final encryptedPdfFile = File('test/assets/encrypted.pdf');
+
+    test('the password provider is consulted and the right password opens the document', () async {
+      var passwordRequests = 0;
+      final doc = await PdfDocument.openFile(
+        encryptedPdfFile.path,
+        passwordProvider: () async {
+          passwordRequests++;
+          return 'user';
+        },
+      );
+      expect(passwordRequests, 1);
+      expect(doc.pages.length, 1);
+      doc.dispose();
+    });
+
+    test('wrong passwords are retried until the provider returns null, then PdfPasswordException', () async {
+      var passwordRequests = 0;
+      await expectLater(
+        PdfDocument.openFile(
+          encryptedPdfFile.path,
+          passwordProvider: () async => ++passwordRequests <= 2 ? 'wrong' : null,
+        ),
+        throwsA(isA<PdfPasswordException>()),
+      );
+      expect(passwordRequests, 3);
+    });
+
+    test('without a password provider it throws PdfPasswordException', () async {
+      await expectLater(PdfDocument.openFile(encryptedPdfFile.path), throwsA(isA<PdfPasswordException>()));
+    });
+
+    test('firstAttemptByEmptyPassword=false asks the provider before the first attempt', () async {
+      var passwordRequests = 0;
+      final doc = await PdfDocument.openFile(
+        encryptedPdfFile.path,
+        firstAttemptByEmptyPassword: false,
+        passwordProvider: () async {
+          passwordRequests++;
+          return 'user';
+        },
+      );
+      expect(passwordRequests, 1);
+      doc.dispose();
+    });
+
+    test('openData of the encrypted file also honors the password', () async {
+      final data = await encryptedPdfFile.readAsBytes();
+      final doc = await PdfDocument.openData(data, passwordProvider: () async => 'user');
+      expect(doc.pages.length, 1);
+      doc.dispose();
+    });
+  });
   test('reloadPages loads a sparse progressive page at its original index', () async {
     final document = await PdfDocument.openFile(testPdfFile.path, useProgressiveLoading: true);
     addTearDown(document.dispose);

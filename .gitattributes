@@ -10,3 +10,4 @@
 *.bat   text eol=crlf
 *.plist text eof=lf
 *.patch text eol=lf
+*.pdf   binary
