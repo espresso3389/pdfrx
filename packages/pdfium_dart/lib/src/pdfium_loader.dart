@@ -75,6 +75,11 @@ DynamicLibrary _getModule({String? modulePath}) {
 /// Gets the default PDFium library file name based on the platform.
 String _getModuleFileName() {
   if (Platform.isAndroid) return 'libpdfium.so';
+  // HarmonyOS (OH Flutter): same bare-name dlopen as Android; the library is
+  // resolved from the app's native library directory when bundled under the
+  // HAP's libs/<abi>/ directory. Detected by OS name because dart:io exposes
+  // no dedicated Platform.isOhos on standard Dart SDKs.
+  if (Platform.operatingSystem == 'ohos') return 'libpdfium.so';
   if (Platform.isWindows) return 'pdfium.dll';
   if (Platform.isLinux) {
     // For Flutter on Linux, the PDFium library is bundled in the app's shared library directory.
