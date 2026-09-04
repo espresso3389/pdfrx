@@ -4,8 +4,8 @@ import PackageDescription
 let package = Package(
   name: "pdfrx_coregraphics",
   platforms: [
-    .iOS(.v13),
-    .macOS(.v10_13)
+    .iOS(.v15),
+    .macOS(.v12)
   ],
   products: [
     .library(

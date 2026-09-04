@@ -1,6 +1,6 @@
 name: pdfrx_workspace
 environment:
-  sdk: ">=3.9.0 <4.0.0"
+  sdk: ^3.13.0
 workspace:
   - packages/pdfium_dart
   - packages/pdfium_flutter

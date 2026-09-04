@@ -3,7 +3,7 @@
 ## Environment Notes
 
 - This project uses a **pub workspace**. Running `dart pub get` in any directory fetches dependencies for all packages.
-- Published package pubspecs currently require Dart 3.10+ and Flutter 3.41+ where Flutter is used; workspace/example pubspecs may allow older SDKs for local tooling.
+- All workspace packages require Dart 3.13+, and Flutter packages require Flutter 3.47+.
 - `pdfium_dart` uses Dart native assets and requires recent Dart/Flutter tooling.
 - Prefer `rg`/`rg --files` for search and discovery tasks; they are significantly faster than alternatives.
 - When running commands as an agent, prefer an explicit command `workdir`. The `cd ...` examples below are for humans running commands manually.

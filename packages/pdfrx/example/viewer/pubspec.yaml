@@ -3,7 +3,8 @@ description: 'Demonstrates how to use the pdfrx plugin.'
 publish_to: 'none'
 
 environment:
-  sdk: ^3.9.2
+  sdk: ^3.13.0
+  flutter: '>=3.47.0'
 resolution: workspace
 
 dependencies:

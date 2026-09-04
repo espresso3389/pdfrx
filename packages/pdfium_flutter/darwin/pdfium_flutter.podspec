@@ -17,7 +17,7 @@ Pod::Spec.new do |s|
   s.source_files     = 'pdfium_flutter/Sources/**/*.swift'
   s.preserve_paths = 'PDFium.xcframework/**/*'
 
-  s.ios.deployment_target = '12.0'
+  s.ios.deployment_target = '15.0'
   s.ios.dependency 'Flutter'
   s.ios.vendored_frameworks = 'PDFium.xcframework'
   # Flutter.framework does not contain a i386 slice.
@@ -26,7 +26,7 @@ Pod::Spec.new do |s|
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
   }
 
-  s.osx.deployment_target = '10.13'
+  s.osx.deployment_target = '12.0'
   s.osx.dependency 'FlutterMacOS'
   s.osx.vendored_frameworks = 'PDFium.xcframework'
   s.osx.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
