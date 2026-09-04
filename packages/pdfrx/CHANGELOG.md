@@ -1,3 +1,17 @@
+# 2.6.0
+
+- BREAKING: Raised the minimum requirements to Dart 3.13 and Flutter 3.47.
+- Updated to `pdfrx_engine` 0.6.0 and `pdfium_flutter` 0.3.0.
+- Added initial-page-aware measurement ordering for progressively loaded documents
+  ([#706](https://github.com/espresso3389/pdfrx/pull/706)).
+- Added `startPageNumber` documentation and test coverage for initial-page viewer setup
+  ([#706](https://github.com/espresso3389/pdfrx/pull/706)).
+- Fixed partial rendering scale for custom page layouts
+  ([#702](https://github.com/espresso3389/pdfrx/pull/702)).
+- Fixed canceled page previews so they can be rendered again.
+- Fixed WebAssembly rendering and text search edge cases.
+- Fixed a race while reading PDF data on Windows ([#595](https://github.com/espresso3389/pdfrx/issues/595)).
+
 # 2.5.0
 
 - Added optional on-demand page dimension loading for faster initial display of linearized PDFs over HTTP.

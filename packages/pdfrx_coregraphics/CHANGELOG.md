@@ -1,3 +1,10 @@
+## 0.4.0
+
+- BREAKING: Raised the minimum requirements to Dart 3.13 and Flutter 3.47.
+- Updated to `pdfrx_engine` 0.6.0.
+- Added initial-page-aware measurement ordering for progressively loaded documents
+  ([#706](https://github.com/espresso3389/pdfrx/pull/706)).
+
 ## 0.3.0
 
 - Updated to `pdfrx_engine` 0.5.0.

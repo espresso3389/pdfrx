@@ -1,3 +1,8 @@
+## 0.3.0
+
+- BREAKING: Raised the minimum requirements to Dart 3.13 and Flutter 3.47.
+- Updated to `pdfium_dart` 0.3.0.
+
 ## 0.2.3
 
 - Fixed iOS/macOS plugin metadata so Flutter and pub.dev recognize Swift Package Manager support.
