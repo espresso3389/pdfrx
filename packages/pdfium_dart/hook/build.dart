@@ -50,8 +50,7 @@ Future<void> _downloadPdfium({
     '$pdfiumRelease/pdfium-${target.archivePlatform}-${target.archiveArch}.tgz',
   );
 
-  final client = await createProxyAwareHttpClient();
-  final response = await client.get(archiveUri).whenComplete(client.close);
+  final response = await getWithRetries(archiveUri);
   if (response.statusCode != 200) {
     throw Exception('Failed to download PDFium: $archiveUri');
   }

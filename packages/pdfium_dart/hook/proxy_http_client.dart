@@ -3,6 +3,14 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
+typedef HttpClientFactory = Future<http.Client> Function();
+
+const _downloadRetryDelays = [
+  Duration(seconds: 1),
+  Duration(seconds: 2),
+  Duration(seconds: 4),
+];
+
 /// Creates an HTTP client that uses environment proxies and, on Windows, the user's static system proxy.
 Future<http.Client> createProxyAwareHttpClient() async {
   final systemProxyEnvironment = Platform.isWindows
@@ -27,6 +35,45 @@ Future<http.Client> createProxyAwareHttpClient() async {
     };
   return IOClient(client);
 }
+
+/// Gets [uri], retrying transient network and server failures with a fresh client.
+Future<http.Response> getWithRetries(
+  Uri uri, {
+  HttpClientFactory clientFactory = createProxyAwareHttpClient,
+  List<Duration> retryDelays = _downloadRetryDelays,
+}) async {
+  for (var attempt = 0; ; attempt++) {
+    final client = await clientFactory();
+    try {
+      final response = await client.get(uri);
+      if (!_isTransientStatus(response.statusCode) ||
+          attempt == retryDelays.length) {
+        return response;
+      }
+      stderr.writeln(
+        'PDFium download returned HTTP ${response.statusCode}; retrying in ${retryDelays[attempt].inSeconds}s.',
+      );
+    } on http.ClientException catch (error) {
+      if (attempt == retryDelays.length) rethrow;
+      stderr.writeln(
+        'PDFium download failed ($error); retrying in ${retryDelays[attempt].inSeconds}s.',
+      );
+    } on SocketException catch (error) {
+      if (attempt == retryDelays.length) rethrow;
+      stderr.writeln(
+        'PDFium download failed ($error); retrying in ${retryDelays[attempt].inSeconds}s.',
+      );
+    } finally {
+      client.close();
+    }
+    await Future<void>.delayed(retryDelays[attempt]);
+  }
+}
+
+bool _isTransientStatus(int statusCode) =>
+    statusCode == HttpStatus.requestTimeout ||
+    statusCode == HttpStatus.tooManyRequests ||
+    statusCode >= HttpStatus.internalServerError;
 
 bool _hasProxyForScheme(Map<String, String> environment, String scheme) {
   return environment.containsKey('${scheme.toLowerCase()}_proxy') ||

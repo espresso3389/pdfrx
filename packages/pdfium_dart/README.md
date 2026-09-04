@@ -68,7 +68,8 @@ The build hook downloads binaries from [bblanchon/pdfium-binaries](https://githu
 The build hook honors the standard `http_proxy`, `https_proxy`, and `no_proxy` environment variables when it
 downloads PDFium. On Windows, when no proxy environment variable is defined for the requested scheme, it also
 uses the current user's enabled static WinINet proxy configuration. An explicit environment proxy takes precedence
-over the Windows system proxy.
+over the Windows system proxy. Transient connection failures and HTTP 408, 429, and 5xx responses are retried with
+short backoff delays.
 
 ## Generating Bindings
 
