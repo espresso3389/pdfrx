@@ -653,6 +653,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     String? sourceName,
     bool allowDataOwnershipTransfer = false, // just ignored
     bool useProgressiveLoading = false,
+    int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) => _openData(
     data,
@@ -660,7 +661,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     passwordProvider: passwordProvider,
     firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
     useProgressiveLoading: useProgressiveLoading,
-    maxSizeToCacheOnMemory: null,
+    maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
     onDispose: onDispose,
   );
 

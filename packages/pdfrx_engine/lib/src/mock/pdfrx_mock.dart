@@ -70,6 +70,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     String? sourceName,
     bool allowDataOwnershipTransfer = false,
     bool useProgressiveLoading = false,
+    int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) => unimplemented();
 

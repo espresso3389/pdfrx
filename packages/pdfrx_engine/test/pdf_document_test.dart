@@ -30,6 +30,10 @@ void main() {
     final data = await testPdfFile.readAsBytes();
     await testDocument(await PdfDocument.openData(data));
   });
+  test('PdfDocument.openData accepts a custom memory-cache threshold', () async {
+    final data = await testPdfFile.readAsBytes();
+    await testDocument(await PdfDocument.openData(data, maxSizeToCacheOnMemory: 0));
+  });
 
   group('open failures report the PDFium error code', () {
     // PDFium keeps FPDF_GetLastError in thread-local storage; the code must read it on the worker isolate that
@@ -490,6 +494,31 @@ void main() {
   });
 
   group('PdfDocument.openCustom with maxSizeToCacheOnMemory=0', () {
+    test('repeated synchronous reads do not stall the Windows worker', () async {
+      if (!Platform.isWindows) return;
+
+      final data = await testPdfFile.readAsBytes();
+      await (() async {
+        for (var i = 0; i < 25; i++) {
+          final doc = await PdfDocument.openCustom(
+            read: (buffer, position, size) {
+              buffer.setRange(0, size, data, position);
+              return size;
+            },
+            fileSize: data.length,
+            sourceName: 'custom:windows-condition-variable-$i.pdf',
+            maxSizeToCacheOnMemory: 0,
+          );
+          try {
+            final image = await doc.pages.first.render();
+            image?.dispose();
+          } finally {
+            await doc.dispose();
+          }
+        }
+      })().timeout(const Duration(seconds: 20));
+    });
+
     test('opens PDF with custom read function', () async {
       final data = await testPdfFile.readAsBytes();
 

@@ -158,6 +158,8 @@ class PdfViewer extends StatefulWidget {
   /// - [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
   /// - [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty password
   /// or not. For more info, see [PdfPasswordProvider].
+  /// - [maxSizeToCacheOnMemory] is the maximum PDF size to load directly into native memory. The default is 1MB.
+  /// Other backends ignore this option.
   /// - [controller] is the controller to control the viewer.
   /// - [fontManager] is the font manager to handle missing fonts.
   /// - [params] is the parameters to customize the viewer.
@@ -168,6 +170,7 @@ class PdfViewer extends StatefulWidget {
     PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
     bool useProgressiveLoading = true,
+    int? maxSizeToCacheOnMemory,
     super.key,
     this.controller,
     this.fontManager,
@@ -179,6 +182,7 @@ class PdfViewer extends StatefulWidget {
          passwordProvider: passwordProvider,
          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
          useProgressiveLoading: useProgressiveLoading,
+         maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
        );
 
   /// Create [PdfViewer] from a custom source.

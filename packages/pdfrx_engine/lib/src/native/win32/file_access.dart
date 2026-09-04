@@ -16,7 +16,7 @@ class PdfiumFileAccessHelperWin32 implements PdfiumFileAccessHelper {
       sizeOf<pdfium_bindings.FPDF_FILEACCESS>() +
           sizeOfCriticalSection +
           sizeOfConditionVariable +
-          sizeOf<IntPtr>() * 2,
+          sizeOf<IntPtr>() * 3,
     );
     final fa = buffer.cast<pdfium_bindings.FPDF_FILEACCESS>();
     fa.ref.m_FileLen = fileSize;
@@ -40,9 +40,14 @@ class PdfiumFileAccessHelperWin32 implements PdfiumFileAccessHelper {
 
   @override
   void setValue(int faAddress, int value) {
+    final cs = faAddress + _csOffset;
+    EnterCriticalSection(cs);
     final returnValue = Pointer<IntPtr>.fromAddress(faAddress + _retValueOffset);
     returnValue.value = value;
+    final completed = Pointer<IntPtr>.fromAddress(faAddress + _completedOffset);
+    completed.value = 1;
     WakeConditionVariable(faAddress + _cvOffset);
+    LeaveCriticalSection(cs);
   }
 }
 
@@ -70,11 +75,16 @@ int _read(Pointer<Void> param, int position, Pointer<UnsignedChar> buffer, int s
 
   EnterCriticalSection(cs);
 
+  final completed = Pointer<IntPtr>.fromAddress(faAddress + _completedOffset);
+  completed.value = 0;
+
   // Call Dart side read function. The call is returned immediately (it runs asynchronously)
   readFunc(position, buffer, size);
 
-  // So, we should wait for Dart to signal completion
-  SleepConditionVariableCS(cv, cs, INFINITE);
+  // Wait until the Dart callback completes. The predicate prevents both a lost notification and spurious wakeups.
+  while (completed.value == 0) {
+    SleepConditionVariableCS(cv, cs, INFINITE);
+  }
   final returnValue = Pointer<IntPtr>.fromAddress(faAddress + _retValueOffset).value;
   LeaveCriticalSection(cs);
   return returnValue;
@@ -91,3 +101,6 @@ final _readFuncOffset = _cvOffset + sizeOfConditionVariable;
 
 /// return-value offset within FPDF_FILEACCESS
 final _retValueOffset = _readFuncOffset + sizeOf<IntPtr>();
+
+/// completion-predicate offset within FPDF_FILEACCESS
+final _completedOffset = _retValueOffset + sizeOf<IntPtr>();

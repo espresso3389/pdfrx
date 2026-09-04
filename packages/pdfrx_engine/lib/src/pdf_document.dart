@@ -90,6 +90,9 @@ abstract class PdfDocument {
   ///
   /// Web only: [allowDataOwnershipTransfer] is used to determine if the data buffer can be transferred to
   /// the worker thread.
+  ///
+  /// On native PDFium platforms, [maxSizeToCacheOnMemory] is the maximum PDF size to load directly into native
+  /// memory. Larger documents use on-demand reads. The default is 1MB. Other backends ignore this option.
   static Future<PdfDocument> openData(
     Uint8List data, {
     PdfPasswordProvider? passwordProvider,
@@ -97,6 +100,7 @@ abstract class PdfDocument {
     bool useProgressiveLoading = false,
     String? sourceName,
     bool allowDataOwnershipTransfer = false,
+    int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) => PdfrxEntryFunctions.instance.openData(
     data,
@@ -105,6 +109,7 @@ abstract class PdfDocument {
     useProgressiveLoading: useProgressiveLoading,
     sourceName: sourceName,
     allowDataOwnershipTransfer: allowDataOwnershipTransfer,
+    maxSizeToCacheOnMemory: maxSizeToCacheOnMemory,
     onDispose: onDispose,
   );
 

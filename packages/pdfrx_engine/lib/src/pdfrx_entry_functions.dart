@@ -76,6 +76,7 @@ abstract class PdfrxEntryFunctions {
     String? sourceName,
     bool allowDataOwnershipTransfer = false, // only for Web
     bool useProgressiveLoading = false,
+    int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   });
 

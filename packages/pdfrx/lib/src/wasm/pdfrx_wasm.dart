@@ -195,6 +195,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     bool useProgressiveLoading = false,
     String? sourceName,
     bool allowDataOwnershipTransfer = false,
+    int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) => _openByFunc(
     (password) => _sendCommand(
