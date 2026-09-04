@@ -576,6 +576,34 @@ class _FontSource {
       (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3];
 }
 
+/// Result of a PDFium document load attempt executed on the [BackgroundWorker] isolate.
+///
+/// `doc` is the address of the loaded `FPDF_DOCUMENT` (0 on failure) and `error` is the `FPDF_GetLastError` value
+/// captured right after a failed load (0 on success).
+typedef _PdfLoadResult = ({int doc, int error});
+
+/// Maximum number of times [_pdfLoadResult] runs a failing load to obtain a meaningful error code.
+const _maxPdfLoadAttemptsForErrorCode = 3;
+
+/// Runs the PDFium [load] function and captures its outcome as a [_PdfLoadResult].
+///
+/// PDFium keeps the last error in thread-local storage (Win32 `GetLastError` on Windows), so `FPDF_GetLastError`
+/// must be called on the same isolate (OS thread) right after the failed load; reading it from the caller isolate
+/// yields an unrelated value. This function therefore has to run inside the [BackgroundWorker] callback.
+///
+/// Even on the same thread, the Dart VM's FFI transition between the two calls may invoke Win32 APIs (for example
+/// TLS access) that reset the thread's last-error to 0. Since 0 (`FPDF_ERR_SUCCESS`) is never a valid outcome of a
+/// failed load, the load is simply retried a few times until a meaningful code is obtained.
+_PdfLoadResult _pdfLoadResult(pdfium_bindings.FPDF_DOCUMENT Function() load) {
+  for (var attempt = 0; attempt < _maxPdfLoadAttemptsForErrorCode; attempt++) {
+    final doc = load();
+    if (doc != nullptr) return (doc: doc.address, error: pdfium_bindings.FPDF_ERR_SUCCESS);
+    final error = pdfium.FPDF_GetLastError();
+    if (error != pdfium_bindings.FPDF_ERR_SUCCESS) return (doc: 0, error: error);
+  }
+  return (doc: 0, error: pdfium_bindings.FPDF_ERR_UNKNOWN);
+}
+
 class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   PdfrxEntryFunctionsImpl();
 
@@ -652,10 +680,12 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   }) async {
     await _init();
     return _openByFunc(
-      (password) async => BackgroundWorker.computeWithArena((arena, params) {
-        final doc = pdfium.FPDF_LoadDocument(params.filePath.toUtf8(arena), params.password?.toUtf8(arena) ?? nullptr);
-        return doc.address;
-      }, (filePath: filePath, password: password)),
+      (password) async => BackgroundWorker.computeWithArena(
+        (arena, params) => _pdfLoadResult(
+          () => pdfium.FPDF_LoadDocument(params.filePath.toUtf8(arena), params.password?.toUtf8(arena) ?? nullptr),
+        ),
+        (filePath: filePath, password: password),
+      ),
       sourceName: 'file%$filePath',
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -715,11 +745,13 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
         await read(buffer.asTypedList(fileSize), 0, fileSize);
         return await _openByFunc(
           (password) async => BackgroundWorker.computeWithArena(
-            (arena, params) => pdfium.FPDF_LoadMemDocument(
-              Pointer<Void>.fromAddress(params.buffer),
-              params.fileSize,
-              params.password?.toUtf8(arena) ?? nullptr,
-            ).address,
+            (arena, params) => _pdfLoadResult(
+              () => pdfium.FPDF_LoadMemDocument(
+                Pointer<Void>.fromAddress(params.buffer),
+                params.fileSize,
+                params.password?.toUtf8(arena) ?? nullptr,
+              ),
+            ),
             (buffer: buffer.address, fileSize: fileSize, password: password),
           ),
           sourceName: sourceName,
@@ -745,10 +777,12 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     try {
       return await _openByFunc(
         (password) async => BackgroundWorker.computeWithArena(
-          (arena, params) => pdfium.FPDF_LoadCustomDocument(
-            Pointer<pdfium_bindings.FPDF_FILEACCESS>.fromAddress(params.fileAccess),
-            params.password?.toUtf8(arena) ?? nullptr,
-          ).address,
+          (arena, params) => _pdfLoadResult(
+            () => pdfium.FPDF_LoadCustomDocument(
+              Pointer<pdfium_bindings.FPDF_FILEACCESS>.fromAddress(params.fileAccess),
+              params.password?.toUtf8(arena) ?? nullptr,
+            ),
+          ),
           (fileAccess: fa.fileAccess, password: password),
         ),
         sourceName: sourceName,
@@ -792,8 +826,12 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     entryFunctions: this,
   );
 
+  /// Opens a document by repeatedly calling [openPdfDocument] until it succeeds or a non-password error occurs.
+  ///
+  /// [openPdfDocument] must run the PDFium load function on the [BackgroundWorker] isolate and return the
+  /// [_PdfLoadResult] captured there (see [_pdfLoadResult]); the error code is only meaningful on that isolate.
   static Future<PdfDocument> _openByFunc(
-    FutureOr<int> Function(String? password) openPdfDocument, {
+    FutureOr<_PdfLoadResult> Function(String? password) openPdfDocument, {
     required String sourceName,
     required PdfPasswordProvider? passwordProvider,
     bool firstAttemptByEmptyPassword = true,
@@ -810,21 +848,20 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
           throw const PdfPasswordException('No password supplied by PasswordProvider.');
         }
       }
-      final doc = await openPdfDocument(password);
-      if (doc != 0) {
+      final result = await openPdfDocument(password);
+      if (result.doc != 0) {
         return _PdfDocumentPdfium.fromPdfDocument(
-          pdfium_bindings.FPDF_DOCUMENT.fromAddress(doc),
+          pdfium_bindings.FPDF_DOCUMENT.fromAddress(result.doc),
           sourceName: sourceName,
           useProgressiveLoading: useProgressiveLoading,
           disposeCallback: disposeCallback,
         );
       }
-      final error = pdfium.FPDF_GetLastError();
-      if (Platform.isWindows || error == pdfium_bindings.FPDF_ERR_PASSWORD) {
-        // FIXME: Windows does not return error code correctly; we have to mimic every error is password error
+      if (result.error == pdfium_bindings.FPDF_ERR_PASSWORD) {
+        // Missing or wrong password; ask the password provider on the next iteration.
         continue;
       }
-      throw PdfException('Failed to load PDF document ${_getPdfiumErrorString()}.', error);
+      throw PdfException('Failed to load PDF document ${_getPdfiumErrorString(result.error)}.', result.error);
     }
   }
 
@@ -892,8 +929,8 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     }
   }
 
-  static String _getPdfiumErrorString([int? error]) {
-    error ??= pdfium.FPDF_GetLastError();
+  /// Formats a PDFium error code (a `FPDF_ERR_*` value) for use in exception messages.
+  static String _getPdfiumErrorString(int error) {
     final errStr = _errorMappings[error];
     if (errStr != null) {
       return '($errStr: $error)';
