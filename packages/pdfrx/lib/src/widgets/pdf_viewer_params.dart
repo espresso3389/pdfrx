@@ -8,6 +8,8 @@ import 'package:pdfrx_engine/pdfrx_engine.dart';
 import '../pdf_document_ref.dart';
 import '../utils/fixed_overscroll_physics.dart';
 import '../utils/platform.dart';
+import 'layout/pdf_fit_mode.dart';
+import 'layout/pdf_layout.dart';
 import 'pdf_viewer.dart';
 import 'pdf_viewer_scroll_thumb.dart';
 import 'scroll_interaction/pdf_viewer_scroll_interaction_delegate.dart';
@@ -27,12 +29,15 @@ class PdfViewerParams {
   const PdfViewerParams({
     this.margin = 8.0,
     this.backgroundColor = Colors.grey,
+    this.layout,
+    this.fitMode = PdfFitMode.none,
     this.layoutPages,
     this.normalizeMatrix,
     @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(maxScale: ...) instead') this.maxScale,
     @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(minScale: ...) instead') this.minScale,
     @Deprecated(
-      'Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(useAlternativeFitScaleAsMinScale: ...) instead',
+      'Prefer fitMode: PdfFitMode.fit (true) / PdfFitMode.none (false). For exact legacy behavior, '
+      'use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(useAlternativeFitScaleAsMinScale: ...).',
     )
     this.useAlternativeFitScaleAsMinScale,
     this.panAxis = PanAxis.free,
@@ -110,11 +115,38 @@ class PdfViewerParams {
          'Please configure these values in the sizeDelegateProvider instead.',
        );
 
-  /// Margin around the page.
+  /// Margin around the page, used by the built-in layout.
+  ///
+  /// When [layout] is set, that layout's own margin is authoritative (it bakes the margin into the
+  /// geometry and reports it via `PdfPageLayout.effectiveMargin`), and the viewer uses it everywhere
+  /// — geometry, size delegate, navigation, and fit-zoom — so this value is ignored. E.g. with
+  /// `SequentialPagesLayout`, set the margin on the layout, not here.
   final double margin;
 
   /// Background color of the viewer.
   final Color backgroundColor;
+
+  /// Declarative, value-type layout that computes page geometry.
+  ///
+  /// When non-null it is used before [layoutPages] and the built-in default:
+  /// `layout.resolve(...)` → [layoutPages] → built-in default.
+  ///
+  /// Unlike [layoutPages] (a closure, which can't take part in [PdfViewerParams] equality),
+  /// a [PdfLayout] is a value type with `==`/`hashCode`, so changing it relayouts
+  /// automatically — no manual [PdfViewerController.invalidate]. The viewport is passed to
+  /// [PdfLayout.resolve] at call time and not stored, so a resize relayouts but keeps params
+  /// equal.
+  final PdfLayout? layout;
+
+  /// How pages are fitted within the viewport.
+  ///
+  /// Read by [layout] (and, for [PdfFitMode.cover], by the size delegate). `SequentialPagesLayout`
+  /// scales each page's rect for [PdfFitMode.fill]/[PdfFitMode.fit]; [PdfFitMode.cover] keeps native
+  /// geometry and uses the delegate's cover scale.
+  ///
+  /// Ignored by the built-in default layout and by a [layoutPages] closure. Defaults to
+  /// [PdfFitMode.none].
+  final PdfFitMode fitMode;
 
   /// Function to customize the layout of the pages.
   ///
@@ -189,13 +221,24 @@ class PdfViewerParams {
   @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(minScale: ...) instead')
   final double? minScale;
 
-  /// If true, the minimum scale is set to the calculated [PdfViewerController.alternativeFitScale].
+  /// If true, the minimum scale is floored at the "fit page" scale
+  /// ([PdfViewerController.alternativeFitScale]) so the user cannot zoom out past a whole page.
   ///
-  /// If the minimum scale is small value, it makes many pages visible inside the view and it finally
-  /// renders many pages at once. It may make the viewer to be slow or even crash due to high memory consumption.
-  /// So, it is recommended to set this to false if you want to show PDF documents with many pages.
+  /// **Prefer [fitMode].** This boolean is a *policy* that conflates two things — computing the
+  /// fit-page scalar and using it as the min scale. [PdfFitMode] expresses that policy
+  /// declaratively (and also fits per-page geometry for mixed page sizes):
+  /// - `useAlternativeFitScaleAsMinScale: true`  ≈ `fitMode: PdfFitMode.fit`
+  /// - `useAlternativeFitScaleAsMinScale: false` ≈ `fitMode: PdfFitMode.none` (honors [minScale])
+  ///
+  /// Flooring the min scale at fit-page avoids zooming out so far that many pages render at once,
+  /// which can be slow or memory-heavy on large documents.
+  ///
+  /// For pixel-exact legacy behavior (including the quirk that an explicit [minScale] is ignored
+  /// while this is true), use
+  /// `sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(useAlternativeFitScaleAsMinScale: ...)`.
   @Deprecated(
-    'Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(useAlternativeFitScaleAsMinScale: ...) instead',
+    'Prefer fitMode: PdfFitMode.fit (true) / PdfFitMode.none (false). For exact legacy behavior, '
+    'use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(useAlternativeFitScaleAsMinScale: ...).',
   )
   final bool? useAlternativeFitScaleAsMinScale;
 
@@ -719,6 +762,8 @@ class PdfViewerParams {
         forceReload ||
         other.margin != margin ||
         other.backgroundColor != backgroundColor ||
+        other.layout != layout ||
+        other.fitMode != fitMode ||
         // ignore: deprecated_member_use_from_same_package
         other.maxScale != maxScale ||
         // ignore: deprecated_member_use_from_same_package
@@ -752,6 +797,7 @@ class PdfViewerParams {
         other.verticalCacheExtent != verticalCacheExtent ||
         other.linkHandlerParams != linkHandlerParams ||
         other.scrollPhysics != scrollPhysics ||
+        other.scrollPhysicsScale != scrollPhysicsScale ||
         other.interactionDelegateProvider != interactionDelegateProvider ||
         other.sizeDelegateProvider != sizeDelegateProvider ||
         other.zoomStepsDelegateProvider != zoomStepsDelegateProvider;
@@ -763,6 +809,8 @@ class PdfViewerParams {
 
     return other.margin == margin &&
         other.backgroundColor == backgroundColor &&
+        other.layout == layout &&
+        other.fitMode == fitMode &&
         // ignore: deprecated_member_use_from_same_package
         other.maxScale == maxScale &&
         // ignore: deprecated_member_use_from_same_package
@@ -825,6 +873,7 @@ class PdfViewerParams {
         other.behaviorControlParams == behaviorControlParams &&
         other.forceReload == forceReload &&
         other.scrollPhysics == scrollPhysics &&
+        other.scrollPhysicsScale == scrollPhysicsScale &&
         other.interactionDelegateProvider == interactionDelegateProvider &&
         other.sizeDelegateProvider == sizeDelegateProvider &&
         other.zoomStepsDelegateProvider == zoomStepsDelegateProvider;
@@ -834,6 +883,8 @@ class PdfViewerParams {
   int get hashCode {
     return margin.hashCode ^
         backgroundColor.hashCode ^
+        layout.hashCode ^
+        fitMode.hashCode ^
         // ignore: deprecated_member_use_from_same_package
         maxScale.hashCode ^
         // ignore: deprecated_member_use_from_same_package
@@ -896,6 +947,7 @@ class PdfViewerParams {
         behaviorControlParams.hashCode ^
         forceReload.hashCode ^
         scrollPhysics.hashCode ^
+        scrollPhysicsScale.hashCode ^
         interactionDelegateProvider.hashCode ^
         sizeDelegateProvider.hashCode ^
         zoomStepsDelegateProvider.hashCode;

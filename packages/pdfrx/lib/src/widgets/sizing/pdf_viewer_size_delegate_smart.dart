@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/rendering.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 
+import '../layout/pdf_fit_mode.dart';
 import '../pdf_viewer.dart';
 import '../pdf_viewer_layout_metrics.dart';
 import '../pdf_viewer_params.dart';
@@ -171,10 +172,10 @@ class PdfViewerSizeDelegateSmart implements PdfViewerSizeDelegate {
     required int? pageNumber,
     required double pageMargin,
     required EdgeInsets? boundaryMargin,
+    PdfFitMode fitMode = PdfFitMode.none,
   }) {
-    // Reuse the legacy math for geometric limits (coverScale/alternativeFitScale)
-    // We can delegate this calculation or duplicate the math (it's purely geometric).
-    // Duplicating for clarity/independence:
+    // Geometric limits (coverScale / alternativeFitScale). Same math as the legacy delegate,
+    // duplicated here to keep the two independent.
     final bmh = boundaryMargin?.horizontal == double.infinity ? 0 : boundaryMargin?.horizontal ?? 0;
     final bmv = boundaryMargin?.vertical == double.infinity ? 0 : boundaryMargin?.vertical ?? 0;
 
@@ -196,19 +197,21 @@ class PdfViewerSizeDelegateSmart implements PdfViewerSizeDelegate {
       }
     }
 
-    // Smart Policy for Min Scale:
-    // 1. Calculate "Fit Page" scale (fallback to coverScale if page not found)
-    final fitPageScale = alternativeFitScale ?? coverScale;
-
-    // 2. Adjust for multi-page visibility
-    // If maxPagesVisible is 1.0, this is Fit Page.
-    // If maxPagesVisible is 2.0, we allow zooming out 2x further.
-    // If maxPagesVisible is infinity, this becomes 0.
-    final allowedMinScale = fitPageScale / _maxPagesVisible;
-
-    // 3. The minimum scale is whichever is larger: the hard configuration or the physical fit.
-    // This prevents zooming out further than the page size.
-    final effectiveMinScale = math.max(_minScale, allowedMinScale);
+    // Smart min scale, floored by the active fit mode.
+    final double effectiveMinScale;
+    switch (fitMode) {
+      case PdfFitMode.fill:
+      case PdfFitMode.cover:
+        // Floor at fit-width; don't allow a multi-page zoom-out.
+        effectiveMinScale = math.max(_minScale, coverScale);
+      case PdfFitMode.fit:
+      case PdfFitMode.none:
+        // Fit-page (or coverScale if the page is unknown), allowing zoom-out up to
+        // maxPagesVisible. Unchanged smart behavior.
+        final fitPageScale = alternativeFitScale ?? coverScale;
+        final allowedMinScale = fitPageScale / _maxPagesVisible;
+        effectiveMinScale = math.max(_minScale, allowedMinScale);
+    }
 
     return PdfViewerLayoutMetrics(
       minScale: effectiveMinScale,
