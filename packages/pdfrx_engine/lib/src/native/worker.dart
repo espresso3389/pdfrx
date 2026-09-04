@@ -72,14 +72,6 @@ class BackgroundWorker {
     _isolate = null;
   }
 
-  /// Maximum number of consecutive [BackgroundWorkerPriority.high] items the scheduler runs while a
-  /// [BackgroundWorkerPriority.normal] item is waiting, before it lets one normal item through.
-  ///
-  /// High-priority work (rendering, page measurement) is expected to be short-lived and bursty, so this is only a
-  /// safety net that keeps a viewer that renders continuously (e.g. during a long animated scroll) from starving
-  /// background work forever.
-  static const _maxConsecutiveHighItems = 8;
-
   /// Entry point for the worker isolate.
   static void _workerEntry(SendPort sendPort) {
     final receivePort = ReceivePort();
@@ -169,6 +161,10 @@ class BackgroundWorker {
   }) async => await _instance._compute(callback, message, priority);
 
   /// Suspends the worker isolate during the execution of [action].
+  ///
+  /// Work queued before the suspend request has run by the time [action] starts. This holds for synchronous
+  /// callbacks (all PDFium callbacks in the engine are synchronous); an asynchronous callback only counts as "run" up
+  /// to its first `await`.
   static Future<T> suspendDuringAction<T>(FutureOr<T> Function() action) async {
     await _instance._sendComputeParams((sendPort) => _SuspendRequest._(sendPort));
     try {
@@ -210,10 +206,20 @@ class BackgroundWorker {
 /// started synchronously in [_ComputeParams.execute] (asynchronous callbacks continue on their own), draining one
 /// item per turn does not change the relative execution order of items of the same priority, so a worker that only
 /// ever receives normal-priority work behaves exactly like a plain FIFO.
+///
+/// Ordering invariant: an item never runs before an item of equal-or-higher priority that was enqueued earlier. A
+/// high item may overtake earlier normal items; a normal item never overtakes an earlier high item. Callers rely on
+/// the second half: `PdfDocument.dispose()` marks the document disposed synchronously and then queues
+/// `FPDF_CloseDocument` at normal priority, so renders that passed the disposed check and are already queued as high
+/// items must run before the close does, or they would touch a freed `FPDF_DOCUMENT`. For that reason there is
+/// deliberately no starvation guard that lets normal work through while high work is pending.
+///
+/// High work cannot starve normal work in practice: high priority is only used for rendering and measuring the pages
+/// that are currently visible, so a burst of it is bounded by the visible page set and background work simply waits
+/// for the burst to end, which is the intent.
 class _WorkerScheduler {
   final _high = Queue<_ComputeParams>();
   final _normal = Queue<_ComputeParams>();
-  var _consecutiveHigh = 0;
   var _drainScheduled = false;
 
   bool get isEmpty => _high.isEmpty && _normal.isEmpty;
@@ -226,6 +232,8 @@ class _WorkerScheduler {
   /// Runs every queued item now, in priority order, without yielding to the event loop.
   ///
   /// Used before acknowledging suspend/stop requests so that they keep their "all earlier work has run" guarantee.
+  /// That guarantee holds for synchronous callbacks (all PDFium callbacks in the engine are synchronous); an
+  /// asynchronous callback has only run up to its first `await` when this returns.
   void drainAll() {
     while (!isEmpty) {
       _next().execute();
@@ -243,20 +251,16 @@ class _WorkerScheduler {
   void _drainOne() {
     _drainScheduled = false;
     if (isEmpty) return;
-    _next().execute();
-    if (!isEmpty) _scheduleDrain();
+    try {
+      _next().execute();
+    } finally {
+      // Re-arm even if execute() threw synchronously; otherwise the remaining items would never be drained.
+      if (!isEmpty) _scheduleDrain();
+    }
   }
 
-  /// Picks the next item to run: a high-priority item if any, unless normal work has been waiting behind
-  /// [BackgroundWorker._maxConsecutiveHighItems] high items in a row.
-  _ComputeParams _next() {
-    if (_high.isNotEmpty && (_normal.isEmpty || _consecutiveHigh < BackgroundWorker._maxConsecutiveHighItems)) {
-      _consecutiveHigh++;
-      return _high.removeFirst();
-    }
-    _consecutiveHigh = 0;
-    return _normal.removeFirst();
-  }
+  /// Picks the next item to run: the oldest high-priority item if there is one, otherwise the oldest normal item.
+  _ComputeParams _next() => _high.isNotEmpty ? _high.removeFirst() : _normal.removeFirst();
 }
 
 class _ComputeParams {

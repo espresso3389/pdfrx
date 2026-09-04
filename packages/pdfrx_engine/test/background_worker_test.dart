@@ -96,6 +96,26 @@ void main() {
       expect(completionOrder, [1, 2, 3, 4, 5, 6]);
     });
 
+    test('a normal compute never overtakes high computes that were queued earlier (regression)', () async {
+      // Models PdfDocument.dispose(): renders (high) that are already queued must run before the
+      // FPDF_CloseDocument call (normal) that dispose() sends afterwards, or they would use a freed document.
+      final completionOrder = <int>[];
+      Future<void> track(Future<int> f) => f.then(completionOrder.add);
+
+      final highs = [
+        for (var id = 1; id <= 12; id++)
+          track(
+            BackgroundWorker.compute(busyWait, (id: id, ms: 10 + id % 3 * 5), priority: BackgroundWorkerPriority.high),
+          ),
+      ];
+      // Let all high requests reach the worker's mailbox before the normal one is sent.
+      await Future<void>.delayed(Duration.zero);
+      final normal = track(BackgroundWorker.compute(busyWait, (id: 999, ms: 1)));
+      await Future.wait([...highs, normal]);
+
+      expect(completionOrder, [for (var id = 1; id <= 12; id++) id, 999]);
+    });
+
     test('computeWithArena accepts a priority', () async {
       final result = await BackgroundWorker.computeWithArena(
         (arena, message) => message * 2,
