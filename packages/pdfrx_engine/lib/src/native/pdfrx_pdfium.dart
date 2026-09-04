@@ -1324,6 +1324,7 @@ class _PdfDocumentPdfium extends PdfDocument {
         return (pages: pages, invalidPageNumber: invalidPageNumber);
       },
       (docAddress: document.address, pageNumbersToReload: pageNumbersToReload, currentPageCount: _pages.length),
+      priority: BackgroundWorkerPriority.high,
     );
     if (results.invalidPageNumber != null) {
       throw ArgumentError.value(
@@ -1764,6 +1765,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
             formInfo: document.formInfo.address,
             cancelFlag: cancelFlag.address,
           ),
+          priority: BackgroundWorkerPriority.high,
         );
       });
 
