@@ -26489,13 +26489,14 @@ this.b=b},
 nx:function nx(){},
 adC:function adC(){},
 adD:function adD(a){this.a=a},
-OE:function OE(a,b,c,d,e,f){var _=this
+OE:function OE(a,b,c,d,e,f,g){var _=this
 _.c=a
 _.d=b
 _.e=c
-_.w=d
-_.a=e
-_.b=f},
+_.r=d
+_.x=e
+_.a=f
+_.b=g},
 nw:function nw(a,b){var _=this
 _.a=a
 _.b=b
@@ -27116,7 +27117,7 @@ OR:function OR(){},
 adY:function adY(){},
 ae0:function ae0(){},
 akz:function akz(){this.a=""},
-aGO(a,b,c,d,e,f,g){return $.JA().a_X(a,!1,!0,d,e,f,g)},
+aGO(a,b,c,d,e,f,g,h){return $.JA().a_X(a,!1,!0,d,e,f,g,h)},
 qj:function qj(){},
 ql:function ql(){},
 uQ:function uQ(a){this.b=a},
@@ -42469,7 +42470,7 @@ $1$offset(a){return this.E(this,A.K("call","$1$offset",0,[a],["offset"],0))},
 $2$offset$textGranularity(a,b){return this.E(this,A.K("call","$2$offset$textGranularity",0,[a,b],["offset","textGranularity"],0))},
 $2$continuous$offset(a,b){return this.E(this,A.K("call","$2$continuous$offset",0,[a,b],["continuous","offset"],0))},
 $8$enableDomStorage$enableJavaScript$headers$universalLinksOnly$useSafariVC$useWebView$webOnlyWindowName(a,b,c,d,e,f,g,h){return this.E(this,A.K("call","$8$enableDomStorage$enableJavaScript$headers$universalLinksOnly$useSafariVC$useWebView$webOnlyWindowName",0,[a,b,c,d,e,f,g,h],["enableDomStorage","enableJavaScript","headers","universalLinksOnly","useSafariVC","useWebView","webOnlyWindowName"],0))},
-$7$allowDataOwnershipTransfer$firstAttemptByEmptyPassword$onDispose$passwordProvider$sourceName$useProgressiveLoading(a,b,c,d,e,f,g){return this.E(this,A.K("call","$7$allowDataOwnershipTransfer$firstAttemptByEmptyPassword$onDispose$passwordProvider$sourceName$useProgressiveLoading",0,[a,b,c,d,e,f,g],["allowDataOwnershipTransfer","firstAttemptByEmptyPassword","onDispose","passwordProvider","sourceName","useProgressiveLoading"],0))},
+$8$allowDataOwnershipTransfer$firstAttemptByEmptyPassword$maxSizeToCacheOnMemory$onDispose$passwordProvider$sourceName$useProgressiveLoading(a,b,c,d,e,f,g,h){return this.E(this,A.K("call","$8$allowDataOwnershipTransfer$firstAttemptByEmptyPassword$maxSizeToCacheOnMemory$onDispose$passwordProvider$sourceName$useProgressiveLoading",0,[a,b,c,d,e,f,g,h],["allowDataOwnershipTransfer","firstAttemptByEmptyPassword","maxSizeToCacheOnMemory","onDispose","passwordProvider","sourceName","useProgressiveLoading"],0))},
 $3$data$onPageLoadProgress$startPageNumber(a,b,c){return this.E(this,A.K("call","$3$data$onPageLoadProgress$startPageNumber",0,[a,b,c],["data","onPageLoadProgress","startPageNumber"],0))},
 $1$sourceName(a){return this.E(this,A.K("call","$1$sourceName",0,[a],["sourceName"],0))},
 $11$annotationRenderingMode$backgroundColor$cancellationToken$flags$fullHeight$fullWidth$height$rotationOverride$width$x$y(a,b,c,d,e,f,g,h,i,j,k){return this.E(this,A.K("call","$11$annotationRenderingMode$backgroundColor$cancellationToken$flags$fullHeight$fullWidth$height$rotationOverride$width$x$y",0,[a,b,c,d,e,f,g,h,i,j,k],["annotationRenderingMode","backgroundColor","cancellationToken","flags","fullHeight","fullWidth","height","rotationOverride","width","x","y"],0))},
@@ -89431,7 +89432,7 @@ yI(a,b){return this.ah2(a,b)},
 ah2(a,b){var s=0,r=A.A(t.qx),q,p=this
 var $async$yI=A.B(function(c,d){if(c===1)return A.x(d,r)
 for(;;)switch(s){case 0:s=3
-return A.r(A.aGO(a,!1,!0,null,new A.a4W(p,b),null,!1),$async$yI)
+return A.r(A.aGO(a,!1,!0,null,null,new A.a4W(p,b),null,!1),$async$yI)
 case 3:q=d
 s=1
 break
@@ -89827,7 +89828,7 @@ s=A.iE(A.Q2(A.b([B.G4,B.zA,A.aAQ(A.f2("Combined "+p.a.c.length+" pages. Review t
 r=p.d
 r.toString
 q=A.ut(B.or,t.X)
-m=A.pa(A.b([s,A.aAQ(new A.BK(new A.OE(r,o,!0,!0,!0,new A.ny("combined.pdf",q)),o))],m),B.aG,B.aK,B.dM)}return A.aHh(n,m)}}
+m=A.pa(A.b([s,A.aAQ(new A.BK(new A.OE(r,o,!0,o,!0,!0,new A.ny("combined.pdf",q)),o))],m),B.aG,B.aK,B.dM)}return A.aHh(n,m)}}
 A.arv.prototype={
 $0(){this.a.e=!0},
 $S:0}
@@ -89874,7 +89875,7 @@ var $async$wc=A.B(function(b,c){if(b===1)return A.x(c,r)
 for(;;)switch(s){case 0:s=3
 return A.r(A.xG(),$async$wc)
 case 3:s=4
-return A.r(A.aGO(p.c,!1,!0,null,p.d,p.b.a,!0),$async$wc)
+return A.r(A.aGO(p.c,!1,!0,p.r,null,p.d,p.b.a,!0),$async$wc)
 case 4:q=c
 s=1
 break
@@ -90024,8 +90025,8 @@ break}s=3
 return A.r(A.DN(p,new A.ae4(p),t.P),$async$kL)
 case 3:case 1:return A.y(q,r)}})
 return A.z($async$kL,r)},
-a_X(a,b,c,d,e,f,g){var s=f==null?"data%"+B.CO.er(a).k(0):f
-return this.oe(new A.ae5(a,g),!0,d,e,s,g)},
+a_X(a,b,c,d,e,f,g,h){var s=g==null?"data%"+B.CO.er(a).k(0):g
+return this.oe(new A.ae5(a,h),!0,e,f,s,h)},
 a_Y(a,b,c,d){return this.oe(new A.ae6(a,!1),!0,null,c,"file%"+a,!1)},
 oe(a,b,c,d,e,f){return this.ajj(a,!0,c,d,e,f)},
 ajj(a,b,c,d,e,f){var s=0,r=A.A(t.qx),q,p=this,o,n,m,l,k,j,i,h,g
@@ -93798,7 +93799,7 @@ return r}}
 A.ae0.prototype={
 wN(){throw A.i(A.de("PdfrxEntryFunctions.instance is not initialized. Please call pdfrxInitialize()/pdfrxFlutterInitialize() or explicitly set PdfrxEntryFunctions.instance."))},
 kL(){return this.wN()},
-a_X(a,b,c,d,e,f,g){return this.wN()},
+a_X(a,b,c,d,e,f,g,h){return this.wN()},
 a_Y(a,b,c,d){return this.wN()},
 r_(a){return this.wN()},
 qZ(a,b,c,d){return this.wN()}}

@@ -26170,7 +26170,7 @@ _.b=e},
 NA:function NA(a,b,c,d,e){var _=this
 _.c=a
 _.d=b
-_.w=c
+_.x=c
 _.a=d
 _.b=e},
 n6:function n6(a,b){var _=this
@@ -42888,7 +42888,7 @@ $3$composing$selection$text(a,b,c){return this.F(this,A.E("call","$3$composing$s
 $9$firstAttemptByEmptyPassword$headers$passwordProvider$preferRangeAccess$progressCallback$timeout$useProgressiveLoading$withCredentials(a,b,c,d,e,f,g,h,i){return this.F(this,A.E("call","$9$firstAttemptByEmptyPassword$headers$passwordProvider$preferRangeAccess$progressCallback$timeout$useProgressiveLoading$withCredentials",0,[a,b,c,d,e,f,g,h,i],["firstAttemptByEmptyPassword","headers","passwordProvider","preferRangeAccess","progressCallback","timeout","useProgressiveLoading","withCredentials"],0))},
 $11$annotationRenderingMode$backgroundColor$cancellationToken$flags$fullHeight$fullWidth$height$rotationOverride$width$x$y(a,b,c,d,e,f,g,h,i,j,k){return this.F(this,A.E("call","$11$annotationRenderingMode$backgroundColor$cancellationToken$flags$fullHeight$fullWidth$height$rotationOverride$width$x$y",0,[a,b,c,d,e,f,g,h,i,j,k],["annotationRenderingMode","backgroundColor","cancellationToken","flags","fullHeight","fullWidth","height","rotationOverride","width","x","y"],0))},
 $3$acceptedTypeGroups$confirmButtonText$initialDirectory(a,b,c){return this.F(this,A.E("call","$3$acceptedTypeGroups$confirmButtonText$initialDirectory",0,[a,b,c],["acceptedTypeGroups","confirmButtonText","initialDirectory"],0))},
-$7$allowDataOwnershipTransfer$firstAttemptByEmptyPassword$onDispose$passwordProvider$sourceName$useProgressiveLoading(a,b,c,d,e,f,g){return this.F(this,A.E("call","$7$allowDataOwnershipTransfer$firstAttemptByEmptyPassword$onDispose$passwordProvider$sourceName$useProgressiveLoading",0,[a,b,c,d,e,f,g],["allowDataOwnershipTransfer","firstAttemptByEmptyPassword","onDispose","passwordProvider","sourceName","useProgressiveLoading"],0))},
+$8$allowDataOwnershipTransfer$firstAttemptByEmptyPassword$maxSizeToCacheOnMemory$onDispose$passwordProvider$sourceName$useProgressiveLoading(a,b,c,d,e,f,g,h){return this.F(this,A.E("call","$8$allowDataOwnershipTransfer$firstAttemptByEmptyPassword$maxSizeToCacheOnMemory$onDispose$passwordProvider$sourceName$useProgressiveLoading",0,[a,b,c,d,e,f,g,h],["allowDataOwnershipTransfer","firstAttemptByEmptyPassword","maxSizeToCacheOnMemory","onDispose","passwordProvider","sourceName","useProgressiveLoading"],0))},
 $1$pageNumber(a){return this.F(this,A.E("call","$1$pageNumber",0,[a],["pageNumber"],0))},
 $4$firstAttemptByEmptyPassword$passwordProvider$useProgressiveLoading(a,b,c,d){return this.F(this,A.E("call","$4$firstAttemptByEmptyPassword$passwordProvider$useProgressiveLoading",0,[a,b,c,d],["firstAttemptByEmptyPassword","passwordProvider","useProgressiveLoading"],0))},
 $6$allowDataOwnershipTransfer$firstAttemptByEmptyPassword$passwordProvider$sourceName$useProgressiveLoading(a,b,c,d,e,f){return this.F(this,A.E("call","$6$allowDataOwnershipTransfer$firstAttemptByEmptyPassword$passwordProvider$sourceName$useProgressiveLoading",0,[a,b,c,d,e,f],["allowDataOwnershipTransfer","firstAttemptByEmptyPassword","passwordProvider","sourceName","useProgressiveLoading"],0))},
@@ -88062,7 +88062,7 @@ var $async$es=A.r(function(b,c){if(b===1)return A.t(c,r)
 for(;;)switch(s){case 0:s=3
 return A.n(A.mb(),$async$es)
 case 3:s=4
-return A.n($.mc().Lk(p.c,!1,!0,null,p.d,p.b.a,!0),$async$es)
+return A.n($.mc().Lk(p.c,!1,!0,null,null,p.d,p.b.a,!0),$async$es)
 case 4:q=c
 s=1
 break
@@ -88256,8 +88256,8 @@ s=1
 break
 case 1:return A.u(q,r)}})
 return A.v($async$rO,r)},
-Lk(a,b,c,d,e,f,g){return this.mO(new A.acF(a,!0),!0,d,e,f,!0)},
-awI(a,b,c,d,e,f){return this.Lk(a,b,c,null,d,e,f)},
+Lk(a,b,c,d,e,f,g,h){return this.mO(new A.acF(a,!0),!0,e,f,g,!0)},
+awI(a,b,c,d,e,f){return this.Lk(a,b,c,null,null,d,e,f)},
 a09(a,b,c,d){return this.mO(new A.acG(a,!0),!0,null,c,"file%"+a,!0)},
 rQ(a,b,c,d,e,f,g,h,i){return this.awM(a,!0,c,d,!1,f,g,!0,!1)},
 awM(a,b,c,d,e,f,a0,a1,a2){var s=0,r=A.w(t.qx),q,p=2,o=[],n=this,m,l,k,j,i,h,g
@@ -92885,7 +92885,7 @@ A.acA.prototype={
 mf(){throw A.i(A.dq("PdfrxEntryFunctions.instance is not initialized. Please call pdfrxInitialize()/pdfrxFlutterInitialize() or explicitly set PdfrxEntryFunctions.instance."))},
 kM(){return this.mf()},
 rO(a,b,c,d){return this.mf()},
-Lk(a,b,c,d,e,f,g){return this.mf()},
+Lk(a,b,c,d,e,f,g,h){return this.mf()},
 a09(a,b,c,d){return this.mf()},
 rQ(a,b,c,d,e,f,g,h,i){return this.mf()},
 vk(a,b){return this.mf()},
