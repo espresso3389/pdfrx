@@ -4,6 +4,10 @@ Dart FFI bindings for the PDFium library. This package provides low-level access
 
 This package is part of the [pdfrx](https://github.com/espresso3389/pdfrx) project.
 
+## Requirements
+
+- Dart 3.13 or later
+
 ## Overview
 
 This package contains auto-generated FFI bindings for PDFium using [ffigen](https://pub.dev/packages/ffigen). It is designed to be a minimal, pure Dart package that other packages can depend on to access PDFium functionality.
@@ -58,6 +62,13 @@ The build hook downloads binaries from [bblanchon/pdfium-binaries](https://githu
 - Pure Dart commands on macOS, such as `dart test`, `dart run`, and `dart compile`, use the `libpdfium.dylib` native asset.
 - Flutter apps on Linux look for `libpdfium.so` in the shared library directory relative to the resolved executable.
 - Other supported platforms first try the platform library name, then fall back to the bundled native asset recorded in `.dart_tool/native_assets.yaml`.
+
+### Download proxies
+
+The build hook honors the standard `http_proxy`, `https_proxy`, and `no_proxy` environment variables when it
+downloads PDFium. On Windows, when no proxy environment variable is defined for the requested scheme, it also
+uses the current user's enabled static WinINet proxy configuration. An explicit environment proxy takes precedence
+over the Windows system proxy.
 
 ## Generating Bindings
 

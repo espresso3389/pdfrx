@@ -11,6 +11,16 @@ This plugin is built on top of [pdfrx_engine](https://pub.dartlang.org/packages/
 
 The plugin supports Android, iOS, Windows, macOS, Linux, and Web.
 
+## Requirements
+
+- Flutter 3.47 or later (Dart 3.13 or later)
+- iOS 15 or later
+- macOS 12 or later
+
+The example Android projects track the Flutter 3.47 toolchain with Java 17 bytecode, Android Gradle Plugin 9.1.0,
+Kotlin Gradle Plugin 2.4.0, and Gradle 9.3.1. New applications should use Flutter's generated Android SDK
+settings rather than hard-coding `compileSdk`, `minSdk`, or `targetSdk` values.
+
 ## Interactive Demo
 
 A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web

@@ -4,6 +4,12 @@ Flutter FFI plugin for PDFium integration on native Flutter platforms. It suppor
 
 This package is part of the [pdfrx](https://github.com/espresso3389/pdfrx) project.
 
+## Requirements
+
+- Flutter 3.47 or later (Dart 3.13 or later)
+- iOS 15 or later
+- macOS 12 or later
+
 ## Overview
 
 This package provides:

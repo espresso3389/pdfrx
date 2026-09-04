@@ -6,6 +6,10 @@
 
 This package depends on [pdfium_dart](https://pub.dartlang.org/packages/pdfium_dart) for PDFium FFI bindings and is a part of [pdfrx](https://pub.dartlang.org/packages/pdfrx) Flutter plugin, which adds UI widgets and Flutter-specific features on top of this engine.
 
+## Requirements
+
+- Dart 3.13 or later
+
 ## Multi-platform support
 
 - Android
