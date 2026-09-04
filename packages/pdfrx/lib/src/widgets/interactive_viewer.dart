@@ -595,9 +595,12 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
     /// ScrollPhysics
     /// If the ScrollPhysics is defined we apply physics (bouncing or clamping) during pan.
     if (widget.scrollPhysics != null) {
-      final physics = (_gestureType == _GestureType.scale)
-          ? (widget.scrollPhysicsScale ?? widget.scrollPhysics!)
-          : widget.scrollPhysics!;
+      // Scale translations keep the gesture focal point stable and are expressed in scene units.
+      // ScrollPhysics operates on viewport pixels, so applying it here mixes coordinate systems and
+      // can produce page-sized jumps near a boundary in long documents.
+      if (_gestureType == _GestureType.scale) return nextMatrix;
+
+      final physics = widget.scrollPhysics!;
       // current translation in scene coordinates (negative because controller stores inverse)
       final currentOffset = _getMatrixTranslation(_transformer.value) * -1;
       // build scroll metrics
@@ -617,13 +620,6 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
       // If the overscroll is zero, the ScrollPhysics (such as BouncingScrollPhysics) is
       // enabling us to go out of boundaries, so we apply physics to the translation.
       if (overscrollX == 0 && overscrollY == 0) {
-        if (_gestureType == _GestureType.scale) {
-          // TODO: better handle pan offsets when pinch zooming - for now, don't apply
-          // physics as it introduces issues around the snapback animation position
-          // due to an incorrect focal point, as well as causing undesired zoom behavior
-          // such as when zooming out at the bottom of a document
-          return nextMatrix;
-        }
         // Check if the offset is accepted by the ScrollPhysics, and so apply it.
         var dx = 0.0;
         if (alignedTranslation.dx != 0 && physics.shouldAcceptUserOffset(_normalizeScrollMetrics(metricsX))) {

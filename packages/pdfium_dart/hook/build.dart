@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
-import 'package:http/http.dart' as http;
+
+import 'proxy_http_client.dart';
 
 const _pdfiumRelease = 'chromium%2F7811';
 const _assetName = 'libpdfium';
@@ -49,7 +50,8 @@ Future<void> _downloadPdfium({
     '$pdfiumRelease/pdfium-${target.archivePlatform}-${target.archiveArch}.tgz',
   );
 
-  final response = await http.Client().get(archiveUri);
+  final client = await createProxyAwareHttpClient();
+  final response = await client.get(archiveUri).whenComplete(client.close);
   if (response.statusCode != 200) {
     throw Exception('Failed to download PDFium: $archiveUri');
   }

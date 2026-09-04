@@ -19,6 +19,7 @@ import '../pdfrx_flutter.dart';
 import '../utils/edge_insets_extensions.dart';
 import '../utils/platform.dart';
 import 'interactive_viewer.dart' as iv;
+import 'internals/partial_rendering.dart';
 import 'internals/pdf_error_widget.dart';
 import 'internals/pdf_viewer_key_handler.dart';
 import 'internals/widget_size_sniffer.dart';
@@ -1739,7 +1740,9 @@ class _PdfViewerState extends State<PdfViewer>
         _requestPagePreviewImageCached(cache, page, previewScaleLimit);
       }
 
-      final pageScale = scale * max(rect.width / page.width, rect.height / page.height);
+      final pageScale = page.width > 0 && page.height > 0
+          ? scale * max(rect.width / page.width, rect.height / page.height)
+          : 0.0;
       if (!enableLowResolutionPagePreview || pageScale > previewScaleLimit) {
         // `scale` (not `pageScale`) converts document units to physical pixels.
         // `pageScale` additionally carries the layout-to-page-size ratio, which
@@ -2172,10 +2175,11 @@ class _PdfViewerState extends State<PdfViewer>
     if (!mounted || cancellationToken.isCanceled) return null;
     final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
     final inPageRect = rect.translate(-pageRect.left, -pageRect.top);
-    final x = (inPageRect.left * scale).toInt();
-    final y = (inPageRect.top * scale).toInt();
-    final width = (inPageRect.width * scale).toInt();
-    final height = (inPageRect.height * scale).toInt();
+    final scaledRect = scaleRectForRendering(inPageRect, scale);
+    final fullWidth = pageRect.width * scale;
+    final fullHeight = pageRect.height * scale;
+    if (scaledRect == null || !fullWidth.isFinite || !fullHeight.isFinite) return null;
+    final (:x, :y, :width, :height) = scaledRect;
     if (width < 1 || height < 1) return null;
 
     var flags = 0;
@@ -2188,8 +2192,8 @@ class _PdfViewerState extends State<PdfViewer>
         y: y,
         width: width,
         height: height,
-        fullWidth: pageRect.width * scale,
-        fullHeight: pageRect.height * scale,
+        fullWidth: fullWidth,
+        fullHeight: fullHeight,
         backgroundColor: 0xffffffff,
         annotationRenderingMode: widget.params.annotationRenderingMode,
         flags: flags,
