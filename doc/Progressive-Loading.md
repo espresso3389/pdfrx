@@ -212,6 +212,8 @@ await document.loadPagesProgressively(
 
 The callback is invoked periodically (every `loadUnitDuration`) as pages are loaded. Return `false` from the callback to stop the loading process early.
 
+Internally, each `loadUnitDuration` slice is sent to the PDFium worker as a series of short measurement tasks rather than one long task. All PDFium calls in a process share that worker, so this keeps page rendering responsive while the rest of the document is being measured: a render requested during progressive loading only waits for the current short task to finish instead of the whole slice. The callback cadence is unaffected; it is still invoked once per `loadUnitDuration`.
+
 The callback receives the number of pages loaded so far (`loadedPageCount`), the total number of pages, and the optional `data` value passed to [`loadPagesProgressively()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/loadPagesProgressively.html). `loadedPageCount` is a count of loaded pages, not a page index; it does not depend on the order in which the pages are measured.
 
 By default, pages are measured from page 1 onward. Pass `startPageNumber` to measure pages in order of their distance from a given page instead (`start`, `start+1`, `start-1`, `start+2`, `start-2`, ...), so that the pages around the one being displayed become available first. Pages that are already loaded are skipped, and all pages are loaded when the call completes without being cancelled. [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) does this automatically using its initial page:

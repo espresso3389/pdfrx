@@ -447,6 +447,87 @@ void main() {
     expect(loadedPageNumbers.length, lessThan(40));
     expect(loadedPageNumbers, List.generate(loadedPageNumbers.length, (index) => index + 1));
   });
+  for (final loadUnitDuration in [const Duration(milliseconds: 1), null]) {
+    test('progressive loading loads every page and reports monotonic progress (loadUnitDuration: '
+        '${loadUnitDuration ?? 'default'})', () async {
+      final document = await PdfDocument.openFile(multiPageTestPdfFile.path, useProgressiveLoading: true);
+      addTearDown(document.dispose);
+      final events = <PdfDocumentEvent>[];
+      final subscription = document.events.listen(events.add);
+      addTearDown(subscription.cancel);
+
+      final progress = <(int loadedPageCount, int totalPageCount)>[];
+      bool onProgress(int loadedPageCount, int totalPageCount, void _) {
+        progress.add((loadedPageCount, totalPageCount));
+        return true;
+      }
+
+      if (loadUnitDuration != null) {
+        await document.loadPagesProgressively(onPageLoadProgress: onProgress, loadUnitDuration: loadUnitDuration);
+      } else {
+        await document.loadPagesProgressively(onPageLoadProgress: onProgress);
+      }
+      await Future<void>.delayed(Duration.zero);
+
+      expect(document.pages.every((page) => page.isLoaded), isTrue);
+      expect(document.pages.map((page) => page.pageNumber), List.generate(40, (index) => index + 1));
+      expect(progress, isNotEmpty);
+      expect(progress.map((entry) => entry.$2), everyElement(40));
+      for (var i = 1; i < progress.length; i++) {
+        expect(progress[i].$1, greaterThanOrEqualTo(progress[i - 1].$1), reason: 'loadedPageCount is monotonic');
+      }
+      expect(progress.last.$1, 40);
+      expect(events.whereType<PdfDocumentLoadCompleteEvent>(), hasLength(1));
+    });
+  }
+  test('progressive loading with a tiny loadUnitDuration reports progress more than once', () async {
+    final document = await PdfDocument.openFile(multiPageTestPdfFile.path, useProgressiveLoading: true);
+    addTearDown(document.dispose);
+    var callbackCount = 0;
+
+    await document.loadPagesProgressively(
+      loadUnitDuration: const Duration(milliseconds: 1),
+      onPageLoadProgress: (_, _, _) {
+        callbackCount++;
+        return true;
+      },
+    );
+
+    // Each budget measures at least one page, so a budget far shorter than the whole measurement yields several
+    // callbacks rather than one covering the whole document.
+    expect(callbackCount, greaterThan(1));
+    expect(document.pages.every((page) => page.isLoaded), isTrue);
+  });
+  test('rendering an already loaded page is not blocked behind progressive loading', () async {
+    // A document with enough pages that measuring it takes well over the worker chunk duration.
+    final document = await PdfDocument.openData(
+      buildBlankPdf(20000),
+      sourceName: 'blank20000.pdf',
+      useProgressiveLoading: true,
+    );
+    addTearDown(document.dispose);
+    expect(document.pages.length, 20000);
+    expect(document.pages.first.isLoaded, isTrue);
+
+    var loadCompleted = false;
+    var loadedPageCountWhenRendered = -1;
+    final loading = document
+        .loadPagesProgressively(loadUnitDuration: const Duration(milliseconds: 250))
+        .then((_) => loadCompleted = true);
+    // Give the first measurement chunk a chance to be queued on the worker before the render.
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+
+    final image = await document.pages.first.render();
+    final renderCompletedBeforeLoad = !loadCompleted;
+    loadedPageCountWhenRendered = document.pages.where((page) => page.isLoaded).length;
+    image?.dispose();
+    await loading;
+
+    expect(image, isNotNull);
+    expect(renderCompletedBeforeLoad, isTrue, reason: 'render must interleave with measurement chunks');
+    expect(loadedPageCountWhenRendered, lessThan(20000));
+    expect(document.pages.every((page) => page.isLoaded), isTrue);
+  });
   test('loadLinks reuses raw and compact results', () async {
     final document = await PdfDocument.openFile(testPdfFile.path);
     addTearDown(document.dispose);

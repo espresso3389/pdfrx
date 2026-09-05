@@ -1124,18 +1124,34 @@ class _PdfDocumentPdfium extends PdfDocument {
     for (;;) {
       if (isDisposed) return;
 
-      final pageIndicesToLoad = _unloadedPageIndicesOrderedFrom(_pages, startPageNumber);
+      var pageIndicesToLoad = _unloadedPageIndicesOrderedFrom(_pages, startPageNumber);
       if (pageIndicesToLoad.isEmpty) {
         _notifyDocumentLoadComplete();
         return;
       }
-      final loaded = await _loadPagesInLimitedTime(
-        pageIndicesToLoad: pageIndicesToLoad,
-        pagesToPreserve: _pages,
-        timeout: loadUnitDuration,
-      );
-      if (isDisposed) return;
-      pages = loaded.pages;
+
+      // Spend the loadUnitDuration budget as a series of short worker tasks rather than one long one. All PDFium
+      // calls share a single worker, so a page render queued while pages are being measured would otherwise wait
+      // for the whole slice; between chunks the worker drains its queue and renders get through.
+      final budget = Stopwatch()..start();
+      ({List<PdfPage> pages, int loadedPageCount}) loaded;
+      for (;;) {
+        final remaining = loadUnitDuration - budget.elapsed;
+        final chunkTimeout = remaining < _measurementChunkDuration ? remaining : _measurementChunkDuration;
+        // A chunk always measures at least one page, so a budget that has already elapsed (Duration.zero or a
+        // shortfall left by the previous chunk) still makes progress.
+        loaded = await _loadPagesInLimitedTime(
+          pageIndicesToLoad: pageIndicesToLoad,
+          pagesToPreserve: _pages,
+          timeout: chunkTimeout.isNegative ? Duration.zero : chunkTimeout,
+        );
+        if (isDisposed) return;
+        pages = loaded.pages;
+        if (budget.elapsed >= loadUnitDuration) break;
+        // Recompute from the current page list so pages measured concurrently (e.g. by reloadPages) are skipped.
+        pageIndicesToLoad = _unloadedPageIndicesOrderedFrom(_pages, startPageNumber);
+        if (pageIndicesToLoad.isEmpty) break;
+      }
 
       if (onPageLoadProgress != null) {
         final result = await onPageLoadProgress(loaded.loadedPageCount, loaded.pages.length, data);
@@ -1149,6 +1165,12 @@ class _PdfDocumentPdfium extends PdfDocument {
       }
     }
   }
+
+  /// Maximum duration of a single page-measurement task sent to the worker by [loadPagesProgressively].
+  ///
+  /// About two pages on a typical desktop: small enough that a render queued behind it waits roughly one page's
+  /// worth of measurement, large enough that the per-task worker round-trip stays negligible.
+  static const _measurementChunkDuration = Duration(milliseconds: 20);
 
   void _notifyDocumentLoadComplete() {
     if (!isDisposed && !_documentLoadCompleteNotified) {
@@ -1218,6 +1240,8 @@ class _PdfDocumentPdfium extends PdfDocument {
           if (params.maxPageCountToLoadAdditionally != null && pages.length >= params.maxPageCountToLoadAdditionally!) {
             break;
           }
+          // The timeout is checked after measuring a page, so every task measures at least one page even when the
+          // timeout is zero or already expired; loadPagesProgressively relies on this to guarantee progress.
           if (t != null && t.elapsedMicroseconds > params.timeoutUs!) {
             break;
           }
