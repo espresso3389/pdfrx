@@ -499,33 +499,46 @@ void main() {
     expect(document.pages.every((page) => page.isLoaded), isTrue);
   });
   test('rendering an already loaded page is not blocked behind progressive loading', () async {
-    // A document with enough pages that measuring it takes well over the worker chunk duration.
+    // A document with enough pages that measuring it takes many worker chunks, and a loadUnitDuration longer than the
+    // whole measurement: an implementation that sends each budget to the worker as a single task would then measure
+    // the entire document in one task and the render would wait for all of it.
+    const pageCount = 20000;
     final document = await PdfDocument.openData(
-      buildBlankPdf(20000),
-      sourceName: 'blank20000.pdf',
+      buildBlankPdf(pageCount),
+      sourceName: 'blank$pageCount.pdf',
       useProgressiveLoading: true,
     );
     addTearDown(document.dispose);
-    expect(document.pages.length, 20000);
+    expect(document.pages.length, pageCount);
     expect(document.pages.first.isLoaded, isTrue);
 
     var loadCompleted = false;
-    var loadedPageCountWhenRendered = -1;
-    final loading = document
-        .loadPagesProgressively(loadUnitDuration: const Duration(milliseconds: 250))
-        .then((_) => loadCompleted = true);
+    final loadTimer = Stopwatch()..start();
+    final loading = document.loadPagesProgressively(loadUnitDuration: const Duration(seconds: 5)).then((_) {
+      loadCompleted = true;
+      loadTimer.stop();
+    });
     // Give the first measurement chunk a chance to be queued on the worker before the render.
     await Future<void>.delayed(const Duration(milliseconds: 5));
 
+    final renderTimer = Stopwatch()..start();
     final image = await document.pages.first.render();
+    renderTimer.stop();
     final renderCompletedBeforeLoad = !loadCompleted;
-    loadedPageCountWhenRendered = document.pages.where((page) => page.isLoaded).length;
+    final loadedPageCountWhenRendered = document.pages.where((page) => page.isLoaded).length;
     image?.dispose();
     await loading;
 
     expect(image, isNotNull);
     expect(renderCompletedBeforeLoad, isTrue, reason: 'render must interleave with measurement chunks');
-    expect(loadedPageCountWhenRendered, lessThan(20000));
+    expect(loadedPageCountWhenRendered, lessThan(pageCount));
+    expect(
+      renderTimer.elapsedMilliseconds,
+      lessThan(loadTimer.elapsedMilliseconds ~/ 4),
+      reason:
+          'render (${renderTimer.elapsedMilliseconds} ms) must not wait for most of the measurement '
+          '(${loadTimer.elapsedMilliseconds} ms)',
+    );
     expect(document.pages.every((page) => page.isLoaded), isTrue);
   });
   test('loadLinks reuses raw and compact results', () async {

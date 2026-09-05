@@ -1132,29 +1132,41 @@ class _PdfDocumentPdfium extends PdfDocument {
 
       // Spend the loadUnitDuration budget as a series of short worker tasks rather than one long one. All PDFium
       // calls share a single worker, so a page render queued while pages are being measured would otherwise wait
-      // for the whole slice; between chunks the worker drains its queue and renders get through.
+      // for the whole slice; between chunks the worker drains its queue and renders get through. The measured pages
+      // are accumulated locally and published once per budget, so the event cadence is the same as with one task.
       final budget = Stopwatch()..start();
-      ({List<PdfPage> pages, int loadedPageCount}) loaded;
+      final measured = <int, PdfPage>{};
       for (;;) {
         final remaining = loadUnitDuration - budget.elapsed;
         final chunkTimeout = remaining < _measurementChunkDuration ? remaining : _measurementChunkDuration;
+        // Merge with the current page list rather than a snapshot so pages measured concurrently (e.g. by
+        // reloadPages) are neither overwritten nor measured again.
+        final pagesToPreserve = _withMeasuredPages(_pages, measured);
         // A chunk always measures at least one page, so a budget that has already elapsed (Duration.zero or a
         // shortfall left by the previous chunk) still makes progress.
-        loaded = await _loadPagesInLimitedTime(
+        final loaded = await _loadPagesInLimitedTime(
           pageIndicesToLoad: pageIndicesToLoad,
-          pagesToPreserve: _pages,
+          pagesToPreserve: pagesToPreserve,
           timeout: chunkTimeout.isNegative ? Duration.zero : chunkTimeout,
         );
         if (isDisposed) return;
-        pages = loaded.pages;
+        for (var i = 0; i < loaded.pages.length; i++) {
+          final page = loaded.pages[i];
+          if (page.isLoaded && (i >= pagesToPreserve.length || !identical(page, pagesToPreserve[i]))) {
+            measured[i] = page;
+          }
+        }
         if (budget.elapsed >= loadUnitDuration) break;
-        // Recompute from the current page list so pages measured concurrently (e.g. by reloadPages) are skipped.
-        pageIndicesToLoad = _unloadedPageIndicesOrderedFrom(_pages, startPageNumber);
+        pageIndicesToLoad = _unloadedPageIndicesOrderedFrom(_withMeasuredPages(_pages, measured), startPageNumber);
         if (pageIndicesToLoad.isEmpty) break;
       }
 
+      final newPages = _withMeasuredPages(_pages, measured);
+      pages = newPages;
+
       if (onPageLoadProgress != null) {
-        final result = await onPageLoadProgress(loaded.loadedPageCount, loaded.pages.length, data);
+        final loadedPageCount = newPages.where((page) => page.isLoaded).length;
+        final result = await onPageLoadProgress(loadedPageCount, newPages.length, data);
         if (result == false) {
           if (_pages.every((page) => page.isLoaded)) {
             _notifyDocumentLoadComplete();
@@ -1164,6 +1176,17 @@ class _PdfDocumentPdfium extends PdfDocument {
         }
       }
     }
+  }
+
+  /// Returns [pages] with the entries of [measured] (page index to measured page) applied wherever [pages] still
+  /// holds an unloaded placeholder; pages loaded in the meantime by other means are kept.
+  static List<PdfPage> _withMeasuredPages(List<PdfPage> pages, Map<int, PdfPage> measured) {
+    if (measured.isEmpty) return pages;
+    final merged = [...pages];
+    for (final MapEntry(key: index, value: page) in measured.entries) {
+      if (index < merged.length && !merged[index].isLoaded) merged[index] = page;
+    }
+    return merged;
   }
 
   /// Maximum duration of a single page-measurement task sent to the worker by [loadPagesProgressively].
