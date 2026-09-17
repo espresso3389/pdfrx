@@ -78,7 +78,8 @@ String findProxyWithSystemFallback(
     url,
     environment: environment,
   );
-  if (_hasProxyForScheme(environment, url.scheme) || systemProxyEnvironment == null) {
+  if (_hasProxyForScheme(environment, url.scheme) ||
+      systemProxyEnvironment == null) {
     return proxyFromEnvironment;
   }
   return HttpClient.findProxyFromEnvironment(
@@ -216,7 +217,9 @@ void _addMacOSProxy(
   final host = values['${keyPrefix}Proxy'];
   if (host == null || host.isEmpty) return;
   final port = values['${keyPrefix}Port'];
-  environment['${scheme}_proxy'] = port == null || port.isEmpty ? host : '${_formatProxyHost(host)}:$port';
+  environment['${scheme}_proxy'] = port == null || port.isEmpty
+      ? host
+      : '${_formatProxyHost(host)}:$port';
 }
 
 String _formatProxyHost(String host) {

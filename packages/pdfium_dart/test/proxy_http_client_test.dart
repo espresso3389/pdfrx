@@ -145,9 +145,7 @@ void main() {
 }
 ''');
 
-    expect(environment, {
-      'http_proxy': 'proxy.example.com:8080',
-    });
+    expect(environment, {'http_proxy': 'proxy.example.com:8080'});
   });
 
   test('prefers explicit environment proxy over system proxy', () {
@@ -155,7 +153,9 @@ void main() {
       findProxyWithSystemFallback(
         Uri.parse('https://github.com/bblanchon/pdfium-binaries'),
         environment: {'https_proxy': 'env-proxy.example.com:9443'},
-        systemProxyEnvironment: {'https_proxy': 'system-proxy.example.com:8443'},
+        systemProxyEnvironment: {
+          'https_proxy': 'system-proxy.example.com:8443',
+        },
       ),
       'PROXY env-proxy.example.com:9443',
     );
@@ -166,7 +166,9 @@ void main() {
       findProxyWithSystemFallback(
         Uri.parse('https://github.com/bblanchon/pdfium-binaries'),
         environment: const {},
-        systemProxyEnvironment: {'https_proxy': 'system-proxy.example.com:8443'},
+        systemProxyEnvironment: {
+          'https_proxy': 'system-proxy.example.com:8443',
+        },
       ),
       'PROXY system-proxy.example.com:8443',
     );
