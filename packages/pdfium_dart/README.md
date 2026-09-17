@@ -66,10 +66,16 @@ The build hook downloads binaries from [bblanchon/pdfium-binaries](https://githu
 ### Download proxies
 
 The build hook honors the standard `http_proxy`, `https_proxy`, and `no_proxy` environment variables when it
-downloads PDFium. On Windows, when no proxy environment variable is defined for the requested scheme, it also
-uses the current user's enabled static WinINet proxy configuration. An explicit environment proxy takes precedence
-over the Windows system proxy. Transient connection failures and HTTP 408, 429, and 5xx responses are retried with
-short backoff delays.
+downloads PDFium. When no proxy environment variable is defined for the requested scheme, it also falls back to the
+current user's enabled static system proxy on supported platforms:
+
+- Windows: WinINet static proxy settings from the current user's Internet Settings registry key
+- macOS: `scutil --proxy` HTTP/HTTPS proxy settings and bypass list
+
+An explicit environment proxy takes precedence over the system proxy. Proxy auto-configuration (PAC/WPAD) is not
+resolved by the build hook, so if your network depends on PAC, set `http_proxy` and `https_proxy` explicitly before
+running `flutter run`, `flutter test`, or `dart test`. Transient connection failures and HTTP 408, 429, and 5xx
+responses are retried with short backoff delays.
 
 ## Generating Bindings
 

@@ -92,4 +92,83 @@ void main() {
       isNull,
     );
   });
+
+  test('parses macOS HTTP and HTTPS proxies with bypass list', () {
+    final environment = parseMacOSProxySettings('''
+<dictionary> {
+  HTTPEnable : 1
+  HTTPPort : 8080
+  HTTPProxy : proxy.example.com
+  HTTPSEnable : 1
+  HTTPSPort : 8443
+  HTTPSProxy : secure.example.com
+  ExceptionsList : <array> {
+    localhost
+    *.corp.example
+  }
+}
+''');
+
+    expect(environment, {
+      'http_proxy': 'proxy.example.com:8080',
+      'https_proxy': 'secure.example.com:8443',
+      'no_proxy': 'localhost,*.corp.example',
+    });
+  });
+
+  test('ignores a disabled macOS proxy', () {
+    expect(
+      parseMacOSProxySettings('''
+<dictionary> {
+  HTTPEnable : 0
+  HTTPPort : 8080
+  HTTPProxy : proxy.example.com
+}
+'''),
+      isNull,
+    );
+  });
+
+  test('ignores scoped macOS proxy dictionaries', () {
+    final environment = parseMacOSProxySettings('''
+<dictionary> {
+  HTTPEnable : 1
+  HTTPPort : 8080
+  HTTPProxy : proxy.example.com
+  __SCOPED__ : <dictionary> {
+    en0 : <dictionary> {
+      HTTPEnable : 0
+      HTTPPort : 9999
+      HTTPProxy : ignored.example.com
+    }
+  }
+}
+''');
+
+    expect(environment, {
+      'http_proxy': 'proxy.example.com:8080',
+    });
+  });
+
+  test('prefers explicit environment proxy over system proxy', () {
+    expect(
+      findProxyWithSystemFallback(
+        Uri.parse('https://github.com/bblanchon/pdfium-binaries'),
+        environment: {'https_proxy': 'env-proxy.example.com:9443'},
+        systemProxyEnvironment: {'https_proxy': 'system-proxy.example.com:8443'},
+      ),
+      'PROXY env-proxy.example.com:9443',
+    );
+  });
+
+  test('uses system proxy when environment proxy is absent', () {
+    expect(
+      findProxyWithSystemFallback(
+        Uri.parse('https://github.com/bblanchon/pdfium-binaries'),
+        environment: const {},
+        systemProxyEnvironment: {'https_proxy': 'system-proxy.example.com:8443'},
+      ),
+      'PROXY system-proxy.example.com:8443',
+    );
+  });
 }
