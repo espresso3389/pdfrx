@@ -159,6 +159,17 @@ void main() {
     expect(environment, {'http_proxy': '[2001:db8::10]'});
   });
 
+  test('does not reformat macOS proxy hosts that already include a port', () {
+    final environment = parseMacOSProxySettings('''
+<dictionary> {
+  HTTPEnable : 1
+  HTTPProxy : proxy.example.com:8080
+}
+''');
+
+    expect(environment, {'http_proxy': 'proxy.example.com:8080'});
+  });
+
   test('prefers explicit environment proxy over system proxy', () {
     expect(
       findProxyWithSystemFallback(

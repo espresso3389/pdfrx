@@ -224,7 +224,9 @@ void _addMacOSProxy(
 }
 
 String _formatProxyHost(String host) {
-  if (host.contains(':') && !host.startsWith('[') && !host.endsWith(']')) {
+  if (!host.startsWith('[') &&
+      !host.endsWith(']') &&
+      InternetAddress.tryParse(host)?.type == InternetAddressType.IPv6) {
     return '[$host]';
   }
   return host;
