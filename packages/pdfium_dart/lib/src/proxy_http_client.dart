@@ -217,9 +217,10 @@ void _addMacOSProxy(
   final host = values['${keyPrefix}Proxy'];
   if (host == null || host.isEmpty) return;
   final port = values['${keyPrefix}Port'];
+  final formattedHost = _formatProxyHost(host);
   environment['${scheme}_proxy'] = port == null || port.isEmpty
-      ? host
-      : '${_formatProxyHost(host)}:$port';
+      ? formattedHost
+      : '$formattedHost:$port';
 }
 
 String _formatProxyHost(String host) {
