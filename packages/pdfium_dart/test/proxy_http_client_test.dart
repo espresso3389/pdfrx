@@ -170,6 +170,18 @@ void main() {
     expect(environment, {'http_proxy': 'proxy.example.com:8080'});
   });
 
+  test('does not append a duplicate port to bracketed macOS IPv6 proxies', () {
+    final environment = parseMacOSProxySettings('''
+<dictionary> {
+  HTTPEnable : 1
+  HTTPPort : 8080
+  HTTPProxy : [2001:db8::10]:8080
+}
+''');
+
+    expect(environment, {'http_proxy': '[2001:db8::10]:8080'});
+  });
+
   test('prefers explicit environment proxy over system proxy', () {
     expect(
       findProxyWithSystemFallback(

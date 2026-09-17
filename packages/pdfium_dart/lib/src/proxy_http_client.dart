@@ -218,7 +218,8 @@ void _addMacOSProxy(
   if (host == null || host.isEmpty) return;
   final port = values['${keyPrefix}Port'];
   final formattedHost = _formatProxyHost(host);
-  environment['${scheme}_proxy'] = port == null || port.isEmpty
+  environment['${scheme}_proxy'] =
+      port == null || port.isEmpty || _hasExplicitPort(formattedHost)
       ? formattedHost
       : '$formattedHost:$port';
 }
@@ -230,4 +231,9 @@ String _formatProxyHost(String host) {
     return '[$host]';
   }
   return host;
+}
+
+bool _hasExplicitPort(String host) {
+  final uri = Uri.tryParse('http://$host');
+  return uri != null && uri.host.isNotEmpty && uri.hasPort;
 }
