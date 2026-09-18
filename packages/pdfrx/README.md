@@ -21,6 +21,63 @@ The example Android projects track the Flutter 3.47 toolchain with Java 17 bytec
 Kotlin Gradle Plugin 2.4.0, and Gradle 9.3.1. New applications should use Flutter's generated Android SDK
 settings rather than hard-coding `compileSdk`, `minSdk`, or `targetSdk` values.
 
+### Breaking change: Material UI migration
+
+Since pdfrx 2.5.0, its Material widgets use `package:material_ui/material_ui.dart`.
+Both Material libraries can coexist, but they define different `MaterialLocalizations`
+and `Theme` types. Upgrading pdfrx does not replace your app's own translations
+(such as `AppLocalizations`) or the translations used by Flutter's existing Material
+widgets. However, pdfrx's Material widgets no longer inherit Flutter Material's
+translations or theme automatically.
+
+The default PDF context menu uses `material_ui` translations when available and English
+labels otherwise. For example, a Japanese app can still show `Copy` in the PDF menu
+until it supplies `material_ui` localizations. The missing-localization fallback prevents
+a crash; it does not preserve the host app's translated menu labels.
+Explicit labels supplied through `customizeContextMenuItems` are preserved.
+
+#### Keeping an existing Flutter Material app
+
+You do not need to migrate the entire app at once. Keep your existing localization
+delegates, including your app's own delegate, and add the `material_ui` Material delegate:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart' as material_ui;
+
+MaterialApp(
+  localizationsDelegates: const [
+    // Keep your app's own localization delegate here too, if it has one.
+    GlobalMaterialLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+    material_ui.GlobalMaterialLocalizations.delegate,
+  ],
+  supportedLocales: const [Locale('en'), Locale('ja')], // Use your app's locales.
+  home: PdfViewer.asset('assets/hello.pdf'),
+)
+```
+
+Add `material_ui` as a direct dependency when importing it. Theme compatibility is
+separate from localization: to preserve your app's colors and dark mode in pdfrx's
+Material widgets, provide a `material_ui.Theme` above the viewer with corresponding
+`material_ui.ThemeData`. Flutter's `ThemeData` cannot be passed to it directly.
+
+#### Migrating the app to Material UI
+
+When migrating the app's imports, `MaterialApp`, and theme setup to `material_ui`,
+also migrate its Material localization delegates. Use
+`material_ui.GlobalMaterialLocalizations.delegates`, retain your app's own localization
+delegate, and preserve its `supportedLocales` and locale selection.
+
+See the [official localization migration instructions](https://pub.dev/packages/material_ui#step-2-migrate-localizations-if-needed)
+and [Flutter's migration guide](https://docs.flutter.dev/release/breaking-changes/material-ui-and-cupertino-ui).
+For a migrated app that still contains legacy Flutter Material widgets, the
+[official compatibility bridge](https://pub.dev/packages/material_ui#step-3-bridge-legacy-dependencies-if-needed)
+supports that direction of coexistence.
+See [#718](https://github.com/espresso3389/pdfrx/issues/718).
+
 ## Interactive Demo
 
 A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web
@@ -41,6 +98,7 @@ A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web
 The following fragment illustrates the easiest way to show a PDF file in assets:
 
 ```dart
+import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 ...

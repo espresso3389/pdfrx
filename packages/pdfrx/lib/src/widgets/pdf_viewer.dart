@@ -6,9 +6,9 @@ import 'dart:ui' as ui;
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
@@ -3629,19 +3629,25 @@ class _PdfViewerState extends State<PdfViewer>
       return null;
     }
 
-    final localizations = Localizations.maybeOf<MaterialLocalizations>(context);
+    final localizations = Localizations.of<MaterialLocalizations>(context, MaterialLocalizations);
     final buttonItems = [
       for (final item in items)
         if (item.label == null) item.copyWith(label: _contextMenuButtonLabel(item.type, localizations)) else item,
     ];
 
-    return Align(
-      alignment: Alignment.topLeft,
-      child: AdaptiveTextSelectionToolbar.buttonItems(
-        anchors: TextSelectionToolbarAnchors(primaryAnchor: params.anchorA, secondaryAnchor: params.anchorB),
-        buttonItems: buttonItems,
-      ),
+    Widget toolbar = AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: TextSelectionToolbarAnchors(primaryAnchor: params.anchorA, secondaryAnchor: params.anchorB),
+      buttonItems: buttonItems,
     );
+    if (localizations == null) {
+      // The overflow menu also needs Material localizations, even with explicit button labels.
+      toolbar = Localizations.override(
+        context: context,
+        delegates: const [DefaultMaterialLocalizations.delegate],
+        child: toolbar,
+      );
+    }
+    return Align(alignment: Alignment.topLeft, child: toolbar);
   }
 
   String _contextMenuButtonLabel(ContextMenuButtonType type, MaterialLocalizations? localizations) {
