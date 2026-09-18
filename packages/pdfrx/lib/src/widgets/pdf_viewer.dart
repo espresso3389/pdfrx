@@ -3629,13 +3629,38 @@ class _PdfViewerState extends State<PdfViewer>
       return null;
     }
 
+    final buttonItems = items.map((item) => _withContextMenuLabel(context, item)).toList(growable: false);
+
     return Align(
       alignment: Alignment.topLeft,
       child: AdaptiveTextSelectionToolbar.buttonItems(
         anchors: TextSelectionToolbarAnchors(primaryAnchor: params.anchorA, secondaryAnchor: params.anchorB),
-        buttonItems: items,
+        buttonItems: buttonItems,
       ),
     );
+  }
+
+  ContextMenuButtonItem _withContextMenuLabel(BuildContext context, ContextMenuButtonItem item) {
+    if (item.label != null || item.type == ContextMenuButtonType.custom) {
+      return item;
+    }
+    return item.copyWith(label: _contextMenuButtonLabel(context, item.type));
+  }
+
+  String _contextMenuButtonLabel(BuildContext context, ContextMenuButtonType type) {
+    final localizations = Localizations.of<MaterialLocalizations>(context, MaterialLocalizations);
+    return switch (type) {
+      ContextMenuButtonType.cut => localizations?.cutButtonLabel ?? 'Cut',
+      ContextMenuButtonType.copy => localizations?.copyButtonLabel ?? 'Copy',
+      ContextMenuButtonType.paste => localizations?.pasteButtonLabel ?? 'Paste',
+      ContextMenuButtonType.selectAll => localizations?.selectAllButtonLabel ?? 'Select all',
+      ContextMenuButtonType.delete => localizations?.deleteButtonTooltip.toUpperCase() ?? 'DELETE',
+      ContextMenuButtonType.lookUp => localizations?.lookUpButtonLabel ?? 'Look Up',
+      ContextMenuButtonType.searchWeb => localizations?.searchWebButtonLabel ?? 'Search Web',
+      ContextMenuButtonType.share => localizations?.shareButtonLabel ?? 'Share',
+      ContextMenuButtonType.liveTextInput => localizations?.scanTextButtonLabel ?? 'Scan Text',
+      ContextMenuButtonType.custom => '',
+    };
   }
 
   void _onSelectionHandlePanStart(_TextSelectionPart handle, DragStartDetails details) {
