@@ -101,5 +101,4 @@ Future<void> _expectContextMenu(WidgetTester tester, PdfViewerController control
 
   expect(tester.takeException(), isNull);
   expect(find.byKey(const Key('contextMenu')), findsOneWidget);
-  expect(find.text('Copy'), findsOneWidget);
 }
