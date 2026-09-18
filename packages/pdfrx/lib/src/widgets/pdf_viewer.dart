@@ -3654,7 +3654,7 @@ class _PdfViewerState extends State<PdfViewer>
       ContextMenuButtonType.copy => localizations?.copyButtonLabel ?? 'Copy',
       ContextMenuButtonType.paste => localizations?.pasteButtonLabel ?? 'Paste',
       ContextMenuButtonType.selectAll => localizations?.selectAllButtonLabel ?? 'Select all',
-      ContextMenuButtonType.delete => localizations?.deleteButtonTooltip.toUpperCase() ?? 'DELETE',
+      ContextMenuButtonType.delete => localizations?.deleteButtonTooltip ?? 'Delete',
       ContextMenuButtonType.lookUp => localizations?.lookUpButtonLabel ?? 'Look Up',
       ContextMenuButtonType.searchWeb => localizations?.searchWebButtonLabel ?? 'Search Web',
       ContextMenuButtonType.share => localizations?.shareButtonLabel ?? 'Share',
