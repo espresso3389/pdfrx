@@ -32,6 +32,30 @@ void main() {
     await _expectContextMenu(tester, controller);
   });
 
+  testWidgets('default context menu uses Flutter MaterialApp localizations', (tester) async {
+    await _binding.setSurfaceSize(const Size(1080, 1920));
+    addTearDown(() => _binding.setSurfaceSize(null));
+
+    final controller = PdfViewerController();
+    final document = await _openTestDocument(tester, 'context-menu-flutter-localizations-test.pdf');
+    addTearDown(() => document?.dispose());
+
+    await _pumpTestViewer(
+      tester,
+      document!,
+      controller,
+      (child) => flutter_material.MaterialApp(
+        localizationsDelegates: const [_TestMaterialLocalizationsDelegate()],
+        supportedLocales: const [Locale('es')],
+        locale: const Locale('es'),
+        home: flutter_material.Scaffold(body: child),
+      ),
+    );
+
+    await _expectContextMenu(tester, controller);
+    expect(find.text('Copiar'), findsOneWidget);
+  });
+
   testWidgets('default context menu works without Material localizations', (tester) async {
     await _binding.setSurfaceSize(const Size(1080, 1920));
     addTearDown(() => _binding.setSurfaceSize(null));
@@ -76,6 +100,24 @@ void main() {
 
     await _expectContextMenu(tester, controller);
   });
+}
+
+class _TestMaterialLocalizationsDelegate extends LocalizationsDelegate<flutter_material.MaterialLocalizations> {
+  const _TestMaterialLocalizationsDelegate();
+
+  @override
+  bool isSupported(Locale locale) => locale.languageCode == 'es';
+
+  @override
+  Future<flutter_material.MaterialLocalizations> load(Locale locale) async => _TestMaterialLocalizations();
+
+  @override
+  bool shouldReload(_TestMaterialLocalizationsDelegate old) => false;
+}
+
+class _TestMaterialLocalizations extends flutter_material.DefaultMaterialLocalizations {
+  @override
+  String get copyButtonLabel => 'Copiar';
 }
 
 Future<PdfDocument?> _openTestDocument(WidgetTester tester, String sourceName) {

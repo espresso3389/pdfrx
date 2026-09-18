@@ -6,9 +6,10 @@ import 'dart:ui' as ui;
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/material.dart' as flutter_material;
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
@@ -3630,9 +3631,13 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     final localizations = Localizations.maybeOf<MaterialLocalizations>(context);
+    final flutterLocalizations = Localizations.maybeOf<flutter_material.MaterialLocalizations>(context);
     final buttonItems = [
       for (final item in items)
-        if (item.label == null) item.copyWith(label: _contextMenuButtonLabel(item.type, localizations)) else item,
+        if (item.label == null)
+          item.copyWith(label: _contextMenuButtonLabel(item.type, localizations, flutterLocalizations))
+        else
+          item,
     ];
 
     return Align(
@@ -3644,17 +3649,28 @@ class _PdfViewerState extends State<PdfViewer>
     );
   }
 
-  String _contextMenuButtonLabel(ContextMenuButtonType type, MaterialLocalizations? localizations) {
+  String _contextMenuButtonLabel(
+    ContextMenuButtonType type,
+    MaterialLocalizations? localizations,
+    flutter_material.MaterialLocalizations? flutterLocalizations,
+  ) {
     return switch (type) {
-      ContextMenuButtonType.cut => localizations?.cutButtonLabel ?? 'Cut',
-      ContextMenuButtonType.copy => localizations?.copyButtonLabel ?? 'Copy',
-      ContextMenuButtonType.paste => localizations?.pasteButtonLabel ?? 'Paste',
-      ContextMenuButtonType.selectAll => localizations?.selectAllButtonLabel ?? 'Select all',
-      ContextMenuButtonType.delete => localizations?.deleteButtonTooltip ?? 'Delete',
-      ContextMenuButtonType.lookUp => localizations?.lookUpButtonLabel ?? 'Look Up',
-      ContextMenuButtonType.searchWeb => localizations?.searchWebButtonLabel ?? 'Search Web',
-      ContextMenuButtonType.share => localizations?.shareButtonLabel ?? 'Share',
-      ContextMenuButtonType.liveTextInput => localizations?.scanTextButtonLabel ?? 'Scan Text',
+      ContextMenuButtonType.cut => localizations?.cutButtonLabel ?? flutterLocalizations?.cutButtonLabel ?? 'Cut',
+      ContextMenuButtonType.copy => localizations?.copyButtonLabel ?? flutterLocalizations?.copyButtonLabel ?? 'Copy',
+      ContextMenuButtonType.paste =>
+        localizations?.pasteButtonLabel ?? flutterLocalizations?.pasteButtonLabel ?? 'Paste',
+      ContextMenuButtonType.selectAll =>
+        localizations?.selectAllButtonLabel ?? flutterLocalizations?.selectAllButtonLabel ?? 'Select all',
+      ContextMenuButtonType.delete =>
+        localizations?.deleteButtonTooltip ?? flutterLocalizations?.deleteButtonTooltip ?? 'Delete',
+      ContextMenuButtonType.lookUp =>
+        localizations?.lookUpButtonLabel ?? flutterLocalizations?.lookUpButtonLabel ?? 'Look Up',
+      ContextMenuButtonType.searchWeb =>
+        localizations?.searchWebButtonLabel ?? flutterLocalizations?.searchWebButtonLabel ?? 'Search Web',
+      ContextMenuButtonType.share =>
+        localizations?.shareButtonLabel ?? flutterLocalizations?.shareButtonLabel ?? 'Share',
+      ContextMenuButtonType.liveTextInput =>
+        localizations?.scanTextButtonLabel ?? flutterLocalizations?.scanTextButtonLabel ?? 'Scan Text',
       ContextMenuButtonType.custom => '',
     };
   }
