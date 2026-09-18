@@ -1,3 +1,7 @@
+# 0.4.1
+
+- Updated to `pdfrx_engine` 0.6.1.
+
 ## 0.4.0
 
 - BREAKING: Raised the minimum requirements to Dart 3.13 and Flutter 3.47.

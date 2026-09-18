@@ -1,3 +1,8 @@
+# 0.3.1
+
+- Fixed PDFium downloads to honor macOS and Windows system proxy settings.
+- Improved PDFium download errors to include the HTTP status.
+
 ## 0.3.0
 
 - BREAKING: Raised the minimum Dart SDK version to 3.13.

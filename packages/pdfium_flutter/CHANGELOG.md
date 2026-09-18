@@ -1,3 +1,7 @@
+# 0.3.1
+
+- Updated to `pdfium_dart` 0.3.1 for system proxy support and clearer PDFium download errors.
+
 ## 0.3.0
 
 - BREAKING: Raised the minimum requirements to Dart 3.13 and Flutter 3.47.

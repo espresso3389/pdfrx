@@ -584,7 +584,7 @@ void main() {
     expect(events.whereType<PdfDocumentLoadCompleteEvent>(), hasLength(1));
   });
   test('progressive loading keeps the outward order across chunks within one budget', () async {
-    // One default budget over a large document is split into many worker chunks; the pages measured by the whole
+    // A short budget over a large document spans worker chunks without finishing on fast machines; the whole
     // budget must still be the head of the outward sequence from startPageNumber (10000, 10001, 9999, 10002, ...).
     const pageCount = 20000;
     const startPageNumber = 10000;
@@ -599,6 +599,7 @@ void main() {
     var callbackCount = 0;
     await document.loadPagesProgressively(
       startPageNumber: startPageNumber,
+      loadUnitDuration: const Duration(milliseconds: 40),
       onPageLoadProgress: (_, _, _) {
         callbackCount++;
         return false;

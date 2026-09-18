@@ -1,3 +1,9 @@
+# 0.6.1
+
+- Improved rendering responsiveness during background work by prioritizing page rendering and visible-page measurement ([#708](https://github.com/espresso3389/pdfrx/pull/708)).
+- Improved progressive loading responsiveness by measuring pages in short chunks while preserving progress notification cadence ([#709](https://github.com/espresso3389/pdfrx/pull/709)).
+- Updated to `pdfium_dart` 0.3.1.
+
 ## 0.6.0
 
 - BREAKING: Raised the minimum Dart SDK version to 3.13.
