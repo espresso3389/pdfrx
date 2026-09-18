@@ -3629,13 +3629,34 @@ class _PdfViewerState extends State<PdfViewer>
       return null;
     }
 
+    final localizations = Localizations.maybeOf<MaterialLocalizations>(context);
+    final buttonItems = [
+      for (final item in items)
+        if (item.label == null) item.copyWith(label: _contextMenuButtonLabel(item.type, localizations)) else item,
+    ];
+
     return Align(
       alignment: Alignment.topLeft,
       child: AdaptiveTextSelectionToolbar.buttonItems(
         anchors: TextSelectionToolbarAnchors(primaryAnchor: params.anchorA, secondaryAnchor: params.anchorB),
-        buttonItems: items,
+        buttonItems: buttonItems,
       ),
     );
+  }
+
+  String _contextMenuButtonLabel(ContextMenuButtonType type, MaterialLocalizations? localizations) {
+    return switch (type) {
+      ContextMenuButtonType.cut => localizations?.cutButtonLabel ?? 'Cut',
+      ContextMenuButtonType.copy => localizations?.copyButtonLabel ?? 'Copy',
+      ContextMenuButtonType.paste => localizations?.pasteButtonLabel ?? 'Paste',
+      ContextMenuButtonType.selectAll => localizations?.selectAllButtonLabel ?? 'Select all',
+      ContextMenuButtonType.delete => localizations?.deleteButtonTooltip ?? 'Delete',
+      ContextMenuButtonType.lookUp => localizations?.lookUpButtonLabel ?? 'Look Up',
+      ContextMenuButtonType.searchWeb => localizations?.searchWebButtonLabel ?? 'Search Web',
+      ContextMenuButtonType.share => localizations?.shareButtonLabel ?? 'Share',
+      ContextMenuButtonType.liveTextInput => localizations?.scanTextButtonLabel ?? 'Scan Text',
+      ContextMenuButtonType.custom => '',
+    };
   }
 
   void _onSelectionHandlePanStart(_TextSelectionPart handle, DragStartDetails details) {
