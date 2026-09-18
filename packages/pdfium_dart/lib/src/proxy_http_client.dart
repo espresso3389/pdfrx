@@ -94,9 +94,10 @@ String findProxyWithSystemFallback(
 
 Map<String, String> _noProxyEnvironment(Map<String, String> environment) {
   final fallbackEnvironment = <String, String>{};
-  for (final key in const ['no_proxy', 'NO_PROXY']) {
-    final value = environment[key];
-    if (value != null) fallbackEnvironment[key] = value;
+  final value = environment['no_proxy'] ?? environment['NO_PROXY'];
+  if (value != null) {
+    fallbackEnvironment['no_proxy'] = value;
+    fallbackEnvironment['NO_PROXY'] = value;
   }
   return fallbackEnvironment;
 }
