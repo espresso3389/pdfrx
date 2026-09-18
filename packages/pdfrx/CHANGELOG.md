@@ -1,3 +1,7 @@
+# 2.6.5
+
+- Simplified the README and Material UI migration guidance, with links to the official migration documentation.
+
 # 2.6.4
 
 - Placed Requirements after the complete Getting Started section in the README.

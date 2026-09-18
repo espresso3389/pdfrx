@@ -61,7 +61,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.6.4
+  pdfrx: ^2.6.5
 ```
 
 **Note:** You only need to add `pdfrx` to your dependencies. The `pdfrx_engine` package is automatically included as a dependency of `pdfrx`.
@@ -95,7 +95,7 @@ Native Flutter builds use `pdfium_flutter` and `pdfium_dart` to provide PDFium:
 
 **REQUIRED: You must enable [Developer Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development#activate-developer-mode) to build pdfrx on Windows.**
 
-The build process uses *symbolic links* which requires Developer Mode to be enabled. If Developer Mode is not enabled:
+The build process uses _symbolic links_ which requires Developer Mode to be enabled. If Developer Mode is not enabled:
 
 - The build will fail with an error message
 - You will see a link to Microsoft's official instructions
@@ -103,72 +103,16 @@ The build process uses *symbolic links* which requires Developer Mode to be enab
 
 Please follow Microsoft's official guide to enable Developer Mode as the exact steps may vary depending on your Windows version.
 
-## Requirements
-
-- Flutter 3.47 or later (Dart 3.13 or later)
-- iOS 15 or later
-- macOS 12 or later
-
-The example Android projects track the Flutter 3.47 toolchain with Java 17 bytecode, Android Gradle Plugin 9.1.0,
-Kotlin Gradle Plugin 2.4.0, and Gradle 9.3.1. New applications should use Flutter's generated Android SDK
-settings rather than hard-coding `compileSdk`, `minSdk`, or `targetSdk` values.
-
 ### Breaking change: Material UI migration
 
-Since pdfrx 2.5.0, its Material widgets use `package:material_ui/material_ui.dart`.
-Both Material libraries can coexist, but they define different `MaterialLocalizations`
-and `Theme` types. Upgrading pdfrx does not replace your app's own translations
-(such as `AppLocalizations`) or the translations used by Flutter's existing Material
-widgets. However, pdfrx's Material widgets no longer inherit Flutter Material's
-translations or theme automatically.
+Since pdfrx 2.5.0, its Material widgets use [material_ui](https://pub.dev/packages/material_ui) package.
+To preserve localized PDF menu labels and theming, provide `material_ui` localizations
+and a `material_ui.Theme`; Flutter Material's equivalents are separate types.
+Without `material_ui` localizations, the default PDF menu labels fall back to English.
 
-The default PDF context menu uses `material_ui` translations when available and English
-labels otherwise. For example, a Japanese app can still show `Copy` in the PDF menu
-until it supplies `material_ui` localizations. The missing-localization fallback prevents
-a crash; it does not preserve the host app's translated menu labels.
-Explicit labels supplied through `customizeContextMenuItems` are preserved.
-
-#### Keeping an existing Flutter Material app
-
-You do not need to migrate the entire app at once. Keep your existing localization
-delegates, including your app's own delegate, and add the `material_ui` Material delegate:
-
-```dart
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:material_ui/material_ui.dart' as material_ui;
-
-MaterialApp(
-  localizationsDelegates: const [
-    // Keep your app's own localization delegate here too, if it has one.
-    GlobalMaterialLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    material_ui.GlobalMaterialLocalizations.delegate,
-  ],
-  supportedLocales: const [Locale('en'), Locale('ja')], // Use your app's locales.
-  home: PdfViewer.asset('assets/hello.pdf'),
-)
-```
-
-Add `material_ui` as a direct dependency when importing it. Theme compatibility is
-separate from localization: to preserve your app's colors and dark mode in pdfrx's
-Material widgets, provide a `material_ui.Theme` above the viewer with corresponding
-`material_ui.ThemeData`. Flutter's `ThemeData` cannot be passed to it directly.
-
-#### Migrating the app to Material UI
-
-When migrating the app's imports, `MaterialApp`, and theme setup to `material_ui`,
-also migrate its Material localization delegates. Use
-`material_ui.GlobalMaterialLocalizations.delegates`, retain your app's own localization
-delegate, and preserve its `supportedLocales` and locale selection.
-
-See the [official localization migration instructions](https://pub.dev/packages/material_ui#step-2-migrate-localizations-if-needed)
+For setup and coexistence with existing Flutter Material apps, see the
+[official Material UI migration instructions](https://pub.dev/packages/material_ui#step-2-migrate-localizations-if-needed)
 and [Flutter's migration guide](https://docs.flutter.dev/release/breaking-changes/material-ui-and-cupertino-ui).
-For a migrated app that still contains legacy Flutter Material widgets, the
-[official compatibility bridge](https://pub.dev/packages/material_ui#step-3-bridge-legacy-dependencies-if-needed)
-supports that direction of coexistence.
-See [#718](https://github.com/espresso3389/pdfrx/issues/718).
 
 ## Note for iOS/macOS: Using CoreGraphics Instead of PDFium
 
@@ -195,84 +139,7 @@ For opening PDF files from various sources, there are several constructors avail
 
 ## Customizations/Features
 
-You can customize the behaviors and the viewer look and feel by configuring [PdfViewerParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams-class.html).
-
-```dart
-PdfViewer.asset(
-  'assets/test.pdf',
-  params: const PdfViewerParams(
-    scrollPhysics: FixedOverscrollPhysics(maxOverscroll: 120),
-    scrollPhysicsScale: BouncingScrollPhysics(),
-  ),
-);
-```
-
-The `scrollPhysics` and `scrollPhysicsScale` hooks let you plug in your own [ScrollPhysics](https://api.flutter.dev/flutter/widgets/ScrollPhysics-class.html) (or the bundled [FixedOverscrollPhysics](https://pub.dev/documentation/pdfrx/latest/pdfrx/FixedOverscrollPhysics-class.html)) to tune drag and zoom behavior per platform.
-
-For page alignment, [PdfViewerParams.underflowAnchor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/underflowAnchor.html) controls where the document is placed when it is smaller than the viewport.
-
-## Deal with Password Protected PDF Files
-
-```dart
-PdfViewer.asset(
-  'assets/test.pdf',
-  // The easiest way to supply a password
-  passwordProvider: () => createSimplePasswordProvider('password'),
-
-  ...
-),
-```
-
-See [Deal with Password Protected PDF Files using PasswordProvider](https://github.com/espresso3389/pdfrx/blob/master/doc/Deal-with-Password-Protected-PDF-Files-using-PasswordProvider.md) for more information.
-
-### Text Selection
-
-The text selection feature is enabled by default, allowing users to select text in the PDF viewer. You can customize the text selection behavior using [PdfTextSelectionParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionParams-class.html).
-
-The following example shows how to disable text selection in the PDF viewer:
-
-```dart
-PdfViewer.asset(
-  'assets/test.pdf',
-  params: PdfViewerParams(
-    textSelectionParams: PdfTextSelectionParams(
-      enabled: false,
-      ...
-    ),
-  ),
-  ...
-),
-```
-
-The text selection feature supports various customizations, such as:
-
-- Context Menu Customization using [PdfViewerParams.buildContextMenu](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/buildContextMenu.html)
-- Text Selection Magnifier Customization using [PdfTextSelectionParams.magnifier](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionParams/magnifier.html)
-
-For more text selection customization, see [Text Selection](https://github.com/espresso3389/pdfrx/blob/master/doc/Text-Selection.md).
-
-### PDF Feature Support
-
-- [PDF Link Handling](https://github.com/espresso3389/pdfrx/blob/master/doc/PDF-Link-Handling.md)
-- [Document Outline (a.k.a Bookmarks)](https://github.com/espresso3389/pdfrx/blob/master/doc/Document-Outline-(a.k.a-Bookmarks).md)
-- [Text Search](https://github.com/espresso3389/pdfrx/blob/master/doc/Text-Search.md)
-
-### Viewer Customization
-
-- [Page Layout (Horizontal Scroll View/Facing Pages)](https://github.com/espresso3389/pdfrx/blob/master/doc/Page-Layout-Customization.md)
-- [Showing Scroll Thumbs](https://github.com/espresso3389/pdfrx/blob/master/doc/Showing-Scroll-Thumbs.md)
-- [Dark/Night Mode Support](https://github.com/espresso3389/pdfrx/blob/master/doc/Dark-Night-Mode-Support.md)
-- [Document Loading Indicator](https://github.com/espresso3389/pdfrx/blob/master/doc/Document-Loading-Indicator.md)
-- [Viewer Customization using Widget Overlay](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html)
-- [PdfOverlayInteractionRegion](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfOverlayInteractionRegion-class.html) for tap-like overlay interactions that do not block viewer gestures
-- [Custom Scroll Physics for Drag/Zoom](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/scrollPhysics.html)
-
-### Additional Customizations
-
-- [Double-tap to Zoom](https://github.com/espresso3389/pdfrx/blob/master/doc/Double-tap-to-Zoom.md)
-- [Adding Page Number on Page Bottom](https://github.com/espresso3389/pdfrx/blob/master/doc/Adding-Page-Number-on-Page-Bottom.md)
-- [Per-page Customization using Widget Overlay](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pageOverlaysBuilder.html)
-- [Per-page Customization using Canvas](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pagePaintCallbacks.html)
+See [pdfrx Documentation](https://github.com/espresso3389/pdfrx/blob/master/doc/README.md) for customizations/features.
 
 ## Additional Widgets
 
