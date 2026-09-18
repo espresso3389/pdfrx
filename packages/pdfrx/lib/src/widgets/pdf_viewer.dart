@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
@@ -286,6 +287,9 @@ class _PdfViewerState extends State<PdfViewer>
   /// The starting/ending point of the text selection.
   PdfTextSelectionPoint? _selA, _selB;
   Offset? _textSelectAnchor;
+  Offset? _selectionHandleGlobalPosition;
+  Ticker? _selectionHandleTicker;
+  Duration _selectionHandleElapsed = Duration.zero;
 
   /// [_textSelA] is the rectangle of the first character in the selected paragraph and
   PdfTextSelectionAnchor? _textSelA;
@@ -579,6 +583,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   void dispose() {
+    _selectionHandleTicker?.dispose();
     SemanticsBinding.instance.removeSemanticsEnabledListener(_onSemanticsEnabledChanged);
     _interactionDelegate?.dispose();
     _sizeDelegate?.dispose();
@@ -604,7 +609,10 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onSemanticsEnabledChanged() => _invalidate();
 
-  void _onMatrixChanged() => _invalidate();
+  void _onMatrixChanged() {
+    _updateSelectionHandleAtPointer();
+    _invalidate();
+  }
 
   void _updateFontManagerAssociation() {
     final fontManager = widget.fontManager;
@@ -2807,30 +2815,27 @@ class _PdfViewerState extends State<PdfViewer>
     _selPartMoving = _TextSelectionPart.free;
     _isSelectingAllText = false;
     _contextMenuDocumentPosition = null;
-    _selA = _findTextAndIndexForPoint(details.localPosition);
-    _textSelectAnchor = Offset(_txController.value.x, _txController.value.y);
+    _selA = _findTextAndIndexForPoint(_globalToDocument(details.globalPosition));
     _selB = null;
     _updateTextSelection();
     _requestFocus();
   }
 
   void _onTextPanUpdate(DragUpdateDetails details) {
-    _updateTextSelectRectTo(details.localPosition);
+    _updateTextSelectRectTo(_globalToDocument(details.globalPosition));
     _selectionPointerDeviceKind = _pointerDeviceKind;
   }
 
   void _onTextPanEnd(DragEndDetails details) {
-    _updateTextSelectRectTo(details.localPosition);
+    _updateTextSelectRectTo(_globalToDocument(details.globalPosition));
     _selPartMoving = _TextSelectionPart.none;
     _isSelectingAllText = false;
     _invalidate();
   }
 
-  void _updateTextSelectRectTo(Offset panTo) {
+  void _updateTextSelectRectTo(Offset? panTo) {
     if (_selPartMoving != _TextSelectionPart.free) return;
-    final to = _findTextAndIndexForPoint(
-      panTo + _textSelectAnchor! - Offset(_txController.value.x, _txController.value.y),
-    );
+    final to = _findTextAndIndexForPoint(panTo);
     if (to != null) {
       _selB = to;
       _updateTextSelection();
@@ -2888,6 +2893,7 @@ class _PdfViewerState extends State<PdfViewer>
         );
       }
     } else {
+      _stopSelectionHandleDrag();
       _selA = _selB = null;
       _textSelA = _textSelB = null;
       _contextMenuDocumentPosition = null;
@@ -3361,6 +3367,7 @@ class _PdfViewerState extends State<PdfViewer>
             child: GestureDetector(
               onPanStart: (details) => _onSelectionHandlePanStart(_TextSelectionPart.a, details),
               onPanUpdate: (details) => _onSelectionHandlePanUpdate(_TextSelectionPart.a, details),
+              onPanCancel: _cancelSelectionHandleDrag,
               onPanEnd: (details) => _onSelectionHandlePanEnd(_TextSelectionPart.a, details),
               child: WidgetSizeSniffer(
                 key: Key('anchorA'),
@@ -3388,6 +3395,7 @@ class _PdfViewerState extends State<PdfViewer>
             child: GestureDetector(
               onPanStart: (details) => _onSelectionHandlePanStart(_TextSelectionPart.b, details),
               onPanUpdate: (details) => _onSelectionHandlePanUpdate(_TextSelectionPart.b, details),
+              onPanCancel: _cancelSelectionHandleDrag,
               onPanEnd: (details) => _onSelectionHandlePanEnd(_TextSelectionPart.b, details),
               child: WidgetSizeSniffer(
                 key: Key('anchorB'),
@@ -3665,40 +3673,121 @@ class _PdfViewerState extends State<PdfViewer>
     };
   }
 
+  void _stopSelectionHandleDrag() {
+    _selectionHandleTicker?.stop();
+    _selectionHandleGlobalPosition = null;
+    _selPartMoving = _TextSelectionPart.none;
+  }
+
+  void _cancelSelectionHandleDrag() {
+    _stopSelectionHandleDrag();
+    _updateTextSelection();
+  }
+
+  void _updateSelectionHandleAtPointer() {
+    final global = _selectionHandleGlobalPosition;
+    if (global != null && mounted && _document != null && _layout != null) {
+      _updateSelectionHandlesPan(_globalToDocument(global));
+    }
+  }
+
+  void _scrollSelectionHandle(Duration elapsed) {
+    final seconds = ((elapsed - _selectionHandleElapsed).inMicroseconds / 1000000).clamp(0.0, 0.05);
+    _selectionHandleElapsed = elapsed;
+    final global = _selectionHandleGlobalPosition;
+    final size = _viewSize;
+    if (global == null || size == null) return;
+    final local = _globalToLocal(global);
+    if (local == null) return;
+    double velocity(double position, double extent) {
+      final edge = min(48.0, extent / 2);
+      if (edge <= 0) return 0;
+      if (position < edge) return -600 * ((edge - position) / edge).clamp(0.0, 1.0);
+      if (position > extent - edge) return 600 * ((position - extent + edge) / edge).clamp(0.0, 1.0);
+      return 0;
+    }
+
+    final delta = Offset(velocity(local.dx, size.width), velocity(local.dy, size.height)) * seconds;
+    if (delta != Offset.zero) {
+      _goToManipulated((m) => m.translateByDouble(-delta.dx / _currentZoom, -delta.dy / _currentZoom, 0, 1));
+    }
+    // Retry with a stationary pointer after a new page's text finishes loading.
+    _updateSelectionHandleAtPointer();
+  }
+
+  PdfTextSelectionPoint? _findHandleTextAndIndex(Offset point) {
+    final strict = _findTextAndIndexForPoint(point);
+    if (strict != null) return strict;
+    var nearestPage = -1;
+    var distance = double.infinity;
+    final pages = _layout!.pageLayouts;
+    for (var i = 0; i < pages.length; i++) {
+      final rect = pages[i];
+      final nearest = Offset(point.dx.clamp(rect.left, rect.right), point.dy.clamp(rect.top, rect.bottom));
+      final d = (point - nearest).distanceSquared;
+      if (d < distance) {
+        distance = d;
+        nearestPage = i;
+      }
+    }
+    if (nearestPage < 0) return null;
+    final text = _getCachedTextOrDelayLoadText(nearestPage + 1);
+    if (text == null || text.charRects.isEmpty) return null;
+    final pageRect = pages[nearestPage];
+    final pt = (point - pageRect.topLeft).toPdfPoint(
+      page: _document!.pages[nearestPage],
+      scaledPageSize: pageRect.size,
+    );
+    var index = 0;
+    distance = double.infinity;
+    var top = -double.infinity;
+    var bottom = double.infinity;
+    for (var i = 0; i < text.charRects.length; i++) {
+      final rect = text.charRects[i];
+      top = max(top, rect.top);
+      bottom = min(bottom, rect.bottom);
+      final d = rect.distanceSquaredTo(pt);
+      if (d < distance) {
+        distance = d;
+        index = i;
+      }
+    }
+    // In page margins, select through the page boundary in text order.
+    if (pt.y > top) index = 0;
+    if (pt.y < bottom) index = text.charRects.length - 1;
+    return PdfTextSelectionPoint(text, index);
+  }
+
   void _onSelectionHandlePanStart(_TextSelectionPart handle, DragStartDetails details) {
-    if (_isInteractionGoingOn) return;
-    // A concurrent _clearTextSelections() or a tap outside the document can
-    // null out the anchors or make globalPosition unmappable between the time
-    // the gesture arena resolves and onPanStart fires. Bail out instead of
-    // force-unwrapping. See #602.
+    // A handle may take over during the post-scroll cooldown, but not an active pinch.
+    if (_isInteractionGoingOn && _interactionEndedTimer == null) return;
     final position = _globalToDocument(details.globalPosition);
-    if (position == null) return;
+    final anchor = handle == _TextSelectionPart.a ? _textSelA : _textSelB;
+    if (position == null || anchor == null) return;
+    final point = _findTextAndIndexForPoint(anchor.rect.center);
+    if (point == null) return;
+    _interactionEndedTimer?.cancel();
+    _interactionEndedTimer = null;
+    _isInteractionGoingOn = false;
+    _interactionDelegate?.stop();
+    _stopSelectionHandleDrag();
     _selPartMoving = handle;
     _isSelectingAllText = false;
-    final anchor = Offset(_txController.value.x, _txController.value.y);
-    if (_selPartMoving == _TextSelectionPart.a) {
-      final textSelA = _textSelA;
-      if (textSelA == null) return;
-      _textSelectAnchor = anchor + textSelA.rect.topLeft - position;
-      final a = _findTextAndIndexForPoint(textSelA.rect.center);
-      if (a == null) return;
-      _selA = a;
-      // Notify drag start callback
-      widget.params.textSelectionParams?.onSelectionHandlePanStart?.call(textSelA);
-    } else if (_selPartMoving == _TextSelectionPart.b) {
-      final textSelB = _textSelB;
-      if (textSelB == null) return;
-      _textSelectAnchor = anchor + textSelB.rect.bottomRight - position;
-      final b = _findTextAndIndexForPoint(textSelB.rect.center);
-      if (b == null) return;
-      _selB = b;
-      // Notify drag start callback
-      widget.params.textSelectionParams?.onSelectionHandlePanStart?.call(textSelB);
+    _contextMenuDocumentPosition = null;
+    if (handle == _TextSelectionPart.a) {
+      _textSelectAnchor = anchor.rect.topLeft - position;
+      _selA = point;
     } else {
-      return;
+      _textSelectAnchor = anchor.rect.bottomRight - position;
+      _selB = point;
     }
+    _selectionHandleGlobalPosition = details.globalPosition;
+    _selectionHandleElapsed = Duration.zero;
+    _selectionHandleTicker ??= createTicker(_scrollSelectionHandle);
+    _selectionHandleTicker!.start();
     _updateTextSelection();
     _requestFocus();
+    widget.params.textSelectionParams?.onSelectionHandlePanStart?.call(anchor);
   }
 
   bool _updateSelectionHandlesPan(Offset? panTo) {
@@ -3706,20 +3795,18 @@ class _PdfViewerState extends State<PdfViewer>
       return false;
     }
     if (_selPartMoving == _TextSelectionPart.a) {
-      final a = _findTextAndIndexForPoint(
-        panTo + _textSelectAnchor! - Offset(_txController.value.x, _txController.value.y),
-      );
+      final a = _findHandleTextAndIndex(panTo + _textSelectAnchor!);
       if (a == null) {
         return false;
       }
+      if (_selA?.text == a.text && _selA?.index == a.index) return true;
       _selA = a;
     } else if (_selPartMoving == _TextSelectionPart.b) {
-      final b = _findTextAndIndexForPoint(
-        panTo + _textSelectAnchor! - Offset(_txController.value.x, _txController.value.y),
-      );
+      final b = _findHandleTextAndIndex(panTo + _textSelectAnchor!);
       if (b == null) {
         return false;
       }
+      if (_selB?.text == b.text && _selB?.index == b.index) return true;
       _selB = b;
     } else {
       return false;
@@ -3730,8 +3817,10 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onSelectionHandlePanUpdate(_TextSelectionPart handle, DragUpdateDetails details) {
     if (_isInteractionGoingOn) return;
+    if (_selectionHandleGlobalPosition == null) return;
+    _selectionHandleGlobalPosition = details.globalPosition;
     _contextMenuDocumentPosition = null;
-    _updateSelectionHandlesPan(_globalToDocument(details.globalPosition));
+    _updateSelectionHandleAtPointer();
     // Notify drag update callback
     final anchor = handle == _TextSelectionPart.a ? _textSelA : _textSelB;
     if (anchor != null) {
@@ -3740,8 +3829,9 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _onSelectionHandlePanEnd(_TextSelectionPart handle, DragEndDetails details) {
-    if (_isInteractionGoingOn) return;
-    final result = _updateSelectionHandlesPan(_globalToDocument(details.globalPosition));
+    if (_selectionHandleGlobalPosition == null) return;
+    _updateSelectionHandlesPan(_globalToDocument(details.globalPosition));
+    _stopSelectionHandleDrag();
     // Notify drag end callback before clearing state
     final anchor = handle == _TextSelectionPart.a ? _textSelA : _textSelB;
     if (anchor != null) {
@@ -3750,9 +3840,7 @@ class _PdfViewerState extends State<PdfViewer>
 
     _selPartMoving = _TextSelectionPart.none;
     _isSelectingAllText = false;
-    if (!result) {
-      _updateTextSelection();
-    }
+    _updateTextSelection();
   }
 
   void _onSelectionHandleEnter(_TextSelectionPart handle, PointerEnterEvent details) {
@@ -3771,6 +3859,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _clearTextSelections({bool invalidate = true}) {
+    _stopSelectionHandleDrag();
     _selA = _selB = null;
     _textSelA = _textSelB = null;
     _contextMenuDocumentPosition = null;
