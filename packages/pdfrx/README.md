@@ -21,6 +21,22 @@ The example Android projects track the Flutter 3.47 toolchain with Java 17 bytec
 Kotlin Gradle Plugin 2.4.0, and Gradle 9.3.1. New applications should use Flutter's generated Android SDK
 settings rather than hard-coding `compileSdk`, `minSdk`, or `targetSdk` values.
 
+### Breaking change: Material UI migration
+
+Since pdfrx 2.5.0, its Material widgets use `package:material_ui/material_ui.dart`.
+Flutter's `package:flutter/material.dart` provides different `MaterialLocalizations`
+and `Theme` types; its app localizations and theme are not used by pdfrx's Material widgets.
+
+Migrate your app's Material imports, `MaterialApp`, and theme setup to `material_ui`.
+For localized menus, use `GlobalMaterialLocalizations.delegates` from `material_ui`
+and configure your app's `supportedLocales`. Add `material_ui` as a direct dependency
+when importing it in your app.
+
+The default PDF context menu uses `material_ui` translations when available and English
+labels otherwise, so missing Material localizations do not cause a label lookup crash.
+Explicit labels supplied through `customizeContextMenuItems` are preserved.
+See [#718](https://github.com/espresso3389/pdfrx/issues/718).
+
 ## Interactive Demo
 
 A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web
@@ -41,6 +57,7 @@ A [demo site](https://espresso3389.github.io/pdfrx/) using Flutter Web
 The following fragment illustrates the easiest way to show a PDF file in assets:
 
 ```dart
+import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 ...

@@ -6,7 +6,6 @@ import 'dart:ui' as ui;
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart' as flutter_material;
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
@@ -3630,47 +3629,38 @@ class _PdfViewerState extends State<PdfViewer>
       return null;
     }
 
-    final localizations = Localizations.maybeOf<MaterialLocalizations>(context);
-    final flutterLocalizations = Localizations.maybeOf<flutter_material.MaterialLocalizations>(context);
+    final localizations = Localizations.of<MaterialLocalizations>(context, MaterialLocalizations);
     final buttonItems = [
       for (final item in items)
-        if (item.label == null)
-          item.copyWith(label: _contextMenuButtonLabel(item.type, localizations, flutterLocalizations))
-        else
-          item,
+        if (item.label == null) item.copyWith(label: _contextMenuButtonLabel(item.type, localizations)) else item,
     ];
 
-    return Align(
-      alignment: Alignment.topLeft,
-      child: AdaptiveTextSelectionToolbar.buttonItems(
-        anchors: TextSelectionToolbarAnchors(primaryAnchor: params.anchorA, secondaryAnchor: params.anchorB),
-        buttonItems: buttonItems,
-      ),
+    Widget toolbar = AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: TextSelectionToolbarAnchors(primaryAnchor: params.anchorA, secondaryAnchor: params.anchorB),
+      buttonItems: buttonItems,
     );
+    if (localizations == null) {
+      // The overflow menu also needs Material localizations, even with explicit button labels.
+      toolbar = Localizations.override(
+        context: context,
+        delegates: const [DefaultMaterialLocalizations.delegate],
+        child: toolbar,
+      );
+    }
+    return Align(alignment: Alignment.topLeft, child: toolbar);
   }
 
-  String _contextMenuButtonLabel(
-    ContextMenuButtonType type,
-    MaterialLocalizations? localizations,
-    flutter_material.MaterialLocalizations? flutterLocalizations,
-  ) {
+  String _contextMenuButtonLabel(ContextMenuButtonType type, MaterialLocalizations? localizations) {
     return switch (type) {
-      ContextMenuButtonType.cut => localizations?.cutButtonLabel ?? flutterLocalizations?.cutButtonLabel ?? 'Cut',
-      ContextMenuButtonType.copy => localizations?.copyButtonLabel ?? flutterLocalizations?.copyButtonLabel ?? 'Copy',
-      ContextMenuButtonType.paste =>
-        localizations?.pasteButtonLabel ?? flutterLocalizations?.pasteButtonLabel ?? 'Paste',
-      ContextMenuButtonType.selectAll =>
-        localizations?.selectAllButtonLabel ?? flutterLocalizations?.selectAllButtonLabel ?? 'Select all',
-      ContextMenuButtonType.delete =>
-        localizations?.deleteButtonTooltip ?? flutterLocalizations?.deleteButtonTooltip ?? 'Delete',
-      ContextMenuButtonType.lookUp =>
-        localizations?.lookUpButtonLabel ?? flutterLocalizations?.lookUpButtonLabel ?? 'Look Up',
-      ContextMenuButtonType.searchWeb =>
-        localizations?.searchWebButtonLabel ?? flutterLocalizations?.searchWebButtonLabel ?? 'Search Web',
-      ContextMenuButtonType.share =>
-        localizations?.shareButtonLabel ?? flutterLocalizations?.shareButtonLabel ?? 'Share',
-      ContextMenuButtonType.liveTextInput =>
-        localizations?.scanTextButtonLabel ?? flutterLocalizations?.scanTextButtonLabel ?? 'Scan Text',
+      ContextMenuButtonType.cut => localizations?.cutButtonLabel ?? 'Cut',
+      ContextMenuButtonType.copy => localizations?.copyButtonLabel ?? 'Copy',
+      ContextMenuButtonType.paste => localizations?.pasteButtonLabel ?? 'Paste',
+      ContextMenuButtonType.selectAll => localizations?.selectAllButtonLabel ?? 'Select all',
+      ContextMenuButtonType.delete => localizations?.deleteButtonTooltip ?? 'Delete',
+      ContextMenuButtonType.lookUp => localizations?.lookUpButtonLabel ?? 'Look Up',
+      ContextMenuButtonType.searchWeb => localizations?.searchWebButtonLabel ?? 'Search Web',
+      ContextMenuButtonType.share => localizations?.shareButtonLabel ?? 'Share',
+      ContextMenuButtonType.liveTextInput => localizations?.scanTextButtonLabel ?? 'Scan Text',
       ContextMenuButtonType.custom => '',
     };
   }
