@@ -57,39 +57,120 @@ void main() {
     expect(attempts, 1);
   });
 
-  test('parses one Windows proxy for both HTTP schemes', () {
-    final environment = parseWindowsProxySettings('''
-    ProxyEnable    REG_DWORD    0x1
-    ProxyServer    REG_SZ       proxy.example.com:8080
-    ProxyOverride  REG_SZ       localhost;127.0.0.1;<local>
-''');
-
-    expect(environment, {
-      'http_proxy': 'proxy.example.com:8080',
-      'https_proxy': 'proxy.example.com:8080',
-      'no_proxy': 'localhost,127.0.0.1',
+  test('parses Windows proxy strings from the API', () {
+    expect(parseWindowsProxySettings('proxy:8080', 'localhost;<local>'), {
+      'http_proxy': 'proxy:8080',
+      'https_proxy': 'proxy:8080',
+      'no_proxy': 'localhost,<local>',
     });
-  });
-
-  test('parses per-scheme Windows proxies', () {
-    final environment = parseWindowsProxySettings('''
-    ProxyEnable  REG_DWORD  0x1
-    ProxyServer  REG_SZ     http=proxy.example.com:80;https=secure.example.com:443;socks=socks.example.com:1080
-''');
-
-    expect(environment, {
-      'http_proxy': 'proxy.example.com:80',
-      'https_proxy': 'secure.example.com:443',
-    });
-  });
-
-  test('ignores a disabled Windows proxy', () {
     expect(
-      parseWindowsProxySettings('''
-    ProxyEnable  REG_DWORD  0x0
-    ProxyServer  REG_SZ     proxy.example.com:8080
-'''),
-      isNull,
+      parseWindowsProxySettings(
+        'http=proxy:80;https=secure:443;socks=socks:1080',
+      ),
+      {'http_proxy': 'proxy:80', 'https_proxy': 'secure:443'},
+    );
+    expect(parseWindowsProxySettings(null), isNull);
+    expect(parseWindowsProxySettings(''), isNull);
+    expect(parseWindowsProxySettings('socks=socks:1080'), isNull);
+  });
+
+  test(
+    'reads Windows configuration using the real ABI and allocator',
+    () async {
+      for (var i = 0; i < 10; i++) {
+        loadWindowsProxyEnvironment();
+      }
+      final client = await createProxyAwareHttpClient();
+      client.close();
+    },
+    skip: !Platform.isWindows,
+  );
+
+  test('parses global macOS settings and ignores scoped dictionaries', () {
+    final settings = parseMacOSProxySettings(macOSSettings);
+    expect(settings, {
+      'http_proxy': 'proxy:8080',
+      'https_proxy': '[::1]:8443',
+      'no_proxy': '*.example.org,localhost,<local>',
+    });
+    expect(
+      findDownloadProxy(Uri.parse('https://github.com'), {}, settings),
+      'PROXY [::1]:8443',
+    );
+    expect(
+      findDownloadProxy(Uri.parse('http://a.example.org'), {}, settings),
+      'DIRECT',
+    );
+    expect(
+      findDownloadProxy(Uri.parse('http://intranet'), {}, settings),
+      'DIRECT',
     );
   });
+
+  test('ignores disabled, invalid and PAC-only macOS settings', () {
+    for (final fields in [
+      'HTTPEnable : 0\nHTTPProxy : proxy\nHTTPPort : 8080',
+      'HTTPEnable : 1\nHTTPProxy : proxy\nHTTPPort : 65536',
+      'HTTPEnable : 1\nHTTPProxy : proxy\nHTTPPort : invalid',
+      'HTTPEnable : 1\nHTTPPort : 8080',
+      'ProxyAutoConfigEnable : 1\nProxyAutoConfigURLString : https://example.com/proxy.pac',
+    ]) {
+      expect(parseMacOSProxySettings('<dictionary> {\n$fields\n}'), isNull);
+    }
+    expect(parseMacOSProxySettings(''), isNull);
+  });
+
+  test('environment precedence and bypasses survive system fallback', () {
+    final system = parseWindowsProxySettings(
+      'proxy:8080',
+      '*.internal;<local>',
+    )!;
+    final url = Uri.parse('https://github.com');
+    for (final key in ['https_proxy', 'HTTPS_PROXY']) {
+      expect(
+        findDownloadProxy(url, {key: 'explicit:1234'}, system),
+        'PROXY explicit:1234',
+      );
+      expect(findDownloadProxy(url, {key: ''}, system), 'DIRECT');
+    }
+    for (final key in ['no_proxy', 'NO_PROXY']) {
+      expect(findDownloadProxy(url, {key: 'github.com'}, system), 'DIRECT');
+    }
+    expect(
+      findDownloadProxy(url, {'http_proxy': 'explicit:1234'}, system),
+      'PROXY proxy:8080',
+    );
+    expect(
+      findDownloadProxy(Uri.parse('http://a.internal'), {}, system),
+      'DIRECT',
+    );
+    expect(
+      findDownloadProxy(Uri.parse('http://intranet'), {}, system),
+      'DIRECT',
+    );
+    expect(findDownloadProxy(url, {}, null), 'DIRECT');
+  });
 }
+
+const macOSSettings = '''
+<dictionary> {
+  ExceptionsList : <array> {
+    0 : *.example.org
+    1 : localhost
+  }
+  ExcludeSimpleHostnames : 1
+  HTTPEnable : 1
+  HTTPProxy : proxy
+  HTTPPort : 8080
+  HTTPSEnable : 1
+  HTTPSProxy : ::1
+  HTTPSPort : 8443
+  __SCOPED__ : <dictionary> {
+    en0 : <dictionary> {
+      HTTPEnable : 1
+      HTTPProxy : scoped.example.com
+      HTTPPort : 9999
+    }
+  }
+}
+''';

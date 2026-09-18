@@ -66,10 +66,12 @@ The build hook downloads binaries from [bblanchon/pdfium-binaries](https://githu
 ### Download proxies
 
 The build hook honors the standard `http_proxy`, `https_proxy`, and `no_proxy` environment variables when it
-downloads PDFium. On Windows, when no proxy environment variable is defined for the requested scheme, it also
-uses the current user's enabled static WinINet proxy configuration. An explicit environment proxy takes precedence
-over the Windows system proxy. Transient connection failures and HTTP 408, 429, and 5xx responses are retried with
-short backoff delays.
+downloads PDFium. If no proxy environment variable is defined for the requested scheme, it falls back to the
+current user's static system proxy: `scutil --proxy` on macOS, and the Win32
+`WinHttpGetIEProxyConfigForCurrentUser` API on Windows. Explicit environment proxies take precedence, and
+`no_proxy`/`NO_PROXY` exclusions also apply when using a system proxy. System wildcard and local-host bypass
+rules are supported; CIDR bypass rules and automatic proxy configuration (PAC/WPAD) are not supported.
+Transient connection failures and HTTP 408, 429, and 5xx responses are retried with short backoff delays.
 
 ## Generating Bindings
 

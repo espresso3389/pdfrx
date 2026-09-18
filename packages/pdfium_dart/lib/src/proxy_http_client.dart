@@ -1,5 +1,7 @@
+import 'dart:ffi';
 import 'dart:io';
 
+import 'package:ffi/ffi.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
@@ -11,29 +13,51 @@ const _downloadRetryDelays = [
   Duration(seconds: 4),
 ];
 
-/// Creates an HTTP client that uses environment proxies and the Windows user's static system proxy.
+/// Creates an HTTP client using environment proxies and static OS proxy settings.
 Future<http.Client> createProxyAwareHttpClient() async {
   final systemProxyEnvironment = Platform.isWindows
-      ? await _loadWindowsProxyEnvironment()
+      ? loadWindowsProxyEnvironment()
+      : Platform.isMacOS
+      ? await _loadMacOSProxyEnvironment()
       : null;
-  final environment = Platform.environment;
   final client = HttpClient()
-    ..findProxy = (url) {
-      final proxyFromEnvironment = HttpClient.findProxyFromEnvironment(
-        url,
-        environment: environment,
-      );
-      if (_hasProxyForScheme(environment, url.scheme))
-        return proxyFromEnvironment;
-      if (systemProxyEnvironment != null) {
-        return HttpClient.findProxyFromEnvironment(
-          url,
-          environment: systemProxyEnvironment,
-        );
-      }
-      return proxyFromEnvironment;
-    };
+    ..findProxy = (url) =>
+        findDownloadProxy(url, Platform.environment, systemProxyEnvironment);
   return IOClient(client);
+}
+
+/// Resolves explicit environment settings before falling back to the OS settings.
+String findDownloadProxy(
+  Uri url,
+  Map<String, String> environment,
+  Map<String, String>? systemEnvironment,
+) {
+  if (_hasProxyForScheme(environment, url.scheme) ||
+      systemEnvironment == null) {
+    return HttpClient.findProxyFromEnvironment(url, environment: environment);
+  }
+  final bypass = systemEnvironment['no_proxy'] ?? '';
+  for (final entry in bypass.split(',')) {
+    if (entry == '<local>' &&
+        !url.host.contains('.') &&
+        !url.host.contains(':'))
+      return 'DIRECT';
+    if (entry.contains('*')) {
+      final pattern = entry.split('*').map(RegExp.escape).join('.*');
+      if (RegExp('^$pattern\$', caseSensitive: false).hasMatch(url.host))
+        return 'DIRECT';
+    }
+  }
+  return HttpClient.findProxyFromEnvironment(
+    url,
+    environment: {
+      ...systemEnvironment,
+      'no_proxy': [
+        bypass,
+        environment['no_proxy'] ?? environment['NO_PROXY'] ?? '',
+      ].join(','),
+    },
+  );
 }
 
 /// Gets [uri], retrying transient network and server failures with a fresh client.
@@ -80,30 +104,55 @@ bool _hasProxyForScheme(Map<String, String> environment, String scheme) {
       environment.containsKey('${scheme.toUpperCase()}_PROXY');
 }
 
-Future<Map<String, String>?> _loadWindowsProxyEnvironment() async {
+/// The layout of WINHTTP_CURRENT_USER_IE_PROXY_CONFIG from winhttp.h.
+final class _WindowsProxyConfig extends Struct {
+  @Int32()
+  external int autoDetect;
+  external Pointer<Utf16> autoConfigUrl;
+  external Pointer<Utf16> proxy;
+  external Pointer<Utf16> proxyBypass;
+}
+
+/// Reads the current user's static proxy for the active Windows connection.
+Map<String, String>? loadWindowsProxyEnvironment() {
+  final getConfig = DynamicLibrary.open('winhttp.dll')
+      .lookupFunction<
+        Int32 Function(Pointer<_WindowsProxyConfig>),
+        int Function(Pointer<_WindowsProxyConfig>)
+      >('WinHttpGetIEProxyConfigForCurrentUser');
+  final globalFree = DynamicLibrary.open('kernel32.dll')
+      .lookupFunction<
+        Pointer<Void> Function(Pointer<Void>),
+        Pointer<Void> Function(Pointer<Void>)
+      >('GlobalFree');
+  final config = calloc<_WindowsProxyConfig>();
   try {
-    final result = await Process.run('reg.exe', [
-      'query',
-      r'HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings',
-    ]);
-    if (result.exitCode != 0) return null;
-    return parseWindowsProxySettings(result.stdout as String);
-  } on ProcessException {
-    return null;
+    if (getConfig(config) == 0) return null;
+    return parseWindowsProxySettings(
+      config.ref.proxy == nullptr ? null : config.ref.proxy.toDartString(),
+      config.ref.proxyBypass == nullptr
+          ? null
+          : config.ref.proxyBypass.toDartString(),
+    );
+  } finally {
+    for (final value in [
+      config.ref.autoConfigUrl,
+      config.ref.proxy,
+      config.ref.proxyBypass,
+    ]) {
+      if (value != nullptr) globalFree(value.cast());
+    }
+    calloc.free(config);
   }
 }
 
-/// Converts static WinINet proxy registry values into the environment format understood by [HttpClient].
-Map<String, String>? parseWindowsProxySettings(String registryOutput) {
-  final values = <String, String>{};
-  for (final line in registryOutput.split(RegExp(r'\r?\n'))) {
-    final match = RegExp(r'^\s*(\S+)\s+REG_\S+\s+(.+?)\s*$').firstMatch(line);
-    if (match != null) values[match.group(1)!] = match.group(2)!;
-  }
-  if (values['ProxyEnable'] != '0x1') return null;
-
-  final proxyServer = values['ProxyServer'];
-  if (proxyServer == null || proxyServer.isEmpty) return null;
+/// Converts static Windows proxy and bypass strings into HTTP client settings.
+Map<String, String>? parseWindowsProxySettings(
+  String? proxyServer, [
+  String? proxyOverride,
+]) {
+  if (proxyServer == null || proxyServer.trim().isEmpty) return null;
+  proxyServer = proxyServer.trim();
   final environment = <String, String>{};
   if (!proxyServer.contains('=')) {
     environment['http_proxy'] = proxyServer;
@@ -119,12 +168,68 @@ Map<String, String>? parseWindowsProxySettings(String registryOutput) {
     }
   }
 
-  final proxyOverride = values['ProxyOverride'];
   if (proxyOverride != null && proxyOverride.isNotEmpty) {
     final bypass = proxyOverride
         .split(';')
-        .where((value) => value.isNotEmpty && value != '<local>');
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty);
     environment['no_proxy'] = bypass.join(',');
   }
   return environment.isEmpty ? null : environment;
+}
+
+Future<Map<String, String>?> _loadMacOSProxyEnvironment() async {
+  try {
+    final result = await Process.run('/usr/sbin/scutil', ['--proxy']);
+    if (result.exitCode != 0) return null;
+    return parseMacOSProxySettings(result.stdout as String);
+  } on ProcessException {
+    return null;
+  }
+}
+
+/// Parses global static proxies and exceptions from `scutil --proxy` output.
+Map<String, String>? parseMacOSProxySettings(String output) {
+  final values = <String, String>{};
+  final exceptions = <String>[];
+  var depth = 0;
+  var inExceptions = false;
+  for (final rawLine in output.split('\n')) {
+    final line = rawLine.trim();
+    if (line.endsWith('{')) {
+      if (depth == 1 && line.startsWith('ExceptionsList :'))
+        inExceptions = true;
+      depth++;
+      continue;
+    }
+    if (line == '}') {
+      if (depth == 2) inExceptions = false;
+      depth--;
+      continue;
+    }
+    final match = RegExp(r'^(\S+)\s*:\s*(.*?)\s*$').firstMatch(line);
+    if (match == null) continue;
+    if (depth == 1) values[match[1]!] = match[2]!;
+    if (depth == 2 && inExceptions) exceptions.add(match[2]!);
+  }
+  final environment = <String, String>{};
+  for (final scheme in ['HTTP', 'HTTPS']) {
+    if (values['${scheme}Enable'] != '1') continue;
+    final host = values['${scheme}Proxy'];
+    final port = int.tryParse(values['${scheme}Port'] ?? '');
+    if (host == null ||
+        host.isEmpty ||
+        port == null ||
+        port < 1 ||
+        port > 65535)
+      continue;
+    final authority = host.contains(':') && !host.startsWith('[')
+        ? '[$host]'
+        : host;
+    environment['${scheme.toLowerCase()}_proxy'] = '$authority:$port';
+  }
+  if (environment.isEmpty) return null;
+  if (values['ExcludeSimpleHostnames'] == '1') exceptions.add('<local>');
+  if (exceptions.isNotEmpty) environment['no_proxy'] = exceptions.join(',');
+  return environment;
 }
