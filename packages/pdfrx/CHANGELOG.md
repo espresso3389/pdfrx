@@ -1,3 +1,7 @@
+# 2.6.3
+
+- Moved requirements and Material UI migration guidance into the Getting Started section of the README.
+
 # 2.6.2
 
 - Fixed context menu crashes when Material UI localizations are unavailable and preserved Flutter-localized menu labels ([#719](https://github.com/espresso3389/pdfrx/pull/719), [#721](https://github.com/espresso3389/pdfrx/pull/721)).
