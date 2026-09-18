@@ -215,6 +215,7 @@ void main() {
         environment: {'NO_PROXY': 'github.com'},
         systemProxyEnvironment: {
           'https_proxy': 'system-proxy.example.com:8443',
+          'no_proxy': 'other.example.com',
         },
       ),
       'DIRECT',
