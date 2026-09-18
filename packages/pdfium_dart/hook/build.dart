@@ -52,7 +52,9 @@ Future<void> _downloadPdfium({
 
   final response = await getWithRetries(archiveUri);
   if (response.statusCode != 200) {
-    throw Exception('Failed to download PDFium: $archiveUri');
+    throw Exception(
+      'Failed to download PDFium: HTTP ${response.statusCode} $archiveUri',
+    );
   }
 
   final archive = TarDecoder().decodeBytes(
