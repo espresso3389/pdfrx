@@ -1,3 +1,7 @@
+# 2.6.4
+
+- Placed Requirements after the complete Getting Started section in the README.
+
 # 2.6.3
 
 - Moved requirements and Material UI migration guidance into the Getting Started section of the README.
