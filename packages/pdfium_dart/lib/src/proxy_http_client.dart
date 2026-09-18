@@ -82,10 +82,23 @@ String findProxyWithSystemFallback(
       systemProxyEnvironment == null) {
     return proxyFromEnvironment;
   }
+  final fallbackEnvironment = {
+    ...systemProxyEnvironment,
+    ..._noProxyEnvironment(environment),
+  };
   return HttpClient.findProxyFromEnvironment(
     url,
-    environment: systemProxyEnvironment,
+    environment: fallbackEnvironment,
   );
+}
+
+Map<String, String> _noProxyEnvironment(Map<String, String> environment) {
+  final fallbackEnvironment = <String, String>{};
+  for (final key in const ['no_proxy', 'NO_PROXY']) {
+    final value = environment[key];
+    if (value != null) fallbackEnvironment[key] = value;
+  }
+  return fallbackEnvironment;
 }
 
 Future<Map<String, String>?> _loadSystemProxyEnvironment() async {
@@ -173,7 +186,8 @@ Map<String, String>? parseMacOSProxySettings(String scutilOutput) {
         continue;
       }
       if (dictionaryDepth == 2 && currentArrayKey == 'ExceptionsList') {
-        bypass.add(line);
+        final entryMatch = RegExp(r'^\d+\s*:\s*(.+)$').firstMatch(line);
+        bypass.add((entryMatch?.group(1) ?? line).trim());
       }
       continue;
     }

@@ -103,8 +103,8 @@ void main() {
   HTTPSPort : 8443
   HTTPSProxy : secure.example.com
   ExceptionsList : <array> {
-    localhost
-    *.corp.example
+    0 : localhost
+    1 : *.corp.example
   }
 }
 ''');
@@ -205,6 +205,19 @@ void main() {
         },
       ),
       'PROXY system-proxy.example.com:8443',
+    );
+  });
+
+  test('preserves explicit no_proxy when using a system proxy fallback', () {
+    expect(
+      findProxyWithSystemFallback(
+        Uri.parse('https://github.com/bblanchon/pdfium-binaries'),
+        environment: {'NO_PROXY': 'github.com'},
+        systemProxyEnvironment: {
+          'https_proxy': 'system-proxy.example.com:8443',
+        },
+      ),
+      'DIRECT',
     );
   });
 }
