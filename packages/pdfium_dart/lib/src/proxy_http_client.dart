@@ -11,28 +11,16 @@ const _downloadRetryDelays = [
   Duration(seconds: 4),
 ];
 
-/// Creates an HTTP client that uses environment proxies and the Windows user's static system proxy.
+/// Creates an HTTP client that uses environment proxies and supported system proxy settings.
 Future<http.Client> createProxyAwareHttpClient() async {
-  final systemProxyEnvironment = Platform.isWindows
-      ? await _loadWindowsProxyEnvironment()
-      : null;
+  final systemProxyEnvironment = await _loadSystemProxyEnvironment();
   final environment = Platform.environment;
   final client = HttpClient()
-    ..findProxy = (url) {
-      final proxyFromEnvironment = HttpClient.findProxyFromEnvironment(
-        url,
-        environment: environment,
-      );
-      if (_hasProxyForScheme(environment, url.scheme))
-        return proxyFromEnvironment;
-      if (systemProxyEnvironment != null) {
-        return HttpClient.findProxyFromEnvironment(
-          url,
-          environment: systemProxyEnvironment,
-        );
-      }
-      return proxyFromEnvironment;
-    };
+    ..findProxy = (url) => findProxyWithSystemFallback(
+      url,
+      environment: environment,
+      systemProxyEnvironment: systemProxyEnvironment,
+    );
   return IOClient(client);
 }
 
@@ -80,6 +68,32 @@ bool _hasProxyForScheme(Map<String, String> environment, String scheme) {
       environment.containsKey('${scheme.toUpperCase()}_PROXY');
 }
 
+/// Resolves a proxy directive for [url], preferring explicit environment proxies over system fallbacks.
+String findProxyWithSystemFallback(
+  Uri url, {
+  required Map<String, String> environment,
+  Map<String, String>? systemProxyEnvironment,
+}) {
+  final proxyFromEnvironment = HttpClient.findProxyFromEnvironment(
+    url,
+    environment: environment,
+  );
+  if (_hasProxyForScheme(environment, url.scheme) ||
+      systemProxyEnvironment == null) {
+    return proxyFromEnvironment;
+  }
+  return HttpClient.findProxyFromEnvironment(
+    url,
+    environment: systemProxyEnvironment,
+  );
+}
+
+Future<Map<String, String>?> _loadSystemProxyEnvironment() async {
+  if (Platform.isWindows) return _loadWindowsProxyEnvironment();
+  if (Platform.isMacOS) return _loadMacOSProxyEnvironment();
+  return null;
+}
+
 Future<Map<String, String>?> _loadWindowsProxyEnvironment() async {
   try {
     final result = await Process.run('reg.exe', [
@@ -88,6 +102,16 @@ Future<Map<String, String>?> _loadWindowsProxyEnvironment() async {
     ]);
     if (result.exitCode != 0) return null;
     return parseWindowsProxySettings(result.stdout as String);
+  } on ProcessException {
+    return null;
+  }
+}
+
+Future<Map<String, String>?> _loadMacOSProxyEnvironment() async {
+  try {
+    final result = await Process.run('/usr/sbin/scutil', ['--proxy']);
+    if (result.exitCode != 0) return null;
+    return parseMacOSProxySettings(result.stdout as String);
   } on ProcessException {
     return null;
   }
@@ -127,4 +151,89 @@ Map<String, String>? parseWindowsProxySettings(String registryOutput) {
     environment['no_proxy'] = bypass.join(',');
   }
   return environment.isEmpty ? null : environment;
+}
+
+/// Converts macOS `scutil --proxy` output into the environment format understood by [HttpClient].
+Map<String, String>? parseMacOSProxySettings(String scutilOutput) {
+  final values = <String, String>{};
+  final bypass = <String>[];
+  var currentArrayKey = '';
+  var dictionaryDepth = 0;
+  for (final rawLine in scutilOutput.split(RegExp(r'\r?\n'))) {
+    final line = rawLine.trim();
+    if (line.isEmpty) continue;
+    if (line == '<dictionary> {' || line == '{') {
+      dictionaryDepth++;
+      continue;
+    }
+    if (currentArrayKey.isNotEmpty) {
+      if (line == '}') {
+        currentArrayKey = '';
+        dictionaryDepth--;
+        continue;
+      }
+      if (dictionaryDepth == 2 && currentArrayKey == 'ExceptionsList') {
+        bypass.add(line);
+      }
+      continue;
+    }
+    if (line.endsWith(': <dictionary> {')) {
+      dictionaryDepth++;
+      continue;
+    }
+    if (line == '}') {
+      if (dictionaryDepth > 0) dictionaryDepth--;
+      continue;
+    }
+    if (dictionaryDepth != 1) continue;
+
+    final arrayMatch = RegExp(r'^(\S+)\s*:\s*<array>\s*\{$').firstMatch(line);
+    if (arrayMatch != null) {
+      currentArrayKey = arrayMatch.group(1)!;
+      dictionaryDepth++;
+      continue;
+    }
+
+    final match = RegExp(r'^(\S+)\s*:\s*(.+)$').firstMatch(line);
+    if (match != null) values[match.group(1)!] = match.group(2)!.trim();
+  }
+
+  final environment = <String, String>{};
+  _addMacOSProxy(environment, values, scheme: 'http', keyPrefix: 'HTTP');
+  _addMacOSProxy(environment, values, scheme: 'https', keyPrefix: 'HTTPS');
+  if (bypass.isNotEmpty) {
+    environment['no_proxy'] = bypass.join(',');
+  }
+  return environment.isEmpty ? null : environment;
+}
+
+void _addMacOSProxy(
+  Map<String, String> environment,
+  Map<String, String> values, {
+  required String scheme,
+  required String keyPrefix,
+}) {
+  if (values['${keyPrefix}Enable'] != '1') return;
+  final host = values['${keyPrefix}Proxy'];
+  if (host == null || host.isEmpty) return;
+  final port = values['${keyPrefix}Port'];
+  final formattedHost = _formatProxyHost(host);
+  environment['${scheme}_proxy'] =
+      port == null || port.isEmpty || _hasExplicitPort(formattedHost)
+      ? formattedHost
+      : '$formattedHost:$port';
+}
+
+String _formatProxyHost(String host) {
+  if (!host.startsWith('[') &&
+      !host.endsWith(']') &&
+      InternetAddress.tryParse(host)?.type == InternetAddressType.IPv6) {
+    return '[$host]';
+  }
+  return host;
+}
+
+bool _hasExplicitPort(String host) {
+  final uri = Uri.tryParse('http://$host');
+  return uri != null && uri.host.isNotEmpty && uri.hasPort;
 }
