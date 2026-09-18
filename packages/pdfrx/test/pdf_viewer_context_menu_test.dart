@@ -52,6 +52,30 @@ void main() {
 
     await _expectContextMenu(tester, controller);
   });
+
+  testWidgets('custom unlabeled context menu item works without Material localizations', (tester) async {
+    await _binding.setSurfaceSize(const Size(1080, 1920));
+    addTearDown(() => _binding.setSurfaceSize(null));
+
+    final controller = PdfViewerController();
+    final document = await _openTestDocument(tester, 'custom-context-menu-no-material-localizations-test.pdf');
+    addTearDown(() => document?.dispose());
+
+    await _pumpTestViewer(
+      tester,
+      document!,
+      controller,
+      (child) => flutter_material.WidgetsApp(
+        color: const Color(0xff000000),
+        builder: (context, _) => child,
+      ),
+      customizeContextMenuItems: (params, items) => items.add(
+        ContextMenuButtonItem(onPressed: () {}, type: ContextMenuButtonType.custom),
+      ),
+    );
+
+    await _expectContextMenu(tester, controller);
+  });
 }
 
 Future<PdfDocument?> _openTestDocument(WidgetTester tester, String sourceName) {
@@ -68,15 +92,17 @@ Future<void> _pumpTestViewer(
   WidgetTester tester,
   PdfDocument document,
   PdfViewerController controller,
-  Widget Function(Widget child) hostBuilder,
-) async {
+  Widget Function(Widget child) hostBuilder, {
+  PdfViewerContextMenuUpdateMenuItemsFunction? customizeContextMenuItems,
+}) async {
   await tester.pumpWidget(
     hostBuilder(
       PdfViewer(
         PdfDocumentRefDirect(document, autoDispose: false),
         controller: controller,
-        params: const PdfViewerParams(
-          textSelectionParams: PdfTextSelectionParams(showContextMenuAutomatically: true),
+        params: PdfViewerParams(
+          textSelectionParams: const PdfTextSelectionParams(showContextMenuAutomatically: true),
+          customizeContextMenuItems: customizeContextMenuItems,
         ),
       ),
     ),

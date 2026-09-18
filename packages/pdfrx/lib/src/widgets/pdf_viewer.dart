@@ -3629,8 +3629,11 @@ class _PdfViewerState extends State<PdfViewer>
       return null;
     }
 
-    final localizations = Localizations.of<MaterialLocalizations>(context, MaterialLocalizations);
-    final buttonItems = items.map((item) => _withContextMenuLabel(item, localizations)).toList(growable: false);
+    final localizations = Localizations.maybeOf<MaterialLocalizations>(context);
+    final buttonItems = [
+      for (final item in items)
+        if (item.label == null) item.copyWith(label: _contextMenuButtonLabel(item.type, localizations)) else item,
+    ];
 
     return Align(
       alignment: Alignment.topLeft,
@@ -3641,24 +3644,17 @@ class _PdfViewerState extends State<PdfViewer>
     );
   }
 
-  ContextMenuButtonItem _withContextMenuLabel(ContextMenuButtonItem item, MaterialLocalizations? localizations) {
-    if (item.label != null || item.type == ContextMenuButtonType.custom || localizations != null) {
-      return item;
-    }
-    return item.copyWith(label: _fallbackContextMenuButtonLabel(item.type));
-  }
-
-  String _fallbackContextMenuButtonLabel(ContextMenuButtonType type) {
+  String _contextMenuButtonLabel(ContextMenuButtonType type, MaterialLocalizations? localizations) {
     return switch (type) {
-      ContextMenuButtonType.cut => 'Cut',
-      ContextMenuButtonType.copy => 'Copy',
-      ContextMenuButtonType.paste => 'Paste',
-      ContextMenuButtonType.selectAll => 'Select all',
-      ContextMenuButtonType.delete => 'Delete',
-      ContextMenuButtonType.lookUp => 'Look Up',
-      ContextMenuButtonType.searchWeb => 'Search Web',
-      ContextMenuButtonType.share => 'Share',
-      ContextMenuButtonType.liveTextInput => 'Scan Text',
+      ContextMenuButtonType.cut => localizations?.cutButtonLabel ?? 'Cut',
+      ContextMenuButtonType.copy => localizations?.copyButtonLabel ?? 'Copy',
+      ContextMenuButtonType.paste => localizations?.pasteButtonLabel ?? 'Paste',
+      ContextMenuButtonType.selectAll => localizations?.selectAllButtonLabel ?? 'Select all',
+      ContextMenuButtonType.delete => localizations?.deleteButtonTooltip ?? 'Delete',
+      ContextMenuButtonType.lookUp => localizations?.lookUpButtonLabel ?? 'Look Up',
+      ContextMenuButtonType.searchWeb => localizations?.searchWebButtonLabel ?? 'Search Web',
+      ContextMenuButtonType.share => localizations?.shareButtonLabel ?? 'Share',
+      ContextMenuButtonType.liveTextInput => localizations?.scanTextButtonLabel ?? 'Scan Text',
       ContextMenuButtonType.custom => '',
     };
   }
