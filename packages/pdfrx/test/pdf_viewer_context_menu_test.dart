@@ -15,46 +15,91 @@ void main() {
     addTearDown(() => _binding.setSurfaceSize(null));
 
     final controller = PdfViewerController();
-    final document = await tester.runAsync(
-      () async => PdfDocument.openData(
-        await _testPdfFile.readAsBytes(),
-        sourceName: 'context-menu-localizations-test.pdf',
-        useProgressiveLoading: false,
-      ),
-    );
+    final document = await _openTestDocument(tester, 'context-menu-localizations-test.pdf');
     addTearDown(() => document?.dispose());
 
-    await tester.pumpWidget(
-      flutter_material.MaterialApp(
+    await _pumpTestViewer(
+      tester,
+      document!,
+      controller,
+      (child) => flutter_material.MaterialApp(
         home: flutter_material.Scaffold(
-          body: PdfViewer(
-            PdfDocumentRefDirect(document!, autoDispose: false),
-            controller: controller,
-            params: const PdfViewerParams(
-              textSelectionParams: PdfTextSelectionParams(showContextMenuAutomatically: true),
-            ),
-          ),
+          body: child,
         ),
       ),
     );
 
-    for (var i = 0; i < 20 && !controller.isReady; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
-    }
-
-    expect(controller.isReady, isTrue);
-    expect(tester.takeException(), isNull);
-
-    await controller.textSelectionDelegate.selectAllText();
-
-    for (var i = 0; i < 20 && find.byKey(const Key('contextMenu')).evaluate().isEmpty; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
-    }
-
-    expect(tester.takeException(), isNull);
-    expect(find.byKey(const Key('contextMenu')), findsOneWidget);
-    expect(find.text('Copy'), findsOneWidget);
+    await _expectContextMenu(tester, controller);
   });
+
+  testWidgets('default context menu works without Material localizations', (tester) async {
+    await _binding.setSurfaceSize(const Size(1080, 1920));
+    addTearDown(() => _binding.setSurfaceSize(null));
+
+    final controller = PdfViewerController();
+    final document = await _openTestDocument(tester, 'context-menu-no-material-localizations-test.pdf');
+    addTearDown(() => document?.dispose());
+
+    await _pumpTestViewer(
+      tester,
+      document!,
+      controller,
+      (child) => flutter_material.WidgetsApp(
+        color: const Color(0xff000000),
+        builder: (context, _) => child,
+      ),
+    );
+
+    await _expectContextMenu(tester, controller);
+  });
+}
+
+Future<PdfDocument?> _openTestDocument(WidgetTester tester, String sourceName) {
+  return tester.runAsync(
+    () async => PdfDocument.openData(
+      await _testPdfFile.readAsBytes(),
+      sourceName: sourceName,
+      useProgressiveLoading: false,
+    ),
+  );
+}
+
+Future<void> _pumpTestViewer(
+  WidgetTester tester,
+  PdfDocument document,
+  PdfViewerController controller,
+  Widget Function(Widget child) hostBuilder,
+) async {
+  await tester.pumpWidget(
+    hostBuilder(
+      PdfViewer(
+        PdfDocumentRefDirect(document, autoDispose: false),
+        controller: controller,
+        params: const PdfViewerParams(
+          textSelectionParams: PdfTextSelectionParams(showContextMenuAutomatically: true),
+        ),
+      ),
+    ),
+  );
+
+  for (var i = 0; i < 20 && !controller.isReady; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+  }
+
+  expect(controller.isReady, isTrue);
+  expect(tester.takeException(), isNull);
+}
+
+Future<void> _expectContextMenu(WidgetTester tester, PdfViewerController controller) async {
+  await controller.textSelectionDelegate.selectAllText();
+
+  for (var i = 0; i < 20 && find.byKey(const Key('contextMenu')).evaluate().isEmpty; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+  }
+
+  expect(tester.takeException(), isNull);
+  expect(find.byKey(const Key('contextMenu')), findsOneWidget);
+  expect(find.text('Copy'), findsOneWidget);
 }
