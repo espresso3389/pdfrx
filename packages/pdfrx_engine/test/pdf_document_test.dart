@@ -447,6 +447,184 @@ void main() {
     expect(loadedPageNumbers.length, lessThan(40));
     expect(loadedPageNumbers, List.generate(loadedPageNumbers.length, (index) => index + 1));
   });
+  for (final loadUnitDuration in [const Duration(milliseconds: 1), null]) {
+    test('progressive loading loads every page and reports monotonic progress (loadUnitDuration: '
+        '${loadUnitDuration ?? 'default'})', () async {
+      final document = await PdfDocument.openFile(multiPageTestPdfFile.path, useProgressiveLoading: true);
+      addTearDown(document.dispose);
+      final events = <PdfDocumentEvent>[];
+      final subscription = document.events.listen(events.add);
+      addTearDown(subscription.cancel);
+
+      final progress = <(int loadedPageCount, int totalPageCount)>[];
+      bool onProgress(int loadedPageCount, int totalPageCount, void _) {
+        progress.add((loadedPageCount, totalPageCount));
+        return true;
+      }
+
+      if (loadUnitDuration != null) {
+        await document.loadPagesProgressively(onPageLoadProgress: onProgress, loadUnitDuration: loadUnitDuration);
+      } else {
+        await document.loadPagesProgressively(onPageLoadProgress: onProgress);
+      }
+      await Future<void>.delayed(Duration.zero);
+
+      expect(document.pages.every((page) => page.isLoaded), isTrue);
+      expect(document.pages.map((page) => page.pageNumber), List.generate(40, (index) => index + 1));
+      expect(progress, isNotEmpty);
+      expect(progress.map((entry) => entry.$2), everyElement(40));
+      for (var i = 1; i < progress.length; i++) {
+        expect(progress[i].$1, greaterThanOrEqualTo(progress[i - 1].$1), reason: 'loadedPageCount is monotonic');
+      }
+      expect(progress.last.$1, 40);
+      expect(events.whereType<PdfDocumentLoadCompleteEvent>(), hasLength(1));
+    });
+  }
+  test('progressive loading with a tiny loadUnitDuration reports progress more than once', () async {
+    final document = await PdfDocument.openFile(multiPageTestPdfFile.path, useProgressiveLoading: true);
+    addTearDown(document.dispose);
+    var callbackCount = 0;
+
+    await document.loadPagesProgressively(
+      loadUnitDuration: const Duration(milliseconds: 1),
+      onPageLoadProgress: (_, _, _) {
+        callbackCount++;
+        return true;
+      },
+    );
+
+    // Each budget measures at least one page, so a budget far shorter than the whole measurement yields several
+    // callbacks rather than one covering the whole document.
+    expect(callbackCount, greaterThan(1));
+    expect(document.pages.every((page) => page.isLoaded), isTrue);
+  });
+  test('rendering an already loaded page is not blocked behind progressive loading', () async {
+    // A document with enough pages that measuring it takes many worker chunks, and a loadUnitDuration longer than the
+    // whole measurement: an implementation that sends each budget to the worker as a single task would then measure
+    // the entire document in one task and the render would wait for all of it.
+    const pageCount = 20000;
+    final document = await PdfDocument.openData(
+      buildBlankPdf(pageCount),
+      sourceName: 'blank$pageCount.pdf',
+      useProgressiveLoading: true,
+    );
+    addTearDown(document.dispose);
+    expect(document.pages.length, pageCount);
+    expect(document.pages.first.isLoaded, isTrue);
+
+    var loadCompleted = false;
+    final loadTimer = Stopwatch()..start();
+    final loading = document.loadPagesProgressively(loadUnitDuration: const Duration(seconds: 5)).then((_) {
+      loadCompleted = true;
+      loadTimer.stop();
+    });
+    // Give the first measurement chunk a chance to be queued on the worker before the render.
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+
+    final renderTimer = Stopwatch()..start();
+    final image = await document.pages.first.render();
+    renderTimer.stop();
+    final renderCompletedBeforeLoad = !loadCompleted;
+    final loadedPageCountWhenRendered = document.pages.where((page) => page.isLoaded).length;
+    image?.dispose();
+    await loading;
+
+    expect(image, isNotNull);
+    expect(renderCompletedBeforeLoad, isTrue, reason: 'render must interleave with measurement chunks');
+    // Nothing is published before the first budget ends, so only page 1 is loaded when the render completes.
+    expect(loadedPageCountWhenRendered, equals(1));
+    expect(
+      renderTimer.elapsedMilliseconds,
+      lessThan(loadTimer.elapsedMilliseconds ~/ 4),
+      reason:
+          'render (${renderTimer.elapsedMilliseconds} ms) must not wait for most of the measurement '
+          '(${loadTimer.elapsedMilliseconds} ms)',
+    );
+    expect(document.pages.every((page) => page.isLoaded), isTrue);
+  });
+  test('progressive loading publishes page status once per budget without duplicates', () async {
+    // The default budget spans many ~20 ms worker chunks. Publishing per chunk instead of per budget would emit a
+    // page status event (and relayout the viewer) roughly 40 times a second, so the event count must match the
+    // callback count exactly and no page may be reported twice.
+    const pageCount = 20000;
+    final document = await PdfDocument.openData(
+      buildBlankPdf(pageCount),
+      sourceName: 'blank$pageCount.pdf',
+      useProgressiveLoading: true,
+    );
+    addTearDown(document.dispose);
+    expect(document.pages.length, pageCount);
+    final events = <PdfDocumentEvent>[];
+    final subscription = document.events.listen(events.add);
+    addTearDown(subscription.cancel);
+
+    var callbackCount = 0;
+    await document.loadPagesProgressively(
+      onPageLoadProgress: (_, _, _) {
+        callbackCount++;
+        return true;
+      },
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    final statusEvents = events.whereType<PdfDocumentPageStatusChangedEvent>().toList();
+    expect(callbackCount, greaterThan(0));
+    expect(statusEvents, hasLength(callbackCount), reason: 'each budget publishes exactly once');
+    final reportedPageNumbers = <int>{};
+    var reportedChangeCount = 0;
+    for (final event in statusEvents) {
+      reportedChangeCount += event.changes.length;
+      reportedPageNumbers.addAll(event.changes.keys);
+    }
+    // Page 1 is measured at open time; every other page is reported exactly once.
+    expect(reportedChangeCount, pageCount - 1, reason: 'no page index may appear in more than one event');
+    expect(reportedPageNumbers, hasLength(pageCount - 1));
+    expect(reportedPageNumbers.contains(1), isFalse);
+    expect(document.pages.every((page) => page.isLoaded), isTrue);
+    expect(events.whereType<PdfDocumentLoadCompleteEvent>(), hasLength(1));
+  });
+  test('progressive loading keeps the outward order across chunks within one budget', () async {
+    // One default budget over a large document is split into many worker chunks; the pages measured by the whole
+    // budget must still be the head of the outward sequence from startPageNumber (10000, 10001, 9999, 10002, ...).
+    const pageCount = 20000;
+    const startPageNumber = 10000;
+    final document = await PdfDocument.openData(
+      buildBlankPdf(pageCount),
+      sourceName: 'blank$pageCount.pdf',
+      useProgressiveLoading: true,
+    );
+    addTearDown(document.dispose);
+    expect(document.pages.length, pageCount);
+
+    var callbackCount = 0;
+    await document.loadPagesProgressively(
+      startPageNumber: startPageNumber,
+      onPageLoadProgress: (_, _, _) {
+        callbackCount++;
+        return false;
+      },
+    );
+    expect(callbackCount, 1);
+
+    // Page 1 was loaded at open time and is not part of the outward sequence.
+    final measured = document.pages
+        .where((page) => page.isLoaded && page.pageNumber != 1)
+        .map((page) => page.pageNumber)
+        .toSet();
+    expect(measured, isNotEmpty);
+    expect(measured.length, lessThan(pageCount - 1), reason: 'one budget must not measure the whole document');
+    final expected = <int>{};
+    for (var distance = 0; expected.length < measured.length; distance++) {
+      if (startPageNumber + distance <= pageCount) expected.add(startPageNumber + distance);
+      if (expected.length < measured.length && distance > 0 && startPageNumber - distance >= 2) {
+        expected.add(startPageNumber - distance);
+      }
+    }
+    expect(measured, equals(expected));
+
+    await document.loadPagesProgressively(startPageNumber: startPageNumber);
+    expect(document.pages.every((page) => page.isLoaded), isTrue);
+  });
   test('loadLinks reuses raw and compact results', () async {
     final document = await PdfDocument.openFile(testPdfFile.path);
     addTearDown(document.dispose);
