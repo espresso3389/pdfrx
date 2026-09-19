@@ -411,6 +411,55 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('pages measured above the current page do not move it for a frame', (tester) async {
+    final document = _TestDocument(
+      10,
+      loadAllOnProgressive: false,
+      emitCompletionOnProgressive: false,
+      unloadedPageHeight: 400,
+    );
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          controller: controller,
+          initialPageNumber: 8,
+          params: const PdfViewerParams(
+            behaviorControlParams: PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
+          ),
+        ),
+      ),
+    );
+    for (var i = 0; i < 20 && !document.progressiveLoadingStarted; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+    }
+    await tester.pump();
+
+    // The matrix the frame was actually painted with, not the controller's latest value.
+    double paintedTopOfPage8() {
+      final transform = tester.widget<Transform>(
+        find.byWidgetPredicate((widget) => widget is Transform && widget.child is KeyedSubtree),
+      );
+      final m = transform.transform;
+      return m.getTranslation().y + controller.layout.pageLayouts[7].top * m.getMaxScaleOnAxis();
+    }
+
+    final before = paintedTopOfPage8();
+    document.loadPagesForTest([1, 2, 3, 4, 5, 6]);
+    for (var frame = 0; frame < 3; frame++) {
+      await tester.pump();
+      expect(paintedTopOfPage8(), moreOrLessEquals(before, epsilon: 0.5), reason: 'frame $frame');
+    }
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('progressive loading continues when priority loading fails', (tester) async {
     final document = _TestDocument(3, reloadError: UnimplementedError());
     addTearDown(document.dispose);
@@ -701,15 +750,22 @@ class _TestDocument extends PdfDocument {
     this.reloadError,
     this.replayedEvents = const [],
     this.emitCompletionOnProgressive = true,
+    this.loadAllOnProgressive = true,
+    this.unloadedPageHeight = 800,
     super.sourceName = 'test:priority',
   }) {
-    _pages = List.generate(pageCount, (index) => _TestPage(this, index + 1, isLoaded: index == 0));
+    _pages = List.generate(
+      pageCount,
+      (index) => _TestPage(this, index + 1, isLoaded: index == 0, height: index == 0 ? 800 : unloadedPageHeight),
+    );
   }
 
   final _events = StreamController<PdfDocumentEvent>.broadcast();
   final Object? reloadError;
   final List<_TestDocumentEvent> replayedEvents;
   final bool emitCompletionOnProgressive;
+  final bool loadAllOnProgressive;
+  final double unloadedPageHeight;
   late List<PdfPage> _pages;
   final reloadRequests = <List<int>?>[];
   bool progressiveLoadingStarted = false;
@@ -760,6 +816,7 @@ class _TestDocument extends PdfDocument {
   }) async {
     progressiveLoadingStarted = true;
     progressiveLoadingStartPageNumber = startPageNumber;
+    if (!loadAllOnProgressive) return;
     _loadPages([for (var pageNumber = 1; pageNumber <= _pages.length; pageNumber++) pageNumber]);
     await onPageLoadProgress?.call(_pages.length, _pages.length, data);
     if (emitCompletionOnProgressive) {
@@ -775,6 +832,8 @@ class _TestDocument extends PdfDocument {
         pageNumbersToReload ?? [for (var pageNumber = 1; pageNumber <= _pages.length; pageNumber++) pageNumber];
     _loadPages(pageNumbers);
   }
+
+  void loadPagesForTest(List<int> pageNumbers) => _loadPages(pageNumbers);
 
   void _loadPages(List<int> pageNumbers) {
     final changes = <int, PdfPageStatusChange>{};
@@ -820,8 +879,13 @@ class _TestFontManager extends PdfFontManager {
 }
 
 class _TestPage implements PdfPage {
-  _TestPage(this.document, this.pageNumber, {required this.isLoaded, _TestPageRenderControl? renderControl})
-    : renderControl = renderControl ?? _TestPageRenderControl();
+  _TestPage(
+    this.document,
+    this.pageNumber, {
+    required this.isLoaded,
+    this.height = 800,
+    _TestPageRenderControl? renderControl,
+  }) : renderControl = renderControl ?? _TestPageRenderControl();
 
   @override
   final PdfDocument document;
@@ -838,7 +902,7 @@ class _TestPage implements PdfPage {
   double get width => 600;
 
   @override
-  double get height => 800;
+  final double height;
 
   @override
   PdfPageRotation get rotation => PdfPageRotation.none;

@@ -977,6 +977,21 @@ class _PdfViewerState extends State<PdfViewer>
 
         callOnViewerSizeChanged();
       });
+    } else if (isLayoutChanged && !isViewSizeChanged) {
+      // Page sizes changed under the viewer (e.g. progressive loading measured pages above the current one). Re-anchor
+      // within this frame: deferring it to a microtask paints one frame of the old matrix over the new layout, and the
+      // displayed page visibly jumps and snaps back.
+      _txController.runWithDeferredNotifications(() {
+        _sizeDelegate?.onLayoutUpdate(
+          oldState: oldSnapshot,
+          newState: newSnapshot,
+          currentZoom: _currentZoom,
+          oldVisibleRect: oldVisibleRect,
+          anchorPageNumber: currentPageNumber,
+          isLayoutChanged: true,
+          isViewSizeChanged: false,
+        );
+      });
     } else if (isLayoutChanged || isViewSizeChanged) {
       Future.microtask(() {
         if (!mounted) {
@@ -4326,6 +4341,34 @@ class _PdfViewerTransformationController extends TransformationController {
 
   void setValueWithoutNormalization(Matrix4 newValue) {
     super.value = newValue;
+  }
+
+  bool _deferNotifications = false;
+  bool _hasDeferredNotification = false;
+
+  @override
+  void notifyListeners() {
+    if (_deferNotifications) {
+      _hasDeferredNotification = true;
+      return;
+    }
+    super.notifyListeners();
+  }
+
+  /// Runs [action] during layout: matrix changes take effect in the frame being built, and listeners (which may call
+  /// `setState` on ancestors) are notified afterwards, outside the build phase.
+  void runWithDeferredNotifications(VoidCallback action) {
+    _deferNotifications = true;
+    try {
+      action();
+    } finally {
+      _deferNotifications = false;
+    }
+    if (!_hasDeferredNotification) return;
+    _hasDeferredNotification = false;
+    Future.microtask(() {
+      if (_state.mounted) notifyListeners();
+    });
   }
 }
 
