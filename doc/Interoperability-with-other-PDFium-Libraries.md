@@ -49,6 +49,8 @@ These functions internally call the PDFium's `FPDF_InitLibraryWithConfig()` to p
 - The initialization happens at the right time
 - The PDFium instance can be shared across multiple libraries
 
+**Multiple Flutter engines** (`desktop_multi_window`) are a different problem: each engine has its own Dart isolate family, so isolate-local initialization tracking is not enough. Set `processWidePdfiumGate: true` on every engine before `pdfrxFlutterInitialize`. See [pdfrx Initialization](pdfrx-Initialization.md#multiple-flutter-engines).
+
 **Important**: pdfrx configures PDFium with `FPDF_InitLibraryWithConfig()`, so prefer `pdfrxFlutterInitialize()` or `pdfrxInitialize()` over direct `FPDF_InitLibrary()` or `FPDF_InitLibraryWithConfig()` calls unless your application owns the full PDFium lifecycle.
 
 ### Suspending PDFium Worker

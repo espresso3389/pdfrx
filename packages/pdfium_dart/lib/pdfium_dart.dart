@@ -7,3 +7,4 @@ library pdfium_dart;
 
 export 'src/pdfium_bindings.dart';
 export 'src/pdfium_loader.dart';
+export 'src/pdfrx_pdfium_gate.dart';

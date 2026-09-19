@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
+import 'package:pdfium_dart/pdfium_dart.dart' show PdfiumProcessGate;
 import 'package:synchronized/extension.dart';
 
 import '../pdfrx.dart';
@@ -43,13 +44,18 @@ class BackgroundWorker {
       _isolate = await Isolate.spawn(_workerEntry, receivePort.sendPort, debugName: debugName);
       _sendPort = await receivePort.first as SendPort;
 
-      // propagate the pdfium module path to the worker
+      // Propagate process configuration to the worker isolate.
       await _compute(
         (params) {
           Pdfrx.pdfiumModulePath = params.modulePath;
           Pdfrx.pdfiumNativeBindings = params.bindings;
+          Pdfrx.useProcessWidePdfiumGate = params.useGate;
         },
-        (modulePath: Pdfrx.pdfiumModulePath, bindings: Pdfrx.pdfiumNativeBindings),
+        (
+          modulePath: Pdfrx.pdfiumModulePath,
+          bindings: Pdfrx.pdfiumNativeBindings,
+          useGate: Pdfrx.useProcessWidePdfiumGate,
+        ),
         BackgroundWorkerPriority.normal,
       );
     });
@@ -167,9 +173,14 @@ class BackgroundWorker {
   /// to its first `await`.
   static Future<T> suspendDuringAction<T>(FutureOr<T> Function() action) async {
     await _instance._sendComputeParams((sendPort) => _SuspendRequest._(sendPort));
+    // Hold the process lock so other engines cannot enter PDFium while
+    // [action] uses native handles on this isolate. Do not call [compute]
+    // from [action]: that worker would wait for this lock.
+    if (Pdfrx.useProcessWidePdfiumGate) PdfiumProcessGate.acquire();
     try {
       return await action();
     } finally {
+      if (Pdfrx.useProcessWidePdfiumGate) PdfiumProcessGate.release();
       await _instance._sendComputeParams((sendPort) => _ResumeRequest._(sendPort));
     }
   }
@@ -277,18 +288,39 @@ class _ExecuteParams<M, R> extends _ComputeParams {
   final M message;
 
   // A pending Future is not a sendable isolate message on its own (SendPort.send throws
-  // "object is unsendable" for it), so a callback returning FutureOr<R> only worked by
-  // accident for callbacks that happened to complete synchronously. Awaiting the result
-  // here, and always sending a plain, sendable wrapper (value or stringified error),
-  // makes genuinely asynchronous callbacks (and synchronous throws) work correctly too.
+  // "object is unsendable" for it), so always send a plain, sendable wrapper
+  // (value or stringified error). PDFium work runs synchronously while the
+  // process gate is held; genuinely asynchronous callbacks continue unlocked.
   @override
   void execute() {
-    Future<R> asFuture() async => callback(message);
-    asFuture().then(
-      (value) => sendPort.send(_ComputeResult<R>(value)),
-      onError: (Object error, StackTrace stackTrace) =>
-          sendPort.send(_ComputeError(error.toString(), stackTrace.toString())),
-    );
+    var locked = false;
+    try {
+      // Hold the process lock only around the synchronous invocation. A blocking
+      // native mutex across `await` would deadlock this isolate if another
+      // compute was drained before the Future completed (BackgroundWorker allows
+      // overlapping async callbacks). PDFium FFI in pdfrx is synchronous; async
+      // callbacks must not call PDFium after their first await when the gate is on.
+      if (Pdfrx.useProcessWidePdfiumGate) {
+        PdfiumProcessGate.acquire();
+        locked = true;
+      }
+      final result = callback(message);
+      if (result is Future<R>) {
+        if (locked) PdfiumProcessGate.release();
+        locked = false;
+        result.then(
+          (value) => sendPort.send(_ComputeResult<R>(value)),
+          onError: (Object error, StackTrace stackTrace) =>
+              sendPort.send(_ComputeError(error.toString(), stackTrace.toString())),
+        );
+        return;
+      }
+      sendPort.send(_ComputeResult<R>(result));
+    } catch (error, stackTrace) {
+      sendPort.send(_ComputeError(error.toString(), stackTrace.toString()));
+    } finally {
+      if (locked) PdfiumProcessGate.release();
+    }
   }
 }
 
