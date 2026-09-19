@@ -23,6 +23,38 @@ Basically, these initialization functions do the following things:
 - Configure the PDFium module path from `PDFIUM_PATH` when explicitly provided
 - Call [PdfrxEntryFunctions.init](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/init.html) to initialize the PDFium library (internally calls `FPDF_InitLibraryWithConfig`)
 
+## Multiple Flutter engines
+
+Apps that use [`desktop_multi_window`](https://pub.dev/packages/desktop_multi_window) (or any host that runs several Flutter engines in one OS process) must opt into a process-wide PDFium gate. PDFium is a single native library in the process, but each engine has its own Dart isolates and pdfrx worker. Without the gate, a second engine re-inits PDFium, installs isolate-local font callbacks, or calls `FPDF_DestroyLibrary` while the first engine still needs it.
+
+Set the flag on **every** engine **before** initialization:
+
+```dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await pdfrxFlutterInitialize(processWidePdfiumGate: true);
+  runApp(MyApp());
+}
+```
+
+Or equivalently:
+
+```dart
+Pdfrx.useProcessWidePdfiumGate = true;
+await pdfrxFlutterInitialize();
+```
+
+Default is off. Single-engine apps (mobile, typical desktop, Linux without multi-window) are unchanged.
+
+When the gate is on:
+
+- `FPDF_InitLibrary` runs once per process; later engines do not init again
+- `FPDF_DestroyLibrary` is not called when one engine stops its worker
+- PDFium calls are serialized behind a native mutex in the `pdfrx_pdfium_gate` library bundled by `pdfium_dart` (not a named OS mutex, and not host-exe exports)
+- The Dart font mapper is skipped (`NativeCallable.isolateLocal` cannot be installed into process-global PDFium from more than one engine). PDFium's built-in mapper is used instead
+
+The mutex is not thread-owner-affine: Dart may resume an `await` on another OS thread. It serializes access; it does not make PDFium parallel.
+
 ## Cache Directory
 
 The mechanism to set [Pdfrx.cacheDirectoryPath](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pdfrx/cacheDirectoryPath.html) is different between pure Dart apps and Flutter apps:

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:pdfium_dart/pdfium_dart.dart';
 import 'package:test/test.dart';
@@ -31,6 +32,29 @@ void main() {
           ),
         ),
       ),
+    );
+  });
+
+  test('process-wide PDFium gate is shared across isolates', () async {
+    expect(PdfiumProcessGate.isNativeAvailable, isTrue);
+    PdfiumProcessGate.enable();
+    PdfiumProcessGate.acquire();
+    try {
+      expect(PdfiumProcessGate.claimInit(), isTrue);
+    } finally {
+      PdfiumProcessGate.release();
+    }
+
+    expect(
+      await Isolate.run(() {
+        PdfiumProcessGate.acquire();
+        try {
+          return PdfiumProcessGate.claimInit();
+        } finally {
+          PdfiumProcessGate.release();
+        }
+      }),
+      isFalse,
     );
   });
 }
