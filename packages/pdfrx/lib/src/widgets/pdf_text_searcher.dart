@@ -110,6 +110,18 @@ class PdfTextSearcher extends Listenable {
   /// Reset the current search.
   void resetTextSearch() => _resetTextSearch();
 
+  /// Stop a running search and keep the matches found so far.
+  ///
+  /// Unlike [resetTextSearch], [matches] and the current match stay; re-issuing the same pattern with
+  /// [startTextSearch] then searches the whole document again.
+  void stopTextSearch() {
+    if (!_isSearching && _searchTextTimer?.isActive != true) return;
+    _cancelTextSearch();
+    _isSearching = false;
+    _lastSearchCondition = null;
+    notifyListeners();
+  }
+
   /// Almost identical to [resetTextSearch], but does not notify listeners.
   void dispose() {
     _documentEventSubscription?.cancel();
