@@ -3933,12 +3933,21 @@ class _PdfViewerState extends State<PdfViewer>
     if (a == null || b == null) {
       return [];
     }
-    final firstPage = min(a.text.pageNumber, b.text.pageNumber);
-    final lastPage = max(a.text.pageNumber, b.text.pageNumber);
-    for (var i = firstPage + 1; i < lastPage; i++) {
-      await _loadTextAsync(i);
+    final first = a.text.pageNumber < b.text.pageNumber ? a : b;
+    final second = a.text.pageNumber < b.text.pageNumber ? b : a;
+    if (first.text.pageNumber == second.text.pageNumber) {
+      return [a.text.getRangeFromAB(a.index, b.index)];
     }
-    return _selectedTextRangesIfLoaded() ?? [];
+    final selections = <PdfPageTextRange>[a.text.getRangeFromAB(a.index, a.text.charRects.length - 1)];
+
+    for (var i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
+      final text = await _loadTextAsync(i);
+      if (text == null || text.fullText.isEmpty) continue;
+      selections.add(text.getRangeFromAB(0, text.charRects.length - 1));
+    }
+
+    selections.add(second.text.getRangeFromAB(0, b.index));
+    return selections;
   }
 
   /// The selected ranges from the text cache, or null if the text of a page between the ends is not cached.
