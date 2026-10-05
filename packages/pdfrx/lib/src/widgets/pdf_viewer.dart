@@ -1670,6 +1670,7 @@ class _PdfViewerState extends State<PdfViewer>
     // whether measurement is following the viewport or running away from it.
     int? firstInExtent, lastInExtent;
     final dropShadowPaint = widget.params.pageDropShadow?.toPaint()?..style = PaintingStyle.fill;
+    final pageImageColorFilter = widget.params.pageImageColorFilter;
     cacheTargetRect ??= targetRect;
 
     for (var i = 0; i < _document!.pages.length; i++) {
@@ -1736,14 +1737,17 @@ class _PdfViewerState extends State<PdfViewer>
           previewImage.image,
           Rect.fromLTWH(0, 0, previewImage.image.width.toDouble(), previewImage.image.height.toDouble()),
           rect,
-          Paint()..filterQuality = filterQuality,
+          Paint()
+            ..filterQuality = filterQuality
+            ..colorFilter = pageImageColorFilter,
         );
       } else {
         canvas.drawRect(
           rect,
           Paint()
             ..color = Colors.white
-            ..style = PaintingStyle.fill,
+            ..style = PaintingStyle.fill
+            ..colorFilter = pageImageColorFilter,
         );
       }
 
@@ -1765,7 +1769,7 @@ class _PdfViewerState extends State<PdfViewer>
       }
 
       if ((!enableLowResolutionPagePreview || pageScale > previewScaleLimit) && partial != null) {
-        partial.draw(canvas, filterQuality);
+        partial.draw(canvas, filterQuality, pageImageColorFilter);
       }
 
       // Guarded on the selection flag. Without this, paint loads structured text
@@ -4296,12 +4300,14 @@ class _PdfImageWithScaleAndRect extends _PdfImageWithScale {
   int get bottom => top + height;
   int get right => left + width;
 
-  void draw(Canvas canvas, [FilterQuality filterQuality = FilterQuality.low]) {
+  void draw(Canvas canvas, [FilterQuality filterQuality = FilterQuality.low, ColorFilter? colorFilter]) {
     canvas.drawImageRect(
       image,
       Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
       rect,
-      Paint()..filterQuality = filterQuality,
+      Paint()
+        ..filterQuality = filterQuality
+        ..colorFilter = colorFilter,
     );
   }
 
@@ -5425,6 +5431,7 @@ class _CanvasLinkPainter {
   _CanvasLinkPainter(this._state);
   final _PdfViewerState _state;
   MouseCursor _cursor = MouseCursor.defer;
+  PdfLink? _hoveredLink;
   final _links = <int, List<PdfLink>>{};
 
   bool get isEnabled => _state.widget.params.linkHandlerParams != null;
@@ -5440,11 +5447,22 @@ class _CanvasLinkPainter {
   /// Reset all the internal data.
   void resetAll() {
     _cursor = MouseCursor.defer;
+    _hoveredLink = null;
     _links.clear();
   }
 
   void resetCursor([VoidCallback? onCursorChanged]) {
+    _setHoveredLink(null);
     _setCursor(MouseCursor.defer, onCursorChanged);
+  }
+
+  /// Repaints only when a hover color is set; otherwise the hovered link looks like any other.
+  void _setHoveredLink(PdfLink? link) {
+    if (identical(link, _hoveredLink)) return;
+    _hoveredLink = link;
+    if (_state.widget.params.linkHandlerParams?.linkHoverColor != null) {
+      _state._invalidate();
+    }
   }
 
   /// Release the page data.
@@ -5505,6 +5523,7 @@ class _CanvasLinkPainter {
       return;
     }
     final link = _findLinkAtPosition(position);
+    _setHoveredLink(link);
     _setCursor(link == null ? MouseCursor.defer : SystemMouseCursors.click, onCursorChanged);
   }
 
@@ -5551,10 +5570,15 @@ class _CanvasLinkPainter {
       return;
     }
 
-    final paint = Paint()
-      ..color = _state.widget.params.linkHandlerParams?.linkColor ?? Colors.blue.withAlpha(50)
-      ..style = PaintingStyle.fill;
+    final params = _state.widget.params.linkHandlerParams;
+    final linkColor = params?.linkColor ?? Colors.blue.withAlpha(50);
+    final hoverColor = params?.linkHoverColor ?? linkColor;
     for (final link in links) {
+      final color = identical(link, _hoveredLink) ? hoverColor : linkColor;
+      if (color.a == 0) continue;
+      final paint = Paint()
+        ..color = color
+        ..style = PaintingStyle.fill;
       for (final rect in link.rects) {
         final rectLink = rect.toRectInDocument(page: page, pageRect: pageRect);
         canvas.drawRect(rectLink, paint);

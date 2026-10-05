@@ -52,6 +52,7 @@ class PdfViewerParams {
     this.matchTextColor,
     this.activeMatchTextColor,
     this.pageDropShadow = const BoxShadow(color: Colors.black54, blurRadius: 4, spreadRadius: 2, offset: Offset(2, 2)),
+    this.pageImageColorFilter,
     this.panEnabled = true,
     this.scaleEnabled = true,
     this.onInteractionEnd,
@@ -291,6 +292,13 @@ class PdfViewerParams {
   /// If you need to remove the shadow, set this to null.
   /// To customize more of the shadow, you can use [pageBackgroundPaintCallbacks] to paint the shadow manually.
   final BoxShadow? pageDropShadow;
+
+  /// Color filter applied when drawing the page contents (rendered images and the blank placeholder).
+  ///
+  /// Use it to recolor pages -- e.g. invert them for a dark theme -- without wrapping the whole viewer in a
+  /// [ColorFiltered], which composites an extra full-viewport layer on every frame and also recolors the overlays.
+  /// Selection, link and match highlights, and [pagePaintCallbacks] are drawn unfiltered.
+  final ColorFilter? pageImageColorFilter;
 
   /// See [InteractiveViewer.panEnabled] for details.
   final bool panEnabled;
@@ -784,6 +792,7 @@ class PdfViewerParams {
         other.matchTextColor == matchTextColor &&
         other.activeMatchTextColor == activeMatchTextColor &&
         other.pageDropShadow == pageDropShadow &&
+        other.pageImageColorFilter == pageImageColorFilter &&
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
         other.onInteractionEnd == onInteractionEnd &&
@@ -855,6 +864,7 @@ class PdfViewerParams {
         matchTextColor.hashCode ^
         activeMatchTextColor.hashCode ^
         pageDropShadow.hashCode ^
+        pageImageColorFilter.hashCode ^
         panEnabled.hashCode ^
         scaleEnabled.hashCode ^
         onInteractionEnd.hashCode ^
@@ -1693,6 +1703,7 @@ class PdfLinkHandlerParams {
   const PdfLinkHandlerParams({
     required this.onLinkTap,
     this.linkColor,
+    this.linkHoverColor,
     this.customPainter,
     this.enableAutoLinkDetection = true,
     this.laidOverPageOverlays = true,
@@ -1707,6 +1718,11 @@ class PdfLinkHandlerParams {
   ///
   /// To fully customize the link appearance, use [customPainter].
   final Color? linkColor;
+
+  /// Color for the link under the mouse cursor. If null, the hovered link is painted with [linkColor].
+  ///
+  /// Ignored when [customPainter] is set.
+  final Color? linkHoverColor;
 
   /// Custom link painter for the page.
   ///
@@ -1744,6 +1760,7 @@ class PdfLinkHandlerParams {
 
     return other.onLinkTap == onLinkTap &&
         other.linkColor == linkColor &&
+        other.linkHoverColor == linkHoverColor &&
         other.customPainter == customPainter &&
         other.enableAutoLinkDetection == enableAutoLinkDetection &&
         other.laidOverPageOverlays == laidOverPageOverlays;
@@ -1753,6 +1770,7 @@ class PdfLinkHandlerParams {
   int get hashCode {
     return onLinkTap.hashCode ^
         linkColor.hashCode ^
+        linkHoverColor.hashCode ^
         customPainter.hashCode ^
         enableAutoLinkDetection.hashCode ^
         laidOverPageOverlays.hashCode;
