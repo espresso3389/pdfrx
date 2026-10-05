@@ -3933,6 +3933,21 @@ class _PdfViewerState extends State<PdfViewer>
     if (a == null || b == null) {
       return [];
     }
+    final firstPage = min(a.text.pageNumber, b.text.pageNumber);
+    final lastPage = max(a.text.pageNumber, b.text.pageNumber);
+    for (var i = firstPage + 1; i < lastPage; i++) {
+      await _loadTextAsync(i);
+    }
+    return _selectedTextRangesIfLoaded() ?? [];
+  }
+
+  /// The selected ranges from the text cache, or null if the text of a page between the ends is not cached.
+  List<PdfPageTextRange>? _selectedTextRangesIfLoaded() {
+    final a = _selA;
+    final b = _selB;
+    if (a == null || b == null) {
+      return [];
+    }
     final first = a.text.pageNumber < b.text.pageNumber ? a : b;
     final second = a.text.pageNumber < b.text.pageNumber ? b : a;
     if (first.text.pageNumber == second.text.pageNumber) {
@@ -3941,7 +3956,8 @@ class _PdfViewerState extends State<PdfViewer>
     final selections = <PdfPageTextRange>[a.text.getRangeFromAB(a.index, a.text.charRects.length - 1)];
 
     for (var i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
-      final text = await _loadTextAsync(i);
+      if (!_textCache.containsKey(i)) return null;
+      final text = _textCache[i];
       if (text == null || text.fullText.isEmpty) continue;
       selections.add(text.getRangeFromAB(0, text.charRects.length - 1));
     }
@@ -3951,11 +3967,15 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   @override
-  Future<String> getSelectedText() async {
-    final selections = await getSelectedTextRanges();
-    if (selections.isEmpty) return '';
-    return selections.map((e) => e.text).join();
+  Future<String> getSelectedText() async => _joinSelectedText(await getSelectedTextRanges());
+
+  @override
+  String? get selectedTextIfLoaded {
+    final selections = _selectedTextRangesIfLoaded();
+    return selections == null ? null : _joinSelectedText(selections);
   }
+
+  static String _joinSelectedText(List<PdfPageTextRange> selections) => selections.map((e) => e.text).join();
 
   @override
   bool get isTextSelectionEnabled => widget.params.textSelectionParams?.enabled ?? true;

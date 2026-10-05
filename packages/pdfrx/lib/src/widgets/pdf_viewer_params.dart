@@ -1172,6 +1172,13 @@ abstract class PdfTextSelection {
   /// but you have to ensure that your use of the text does not violate [isCopyAllowed] condition.
   Future<String> getSelectedText();
 
+  /// Get the selected text without waiting, or null if the text of a page the selection spans has not been loaded
+  /// yet; [getSelectedText] loads it.
+  ///
+  /// Although the use of this property is not restricted by [isCopyAllowed]
+  /// but you have to ensure that your use of the text does not violate [isCopyAllowed] condition.
+  String? get selectedTextIfLoaded;
+
   /// Get the selected text ranges.
   ///
   /// Although the use of this property is not restricted by [isCopyAllowed]

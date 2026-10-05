@@ -108,6 +108,22 @@ void selectionDragTests({bool useFlutterInitialization = false}) {
     expect(controller.value, stopped);
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets('selectedTextIfLoaded returns the cached selection without waiting', (tester) async {
+    final (controller, _, texts) = await _setup(tester);
+    final delegate = controller.textSelectionDelegate;
+    expect(delegate.selectedTextIfLoaded, texts[0].fullText.substring(0, 5));
+
+    // Spans a whole page in between, whose text _setup has loaded.
+    await delegate.setTextSelectionPointRange(
+      PdfTextSelectionRange.fromPoints(PdfTextSelectionPoint(texts[2], 4), PdfTextSelectionPoint(texts[0], 2)),
+    );
+    final text = delegate.selectedTextIfLoaded;
+    expect(text, contains(texts[1].fullText));
+    expect(text, startsWith(texts[0].fullText.substring(2, 10)));
+    expect(text, (await tester.runAsync(delegate.getSelectedText))!);
+    await tester.pumpWidget(const SizedBox());
+  });
 }
 
 GestureDetector _handle(WidgetTester tester) => tester.widget<GestureDetector>(
