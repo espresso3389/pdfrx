@@ -21,6 +21,7 @@ import '../pdf_document.dart';
 import '../pdf_document_event.dart';
 import '../pdf_exception.dart';
 import '../pdf_font_query.dart';
+import '../pdf_hebrew_text_normalizer.dart';
 import '../pdf_image.dart';
 import '../pdf_link.dart';
 import '../pdf_outline_node.dart';
@@ -1854,34 +1855,45 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
   @override
   Future<PdfPageRawText?> loadText() async {
     if (document.isDisposed || !isLoaded) return null;
-    return await BackgroundWorker.computeWithArena((arena, params) {
-      final doubleSize = sizeOf<Double>();
-      final rectBuffer = arena<Double>(4);
-      final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
-      final page = pdfium.FPDF_LoadPage(doc, params.pageNumber - 1);
-      final textPage = pdfium.FPDFText_LoadPage(page);
-      try {
-        final charCount = pdfium.FPDFText_CountChars(textPage);
-        final sb = StringBuffer();
-        final charRects = <PdfRect>[];
-        for (var i = 0; i < charCount; i++) {
-          sb.writeCharCode(pdfium.FPDFText_GetUnicode(textPage, i));
-          pdfium.FPDFText_GetCharBox(
-            textPage,
-            i,
-            rectBuffer, // L
-            rectBuffer.offset(doubleSize * 2), // R
-            rectBuffer.offset(doubleSize * 3), // B
-            rectBuffer.offset(doubleSize), // T
-          );
-          charRects.add(_rectFromLTRBBuffer(rectBuffer, params.bbLeft, params.bbBottom));
+    return await BackgroundWorker.computeWithArena(
+      (arena, params) {
+        final doubleSize = sizeOf<Double>();
+        final rectBuffer = arena<Double>(4);
+        final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
+        final page = pdfium.FPDF_LoadPage(doc, params.pageNumber - 1);
+        final textPage = pdfium.FPDFText_LoadPage(page);
+        try {
+          final charCount = pdfium.FPDFText_CountChars(textPage);
+          final sb = StringBuffer();
+          final charRects = <PdfRect>[];
+          for (var i = 0; i < charCount; i++) {
+            sb.writeCharCode(pdfium.FPDFText_GetUnicode(textPage, i));
+            pdfium.FPDFText_GetCharBox(
+              textPage,
+              i,
+              rectBuffer, // L
+              rectBuffer.offset(doubleSize * 2), // R
+              rectBuffer.offset(doubleSize * 3), // B
+              rectBuffer.offset(doubleSize), // T
+            );
+            charRects.add(_rectFromLTRBBuffer(rectBuffer, params.bbLeft, params.bbBottom));
+          }
+          final raw = PdfPageRawText(sb.toString(), charRects);
+          // On the worker, so the reordering does not cost the UI isolate.
+          return params.normalizeHebrew ? PdfHebrewTextNormalizer.normalize(raw) : raw;
+        } finally {
+          pdfium.FPDFText_ClosePage(textPage);
+          pdfium.FPDF_ClosePage(page);
         }
-        return PdfPageRawText(sb.toString(), charRects);
-      } finally {
-        pdfium.FPDFText_ClosePage(textPage);
-        pdfium.FPDF_ClosePage(page);
-      }
-    }, (docHandle: document.document.address, pageNumber: pageNumber, bbLeft: bbLeft, bbBottom: bbBottom));
+      },
+      (
+        docHandle: document.document.address,
+        pageNumber: pageNumber,
+        bbLeft: bbLeft,
+        bbBottom: bbBottom,
+        normalizeHebrew: Pdfrx.normalizeHebrewText,
+      ),
+    );
   }
 
   @override
