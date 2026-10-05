@@ -108,14 +108,82 @@ void selectionDragTests({bool useFlutterInitialization = false}) {
     expect(controller.value, stopped);
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets('selectedTextIfLoaded returns the cached selection without waiting', (tester) async {
+    final (controller, _, texts) = await _setup(tester);
+    final delegate = controller.textSelectionDelegate;
+    expect(delegate.selectedTextIfLoaded, texts[0].fullText.substring(0, 5));
+
+    // Spans a whole page in between, whose text _setup has loaded.
+    await delegate.setTextSelectionPointRange(
+      PdfTextSelectionRange.fromPoints(PdfTextSelectionPoint(texts[2], 4), PdfTextSelectionPoint(texts[0], 2)),
+    );
+    final text = delegate.selectedTextIfLoaded;
+    expect(text, contains(texts[1].fullText));
+    expect(text, startsWith(texts[0].fullText.substring(2, 10)));
+    expect(text, (await tester.runAsync(delegate.getSelectedText))!);
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets('selectedTextIfLoaded reports an unloaded intermediate page and then the complete selection', (
+    tester,
+  ) async {
+    final (controller, _, texts) = await _setup(tester, pageCount: 30);
+    final delegate = controller.textSelectionDelegate;
+    await delegate.setTextSelectionPointRange(
+      PdfTextSelectionRange.fromPoints(PdfTextSelectionPoint(texts.first, 2), PdfTextSelectionPoint(texts.last, 4)),
+    );
+    expect(delegate.selectedTextIfLoaded, isNull);
+    final text = (await tester.runAsync(delegate.getSelectedText))!;
+    expect(text, _selectedText(texts));
+    expect(delegate.selectedTextIfLoaded, text);
+    await delegate.clearTextSelection();
+    expect(delegate.selectedTextIfLoaded, '');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  for (final clearSelection in [true, false]) {
+    testWidgets(
+      'pending text extraction preserves its selection when it is ${clearSelection ? 'cleared' : 'replaced'}',
+      (tester) async {
+        final (controller, _, texts) = await _setup(tester, pageCount: 30);
+        final delegate = controller.textSelectionDelegate;
+        await delegate.setTextSelectionPointRange(
+          PdfTextSelectionRange.fromPoints(PdfTextSelectionPoint(texts.first, 2), PdfTextSelectionPoint(texts.last, 4)),
+        );
+        expect(delegate.selectedTextIfLoaded, isNull);
+        final text = await tester.runAsync(() async {
+          final pending = delegate.getSelectedText();
+          if (clearSelection) {
+            await delegate.clearTextSelection();
+          } else {
+            await delegate.setTextSelectionPointRange(
+              PdfTextSelectionRange.fromPoints(
+                PdfTextSelectionPoint(texts.first, 0),
+                PdfTextSelectionPoint(texts.first, 4),
+              ),
+            );
+          }
+          return pending;
+        });
+        expect(text, _selectedText(texts));
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
 }
 
 GestureDetector _handle(WidgetTester tester) => tester.widget<GestureDetector>(
   find.descendant(of: find.byKey(const Key('pdfrxAnchorBPositioned')), matching: find.byType(GestureDetector)).first,
 );
 
-Future<(PdfViewerController, PdfDocument, List<PdfPageText>)> _setup(WidgetTester tester, {bool handles = true}) async {
-  final document = (await tester.runAsync(() => PdfDocument.openData(_pdf(), useProgressiveLoading: false)))!;
+Future<(PdfViewerController, PdfDocument, List<PdfPageText>)> _setup(
+  WidgetTester tester, {
+  bool handles = true,
+  int pageCount = 3,
+}) async {
+  final document = (await tester.runAsync(
+    () => PdfDocument.openData(_pdf(pageCount: pageCount), useProgressiveLoading: false),
+  ))!;
   final texts = (await tester.runAsync(() => Future.wait(document.pages.map((p) => p.loadStructuredText()))))!;
   addTearDown(document.dispose);
   final controller = PdfViewerController();
@@ -166,14 +234,20 @@ Future<(PdfViewerController, PdfDocument, List<PdfPageText>)> _setup(WidgetTeste
   return (controller, document, texts);
 }
 
-// Three pages with a 30-point line spacing make coordinate errors observable.
-Uint8List _pdf() {
+String _selectedText(List<PdfPageText> texts) => [
+  texts.first.getRangeFromAB(2, texts.first.charRects.length - 1).text,
+  for (final text in texts.skip(1).take(texts.length - 2)) text.getRangeFromAB(0, text.charRects.length - 1).text,
+  texts.last.getRangeFromAB(0, 4).text,
+].join();
+
+// A 30-point line spacing makes coordinate errors observable.
+Uint8List _pdf({int pageCount = 3}) {
   final objects = <String>[
     '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R] /Count 3 >>',
+    '<< /Type /Pages /Kids [${List.generate(pageCount, (i) => '${4 + i * 2} 0 R').join(' ')}] /Count $pageCount >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>',
   ];
-  for (var page = 0; page < 3; page++) {
+  for (var page = 0; page < pageCount; page++) {
     final stream = StringBuffer('BT /F1 14 Tf 30 TL 60 540 Td ');
     for (var line = 0; line < 15; line++) {
       stream.write('(Page ${page + 1} line ${line + 1} selection testing) Tj T* ');
