@@ -691,6 +691,52 @@ void main() {
     expect(const PdfViewerParams().pageAnchor, PdfPageAnchor.top);
     expect(const PdfViewerParams().underflowAnchor, isNull);
   });
+
+  for (final (name, provider) in [
+    ('legacy', const PdfViewerSizeDelegateProviderLegacy(maxScale: 0.5)),
+    ('smart', const PdfViewerSizeDelegateProviderSmart(maxPagesVisible: 1, maxScale: 0.5)),
+  ]) {
+    testWidgets('fit scale above maxScale keeps scales consistent ($name)', (tester) async {
+      await binding.setSurfaceSize(Size(500, 1000));
+      addTearDown(() => binding.setSurfaceSize(null));
+      final controller = PdfViewerController();
+      final document = await tester.runAsync(
+        () async => PdfDocument.openData(
+          await testPdfFile.readAsBytes(),
+          sourceName: 'fit-above-max-$name.pdf',
+          useProgressiveLoading: false,
+        ),
+      );
+      addTearDown(() => document?.dispose());
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PdfViewer(
+            PdfDocumentRefDirect(document!),
+            controller: controller,
+            params: PdfViewerParams(
+              sizeDelegateProvider: provider,
+              behaviorControlParams: const PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
+            ),
+          ),
+        ),
+      );
+
+      for (var i = 0; i < 20 && (!controller.isReady || controller.alternativeFitScale == null); i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+      }
+
+      expect(tester.takeException(), isNull);
+      expect(controller.isReady, isTrue);
+      expect(controller.alternativeFitScale, greaterThan(controller.maxScale));
+      expect(controller.minScale, lessThanOrEqualTo(controller.maxScale));
+      expect(controller.currentZoom, lessThanOrEqualTo(controller.maxScale));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 100));
+    });
+  }
 }
 
 enum _TestDocumentEvent { loadComplete, missingFonts }
