@@ -191,7 +191,7 @@ class PdfViewerSizeDelegateLegacy implements PdfViewerSizeDelegate {
         : math.min(coverScale, alternativeFitScale);
 
     return PdfViewerLayoutMetrics(
-      minScale: effectiveMinScale,
+      minScale: math.min(effectiveMinScale, _maxScale),
       maxScale: _maxScale,
       coverScale: coverScale,
       alternativeFitScale: alternativeFitScale,
@@ -220,7 +220,7 @@ class PdfViewerSizeDelegateLegacy implements PdfViewerSizeDelegate {
     zoom ??= coverScale;
 
     // 2. Apply
-    unawaited(_controller!.setZoom(Offset.zero, zoom, duration: Duration.zero));
+    unawaited(_controller!.setZoom(Offset.zero, zoom.clamp(state.minScale, _maxScale), duration: Duration.zero));
   }
 
   @override

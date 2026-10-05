@@ -211,7 +211,7 @@ class PdfViewerSizeDelegateSmart implements PdfViewerSizeDelegate {
 
     // 3. The minimum scale is whichever is larger: the hard configuration or the physical fit.
     // This prevents zooming out further than the page size.
-    final effectiveMinScale = math.max(_minScale, allowedMinScale);
+    final effectiveMinScale = math.min(math.max(_minScale, allowedMinScale), _maxScale);
 
     return PdfViewerLayoutMetrics(
       minScale: effectiveMinScale,
