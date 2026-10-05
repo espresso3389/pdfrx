@@ -1661,6 +1661,7 @@ class _PdfViewerState extends State<PdfViewer>
     FilterQuality filterQuality = FilterQuality.high,
   }) {
     final unusedPageList = <int>[];
+    final previewRequests = <({PdfPage page, double scale, Rect rect})>[];
     final unmeasuredPageList = <int>[];
     // Pages inside the extent that are painting as a blank white rectangle
     // because no preview image has landed for them yet. This is the white-page
@@ -1749,7 +1750,7 @@ class _PdfViewerState extends State<PdfViewer>
 
       if (enableLowResolutionPagePreview &&
           (previewImage == null || previewImage.isDirty || previewImage.scale != previewScaleLimit)) {
-        _requestPagePreviewImageCached(cache, page, previewScaleLimit);
+        previewRequests.add((page: page, scale: previewScaleLimit, rect: rect));
       }
 
       final pageScale = page.width > 0 && page.height > 0
@@ -1797,20 +1798,28 @@ class _PdfViewerState extends State<PdfViewer>
           callback(canvas, rect, page);
         }
       }
+    }
 
-      if (unusedPageList.isNotEmpty) {
-        final currentPageNumber = _pageNumber;
-        if (currentPageNumber != null && currentPageNumber > 0) {
-          final currentPage = _document!.pages[currentPageNumber - 1];
-          cache.removeCacheImagesIfCacheBytesExceedsLimit(
-            unusedPageList,
-            maxImageCacheBytes,
-            currentPage,
-            dist: (pageNumber) =>
-                (_layout!.pageLayouts[pageNumber - 1].center - _layout!.pageLayouts[currentPage.pageNumber - 1].center)
-                    .distanceSquared,
-          );
-        }
+    // The preview lock serves requests in call order, and the loop above walks pages by index -- so the page above
+    // the viewport used to render before the one on screen. Ask for the visible pages first.
+    previewRequests.sort((a, b) => _distanceToRect(a.rect, targetRect).compareTo(_distanceToRect(b.rect, targetRect)));
+    for (final request in previewRequests) {
+      _requestPagePreviewImageCached(cache, request.page, request.scale);
+    }
+
+    // Once per paint, after the loop: inside it the list was still growing and the cache was trimmed once per page.
+    if (unusedPageList.isNotEmpty) {
+      final currentPageNumber = _pageNumber;
+      if (currentPageNumber != null && currentPageNumber > 0) {
+        final currentPage = _document!.pages[currentPageNumber - 1];
+        cache.removeCacheImagesIfCacheBytesExceedsLimit(
+          unusedPageList,
+          maxImageCacheBytes,
+          currentPage,
+          dist: (pageNumber) =>
+              (_layout!.pageLayouts[pageNumber - 1].center - _layout!.pageLayouts[currentPage.pageNumber - 1].center)
+                  .distanceSquared,
+        );
       }
     }
 
@@ -2023,6 +2032,13 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _invalidate() => _updateStream.add(_txController.value);
+
+  /// 0 for a rect that overlaps [target], otherwise the gap between them.
+  static double _distanceToRect(Rect rect, Rect target) {
+    final dx = max(0.0, max(target.left - rect.right, rect.left - target.right));
+    final dy = max(0.0, max(target.top - rect.bottom, rect.top - target.bottom));
+    return dx * dx + dy * dy;
+  }
 
   Future<void> _requestPagePreviewImageCached(_PdfPageImageCache cache, PdfPage page, double scale) async {
     final width = page.width * scale;
@@ -4232,6 +4248,9 @@ class _PdfPageImageCache {
         pageImages.values.fold(0, (sum, e) => sum + getBytesConsumed(e.image)) +
         pageImagesPartial.values.fold(0, (sum, e) => sum + getBytesConsumed(e.image));
     for (final key in pageNumbers) {
+      if (bytesConsumed <= acceptableBytes) {
+        break;
+      }
       final removed = pageImages.remove(key);
       if (removed != null) {
         bytesConsumed -= getBytesConsumed(removed.image);
@@ -4241,9 +4260,6 @@ class _PdfPageImageCache {
       if (removedPartial != null) {
         bytesConsumed -= getBytesConsumed(removedPartial.image);
         removedPartial.dispose();
-      }
-      if (bytesConsumed <= acceptableBytes) {
-        break;
       }
     }
   }

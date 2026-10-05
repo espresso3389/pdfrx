@@ -83,6 +83,13 @@ class PdfTextSearcher extends Listenable {
     bool goToFirstMatch = true,
     bool searchImmediately = false,
   }) {
+    // Re-issuing the running pattern must not cancel it: search() below would return early for an identical pattern,
+    // leaving the matches half collected and isSearching stuck. Only drop a pending search for another pattern.
+    final last = _lastSearchCondition;
+    if (last != null && last.caseInsensitive == caseInsensitive && _isIdenticalPattern(last.pattern, pattern)) {
+      _searchTextTimer?.cancel();
+      return;
+    }
     _cancelTextSearch();
     final searchSession = ++_searchSession;
 
@@ -118,7 +125,7 @@ class PdfTextSearcher extends Listenable {
     _resetTextSearch(notify: false);
   }
 
-  void _resetTextSearch({bool notify = true, bool clearSearchCondition = true}) {
+  void _resetTextSearch({bool notify = true}) {
     _cancelTextSearch();
     _matches = const [];
     _matchesPageStartIndices = const [];
@@ -126,9 +133,7 @@ class PdfTextSearcher extends Listenable {
     _currentIndex = null;
     _currentMatch = null;
     _isSearching = false;
-    if (clearSearchCondition) {
-      _lastSearchCondition = null;
-    }
+    _lastSearchCondition = null;
     if (notify) {
       notifyListeners();
     }
@@ -145,6 +150,9 @@ class PdfTextSearcher extends Listenable {
       final textMatchesPageStartIndex = <int>[];
       var first = true;
       _isSearching = true;
+      // The previous pattern's position does not index into the new matches.
+      _currentIndex = null;
+      _currentMatch = null;
       _totalPageCount = document.pages.length;
       for (final page in document.pages) {
         _searchingPageNumber = page.pageNumber;
@@ -188,13 +196,15 @@ class PdfTextSearcher extends Listenable {
   }
 
   void _restartSearch() {
-    _resetTextSearch(clearSearchCondition: false);
+    final condition = _lastSearchCondition;
+    // Clearing the condition lets startTextSearch run the same pattern again.
+    _resetTextSearch();
     _cachedText.clear();
-    if (_lastSearchCondition != null) {
+    if (condition != null) {
       startTextSearch(
-        _lastSearchCondition!.pattern,
-        caseInsensitive: _lastSearchCondition!.caseInsensitive,
-        goToFirstMatch: _lastSearchCondition!.goToFirstMatch,
+        condition.pattern,
+        caseInsensitive: condition.caseInsensitive,
+        goToFirstMatch: condition.goToFirstMatch,
       );
     }
   }
@@ -244,6 +254,7 @@ class PdfTextSearcher extends Listenable {
     );
     controller?.setCurrentPageNumber(match.pageNumber);
     controller?.invalidate();
+    notifyListeners();
   }
 
   /// Get the matches range for the given page number.
