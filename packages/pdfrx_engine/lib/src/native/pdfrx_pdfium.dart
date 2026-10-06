@@ -53,22 +53,34 @@ Future<void> _init() async {
   if (_initialized) return;
   await _initSync.synchronized(() async {
     if (_initialized) return;
+    if (Pdfrx.useProcessWidePdfiumGate) {
+      pdfium_bindings.PdfiumProcessGate.enable();
+    }
     await BackgroundWorker.compute((params) {
-      pdfium.FPDF_InitLibrary();
+      // First Flutter engine in the process owns FPDF_InitLibrary.
+      if (!Pdfrx.useProcessWidePdfiumGate || pdfium_bindings.PdfiumProcessGate.claimInit()) {
+        pdfium.FPDF_InitLibrary();
+      }
     }, null);
     // Set on this isolate, not inside the worker callback: top-level variables are per-isolate.
     _initialized = true;
   });
 
-  await _installFontMapper();
+  if (!Pdfrx.useProcessWidePdfiumGate) {
+    await _installFontMapper();
+  }
 }
 
 Future<void> _deinit() async {
-  await BackgroundWorker.compute((params) {
-    pdfium.FPDF_DestroyLibrary();
-    _fontMapper?.dispose();
-    _fontMapper = null;
-  }, {});
+  if (!Pdfrx.useProcessWidePdfiumGate) {
+    await BackgroundWorker.compute((params) {
+      pdfium.FPDF_DestroyLibrary();
+      _fontMapper?.dispose();
+      _fontMapper = null;
+    }, {});
+  }
+  // Never FPDF_DestroyLibrary when the process-wide gate is on: a pop-out
+  // engine dying must not tear down PDFium still used by the main window.
   await BackgroundWorker.stop();
   _initialized = false;
 }

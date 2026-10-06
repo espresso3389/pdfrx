@@ -19,7 +19,20 @@ bool _isInitialized = false;
 /// - Calls [PdfrxEntryFunctions.init] to initialize the PDFium library.
 ///
 /// For Flutter, you should call `pdfrxFlutterInitialize` instead of the function.
-Future<void> pdfrxInitialize({String? tmpPath, String? pdfiumRelease}) async {
+///
+/// Set [processWidePdfiumGate] on every Dart isolate / Flutter engine before
+/// initialization when multiple Flutter engines share one OS process
+/// (`desktop_multi_window`). See [Pdfrx.useProcessWidePdfiumGate].
+Future<void> pdfrxInitialize({
+  String? tmpPath,
+  String? pdfiumRelease,
+
+  /// See [Pdfrx.useProcessWidePdfiumGate].
+  bool processWidePdfiumGate = false,
+}) async {
+  if (processWidePdfiumGate) {
+    Pdfrx.useProcessWidePdfiumGate = true;
+  }
   if (_isInitialized) return;
 
   Pdfrx.loadAsset ??= (name) async {

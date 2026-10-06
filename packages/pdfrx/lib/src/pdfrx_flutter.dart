@@ -16,11 +16,20 @@ bool _isInitialized = false;
 /// - [Pdfrx.cacheDirectoryPath]: The path to the temporary directory for caching (For Web, it is not applicable).
 /// - Call [PdfrxEntryFunctions.init] to initialize the library.
 ///
+/// Set [processWidePdfiumGate] on **every** Flutter engine before initialization
+/// when using `desktop_multi_window`. See [Pdfrx.useProcessWidePdfiumGate].
+///
 /// For Dart (non-Flutter) programs, you should call [pdfrxInitialize] instead.
 Future<void> pdfrxFlutterInitialize({
   @Deprecated('WASM modules are now only included in web builds. This flag now does nothing.')
   bool dismissPdfiumWasmWarnings = false,
+
+  /// See [Pdfrx.useProcessWidePdfiumGate].
+  bool processWidePdfiumGate = false,
 }) async {
+  if (processWidePdfiumGate) {
+    Pdfrx.useProcessWidePdfiumGate = true;
+  }
   if (_isInitialized) return;
 
   WidgetsFlutterBinding.ensureInitialized();

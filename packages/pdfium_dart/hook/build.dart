@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:archive/archive_io.dart';
 import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
+import 'package:native_toolchain_c/native_toolchain_c.dart';
 
 import '../lib/src/proxy_http_client.dart';
 
@@ -12,6 +13,17 @@ const _assetName = 'libpdfium';
 void main(List<String> args) async {
   await build(args, (input, output) async {
     if (!input.config.buildCodeAssets) return;
+
+    // Process-wide PDFium gate: a tiny dylib whose statics are shared across
+    // Flutter engines in one OS process. Built on every platform, including iOS
+    // (where libpdfium itself comes from pdfium_flutter's XCFramework).
+    await CBuilder.library(
+      name: 'pdfrx_pdfium_gate',
+      packageName: input.packageName,
+      assetName: 'src/pdfrx_pdfium_gate.dart',
+      sources: ['src/pdfrx_pdfium_gate.c'],
+    ).run(input: input, output: output);
+
     if (input.config.code.targetOS == OS.iOS) return;
 
     final target = _PdfiumTarget.fromCodeConfig(input.config.code);

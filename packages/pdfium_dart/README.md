@@ -18,6 +18,7 @@ This package contains auto-generated FFI bindings for PDFium using [ffigen](http
 - Auto-generated FFI bindings using [ffigen](https://pub.dev/packages/ffigen)
 - Provides direct access to PDFium's C API
 - Downloads and bundles PDFium at build time using Dart native assets
+- Bundles a tiny `pdfrx_pdfium_gate` native library for process-wide PDFium serialization across Flutter engines
 - Includes [getPdfium()](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html) for resolving PDFium across Dart and Flutter runtimes
 - Supports Windows, Linux, Android, and macOS build hooks
 
