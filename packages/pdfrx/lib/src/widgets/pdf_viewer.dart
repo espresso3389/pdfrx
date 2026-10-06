@@ -416,7 +416,7 @@ class _PdfViewerState extends State<PdfViewer>
       oldWidget?.documentRef.resolveListenable().removeListener(_onDocumentChanged);
       final documentRef = widget.documentRef;
       await pdfrxFlutterInitialize();
-      if (!mounted || !identical(documentRef, widget.documentRef)) {
+      if (!mounted || documentRef.key != widget.documentRef.key) {
         return;
       }
       widget.documentRef.resolveListenable()
