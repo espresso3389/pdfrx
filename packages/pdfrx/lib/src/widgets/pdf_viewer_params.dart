@@ -54,6 +54,7 @@ class PdfViewerParams {
     this.pageDropShadow = const BoxShadow(color: Colors.black54, blurRadius: 4, spreadRadius: 2, offset: Offset(2, 2)),
     this.panEnabled = true,
     this.scaleEnabled = true,
+    this.scaleInertiaMaxExcursion,
     this.onInteractionEnd,
     this.onInteractionStart,
     this.onInteractionUpdate,
@@ -297,6 +298,20 @@ class PdfViewerParams {
 
   /// See [InteractiveViewer.scaleEnabled] for details.
   final bool scaleEnabled;
+
+  /// The maximum post-release scale inertia excursion.
+  ///
+  /// See `InteractiveViewer.scaleInertiaMaxExcursion` in `interactive_viewer.dart` for the full
+  /// contract.
+  ///
+  /// It applies to the scale gesture path, i.e. touchscreen multi-pointer pinches and trackpad
+  /// pan/zoom gestures, which reach `InteractiveViewer`'s `_onScaleEnd`. The live gesture mapping
+  /// is unchanged. Pointer-signal zoom (mouse wheel, Ctrl-wheel, pointer-scale events) does not use
+  /// that code and is unaffected.
+  ///
+  /// When null (the default), the post-release scale inertia is unbounded and the
+  /// existing behavior is preserved.
+  final double? scaleInertiaMaxExcursion;
 
   /// See [InteractiveViewer.onInteractionEnd] for details.
   final GestureScaleEndCallback? onInteractionEnd;
@@ -742,6 +757,7 @@ class PdfViewerParams {
         other.pageDropShadow != pageDropShadow ||
         other.panEnabled != panEnabled ||
         other.scaleEnabled != scaleEnabled ||
+        other.scaleInertiaMaxExcursion != scaleInertiaMaxExcursion ||
         other.interactionEndFrictionCoefficient != interactionEndFrictionCoefficient ||
         other.scrollByMouseWheel != scrollByMouseWheel ||
         other.scaleByPointerScale != scaleByPointerScale ||
@@ -786,6 +802,7 @@ class PdfViewerParams {
         other.pageDropShadow == pageDropShadow &&
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
+        other.scaleInertiaMaxExcursion == scaleInertiaMaxExcursion &&
         other.onInteractionEnd == onInteractionEnd &&
         other.onInteractionStart == onInteractionStart &&
         other.onInteractionUpdate == onInteractionUpdate &&
@@ -857,6 +874,7 @@ class PdfViewerParams {
         pageDropShadow.hashCode ^
         panEnabled.hashCode ^
         scaleEnabled.hashCode ^
+        scaleInertiaMaxExcursion.hashCode ^
         onInteractionEnd.hashCode ^
         onInteractionStart.hashCode ^
         onInteractionUpdate.hashCode ^
