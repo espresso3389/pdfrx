@@ -776,6 +776,7 @@ class _PdfViewerState extends State<PdfViewer>
                             onInteractionStart: _onInteractionStart,
                             onInteractionUpdate: widget.params.onInteractionUpdate,
                             interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
+                            scaleInertiaMaxExcursion: widget.params.scaleInertiaMaxExcursion,
                             onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
                             onPointerScale: _onPointerScale,
                             scrollPhysics: widget.params.scrollPhysics,
