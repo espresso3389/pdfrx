@@ -11,12 +11,22 @@ final tmpRoot = Directory('${Directory.current.path}/test/.tmp');
 ///
 /// Used to get a document with enough pages that progressive measurement takes a measurable amount of time, without
 /// shipping a large test asset. The page sizes vary slightly so that measured pages differ from the placeholders.
-Uint8List buildBlankPdf(int pageCount) {
-  final objects = <String>[
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [${List.generate(pageCount, (i) => '${i + 3} 0 R').join(' ')}] /Count $pageCount >>',
-    for (var i = 0; i < pageCount; i++) '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${200 + i % 7} ${300 + i % 5}] >>',
-  ];
+Uint8List buildBlankPdf(int pageCount) => _buildPdf([
+  '<< /Type /Catalog /Pages 2 0 R >>',
+  '<< /Type /Pages /Kids [${List.generate(pageCount, (i) => '${i + 3} 0 R').join(' ')}] /Count $pageCount >>',
+  for (var i = 0; i < pageCount; i++) '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${200 + i % 7} ${300 + i % 5}] >>',
+]);
+
+/// Builds a 3-page PDF whose second /Kids entry is not a page, so PDFium counts it but FPDF_LoadPage(1) fails.
+Uint8List buildPdfWithUnloadablePage() => _buildPdf([
+  '<< /Type /Catalog /Pages 2 0 R >>',
+  '<< /Type /Pages /Kids [3 0 R 5 0 R 4 0 R] /Count 3 >>',
+  '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 300] >>',
+  '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 210 310] /Rotate 90 >>',
+  '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+]);
+
+Uint8List _buildPdf(List<String> objects) {
   final buffer = StringBuffer('%PDF-1.4\n');
   final offsets = <int>[];
   for (var i = 0; i < objects.length; i++) {

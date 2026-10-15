@@ -882,4 +882,30 @@ void main() {
       expect(readSizes.isNotEmpty, true, reason: 'Should have read sizes recorded');
     });
   });
+
+  group('a page PDFium cannot load', () {
+    for (final progressive in [false, true]) {
+      test('keeps the document open with a placeholder-sized page (progressive: $progressive)', () async {
+        final doc = await PdfDocument.openData(buildPdfWithUnloadablePage(), useProgressiveLoading: progressive);
+        try {
+          if (progressive) await doc.loadPagesProgressively();
+          expect(doc.pages.map((p) => p.pageNumber), [1, 2, 3]);
+          expect(doc.pages.every((p) => p.isLoaded), isTrue);
+          final broken = doc.pages[1];
+          expect(broken.rotation, PdfPageRotation.none);
+          expect((broken.width, broken.height), (doc.pages[0].width, doc.pages[0].height));
+          expect(doc.pages[2].rotation, PdfPageRotation.clockwise90);
+          expect((await broken.loadText())?.fullText ?? '', isEmpty);
+          expect(await broken.loadLinks(), isEmpty);
+          expect(await broken.render(), isNull);
+
+          await doc.reloadPages(pageNumbersToReload: [2]);
+          expect(doc.pages[1].rotation, PdfPageRotation.none);
+          expect(doc.pages[1].width, greaterThan(0));
+        } finally {
+          doc.dispose();
+        }
+      });
+    }
+  });
 }
