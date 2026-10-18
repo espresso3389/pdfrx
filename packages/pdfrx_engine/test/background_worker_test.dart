@@ -1,3 +1,4 @@
+import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:pdfrx_engine/src/native/worker.dart';
 import 'package:test/test.dart';
 
@@ -116,6 +117,59 @@ void main() {
       expect(completionOrder, [for (var id = 1; id <= 12; id++) id, 999]);
     });
 
+    test('a low compute waits for normal and high computes queued after it', () async {
+      final completionOrder = <int>[];
+      Future<void> track(Future<int> f) => f.then(completionOrder.add);
+
+      await Future.wait([
+        // Keeps the worker busy while the others are queued.
+        track(BackgroundWorker.compute(busyWait, (id: 0, ms: 30))),
+        track(BackgroundWorker.compute(busyWait, (id: 1, ms: 1), priority: BackgroundWorkerPriority.low)),
+        track(BackgroundWorker.compute(busyWait, (id: 2, ms: 1), priority: BackgroundWorkerPriority.low)),
+        track(BackgroundWorker.compute(busyWait, (id: 3, ms: 1))),
+        track(BackgroundWorker.compute(busyWait, (id: 4, ms: 1), priority: BackgroundWorkerPriority.high)),
+      ]);
+
+      // Item 0 may not have started before the others arrived; the high one may then overtake it.
+      expect(completionOrder.where((id) => id != 0), [4, 3, 1, 2]);
+      expect(completionOrder.indexOf(0), lessThan(completionOrder.indexOf(3)));
+    });
+
+    test('a low compute never overtakes normal or high computes that were queued earlier', () async {
+      final completionOrder = <int>[];
+      Future<void> track(Future<int> f) => f.then(completionOrder.add);
+
+      await Future.wait([
+        track(BackgroundWorker.compute(busyWait, (id: 1, ms: 20), priority: BackgroundWorkerPriority.high)),
+        track(BackgroundWorker.compute(busyWait, (id: 2, ms: 10))),
+        track(BackgroundWorker.compute(busyWait, (id: 3, ms: 10), priority: BackgroundWorkerPriority.high)),
+        track(BackgroundWorker.compute(busyWait, (id: 999, ms: 1), priority: BackgroundWorkerPriority.low)),
+      ]);
+
+      expect(completionOrder.last, 999);
+    });
+
+    test('computes inside Pdfrx.runAsBackgroundWork default to low priority', () async {
+      final completionOrder = <int>[];
+      Future<void> track(Future<int> f) => f.then(completionOrder.add);
+
+      final background = Pdfrx.runAsBackgroundWork(
+        () => Future.wait([
+          // Explicit priorities still apply inside the zone.
+          track(BackgroundWorker.compute(busyWait, (id: 0, ms: 30), priority: BackgroundWorkerPriority.normal)),
+          track(BackgroundWorker.compute(busyWait, (id: 1, ms: 1))),
+          track(BackgroundWorker.computeWithArena((arena, message) => busyWait(message), (id: 2, ms: 1))),
+          track(BackgroundWorker.compute(busyWait, (id: 3, ms: 1), priority: BackgroundWorkerPriority.high)),
+        ]),
+      );
+      final outside = track(BackgroundWorker.compute(busyWait, (id: 4, ms: 1)));
+      await Future.wait([background, outside]);
+
+      // Item 0 may not have started before the others arrived; the high one may then overtake it.
+      expect(completionOrder.where((id) => id != 0), [3, 4, 1, 2]);
+      expect(completionOrder.indexOf(0), lessThan(completionOrder.indexOf(4)));
+    });
+
     test('computeWithArena accepts a priority', () async {
       final result = await BackgroundWorker.computeWithArena(
         (arena, message) => message * 2,
@@ -125,7 +179,7 @@ void main() {
       expect(result, 42);
     });
 
-    test('errors propagate for both priorities', () async {
+    test('errors propagate for every priority', () async {
       for (final priority in BackgroundWorkerPriority.values) {
         await expectLater(
           BackgroundWorker.compute(

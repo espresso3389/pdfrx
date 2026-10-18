@@ -14,14 +14,17 @@ typedef PdfrxComputeCallback<M, R> = FutureOr<R> Function(M message);
 ///
 /// All PDFium work in the process funnels through a single worker isolate, so a long run of background work
 /// (text extraction, outline parsing, document loading, ...) can delay latency-sensitive work such as rendering the
-/// pages currently on screen. The worker keeps one queue per priority and always picks a pending [high] item before
-/// any [normal] one; items of the same priority run in FIFO order.
+/// pages currently on screen. The worker keeps one queue per priority and always picks the pending item of the highest
+/// priority; items of the same priority run in FIFO order.
 enum BackgroundWorkerPriority {
   /// Latency-sensitive work (page rendering, on-demand measurement of visible pages).
   high,
 
-  /// Everything else. This is the default.
+  /// Everything else. This is the default outside [Pdfrx.runAsBackgroundWork].
   normal,
+
+  /// Background work that should wait for everything else; the default inside [Pdfrx.runAsBackgroundWork].
+  low,
 }
 
 /// Background worker based on Dart [Isolate].
@@ -153,12 +156,17 @@ class BackgroundWorker {
   /// You cannot access any variables from the outer scope, otherwise, it will throw an error.
   ///
   /// [priority] controls where the call is placed in the worker's queue; see [BackgroundWorkerPriority]. Calls of the
-  /// same priority run in FIFO order.
+  /// same priority run in FIFO order. When it is null, the call is [BackgroundWorkerPriority.low] inside
+  /// [Pdfrx.runAsBackgroundWork] and [BackgroundWorkerPriority.normal] elsewhere.
   static Future<R> compute<M, R>(
     PdfrxComputeCallback<M, R> callback,
     M message, {
-    BackgroundWorkerPriority priority = BackgroundWorkerPriority.normal,
-  }) async => await _instance._compute(callback, message, priority);
+    BackgroundWorkerPriority? priority,
+  }) async => await _instance._compute(callback, message, priority ?? _defaultPriority());
+
+  static BackgroundWorkerPriority _defaultPriority() => Zone.current[Pdfrx.backgroundWorkZoneKey] == true
+      ? BackgroundWorkerPriority.low
+      : BackgroundWorkerPriority.normal;
 
   /// Suspends the worker isolate during the execution of [action].
   ///
@@ -184,11 +192,11 @@ class BackgroundWorker {
   /// [Arena] is provided as the first argument to [callback] for temporary memory allocation; the memory block
   /// allocated using the [Arena] within the [callback] will be automatically released after the [callback] execution.
   ///
-  /// [priority] controls where the call is placed in the worker's queue; see [BackgroundWorkerPriority].
+  /// [priority] controls where the call is placed in the worker's queue; see [compute].
   static Future<R> computeWithArena<M, R>(
     R Function(Arena arena, M message) callback,
     M message, {
-    BackgroundWorkerPriority priority = BackgroundWorkerPriority.normal,
+    BackgroundWorkerPriority? priority,
   }) => compute((message) => using((arena) => callback(arena, message)), message, priority: priority);
 
   /// Stop the background worker isolate.
@@ -207,25 +215,23 @@ class BackgroundWorker {
 /// item per turn does not change the relative execution order of items of the same priority, so a worker that only
 /// ever receives normal-priority work behaves exactly like a plain FIFO.
 ///
-/// Ordering invariant: an item never runs before an item of equal-or-higher priority that was enqueued earlier. A
-/// high item may overtake earlier normal items; a normal item never overtakes an earlier high item. Callers rely on
-/// the second half: `PdfDocument.dispose()` marks the document disposed synchronously and then queues
-/// `FPDF_CloseDocument` at normal priority, so renders that passed the disposed check and are already queued as high
-/// items must run before the close does, or they would touch a freed `FPDF_DOCUMENT`. For that reason there is
-/// deliberately no starvation guard that lets normal work through while high work is pending.
+/// Ordering invariant: an item never runs before an item of equal-or-higher priority that was enqueued earlier. An
+/// item may overtake earlier items of lower priority, never earlier items of higher priority. There is deliberately no
+/// starvation guard that lets lower-priority work through while higher-priority work is pending. Ordering alone does
+/// not protect a document from being closed under queued work of lower priority, so `PdfDocument.dispose()` waits for
+/// the document's outstanding calls before it queues `FPDF_CloseDocument`.
 ///
 /// High work cannot starve normal work in practice: high priority is only used for rendering and measuring the pages
 /// that are currently visible, so a burst of it is bounded by the visible page set and background work simply waits
-/// for the burst to end, which is the intent.
+/// for the burst to end, which is the intent. Low work waits for all other work by design.
 class _WorkerScheduler {
-  final _high = Queue<_ComputeParams>();
-  final _normal = Queue<_ComputeParams>();
+  final _queues = [for (final _ in BackgroundWorkerPriority.values) Queue<_ComputeParams>()];
   var _drainScheduled = false;
 
-  bool get isEmpty => _high.isEmpty && _normal.isEmpty;
+  bool get isEmpty => _queues.every((queue) => queue.isEmpty);
 
   void enqueue(_ComputeParams params) {
-    (params.priority == BackgroundWorkerPriority.high ? _high : _normal).add(params);
+    _queues[params.priority.index].add(params);
     _scheduleDrain();
   }
 
@@ -259,8 +265,8 @@ class _WorkerScheduler {
     }
   }
 
-  /// Picks the next item to run: the oldest high-priority item if there is one, otherwise the oldest normal item.
-  _ComputeParams _next() => _high.isNotEmpty ? _high.removeFirst() : _normal.removeFirst();
+  /// Picks the next item to run: the oldest item of the highest priority that has one.
+  _ComputeParams _next() => _queues.firstWhere((queue) => queue.isNotEmpty).removeFirst();
 }
 
 class _ComputeParams {

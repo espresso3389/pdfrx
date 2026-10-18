@@ -542,6 +542,46 @@ void main() {
     );
     expect(document.pages.every((page) => page.isLoaded), isTrue);
   });
+  test('dispose waits for background work already queued for the document', () async {
+    const pageCount = 20;
+    final document = await PdfDocument.openData(buildBlankPdf(pageCount), sourceName: 'blank$pageCount.pdf');
+    // Keep the worker busy so that the text loads below are still queued when dispose() queues the close.
+    final busy = PdfrxEntryFunctions.instance.compute((ms) {
+      final sw = Stopwatch()..start();
+      while (sw.elapsedMilliseconds < ms) {}
+    }, 100);
+    final events = <String>[];
+    final texts = Pdfrx.runAsBackgroundWork(
+      () => Future.wait([
+        for (final page in document.pages) page.loadText().then((text) => events.add('text ${page.pageNumber}')),
+      ]),
+    );
+    await Future<void>.delayed(Duration.zero);
+    final disposing = document.dispose().then((_) => events.add('closed'));
+    await Future.wait([busy, texts, disposing]);
+
+    expect(events, hasLength(pageCount + 1));
+    expect(events.last, 'closed', reason: 'every text load queued before dispose() must run before the close');
+  });
+  test('dispose is not starved by background work for other documents', () async {
+    final document = await PdfDocument.openData(buildBlankPdf(1), sourceName: 'blank1.pdf');
+    var floodCompleted = false;
+    final flood = Pdfrx.runAsBackgroundWork(
+      () => Future.wait([
+        for (var i = 0; i < 40; i++)
+          PdfrxEntryFunctions.instance.compute((ms) {
+            final sw = Stopwatch()..start();
+            while (sw.elapsedMilliseconds < ms) {}
+          }, 20),
+      ]),
+    ).then((_) => floodCompleted = true);
+    await Future<void>.delayed(Duration.zero);
+
+    await document.dispose();
+
+    expect(floodCompleted, isFalse, reason: 'the close must not wait behind unrelated background work');
+    await flood;
+  });
   test('progressive loading publishes page status once per budget without duplicates', () async {
     // The default budget spans many ~20 ms worker chunks. Publishing per chunk instead of per budget would emit a
     // page status event (and relayout the viewer) roughly 40 times a second, so the event count must match the

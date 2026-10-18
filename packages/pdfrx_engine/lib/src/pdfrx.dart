@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:meta/meta.dart';
 
 /// Emits a [Pdfrx.debugLazyLoading] trace line.
 ///
@@ -76,4 +77,17 @@ class Pdfrx {
   static String? cacheDirectoryPath;
 
   static Map<String, int>? pdfiumNativeBindings;
+
+  /// Runs [action] with the PDFium work it starts scheduled as background work.
+  ///
+  /// The native PDFium backend runs all PDFium calls on one worker. Calls made inside [action] (opening documents,
+  /// loading text, outlines, links, ...) wait until no other work is pending, so a long background job such as
+  /// extracting the text of many documents does not delay viewers. Page renders keep their higher priority. Other
+  /// backends run [action] unchanged.
+  static Future<T> runAsBackgroundWork<T>(FutureOr<T> Function() action) =>
+      runZoned(() async => await action(), zoneValues: {backgroundWorkZoneKey: true});
+
+  /// The zone value set by [runAsBackgroundWork].
+  @internal
+  static const backgroundWorkZoneKey = #pdfrx.backgroundWork;
 }

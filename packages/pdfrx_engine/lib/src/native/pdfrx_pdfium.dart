@@ -1236,7 +1236,7 @@ class _PdfDocumentPdfium extends PdfDocument {
     int? maxPageCountToLoadAdditionally,
     Duration? timeout,
   }) async {
-    final results = await BackgroundWorker.computeWithArena(
+    final results = await _computeWithArena(
       (arena, params) {
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docAddress);
         final pageCount = pdfium.FPDF_GetPageCount(doc);
@@ -1329,7 +1329,7 @@ class _PdfDocumentPdfium extends PdfDocument {
 
   @override
   Future<void> reloadPages({List<int>? pageNumbersToReload}) async {
-    final results = await BackgroundWorker.computeWithArena(
+    final results = await _computeWithArena(
       (arena, params) {
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docAddress);
         final pageCount = pdfium.FPDF_GetPageCount(doc);
@@ -1456,11 +1456,35 @@ class _PdfDocumentPdfium extends PdfDocument {
   bool isIdenticalDocumentHandle(Object? other) =>
       other is _PdfDocumentPdfium && document.address == other.document.address;
 
+  /// Worker calls that use [document] and have not completed yet; [dispose] waits for them before closing it.
+  final _pendingWork = <Future<void>>{};
+
+  Future<R> _trackWork<R>(Future<R> work) {
+    final done = work.then<void>((_) {}, onError: (_) {});
+    _pendingWork.add(done);
+    done.whenComplete(() => _pendingWork.remove(done));
+    return work;
+  }
+
+  Future<R> _compute<M, R>(PdfrxComputeCallback<M, R> callback, M message, {BackgroundWorkerPriority? priority}) =>
+      _trackWork(BackgroundWorker.compute(callback, message, priority: priority));
+
+  Future<R> _computeWithArena<M, R>(
+    R Function(Arena arena, M message) callback,
+    M message, {
+    BackgroundWorkerPriority? priority,
+  }) => _trackWork(BackgroundWorker.computeWithArena(callback, message, priority: priority));
+
   @override
   Future<void> dispose() async {
     if (!isDisposed) {
       isDisposed = true;
       subject.close();
+      // Work that passed the isDisposed check may sit behind other work at a lower priority than the close; it must
+      // run before the close or it would touch a freed FPDF_DOCUMENT.
+      while (_pendingWork.isNotEmpty) {
+        await Future.wait(_pendingWork.toList());
+      }
       await BackgroundWorker.compute((params) {
         final formHandle = pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle);
         final formInfo = Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(params.formInfo);
@@ -1478,7 +1502,7 @@ class _PdfDocumentPdfium extends PdfDocument {
   @override
   Future<List<PdfOutlineNode>> loadOutline() async => isDisposed
       ? <PdfOutlineNode>[]
-      : await BackgroundWorker.computeWithArena((arena, params) {
+      : await _computeWithArena((arena, params) {
           final document = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
           return _getOutlineNodeSiblings(pdfium.FPDFBookmark_GetFirstChild(document, nullptr), document, arena);
         }, (document: document.address));
@@ -1512,7 +1536,7 @@ class _PdfDocumentPdfium extends PdfDocument {
   Future<Uint8List> encodePdf({bool incremental = false, bool removeSecurity = false}) async {
     await assemble();
     final byteBuffer = BytesBuilder();
-    return await BackgroundWorker.computeWithArena((arena, params) {
+    return await _computeWithArena((arena, params) {
       int write(Pointer<pdfium_bindings.FPDF_FILEWRITE> pThis, Pointer<Void> pData, int size) {
         byteBuffer.add(Pointer<Uint8>.fromAddress(pData.address).asTypedList(size));
         return size;
@@ -1588,7 +1612,7 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
       return false;
     }
 
-    await BackgroundWorker.computeWithArena(
+    await document._computeWithArena(
       (arena, params) {
         final arranger = _DocumentPageArranger._(
           pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document),
@@ -1731,7 +1755,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
         ct?.attach(cancelFlag);
 
         if (cancelFlag.value || document.isDisposed) return 0;
-        return await BackgroundWorker.compute(
+        return await document._compute(
           (params) {
             final cancelFlag = Pointer<Bool>.fromAddress(params.cancelFlag);
             if (cancelFlag.value) return 0;
@@ -1854,7 +1878,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
   @override
   Future<PdfPageRawText?> loadText() async {
     if (document.isDisposed || !isLoaded) return null;
-    return await BackgroundWorker.computeWithArena((arena, params) {
+    return await document._computeWithArena((arena, params) {
       final doubleSize = sizeOf<Double>();
       final rectBuffer = arena<Double>(4);
       final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
@@ -1896,7 +1920,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
 
   Future<List<PdfLink>> _loadWebLinks() async => document.isDisposed
       ? []
-      : await BackgroundWorker.computeWithArena((arena, params) {
+      : await document._computeWithArena((arena, params) {
           pdfium_bindings.FPDF_PAGE page = nullptr;
           pdfium_bindings.FPDF_TEXTPAGE textPage = nullptr;
           pdfium_bindings.FPDF_PAGELINK linkPage = nullptr;
@@ -1975,7 +1999,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
 
   Future<List<PdfLink>> _loadAnnotLinks() async => document.isDisposed
       ? []
-      : await BackgroundWorker.computeWithArena((arena, params) {
+      : await document._computeWithArena((arena, params) {
           final document = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
           final page = pdfium.FPDF_LoadPage(document, params.pageNumber - 1);
           try {
