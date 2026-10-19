@@ -34,6 +34,16 @@ class Pdfrx {
   /// does not was waiting on the pdfium worker.
   static int debugBytesFetched = 0;
 
+  /// Whether `PdfPage.loadText` (and so `PdfPage.loadStructuredText`) restores logical order to Hebrew text
+  /// stored in visual order. Legacy decoding additionally requires [decodeLegacyHebrewText].
+  ///
+  /// See `PdfHebrewTextNormalizer`. Off by default. Supported by the native PDFium backend.
+  static bool normalizeHebrewText = false;
+
+  /// Also decode ambiguous legacy font encodings when [normalizeHebrewText] is enabled.
+  /// This heuristic can misidentify accented Latin text; enable only for known broken Hebrew PDFs.
+  static bool decodeLegacyHebrewText = false;
+
   /// Explicitly specify pdfium module path for special purpose.
   ///
   /// It is not supported on Flutter Web.

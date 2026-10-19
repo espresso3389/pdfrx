@@ -52,8 +52,11 @@ class PdfViewerParams {
     this.matchTextColor,
     this.activeMatchTextColor,
     this.pageDropShadow = const BoxShadow(color: Colors.black54, blurRadius: 4, spreadRadius: 2, offset: Offset(2, 2)),
+    this.pageImageColorFilter,
     this.panEnabled = true,
     this.scaleEnabled = true,
+    this.scaleInertiaMaxExcursion,
+    this.scaleGestureSensitivity = 1.0,
     this.onInteractionEnd,
     this.onInteractionStart,
     this.onInteractionUpdate,
@@ -98,7 +101,10 @@ class PdfViewerParams {
     this.interactionDelegateProvider = const PdfViewerScrollInteractionDelegateProviderInstant(),
     this.sizeDelegateProvider,
     this.zoomStepsDelegateProvider = const PdfViewerZoomStepsDelegateProviderDefault(),
-  }) : assert(
+  }) : assert(scaleGestureSensitivity > 0),
+       assert(scaleGestureSensitivity != double.infinity),
+       assert(scaleInertiaMaxExcursion == null || (scaleInertiaMaxExcursion > 0 && scaleInertiaMaxExcursion < 1)),
+       assert(
          sizeDelegateProvider == null ||
              (maxScale == null &&
                  minScale == null &&
@@ -292,11 +298,53 @@ class PdfViewerParams {
   /// To customize more of the shadow, you can use [pageBackgroundPaintCallbacks] to paint the shadow manually.
   final BoxShadow? pageDropShadow;
 
+  /// Color filter applied when drawing the page contents (rendered images and the blank placeholder).
+  ///
+  /// Use it to recolor pages -- e.g. invert them for a dark theme -- without wrapping the whole viewer in a
+  /// [ColorFiltered], which composites an extra full-viewport layer on every frame and also recolors the overlays.
+  /// Selection, link and match highlights, and [pagePaintCallbacks] are drawn unfiltered.
+  final ColorFilter? pageImageColorFilter;
+
   /// See [InteractiveViewer.panEnabled] for details.
   final bool panEnabled;
 
   /// See [InteractiveViewer.scaleEnabled] for details.
   final bool scaleEnabled;
+
+  /// The maximum post-release scale inertia excursion.
+  ///
+  /// See `InteractiveViewer.scaleInertiaMaxExcursion` in `interactive_viewer.dart` for the full
+  /// contract.
+  ///
+  /// It applies to the scale gesture path, i.e. touchscreen multi-pointer pinches and trackpad
+  /// pan/zoom gestures, which reach `InteractiveViewer`'s `_onScaleEnd`. The live gesture mapping
+  /// is unchanged. Pointer-signal zoom (mouse wheel, Ctrl-wheel, pointer-scale events) does not use
+  /// that code and is unaffected.
+  ///
+  /// When null (the default), the post-release scale inertia is unbounded and the
+  /// existing behavior is preserved.
+  final double? scaleInertiaMaxExcursion;
+
+  /// Sensitivity of the live pinch/scale gesture, applied as an exponent to the
+  /// gesture's scale ratio.
+  ///
+  /// Defaults to `1.0`, which preserves the existing behavior: the viewer scale
+  /// follows the finger spread one-to-one. Values greater than `1.0` make the
+  /// same finger movement produce more zoom: a pinch that spreads the fingers by
+  /// a factor of `r` scales by `r ^ scaleGestureSensitivity` instead of `r`.
+  /// Values between `0.0` and `1.0` make the response gentler. The value must be
+  /// finite and greater than zero.
+  ///
+  /// Because the mapping is an exponent, it is symmetric between pinch-in and
+  /// pinch-out (`f(1/x) == 1 / f(x)`), and the amplification is comparable at
+  /// every zoom level.
+  ///
+  /// This affects only scale gestures handled through `GestureDetector` /
+  /// `ScaleGestureRecognizer`: touchscreen multi-pointer pinch gestures and trackpad
+  /// pan/zoom (`PointerPanZoom*`) scale gestures. It is independent of
+  /// [scaleByPointerScale], which tunes the separate pointer-signal path
+  /// (`PointerScaleEvent` and Ctrl+scroll zoom) and is left unchanged.
+  final double scaleGestureSensitivity;
 
   /// See [InteractiveViewer.onInteractionEnd] for details.
   final GestureScaleEndCallback? onInteractionEnd;
@@ -742,6 +790,8 @@ class PdfViewerParams {
         other.pageDropShadow != pageDropShadow ||
         other.panEnabled != panEnabled ||
         other.scaleEnabled != scaleEnabled ||
+        other.scaleInertiaMaxExcursion != scaleInertiaMaxExcursion ||
+        other.scaleGestureSensitivity != scaleGestureSensitivity ||
         other.interactionEndFrictionCoefficient != interactionEndFrictionCoefficient ||
         other.scrollByMouseWheel != scrollByMouseWheel ||
         other.scaleByPointerScale != scaleByPointerScale ||
@@ -784,8 +834,11 @@ class PdfViewerParams {
         other.matchTextColor == matchTextColor &&
         other.activeMatchTextColor == activeMatchTextColor &&
         other.pageDropShadow == pageDropShadow &&
+        other.pageImageColorFilter == pageImageColorFilter &&
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
+        other.scaleInertiaMaxExcursion == scaleInertiaMaxExcursion &&
+        other.scaleGestureSensitivity == scaleGestureSensitivity &&
         other.onInteractionEnd == onInteractionEnd &&
         other.onInteractionStart == onInteractionStart &&
         other.onInteractionUpdate == onInteractionUpdate &&
@@ -855,8 +908,11 @@ class PdfViewerParams {
         matchTextColor.hashCode ^
         activeMatchTextColor.hashCode ^
         pageDropShadow.hashCode ^
+        pageImageColorFilter.hashCode ^
         panEnabled.hashCode ^
         scaleEnabled.hashCode ^
+        scaleInertiaMaxExcursion.hashCode ^
+        scaleGestureSensitivity.hashCode ^
         onInteractionEnd.hashCode ^
         onInteractionStart.hashCode ^
         onInteractionUpdate.hashCode ^
@@ -1693,6 +1749,7 @@ class PdfLinkHandlerParams {
   const PdfLinkHandlerParams({
     required this.onLinkTap,
     this.linkColor,
+    this.linkHoverColor,
     this.customPainter,
     this.enableAutoLinkDetection = true,
     this.laidOverPageOverlays = true,
@@ -1707,6 +1764,11 @@ class PdfLinkHandlerParams {
   ///
   /// To fully customize the link appearance, use [customPainter].
   final Color? linkColor;
+
+  /// Color for the link under the mouse cursor. If null, the hovered link is painted with [linkColor].
+  ///
+  /// Ignored when [customPainter] is set.
+  final Color? linkHoverColor;
 
   /// Custom link painter for the page.
   ///
@@ -1744,6 +1806,7 @@ class PdfLinkHandlerParams {
 
     return other.onLinkTap == onLinkTap &&
         other.linkColor == linkColor &&
+        other.linkHoverColor == linkHoverColor &&
         other.customPainter == customPainter &&
         other.enableAutoLinkDetection == enableAutoLinkDetection &&
         other.laidOverPageOverlays == laidOverPageOverlays;
@@ -1753,6 +1816,7 @@ class PdfLinkHandlerParams {
   int get hashCode {
     return onLinkTap.hashCode ^
         linkColor.hashCode ^
+        linkHoverColor.hashCode ^
         customPainter.hashCode ^
         enableAutoLinkDetection.hashCode ^
         laidOverPageOverlays.hashCode;
