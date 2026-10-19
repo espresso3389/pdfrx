@@ -1,3 +1,9 @@
+# 2.6.6
+
+- Fixed viewer loading getting stuck when a parent rebuilds during initialization ([#727](https://github.com/espresso3389/pdfrx/pull/727)).
+- Fixed physics-based scrolling pulling the view back after navigation and leaving animations running at document edges ([#741](https://github.com/espresso3389/pdfrx/pull/741)).
+- Fixed minimum zoom exceeding maximum zoom for small pages ([#735](https://github.com/espresso3389/pdfrx/pull/735)).
+
 # 2.6.5
 
 - Simplified the README and Material UI migration guidance, with links to the official migration documentation.
