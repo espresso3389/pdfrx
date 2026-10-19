@@ -1,3 +1,17 @@
+# 0.7.1
+
+- Keep documents open when native PDFium cannot load an individual page. Preserve page numbering and use fallback page dimensions; rendering an unloadable page still returns null ([#740](https://github.com/espresso3389/pdfrx/pull/740)).
+- Apply unloadable-page recovery to full, progressive, and explicit page reloads, including first and consecutive broken pages ([#740](https://github.com/espresso3389/pdfrx/pull/740)).
+- Correct README examples and explain the native library used to coordinate PDFium access ([#748](https://github.com/espresso3389/pdfrx/pull/748), [#749](https://github.com/espresso3389/pdfrx/pull/749)).
+
+# 0.7.0
+
+- Added opt-in process-wide PDFium coordination for multiple engines or isolates. Enable it before initialization on every engine; the mode serializes native access, uses PDFium's built-in font mapper, and keeps PDFium initialized until process exit ([#723](https://github.com/espresso3389/pdfrx/pull/723)).
+- Serialized overlapping native-handle actions and rejected gate configuration changes after a worker starts ([#723](https://github.com/espresso3389/pdfrx/pull/723)).
+- Added `PdfHebrewTextNormalizer` and opt-in `Pdfrx.normalizeHebrewText` for the native PDFium backend. Character positions follow reordered text; mixed-script content is preserved conservatively. Legacy encoding conversion additionally requires `Pdfrx.decodeLegacyHebrewText` ([#732](https://github.com/espresso3389/pdfrx/pull/732)).
+- Improved rendering responsiveness while another document opens without progressive loading by measuring pages in short chunks ([#743](https://github.com/espresso3389/pdfrx/pull/743)).
+- Updated to `pdfium_dart` 0.4.0; native builds require a C toolchain for the bundled gate library.
+
 # 0.6.1
 
 - Improved rendering responsiveness during background work by prioritizing page rendering and visible-page measurement ([#708](https://github.com/espresso3389/pdfrx/pull/708)).

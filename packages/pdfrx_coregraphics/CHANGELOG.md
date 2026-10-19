@@ -1,3 +1,7 @@
+# 0.4.2
+
+- Updated compatibility to `pdfrx_engine` 0.7.0. Hebrew normalization and the process-wide PDFium gate remain specific to the native PDFium backend.
+
 # 0.4.1
 
 - Updated to `pdfrx_engine` 0.6.1.

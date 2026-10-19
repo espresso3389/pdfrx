@@ -1,3 +1,29 @@
+# 2.8.0
+
+- Added `selectedTextIfLoaded` for synchronous access to cached selection text. Existing custom selection implementations remain compatible through the `PdfTextSelectionCachedText` extension and optional `PdfTextSelectionWithCachedText` interface ([#733](https://github.com/espresso3389/pdfrx/pull/733)).
+- Fixed text extraction and highlighting for backward selections spanning multiple pages ([#733](https://github.com/espresso3389/pdfrx/pull/733)).
+- Fixed a transient jump when page dimensions change during progressive loading, while keeping external controller notifications outside the build phase ([#724](https://github.com/espresso3389/pdfrx/pull/724)).
+- Updated to `pdfrx_engine` 0.7.1 so documents containing individual unloadable pages can still open ([#740](https://github.com/espresso3389/pdfrx/pull/740)).
+- Updated guides and examples for selection, loading, appearance, zoom, and native build requirements ([#748](https://github.com/espresso3389/pdfrx/pull/748), [#749](https://github.com/espresso3389/pdfrx/pull/749)).
+
+# 2.7.0
+
+- Added `PdfViewerParams.pageImageColorFilter` for recoloring page contents without changing overlays, and `PdfLinkHandlerParams.linkHoverColor` for link hover feedback ([#731](https://github.com/espresso3389/pdfrx/pull/731)).
+- Added `scaleGestureSensitivity` to adjust touch and trackpad pinch sensitivity, and optional `scaleInertiaMaxExcursion` to limit post-release zoom travel. Defaults preserve existing behavior ([#736](https://github.com/espresso3389/pdfrx/pull/736), [#737](https://github.com/espresso3389/pdfrx/pull/737)).
+- Prioritized visible-page previews and retained off-screen previews while the image cache remains within budget ([#729](https://github.com/espresso3389/pdfrx/pull/729)).
+- Fixed repeated or replaced text searches getting stuck, case-sensitivity changes not rerunning searches, and match navigation not notifying listeners ([#729](https://github.com/espresso3389/pdfrx/pull/729)).
+- Fixed document leaks when a load completes after its last listener is removed ([#729](https://github.com/espresso3389/pdfrx/pull/729)).
+- Improved rendering responsiveness while opening large documents without progressive loading ([#743](https://github.com/espresso3389/pdfrx/pull/743)).
+- Added opt-in Hebrew text normalization through `pdfrx_engine` 0.7.0. Ambiguous legacy encodings require the separate `Pdfrx.decodeLegacyHebrewText` setting ([#732](https://github.com/espresso3389/pdfrx/pull/732)).
+- Added opt-in process-wide PDFium coordination for multiple Flutter engines. Enable `processWidePdfiumGate` on every engine before initialization; this mode uses PDFium's built-in font mapper ([#723](https://github.com/espresso3389/pdfrx/pull/723)).
+- Updated to `pdfrx_engine` 0.7.0 and `pdfium_flutter` 0.4.0. Native builds now compile the bundled PDFium gate and require a C toolchain.
+
+# 2.6.6
+
+- Fixed viewer loading getting stuck when a parent rebuilds during initialization ([#727](https://github.com/espresso3389/pdfrx/pull/727)).
+- Fixed physics-based scrolling pulling the view back after navigation and leaving animations running at document edges ([#741](https://github.com/espresso3389/pdfrx/pull/741)).
+- Fixed minimum zoom exceeding maximum zoom for small pages ([#735](https://github.com/espresso3389/pdfrx/pull/735)).
+
 # 2.6.5
 
 - Simplified the README and Material UI migration guidance, with links to the official migration documentation.

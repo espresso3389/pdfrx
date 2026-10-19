@@ -21,6 +21,7 @@ Low-level Dart FFI bindings for PDFium.
 - Provides direct access to PDFium's C API
 - Downloads and bundles PDFium at build time using Dart native assets
 - Includes `getPdfium()` for resolving PDFium from an explicit module path, a Flutter-packaged library, or the bundled native asset
+- Builds a small native library for process-wide locking of PDFium access (only one participating engine at a time); native builds require a C toolchain
 - Used as a foundation by higher-level packages
 
 ### pdfium_flutter (`packages/pdfium_flutter/`)

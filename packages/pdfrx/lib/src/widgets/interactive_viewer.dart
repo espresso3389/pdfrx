@@ -78,6 +78,8 @@ class InteractiveViewer extends StatefulWidget {
     this.onInteractionUpdate,
     this.panEnabled = true,
     this.scaleEnabled = true,
+    this.scaleInertiaMaxExcursion,
+    this.scaleGestureSensitivity = 1.0,
     this.scaleFactor = kDefaultMouseScrollToScaleFactor,
     this.transformationController,
     this.alignment,
@@ -89,6 +91,9 @@ class InteractiveViewer extends StatefulWidget {
     this.scrollPhysicsAutoAdjustBoundaries = true,
   }) : assert(minScale > 0),
        assert(interactionEndFrictionCoefficient > 0),
+       assert(scaleInertiaMaxExcursion == null || (scaleInertiaMaxExcursion > 0 && scaleInertiaMaxExcursion < 1)),
+       assert(scaleGestureSensitivity > 0),
+       assert(scaleGestureSensitivity.isFinite),
        assert(minScale.isFinite),
        assert(maxScale > 0),
        assert(!maxScale.isNaN),
@@ -127,6 +132,8 @@ class InteractiveViewer extends StatefulWidget {
     this.onInteractionUpdate,
     this.panEnabled = true,
     this.scaleEnabled = true,
+    this.scaleInertiaMaxExcursion,
+    this.scaleGestureSensitivity = 1.0,
     this.scaleFactor = 200.0,
     this.transformationController,
     this.alignment,
@@ -138,6 +145,9 @@ class InteractiveViewer extends StatefulWidget {
     this.scrollPhysicsAutoAdjustBoundaries = true,
   }) : assert(minScale > 0),
        assert(interactionEndFrictionCoefficient > 0),
+       assert(scaleInertiaMaxExcursion == null || (scaleInertiaMaxExcursion > 0 && scaleInertiaMaxExcursion < 1)),
+       assert(scaleGestureSensitivity > 0),
+       assert(scaleGestureSensitivity.isFinite),
        assert(minScale.isFinite),
        assert(maxScale > 0),
        assert(!maxScale.isNaN),
@@ -262,6 +272,28 @@ class InteractiveViewer extends StatefulWidget {
   ///   * [panEnabled], which is similar but for panning.
   final bool scaleEnabled;
 
+  /// Sensitivity of the live pinch/scale gesture, applied as an exponent to the
+  /// gesture's scale ratio.
+  ///
+  /// Defaults to `1.0`, which preserves the existing behavior: the viewer scale
+  /// follows the finger spread one-to-one. Values greater than `1.0` make the
+  /// same finger movement produce more zoom: a pinch that spreads the fingers by
+  /// a factor of `r` scales by `r ^ scaleGestureSensitivity` instead of `r`.
+  /// Values between `0.0` and `1.0` make the response gentler. The value must be
+  /// finite and greater than zero.
+  ///
+  /// Because the mapping is an exponent, it is symmetric between pinch-in and
+  /// pinch-out (`f(1/x) == 1 / f(x)`), and the amplification is comparable at
+  /// every zoom level.
+  ///
+  /// This affects only scale gestures handled through this widget's
+  /// `GestureDetector` / `ScaleGestureRecognizer`: touchscreen multi-pointer pinch
+  /// gestures and trackpad pan/zoom (`PointerPanZoom*`) scale gestures. It does
+  /// not affect pdfrx's separate pointer-signal path — `PointerScaleEvent` and
+  /// Ctrl+mouse-wheel zoom, tuned by `PdfViewerParams.scaleByPointerScale` — nor
+  /// buttons or programmatic zoom.
+  final double scaleGestureSensitivity;
+
   /// {@macro flutter.gestures.scale.trackpadScrollCausesScale}
   final bool trackpadScrollCausesScale;
 
@@ -302,6 +334,36 @@ class InteractiveViewer extends StatefulWidget {
   ///
   /// Must be a finite number greater than zero and less than [maxScale].
   final double minScale;
+
+  /// The maximum post-release scale inertia excursion, expressed as a signed
+  /// fraction of the scale at the moment the gesture ends.
+  ///
+  /// When null (the default), the target of the scroll-physics-free scale fling
+  /// is the raw, unbounded friction simulation target and the behavior is
+  /// unchanged.
+  ///
+  /// When set to a value in (0, 1), the fling target is bounded relative to the
+  /// release scale `s` to `s - s * scaleInertiaMaxExcursion ..
+  /// s + s * scaleInertiaMaxExcursion`, and then clamped to
+  /// [minScale]..[maxScale]. This is a signed fractional excursion about the
+  /// release scale, not a reciprocal or geometric ratio: the same fraction
+  /// applies below and above `s`. It retains useful post-release momentum while
+  /// preventing a fast pinch from coasting far past the release scale; in
+  /// particular it stops an aggressive pinch-in from travelling all the way to
+  /// [minScale] after the fingers have already been lifted.
+  ///
+  /// This only affects the post-release scale fling that runs when
+  /// [scrollPhysics] is null. It is part of the scale gesture path, so it
+  /// applies to both touchscreen multi-pointer pinches and trackpad pan/zoom
+  /// gestures (`PointerPanZoom*` events), which Flutter routes through the same
+  /// scale recognizer and `_onScaleEnd`. The live gesture mapping itself is
+  /// unchanged. The separate pointer-signal paths -- [PointerScaleEvent] and
+  /// mouse-wheel / Ctrl-wheel ([PointerScrollEvent]) -- do not run this code and
+  /// are unaffected, as are pan inertia and the `scrollPhysics != null` scale
+  /// snap-back.
+  ///
+  /// Must be null or a finite value in (0, 1).
+  final double? scaleInertiaMaxExcursion;
 
   /// Changes the deceleration behavior after a gesture.
   ///
@@ -485,6 +547,30 @@ class InteractiveViewer extends StatefulWidget {
       }
     }
     return closestOverall;
+  }
+
+  /// Returns the target scale for the post-release scale fling, optionally
+  /// bounded to a signed fractional excursion about [releaseScale].
+  ///
+  /// When [maxExcursion] is null, [rawTarget] is returned unchanged, which
+  /// preserves the unbounded default behavior. Otherwise the result is limited
+  /// to `releaseScale - maxExcursion * releaseScale ..
+  /// releaseScale + maxExcursion * releaseScale` and then clamped to
+  /// [minScale]..[maxScale].
+  @visibleForTesting
+  static double getBoundedScaleFlingTarget({
+    required double releaseScale,
+    required double rawTarget,
+    required double? maxExcursion,
+    required double minScale,
+    required double maxScale,
+  }) {
+    if (maxExcursion == null) {
+      return rawTarget;
+    }
+    final lower = releaseScale * (1 - maxExcursion);
+    final upper = releaseScale * (1 + maxExcursion);
+    return clampDouble(clampDouble(rawTarget, lower, upper), minScale, maxScale);
   }
 
   @override
@@ -886,7 +972,11 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
         // details.scale gives us the amount to change the scale as of the
         // start of this gesture, so calculate the amount to scale as of the
         // previous call to _onScaleUpdate.
-        final desiredScale = _scaleStart! * details.scale;
+        // scaleGestureSensitivity raises the gesture ratio to a power; 1.0 leaves the mapping unchanged.
+        final gestureScale = widget.scaleGestureSensitivity == 1.0
+            ? details.scale
+            : math.pow(details.scale, widget.scaleGestureSensitivity).toDouble();
+        final desiredScale = _scaleStart! * gestureScale;
         final scaleChange = desiredScale / scale;
         _snapFocalPoint = details.localFocalPoint;
         _transformer.value = _matrixScale(_transformer.value, scaleChange);
@@ -1066,7 +1156,13 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
           );
           _scaleAnimation = Tween<double>(
             begin: scale,
-            end: frictionSimulation.x(tFinal),
+            end: InteractiveViewer.getBoundedScaleFlingTarget(
+              releaseScale: scale,
+              rawTarget: frictionSimulation.x(tFinal),
+              maxExcursion: widget.scaleInertiaMaxExcursion,
+              minScale: widget.minScale,
+              maxScale: widget.maxScale,
+            ),
           ).animate(CurvedAnimation(parent: _scaleController, curve: Curves.decelerate));
           _scaleController.duration = Duration(milliseconds: (tFinal * 1000).round());
           _scaleAnimation!.addListener(_handleScaleAnimation);

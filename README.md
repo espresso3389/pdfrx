@@ -7,6 +7,7 @@ This repository contains multiple Dart/Flutter packages for PDF rendering, viewi
 - Dart packages require Dart 3.13 or later.
 - Flutter packages require Flutter 3.47 or later.
 - Apple platform integrations target iOS 15 or later and macOS 12 or later.
+- Native builds require a C toolchain to compile a small bundled library that prevents simultaneous PDFium access from multiple Flutter engines. This library is built even when that protection is disabled at runtime. See [build requirements](doc/pdfrx-Initialization.md#native-build-requirements).
 
 ## Packages
 
@@ -86,7 +87,7 @@ Add [pdfrx](https://pub.dev/packages/pdfrx) to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.6.5
+  pdfrx: ^2.8.0
 ```
 
 ### For Pure Dart Applications
@@ -95,7 +96,7 @@ Add [pdfrx_engine](https://pub.dev/packages/pdfrx_engine) to your `pubspec.yaml`
 
 ```yaml
 dependencies:
-  pdfrx_engine: ^0.6.1
+  pdfrx_engine: ^0.7.1
 ```
 
 ## Documentation

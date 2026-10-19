@@ -22,8 +22,9 @@ Packages must be published in dependency order:
 Follow semantic versioning:
 
 - **Patch** (`X.Y.Z -> X.Y.Z+1`): Bug fixes, non-breaking changes
-- **Minor** (`X.Y.Z -> X.Y+1.0`): New features, breaking changes
-- **Major** (`X.Y.Z -> X+1.0.0`): Major breaking changes
+- **Minor** (`X.Y.Z -> X.Y+1.0`): Backward-compatible new features for stable (1.x+) packages
+- **Major** (`X.Y.Z -> X+1.0.0`): Breaking changes for stable (1.x+) packages
+- For pre-1.0 packages, select version changes according to their compatibility policy and Dart dependency constraints; document breaking changes explicitly.
 
 ## Pre-Release Checklist
 
