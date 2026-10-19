@@ -44,7 +44,7 @@ PdfViewer.asset(
 
 ## Reading Cached Selection Text
 
-On the current `master` branch, `selectedTextIfLoaded` reads the selection without starting text loading. This API was merged after pdfrx 2.7.0 and is not available in that release.
+From pdfrx 2.8.0, `selectedTextIfLoaded` reads the selection without starting text loading.
 
 ```dart
 final selection = controller.textSelectionDelegate;
