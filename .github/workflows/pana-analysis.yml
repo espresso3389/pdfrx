@@ -23,14 +23,19 @@ jobs:
         include:
           - package_name: pdfium_dart
             package_path: packages/pdfium_dart
+            minimum_points: 140
           - package_name: pdfium_flutter
             package_path: packages/pdfium_flutter
+            minimum_points: 130
           - package_name: pdfrx_coregraphics
             package_path: packages/pdfrx_coregraphics
+            minimum_points: 130
           - package_name: pdfrx_engine
             package_path: packages/pdfrx_engine
+            minimum_points: 140
           - package_name: pdfrx
             package_path: packages/pdfrx
+            minimum_points: 140
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -87,8 +92,14 @@ jobs:
       - name: Run pana (${{ matrix.package_name }})
         run: |
           cd "$PANA_PACKAGE_PATH"
-          ~/.pub-cache/bin/pana --json --no-warning --exit-code-threshold 0 > pana-report.json
+          ~/.pub-cache/bin/pana --json --no-warning > pana-report.json
           jq '{scores, tags, report}' pana-report.json
+          # Local path dependencies used to validate unpublished releases cost analysis points.
+          # Keep the reviewed baseline, and reject analysis errors even if other scores improve.
+          jq -e --argjson minimum '${{ matrix.minimum_points }}' '
+            .scores.grantedPoints >= $minimum and
+            any(.report.sections[]; .id == "analysis" and .grantedPoints >= 30)
+          ' pana-report.json
           case '${{ matrix.package_name }}' in
             pdfrx|pdfrx_engine) jq -e '.tags | any(. == "is:wasm-ready")' pana-report.json ;;
             *) jq -e 'has("scores") and has("tags")' pana-report.json ;;
