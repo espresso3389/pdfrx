@@ -11,12 +11,36 @@ final tmpRoot = Directory('${Directory.current.path}/test/.tmp');
 ///
 /// Used to get a document with enough pages that progressive measurement takes a measurable amount of time, without
 /// shipping a large test asset. The page sizes vary slightly so that measured pages differ from the placeholders.
-Uint8List buildBlankPdf(int pageCount) {
+///
+/// With [contentPathSegments], every page shares one content stream of that many line segments. PDFium parses a
+/// page's content when it loads the page, so this sets how long measuring each page takes.
+Uint8List buildBlankPdf(int pageCount, {int contentPathSegments = 0}) {
+  final hasContent = contentPathSegments > 0;
+  final firstPageObject = hasContent ? 4 : 3;
+  final content = List.generate(
+    contentPathSegments,
+    (i) => '${i % 100} ${i % 37} m ${i % 53} ${i % 71} l S',
+  ).join('\n');
   final objects = <String>[
     '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [${List.generate(pageCount, (i) => '${i + 3} 0 R').join(' ')}] /Count $pageCount >>',
-    for (var i = 0; i < pageCount; i++) '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${200 + i % 7} ${300 + i % 5}] >>',
+    '<< /Type /Pages /Kids [${List.generate(pageCount, (i) => '${i + firstPageObject} 0 R').join(' ')}] /Count $pageCount >>',
+    if (hasContent) '<< /Length ${content.length} >>\nstream\n$content\nendstream',
+    for (var i = 0; i < pageCount; i++)
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${200 + i % 7} ${300 + i % 5}]${hasContent ? ' /Contents 3 0 R' : ''} >>',
   ];
+  return _buildPdf(objects);
+}
+
+/// Builds a 3-page PDF whose second /Kids entry is not a page, so PDFium counts it but FPDF_LoadPage(1) fails.
+Uint8List buildPdfWithUnloadablePage({List<int> kids = const [3, 5, 4]}) => _buildPdf([
+  '<< /Type /Catalog /Pages 2 0 R >>',
+  '<< /Type /Pages /Kids [${kids.map((id) => '$id 0 R').join(' ')}] /Count ${kids.length} >>',
+  '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 300] >>',
+  '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 210 310] /Rotate 90 >>',
+  '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+]);
+
+Uint8List _buildPdf(List<String> objects) {
   final buffer = StringBuffer('%PDF-1.4\n');
   final offsets = <int>[];
   for (var i = 0; i < objects.length; i++) {

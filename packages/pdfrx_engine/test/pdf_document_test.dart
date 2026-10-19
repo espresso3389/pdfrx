@@ -8,11 +8,13 @@ import 'package:pdfrx_engine/src/native/pdfrx_pdfium.dart' show isPdfiumInitiali
 import 'package:test/test.dart';
 
 import 'utils.dart';
+import 'hebrew_native.dart';
 
 final testPdfFile = File('../pdfrx/example/viewer/assets/hello.pdf');
 final multiPageTestPdfFile = File('../pdfrx/test/assets/multipage40.pdf');
 
 void main() {
+  registerHebrewNativeTests();
   setUp(() => pdfrxInitialize(tmpPath: tmpRoot.path));
 
   test('PdfDocument.openFile', () async => await testDocument(await PdfDocument.openFile(testPdfFile.path)));
@@ -542,6 +544,70 @@ void main() {
     );
     expect(document.pages.every((page) => page.isLoaded), isTrue);
   });
+  for (final pageCount in [0, 1]) {
+    test('non-progressive open completes with $pageCount pages', () async {
+      final document = await PdfDocument.openData(
+        buildBlankPdf(pageCount),
+        sourceName: 'non-progressive-$pageCount.pdf',
+        useProgressiveLoading: false,
+      );
+      addTearDown(document.dispose);
+      expect(document.pages.length, pageCount);
+      expect(document.pages.every((page) => page.isLoaded), isTrue);
+      await document.events
+          .firstWhere((event) => event is PdfDocumentLoadCompleteEvent)
+          .timeout(const Duration(seconds: 5));
+    });
+  }
+
+  test('a non-progressive open does not block renders of another document', () async {
+    final other = await PdfDocument.openData(buildBlankPdf(1), sourceName: 'blank1.pdf');
+    addTearDown(other.dispose);
+
+    // Pages slow enough to measure that measuring all of them takes many worker chunks; sent as one task, the render
+    // would wait for the whole measurement.
+    const pageCount = 150;
+    var openCompleted = false;
+    final openTimer = Stopwatch()..start();
+    final data = buildBlankPdf(pageCount, contentPathSegments: 5000);
+    final opening = PdfDocument.openData(data, sourceName: 'content$pageCount.pdf', useProgressiveLoading: false).then((
+      doc,
+    ) {
+      openCompleted = true;
+      openTimer.stop();
+      return doc;
+    });
+    // Give the open a chance to start measuring before the render is queued.
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    final renderTimer = Stopwatch()..start();
+    final image = await other.pages.first.render();
+    renderTimer.stop();
+    final renderCompletedBeforeOpen = !openCompleted;
+    image?.dispose();
+    final document = await opening;
+    addTearDown(document.dispose);
+
+    expect(image, isNotNull);
+    expect(renderCompletedBeforeOpen, isTrue, reason: 'render must interleave with measurement chunks');
+    expect(
+      renderTimer.elapsedMilliseconds,
+      lessThan(openTimer.elapsedMilliseconds ~/ 4),
+      reason:
+          'render (${renderTimer.elapsedMilliseconds} ms) must not wait for most of the measurement '
+          '(${openTimer.elapsedMilliseconds} ms)',
+    );
+    expect(document.pages.length, pageCount);
+    expect(document.pages.every((page) => page.isLoaded), isTrue);
+    for (var index = 0; index < pageCount; index++) {
+      expect(document.pages[index].pageNumber, index + 1);
+      expect(document.pages[index].width, 200 + index % 7, reason: 'page ${index + 1} width');
+      expect(document.pages[index].height, 300 + index % 5, reason: 'page ${index + 1} height');
+    }
+    await document.events
+        .firstWhere((event) => event is PdfDocumentLoadCompleteEvent)
+        .timeout(const Duration(seconds: 5));
+  });
   test('progressive loading publishes page status once per budget without duplicates', () async {
     // The default budget spans many ~20 ms worker chunks. Publishing per chunk instead of per budget would emit a
     // page status event (and relayout the viewer) roughly 40 times a second, so the event count must match the
@@ -881,5 +947,62 @@ void main() {
       // Verify that reads occurred with various sizes
       expect(readSizes.isNotEmpty, true, reason: 'Should have read sizes recorded');
     });
+  });
+
+  group('a page PDFium cannot load', () {
+    for (final progressive in [false, true]) {
+      for (final kids in [
+        <int>[5, 5, 3, 4],
+        <int>[3, 5, 5, 4],
+        <int>[5, 5],
+      ]) {
+        test('handles first/consecutive broken pages $kids (progressive: $progressive)', () async {
+          final doc = await PdfDocument.openData(
+            buildPdfWithUnloadablePage(kids: kids),
+            useProgressiveLoading: progressive,
+          );
+          try {
+            if (progressive) await doc.loadPagesProgressively();
+            expect(doc.pages.length, kids.length);
+            expect(doc.pages.every((p) => p.isLoaded), isTrue);
+            for (var i = 0; i < kids.length; i++) {
+              if (kids[i] != 5) continue;
+              final expectedSize = i == 0 ? (612.0, 792.0) : (doc.pages[i - 1].width, doc.pages[i - 1].height);
+              expect((doc.pages[i].width, doc.pages[i].height), expectedSize);
+              expect(doc.pages[i].rotation, PdfPageRotation.none);
+              expect(await doc.pages[i].render(), isNull);
+              await doc.reloadPages(pageNumbersToReload: [i + 1]);
+              expect((doc.pages[i].width, doc.pages[i].height), expectedSize);
+            }
+          } finally {
+            await doc.dispose();
+          }
+        });
+      }
+    }
+
+    for (final progressive in [false, true]) {
+      test('keeps the document open with a placeholder-sized page (progressive: $progressive)', () async {
+        final doc = await PdfDocument.openData(buildPdfWithUnloadablePage(), useProgressiveLoading: progressive);
+        try {
+          if (progressive) await doc.loadPagesProgressively();
+          expect(doc.pages.map((p) => p.pageNumber), [1, 2, 3]);
+          expect(doc.pages.every((p) => p.isLoaded), isTrue);
+          final broken = doc.pages[1];
+          expect(broken.rotation, PdfPageRotation.none);
+          expect((broken.width, broken.height), (doc.pages[0].width, doc.pages[0].height));
+          expect(doc.pages[2].rotation, PdfPageRotation.clockwise90);
+          expect((await broken.loadText())?.fullText ?? '', isEmpty);
+          expect(await broken.loadLinks(), isEmpty);
+          expect(await broken.render(), isNull);
+
+          await doc.reloadPages(pageNumbersToReload: [2]);
+          expect(doc.pages[1].rotation, PdfPageRotation.none);
+          expect(doc.pages[1].width, greaterThan(0));
+        } finally {
+          doc.dispose();
+        }
+      });
+    }
   });
 }

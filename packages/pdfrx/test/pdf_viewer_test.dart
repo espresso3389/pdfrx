@@ -1,13 +1,17 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:pdfrx/src/widgets/interactive_viewer.dart' as pdfrx;
 
 final testPdfFile = File('example/viewer/assets/hello.pdf');
 final binding = TestWidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +22,145 @@ void main() {
   setUp(() => pdfrxInitialize());
   Pdfrx.createHttpClient = () => MockClient((request) async {
     return http.Response.bytes(await testPdfFile.readAsBytes(), 200);
+  });
+
+  for (final preview in [true, false]) {
+    testWidgets('page color filter updates ${preview ? 'preview' : 'partial'} pixels without filtering overlays', (
+      tester,
+    ) async {
+      final document = _TestDocument(1);
+      addTearDown(document.dispose);
+      final controller = PdfViewerController();
+      final boundaryKey = GlobalKey();
+      final page = document.pages.single as _TestPage;
+      page.renderControl.bgra = [255, 0, 0, 255];
+      page.renderControl.block();
+
+      Widget viewer(ColorFilter? filter) => MaterialApp(
+        home: RepaintBoundary(
+          key: boundaryKey,
+          child: PdfViewer(
+            PdfDocumentRefDirect(document, autoDispose: false),
+            controller: controller,
+            params: PdfViewerParams(
+              pageImageColorFilter: filter,
+              pagePaintCallbacks: [
+                (canvas, rect, page) {
+                  canvas.drawRect(
+                    Rect.fromCenter(center: rect.center, width: 60, height: 60),
+                    Paint()..color = Colors.green,
+                  );
+                },
+              ],
+              behaviorControlParams: PdfViewerBehaviorControlParams(
+                enableLowResolutionPagePreview: preview,
+                pageImageCachingDelay: Duration.zero,
+                partialImageLoadingDelay: Duration.zero,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      const filter = ColorFilter.mode(Colors.red, BlendMode.srcIn);
+      await tester.pumpWidget(viewer(filter));
+      await _pumpPaintWork(tester);
+      expect(controller.isReady, isTrue);
+      final center = controller.documentToLocal(controller.layout.pageLayouts.single.center);
+      // While the render is blocked, the placeholder must use the same filter.
+      expect(await _pixelAt(tester, boundaryKey, center + const Offset(70, 0)), Colors.red.toARGB32());
+      page.renderControl.release();
+      await _pumpPaintWork(tester);
+      expect(page.renderControl.renderCount, greaterThan(0));
+      expect(await _pixelAt(tester, boundaryKey, center + const Offset(70, 0)), Colors.red.toARGB32());
+      expect(await _pixelAt(tester, boundaryKey, center), Colors.green.toARGB32());
+
+      await tester.pumpWidget(viewer(null));
+      await _pumpPaintWork(tester);
+      expect(await _pixelAt(tester, boundaryKey, center + const Offset(70, 0)), 0xff0000ff);
+      expect(await _pixelAt(tester, boundaryKey, center), Colors.green.toARGB32());
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 100));
+    });
+  }
+
+  testWidgets('link hover color changes on entry, between links, and on exit', (tester) async {
+    final document = _TestDocument(1);
+    addTearDown(document.dispose);
+    final page = document.pages.single as _TestPage;
+    page.links = [
+      PdfLink(const [PdfRect(100, 700, 200, 600)], url: Uri.parse('https://example.com/a')),
+      PdfLink(const [PdfRect(300, 700, 400, 600)], url: Uri.parse('https://example.com/b')),
+    ];
+    final controller = PdfViewerController();
+    final boundaryKey = GlobalKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RepaintBoundary(
+          key: boundaryKey,
+          child: PdfViewer(
+            PdfDocumentRefDirect(document, autoDispose: false),
+            controller: controller,
+            params: PdfViewerParams(
+              linkHandlerParams: PdfLinkHandlerParams(
+                onLinkTap: (_) {},
+                linkColor: Colors.transparent,
+                linkHoverColor: Colors.red,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    final pageRect = controller.layout.pageLayouts.single;
+    final positions = page.links
+        .map(
+          (link) =>
+              controller.documentToLocal(link.rects.single.toRectInDocument(page: page, pageRect: pageRect).center),
+        )
+        .toList();
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    expect(await _pixelAt(tester, boundaryKey, positions[0]), Colors.white.toARGB32());
+    await mouse.moveTo(positions[0]);
+    await _pumpPaintWork(tester);
+    expect(await _pixelAt(tester, boundaryKey, positions[0]), Colors.red.toARGB32());
+    await mouse.moveTo(positions[1]);
+    await _pumpPaintWork(tester);
+    expect(await _pixelAt(tester, boundaryKey, positions[0]), Colors.white.toARGB32());
+    expect(await _pixelAt(tester, boundaryKey, positions[1]), Colors.red.toARGB32());
+    await mouse.moveTo(const Offset(-10, -10));
+    await _pumpPaintWork(tester);
+    expect(await _pixelAt(tester, boundaryKey, positions[1]), Colors.white.toARGB32());
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('public pinch and inertia settings reach the viewer and update together', (tester) async {
+    final document = _TestDocument(1);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    for (final (sensitivity, excursion) in [(0.5, 0.25), (1.5, 0.1)]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PdfViewer(
+            PdfDocumentRefDirect(document, autoDispose: false),
+            controller: controller,
+            params: PdfViewerParams(scaleGestureSensitivity: sensitivity, scaleInertiaMaxExcursion: excursion),
+          ),
+        ),
+      );
+      await _pumpPaintWork(tester);
+      expect(controller.isReady, isTrue);
+      final viewer = tester.widget<pdfrx.InteractiveViewer>(find.byType(pdfrx.InteractiveViewer));
+      expect(viewer.scaleGestureSensitivity, sensitivity);
+      expect(viewer.scaleInertiaMaxExcursion, excursion);
+      expect(tester.takeException(), isNull);
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
   });
 
   testWidgets('PdfViewer.uri', (tester) async {
@@ -488,6 +631,64 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('visible previews render before surrounding cached pages', (tester) async {
+    await binding.setSurfaceSize(const Size(800, 600));
+    addTearDown(() => binding.setSurfaceSize(null));
+    final document = _TestDocument(5);
+    document._loadPages([1, 2, 3, 4, 5]);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    Widget viewer(bool preview) => MaterialApp(
+      home: PdfViewer(
+        PdfDocumentRefDirect(document, autoDispose: false),
+        controller: controller,
+        params: PdfViewerParams(
+          behaviorControlParams: PdfViewerBehaviorControlParams(enableLowResolutionPagePreview: preview),
+          verticalCacheExtent: 2,
+          getPageRenderingScale: _largePreviewScale,
+        ),
+      ),
+    );
+    await tester.pumpWidget(viewer(false));
+    await _pumpPaintWork(tester);
+    await controller.goToPage(pageNumber: 3, duration: Duration.zero);
+    await _pumpPaintWork(tester);
+    document.renderOrder.clear();
+    await tester.pumpWidget(viewer(true));
+    await _pumpPaintWork(tester);
+    expect(document.renderOrder.first, 3, reason: '${controller.visibleRect}; ${document.renderOrder}');
+    expect(document.renderOrder, contains(2));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('previews under budget survive leaving the cache extent', (tester) async {
+    await binding.setSurfaceSize(const Size(800, 600));
+    addTearDown(() => binding.setSurfaceSize(null));
+    final document = _TestDocument(3);
+    document._loadPages([1, 2, 3]);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          controller: controller,
+          params: const PdfViewerParams(verticalCacheExtent: 0, getPageRenderingScale: _largePreviewScale),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    final first = (document.pages.first as _TestPage).renderControl;
+    final count = first.renderCount;
+    expect(count, greaterThan(0));
+    await controller.goToPage(pageNumber: 3, duration: Duration.zero);
+    await _pumpPaintWork(tester);
+    await controller.goToPage(pageNumber: 1, duration: Duration.zero);
+    await _pumpPaintWork(tester);
+    expect(first.renderCount, count);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('a canceled preview is retried when its page becomes visible again', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));
@@ -736,13 +937,145 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  group('physics wheel scrolling', () {
+    const center = Offset(400, 600);
+
+    Future<PdfViewerController> pumpPhysicsViewer(WidgetTester tester, PdfDocument document, int initialPage) async {
+      await binding.setSurfaceSize(const Size(800, 1200));
+      addTearDown(() => binding.setSurfaceSize(null));
+      final controller = PdfViewerController();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PdfViewer(
+            PdfDocumentRefDirect(document, autoDispose: false),
+            controller: controller,
+            initialPageNumber: initialPage,
+            params: const PdfViewerParams(
+              scrollByMouseWheel: 0.2,
+              interactionDelegateProvider: PdfViewerScrollInteractionDelegateProviderPhysics(),
+              behaviorControlParams: PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
+            ),
+          ),
+        ),
+      );
+      for (var i = 0; i < 30 && !controller.isReady; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+      }
+      expect(controller.isReady, isTrue);
+      await tester.pump(const Duration(milliseconds: 500));
+      return controller;
+    }
+
+    void wheel(double dy) => binding.handlePointerEvent(
+      PointerScrollEvent(position: center, scrollDelta: Offset(0, dy), kind: PointerDeviceKind.mouse),
+    );
+
+    Future<void> frames(WidgetTester tester, int count) async {
+      for (var i = 0; i < count; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+    }
+
+    testWidgets('goToPage after a tiny overshoot at the top lands on the page', (tester) async {
+      final document = _TestDocument(30);
+      addTearDown(document.dispose);
+      final controller = await pumpPhysicsViewer(tester, document, 1);
+
+      wheel(-10); // 2px past the top, like a trackpad nudge
+      await frames(tester, 60);
+      unawaited(controller.goToPage(pageNumber: 12));
+      await frames(tester, 120);
+
+      expect(controller.pageNumber, 12);
+      expect(
+        controller.value.getTranslation().y,
+        moreOrLessEquals(controller.calcMatrixForPage(pageNumber: 12).getTranslation().y, epsilon: 1),
+      );
+      expect(SchedulerBinding.instance.transientCallbackCount, 0);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 100));
+    });
+  });
+
   test('default page anchor remains top', () {
     expect(const PdfViewerParams().pageAnchor, PdfPageAnchor.top);
     expect(const PdfViewerParams().underflowAnchor, isNull);
   });
+
+  for (final (name, provider) in [
+    ('legacy', const PdfViewerSizeDelegateProviderLegacy(maxScale: 0.5)),
+    ('smart', const PdfViewerSizeDelegateProviderSmart(maxPagesVisible: 1, maxScale: 0.5)),
+  ]) {
+    testWidgets('fit scale above maxScale keeps scales consistent ($name)', (tester) async {
+      await binding.setSurfaceSize(Size(500, 1000));
+      addTearDown(() => binding.setSurfaceSize(null));
+      final controller = PdfViewerController();
+      final document = await tester.runAsync(
+        () async => PdfDocument.openData(
+          await testPdfFile.readAsBytes(),
+          sourceName: 'fit-above-max-$name.pdf',
+          useProgressiveLoading: false,
+        ),
+      );
+      addTearDown(() => document?.dispose());
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PdfViewer(
+            PdfDocumentRefDirect(document!),
+            controller: controller,
+            params: PdfViewerParams(
+              sizeDelegateProvider: provider,
+              behaviorControlParams: const PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
+            ),
+          ),
+        ),
+      );
+
+      for (var i = 0; i < 20 && (!controller.isReady || controller.alternativeFitScale == null); i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+      }
+
+      expect(tester.takeException(), isNull);
+      expect(controller.isReady, isTrue);
+      expect(controller.alternativeFitScale, greaterThan(controller.maxScale));
+      expect(controller.minScale, lessThanOrEqualTo(controller.maxScale));
+      expect(controller.currentZoom, lessThanOrEqualTo(controller.maxScale));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 100));
+    });
+  }
 }
 
 enum _TestDocumentEvent { loadComplete, missingFonts }
+
+Future<void> _pumpPaintWork(WidgetTester tester) async {
+  for (var i = 0; i < 12; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+  }
+}
+
+Future<int> _pixelAt(WidgetTester tester, GlobalKey key, Offset position) async {
+  return (await tester.runAsync(() async {
+    final boundary = key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final image = await boundary.toImage();
+    try {
+      final data = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+      final offset = (position.dy.round() * image.width + position.dx.round()) * 4;
+      return (data.getUint8(offset + 3) << 24) |
+          (data.getUint8(offset) << 16) |
+          (data.getUint8(offset + 1) << 8) |
+          data.getUint8(offset + 2);
+    } finally {
+      image.dispose();
+    }
+  }))!;
+}
 
 class _TestDocument extends PdfDocument {
   _TestDocument(
@@ -768,6 +1101,7 @@ class _TestDocument extends PdfDocument {
   final double unloadedPageHeight;
   late List<PdfPage> _pages;
   final reloadRequests = <List<int>?>[];
+  final renderOrder = <int>[];
   bool progressiveLoadingStarted = false;
   int? progressiveLoadingStartPageNumber;
 
@@ -897,6 +1231,7 @@ class _TestPage implements PdfPage {
   final bool isLoaded;
 
   final _TestPageRenderControl renderControl;
+  List<PdfLink> links = const [];
 
   @override
   double get width => 600;
@@ -911,7 +1246,7 @@ class _TestPage implements PdfPage {
   PdfPageRenderCancellationToken createCancellationToken() => _TestCancellationToken();
 
   @override
-  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async => const [];
+  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async => links;
 
   @override
   Future<PdfPageRawText?> loadText() async => null;
@@ -931,12 +1266,14 @@ class _TestPage implements PdfPage {
     PdfPageRenderCancellationToken? cancellationToken,
   }) async {
     if (!isLoaded) return null;
+    (document as _TestDocument).renderOrder.add(pageNumber);
     await renderControl.beforeRender();
-    return PdfImage.createFromBgraData(Uint8List.fromList([255, 255, 255, 255]), width: 1, height: 1);
+    return PdfImage.createFromBgraData(Uint8List.fromList(renderControl.bgra), width: 1, height: 1);
   }
 }
 
 class _TestPageRenderControl {
+  List<int> bgra = [255, 255, 255, 255];
   Completer<void>? _gate;
   bool started = false;
 

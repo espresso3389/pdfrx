@@ -29,8 +29,7 @@ var _requestSequence = 0;
 
 /// Serves `_fixture` over a fake network, honouring `Range` the way S3 does.
 ///
-/// [onRequest] observes every request, which is how the tests below assert what
-/// was actually fetched.
+/// [requestLog] records the requests so tests can assert what was fetched.
 MockClient _rangeAwareServer({
   required List<String> requestLog,
   Duration latency = Duration.zero,

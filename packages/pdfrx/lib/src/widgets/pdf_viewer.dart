@@ -241,7 +241,7 @@ class PdfViewer extends StatefulWidget {
 
 class _PdfViewerState extends State<PdfViewer>
     with TickerProviderStateMixin
-    implements PdfTextSelectionDelegate, PdfViewerCoordinateConverter {
+    implements PdfTextSelectionDelegate, PdfTextSelectionWithCachedText, PdfViewerCoordinateConverter {
   PdfViewerController? _controller;
   late final _txController = _PdfViewerTransformationController(this);
   late final AnimationController _animController;
@@ -416,7 +416,7 @@ class _PdfViewerState extends State<PdfViewer>
       oldWidget?.documentRef.resolveListenable().removeListener(_onDocumentChanged);
       final documentRef = widget.documentRef;
       await pdfrxFlutterInitialize();
-      if (!mounted || !identical(documentRef, widget.documentRef)) {
+      if (!mounted || documentRef.key != widget.documentRef.key) {
         return;
       }
       widget.documentRef.resolveListenable()
@@ -772,10 +772,12 @@ class _PdfViewerState extends State<PdfViewer>
                             panAxis: widget.params.panAxis,
                             panEnabled: widget.params.panEnabled,
                             scaleEnabled: widget.params.scaleEnabled,
+                            scaleGestureSensitivity: widget.params.scaleGestureSensitivity,
                             onInteractionEnd: _onInteractionEnd,
                             onInteractionStart: _onInteractionStart,
                             onInteractionUpdate: widget.params.onInteractionUpdate,
                             interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
+                            scaleInertiaMaxExcursion: widget.params.scaleInertiaMaxExcursion,
                             onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
                             onPointerScale: _onPointerScale,
                             scrollPhysics: widget.params.scrollPhysics,
@@ -1676,6 +1678,7 @@ class _PdfViewerState extends State<PdfViewer>
     FilterQuality filterQuality = FilterQuality.high,
   }) {
     final unusedPageList = <int>[];
+    final previewRequests = <({PdfPage page, double scale, Rect rect})>[];
     final unmeasuredPageList = <int>[];
     // Pages inside the extent that are painting as a blank white rectangle
     // because no preview image has landed for them yet. This is the white-page
@@ -1685,6 +1688,7 @@ class _PdfViewerState extends State<PdfViewer>
     // whether measurement is following the viewport or running away from it.
     int? firstInExtent, lastInExtent;
     final dropShadowPaint = widget.params.pageDropShadow?.toPaint()?..style = PaintingStyle.fill;
+    final pageImageColorFilter = widget.params.pageImageColorFilter;
     cacheTargetRect ??= targetRect;
 
     for (var i = 0; i < _document!.pages.length; i++) {
@@ -1751,20 +1755,23 @@ class _PdfViewerState extends State<PdfViewer>
           previewImage.image,
           Rect.fromLTWH(0, 0, previewImage.image.width.toDouble(), previewImage.image.height.toDouble()),
           rect,
-          Paint()..filterQuality = filterQuality,
+          Paint()
+            ..filterQuality = filterQuality
+            ..colorFilter = pageImageColorFilter,
         );
       } else {
         canvas.drawRect(
           rect,
           Paint()
             ..color = Colors.white
-            ..style = PaintingStyle.fill,
+            ..style = PaintingStyle.fill
+            ..colorFilter = pageImageColorFilter,
         );
       }
 
       if (enableLowResolutionPagePreview &&
           (previewImage == null || previewImage.isDirty || previewImage.scale != previewScaleLimit)) {
-        _requestPagePreviewImageCached(cache, page, previewScaleLimit);
+        previewRequests.add((page: page, scale: previewScaleLimit, rect: rect));
       }
 
       final pageScale = page.width > 0 && page.height > 0
@@ -1780,7 +1787,7 @@ class _PdfViewerState extends State<PdfViewer>
       }
 
       if ((!enableLowResolutionPagePreview || pageScale > previewScaleLimit) && partial != null) {
-        partial.draw(canvas, filterQuality);
+        partial.draw(canvas, filterQuality, pageImageColorFilter);
       }
 
       // Guarded on the selection flag. Without this, paint loads structured text
@@ -1812,20 +1819,33 @@ class _PdfViewerState extends State<PdfViewer>
           callback(canvas, rect, page);
         }
       }
+    }
 
-      if (unusedPageList.isNotEmpty) {
-        final currentPageNumber = _pageNumber;
-        if (currentPageNumber != null && currentPageNumber > 0) {
-          final currentPage = _document!.pages[currentPageNumber - 1];
-          cache.removeCacheImagesIfCacheBytesExceedsLimit(
-            unusedPageList,
-            maxImageCacheBytes,
-            currentPage,
-            dist: (pageNumber) =>
-                (_layout!.pageLayouts[pageNumber - 1].center - _layout!.pageLayouts[currentPage.pageNumber - 1].center)
-                    .distanceSquared,
-          );
-        }
+    // The preview lock serves requests in call order, and the loop above walks pages by index -- so the page above
+    // the viewport used to render before the one on screen. Ask for the visible pages first.
+    previewRequests.sort((a, b) {
+      final aVisible = a.rect.overlaps(targetRect);
+      final bVisible = b.rect.overlaps(targetRect);
+      if (aVisible != bVisible) return aVisible ? -1 : 1;
+      return _distanceToRect(a.rect, targetRect).compareTo(_distanceToRect(b.rect, targetRect));
+    });
+    for (final request in previewRequests) {
+      _requestPagePreviewImageCached(cache, request.page, request.scale);
+    }
+
+    // Once per paint, after the loop: inside it the list was still growing and the cache was trimmed once per page.
+    if (unusedPageList.isNotEmpty) {
+      final currentPageNumber = _pageNumber;
+      if (currentPageNumber != null && currentPageNumber > 0) {
+        final currentPage = _document!.pages[currentPageNumber - 1];
+        cache.removeCacheImagesIfCacheBytesExceedsLimit(
+          unusedPageList,
+          maxImageCacheBytes,
+          currentPage,
+          dist: (pageNumber) =>
+              (_layout!.pageLayouts[pageNumber - 1].center - _layout!.pageLayouts[currentPage.pageNumber - 1].center)
+                  .distanceSquared,
+        );
       }
     }
 
@@ -2038,6 +2058,13 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _invalidate() => _updateStream.add(_txController.value);
+
+  /// 0 for a rect that overlaps [target], otherwise the gap between them.
+  static double _distanceToRect(Rect rect, Rect target) {
+    final dx = max(0.0, max(target.left - rect.right, rect.left - target.right));
+    final dy = max(0.0, max(target.top - rect.bottom, rect.top - target.bottom));
+    return dx * dx + dy * dy;
+  }
 
   Future<void> _requestPagePreviewImageCached(_PdfPageImageCache cache, PdfPage page, double scale) async {
     final width = page.width * scale;
@@ -3925,10 +3952,10 @@ class _PdfViewerState extends State<PdfViewer>
       return a.text.getRangeFromAB(a.index, b.index);
     }
     if (first.text.pageNumber == pageNumber) {
-      return PdfPageTextRange(pageText: first.text, start: a.index, end: first.text.charRects.length);
+      return PdfPageTextRange(pageText: first.text, start: first.index, end: first.text.charRects.length);
     }
     if (second.text.pageNumber == pageNumber) {
-      return PdfPageTextRange(pageText: second.text, start: 0, end: b.index + 1);
+      return PdfPageTextRange(pageText: second.text, start: 0, end: second.index + 1);
     }
     if (first.text.pageNumber < pageNumber && pageNumber < second.text.pageNumber) {
       final text = _getCachedTextOrDelayLoadText(pageNumber, onTextLoaded: () => _invalidate());
@@ -3953,7 +3980,7 @@ class _PdfViewerState extends State<PdfViewer>
     if (first.text.pageNumber == second.text.pageNumber) {
       return [a.text.getRangeFromAB(a.index, b.index)];
     }
-    final selections = <PdfPageTextRange>[a.text.getRangeFromAB(a.index, a.text.charRects.length - 1)];
+    final selections = <PdfPageTextRange>[first.text.getRangeFromAB(first.index, first.text.charRects.length - 1)];
 
     for (var i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
       final text = await _loadTextAsync(i);
@@ -3961,16 +3988,45 @@ class _PdfViewerState extends State<PdfViewer>
       selections.add(text.getRangeFromAB(0, text.charRects.length - 1));
     }
 
-    selections.add(second.text.getRangeFromAB(0, b.index));
+    selections.add(second.text.getRangeFromAB(0, second.index));
+    return selections;
+  }
+
+  /// The selected ranges from the text cache, or null if the text of a page between the ends is not cached.
+  List<PdfPageTextRange>? _selectedTextRangesIfLoaded() {
+    final a = _selA;
+    final b = _selB;
+    if (a == null || b == null) {
+      return [];
+    }
+    final first = a.text.pageNumber < b.text.pageNumber ? a : b;
+    final second = a.text.pageNumber < b.text.pageNumber ? b : a;
+    if (first.text.pageNumber == second.text.pageNumber) {
+      return [a.text.getRangeFromAB(a.index, b.index)];
+    }
+    final selections = <PdfPageTextRange>[first.text.getRangeFromAB(first.index, first.text.charRects.length - 1)];
+
+    for (var i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
+      if (!_textCache.containsKey(i)) return null;
+      final text = _textCache[i];
+      if (text == null || text.fullText.isEmpty) continue;
+      selections.add(text.getRangeFromAB(0, text.charRects.length - 1));
+    }
+
+    selections.add(second.text.getRangeFromAB(0, second.index));
     return selections;
   }
 
   @override
-  Future<String> getSelectedText() async {
-    final selections = await getSelectedTextRanges();
-    if (selections.isEmpty) return '';
-    return selections.map((e) => e.text).join();
+  Future<String> getSelectedText() async => _joinSelectedText(await getSelectedTextRanges());
+
+  @override
+  String? get selectedTextIfLoaded {
+    final selections = _selectedTextRangesIfLoaded();
+    return selections == null ? null : _joinSelectedText(selections);
   }
+
+  static String _joinSelectedText(List<PdfPageTextRange> selections) => selections.map((e) => e.text).join();
 
   @override
   bool get isTextSelectionEnabled => widget.params.textSelectionParams?.enabled ?? true;
@@ -4247,6 +4303,9 @@ class _PdfPageImageCache {
         pageImages.values.fold(0, (sum, e) => sum + getBytesConsumed(e.image)) +
         pageImagesPartial.values.fold(0, (sum, e) => sum + getBytesConsumed(e.image));
     for (final key in pageNumbers) {
+      if (bytesConsumed <= acceptableBytes) {
+        break;
+      }
       final removed = pageImages.remove(key);
       if (removed != null) {
         bytesConsumed -= getBytesConsumed(removed.image);
@@ -4256,9 +4315,6 @@ class _PdfPageImageCache {
       if (removedPartial != null) {
         bytesConsumed -= getBytesConsumed(removedPartial.image);
         removedPartial.dispose();
-      }
-      if (bytesConsumed <= acceptableBytes) {
-        break;
       }
     }
   }
@@ -4311,12 +4367,14 @@ class _PdfImageWithScaleAndRect extends _PdfImageWithScale {
   int get bottom => top + height;
   int get right => left + width;
 
-  void draw(Canvas canvas, [FilterQuality filterQuality = FilterQuality.low]) {
+  void draw(Canvas canvas, [FilterQuality filterQuality = FilterQuality.low, ColorFilter? colorFilter]) {
     canvas.drawImageRect(
       image,
       Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
       rect,
-      Paint()..filterQuality = filterQuality,
+      Paint()
+        ..filterQuality = filterQuality
+        ..colorFilter = colorFilter,
     );
   }
 
@@ -5468,6 +5526,7 @@ class _CanvasLinkPainter {
   _CanvasLinkPainter(this._state);
   final _PdfViewerState _state;
   MouseCursor _cursor = MouseCursor.defer;
+  PdfLink? _hoveredLink;
   final _links = <int, List<PdfLink>>{};
 
   bool get isEnabled => _state.widget.params.linkHandlerParams != null;
@@ -5483,11 +5542,22 @@ class _CanvasLinkPainter {
   /// Reset all the internal data.
   void resetAll() {
     _cursor = MouseCursor.defer;
+    _hoveredLink = null;
     _links.clear();
   }
 
   void resetCursor([VoidCallback? onCursorChanged]) {
+    _setHoveredLink(null);
     _setCursor(MouseCursor.defer, onCursorChanged);
+  }
+
+  /// Repaints only when a hover color is set; otherwise the hovered link looks like any other.
+  void _setHoveredLink(PdfLink? link) {
+    if (identical(link, _hoveredLink)) return;
+    _hoveredLink = link;
+    if (_state.widget.params.linkHandlerParams?.linkHoverColor != null) {
+      _state._invalidate();
+    }
   }
 
   /// Release the page data.
@@ -5548,6 +5618,7 @@ class _CanvasLinkPainter {
       return;
     }
     final link = _findLinkAtPosition(position);
+    _setHoveredLink(link);
     _setCursor(link == null ? MouseCursor.defer : SystemMouseCursors.click, onCursorChanged);
   }
 
@@ -5594,10 +5665,15 @@ class _CanvasLinkPainter {
       return;
     }
 
-    final paint = Paint()
-      ..color = _state.widget.params.linkHandlerParams?.linkColor ?? Colors.blue.withAlpha(50)
-      ..style = PaintingStyle.fill;
+    final params = _state.widget.params.linkHandlerParams;
+    final linkColor = params?.linkColor ?? Colors.blue.withAlpha(50);
+    final hoverColor = params?.linkHoverColor ?? linkColor;
     for (final link in links) {
+      final color = identical(link, _hoveredLink) ? hoverColor : linkColor;
+      if (color.a == 0) continue;
+      final paint = Paint()
+        ..color = color
+        ..style = PaintingStyle.fill;
       for (final rect in link.rects) {
         final rectLink = rect.toRectInDocument(page: page, pageRect: pageRect);
         canvas.drawRect(rectLink, paint);

@@ -1,3 +1,21 @@
+# 2.7.0
+
+- Added `PdfViewerParams.pageImageColorFilter` for recoloring page contents without changing overlays, and `PdfLinkHandlerParams.linkHoverColor` for link hover feedback ([#731](https://github.com/espresso3389/pdfrx/pull/731)).
+- Added `scaleGestureSensitivity` to adjust touch and trackpad pinch sensitivity, and optional `scaleInertiaMaxExcursion` to limit post-release zoom travel. Defaults preserve existing behavior ([#736](https://github.com/espresso3389/pdfrx/pull/736), [#737](https://github.com/espresso3389/pdfrx/pull/737)).
+- Prioritized visible-page previews and retained off-screen previews while the image cache remains within budget ([#729](https://github.com/espresso3389/pdfrx/pull/729)).
+- Fixed repeated or replaced text searches getting stuck, case-sensitivity changes not rerunning searches, and match navigation not notifying listeners ([#729](https://github.com/espresso3389/pdfrx/pull/729)).
+- Fixed document leaks when a load completes after its last listener is removed ([#729](https://github.com/espresso3389/pdfrx/pull/729)).
+- Improved rendering responsiveness while opening large documents without progressive loading ([#743](https://github.com/espresso3389/pdfrx/pull/743)).
+- Added opt-in Hebrew text normalization through `pdfrx_engine` 0.7.0. Ambiguous legacy encodings require the separate `Pdfrx.decodeLegacyHebrewText` setting ([#732](https://github.com/espresso3389/pdfrx/pull/732)).
+- Added opt-in process-wide PDFium coordination for multiple Flutter engines. Enable `processWidePdfiumGate` on every engine before initialization; this mode uses PDFium's built-in font mapper ([#723](https://github.com/espresso3389/pdfrx/pull/723)).
+- Updated to `pdfrx_engine` 0.7.0 and `pdfium_flutter` 0.4.0. Native builds now compile the bundled PDFium gate and require a C toolchain.
+
+# 2.6.6
+
+- Fixed viewer loading getting stuck when a parent rebuilds during initialization ([#727](https://github.com/espresso3389/pdfrx/pull/727)).
+- Fixed physics-based scrolling pulling the view back after navigation and leaving animations running at document edges ([#741](https://github.com/espresso3389/pdfrx/pull/741)).
+- Fixed minimum zoom exceeding maximum zoom for small pages ([#735](https://github.com/espresso3389/pdfrx/pull/735)).
+
 # 2.6.5
 
 - Simplified the README and Material UI migration guidance, with links to the official migration documentation.
