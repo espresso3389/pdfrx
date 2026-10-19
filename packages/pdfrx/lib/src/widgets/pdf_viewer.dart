@@ -241,7 +241,7 @@ class PdfViewer extends StatefulWidget {
 
 class _PdfViewerState extends State<PdfViewer>
     with TickerProviderStateMixin
-    implements PdfTextSelectionDelegate, PdfViewerCoordinateConverter {
+    implements PdfTextSelectionDelegate, PdfTextSelectionWithCachedText, PdfViewerCoordinateConverter {
   PdfViewerController? _controller;
   late final _txController = _PdfViewerTransformationController(this);
   late final AnimationController _animController;
@@ -3937,10 +3937,10 @@ class _PdfViewerState extends State<PdfViewer>
       return a.text.getRangeFromAB(a.index, b.index);
     }
     if (first.text.pageNumber == pageNumber) {
-      return PdfPageTextRange(pageText: first.text, start: a.index, end: first.text.charRects.length);
+      return PdfPageTextRange(pageText: first.text, start: first.index, end: first.text.charRects.length);
     }
     if (second.text.pageNumber == pageNumber) {
-      return PdfPageTextRange(pageText: second.text, start: 0, end: b.index + 1);
+      return PdfPageTextRange(pageText: second.text, start: 0, end: second.index + 1);
     }
     if (first.text.pageNumber < pageNumber && pageNumber < second.text.pageNumber) {
       final text = _getCachedTextOrDelayLoadText(pageNumber, onTextLoaded: () => _invalidate());
@@ -3965,7 +3965,7 @@ class _PdfViewerState extends State<PdfViewer>
     if (first.text.pageNumber == second.text.pageNumber) {
       return [a.text.getRangeFromAB(a.index, b.index)];
     }
-    final selections = <PdfPageTextRange>[a.text.getRangeFromAB(a.index, a.text.charRects.length - 1)];
+    final selections = <PdfPageTextRange>[first.text.getRangeFromAB(first.index, first.text.charRects.length - 1)];
 
     for (var i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
       final text = await _loadTextAsync(i);
@@ -3973,16 +3973,45 @@ class _PdfViewerState extends State<PdfViewer>
       selections.add(text.getRangeFromAB(0, text.charRects.length - 1));
     }
 
-    selections.add(second.text.getRangeFromAB(0, b.index));
+    selections.add(second.text.getRangeFromAB(0, second.index));
+    return selections;
+  }
+
+  /// The selected ranges from the text cache, or null if the text of a page between the ends is not cached.
+  List<PdfPageTextRange>? _selectedTextRangesIfLoaded() {
+    final a = _selA;
+    final b = _selB;
+    if (a == null || b == null) {
+      return [];
+    }
+    final first = a.text.pageNumber < b.text.pageNumber ? a : b;
+    final second = a.text.pageNumber < b.text.pageNumber ? b : a;
+    if (first.text.pageNumber == second.text.pageNumber) {
+      return [a.text.getRangeFromAB(a.index, b.index)];
+    }
+    final selections = <PdfPageTextRange>[first.text.getRangeFromAB(first.index, first.text.charRects.length - 1)];
+
+    for (var i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
+      if (!_textCache.containsKey(i)) return null;
+      final text = _textCache[i];
+      if (text == null || text.fullText.isEmpty) continue;
+      selections.add(text.getRangeFromAB(0, text.charRects.length - 1));
+    }
+
+    selections.add(second.text.getRangeFromAB(0, second.index));
     return selections;
   }
 
   @override
-  Future<String> getSelectedText() async {
-    final selections = await getSelectedTextRanges();
-    if (selections.isEmpty) return '';
-    return selections.map((e) => e.text).join();
+  Future<String> getSelectedText() async => _joinSelectedText(await getSelectedTextRanges());
+
+  @override
+  String? get selectedTextIfLoaded {
+    final selections = _selectedTextRangesIfLoaded();
+    return selections == null ? null : _joinSelectedText(selections);
   }
+
+  static String _joinSelectedText(List<PdfPageTextRange> selections) => selections.map((e) => e.text).join();
 
   @override
   bool get isTextSelectionEnabled => widget.params.textSelectionParams?.enabled ?? true;
