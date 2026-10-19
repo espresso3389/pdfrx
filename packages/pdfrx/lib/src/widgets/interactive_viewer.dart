@@ -79,6 +79,7 @@ class InteractiveViewer extends StatefulWidget {
     this.panEnabled = true,
     this.scaleEnabled = true,
     this.scaleInertiaMaxExcursion,
+    this.scaleGestureSensitivity = 1.0,
     this.scaleFactor = kDefaultMouseScrollToScaleFactor,
     this.transformationController,
     this.alignment,
@@ -91,6 +92,8 @@ class InteractiveViewer extends StatefulWidget {
   }) : assert(minScale > 0),
        assert(interactionEndFrictionCoefficient > 0),
        assert(scaleInertiaMaxExcursion == null || (scaleInertiaMaxExcursion > 0 && scaleInertiaMaxExcursion < 1)),
+       assert(scaleGestureSensitivity > 0),
+       assert(scaleGestureSensitivity.isFinite),
        assert(minScale.isFinite),
        assert(maxScale > 0),
        assert(!maxScale.isNaN),
@@ -130,6 +133,7 @@ class InteractiveViewer extends StatefulWidget {
     this.panEnabled = true,
     this.scaleEnabled = true,
     this.scaleInertiaMaxExcursion,
+    this.scaleGestureSensitivity = 1.0,
     this.scaleFactor = 200.0,
     this.transformationController,
     this.alignment,
@@ -142,6 +146,8 @@ class InteractiveViewer extends StatefulWidget {
   }) : assert(minScale > 0),
        assert(interactionEndFrictionCoefficient > 0),
        assert(scaleInertiaMaxExcursion == null || (scaleInertiaMaxExcursion > 0 && scaleInertiaMaxExcursion < 1)),
+       assert(scaleGestureSensitivity > 0),
+       assert(scaleGestureSensitivity.isFinite),
        assert(minScale.isFinite),
        assert(maxScale > 0),
        assert(!maxScale.isNaN),
@@ -265,6 +271,28 @@ class InteractiveViewer extends StatefulWidget {
   ///
   ///   * [panEnabled], which is similar but for panning.
   final bool scaleEnabled;
+
+  /// Sensitivity of the live pinch/scale gesture, applied as an exponent to the
+  /// gesture's scale ratio.
+  ///
+  /// Defaults to `1.0`, which preserves the existing behavior: the viewer scale
+  /// follows the finger spread one-to-one. Values greater than `1.0` make the
+  /// same finger movement produce more zoom: a pinch that spreads the fingers by
+  /// a factor of `r` scales by `r ^ scaleGestureSensitivity` instead of `r`.
+  /// Values between `0.0` and `1.0` make the response gentler. The value must be
+  /// finite and greater than zero.
+  ///
+  /// Because the mapping is an exponent, it is symmetric between pinch-in and
+  /// pinch-out (`f(1/x) == 1 / f(x)`), and the amplification is comparable at
+  /// every zoom level.
+  ///
+  /// This affects only scale gestures handled through this widget's
+  /// `GestureDetector` / `ScaleGestureRecognizer`: touchscreen multi-pointer pinch
+  /// gestures and trackpad pan/zoom (`PointerPanZoom*`) scale gestures. It does
+  /// not affect pdfrx's separate pointer-signal path — `PointerScaleEvent` and
+  /// Ctrl+mouse-wheel zoom, tuned by `PdfViewerParams.scaleByPointerScale` — nor
+  /// buttons or programmatic zoom.
+  final double scaleGestureSensitivity;
 
   /// {@macro flutter.gestures.scale.trackpadScrollCausesScale}
   final bool trackpadScrollCausesScale;
@@ -944,7 +972,11 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
         // details.scale gives us the amount to change the scale as of the
         // start of this gesture, so calculate the amount to scale as of the
         // previous call to _onScaleUpdate.
-        final desiredScale = _scaleStart! * details.scale;
+        // scaleGestureSensitivity raises the gesture ratio to a power; 1.0 leaves the mapping unchanged.
+        final gestureScale = widget.scaleGestureSensitivity == 1.0
+            ? details.scale
+            : math.pow(details.scale, widget.scaleGestureSensitivity).toDouble();
+        final desiredScale = _scaleStart! * gestureScale;
         final scaleChange = desiredScale / scale;
         _snapFocalPoint = details.localFocalPoint;
         _transformer.value = _matrixScale(_transformer.value, scaleChange);
