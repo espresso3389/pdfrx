@@ -15,6 +15,7 @@ dependencies:
   ffi:
   hooks:
   http:
+  native_toolchain_c:
 
 dev_dependencies:
   ffigen:

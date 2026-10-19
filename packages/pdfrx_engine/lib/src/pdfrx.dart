@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:meta/meta.dart';
 
 /// Emits a [Pdfrx.debugLazyLoading] trace line.
 ///
@@ -86,4 +87,30 @@ class Pdfrx {
   static String? cacheDirectoryPath;
 
   static Map<String, int>? pdfiumNativeBindings;
+
+  /// Serialize PDFium across Flutter engines in one OS process.
+  ///
+  /// Set this on every engine before `PdfrxEntryFunctions.init` /
+  /// `pdfrxFlutterInitialize` when using `desktop_multi_window` (or any
+  /// multi-engine host). The `pdfrx_pdfium_gate` native asset from pdfium_dart
+  /// is bundled automatically.
+  ///
+  /// Consequences: the Dart font mapper is not installed (PDFium's built-in
+  /// mapper is used), and `FPDF_DestroyLibrary` is not called when an engine
+  /// stops its worker — PDFium stays alive until process exit.
+  ///
+  /// Default is `false`. Single-engine apps are unchanged.
+  static bool get useProcessWidePdfiumGate => _useProcessWidePdfiumGate;
+  static bool _useProcessWidePdfiumGate = false;
+  static bool _gateConfigurationLocked = false;
+
+  static set useProcessWidePdfiumGate(bool value) {
+    if (_gateConfigurationLocked && value != _useProcessWidePdfiumGate) {
+      throw StateError('Configure the process-wide PDFium gate before starting any PDFium worker.');
+    }
+    _useProcessWidePdfiumGate = value;
+  }
+
+  @internal
+  static void lockProcessWidePdfiumGateConfiguration() => _gateConfigurationLocked = true;
 }
