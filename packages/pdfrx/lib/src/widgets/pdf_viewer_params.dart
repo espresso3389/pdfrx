@@ -55,6 +55,7 @@ class PdfViewerParams {
     this.pageImageColorFilter,
     this.panEnabled = true,
     this.scaleEnabled = true,
+    this.scaleGestureSensitivity = 1.0,
     this.onInteractionEnd,
     this.onInteractionStart,
     this.onInteractionUpdate,
@@ -99,7 +100,9 @@ class PdfViewerParams {
     this.interactionDelegateProvider = const PdfViewerScrollInteractionDelegateProviderInstant(),
     this.sizeDelegateProvider,
     this.zoomStepsDelegateProvider = const PdfViewerZoomStepsDelegateProviderDefault(),
-  }) : assert(
+  }) : assert(scaleGestureSensitivity > 0),
+       assert(scaleGestureSensitivity != double.infinity),
+       assert(
          sizeDelegateProvider == null ||
              (maxScale == null &&
                  minScale == null &&
@@ -305,6 +308,27 @@ class PdfViewerParams {
 
   /// See [InteractiveViewer.scaleEnabled] for details.
   final bool scaleEnabled;
+
+  /// Sensitivity of the live pinch/scale gesture, applied as an exponent to the
+  /// gesture's scale ratio.
+  ///
+  /// Defaults to `1.0`, which preserves the existing behavior: the viewer scale
+  /// follows the finger spread one-to-one. Values greater than `1.0` make the
+  /// same finger movement produce more zoom: a pinch that spreads the fingers by
+  /// a factor of `r` scales by `r ^ scaleGestureSensitivity` instead of `r`.
+  /// Values between `0.0` and `1.0` make the response gentler. The value must be
+  /// finite and greater than zero.
+  ///
+  /// Because the mapping is an exponent, it is symmetric between pinch-in and
+  /// pinch-out (`f(1/x) == 1 / f(x)`), and the amplification is comparable at
+  /// every zoom level.
+  ///
+  /// This affects only scale gestures handled through `GestureDetector` /
+  /// `ScaleGestureRecognizer`: touchscreen multi-pointer pinch gestures and trackpad
+  /// pan/zoom (`PointerPanZoom*`) scale gestures. It is independent of
+  /// [scaleByPointerScale], which tunes the separate pointer-signal path
+  /// (`PointerScaleEvent` and Ctrl+scroll zoom) and is left unchanged.
+  final double scaleGestureSensitivity;
 
   /// See [InteractiveViewer.onInteractionEnd] for details.
   final GestureScaleEndCallback? onInteractionEnd;
@@ -750,6 +774,7 @@ class PdfViewerParams {
         other.pageDropShadow != pageDropShadow ||
         other.panEnabled != panEnabled ||
         other.scaleEnabled != scaleEnabled ||
+        other.scaleGestureSensitivity != scaleGestureSensitivity ||
         other.interactionEndFrictionCoefficient != interactionEndFrictionCoefficient ||
         other.scrollByMouseWheel != scrollByMouseWheel ||
         other.scaleByPointerScale != scaleByPointerScale ||
@@ -795,6 +820,7 @@ class PdfViewerParams {
         other.pageImageColorFilter == pageImageColorFilter &&
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
+        other.scaleGestureSensitivity == scaleGestureSensitivity &&
         other.onInteractionEnd == onInteractionEnd &&
         other.onInteractionStart == onInteractionStart &&
         other.onInteractionUpdate == onInteractionUpdate &&
@@ -867,6 +893,7 @@ class PdfViewerParams {
         pageImageColorFilter.hashCode ^
         panEnabled.hashCode ^
         scaleEnabled.hashCode ^
+        scaleGestureSensitivity.hashCode ^
         onInteractionEnd.hashCode ^
         onInteractionStart.hashCode ^
         onInteractionUpdate.hashCode ^
