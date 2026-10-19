@@ -127,6 +127,16 @@ void main() {
   });
 
   group('scaleGestureSensitivity - isolation', () {
+    for (final sensitivity in [0.5, 1.5]) {
+      testWidgets('respects zoom limits with sensitivity $sensitivity', (tester) async {
+        final inward = await _measureTrackpadScale(tester, sensitivity: sensitivity, ratio: 0.001);
+        final outward = await _measureTrackpadScale(tester, sensitivity: sensitivity, ratio: 100);
+        expect(inward, closeTo(_kMinScale, 1e-9));
+        expect(outward, closeTo(_kMaxScale, 1e-9));
+        expect(tester.takeException(), isNull);
+      });
+    }
+
     testWidgets('leaves panning unaffected', (tester) async {
       final plain = await _measurePanTranslation(tester, sensitivity: 1.0);
       final amplified = await _measurePanTranslation(tester, sensitivity: 1.5);
