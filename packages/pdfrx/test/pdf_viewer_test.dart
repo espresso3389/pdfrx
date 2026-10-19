@@ -739,6 +739,77 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  for (final preview in [true, false]) {
+    testWidgets('releaseCachedImages cancels an unfinished ${preview ? 'preview' : 'partial'} and redraws', (
+      tester,
+    ) async {
+      final document = _TestDocument(1);
+      addTearDown(document.dispose);
+      final control = (document.pages.first as _TestPage).renderControl..block();
+      final controller = PdfViewerController();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PdfViewer(
+            PdfDocumentRefDirect(document, autoDispose: false),
+            controller: controller,
+            params: PdfViewerParams(
+              getPageRenderingScale: _largePreviewScale,
+              behaviorControlParams: PdfViewerBehaviorControlParams(
+                enableLowResolutionPagePreview: preview,
+                partialImageLoadingDelay: Duration.zero,
+              ),
+            ),
+          ),
+        ),
+      );
+      await _pumpPaintWork(tester);
+      expect(control.tokens, isNotEmpty);
+      final pending = control.tokens.toList();
+      controller.releaseCachedImages(keepVisible: false);
+      expect(pending.every((token) => token.isCanceled), isTrue);
+      control.release();
+      await _pumpPaintWork(tester);
+      expect(control.renderCount, greaterThan(pending.length));
+      expect(control.tokens.last.isCanceled, isFalse);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 100));
+    });
+  }
+
+  testWidgets('releaseCachedImages keeps visible images and releases offscreen previews', (tester) async {
+    await binding.setSurfaceSize(const Size(800, 600));
+    addTearDown(() => binding.setSurfaceSize(null));
+    final document = _TestDocument(3).._loadPages([1, 2, 3]);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          controller: controller,
+          params: const PdfViewerParams(verticalCacheExtent: 0, getPageRenderingScale: _largePreviewScale),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    final first = (document.pages.first as _TestPage).renderControl;
+    final firstCount = first.renderCount;
+    await controller.goToPage(pageNumber: 3, duration: Duration.zero);
+    await _pumpPaintWork(tester);
+    final last = (document.pages.last as _TestPage).renderControl;
+    final lastCount = last.renderCount;
+    expect(firstCount, greaterThan(0));
+    expect(lastCount, greaterThan(0));
+    controller.releaseCachedImages();
+    controller.invalidate();
+    await _pumpPaintWork(tester);
+    expect(last.renderCount, lastCount);
+    await controller.goToPage(pageNumber: 1, duration: Duration.zero);
+    await _pumpPaintWork(tester);
+    expect(first.renderCount, greaterThan(firstCount));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('previews under budget survive leaving the cache extent', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));
@@ -1345,12 +1416,14 @@ class _TestPage implements PdfPage {
   }) async {
     if (!isLoaded) return null;
     (document as _TestDocument).renderOrder.add(pageNumber);
+    renderControl.tokens.add(cancellationToken!);
     await renderControl.beforeRender();
     return PdfImage.createFromBgraData(Uint8List.fromList(renderControl.bgra), width: 1, height: 1);
   }
 }
 
 class _TestPageRenderControl {
+  final tokens = <PdfPageRenderCancellationToken>[];
   List<int> bgra = [255, 255, 255, 255];
   Completer<void>? _gate;
   bool started = false;

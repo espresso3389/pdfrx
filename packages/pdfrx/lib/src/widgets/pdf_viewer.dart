@@ -2059,6 +2059,20 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _invalidate() => _updateStream.add(_txController.value);
 
+  void _releaseCachedImages({required bool keepVisible}) {
+    final keep = <int>{};
+    final layout = _layout;
+    if (keepVisible && layout != null && _initialized && _viewSize != null) {
+      final visible = _visibleRect;
+      for (var i = 0; i < layout.pageLayouts.length; i++) {
+        if (layout.pageLayouts[i].overlaps(visible)) keep.add(i + 1);
+      }
+    }
+    _imageCache.releaseImagesExcept(keep);
+    _magnifierImageCache.releaseImagesExcept(const {});
+    if (!keepVisible) _invalidate();
+  }
+
   /// 0 for a rect that overlaps [target], otherwise the gap between them.
   static double _distanceToRect(Rect rect, Rect target) {
     final dx = max(0.0, max(target.left - rect.right, rect.left - target.right));
@@ -2148,6 +2162,10 @@ class _PdfViewerState extends State<PdfViewer>
           }
 
           final newImage = _PdfImageWithScale(await img.createImage(), scale, pageGeometry: _pageGeometryOf(page));
+          if (!mounted || cancellationToken.isCanceled) {
+            newImage.dispose();
+            return;
+          }
           cache.pageImages[page.pageNumber]?.dispose();
           cache.pageImages[page.pageNumber] = newImage;
           if (identical(cache, _imageCache)) _completeInitialPageImageWaiterIfReady();
@@ -4243,6 +4261,24 @@ class _PdfPageImageCache {
     pageImagesPartial.clear();
   }
 
+  /// Disposes every image except those of [keep], cancelling their pending renders; see
+  /// [PdfViewerController.releaseCachedImages].
+  void releaseImagesExcept(Set<int> keep) {
+    final pageNumbers = {
+      ...pageImages.keys,
+      ...pageImagesPartial.keys,
+      ...pageImageRenderingTimers.keys,
+      ...cancellationTokens.keys,
+      ...pageImagePartialRenderingRequests.keys,
+    };
+    for (final pageNumber in pageNumbers) {
+      if (keep.contains(pageNumber)) continue;
+      cancelPendingRenderings(pageNumber);
+      pageImages.remove(pageNumber)?.image.dispose();
+      pageImagesPartial.remove(pageNumber)?.dispose();
+    }
+  }
+
   void cancelPendingRenderings(int pageNumber) {
     pageImageRenderingTimers.remove(pageNumber)?.cancel();
     pageImagePartialRenderingRequests.remove(pageNumber)?.cancel();
@@ -4956,6 +4992,12 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   ///
   /// This function does not scroll/zoom to the specified page but changes the current page number.
   void setCurrentPageNumber(int pageNumber) => _state._setCurrentPageNumber(pageNumber);
+
+  /// Releases the rendered page images the viewer holds in memory, e.g. when it is kept alive in a hidden tab.
+  ///
+  /// Released pages are rendered again the next time they are painted. With [keepVisible] (the default) the images
+  /// of the pages currently on screen are kept, so showing the viewer again does not flash blank pages.
+  void releaseCachedImages({bool keepVisible = true}) => _state._releaseCachedImages(keepVisible: keepVisible);
 
   /// The current zoom ratio.
   double get currentZoom => value.zoom;
