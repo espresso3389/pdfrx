@@ -1,3 +1,8 @@
+# 0.4.0
+
+- Updated to `pdfium_dart` 0.4.0, exposing the process-wide PDFium gate for multi-engine applications ([#723](https://github.com/espresso3389/pdfrx/pull/723)).
+- Native builds now compile the bundled gate library using the platform C toolchain. PDFium binaries are unchanged.
+
 # 0.3.1
 
 - Updated to `pdfium_dart` 0.3.1 for system proxy support and clearer PDFium download errors.

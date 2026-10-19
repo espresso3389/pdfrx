@@ -1,3 +1,9 @@
+# 0.4.0
+
+- Added the bundled `PdfiumProcessGate` native coordinator for serializing PDFium access and claiming initialization once across engines or isolates in one process ([#723](https://github.com/espresso3389/pdfrx/pull/723)).
+- Native builds now require a C toolchain to compile the gate library, including when coordination is not enabled. Flutter's platform build toolchains provide this compiler.
+- Preserved the gate native asset when iOS obtains PDFium through `pdfium_flutter`.
+
 # 0.3.1
 
 - Fixed PDFium downloads to honor macOS and Windows system proxy settings.
