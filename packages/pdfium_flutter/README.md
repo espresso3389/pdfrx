@@ -10,7 +10,7 @@ This package is part of the [pdfrx](https://github.com/espresso3389/pdfrx) proje
 - iOS 15 or later
 - macOS 12 or later
 
-Native builds also require a C toolchain for the bundled PDFium gate, even when the gate is disabled at runtime. See [native build requirements](https://github.com/espresso3389/pdfrx/blob/master/doc/pdfrx-Initialization.md#native-build-requirements).
+Native builds also require a C toolchain to compile a small bundled library that prevents simultaneous PDFium access from multiple Flutter engines. This library is built even when that protection is disabled at runtime. See [native build requirements](https://github.com/espresso3389/pdfrx/blob/master/doc/pdfrx-Initialization.md#native-build-requirements).
 
 ## Overview
 

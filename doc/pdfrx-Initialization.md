@@ -25,7 +25,7 @@ Basically, these initialization functions do the following things:
 
 ## Multiple Flutter engines
 
-Apps that use [`desktop_multi_window`](https://pub.dev/packages/desktop_multi_window) (or any host that runs several Flutter engines in one OS process) must opt into a process-wide PDFium gate. PDFium is a single native library in the process, but each engine has its own Dart isolates and pdfrx worker. Without the gate, a second engine re-inits PDFium, installs isolate-local font callbacks, or calls `FPDF_DestroyLibrary` while the first engine still needs it.
+Apps that use [`desktop_multi_window`](https://pub.dev/packages/desktop_multi_window) (or any host that runs several Flutter engines in one OS process) must enable process-wide locking of PDFium access. This lock allows only one participating engine to use PDFium at a time. The API calls this protection a "gate", hence the option name `processWidePdfiumGate`. PDFium is a single native library in the process, but each engine has its own Dart isolates and pdfrx worker. Without this protection, a second engine re-inits PDFium, installs isolate-local font callbacks, or calls `FPDF_DestroyLibrary` while the first engine still needs it.
 
 Set the flag on **every** engine **before** initialization:
 
@@ -46,7 +46,7 @@ await pdfrxFlutterInitialize();
 
 Default is off. Single-engine apps (mobile, typical desktop, Linux without multi-window) are unchanged.
 
-When the gate is on:
+When this protection is enabled:
 
 - `FPDF_InitLibrary` runs once per process; later engines do not init again
 - `FPDF_DestroyLibrary` is not called when one engine stops its worker
@@ -57,7 +57,7 @@ The mutex is not thread-owner-affine: Dart may resume an `await` on another OS t
 
 The configuration is fixed when the first worker starts in each isolate. Changing it afterwards throws `StateError`,
 even after stopping that worker. All engines must opt in before doing any PDFium work; mixing modes is unsupported.
-Worker `compute` callbacks hold the gate only for their synchronous portion and must not call PDFium after an `await`.
+Worker `compute` callbacks hold the lock only for their synchronous portion and must not call PDFium after an `await`.
 For asynchronous access to native handles, use `suspendPdfiumWorkerDuringAction`; do not call worker APIs from inside
 that action because the worker is suspended until the action completes.
 
@@ -86,11 +86,11 @@ For Flutter apps, `pdfium_flutter` is the recommended PDFium integration package
 
 ## Native Build Requirements
 
-`pdfium_dart` builds the small `pdfrx_pdfium_gate` native library through its Dart build hook. A C toolchain is required for native builds even when `processWidePdfiumGate` is false or a custom `PDFIUM_PATH` is used:
+`pdfium_dart` uses its Dart build hook to compile a small native library that prevents simultaneous PDFium access from multiple Flutter engines. It contains a lock shared within the application process. The library is named `pdfrx_pdfium_gate`; "gate" refers to this access control. A C toolchain is required for native builds even when `processWidePdfiumGate` is false or a custom `PDFIUM_PATH` is used:
 
 - Windows: Visual Studio C++ build tools and a Windows SDK for the target architecture.
 - macOS/iOS: Xcode and its command-line tools.
 - Linux: a C compiler and the development tools/libraries required by the target.
 - Android: the Android NDK supplied/configured by the Flutter Android build.
 
-This compiles the gate, not PDFium itself. PDFium binaries are downloaded or supplied through platform packaging. Web uses WASM and does not build the native gate.
+The C compiler builds this small locking library. It does not compile PDFium itself. PDFium binaries are downloaded or supplied through platform packaging. Web uses WASM and does not build this native locking library.
