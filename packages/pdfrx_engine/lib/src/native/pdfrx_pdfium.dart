@@ -1914,7 +1914,9 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
           }
           final raw = PdfPageRawText(sb.toString(), charRects);
           // On the worker, so the reordering does not cost the UI isolate.
-          return params.normalizeHebrew ? PdfHebrewTextNormalizer.normalize(raw) : raw;
+          return params.normalizeHebrew
+              ? PdfHebrewTextNormalizer.normalize(raw, decodeLegacyEncoding: params.decodeLegacyHebrew)
+              : raw;
         } finally {
           pdfium.FPDFText_ClosePage(textPage);
           pdfium.FPDF_ClosePage(page);
@@ -1926,6 +1928,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
         bbLeft: bbLeft,
         bbBottom: bbBottom,
         normalizeHebrew: Pdfrx.normalizeHebrewText,
+        decodeLegacyHebrew: Pdfrx.decodeLegacyHebrewText,
       ),
     );
   }

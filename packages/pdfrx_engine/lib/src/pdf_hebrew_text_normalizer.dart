@@ -10,16 +10,19 @@ import 'pdf_text.dart';
 /// to right, or a line whose words do, is reordered. Text already in logical
 /// order is left untouched.
 ///
-/// It also decodes Windows-1255 Hebrew that a font without a ToUnicode map
+/// With explicit legacy decoding enabled, it also decodes Windows-1255 Hebrew that a font without a ToUnicode map
 /// exposes as Latin-1 or Mac Roman characters, but only on a page where those
 /// characters outnumber the Latin letters.
 ///
 /// Character boxes are permuted together with the text, so indices into the
 /// result still address the right glyphs.
+/// Mixed-script tokens and lines are preserved conservatively rather than applying a full bidi algorithm.
 abstract final class PdfHebrewTextNormalizer {
   /// Returns [text] in logical order, or [text] itself when nothing changed.
-  static PdfPageRawText normalize(PdfPageRawText text) {
-    final (fullText, charRects) = _normalize(text.fullText, text.charRects);
+  /// [decodeLegacyEncoding] enables a heuristic for broken legacy font maps.
+  /// Leave it disabled for documents that may contain accented Latin text.
+  static PdfPageRawText normalize(PdfPageRawText text, {bool decodeLegacyEncoding = false}) {
+    final (fullText, charRects) = _normalize(text.fullText, text.charRects, decodeLegacyEncoding);
     if (identical(fullText, text.fullText)) return text;
     return PdfPageRawText(fullText, charRects);
   }
@@ -35,12 +38,12 @@ bool _isAsciiLetter(int c) => (c >= 0x41 && c <= 0x5A) || (c >= 0x61 && c <= 0x7
 /// shorter ones follow the page's majority.
 const _minPairs = 2;
 
-(String, List<PdfRect>) _normalize(String text, List<PdfRect> rects) {
+(String, List<PdfRect>) _normalize(String text, List<PdfRect> rects, bool decodeLegacyEncoding) {
   if (text.length != rects.length || text.isEmpty) return (text, rects);
   final codes = List<int>.of(text.codeUnits);
   final boxes = List<PdfRect>.of(rects);
 
-  var changed = _decodeLegacyHebrew(codes);
+  var changed = decodeLegacyEncoding && _decodeLegacyHebrew(codes);
 
   final lines = <(int, int)>[];
   var lineStart = 0;
@@ -55,6 +58,7 @@ const _minPairs = 2;
   var pageLtr = 0, pageRtl = 0;
   for (final (s, e) in lines) {
     for (final (ts, te) in _tokens(codes, s, e)) {
+      if (!_isHebrewToken(codes, ts, te)) continue;
       final v = _letterVote(codes, boxes, ts, te);
       if (v.total == 0) continue;
       wordVotes.add((ts, te, v));
@@ -76,6 +80,13 @@ const _minPairs = 2;
   pageLtr = 0;
   pageRtl = 0;
   for (final (s, e) in lines) {
+    final tokens = _tokens(codes, s, e);
+    // Mixed scripts and separate physical lines need a full bidi/layout model.
+    // Preserve their order rather than sorting unrelated runs by x alone.
+    if (tokens.any((t) => !_isHebrewToken(codes, t.$1, t.$2))) continue;
+    if (tokens.any((t) => !_sameLine(_tokenBox(boxes, tokens.first.$1, tokens.first.$2), _tokenBox(boxes, t.$1, t.$2)))) {
+      continue;
+    }
     final v = _wordVote(codes, boxes, s, e);
     if (v.total == 0) continue;
     lineVotes.add((s, e, v));
@@ -98,6 +109,10 @@ const _minPairs = 2;
 bool _isVisual(_Vote v, bool pageVisual) {
   if (v.rtl > 0) return false;
   return v.total >= _minPairs || pageVisual;
+}
+
+bool _isHebrewToken(List<int> codes, int start, int end) {
+  return codes.getRange(start, end).every((c) => _isHebLetter(c) || _isHebMark(c));
 }
 
 class _Vote {

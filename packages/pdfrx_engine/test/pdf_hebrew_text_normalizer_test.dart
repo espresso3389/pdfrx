@@ -33,6 +33,40 @@ List<(String, double)> _layoutRtl(List<String> words, {double right = 500}) {
 void main() {
   const words = ['שלום', 'עולם', 'ומלואו'];
 
+  test('mixed tokens preserve Latin runs, numbers, and surrogate pairs', () {
+    for (final suffix in ['ABC', '123', '\u{1F600}']) {
+      final text = 'םולש$suffix';
+      final raw = PdfPageRawText(text, [for (var i = 0; i < text.length; i++) PdfRect(i * 10, 10, i * 10 + 10, 0)]);
+      expect(PdfHebrewTextNormalizer.normalize(raw), same(raw));
+    }
+  });
+
+  test('accent-heavy Latin text is not guessed to be a legacy encoding', () {
+    final text = List.filled(30, 'é').join();
+    final raw = _line([for (var i = 0; i < text.length; i++) (text[i], i * 10.0)]);
+    expect(PdfHebrewTextNormalizer.normalize(raw), same(raw));
+  });
+
+  test('line reordering does not reverse English word order', () {
+    final raw = _line(_layoutRtl(['ומלואו', 'world', 'hello', 'עולם', 'שלום']).reversed.toList());
+    final result = PdfHebrewTextNormalizer.normalize(raw);
+    expect(result.fullText.contains('olleh dlrow'), isTrue);
+    expect(result.fullText.indexOf('שלום'), lessThan(result.fullText.indexOf('עולם')));
+  });
+
+  test('separate physical rows without newline are not sorted together', () {
+    final first = _line(_layoutRtl(words).reversed.toList());
+    final second = _line(_layoutRtl(words).reversed.toList(), y: 500);
+    final raw = PdfPageRawText('${first.fullText} ${second.fullText}', [
+      ...first.charRects,
+      const PdfRect(0, 0, 0, 0),
+      ...second.charRects,
+    ]);
+    final result = PdfHebrewTextNormalizer.normalize(raw);
+    expect(result.fullText, 'ומלואו עולם שלום ומלואו עולם שלום');
+    expect(result.charRects.length, result.fullText.length);
+  });
+
   test('logical order is returned untouched', () {
     final raw = _line(_layoutRtl(words));
     expect(identical(PdfHebrewTextNormalizer.normalize(raw), raw), isTrue);
@@ -102,7 +136,9 @@ void main() {
     String encode(String s) => s.split('').map((c) => latin1[c] ?? c).join();
     final many = List.filled(4, words).expand((w) => w).toList();
     final glyphs = _layoutRtl(many).map((g) => (encode(g.$1), g.$2)).toList();
-    final fixed = PdfHebrewTextNormalizer.normalize(_line(glyphs));
+    final raw = _line(glyphs);
+    expect(PdfHebrewTextNormalizer.normalize(raw), same(raw));
+    final fixed = PdfHebrewTextNormalizer.normalize(raw, decodeLegacyEncoding: true);
     expect(fixed.fullText, many.join(' '));
   });
 

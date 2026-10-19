@@ -8,11 +8,13 @@ import 'package:pdfrx_engine/src/native/pdfrx_pdfium.dart' show isPdfiumInitiali
 import 'package:test/test.dart';
 
 import 'utils.dart';
+import 'hebrew_native.dart';
 
 final testPdfFile = File('../pdfrx/example/viewer/assets/hello.pdf');
 final multiPageTestPdfFile = File('../pdfrx/test/assets/multipage40.pdf');
 
 void main() {
+  registerHebrewNativeTests();
   setUp(() => pdfrxInitialize(tmpPath: tmpRoot.path));
 
   test('PdfDocument.openFile', () async => await testDocument(await PdfDocument.openFile(testPdfFile.path)));
