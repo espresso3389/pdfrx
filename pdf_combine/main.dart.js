@@ -94449,7 +94449,10 @@ break}b0=A
 s=8
 return A.r(A.qo(k),$async$$0)
 case 8:i=new b0.kB(b2,m.f,A.k(d.gcb())+"x"+A.k(d.gaH())+"/"+d.gdY().a)
-a=e.h(0,d.gbp())
+if(a8.c==null||a.a){i.a.l()
+n=[1]
+s=5
+break}a=e.h(0,d.gbp())
 if(a!=null)a.a.l()
 e.m(0,d.gbp(),i)
 if(f===a8.fr)a8.a9E()
