@@ -1244,7 +1244,9 @@ class _PdfDocumentPdfium extends PdfDocument {
     final pages = <PdfPage>[];
     for (;;) {
       final results = await _measurePages(firstPageIndex: pages.length, timeout: _measurementChunkDuration);
-      pages.addAll(results.pages.map(_pageFromMeasurement));
+      for (final data in results.pages) {
+        pages.add(_measuredPage(data, _sizeSourceFor(pages, data.pageIndex)));
+      }
       if (pages.length >= results.totalPageCount) return pages;
     }
   }
@@ -1271,7 +1273,7 @@ class _PdfDocumentPdfium extends PdfDocument {
 
     final pages = [...pagesToPreserve];
     for (final pageData in results.pages) {
-      final page = _pageFromMeasurement(pageData);
+      final page = _measuredPage(pageData, _sizeSourceFor(pages, pageData.pageIndex));
       if (pageData.pageIndex < pages.length) {
         pages[pageData.pageIndex] = page;
       } else {
@@ -1310,7 +1312,8 @@ class _PdfDocumentPdfium extends PdfDocument {
               pageIndex: i,
               width: pdfium.FPDF_GetPageWidthF(page),
               height: pdfium.FPDF_GetPageHeightF(page),
-              rotation: pdfium.FPDFPage_GetRotation(page),
+              // FPDF_LoadPage returns NULL for a broken page; FPDFPage_GetRotation(NULL) is -1.
+              rotation: page == nullptr ? 0 : pdfium.FPDFPage_GetRotation(page),
               bbLeft: rect.ref.left.toDouble(),
               bbBottom: rect.ref.bottom.toDouble(),
             ));
@@ -1338,16 +1341,32 @@ class _PdfDocumentPdfium extends PdfDocument {
     );
   }
 
-  _PdfPagePdfium _pageFromMeasurement(_PageMeasurement data) => _PdfPagePdfium._(
-    document: this,
-    pageNumber: data.pageIndex + 1,
-    width: data.width,
-    height: data.height,
-    rotation: PdfPageRotation.values[data.rotation],
-    bbLeft: data.bbLeft,
-    bbBottom: data.bbBottom,
-    isLoaded: true,
-  );
+  /// Creates a measured page from the worker's measurement of it.
+  ///
+  /// A page PDFium cannot load (e.g. a /Kids entry that is not a page) measures as 0x0; it takes the size of
+  /// [sizeSource] (or US Letter) so that the document still opens and layout never sees an empty page.
+  _PdfPagePdfium _measuredPage(
+    ({int pageIndex, double width, double height, int rotation, double bbLeft, double bbBottom}) data,
+    PdfPage? sizeSource,
+  ) {
+    final hasSize = data.width > 0 && data.height > 0;
+    return _PdfPagePdfium._(
+      document: this,
+      pageNumber: data.pageIndex + 1,
+      width: hasSize ? data.width : sizeSource?.width ?? 612,
+      height: hasSize ? data.height : sizeSource?.height ?? 792,
+      rotation: PdfPageRotation.values[data.rotation],
+      bbLeft: data.bbLeft,
+      bbBottom: data.bbBottom,
+      isLoaded: true,
+    );
+  }
+
+  /// The page before [pageIndex] in [pages], or the last page when [pages] does not reach it yet.
+  static PdfPage? _sizeSourceFor(List<PdfPage> pages, int pageIndex) {
+    if (pages.isEmpty || pageIndex == 0) return null;
+    return pages[min(max(pageIndex - 1, 0), pages.length - 1)];
+  }
 
   /// Resizes [pages], using unloaded placeholders when the document grows.
   void _resizePagesWithPlaceholders(List<PdfPage> pages, int pageCount) {
@@ -1406,7 +1425,7 @@ class _PdfDocumentPdfium extends PdfDocument {
                 pageIndex: pageNumber - 1,
                 width: pdfium.FPDF_GetPageWidthF(page),
                 height: pdfium.FPDF_GetPageHeightF(page),
-                rotation: pdfium.FPDFPage_GetRotation(page),
+                rotation: page == nullptr ? 0 : pdfium.FPDFPage_GetRotation(page),
                 bbLeft: rect.ref.left.toDouble(),
                 bbBottom: rect.ref.bottom.toDouble(),
               ));
@@ -1431,16 +1450,7 @@ class _PdfDocumentPdfium extends PdfDocument {
     final newPages = [..._pages];
     for (var i = 0; i < results.pages.length; i++) {
       final pageData = results.pages[i];
-      final newPage = _PdfPagePdfium._(
-        document: this,
-        pageNumber: pageData.pageIndex + 1,
-        width: pageData.width,
-        height: pageData.height,
-        rotation: PdfPageRotation.values[pageData.rotation],
-        bbLeft: pageData.bbLeft,
-        bbBottom: pageData.bbBottom,
-        isLoaded: true,
-      );
+      final newPage = _measuredPage(pageData, _sizeSourceFor(newPages, pageData.pageIndex));
       if (pageData.pageIndex < newPages.length) {
         newPages[pageData.pageIndex] = newPage;
       } else {
