@@ -7,6 +7,7 @@ This package is part of the [pdfrx](https://github.com/espresso3389/pdfrx) proje
 ## Requirements
 
 - Dart 3.13 or later
+- A C compiler for native builds (MSVC on Windows, Xcode on Apple platforms, or Clang/GCC on Linux). The bundled process gate is compiled even when its runtime option is disabled; Flutter builds use their platform toolchain.
 
 ## Overview
 
