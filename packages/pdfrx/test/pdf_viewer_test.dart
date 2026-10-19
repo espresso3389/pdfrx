@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:pdfrx/src/widgets/interactive_viewer.dart' as pdfrx;
 
 final testPdfFile = File('example/viewer/assets/hello.pdf');
 final binding = TestWidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +33,7 @@ void main() {
       final controller = PdfViewerController();
       final boundaryKey = GlobalKey();
       final page = document.pages.single as _TestPage;
-        page.renderControl.bgra = [255, 0, 0, 255];
+      page.renderControl.bgra = [255, 0, 0, 255];
       page.renderControl.block();
 
       Widget viewer(ColorFilter? filter) => MaterialApp(
@@ -76,7 +77,7 @@ void main() {
 
       await tester.pumpWidget(viewer(null));
       await _pumpPaintWork(tester);
-        expect(await _pixelAt(tester, boundaryKey, center + const Offset(70, 0)), 0xff0000ff);
+      expect(await _pixelAt(tester, boundaryKey, center + const Offset(70, 0)), 0xff0000ff);
       expect(await _pixelAt(tester, boundaryKey, center), Colors.green.toARGB32());
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 100));
@@ -133,6 +134,31 @@ void main() {
     await mouse.moveTo(const Offset(-10, -10));
     await _pumpPaintWork(tester);
     expect(await _pixelAt(tester, boundaryKey, positions[1]), Colors.white.toARGB32());
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('public pinch and inertia settings reach the viewer and update together', (tester) async {
+    final document = _TestDocument(1);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    for (final (sensitivity, excursion) in [(0.5, 0.25), (1.5, 0.1)]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PdfViewer(
+            PdfDocumentRefDirect(document, autoDispose: false),
+            controller: controller,
+            params: PdfViewerParams(scaleGestureSensitivity: sensitivity, scaleInertiaMaxExcursion: excursion),
+          ),
+        ),
+      );
+      await _pumpPaintWork(tester);
+      expect(controller.isReady, isTrue);
+      final viewer = tester.widget<pdfrx.InteractiveViewer>(find.byType(pdfrx.InteractiveViewer));
+      expect(viewer.scaleGestureSensitivity, sensitivity);
+      expect(viewer.scaleInertiaMaxExcursion, excursion);
+      expect(tester.takeException(), isNull);
+    }
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 100));
   });

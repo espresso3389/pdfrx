@@ -103,6 +103,7 @@ class PdfViewerParams {
     this.zoomStepsDelegateProvider = const PdfViewerZoomStepsDelegateProviderDefault(),
   }) : assert(scaleGestureSensitivity > 0),
        assert(scaleGestureSensitivity != double.infinity),
+       assert(scaleInertiaMaxExcursion == null || (scaleInertiaMaxExcursion > 0 && scaleInertiaMaxExcursion < 1)),
        assert(
          sizeDelegateProvider == null ||
              (maxScale == null &&
@@ -323,6 +324,7 @@ class PdfViewerParams {
   /// When null (the default), the post-release scale inertia is unbounded and the
   /// existing behavior is preserved.
   final double? scaleInertiaMaxExcursion;
+
   /// Sensitivity of the live pinch/scale gesture, applied as an exponent to the
   /// gesture's scale ratio.
   ///

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -14,6 +16,38 @@ const double _kMaxScale = 8.0;
 const double _kStartScale = 1.24;
 
 void main() {
+  for (final touch in [false, true]) {
+    for (final sensitivity in [0.5, 1.5]) {
+      for (final inward in [false, true]) {
+        testWidgets('combined ${touch ? 'touch' : 'trackpad'} sensitivity $sensitivity, inward $inward', (
+          tester,
+        ) async {
+          final gesture = touch ? _touchPinchAndRelease : _pinchAndRelease;
+          final plain = await _pumpScaleViewer(tester);
+          final plainRelease = await gesture(tester, plain, inward: inward);
+          final bounded = await _pumpScaleViewer(tester, sensitivity: sensitivity, maxExcursion: 0.25);
+          final frames = <double>[];
+          final release = await gesture(tester, bounded, inward: inward, onFrame: frames.add);
+          final expectedRelease = (_kStartScale * math.pow(plainRelease / _kStartScale, sensitivity)).clamp(
+            _kMinScale,
+            _kMaxScale,
+          );
+          expect(release, closeTo(expectedRelease, 1e-9));
+          final lower = math.max(_kMinScale, release * 0.75);
+          final upper = math.min(_kMaxScale, release * 1.25);
+          expect(frames, isNotEmpty);
+          for (final scale in frames) {
+            expect(scale, inInclusiveRange(lower - 1e-6, upper + 1e-6));
+          }
+          final settled = bounded.value.getMaxScaleOnAxis();
+          expect(settled, inward ? lessThan(release) : greaterThan(release));
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox.shrink());
+        });
+      }
+    }
+  }
+
   // Regression tests for the optional bound on post-release scale inertia.
   //
   // With no [ScrollPhysics] (the default), `InteractiveViewerState._onScaleEnd`
@@ -260,7 +294,7 @@ void main() {
   group('isolation', () {
     testWidgets('pan inertia is unaffected by the bound', (tester) async {
       final withoutBound = await _panFlingTranslation(tester);
-      final withBound = await _panFlingTranslation(tester, maxExcursion: 0.25);
+      final withBound = await _panFlingTranslation(tester, maxExcursion: 0.25, sensitivity: 1.5);
 
       expect(withBound.dx, moreOrLessEquals(withoutBound.dx, epsilon: 1e-9));
       expect(withBound.dy, moreOrLessEquals(withoutBound.dy, epsilon: 1e-9));
@@ -268,13 +302,20 @@ void main() {
 
     testWidgets('pointer-wheel zoom is unaffected by the bound', (tester) async {
       final withoutBound = await _wheelZoomScale(tester);
-      final withBound = await _wheelZoomScale(tester, maxExcursion: 0.25);
+      final withBound = await _wheelZoomScale(tester, maxExcursion: 0.25, sensitivity: 1.5);
 
       expect(withBound, closeTo(withoutBound, 1e-12));
     });
   });
 
   group('scaleInertiaMaxExcursion validation', () {
+    test('public viewer parameters reject invalid inertia bounds', () {
+      expect(const PdfViewerParams().scaleInertiaMaxExcursion, isNull);
+      for (final bad in [0.0, 1.0, -0.1, 2.0, double.nan, double.infinity]) {
+        expect(() => PdfViewerParams(scaleInertiaMaxExcursion: bad), throwsAssertionError);
+      }
+    });
+
     test('accepts null and finite values in (0, 1)', () {
       for (final good in <double?>[null, 0.001, 0.25, 0.999]) {
         expect(
@@ -302,6 +343,7 @@ void main() {
 Future<TransformationController> _pumpScaleViewer(
   WidgetTester tester, {
   double? maxExcursion,
+  double sensitivity = 1.0,
   double childHeight = 800,
 }) async {
   tester.view.devicePixelRatio = 1.0;
@@ -324,6 +366,7 @@ Future<TransformationController> _pumpScaleViewer(
               minScale: _kMinScale,
               maxScale: _kMaxScale,
               scaleInertiaMaxExcursion: maxExcursion,
+              scaleGestureSensitivity: sensitivity,
               boundaryMargin: const EdgeInsets.all(double.infinity),
               child: SizedBox(width: 600, height: childHeight),
             ),
@@ -346,6 +389,7 @@ Future<double> _pinchAndRelease(
   WidgetTester tester,
   TransformationController controller, {
   required bool inward,
+  void Function(double)? onFrame,
 }) async {
   controller.value = Matrix4.identity()..scaleByDouble(_kStartScale, _kStartScale, _kStartScale, 1);
   await tester.pump();
@@ -406,6 +450,7 @@ Future<double> _pinchAndRelease(
   await tester.pump(const Duration(milliseconds: 4));
   for (var i = 0; i < 120; i++) {
     await tester.pump(const Duration(milliseconds: 16));
+    onFrame?.call(controller.value.getMaxScaleOnAxis());
   }
   return releaseScale;
 }
@@ -421,6 +466,7 @@ Future<double> _touchPinchAndRelease(
   WidgetTester tester,
   TransformationController controller, {
   required bool inward,
+  void Function(double)? onFrame,
 }) async {
   controller.value = Matrix4.identity()..scaleByDouble(_kStartScale, _kStartScale, _kStartScale, 1);
   await tester.pump();
@@ -464,13 +510,19 @@ Future<double> _touchPinchAndRelease(
   await tester.pump(const Duration(milliseconds: 4));
   for (var i = 0; i < 120; i++) {
     await tester.pump(const Duration(milliseconds: 16));
+    onFrame?.call(controller.value.getMaxScaleOnAxis());
   }
   return releaseScale;
 }
 
 /// Performs an upward pan fling and returns the settled translation.
-Future<Offset> _panFlingTranslation(WidgetTester tester, {double? maxExcursion}) async {
-  final controller = await _pumpScaleViewer(tester, maxExcursion: maxExcursion, childHeight: 4000);
+Future<Offset> _panFlingTranslation(WidgetTester tester, {double? maxExcursion, double sensitivity = 1.0}) async {
+  final controller = await _pumpScaleViewer(
+    tester,
+    maxExcursion: maxExcursion,
+    sensitivity: sensitivity,
+    childHeight: 4000,
+  );
   await tester.fling(find.byType(pdfrx.InteractiveViewer), const Offset(0, -400), 2000);
   await tester.pumpAndSettle();
   final translation = controller.value.getTranslation();
@@ -478,8 +530,8 @@ Future<Offset> _panFlingTranslation(WidgetTester tester, {double? maxExcursion})
 }
 
 /// Sends a single mouse-wheel zoom event and returns the resulting scale.
-Future<double> _wheelZoomScale(WidgetTester tester, {double? maxExcursion}) async {
-  final controller = await _pumpScaleViewer(tester, maxExcursion: maxExcursion);
+Future<double> _wheelZoomScale(WidgetTester tester, {double? maxExcursion, double sensitivity = 1.0}) async {
+  final controller = await _pumpScaleViewer(tester, maxExcursion: maxExcursion, sensitivity: sensitivity);
   tester.binding.handlePointerEvent(
     const PointerScrollEvent(position: Offset(400, 400), scrollDelta: Offset(0, -120), kind: PointerDeviceKind.mouse),
   );
