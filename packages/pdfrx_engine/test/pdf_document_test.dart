@@ -542,6 +542,22 @@ void main() {
     );
     expect(document.pages.every((page) => page.isLoaded), isTrue);
   });
+  for (final pageCount in [0, 1]) {
+    test('non-progressive open completes with $pageCount pages', () async {
+      final document = await PdfDocument.openData(
+        buildBlankPdf(pageCount),
+        sourceName: 'non-progressive-$pageCount.pdf',
+        useProgressiveLoading: false,
+      );
+      addTearDown(document.dispose);
+      expect(document.pages.length, pageCount);
+      expect(document.pages.every((page) => page.isLoaded), isTrue);
+      await document.events
+          .firstWhere((event) => event is PdfDocumentLoadCompleteEvent)
+          .timeout(const Duration(seconds: 5));
+    });
+  }
+
   test('a non-progressive open does not block renders of another document', () async {
     final other = await PdfDocument.openData(buildBlankPdf(1), sourceName: 'blank1.pdf');
     addTearDown(other.dispose);
@@ -552,7 +568,9 @@ void main() {
     var openCompleted = false;
     final openTimer = Stopwatch()..start();
     final data = buildBlankPdf(pageCount, contentPathSegments: 5000);
-    final opening = PdfDocument.openData(data, sourceName: 'content$pageCount.pdf').then((doc) {
+    final opening = PdfDocument.openData(data, sourceName: 'content$pageCount.pdf', useProgressiveLoading: false).then((
+      doc,
+    ) {
       openCompleted = true;
       openTimer.stop();
       return doc;
@@ -579,10 +597,14 @@ void main() {
     );
     expect(document.pages.length, pageCount);
     expect(document.pages.every((page) => page.isLoaded), isTrue);
-    for (final index in [0, 1, 6, pageCount - 1]) {
+    for (var index = 0; index < pageCount; index++) {
+      expect(document.pages[index].pageNumber, index + 1);
       expect(document.pages[index].width, 200 + index % 7, reason: 'page ${index + 1} width');
       expect(document.pages[index].height, 300 + index % 5, reason: 'page ${index + 1} height');
     }
+    await document.events
+        .firstWhere((event) => event is PdfDocumentLoadCompleteEvent)
+        .timeout(const Duration(seconds: 5));
   });
   test('progressive loading publishes page status once per budget without duplicates', () async {
     // The default budget spans many ~20 ms worker chunks. Publishing per chunk instead of per budget would emit a
