@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -19,6 +21,120 @@ void main() {
   setUp(() => pdfrxInitialize());
   Pdfrx.createHttpClient = () => MockClient((request) async {
     return http.Response.bytes(await testPdfFile.readAsBytes(), 200);
+  });
+
+  for (final preview in [true, false]) {
+    testWidgets('page color filter updates ${preview ? 'preview' : 'partial'} pixels without filtering overlays', (
+      tester,
+    ) async {
+      final document = _TestDocument(1);
+      addTearDown(document.dispose);
+      final controller = PdfViewerController();
+      final boundaryKey = GlobalKey();
+      final page = document.pages.single as _TestPage;
+        page.renderControl.bgra = [255, 0, 0, 255];
+      page.renderControl.block();
+
+      Widget viewer(ColorFilter? filter) => MaterialApp(
+        home: RepaintBoundary(
+          key: boundaryKey,
+          child: PdfViewer(
+            PdfDocumentRefDirect(document, autoDispose: false),
+            controller: controller,
+            params: PdfViewerParams(
+              pageImageColorFilter: filter,
+              pagePaintCallbacks: [
+                (canvas, rect, page) {
+                  canvas.drawRect(
+                    Rect.fromCenter(center: rect.center, width: 60, height: 60),
+                    Paint()..color = Colors.green,
+                  );
+                },
+              ],
+              behaviorControlParams: PdfViewerBehaviorControlParams(
+                enableLowResolutionPagePreview: preview,
+                pageImageCachingDelay: Duration.zero,
+                partialImageLoadingDelay: Duration.zero,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      const filter = ColorFilter.mode(Colors.red, BlendMode.srcIn);
+      await tester.pumpWidget(viewer(filter));
+      await _pumpPaintWork(tester);
+      expect(controller.isReady, isTrue);
+      final center = controller.documentToLocal(controller.layout.pageLayouts.single.center);
+      // While the render is blocked, the placeholder must use the same filter.
+      expect(await _pixelAt(tester, boundaryKey, center + const Offset(70, 0)), Colors.red.toARGB32());
+      page.renderControl.release();
+      await _pumpPaintWork(tester);
+      expect(page.renderControl.renderCount, greaterThan(0));
+      expect(await _pixelAt(tester, boundaryKey, center + const Offset(70, 0)), Colors.red.toARGB32());
+      expect(await _pixelAt(tester, boundaryKey, center), Colors.green.toARGB32());
+
+      await tester.pumpWidget(viewer(null));
+      await _pumpPaintWork(tester);
+        expect(await _pixelAt(tester, boundaryKey, center + const Offset(70, 0)), 0xff0000ff);
+      expect(await _pixelAt(tester, boundaryKey, center), Colors.green.toARGB32());
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 100));
+    });
+  }
+
+  testWidgets('link hover color changes on entry, between links, and on exit', (tester) async {
+    final document = _TestDocument(1);
+    addTearDown(document.dispose);
+    final page = document.pages.single as _TestPage;
+    page.links = [
+      PdfLink(const [PdfRect(100, 700, 200, 600)], url: Uri.parse('https://example.com/a')),
+      PdfLink(const [PdfRect(300, 700, 400, 600)], url: Uri.parse('https://example.com/b')),
+    ];
+    final controller = PdfViewerController();
+    final boundaryKey = GlobalKey();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RepaintBoundary(
+          key: boundaryKey,
+          child: PdfViewer(
+            PdfDocumentRefDirect(document, autoDispose: false),
+            controller: controller,
+            params: PdfViewerParams(
+              linkHandlerParams: PdfLinkHandlerParams(
+                onLinkTap: (_) {},
+                linkColor: Colors.transparent,
+                linkHoverColor: Colors.red,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    final pageRect = controller.layout.pageLayouts.single;
+    final positions = page.links
+        .map(
+          (link) =>
+              controller.documentToLocal(link.rects.single.toRectInDocument(page: page, pageRect: pageRect).center),
+        )
+        .toList();
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    expect(await _pixelAt(tester, boundaryKey, positions[0]), Colors.white.toARGB32());
+    await mouse.moveTo(positions[0]);
+    await _pumpPaintWork(tester);
+    expect(await _pixelAt(tester, boundaryKey, positions[0]), Colors.red.toARGB32());
+    await mouse.moveTo(positions[1]);
+    await _pumpPaintWork(tester);
+    expect(await _pixelAt(tester, boundaryKey, positions[0]), Colors.white.toARGB32());
+    expect(await _pixelAt(tester, boundaryKey, positions[1]), Colors.red.toARGB32());
+    await mouse.moveTo(const Offset(-10, -10));
+    await _pumpPaintWork(tester);
+    expect(await _pixelAt(tester, boundaryKey, positions[1]), Colors.white.toARGB32());
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
   });
 
   testWidgets('PdfViewer.uri', (tester) async {
@@ -804,6 +920,30 @@ void main() {
 
 enum _TestDocumentEvent { loadComplete, missingFonts }
 
+Future<void> _pumpPaintWork(WidgetTester tester) async {
+  for (var i = 0; i < 12; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+  }
+}
+
+Future<int> _pixelAt(WidgetTester tester, GlobalKey key, Offset position) async {
+  return (await tester.runAsync(() async {
+    final boundary = key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final image = await boundary.toImage();
+    try {
+      final data = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+      final offset = (position.dy.round() * image.width + position.dx.round()) * 4;
+      return (data.getUint8(offset + 3) << 24) |
+          (data.getUint8(offset) << 16) |
+          (data.getUint8(offset + 1) << 8) |
+          data.getUint8(offset + 2);
+    } finally {
+      image.dispose();
+    }
+  }))!;
+}
+
 class _TestDocument extends PdfDocument {
   _TestDocument(
     int pageCount, {
@@ -942,6 +1082,7 @@ class _TestPage implements PdfPage {
   final bool isLoaded;
 
   final _TestPageRenderControl renderControl;
+  List<PdfLink> links = const [];
 
   @override
   double get width => 600;
@@ -956,7 +1097,7 @@ class _TestPage implements PdfPage {
   PdfPageRenderCancellationToken createCancellationToken() => _TestCancellationToken();
 
   @override
-  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async => const [];
+  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async => links;
 
   @override
   Future<PdfPageRawText?> loadText() async => null;
@@ -977,11 +1118,12 @@ class _TestPage implements PdfPage {
   }) async {
     if (!isLoaded) return null;
     await renderControl.beforeRender();
-    return PdfImage.createFromBgraData(Uint8List.fromList([255, 255, 255, 255]), width: 1, height: 1);
+    return PdfImage.createFromBgraData(Uint8List.fromList(renderControl.bgra), width: 1, height: 1);
   }
 }
 
 class _TestPageRenderControl {
+  List<int> bgra = [255, 255, 255, 255];
   Completer<void>? _gate;
   bool started = false;
 
