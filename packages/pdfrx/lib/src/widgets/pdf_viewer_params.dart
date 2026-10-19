@@ -55,6 +55,7 @@ class PdfViewerParams {
     this.pageImageColorFilter,
     this.panEnabled = true,
     this.scaleEnabled = true,
+    this.scaleInertiaMaxExcursion,
     this.scaleGestureSensitivity = 1.0,
     this.onInteractionEnd,
     this.onInteractionStart,
@@ -102,6 +103,7 @@ class PdfViewerParams {
     this.zoomStepsDelegateProvider = const PdfViewerZoomStepsDelegateProviderDefault(),
   }) : assert(scaleGestureSensitivity > 0),
        assert(scaleGestureSensitivity != double.infinity),
+       assert(scaleInertiaMaxExcursion == null || (scaleInertiaMaxExcursion > 0 && scaleInertiaMaxExcursion < 1)),
        assert(
          sizeDelegateProvider == null ||
              (maxScale == null &&
@@ -308,6 +310,20 @@ class PdfViewerParams {
 
   /// See [InteractiveViewer.scaleEnabled] for details.
   final bool scaleEnabled;
+
+  /// The maximum post-release scale inertia excursion.
+  ///
+  /// See `InteractiveViewer.scaleInertiaMaxExcursion` in `interactive_viewer.dart` for the full
+  /// contract.
+  ///
+  /// It applies to the scale gesture path, i.e. touchscreen multi-pointer pinches and trackpad
+  /// pan/zoom gestures, which reach `InteractiveViewer`'s `_onScaleEnd`. The live gesture mapping
+  /// is unchanged. Pointer-signal zoom (mouse wheel, Ctrl-wheel, pointer-scale events) does not use
+  /// that code and is unaffected.
+  ///
+  /// When null (the default), the post-release scale inertia is unbounded and the
+  /// existing behavior is preserved.
+  final double? scaleInertiaMaxExcursion;
 
   /// Sensitivity of the live pinch/scale gesture, applied as an exponent to the
   /// gesture's scale ratio.
@@ -774,6 +790,7 @@ class PdfViewerParams {
         other.pageDropShadow != pageDropShadow ||
         other.panEnabled != panEnabled ||
         other.scaleEnabled != scaleEnabled ||
+        other.scaleInertiaMaxExcursion != scaleInertiaMaxExcursion ||
         other.scaleGestureSensitivity != scaleGestureSensitivity ||
         other.interactionEndFrictionCoefficient != interactionEndFrictionCoefficient ||
         other.scrollByMouseWheel != scrollByMouseWheel ||
@@ -820,6 +837,7 @@ class PdfViewerParams {
         other.pageImageColorFilter == pageImageColorFilter &&
         other.panEnabled == panEnabled &&
         other.scaleEnabled == scaleEnabled &&
+        other.scaleInertiaMaxExcursion == scaleInertiaMaxExcursion &&
         other.scaleGestureSensitivity == scaleGestureSensitivity &&
         other.onInteractionEnd == onInteractionEnd &&
         other.onInteractionStart == onInteractionStart &&
@@ -893,6 +911,7 @@ class PdfViewerParams {
         pageImageColorFilter.hashCode ^
         panEnabled.hashCode ^
         scaleEnabled.hashCode ^
+        scaleInertiaMaxExcursion.hashCode ^
         scaleGestureSensitivity.hashCode ^
         onInteractionEnd.hashCode ^
         onInteractionStart.hashCode ^
