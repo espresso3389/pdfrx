@@ -1,3 +1,11 @@
+# 2.8.0
+
+- Added `selectedTextIfLoaded` for synchronous access to cached selection text. Existing custom selection implementations remain compatible through the `PdfTextSelectionCachedText` extension and optional `PdfTextSelectionWithCachedText` interface ([#733](https://github.com/espresso3389/pdfrx/pull/733)).
+- Fixed text extraction and highlighting for backward selections spanning multiple pages ([#733](https://github.com/espresso3389/pdfrx/pull/733)).
+- Fixed a transient jump when page dimensions change during progressive loading, while keeping external controller notifications outside the build phase ([#724](https://github.com/espresso3389/pdfrx/pull/724)).
+- Updated to `pdfrx_engine` 0.7.1 so documents containing individual unloadable pages can still open ([#740](https://github.com/espresso3389/pdfrx/pull/740)).
+- Updated guides and examples for selection, loading, appearance, zoom, and native build requirements ([#748](https://github.com/espresso3389/pdfrx/pull/748), [#749](https://github.com/espresso3389/pdfrx/pull/749)).
+
 # 2.7.0
 
 - Added `PdfViewerParams.pageImageColorFilter` for recoloring page contents without changing overlays, and `PdfLinkHandlerParams.linkHoverColor` for link hover feedback ([#731](https://github.com/espresso3389/pdfrx/pull/731)).

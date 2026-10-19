@@ -1,3 +1,9 @@
+# 0.7.1
+
+- Keep documents open when native PDFium cannot load an individual page. Preserve page numbering and use fallback page dimensions; rendering an unloadable page still returns null ([#740](https://github.com/espresso3389/pdfrx/pull/740)).
+- Apply unloadable-page recovery to full, progressive, and explicit page reloads, including first and consecutive broken pages ([#740](https://github.com/espresso3389/pdfrx/pull/740)).
+- Correct README examples and explain the native library used to coordinate PDFium access ([#748](https://github.com/espresso3389/pdfrx/pull/748), [#749](https://github.com/espresso3389/pdfrx/pull/749)).
+
 # 0.7.0
 
 - Added opt-in process-wide PDFium coordination for multiple engines or isolates. Enable it before initialization on every engine; the mode serializes native access, uses PDFium's built-in font mapper, and keeps PDFium initialized until process exit ([#723](https://github.com/espresso3389/pdfrx/pull/723)).

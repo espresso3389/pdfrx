@@ -1,6 +1,6 @@
 # pdfrx Documentation
 
-Welcome to the pdfrx documentation! These guides describe the current repository code. Sections marked as merged after 2.7.0 require a newer checkout; the pub.dev API reference describes the published package.
+Welcome to the pdfrx documentation! These guides describe the current repository code. Feature-specific version notes indicate when an API became available; the pub.dev API reference describes the published package.
 
 ## Getting Started
 
