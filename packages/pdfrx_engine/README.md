@@ -10,6 +10,8 @@ This package depends on [pdfium_dart](https://pub.dartlang.org/packages/pdfium_d
 
 - Dart 3.13 or later
 
+Native builds also require a C toolchain for the bundled PDFium gate, even when the gate is disabled at runtime. See [native build requirements](https://github.com/espresso3389/pdfrx/blob/master/doc/pdfrx-Initialization.md#native-build-requirements).
+
 ## Multi-platform support
 
 - Android
@@ -38,15 +40,23 @@ void main() async {
   await pdfrxInitialize();
 
   final document = await PdfDocument.openFile('test.pdf');
-  final page = document.pages[0]; // first page
-  final pageImage = await page.render(
-    width: page.width * 200 / 72,
-    height: page.height * 200 / 72,
-  );
-  final image = pageImage!.createImageNF();
-  await File('output.png').writeAsBytes(img.encodePng(image));
-  pageImage.dispose();
-  document.close();
+  try {
+    if (document.pages.isEmpty) return;
+    final page = document.pages.first;
+    final pageImage = await page.render(
+      width: (page.width * 200 / 72).round(),
+      height: (page.height * 200 / 72).round(),
+    );
+    if (pageImage == null) return;
+    try {
+      final image = pageImage.createImageNF();
+      await File('output.png').writeAsBytes(img.encodePng(image));
+    } finally {
+      pageImage.dispose();
+    }
+  } finally {
+    await document.dispose();
+  }
 }
 ```
 
@@ -82,9 +92,9 @@ void main() async {
   await File('combined.pdf').writeAsBytes(pdfData);
 
   // Clean up
-  doc1.dispose();
-  doc2.dispose();
-  outputDoc.dispose();
+  await doc1.dispose();
+  await doc2.dispose();
+  await outputDoc.dispose();
 }
 ```
 
@@ -114,7 +124,7 @@ void main() async {
   final pdfData = await doc.encodePdf();
   await File('output.pdf').writeAsBytes(pdfData);
 
-  doc.dispose();
+  await doc.dispose();
 }
 ```
 
@@ -124,6 +134,12 @@ For detailed guides and tutorials, see the [documentation](https://github.com/es
 
 - [PDF Page Manipulation](https://github.com/espresso3389/pdfrx/blob/master/doc/PDF-Page-Manipulation.md) - Re-arrange, combine, and extract PDF pages
 - [Importing Images to PDF](https://github.com/espresso3389/pdfrx/blob/master/doc/Importing-Images-to-PDF.md) - Convert images to PDF and insert images into PDFs
+
+## Loading and Performance Guides
+
+- [Progressive loading](https://github.com/espresso3389/pdfrx/blob/master/doc/Progressive-Loading.md): page metadata, on-demand measurement, and page-state events.
+- [PDF open benchmark](tool/PDF_OPEN_BENCHMARK.md): a manual probe for document opening, page measurement, and link extraction.
+- [Hebrew text normalization](https://github.com/espresso3389/pdfrx/blob/master/doc/Text-Search.md#hebrew-text-order): opt-in native text-order correction.
 
 ## PDF API
 

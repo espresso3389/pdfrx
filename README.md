@@ -7,6 +7,7 @@ This repository contains multiple Dart/Flutter packages for PDF rendering, viewi
 - Dart packages require Dart 3.13 or later.
 - Flutter packages require Flutter 3.47 or later.
 - Apple platform integrations target iOS 15 or later and macOS 12 or later.
+- Native builds require a C toolchain for the bundled PDFium gate, even when the runtime gate option is off. See [build requirements](doc/pdfrx-Initialization.md#native-build-requirements).
 
 ## Packages
 

@@ -10,6 +10,8 @@ This package is part of the [pdfrx](https://github.com/espresso3389/pdfrx) proje
 - iOS 15 or later
 - macOS 12 or later
 
+Native builds also require a C toolchain for the bundled PDFium gate, even when the gate is disabled at runtime. See [native build requirements](https://github.com/espresso3389/pdfrx/blob/master/doc/pdfrx-Initialization.md#native-build-requirements).
+
 ## Overview
 
 This package provides:
