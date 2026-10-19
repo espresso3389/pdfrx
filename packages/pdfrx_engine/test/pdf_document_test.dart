@@ -542,6 +542,70 @@ void main() {
     );
     expect(document.pages.every((page) => page.isLoaded), isTrue);
   });
+  for (final pageCount in [0, 1]) {
+    test('non-progressive open completes with $pageCount pages', () async {
+      final document = await PdfDocument.openData(
+        buildBlankPdf(pageCount),
+        sourceName: 'non-progressive-$pageCount.pdf',
+        useProgressiveLoading: false,
+      );
+      addTearDown(document.dispose);
+      expect(document.pages.length, pageCount);
+      expect(document.pages.every((page) => page.isLoaded), isTrue);
+      await document.events
+          .firstWhere((event) => event is PdfDocumentLoadCompleteEvent)
+          .timeout(const Duration(seconds: 5));
+    });
+  }
+
+  test('a non-progressive open does not block renders of another document', () async {
+    final other = await PdfDocument.openData(buildBlankPdf(1), sourceName: 'blank1.pdf');
+    addTearDown(other.dispose);
+
+    // Pages slow enough to measure that measuring all of them takes many worker chunks; sent as one task, the render
+    // would wait for the whole measurement.
+    const pageCount = 150;
+    var openCompleted = false;
+    final openTimer = Stopwatch()..start();
+    final data = buildBlankPdf(pageCount, contentPathSegments: 5000);
+    final opening = PdfDocument.openData(data, sourceName: 'content$pageCount.pdf', useProgressiveLoading: false).then((
+      doc,
+    ) {
+      openCompleted = true;
+      openTimer.stop();
+      return doc;
+    });
+    // Give the open a chance to start measuring before the render is queued.
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+    final renderTimer = Stopwatch()..start();
+    final image = await other.pages.first.render();
+    renderTimer.stop();
+    final renderCompletedBeforeOpen = !openCompleted;
+    image?.dispose();
+    final document = await opening;
+    addTearDown(document.dispose);
+
+    expect(image, isNotNull);
+    expect(renderCompletedBeforeOpen, isTrue, reason: 'render must interleave with measurement chunks');
+    expect(
+      renderTimer.elapsedMilliseconds,
+      lessThan(openTimer.elapsedMilliseconds ~/ 4),
+      reason:
+          'render (${renderTimer.elapsedMilliseconds} ms) must not wait for most of the measurement '
+          '(${openTimer.elapsedMilliseconds} ms)',
+    );
+    expect(document.pages.length, pageCount);
+    expect(document.pages.every((page) => page.isLoaded), isTrue);
+    for (var index = 0; index < pageCount; index++) {
+      expect(document.pages[index].pageNumber, index + 1);
+      expect(document.pages[index].width, 200 + index % 7, reason: 'page ${index + 1} width');
+      expect(document.pages[index].height, 300 + index % 5, reason: 'page ${index + 1} height');
+    }
+    await document.events
+        .firstWhere((event) => event is PdfDocumentLoadCompleteEvent)
+        .timeout(const Duration(seconds: 5));
+  });
   test('progressive loading publishes page status once per budget without duplicates', () async {
     // The default budget spans many ~20 ms worker chunks. Publishing per chunk instead of per budget would emit a
     // page status event (and relayout the viewer) roughly 40 times a second, so the event count must match the
