@@ -11,7 +11,6 @@ final tmpRoot = Directory('${Directory.current.path}/test/.tmp');
 ///
 /// Used to get a document with enough pages that progressive measurement takes a measurable amount of time, without
 /// shipping a large test asset. The page sizes vary slightly so that measured pages differ from the placeholders.
-
 ///
 /// With [contentPathSegments], every page shares one content stream of that many line segments. PDFium parses a
 /// page's content when it loads the page, so this sets how long measuring each page takes.
@@ -33,9 +32,9 @@ Uint8List buildBlankPdf(int pageCount, {int contentPathSegments = 0}) {
 }
 
 /// Builds a 3-page PDF whose second /Kids entry is not a page, so PDFium counts it but FPDF_LoadPage(1) fails.
-Uint8List buildPdfWithUnloadablePage() => _buildPdf([
+Uint8List buildPdfWithUnloadablePage({List<int> kids = const [3, 5, 4]}) => _buildPdf([
   '<< /Type /Catalog /Pages 2 0 R >>',
-  '<< /Type /Pages /Kids [3 0 R 5 0 R 4 0 R] /Count 3 >>',
+  '<< /Type /Pages /Kids [${kids.map((id) => '$id 0 R').join(' ')}] /Count ${kids.length} >>',
   '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 300] >>',
   '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 210 310] /Rotate 90 >>',
   '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
