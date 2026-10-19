@@ -440,6 +440,12 @@ class PdfDocumentListenable extends Listenable {
         setError(err, stackTrace);
         return report?.copyWith(elapsedTime: stopwatch.elapsed);
       }
+      // Every listener left while the document was loading: this listenable was evicted, and the next resolve builds a
+      // new one. Nothing can reach the document anymore, so keeping it would leak it.
+      if (!identical(PdfDocumentRef._listenables[ref], this)) {
+        if (ref.autoDispose) await document.dispose();
+        return report?.copyWith(elapsedTime: stopwatch.elapsed);
+      }
       setDocument(document);
       return report?.copyWith(elapsedTime: stopwatch.elapsed);
     });
@@ -477,7 +483,9 @@ class PdfDocumentListenable extends Listenable {
           'evicting the listenable; the next resolve will re-download it',
         );
       }
-      PdfDocumentRef._listenables.remove(ref);
+      if (identical(PdfDocumentRef._listenables[ref], this)) {
+        PdfDocumentRef._listenables.remove(ref);
+      }
       _release();
     }
   }
