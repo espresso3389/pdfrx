@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -687,10 +688,118 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  group('physics wheel scrolling', () {
+    const center = Offset(400, 600);
+
+    Future<PdfViewerController> pumpPhysicsViewer(WidgetTester tester, PdfDocument document, int initialPage) async {
+      await binding.setSurfaceSize(const Size(800, 1200));
+      addTearDown(() => binding.setSurfaceSize(null));
+      final controller = PdfViewerController();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PdfViewer(
+            PdfDocumentRefDirect(document, autoDispose: false),
+            controller: controller,
+            initialPageNumber: initialPage,
+            params: const PdfViewerParams(
+              scrollByMouseWheel: 0.2,
+              interactionDelegateProvider: PdfViewerScrollInteractionDelegateProviderPhysics(),
+              behaviorControlParams: PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
+            ),
+          ),
+        ),
+      );
+      for (var i = 0; i < 30 && !controller.isReady; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+      }
+      expect(controller.isReady, isTrue);
+      await tester.pump(const Duration(milliseconds: 500));
+      return controller;
+    }
+
+    void wheel(double dy) => binding.handlePointerEvent(
+      PointerScrollEvent(position: center, scrollDelta: Offset(0, dy), kind: PointerDeviceKind.mouse),
+    );
+
+    Future<void> frames(WidgetTester tester, int count) async {
+      for (var i = 0; i < count; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+    }
+
+    testWidgets('goToPage after a tiny overshoot at the top lands on the page', (tester) async {
+      final document = _TestDocument(30);
+      addTearDown(document.dispose);
+      final controller = await pumpPhysicsViewer(tester, document, 1);
+
+      wheel(-10); // 2px past the top, like a trackpad nudge
+      await frames(tester, 60);
+      unawaited(controller.goToPage(pageNumber: 12));
+      await frames(tester, 120);
+
+      expect(controller.pageNumber, 12);
+      expect(
+        controller.value.getTranslation().y,
+        moreOrLessEquals(controller.calcMatrixForPage(pageNumber: 12).getTranslation().y, epsilon: 1),
+      );
+      expect(SchedulerBinding.instance.transientCallbackCount, 0);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 100));
+    });
+  });
+
   test('default page anchor remains top', () {
     expect(const PdfViewerParams().pageAnchor, PdfPageAnchor.top);
     expect(const PdfViewerParams().underflowAnchor, isNull);
   });
+
+  for (final (name, provider) in [
+    ('legacy', const PdfViewerSizeDelegateProviderLegacy(maxScale: 0.5)),
+    ('smart', const PdfViewerSizeDelegateProviderSmart(maxPagesVisible: 1, maxScale: 0.5)),
+  ]) {
+    testWidgets('fit scale above maxScale keeps scales consistent ($name)', (tester) async {
+      await binding.setSurfaceSize(Size(500, 1000));
+      addTearDown(() => binding.setSurfaceSize(null));
+      final controller = PdfViewerController();
+      final document = await tester.runAsync(
+        () async => PdfDocument.openData(
+          await testPdfFile.readAsBytes(),
+          sourceName: 'fit-above-max-$name.pdf',
+          useProgressiveLoading: false,
+        ),
+      );
+      addTearDown(() => document?.dispose());
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PdfViewer(
+            PdfDocumentRefDirect(document!),
+            controller: controller,
+            params: PdfViewerParams(
+              sizeDelegateProvider: provider,
+              behaviorControlParams: const PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
+            ),
+          ),
+        ),
+      );
+
+      for (var i = 0; i < 20 && (!controller.isReady || controller.alternativeFitScale == null); i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+      }
+
+      expect(tester.takeException(), isNull);
+      expect(controller.isReady, isTrue);
+      expect(controller.alternativeFitScale, greaterThan(controller.maxScale));
+      expect(controller.minScale, lessThanOrEqualTo(controller.maxScale));
+      expect(controller.currentZoom, lessThanOrEqualTo(controller.maxScale));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 100));
+    });
+  }
 }
 
 enum _TestDocumentEvent { loadComplete, missingFonts }
