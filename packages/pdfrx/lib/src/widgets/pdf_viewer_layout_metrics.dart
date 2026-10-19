@@ -11,7 +11,7 @@ class PdfViewerLayoutMetrics {
     // The Delegate calculates them so the Controller can return them.
     required this.coverScale,
     this.alternativeFitScale,
-  });
+  }) : assert(minScale <= maxScale, 'minScale ($minScale) must not exceed maxScale ($maxScale)');
 
   /// The effective minimum scale allowed for the viewer.
   final double minScale;
