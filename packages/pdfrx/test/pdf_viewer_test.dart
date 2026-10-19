@@ -554,6 +554,84 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  for (final smart in [false, true]) {
+    testWidgets('broken-page recovery preserves the painted anchor and safe notifications (smart: $smart)', (
+      tester,
+    ) async {
+      final document = (await tester.runAsync(
+        () => PdfDocument.openData(_pdfWithBrokenPages(), useProgressiveLoading: true),
+      ))!;
+      addTearDown(document.dispose);
+      final controller = PdfViewerController();
+      StateSetter? rebuild;
+      var notifications = 0;
+      void listener() {
+        expect(SchedulerBinding.instance.schedulerPhase, isNot(SchedulerPhase.persistentCallbacks));
+        notifications++;
+        rebuild?.call(() {});
+      }
+
+      controller.addListener(listener);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StatefulBuilder(
+            builder: (context, setState) {
+              rebuild = setState;
+              return PdfViewer(
+                PdfDocumentRefDirect(document, autoDispose: false),
+                controller: controller,
+                initialPageNumber: 8,
+                params: PdfViewerParams(
+                  sizeDelegateProvider: smart
+                      ? const PdfViewerSizeDelegateProviderSmart()
+                      : const PdfViewerSizeDelegateProviderLegacy(),
+                  behaviorControlParams: const PdfViewerBehaviorControlParams(
+                    trailingPageLoadingDelay: Duration(hours: 1),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+      }
+      expect(controller.isReady, isTrue);
+      expect(document.pages.take(3).any((page) => !page.isLoaded), isTrue);
+      double paintedTop() {
+        final transform = tester.widget<Transform>(
+          find.byWidgetPredicate((widget) => widget is Transform && widget.child is KeyedSubtree),
+        );
+        final m = transform.transform;
+        return m.getTranslation().y + controller.layout.pageLayouts[7].top * m.getMaxScaleOnAxis();
+      }
+
+      final before = paintedTop();
+      final oldPageTop = controller.layout.pageLayouts[7].top;
+      notifications = 0;
+      await tester.runAsync(() => document.loadPagesProgressively());
+      for (var frame = 0; frame < 3; frame++) {
+        await tester.pump();
+        expect(paintedTop(), closeTo(before, 0.5), reason: 'frame $frame');
+        expect(tester.takeException(), isNull);
+      }
+      expect(controller.layout.pageLayouts[7].top, isNot(oldPageTop));
+      expect(controller.pageNumber, 8);
+      expect(notifications, greaterThan(0));
+      expect(document.pages.every((page) => page.isLoaded), isTrue);
+      expect(await tester.runAsync(() => document.pages[1].render()), isNull);
+      await tester.runAsync(() => document.reloadPages(pageNumbersToReload: [2, 3, 6]));
+      await tester.pump();
+      expect(paintedTop(), closeTo(before, 0.5));
+      controller.removeListener(listener);
+      rebuild = null;
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(hours: 1));
+    });
+  }
+
   testWidgets('pages measured above the current page do not move it for a frame', (tester) async {
     final document = _TestDocument(
       10,
@@ -1299,4 +1377,31 @@ class _TestCancellationToken implements PdfPageRenderCancellationToken {
 
   @override
   void cancel() => _isCanceled = true;
+}
+
+// The first page supplies short placeholders; later pages change the layout when measured.
+Uint8List _pdfWithBrokenPages() {
+  const pageCount = 12;
+  final objects = <String>[
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [${List.generate(pageCount, (i) => '${i + 3} 0 R').join(' ')}] /Count $pageCount >>',
+    for (var i = 0; i < pageCount; i++)
+      if ([1, 2, 5].contains(i))
+        '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
+      else
+        '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 ${i == 0 ? 400 : 800}] >>',
+  ];
+  final buffer = StringBuffer('%PDF-1.4\n');
+  final offsets = <int>[];
+  for (var i = 0; i < objects.length; i++) {
+    offsets.add(buffer.length);
+    buffer.write('${i + 1} 0 obj\n${objects[i]}\nendobj\n');
+  }
+  final xref = buffer.length;
+  buffer.write('xref\n0 ${objects.length + 1}\n0000000000 65535 f \n');
+  for (final offset in offsets) {
+    buffer.write('${offset.toString().padLeft(10, '0')} 00000 n \n');
+  }
+  buffer.write('trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n$xref\n%%EOF\n');
+  return Uint8List.fromList(buffer.toString().codeUnits);
 }
