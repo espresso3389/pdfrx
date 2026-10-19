@@ -6,9 +6,9 @@ Libraries sharing one PDFium instance must coordinate initialization, shutdown, 
 
 Initialize pdfrx with `pdfrxFlutterInitialize()` in Flutter or `pdfrxInitialize()` in Dart. Avoid a second library initializing or destroying the same PDFium instance independently.
 
-For several Flutter engines in one OS process, enable `processWidePdfiumGate: true` on every engine before its first PDFium operation. Each engine has its own worker, so pausing one worker alone does not pause all engines. See [initialization and the process-wide gate](pdfrx-Initialization.md#multiple-flutter-engines) for its configuration and font-mapper limitations.
+For several Flutter engines in one OS process, enable process-wide locking with `processWidePdfiumGate: true` on every engine before its first PDFium operation. This lock allows only one participating engine to access PDFium at a time. Each engine has its own worker, so pausing one worker alone does not pause all engines. See [initialization and process-wide locking](pdfrx-Initialization.md#multiple-flutter-engines) for its configuration and font-mapper limitations.
 
-The gate coordinates participating pdfrx engines. It does not intercept calls made by another PDFium wrapper, and it does not coordinate separate copies of PDFium loaded by different packages.
+The lock coordinates participating pdfrx engines. It does not intercept calls made by another PDFium wrapper, and it does not coordinate separate copies of PDFium loaded by different packages.
 
 ## Calling Native PDFium While pdfrx Is Active
 
@@ -25,9 +25,9 @@ await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() async {
 On native platforms this method:
 
 1. Suspends the current pdfrx worker.
-2. Acquires the process-wide gate when enabled, excluding other participating engines.
+2. Acquires the process-wide lock when enabled, excluding other participating engines.
 3. Runs and awaits the action.
-4. Releases the gate and resumes the worker, including when the action throws.
+4. Releases the lock and resumes the worker, including when the action throws.
 
 Do not call `PdfDocument.openFile`, `render`, `loadText`, or other worker-backed pdfrx APIs inside the action: the worker is suspended until the action returns. Awaiting its work inside the action can deadlock. Call those APIs before or after the suspension.
 
@@ -51,17 +51,17 @@ Future<void> useNativePdfium() async {
 }
 ```
 
-The worker's `compute` callback holds the process gate only during its synchronous portion. Calling native PDFium after an `await` in such a callback is not protected; use the suspension API for asynchronous native-handle work instead.
+The worker's `compute` callback holds the process-wide lock only during its synchronous portion. Calling native PDFium after an `await` in such a callback is not protected; use the suspension API for asynchronous native-handle work instead.
 
 See [Low-Level PDFium Bindings Access](Low-Level-PDFium-Bindings-Access.md) for handle and buffer ownership.
 
 ## Web
 
-The Web backend uses PDFium WASM in a Web Worker. Its suspension API simply runs the action; it does not lock another library's WASM instance. Native FFI and the process-wide native gate do not apply to Web.
+The Web backend uses PDFium WASM in a Web Worker. Its suspension API simply runs the action; it does not lock another library's WASM instance. Native FFI and the process-wide native lock do not apply to Web.
 
 ## Troubleshooting
 
 - **Crashes during concurrent operations:** check that all callers sharing PDFium participate in the same coordination scheme, including other engines and native threads.
 - **Crashes when closing a window:** check that another engine or wrapper is not destroying PDFium while documents remain alive.
-- **A suspension action never completes:** check whether it awaits worker-backed pdfrx operations, or waits for an unrelated action that needs the same gate.
-- **Font changes with the gate enabled:** the Dart font mapper is disabled in this mode; PDFium uses its built-in mapper.
+- **A suspension action never completes:** check whether it awaits worker-backed pdfrx operations, or waits for an unrelated action that needs the same lock.
+- **Font changes with the lock enabled:** the Dart font mapper is disabled in this mode; PDFium uses its built-in mapper.

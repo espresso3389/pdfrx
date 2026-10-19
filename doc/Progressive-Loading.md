@@ -95,7 +95,7 @@ The current `master` branch includes the following behavior merged after pdfrx 2
 
 ## Scheduling and Memory
 
-Native page measurement is split into short worker tasks, including when progressive loading is disabled. This lets rendering requests run between tasks. Each Dart engine/isolate context has its own worker; multiple Flutter engines require the [process-wide PDFium gate](pdfrx-Initialization.md#multiple-flutter-engines).
+Native page measurement is split into short worker tasks, including when progressive loading is disabled. This lets rendering requests run between tasks. Each Dart engine/isolate context has its own worker; multiple Flutter engines require the [process-wide lock for PDFium access](pdfrx-Initialization.md#multiple-flutter-engines).
 
 A measurement budget is cooperative: one expensive PDFium page load can exceed it. Progressive loading does not by itself guarantee lower network traffic; HTTP range support and the document's structure also affect downloading.
 
