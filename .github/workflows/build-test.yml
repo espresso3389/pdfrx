@@ -164,6 +164,10 @@ jobs:
         working-directory: packages/pdfrx
         run: flutter test test/pdfium_loading_test.dart
 
+      - name: Test process-wide PDFium gate
+        working-directory: packages/pdfrx_engine
+        run: dart test test/process_gate_smoke.dart
+
   # Linux build
   linux:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_linux }}
@@ -191,6 +195,10 @@ jobs:
       - name: Build Linux
         working-directory: packages/pdfrx/example/viewer
         run: flutter build linux --debug --verbose
+
+      - name: Test process-wide PDFium gate
+        working-directory: packages/pdfrx_engine
+        run: dart test test/process_gate_smoke.dart
 
   # Linux ARM64 build
   linux-arm64:
@@ -243,6 +251,10 @@ jobs:
       - name: Build Windows
         working-directory: packages/pdfrx/example/viewer
         run: C:\flutter\bin\flutter.bat build windows --debug --verbose
+
+      - name: Test process-wide PDFium gate
+        working-directory: packages/pdfrx_engine
+        run: C:\flutter\bin\dart.bat test test/process_gate_smoke.dart
 
   # Windows ARM64 build (requires ARM64 runner or cross-compilation)
   windows-arm64:

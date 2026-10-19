@@ -6,6 +6,7 @@ import 'dart:isolate';
 import 'package:ffi/ffi.dart';
 import 'package:pdfium_dart/pdfium_dart.dart' show PdfiumProcessGate;
 import 'package:synchronized/extension.dart';
+import 'package:synchronized/synchronized.dart';
 
 import '../pdfrx.dart';
 
@@ -30,6 +31,8 @@ class BackgroundWorker {
   BackgroundWorker._(this.debugName);
 
   static final _instance = BackgroundWorker._('PdfrxEngineWorker');
+  static final _suspendLock = Lock(reentrant: true);
+  static int _gateSuspendDepth = 0;
 
   final String debugName;
   SendPort? _sendPort;
@@ -40,6 +43,7 @@ class BackgroundWorker {
     if (_sendPort != null) return _sendPort!;
     await synchronized(() async {
       if (_sendPort != null) return;
+      Pdfrx.lockProcessWidePdfiumGateConfiguration();
       final receivePort = ReceivePort();
       _isolate = await Isolate.spawn(_workerEntry, receivePort.sendPort, debugName: debugName);
       _sendPort = await receivePort.first as SendPort;
@@ -50,6 +54,8 @@ class BackgroundWorker {
           Pdfrx.pdfiumModulePath = params.modulePath;
           Pdfrx.pdfiumNativeBindings = params.bindings;
           Pdfrx.useProcessWidePdfiumGate = params.useGate;
+          Pdfrx.lockProcessWidePdfiumGateConfiguration();
+          if (params.useGate) PdfiumProcessGate.enable();
         },
         (
           modulePath: Pdfrx.pdfiumModulePath,
@@ -96,8 +102,10 @@ class BackgroundWorker {
       } else if (message is _ResumeRequest) {
         if (suspendingLevel > 0) {
           suspendingLevel--;
-          while (suspendingQueue.isNotEmpty) {
-            scheduler.enqueue(suspendingQueue.removeFirst());
+          if (suspendingLevel == 0) {
+            while (suspendingQueue.isNotEmpty) {
+              scheduler.enqueue(suspendingQueue.removeFirst());
+            }
           }
         }
         message.execute();
@@ -171,16 +179,20 @@ class BackgroundWorker {
   /// Work queued before the suspend request has run by the time [action] starts. This holds for synchronous
   /// callbacks (all PDFium callbacks in the engine are synchronous); an asynchronous callback only counts as "run" up
   /// to its first `await`.
-  static Future<T> suspendDuringAction<T>(FutureOr<T> Function() action) async {
+  static Future<T> suspendDuringAction<T>(FutureOr<T> Function() action) =>
+      _suspendLock.synchronized(() => _suspendDuringAction(action));
+
+  static Future<T> _suspendDuringAction<T>(FutureOr<T> Function() action) async {
     await _instance._sendComputeParams((sendPort) => _SuspendRequest._(sendPort));
     // Hold the process lock so other engines cannot enter PDFium while
     // [action] uses native handles on this isolate. Do not call [compute]
     // from [action]: that worker would wait for this lock.
-    if (Pdfrx.useProcessWidePdfiumGate) PdfiumProcessGate.acquire();
+    final useGate = Pdfrx.useProcessWidePdfiumGate;
+    if (useGate && _gateSuspendDepth++ == 0) PdfiumProcessGate.acquire();
     try {
       return await action();
     } finally {
-      if (Pdfrx.useProcessWidePdfiumGate) PdfiumProcessGate.release();
+      if (useGate && --_gateSuspendDepth == 0) PdfiumProcessGate.release();
       await _instance._sendComputeParams((sendPort) => _ResumeRequest._(sendPort));
     }
   }

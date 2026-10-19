@@ -55,6 +55,12 @@ When the gate is on:
 
 The mutex is not thread-owner-affine: Dart may resume an `await` on another OS thread. It serializes access; it does not make PDFium parallel.
 
+The configuration is fixed when the first worker starts in each isolate. Changing it afterwards throws `StateError`,
+even after stopping that worker. All engines must opt in before doing any PDFium work; mixing modes is unsupported.
+Worker `compute` callbacks hold the gate only for their synchronous portion and must not call PDFium after an `await`.
+For asynchronous access to native handles, use `suspendPdfiumWorkerDuringAction`; do not call worker APIs from inside
+that action because the worker is suspended until the action completes.
+
 ## Cache Directory
 
 The mechanism to set [Pdfrx.cacheDirectoryPath](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pdfrx/cacheDirectoryPath.html) is different between pure Dart apps and Flutter apps:
