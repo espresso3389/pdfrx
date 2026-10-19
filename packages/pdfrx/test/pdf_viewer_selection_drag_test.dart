@@ -11,6 +11,12 @@ void main() => selectionDragTests();
 
 void selectionDragTests({bool useFlutterInitialization = false}) {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('custom selection implementations can omit synchronous text support', () {
+    final PdfTextSelection selection = _LegacySelection();
+    expect(selection.selectedTextIfLoaded, isNull);
+    (selection as _LegacySelection).hasSelectedText = false;
+    expect(selection.selectedTextIfLoaded, '');
+  });
   setUp(() => useFlutterInitialization ? pdfrxFlutterInitialize() : pdfrxInitialize());
 
   testWidgets('handle snaps across a page gap and tracks controller scrolling once', (tester) async {
@@ -106,6 +112,27 @@ void selectionDragTests({bool useFlutterInitialization = false}) {
     final stopped = controller.value.clone();
     await tester.pump(const Duration(milliseconds: 200));
     expect(controller.value, stopped);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('backward drag across pages extracts the same cached and async text', (tester) async {
+    final (controller, document, texts) = await _setup(tester, handles: false);
+    final detector = tester
+        .widgetList<GestureDetector>(
+          find.descendant(of: find.byType(iv.InteractiveViewer), matching: find.byType(GestureDetector)),
+        )
+        .firstWhere((widget) => widget.onPanStart != null);
+    Offset point(int page, int index) => texts[page].charRects[index]
+        .toRectInDocument(page: document.pages[page], pageRect: controller.layout.pageLayouts[page])
+        .center;
+    final start = controller.documentToGlobal(point(2, 4))!;
+    final end = controller.documentToGlobal(point(0, 2))!;
+    detector.onPanStart!(DragStartDetails(globalPosition: start));
+    detector.onPanUpdate!(DragUpdateDetails(globalPosition: end, delta: end - start));
+    final delegate = controller.textSelectionDelegate;
+    expect(delegate.selectedTextIfLoaded, _selectedText(texts));
+    expect(await tester.runAsync(delegate.getSelectedText), _selectedText(texts));
+    detector.onPanEnd!(DragEndDetails(globalPosition: end));
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -272,4 +299,22 @@ Uint8List _pdf({int pageCount = 3}) {
   }
   pdf.write('trailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n$xref\n%%EOF');
   return Uint8List.fromList(ascii.encode(pdf.toString()));
+}
+
+// Implements the pre-existing interface without the optional cached-text capability.
+class _LegacySelection implements PdfTextSelection {
+  @override
+  bool hasSelectedText = true;
+  @override
+  bool get isTextSelectionEnabled => true;
+  @override
+  bool get isCopyAllowed => true;
+  @override
+  bool get isSelectingAllText => false;
+  @override
+  PdfTextSelectionRange? get textSelectionPointRange => null;
+  @override
+  Future<String> getSelectedText() async => '';
+  @override
+  Future<List<PdfPageTextRange>> getSelectedTextRanges() async => [];
 }

@@ -1098,8 +1098,10 @@ typedef PdfViewerContextMenuBuilder = Widget? Function(BuildContext context, Pdf
 ///
 /// - [params] contains the parameters for building the context menu.
 /// - [items] is the list of context menu items to be customized. You can add, remove, or modify the items in this list.
-typedef PdfViewerContextMenuUpdateMenuItemsFunction =
-    void Function(PdfViewerContextMenuBuilderParams params, List<ContextMenuButtonItem> items);
+typedef PdfViewerContextMenuUpdateMenuItemsFunction = void Function(
+  PdfViewerContextMenuBuilderParams params,
+  List<ContextMenuButtonItem> items,
+);
 
 /// Parameters for the text selection context menu builder.
 ///
@@ -1166,12 +1168,11 @@ enum PdfViewerPart {
 enum PdfViewerTextSelectionAnchorHandleState { normal, hover, dragging }
 
 /// Function to build the text selection anchor handle.
-typedef PdfViewerTextSelectionAnchorHandleBuilder =
-    Widget? Function(
-      BuildContext context,
-      PdfTextSelectionAnchor anchor,
-      PdfViewerTextSelectionAnchorHandleState state,
-    );
+typedef PdfViewerTextSelectionAnchorHandleBuilder = Widget? Function(
+  BuildContext context,
+  PdfTextSelectionAnchor anchor,
+  PdfViewerTextSelectionAnchorHandleState state,
+);
 
 /// Function to calculate the offset for an anchor handle.
 ///
@@ -1182,8 +1183,11 @@ typedef PdfViewerTextSelectionAnchorHandleBuilder =
 /// that positions the handle widget relative to the anchor point:
 /// - For anchor A (LTR): default anchor point is text's top-left, widget's bottom-right
 /// - For anchor B (LTR): default anchor point is text's bottom-right, widget's top-left
-typedef PdfViewerCalcSelectionAnchorHandleOffsetFunction =
-    Offset Function(BuildContext context, PdfTextSelectionAnchor anchor, PdfViewerTextSelectionAnchorHandleState state);
+typedef PdfViewerCalcSelectionAnchorHandleOffsetFunction = Offset Function(
+  BuildContext context,
+  PdfTextSelectionAnchor anchor,
+  PdfViewerTextSelectionAnchorHandleState state,
+);
 
 /// Function to be notified when the text selection is changed.
 ///
@@ -1228,18 +1232,32 @@ abstract class PdfTextSelection {
   /// but you have to ensure that your use of the text does not violate [isCopyAllowed] condition.
   Future<String> getSelectedText();
 
-  /// Get the selected text without waiting, or null if the text of a page the selection spans has not been loaded
-  /// yet; [getSelectedText] loads it.
-  ///
-  /// Although the use of this property is not restricted by [isCopyAllowed]
-  /// but you have to ensure that your use of the text does not violate [isCopyAllowed] condition.
-  String? get selectedTextIfLoaded;
-
   /// Get the selected text ranges.
   ///
   /// Although the use of this property is not restricted by [isCopyAllowed]
   /// but you have to ensure that your use of the text does not violate [isCopyAllowed] condition.
   Future<List<PdfPageTextRange>> getSelectedTextRanges();
+}
+
+/// Optional support for reading cached selection text synchronously.
+abstract interface class PdfTextSelectionWithCachedText implements PdfTextSelection {
+  /// Selected text, or null when text needed for the selection is not cached.
+  String? get selectedTextIfLoaded;
+}
+
+/// Synchronous access to selection text without changing custom selection implementations.
+extension PdfTextSelectionCachedText on PdfTextSelection {
+  /// Get the selected text without waiting, or null if it is not available synchronously.
+  ///
+  /// The built-in viewer returns null when an intermediate page is not cached;
+  /// [getSelectedText] loads it. Custom implementations can implement
+  /// [PdfTextSelectionWithCachedText] to provide cached text. An empty selection returns ''.
+  /// Callers must respect [isCopyAllowed] when using the returned text.
+  String? get selectedTextIfLoaded {
+    final selection = this;
+    if (selection is PdfTextSelectionWithCachedText) return selection.selectedTextIfLoaded;
+    return hasSelectedText ? null : '';
+  }
 }
 
 /// Delegate for text selection actions.
@@ -1444,12 +1462,11 @@ class PdfViewerSelectionMagnifierParams {
 ///  );
 /// }
 ///```
-typedef PdfViewerGetMagnifierRectForAnchor =
-    Rect Function(
-      PdfTextSelectionAnchor anchor,
-      PdfViewerSelectionMagnifierParams params,
-      Offset clampedPointerPosition,
-    );
+typedef PdfViewerGetMagnifierRectForAnchor = Rect Function(
+  PdfTextSelectionAnchor anchor,
+  PdfViewerSelectionMagnifierParams params,
+  Offset clampedPointerPosition,
+);
 
 /// Function to build the magnifier widget.
 ///
@@ -1488,16 +1505,15 @@ typedef PdfViewerGetMagnifierRectForAnchor =
 ///   );
 /// }
 /// ```
-typedef PdfViewerMagnifierBuilder =
-    Widget? Function(
-      BuildContext context,
-      PdfTextSelectionAnchor textAnchor,
-      PdfViewerSelectionMagnifierParams params,
-      Widget magnifierContent,
-      Size magnifierContentSize,
-      Offset pointerPosition,
-      Offset magnifierPosition,
-    );
+typedef PdfViewerMagnifierBuilder = Widget? Function(
+  BuildContext context,
+  PdfTextSelectionAnchor textAnchor,
+  PdfViewerSelectionMagnifierParams params,
+  Widget magnifierContent,
+  Size magnifierContentSize,
+  Offset pointerPosition,
+  Offset magnifierPosition,
+);
 
 /// Function to determine whether the magnifier should be shown or not.
 ///
@@ -1511,12 +1527,11 @@ typedef PdfViewerMagnifierBuilder =
 ///   final h = textAnchor.direction == PdfTextDirection.vrtl ? textAnchor.rect.size.width : textAnchor.rect.size.height;
 ///   return h * _currentZoom < params.magnifierSizeThreshold;
 /// ```
-typedef PdfViewerMagnifierShouldBeShownFunction =
-    bool Function(
-      PdfTextSelectionAnchor textAnchor,
-      PdfViewerController controller,
-      PdfViewerSelectionMagnifierParams params,
-    );
+typedef PdfViewerMagnifierShouldBeShownFunction = bool Function(
+  PdfTextSelectionAnchor textAnchor,
+  PdfViewerController controller,
+  PdfViewerSelectionMagnifierParams params,
+);
 
 /// Function to calculate the position of the magnifier widget in viewport coordinates.
 ///
@@ -1533,17 +1548,16 @@ typedef PdfViewerMagnifierShouldBeShownFunction =
 /// - [margin]: Default margin from viewport edges
 /// - [marginOnTop]: Optional custom margin when magnifier is positioned above text
 /// - [marginOnBottom]: Optional custom margin when magnifier is positioned below text
-typedef PdfViewerCalcMagnifierPositionFunction =
-    Offset? Function(
-      Size? widgetSize,
-      Rect anchorLocalRect,
-      Rect? handleLocalRect,
-      PdfTextSelectionAnchor textAnchor,
-      Offset pointerPosition, {
-      double margin,
-      double? marginOnTop,
-      double? marginOnBottom,
-    });
+typedef PdfViewerCalcMagnifierPositionFunction = Offset? Function(
+  Size? widgetSize,
+  Rect anchorLocalRect,
+  Rect? handleLocalRect,
+  PdfTextSelectionAnchor textAnchor,
+  Offset pointerPosition, {
+  double margin,
+  double? marginOnTop,
+  double? marginOnBottom,
+});
 
 /// Function to notify that the document is loaded/changed.
 typedef PdfViewerDocumentChangedCallback = void Function(PdfDocument? document);
@@ -1551,8 +1565,10 @@ typedef PdfViewerDocumentChangedCallback = void Function(PdfDocument? document);
 /// Function to calculate the initial page number.
 ///
 /// If the function returns null, the viewer will show the page of [PdfViewer.initialPageNumber].
-typedef PdfViewerCalculateInitialPageNumberFunction =
-    int? Function(PdfDocument document, PdfViewerController controller);
+typedef PdfViewerCalculateInitialPageNumberFunction = int? Function(
+  PdfDocument document,
+  PdfViewerController controller,
+);
 
 /// Function to calculate the initial zoom level.
 ///
@@ -1560,12 +1576,19 @@ typedef PdfViewerCalculateInitialPageNumberFunction =
 /// You can use the following parameters to calculate the zoom level:
 /// - [fitZoom] is the zoom level to fit the "initial" page into the viewer.
 /// - [coverZoom] is the zoom level to cover the entire viewer with the "initial" page.
-typedef PdfViewerCalculateZoomFunction =
-    double? Function(PdfDocument document, PdfViewerController controller, double fitZoom, double coverZoom);
+typedef PdfViewerCalculateZoomFunction = double? Function(
+  PdfDocument document,
+  PdfViewerController controller,
+  double fitZoom,
+  double coverZoom,
+);
 
 /// Function to guess the current page number based on the visible rectangle and page layouts.
-typedef PdfViewerCalculateCurrentPageNumberFunction =
-    int? Function(Rect visibleRect, List<Rect> pageRects, PdfViewerController controller);
+typedef PdfViewerCalculateCurrentPageNumberFunction = int? Function(
+  Rect visibleRect,
+  List<Rect> pageRects,
+  PdfViewerController controller,
+);
 
 /// Function called when the viewer is ready.
 ///
@@ -1608,8 +1631,12 @@ typedef PdfPageChangedCallback = void Function(int? pageNumber);
 /// - [page] can be used to determine the page dimensions
 /// - [controller] can be used to get the current zoom by [PdfViewerController.currentZoom]
 /// - [estimatedScale] is the precalculated scale for the page
-typedef PdfViewerGetPageRenderingScale =
-    double Function(BuildContext context, PdfPage page, PdfViewerController controller, double estimatedScale);
+typedef PdfViewerGetPageRenderingScale = double Function(
+  BuildContext context,
+  PdfPage page,
+  PdfViewerController controller,
+  double estimatedScale,
+);
 
 /// Function to customize the layout of the pages.
 ///
@@ -1625,15 +1652,22 @@ typedef PdfPageLayoutFunction = PdfPageLayout Function(List<PdfPage> pages, PdfV
 /// Another use case is to do something when the matrix is changed.
 ///
 /// If no actual matrix change is needed, just return the input matrix.
-typedef PdfMatrixNormalizeFunction =
-    Matrix4 Function(Matrix4 matrix, Size viewSize, PdfPageLayout layout, PdfViewerController? controller);
+typedef PdfMatrixNormalizeFunction = Matrix4 Function(
+  Matrix4 matrix,
+  Size viewSize,
+  PdfPageLayout layout,
+  PdfViewerController? controller,
+);
 
 /// Function to build viewer overlays.
 ///
 /// [size] is the size of the viewer widget.
 /// [handleLinkTap] is a function to handle link tap. For more details, see [PdfViewerParams.viewerOverlayBuilder].
-typedef PdfViewerOverlaysBuilder =
-    List<Widget> Function(BuildContext context, Size size, PdfViewerHandleLinkTap handleLinkTap);
+typedef PdfViewerOverlaysBuilder = List<Widget> Function(
+  BuildContext context,
+  Size size,
+  PdfViewerHandleLinkTap handleLinkTap,
+);
 
 /// Function to handle link tap.
 ///
@@ -1649,8 +1683,11 @@ typedef PdfViewerHandleLinkTap = bool Function(Offset position);
 /// The function returns true if it processes the tap; otherwise, returns false.
 ///
 /// When the function returns true, the tap is considered handled and the viewer does not process it further.
-typedef PdfViewerGeneralTapHandler =
-    bool Function(BuildContext context, PdfViewerController controller, PdfViewerGeneralTapHandlerDetails details);
+typedef PdfViewerGeneralTapHandler = bool Function(
+  BuildContext context,
+  PdfViewerController controller,
+  PdfViewerGeneralTapHandlerDetails details,
+);
 
 /// Describes the type of the tap.
 class PdfViewerGeneralTapHandlerDetails {
@@ -1692,8 +1729,12 @@ typedef PdfPageOverlaysBuilder = List<Widget> Function(BuildContext context, Rec
 typedef PdfViewerLoadingBannerBuilder = Widget Function(BuildContext context, int bytesDownloaded, int? totalBytes);
 
 /// Function to build loading error banner.
-typedef PdfViewerErrorBannerBuilder =
-    Widget Function(BuildContext context, Object error, StackTrace? stackTrace, PdfDocumentRef documentRef);
+typedef PdfViewerErrorBannerBuilder = Widget Function(
+  BuildContext context,
+  Object error,
+  StackTrace? stackTrace,
+  PdfDocumentRef documentRef,
+);
 
 /// Function to build link widget for [PdfLink].
 ///
@@ -1846,8 +1887,11 @@ typedef PdfLinkCustomPagePainter = void Function(ui.Canvas canvas, Rect pageRect
 /// [key] is the key event.
 /// [isRealKeyPress] is true if the key event is the actual key press event. It is false if the key event is generated
 /// by key repeat feature.
-typedef PdfViewerOnKeyCallback =
-    bool? Function(PdfViewerKeyHandlerParams params, LogicalKeyboardKey key, bool isRealKeyPress);
+typedef PdfViewerOnKeyCallback = bool? Function(
+  PdfViewerKeyHandlerParams params,
+  LogicalKeyboardKey key,
+  bool isRealKeyPress,
+);
 
 /// Parameters for the built-in key handler.
 ///

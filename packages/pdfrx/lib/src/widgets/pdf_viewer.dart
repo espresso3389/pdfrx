@@ -241,7 +241,7 @@ class PdfViewer extends StatefulWidget {
 
 class _PdfViewerState extends State<PdfViewer>
     with TickerProviderStateMixin
-    implements PdfTextSelectionDelegate, PdfViewerCoordinateConverter {
+    implements PdfTextSelectionDelegate, PdfTextSelectionWithCachedText, PdfViewerCoordinateConverter {
   PdfViewerController? _controller;
   late final _txController = _PdfViewerTransformationController(this);
   late final AnimationController _animController;
@@ -3937,10 +3937,10 @@ class _PdfViewerState extends State<PdfViewer>
       return a.text.getRangeFromAB(a.index, b.index);
     }
     if (first.text.pageNumber == pageNumber) {
-      return PdfPageTextRange(pageText: first.text, start: a.index, end: first.text.charRects.length);
+      return PdfPageTextRange(pageText: first.text, start: first.index, end: first.text.charRects.length);
     }
     if (second.text.pageNumber == pageNumber) {
-      return PdfPageTextRange(pageText: second.text, start: 0, end: b.index + 1);
+      return PdfPageTextRange(pageText: second.text, start: 0, end: second.index + 1);
     }
     if (first.text.pageNumber < pageNumber && pageNumber < second.text.pageNumber) {
       final text = _getCachedTextOrDelayLoadText(pageNumber, onTextLoaded: () => _invalidate());
@@ -3965,7 +3965,7 @@ class _PdfViewerState extends State<PdfViewer>
     if (first.text.pageNumber == second.text.pageNumber) {
       return [a.text.getRangeFromAB(a.index, b.index)];
     }
-    final selections = <PdfPageTextRange>[a.text.getRangeFromAB(a.index, a.text.charRects.length - 1)];
+    final selections = <PdfPageTextRange>[first.text.getRangeFromAB(first.index, first.text.charRects.length - 1)];
 
     for (var i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
       final text = await _loadTextAsync(i);
@@ -3973,7 +3973,7 @@ class _PdfViewerState extends State<PdfViewer>
       selections.add(text.getRangeFromAB(0, text.charRects.length - 1));
     }
 
-    selections.add(second.text.getRangeFromAB(0, b.index));
+    selections.add(second.text.getRangeFromAB(0, second.index));
     return selections;
   }
 
@@ -3989,7 +3989,7 @@ class _PdfViewerState extends State<PdfViewer>
     if (first.text.pageNumber == second.text.pageNumber) {
       return [a.text.getRangeFromAB(a.index, b.index)];
     }
-    final selections = <PdfPageTextRange>[a.text.getRangeFromAB(a.index, a.text.charRects.length - 1)];
+    final selections = <PdfPageTextRange>[first.text.getRangeFromAB(first.index, first.text.charRects.length - 1)];
 
     for (var i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
       if (!_textCache.containsKey(i)) return null;
@@ -3998,7 +3998,7 @@ class _PdfViewerState extends State<PdfViewer>
       selections.add(text.getRangeFromAB(0, text.charRects.length - 1));
     }
 
-    selections.add(second.text.getRangeFromAB(0, b.index));
+    selections.add(second.text.getRangeFromAB(0, second.index));
     return selections;
   }
 
