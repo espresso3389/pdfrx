@@ -1808,7 +1808,12 @@ class _PdfViewerState extends State<PdfViewer>
 
     // The preview lock serves requests in call order, and the loop above walks pages by index -- so the page above
     // the viewport used to render before the one on screen. Ask for the visible pages first.
-    previewRequests.sort((a, b) => _distanceToRect(a.rect, targetRect).compareTo(_distanceToRect(b.rect, targetRect)));
+    previewRequests.sort((a, b) {
+      final aVisible = a.rect.overlaps(targetRect);
+      final bVisible = b.rect.overlaps(targetRect);
+      if (aVisible != bVisible) return aVisible ? -1 : 1;
+      return _distanceToRect(a.rect, targetRect).compareTo(_distanceToRect(b.rect, targetRect));
+    });
     for (final request in previewRequests) {
       _requestPagePreviewImageCached(cache, request.page, request.scale);
     }

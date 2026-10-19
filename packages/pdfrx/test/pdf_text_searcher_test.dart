@@ -78,6 +78,33 @@ class _GatedSearcher extends PdfTextSearcher {
 }
 
 void main() {
+  test('changing case sensitivity reruns the same pattern', () async {
+    final searcher = _GatedSearcher(_FakeController(_FakeDocument(1)), {1: 'word WORD'});
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    expect(searcher.matches, hasLength(2));
+    searcher.startTextSearch('word', caseInsensitive: false, goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    expect(searcher.matches, hasLength(1));
+    expect(searcher.isSearching, isFalse);
+  });
+
+  test('returning to the active pattern cancels only the debounced replacement', () async {
+    final searcher = _GatedSearcher(_FakeController(_FakeDocument(2)), {1: 'alpha', 2: 'alpha beta'});
+    addTearDown(searcher.dispose);
+    final gate = searcher.gates[2] = Completer<void>();
+    searcher.startTextSearch('alpha', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    searcher.startTextSearch('beta', goToFirstMatch: false);
+    searcher.startTextSearch('alpha', goToFirstMatch: false);
+    gate.complete();
+    await pumpEventQueue();
+    expect(searcher.matches.map((m) => m.pageNumber), [1, 2]);
+    expect(searcher.pattern, 'alpha');
+    expect(searcher.isSearching, isFalse);
+  });
+
   test('re-issuing the running pattern does not cut the search short', () async {
     final searcher = _GatedSearcher(_FakeController(_FakeDocument(3)), {1: 'word', 2: 'word word', 3: 'word'});
     addTearDown(searcher.dispose);

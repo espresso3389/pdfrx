@@ -483,7 +483,9 @@ class PdfDocumentListenable extends Listenable {
           'evicting the listenable; the next resolve will re-download it',
         );
       }
-      PdfDocumentRef._listenables.remove(ref);
+      if (identical(PdfDocumentRef._listenables[ref], this)) {
+        PdfDocumentRef._listenables.remove(ref);
+      }
       _release();
     }
   }

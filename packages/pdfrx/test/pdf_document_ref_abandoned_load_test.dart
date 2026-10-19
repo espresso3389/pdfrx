@@ -21,12 +21,17 @@ void main() {
 
     // e.g. the viewer is torn down to retry a slow load.
     listenable.removeListener(listener);
+    final replacement = ref.resolveListenable();
+    replacement.addListener(listener);
+    listenable.removeListener(listener);
+    expect(ref.resolveListenable(), same(replacement));
     final document = _FakeDocument();
     loading.complete(document);
     await load;
 
     expect(document.disposed, isTrue);
     expect(listenable.document, isNull);
+    replacement.removeListener(listener);
   });
 
   test('a load with a listener still attached keeps its document', () async {

@@ -85,16 +85,16 @@ class PdfTextSearcher extends Listenable {
   }) {
     // Re-issuing the running pattern must not cancel it: search() below would return early for an identical pattern,
     // leaving the matches half collected and isSearching stuck. Only drop a pending search for another pattern.
+    _searchTextTimer?.cancel();
     final last = _lastSearchCondition;
     if (last != null && last.caseInsensitive == caseInsensitive && _isIdenticalPattern(last.pattern, pattern)) {
-      _searchTextTimer?.cancel();
       return;
     }
-    _cancelTextSearch();
-    final searchSession = ++_searchSession;
 
     void search() {
-      if (_isIdenticalPattern(_lastSearchCondition?.pattern, pattern)) return;
+      // Keep the active search alive until a debounced replacement actually starts.
+      _cancelTextSearch();
+      final searchSession = _searchSession;
       _lastSearchCondition = _SearchCondition(
         pattern: pattern,
         caseInsensitive: caseInsensitive,
