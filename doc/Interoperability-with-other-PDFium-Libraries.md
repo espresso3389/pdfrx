@@ -1,357 +1,67 @@
-# Interoperability with other PDFium Libraries
+# Interoperability with Other PDFium Libraries
 
-This document explains how pdfrx can coexist with other PDFium-based libraries in the same application, and the mechanisms provided to ensure safe concurrent usage.
+Libraries sharing one PDFium instance must coordinate initialization, shutdown, and every native call. pdfrx cannot automatically synchronize unrelated plugins that call PDFium independently.
 
-## The Challenge
+## Initialization and Multiple Engines
 
-PDFium is not thread-safe. When multiple libraries in the same application use PDFium, they can interfere with each other causing:
+Initialize pdfrx with `pdfrxFlutterInitialize()` in Flutter or `pdfrxInitialize()` in Dart. Avoid a second library initializing or destroying the same PDFium instance independently.
 
-- Crashes due to concurrent access
-- Data corruption
-- Unexpected behavior
+For several Flutter engines in one OS process, enable `processWidePdfiumGate: true` on every engine before its first PDFium operation. Each engine has its own worker, so pausing one worker alone does not pause all engines. See [initialization and the process-wide gate](pdfrx-Initialization.md#multiple-flutter-engines) for its configuration and font-mapper limitations.
 
-This is particularly important when your application uses:
+The gate coordinates participating pdfrx engines. It does not intercept calls made by another PDFium wrapper, and it does not coordinate separate copies of PDFium loaded by different packages.
 
-- Multiple PDF libraries (e.g., pdfrx alongside another PDFium wrapper)
-- Direct PDFium calls through FFI
-- Native plugins that internally use PDFium
+## Calling Native PDFium While pdfrx Is Active
 
-## Solution: Coordinated PDFium Access
-
-pdfrx provides mechanisms to coordinate PDFium access across different libraries through the `PdfrxEntryFunctions` class.
-
-## Low-Level PDFium Bindings
-
-For advanced use cases, the [pdfium_dart](https://pub.dev/packages/pdfium_dart) package exposes direct access to PDFium's C API through FFI bindings. This allows you to:
-
-- Call any PDFium function directly
-- Implement custom PDF processing not covered by the high-level API
-- Integrate with existing PDFium-based code
-
-**Important**: When using low-level bindings, you must:
-
-1. Initialize PDFium first using `pdfrxFlutterInitialize()` or `pdfrxInitialize()` (See [pdfrx Initialization](pdfrx-Initialization.md))
-2. Wrap all PDFium calls with `suspendPdfiumWorkerDuringAction()` to prevent conflicts
-3. Properly manage memory allocation and deallocation
-
-See [Example 2](#example-2-low-level-pdfium-bindings-access) below for detailed usage.
-
-### PDFium Initialization
-
-PDFium requires initialization through its C API functions `FPDF_InitLibrary()` or `FPDF_InitLibraryWithConfig()` before any PDF operations can be performed. pdfrx handles this initialization when you call:
-
-- `pdfrxFlutterInitialize()` - For Flutter applications
-- `pdfrxInitialize()` - For pure Dart applications
-
-These functions internally call the PDFium's `FPDF_InitLibraryWithConfig()` to properly initialize the PDFium library. This ensures:
-
-- PDFium is initialized exactly once for all libraries
-- The initialization happens at the right time
-- The PDFium instance can be shared across multiple libraries
-
-**Multiple Flutter engines** (`desktop_multi_window`) are a different problem: each engine has its own Dart isolate family, so isolate-local initialization tracking is not enough. Set `processWidePdfiumGate: true` on every engine before `pdfrxFlutterInitialize`. See [pdfrx Initialization](pdfrx-Initialization.md#multiple-flutter-engines).
-
-**Important**: pdfrx configures PDFium with `FPDF_InitLibraryWithConfig()`, so prefer `pdfrxFlutterInitialize()` or `pdfrxInitialize()` over direct `FPDF_InitLibrary()` or `FPDF_InitLibraryWithConfig()` calls unless your application owns the full PDFium lifecycle.
-
-### Suspending PDFium Worker
-
-The most important feature for interoperability is `PdfrxEntryFunctions.suspendPdfiumWorkerDuringAction()`. This function temporarily suspends pdfrx's internal PDFium operations while you call other PDFium-based libraries:
+Use [suspendPdfiumWorkerDuringAction](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/suspendPdfiumWorkerDuringAction.html) to pause the current worker while an action uses native handles:
 
 ```dart
-import 'package:pdfrx/pdfrx.dart';
-
-// Suspend pdfrx's PDFium operations while calling another library
-final result = await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() async {
-  // Safe to call other PDFium-based libraries here
-  // pdfrx won't interfere with these calls
-  return await otherPdfLibrary.processPdf();
+await pdfrxFlutterInitialize();
+await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() async {
+  // Perform direct FFI or external-library operations here.
+  // Await completion of all native work before returning.
 });
 ```
 
-## Implementation Details
+On native platforms this method:
 
-### Native Platforms (iOS, Android, Windows, macOS, Linux)
+1. Suspends the current pdfrx worker.
+2. Acquires the process-wide gate when enabled, excluding other participating engines.
+3. Runs and awaits the action.
+4. Releases the gate and resumes the worker, including when the action throws.
 
-On native platforms, pdfrx uses a background isolate worker to handle PDFium operations. The `suspendPdfiumWorkerDuringAction` method:
+Do not call `PdfDocument.openFile`, `render`, `loadText`, or other worker-backed pdfrx APIs inside the action: the worker is suspended until the action returns. Awaiting its work inside the action can deadlock. Call those APIs before or after the suspension.
 
-1. Pauses the background worker's PDFium operations
-2. Executes your action (which can safely call PDFium)
-3. Resumes the background worker
+Nested suspension in the same asynchronous call chain is supported; unrelated suspension actions are serialized. The other library must still avoid concurrent calls from its own threads and must not independently destroy the shared PDFium instance. Work launched in the action must finish before the action returns.
 
-This ensures that pdfrx and other libraries never call PDFium simultaneously.
+## Direct Bindings
 
-### Web Platform
-
-On web, pdfrx uses a Web Worker with PDFium WASM. Since the WASM instance is isolated within the worker, there's no risk of interference with other libraries. The `suspendPdfiumWorkerDuringAction` method simply executes the action without additional synchronization.
-
-## Usage Examples
-
-### Example 1: Using pdfrx with Another PDFium Library
+For a Flutter application, import `pdfium_flutter` for native packaging. Pure Dart applications can import `pdfium_dart` directly.
 
 ```dart
 import 'package:pdfrx/pdfrx.dart';
-import 'package:another_pdf_lib/another_pdf_lib.dart' as other;
+import 'package:pdfium_flutter/pdfium_flutter.dart';
 
-class PdfProcessor {
-  // Initialize both libraries
-  static Future<void> initialize() async {
-    // Initialize pdfrx (which calls FPDF_InitLibraryWithConfig internally)
-    await pdfrxFlutterInitialize();
-  }
-
-  // Process PDF with the other library
-  Future<String> extractTextWithOtherLibrary(String path) async {
-    // Suspend pdfrx operations during the other library's work
-    return await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() async {
-      final doc = await other.PdfDocument.open(path);
-      final text = await doc.extractText();
-      await doc.close();
-      return text;
-    });
-  }
-
-  // Continue using pdfrx normally
-  Future<void> renderWithPdfrx(String path) async {
-    final doc = await PdfDocument.openFile(path);
-    // ... render pages ...
-    await doc.dispose();
-  }
-}
-```
-
-### Example 2: Low-Level PDFium Bindings Access
-
-The [pdfium_dart](https://pub.dev/packages/pdfium_dart) package provides direct access to PDFium bindings for advanced use cases. You can import the low-level bindings to make direct PDFium API calls:
-
-```dart
-import 'dart:ffi';
-import 'dart:typed_data';
-import 'package:ffi/ffi.dart';
-import 'package:pdfrx/pdfrx.dart';
-// Access low-level PDFium bindings from pdfium_dart
-import 'package:pdfium_dart/pdfium_dart.dart';
-
-class LowLevelPdfiumAccess {
-  Future<void> useDirectBindings() async {
-    // Initialize PDFium through pdfrx
-    await pdfrxFlutterInitialize();
-
-    // Resolve PDFium bindings for the current Flutter runtime
-    final pdfium = getPdfium();
-
-    // Now you can use all PDFium C API functions through the bindings
-    // Remember to wrap calls with suspendPdfiumWorkerDuringAction
-    await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
-      // You can call any PDFium function from the bindings
-      // pdfium.FPDF_LoadDocument(...)
-      // pdfium.FPDF_GetPageCount(...)
-      // etc.
-    });
-  }
-
-  Future<Map<String, String>> extractCustomMetadata(Uint8List pdfData) async {
-    final pdfium = getPdfium();
-
-    return await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
-      return using((arena) {
-        final dataPtr = arena<Uint8>(pdfData.length);
-        dataPtr.asTypedList(pdfData.length).setAll(0, pdfData);
-
-        // Load document using low-level API
-        final doc = pdfium.FPDF_LoadMemDocument(
-          dataPtr.cast(),
-          pdfData.length,
-          nullptr,
-        );
-
-        if (doc == nullptr) {
-          throw Exception('Failed to load PDF');
-        }
-
-        try {
-          // Access document metadata
-          final metadata = <String, String>{};
-
-          // Get page count
-          final pageCount = pdfium.FPDF_GetPageCount(doc);
-          metadata['pageCount'] = pageCount.toString();
-
-          // Get document metadata tags
-          for (final tag in ['Title', 'Author', 'Subject', 'Keywords', 'Creator']) {
-            final buffer = arena<Uint8>(256);
-            final tagPtr = tag.toNativeUtf8(allocator: arena);
-            final len = pdfium.FPDF_GetMetaText(
-              doc,
-              tagPtr.cast(),
-              buffer.cast(),
-              256,
-            );
-            if (len > 0) {
-              // PDFium returns UTF-16 encoded text
-              final text = buffer.cast<Utf16>().toDartString(length: (len ~/ 2) - 1);
-              metadata[tag] = text;
-            }
-          }
-
-          return metadata;
-        } finally {
-          pdfium.FPDF_CloseDocument(doc);
-        }
-      });
-    });
-  }
-}
-```
-
-**Important Notes about Low-Level Bindings:**
-
-- Import `package:pdfium_dart/pdfium_dart.dart` for the FFI binding definitions and `getPdfium()` function
-- Always wrap PDFium calls with `suspendPdfiumWorkerDuringAction()` to prevent conflicts
-- Remember to properly manage memory (use `Arena` for automatic memory management)
-- PDFium text APIs often return UTF-16 encoded strings
-
-### Example 3: Batch Processing with Multiple Libraries
-
-```dart
-import 'package:pdfrx/pdfrx.dart';
-
-class BatchProcessor {
-  Future<void> processBatch(List<String> files) async {
-    await pdfrxFlutterInitialize();
-
-    for (final file in files) {
-      // Use pdfrx for rendering
-      final doc = await PdfDocument.openFile(file);
-      final pageImage = await doc.pages[0].render();
-      await doc.dispose();
-
-      // Use another library for text extraction
-      // (wrapped to prevent interference)
-      final text = await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() async {
-        return await otherLibrary.extractText(file);
-      });
-
-      // Process results...
-    }
-  }
-}
-```
-
-## Best Practices
-
-### 1. Initialize Once
-
-PDFium must be initialized only once at application startup. The initialization calls `FPDF_InitLibraryWithConfig()` internally:
-
-```dart
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize PDFium for all libraries (calls FPDF_InitLibraryWithConfig)
+Future<void> useNativePdfium() async {
   await pdfrxFlutterInitialize();
-
-  runApp(MyApp());
-}
-```
-
-**Note**: If you have other PDFium-based libraries, ensure they don't call `FPDF_InitLibrary()` or `FPDF_InitLibraryWithConfig()` again.
-
-### 2. Always Wrap External PDFium Calls
-
-When calling other PDFium-based libraries, always use `suspendPdfiumWorkerDuringAction`:
-
-```dart
-// ❌ Bad - May cause crashes
-final result = await otherPdfLibrary.process(data);
-
-// ✅ Good - Safe concurrent access
-final result = await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(
-  () => otherPdfLibrary.process(data)
-);
-```
-
-### 3. Error Handling
-
-Always handle errors appropriately:
-
-```dart
-try {
-  final result = await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() async {
-    return await riskyPdfiumOperation();
+  final pdfium = getPdfium();
+  await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
+    // Use pdfium.FPDF_* with valid native handles and buffers here.
+    // Do not initialize or destroy PDFium again.
   });
-} catch (e) {
-  // Handle PDFium-related errors
-  print('PDFium operation failed: $e');
 }
 ```
 
-## Platform-Specific Considerations
+The worker's `compute` callback holds the process gate only during its synchronous portion. Calling native PDFium after an `await` in such a callback is not protected; use the suspension API for asynchronous native-handle work instead.
 
-### Native Platforms
+See [Low-Level PDFium Bindings Access](Low-Level-PDFium-Bindings-Access.md) for handle and buffer ownership.
 
-- PDFium binary is shared across all libraries in the process
-- Only one `FPDF_InitLibrary()`/`FPDF_InitLibraryWithConfig()` call is needed (and recommended)
-- Thread safety must be managed through suspension mechanism
+## Web
 
-### Web Platform
-
-- Each library typically has its own WASM instance
-- Suspension is less critical but still provided for API consistency
-- Memory usage may be higher due to multiple WASM instances
-
-## Migration Guide
-
-If you're adding pdfrx to an existing application that already uses PDFium:
-
-1. **Check Initialization**: Ensure `FPDF_InitLibrary()`/`FPDF_InitLibraryWithConfig()` is called only once
-2. **Identify Conflict Points**: Find where both libraries might access PDFium simultaneously
-3. **Add Suspension**: Wrap external PDFium calls with `suspendPdfiumWorkerDuringAction`
-4. **Test Thoroughly**: Test concurrent operations to ensure stability
+The Web backend uses PDFium WASM in a Web Worker. Its suspension API simply runs the action; it does not lock another library's WASM instance. Native FFI and the process-wide native gate do not apply to Web.
 
 ## Troubleshooting
 
-### Common Issues
-
-**Issue**: Random crashes when using multiple PDF libraries
-**Solution**: Ensure all external PDFium calls are wrapped with `suspendPdfiumWorkerDuringAction`
-
-**Issue**: "PDFium already initialized" errors
-**Solution**: Remove duplicate `FPDF_InitLibrary()`/`FPDF_InitLibraryWithConfig()` calls; let one library handle initialization
-
-**Issue**: Deadlocks or hangs
-**Solution**: Check for nested suspension calls or circular dependencies
-
-### Debug Mode
-
-Enable verbose logging to debug interoperability issues:
-
-```dart
-// Enable detailed logging (development only)
-if (kDebugMode) {
-  // Monitor suspension events
-  PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
-    print('PDFium operations suspended');
-    // Your code here
-    print('PDFium operations resumed');
-  });
-}
-```
-
-## API Reference
-
-### PdfrxEntryFunctions
-
-The main class for PDFium interoperability:
-
-- [`suspendPdfiumWorkerDuringAction<T>(action)`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/suspendPdfiumWorkerDuringAction.html) - Suspend pdfrx operations during action execution
-
-### Initialization Functions
-
-- [`pdfrxFlutterInitialize()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) - Initialize for Flutter apps (calls `FPDF_InitLibraryWithConfig` internally)
-- [`pdfrxInitialize()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html) - Initialize for Dart-only apps (calls `FPDF_InitLibraryWithConfig` internally)
-
-## See Also
-
-- [pdfrx Initialization](pdfrx-Initialization.md) - General initialization guide
-- [API Documentation](https://pub.dev/documentation/pdfrx/latest/pdfrx/) - Complete API reference
-- [GitHub Issues](https://github.com/espresso3389/pdfrx/issues) - Report problems or request features
+- **Crashes during concurrent operations:** check that all callers sharing PDFium participate in the same coordination scheme, including other engines and native threads.
+- **Crashes when closing a window:** check that another engine or wrapper is not destroying PDFium while documents remain alive.
+- **A suspension action never completes:** check whether it awaits worker-backed pdfrx operations, or waits for an unrelated action that needs the same gate.
+- **Font changes with the gate enabled:** the Dart font mapper is disabled in this mode; PDFium uses its built-in mapper.

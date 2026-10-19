@@ -1,19 +1,6 @@
 # Dark/Night Mode Support
 
-[PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) does not have any native dark (or night) mode support but it can be easily implemented using [ColorFiltered](https://api.flutter.dev/flutter/widgets/ColorFiltered-class.html) widget:
-
-```dart
-ColorFiltered(
-  colorFilter: ColorFilter.mode(Colors.white, darkMode ? BlendMode.difference : BlendMode.dst),
-  child: PdfViewer.file(filePath, ...),
-),
-```
-
-## Android diagonal line workaround
-
-On some Android devices, `ColorFilter.mode` with `BlendMode.difference` may show a grey diagonal line across the screen. This is a Flutter rendering bug rather than a pdfrx rendering issue; see [pdfrx #492](https://github.com/espresso3389/pdfrx/issues/492) and [flutter/flutter #176949](https://github.com/flutter/flutter/issues/176949).
-
-As a workaround, use an equivalent color matrix instead of `ColorFilter.mode`:
+Use [PdfViewerParams.pageImageColorFilter](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pageImageColorFilter.html) to change the rendered PDF page colors while leaving link highlights, selection, and widget overlays unchanged. This option is available from pdfrx 2.7.0.
 
 ```dart
 const invertColors = ColorFilter.matrix([
@@ -23,12 +10,28 @@ const invertColors = ColorFilter.matrix([
   0, 0, 0, 1, 0,
 ]);
 
-ColorFiltered(
-  colorFilter: darkMode ? invertColors : const ColorFilter.mode(Colors.white, BlendMode.dst),
-  child: PdfViewer.file(filePath, ...),
-),
+PdfViewer.file(
+  filePath,
+  params: PdfViewerParams(
+    backgroundColor: darkMode ? Colors.black : Colors.grey,
+    pageImageColorFilter: darkMode ? invertColors : null,
+  ),
+)
 ```
 
-This code change is only a workaround for the Flutter bug. If Flutter fixes the underlying issue, the simpler `ColorFilter.mode` approach should be sufficient again.
+The filter also affects photographs and other page artwork. Choose a different color matrix if simple inversion does not suit your documents. `backgroundColor` controls the area around pages separately.
 
-The trick is originally introduced by [pckimlong](https://github.com/pckimlong).
+## Filtering the Whole Viewer
+
+Wrap the viewer in Flutter's `ColorFiltered` widget only when you also want to filter its highlights and overlays:
+
+```dart
+ColorFiltered(
+  colorFilter: darkMode
+      ? invertColors
+      : const ColorFilter.mode(Colors.white, BlendMode.dst),
+  child: PdfViewer.file(filePath),
+)
+```
+
+The matrix avoids the `BlendMode.difference` path associated with the Android diagonal-line report in [pdfrx #492](https://github.com/espresso3389/pdfrx/issues/492). The original whole-viewer inversion technique was contributed by [pckimlong](https://github.com/pckimlong).

@@ -6,7 +6,7 @@ But if you use [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pd
 
 - Call [pdfrxFlutterInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html)
 - Call [pdfrxInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html)
-- [Initialize things by yourself](https://github.com/espresso3389/pdfrx/wiki/pdfrx-Initialization#initialize-things-by-yourself)
+- [Initialize things by yourself](#initialize-things-by-yourself)
 
 The first one is the recommended and the easiest way to initialize Flutter app.
 
@@ -82,3 +82,15 @@ For Flutter apps, `pdfium_flutter` is the recommended PDFium integration package
 - Linux Flutter builds resolve `libpdfium.so` from the app's shared library directory relative to the executable
 - You can explicitly specify a `libpdfium` shared library path by setting the `PDFIUM_PATH` environment variable
 - Web builds use PDFium WASM instead of FFI
+
+
+## Native Build Requirements
+
+`pdfium_dart` builds the small `pdfrx_pdfium_gate` native library through its Dart build hook. A C toolchain is required for native builds even when `processWidePdfiumGate` is false or a custom `PDFIUM_PATH` is used:
+
+- Windows: Visual Studio C++ build tools and a Windows SDK for the target architecture.
+- macOS/iOS: Xcode and its command-line tools.
+- Linux: a C compiler and the development tools/libraries required by the target.
+- Android: the Android NDK supplied/configured by the Flutter Android build.
+
+This compiles the gate, not PDFium itself. PDFium binaries are downloaded or supplied through platform packaging. Web uses WASM and does not build the native gate.
