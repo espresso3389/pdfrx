@@ -21,6 +21,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - package_name: pdfium_dart
+            package_path: packages/pdfium_dart
+          - package_name: pdfium_flutter
+            package_path: packages/pdfium_flutter
+          - package_name: pdfrx_coregraphics
+            package_path: packages/pdfrx_coregraphics
           - package_name: pdfrx_engine
             package_path: packages/pdfrx_engine
           - package_name: pdfrx
@@ -60,6 +66,7 @@ jobs:
           cp -R packages/pdfium_flutter "$PANA_WORKDIR/packages/pdfium_flutter"
           cp -R packages/pdfrx_engine "$PANA_WORKDIR/packages/pdfrx_engine"
           cp -R packages/pdfrx "$PANA_WORKDIR/packages/pdfrx"
+          cp -R packages/pdfrx_coregraphics "$PANA_WORKDIR/packages/pdfrx_coregraphics"
 
           for pubspec in "$PANA_WORKDIR"/packages/*/pubspec.yaml; do
             perl -0pi -e 's/^resolution: workspace\n//m' "$pubspec"
@@ -73,10 +80,23 @@ jobs:
           perl -0pi -e 's|^  pdfium_dart: .+$|  pdfium_dart:\n    path: $ENV{PDFIUM_DART_PATH}|m' "$PANA_WORKDIR/packages/pdfrx_engine/pubspec.yaml"
           perl -0pi -e 's|^  pdfium_flutter: .+$|  pdfium_flutter:\n    path: $ENV{PDFIUM_FLUTTER_PATH}|m' "$PANA_WORKDIR/packages/pdfrx/pubspec.yaml"
           perl -0pi -e 's|^  pdfrx_engine: .+$|  pdfrx_engine:\n    path: $ENV{PDFRX_ENGINE_PATH}|m' "$PANA_WORKDIR/packages/pdfrx/pubspec.yaml"
+          perl -0pi -e 's|^  pdfrx_engine: .+$|  pdfrx_engine:\n    path: $ENV{PDFRX_ENGINE_PATH}|m' "$PANA_WORKDIR/packages/pdfrx_coregraphics/pubspec.yaml"
 
           echo "PANA_PACKAGE_PATH=$PANA_WORKDIR/${{ matrix.package_path }}" >> "$GITHUB_ENV"
 
       - name: Run pana (${{ matrix.package_name }})
         run: |
           cd "$PANA_PACKAGE_PATH"
-          ~/.pub-cache/bin/pana --json --no-warning --exit-code-threshold 0 | jq -e 'select(has("tags")) | .tags | any(. == "is:wasm-ready")'
+          ~/.pub-cache/bin/pana --json --no-warning --exit-code-threshold 0 > pana-report.json
+          jq '{scores, tags, report}' pana-report.json
+          case '${{ matrix.package_name }}' in
+            pdfrx|pdfrx_engine) jq -e '.tags | any(. == "is:wasm-ready")' pana-report.json ;;
+            *) jq -e 'has("scores") and has("tags")' pana-report.json ;;
+          esac
+
+      - name: Upload pana report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pana-${{ matrix.package_name }}
+          path: ${{ env.PANA_PACKAGE_PATH }}/pana-report.json
