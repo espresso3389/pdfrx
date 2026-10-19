@@ -62,6 +62,9 @@ class _PdfViewerScrollInteractionDelegatePhysics implements PdfViewerScrollInter
   Offset? _panTarget;
   Duration? _lastPanFrameTime;
 
+  /// The translation this delegate last wrote; any other value means someone else moved the view.
+  Offset? _lastAppliedTranslation;
+
   // --- Zoom Physics State ---
   Ticker? _zoomTicker;
 
@@ -72,6 +75,9 @@ class _PdfViewerScrollInteractionDelegatePhysics implements PdfViewerScrollInter
 
   /// Pixel distance threshold to stop animation
   static const double _kEpsilon = 0.5;
+
+  /// Translation change by clamping that counts as hitting a boundary (above floating-point noise)
+  static const double _kClampEpsilon = 0.001;
 
   /// Scale threshold to stop animation
   static const double _kScaleEpsilon = 0.0001;
@@ -114,10 +120,12 @@ class _PdfViewerScrollInteractionDelegatePhysics implements PdfViewerScrollInter
     _zoomTicker = null;
     _zoomTarget = null;
 
-    // Initialize target with current translation if not already animating
-    if (_panTarget == null) {
-      final currentTrans = controller.value.getTranslation();
-      _panTarget = Offset(currentTrans.x, currentTrans.y);
+    // Initialize target with current translation if not already animating, or if the view was moved externally
+    final currentTransVec = controller.value.getTranslation();
+    final currentTrans = Offset(currentTransVec.x, currentTransVec.y);
+    if (_panTarget == null || _isMovedExternally(currentTrans)) {
+      _panTarget = currentTrans;
+      _lastAppliedTranslation = currentTrans;
     }
 
     // Accumulate delta.
@@ -148,6 +156,14 @@ class _PdfViewerScrollInteractionDelegatePhysics implements PdfViewerScrollInter
     final currentTransVec = controller.value.getTranslation();
     final currentTrans = Offset(currentTransVec.x, currentTransVec.y);
 
+    // goTo/relayout moved the view; pulling it toward the old target would undo that move.
+    if (_isMovedExternally(currentTrans)) {
+      _panTicker?.dispose();
+      _panTicker = null;
+      _panTarget = null;
+      return;
+    }
+
     final diff = _panTarget! - currentTrans;
 
     // Stop if close enough to target
@@ -164,6 +180,11 @@ class _PdfViewerScrollInteractionDelegatePhysics implements PdfViewerScrollInter
     final newTrans = currentTrans + diff * alpha;
 
     _applyTranslation(newTrans);
+  }
+
+  bool _isMovedExternally(Offset currentTrans) {
+    final lastApplied = _lastAppliedTranslation;
+    return lastApplied != null && (currentTrans - lastApplied).distance > _kEpsilon;
   }
 
   void _applyTranslation(Offset translation) {
@@ -184,13 +205,15 @@ class _PdfViewerScrollInteractionDelegatePhysics implements PdfViewerScrollInter
     // we adjust the target to match the clamped reality for that axis.
     final actualTransVec = controller.value.getTranslation();
     final actualTrans = Offset(actualTransVec.x, actualTransVec.y);
+    _lastAppliedTranslation = actualTrans;
 
     if (_panTarget != null) {
-      // If we clamped, adjust the target so we don't keep trying to move past edge
-      if ((actualTrans.dx - translation.dx).abs() > 1.0) {
+      // If we clamped at all, adjust the target: a per-tick step can be far below 1px, so a coarser threshold
+      // leaves the target past the edge and the ticker running forever.
+      if ((actualTrans.dx - translation.dx).abs() > _kClampEpsilon) {
         _panTarget = Offset(actualTrans.dx, _panTarget!.dy);
       }
-      if ((actualTrans.dy - translation.dy).abs() > 1.0) {
+      if ((actualTrans.dy - translation.dy).abs() > _kClampEpsilon) {
         _panTarget = Offset(_panTarget!.dx, actualTrans.dy);
       }
     }
