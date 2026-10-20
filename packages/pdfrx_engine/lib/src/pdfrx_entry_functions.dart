@@ -43,6 +43,9 @@ abstract class PdfrxEntryFunctions {
   /// The background worker isolate is same to the one used by pdfrx internally to call PDFium
   /// functions.
   ///
+  /// Native document handles passed in [message] are not tracked. Keep every referenced document alive until the
+  /// returned future completes, including when using `Pdfrx.runAsBackgroundWork`.
+  ///
   /// This function is only available for native PDFium backend; for other backends, calling this function
   /// will throw an [UnimplementedError].
   Future<R> compute<M, R>(FutureOr<R> Function(M message) callback, M message);

@@ -1293,7 +1293,7 @@ class _PdfDocumentPdfium extends PdfDocument {
     int? maxPageCountToLoadAdditionally,
     Duration? timeout,
   }) {
-    return BackgroundWorker.computeWithArena(
+    return _computeWithArena(
       (arena, params) {
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docAddress);
         final pageCount = pdfium.FPDF_GetPageCount(doc);
@@ -1395,7 +1395,8 @@ class _PdfDocumentPdfium extends PdfDocument {
 
   @override
   Future<void> reloadPages({List<int>? pageNumbersToReload}) async {
-    final results = await BackgroundWorker.computeWithArena(
+    _ensureNotDisposed();
+    final results = await _computeWithArena(
       (arena, params) {
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docAddress);
         final pageCount = pdfium.FPDF_GetPageCount(doc);
@@ -1513,11 +1514,47 @@ class _PdfDocumentPdfium extends PdfDocument {
   bool isIdenticalDocumentHandle(Object? other) =>
       other is _PdfDocumentPdfium && document.address == other.document.address;
 
+  void _ensureNotDisposed() {
+    if (isDisposed) throw StateError('Document is already disposed.');
+  }
+
+  /// Worker calls that use [document] and have not completed yet; [dispose] waits for them before closing it.
+  final _pendingWork = <Future<void>>{};
+
+  Future<R> _trackWork<R>(Future<R> work) {
+    final done = work.then<void>((_) {}, onError: (_) {});
+    _pendingWork.add(done);
+    done.whenComplete(() => _pendingWork.remove(done));
+    return work;
+  }
+
+  Future<R> _compute<M, R>(PdfrxComputeCallback<M, R> callback, M message, {BackgroundWorkerPriority? priority}) =>
+      _trackWork(BackgroundWorker.compute(callback, message, priority: priority));
+
+  Future<R> _computeWithArena<M, R>(
+    R Function(Arena arena, M message) callback,
+    M message, {
+    BackgroundWorkerPriority? priority,
+  }) => _trackWork(BackgroundWorker.computeWithArena(callback, message, priority: priority));
+
+  Future<void>? _disposeFuture;
+  bool _disposeCompleted = false;
+
   @override
   Future<void> dispose() async {
+    if (_disposeCompleted) return;
+    await (_disposeFuture ??= _dispose());
+  }
+
+  Future<void> _dispose() async {
     if (!isDisposed) {
       isDisposed = true;
       subject.close();
+      // Work that passed the isDisposed check may sit behind other work at a lower priority than the close; it must
+      // run before the close or it would touch a freed FPDF_DOCUMENT.
+      while (_pendingWork.isNotEmpty) {
+        await Future.wait(_pendingWork.toList());
+      }
       await BackgroundWorker.compute((params) {
         final formHandle = pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle);
         final formInfo = Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(params.formInfo);
@@ -1529,13 +1566,14 @@ class _PdfDocumentPdfium extends PdfDocument {
       }, (formHandle: formHandle.address, formInfo: formInfo.address, document: document.address));
 
       disposeCallback?.call();
+      _disposeCompleted = true;
     }
   }
 
   @override
   Future<List<PdfOutlineNode>> loadOutline() async => isDisposed
       ? <PdfOutlineNode>[]
-      : await BackgroundWorker.computeWithArena((arena, params) {
+      : await _computeWithArena((arena, params) {
           final document = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
           return _getOutlineNodeSiblings(pdfium.FPDFBookmark_GetFirstChild(document, nullptr), document, arena);
         }, (document: document.address));
@@ -1563,13 +1601,21 @@ class _PdfDocumentPdfium extends PdfDocument {
   }
 
   @override
-  Future<bool> assemble() => _DocumentPageArranger.doShufflePagesInPlace(this);
+  Future<bool> assemble() async {
+    _ensureNotDisposed();
+    return await _trackWork(_DocumentPageArranger.doShufflePagesInPlace(this));
+  }
 
   @override
   Future<Uint8List> encodePdf({bool incremental = false, bool removeSecurity = false}) async {
+    _ensureNotDisposed();
+    return await _trackWork(_encodePdf(incremental: incremental, removeSecurity: removeSecurity));
+  }
+
+  Future<Uint8List> _encodePdf({required bool incremental, required bool removeSecurity}) async {
     await assemble();
     final byteBuffer = BytesBuilder();
-    return await BackgroundWorker.computeWithArena((arena, params) {
+    return await _computeWithArena((arena, params) {
       int write(Pointer<pdfium_bindings.FPDF_FILEWRITE> pThis, Pointer<Void> pData, int size) {
         byteBuffer.add(Pointer<Uint8>.fromAddress(pData.address).asTypedList(size));
         return size;
@@ -1600,9 +1646,11 @@ class _PdfDocumentPdfium extends PdfDocument {
     if (isDisposed) {
       throw StateError('Document is already disposed.');
     }
-    return await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
-      return task(document.address);
-    });
+    return await _trackWork(
+      PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
+        return task(document.address);
+      }),
+    );
   }
 }
 
@@ -1613,6 +1661,8 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
   /// Shuffle pages in place according to the current order of pages in [document].
   /// Returns true if the pages was modified.
   static Future<bool> doShufflePagesInPlace(_PdfDocumentPdfium document) async {
+    document._ensureNotDisposed();
+    final sources = <_PdfDocumentPdfium>{};
     final indices = <int>[];
     final rotations = <int?>[];
     final items = <int, ({int document, int pageNumber})>{};
@@ -1620,6 +1670,8 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
     for (var i = 0; i < document.pages.length; i++) {
       final page = document.pages[i];
       final pdfiumPage = page.unwrap<_PdfPagePdfium>()!;
+      pdfiumPage.document._ensureNotDisposed();
+      if (pdfiumPage.document != document) sources.add(pdfiumPage.document);
       // if rotation is different, we need to modify the page
       if (page.rotation.index != pdfiumPage.rotation.index) {
         rotations.add(page.rotation.index);
@@ -1645,13 +1697,13 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
       return false;
     }
 
-    await BackgroundWorker.computeWithArena(
+    final work = document._computeWithArena(
       (arena, params) {
         final arranger = _DocumentPageArranger._(
           pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document),
           params.items,
         );
-        arranger.shuffleInPlaceAccordingToIndices(indices);
+        arranger.shuffleInPlaceAccordingToIndices(params.indices);
 
         for (var i = 0; i < params.length; i++) {
           final rotation = params.rotations[i];
@@ -1669,6 +1721,13 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
         length: document.pages.length,
       ),
     );
+    // Register on every source before yielding, so a normal-priority close cannot overtake this import.
+    for (final source in sources) {
+      source._trackWork(work);
+    }
+    await work;
+    // Replace source-backed pages with pages of the assembled document before releasing its lifetime protection.
+    document.pages = await document._measureAllPagesInChunks();
     return true;
   }
 
@@ -1788,7 +1847,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
         ct?.attach(cancelFlag);
 
         if (cancelFlag.value || document.isDisposed) return 0;
-        return await BackgroundWorker.compute(
+        return await document._compute(
           (params) {
             final cancelFlag = Pointer<Bool>.fromAddress(params.cancelFlag);
             if (cancelFlag.value) return 0;
@@ -1911,7 +1970,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
   @override
   Future<PdfPageRawText?> loadText() async {
     if (document.isDisposed || !isLoaded) return null;
-    return await BackgroundWorker.computeWithArena(
+    return await document._computeWithArena(
       (arena, params) {
         final doubleSize = sizeOf<Double>();
         final rectBuffer = arena<Double>(4);
@@ -1967,7 +2026,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
 
   Future<List<PdfLink>> _loadWebLinks() async => document.isDisposed
       ? []
-      : await BackgroundWorker.computeWithArena((arena, params) {
+      : await document._computeWithArena((arena, params) {
           pdfium_bindings.FPDF_PAGE page = nullptr;
           pdfium_bindings.FPDF_TEXTPAGE textPage = nullptr;
           pdfium_bindings.FPDF_PAGELINK linkPage = nullptr;
@@ -2046,7 +2105,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
 
   Future<List<PdfLink>> _loadAnnotLinks() async => document.isDisposed
       ? []
-      : await BackgroundWorker.computeWithArena((arena, params) {
+      : await document._computeWithArena((arena, params) {
           final document = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
           final page = pdfium.FPDF_LoadPage(document, params.pageNumber - 1);
           try {

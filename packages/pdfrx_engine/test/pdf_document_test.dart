@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -14,6 +15,91 @@ final testPdfFile = File('../pdfrx/example/viewer/assets/hello.pdf');
 final multiPageTestPdfFile = File('../pdfrx/test/assets/multipage40.pdf');
 
 void main() {
+  for (final encode in [false, true]) {
+    test('background ${encode ? 'encode' : 'assemble'} retains all import sources and its destination', () async {
+      final source = await PdfDocument.openFile(testPdfFile.path);
+      final second = await PdfDocument.openData(buildBlankPdf(2), sourceName: 'second-source.pdf');
+      final destination = await PdfDocument.openData(buildBlankPdf(1), sourceName: 'destination.pdf');
+      addTearDown(source.dispose);
+      addTearDown(second.dispose);
+      addTearDown(destination.dispose);
+      destination.pages = [source.pages[0], second.pages[1], source.pages[2]];
+      late Future<Object> operation;
+      late Future<void> closingSources;
+      Future<void>? closingDestination;
+      var sourcesClosed = false;
+      var destinationClosed = false;
+      await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() async {
+        operation = Pdfrx.runAsBackgroundWork<Object>(() => encode ? destination.encodePdf() : destination.assemble());
+        closingSources = Future.wait([source.dispose(), second.dispose()]).then((_) => sourcesClosed = true);
+        if (encode) closingDestination = destination.dispose().then((_) => destinationClosed = true);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        expect(sourcesClosed, isFalse);
+        expect(destinationClosed, isFalse);
+      });
+      final result = await operation.timeout(const Duration(seconds: 10));
+      await closingSources;
+      if (closingDestination != null) await closingDestination;
+      final Uint8List bytes;
+      if (encode) {
+        bytes = result as Uint8List;
+        expect(destinationClosed, isTrue);
+      } else {
+        expect(result, isTrue);
+        expect(destination.pages.every((page) => page.document == destination), isTrue);
+        expect(await destination.assemble(), isFalse, reason: 'assembly no longer depends on closed sources');
+        final image = await destination.pages.first.render();
+        expect(image, isNotNull);
+        image?.dispose();
+        bytes = await destination.encodePdf();
+      }
+      final reopened = await PdfDocument.openData(bytes, sourceName: 'assembled.pdf');
+      addTearDown(reopened.dispose);
+      expect(reopened.pages, hasLength(3));
+      expect(reopened.pages[0].width, closeTo(595.32, 0.1));
+      expect(reopened.pages[1].width, 201);
+      expect((await reopened.pages.first.loadText())?.fullText, contains('Hello'));
+    });
+  }
+
+  test('assembly rejects a closed source before submitting native work', () async {
+    final source = await PdfDocument.openData(buildBlankPdf(1), sourceName: 'closed-source.pdf');
+    final destination = await PdfDocument.openData(buildBlankPdf(1), sourceName: 'target.pdf');
+    addTearDown(destination.dispose);
+    destination.pages = source.pages;
+    await source.dispose();
+    await expectLater(Pdfrx.runAsBackgroundWork(destination.assemble), throwsStateError);
+    await expectLater(Pdfrx.runAsBackgroundWork(destination.encodePdf), throwsStateError);
+  });
+
+  test('failed background work does not prevent disposal', () async {
+    final document = await PdfDocument.openData(buildBlankPdf(1), sourceName: 'failure.pdf');
+    final operation = Pdfrx.runAsBackgroundWork(() => document.reloadPages(pageNumbersToReload: [999]));
+    final failure = expectLater(operation, throwsArgumentError);
+    await Future.wait([failure, document.dispose()]).timeout(const Duration(seconds: 10));
+  });
+
+  test('dispose waits for an asynchronous native handle callback and shares completion', () async {
+    final document = await PdfDocument.openData(buildBlankPdf(1), sourceName: 'native-task.pdf');
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    final nativeTask = document.useNativeDocumentHandle((handle) async {
+      entered.complete();
+      await release.future;
+      return handle;
+    });
+    await entered.future;
+    var closed = false;
+    final firstClose = document.dispose();
+    final secondClose = document.dispose().then((_) => closed = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(closed, isFalse);
+    release.complete();
+    expect(await nativeTask, isNonZero);
+    await Future.wait([firstClose, secondClose]);
+    expect(closed, isTrue);
+  });
+
   registerHebrewNativeTests();
   setUp(() => pdfrxInitialize(tmpPath: tmpRoot.path));
 
@@ -543,6 +629,46 @@ void main() {
           '(${loadTimer.elapsedMilliseconds} ms)',
     );
     expect(document.pages.every((page) => page.isLoaded), isTrue);
+  });
+  test('dispose waits for background work already queued for the document', () async {
+    const pageCount = 20;
+    final document = await PdfDocument.openData(buildBlankPdf(pageCount), sourceName: 'blank$pageCount.pdf');
+    // Keep the worker busy so that the text loads below are still queued when dispose() queues the close.
+    final busy = PdfrxEntryFunctions.instance.compute((ms) {
+      final sw = Stopwatch()..start();
+      while (sw.elapsedMilliseconds < ms) {}
+    }, 100);
+    final events = <String>[];
+    final texts = Pdfrx.runAsBackgroundWork(
+      () => Future.wait([
+        for (final page in document.pages) page.loadText().then((text) => events.add('text ${page.pageNumber}')),
+      ]),
+    );
+    await Future<void>.delayed(Duration.zero);
+    final disposing = document.dispose().then((_) => events.add('closed'));
+    await Future.wait([busy, texts, disposing]);
+
+    expect(events, hasLength(pageCount + 1));
+    expect(events.last, 'closed', reason: 'every text load queued before dispose() must run before the close');
+  });
+  test('dispose is not starved by background work for other documents', () async {
+    final document = await PdfDocument.openData(buildBlankPdf(1), sourceName: 'blank1.pdf');
+    var floodCompleted = false;
+    final flood = Pdfrx.runAsBackgroundWork(
+      () => Future.wait([
+        for (var i = 0; i < 40; i++)
+          PdfrxEntryFunctions.instance.compute((ms) {
+            final sw = Stopwatch()..start();
+            while (sw.elapsedMilliseconds < ms) {}
+          }, 20),
+      ]),
+    ).then((_) => floodCompleted = true);
+    await Future<void>.delayed(Duration.zero);
+
+    await document.dispose();
+
+    expect(floodCompleted, isFalse, reason: 'the close must not wait behind unrelated background work');
+    await flood;
   });
   for (final pageCount in [0, 1]) {
     test('non-progressive open completes with $pageCount pages', () async {

@@ -88,6 +88,25 @@ class Pdfrx {
 
   static Map<String, int>? pdfiumNativeBindings;
 
+  /// Runs [action] with the PDFium work it starts scheduled as background work.
+  ///
+  /// The native PDFium backend runs all PDFium calls on one worker. Calls made inside [action] (opening documents,
+  /// loading text, outlines, links, ...) wait until no other work is pending, so a long background job such as
+  /// extracting the text of many documents does not delay viewers. Page renders keep their higher priority. Other
+  /// backends run [action] unchanged.
+  ///
+  /// This changes queue order; it does not interrupt a running call. Background work can wait indefinitely while
+  /// higher-priority work keeps arriving. Calls started by asynchronous work in this zone inherit its priority.
+  /// The PDFium backend protects the documents used by its own operations, including sources of `assemble()`.
+  /// Raw native handles passed to `PdfrxEntryFunctions.compute` are not tracked: await those calls before disposing
+  /// their documents, and do not retain a handle beyond `useNativeDocumentHandle`'s callback.
+  static Future<T> runAsBackgroundWork<T>(FutureOr<T> Function() action) =>
+      runZoned(() async => await action(), zoneValues: {backgroundWorkZoneKey: true});
+
+  /// The zone value set by [runAsBackgroundWork].
+  @internal
+  static const backgroundWorkZoneKey = #pdfrx.backgroundWork;
+
   /// Serialize PDFium across Flutter engines in one OS process.
   ///
   /// Set this on every engine before `PdfrxEntryFunctions.init` /
