@@ -101,6 +101,30 @@ A measurement budget is cooperative: one expensive PDFium page load can exceed i
 
 Measured metadata is distinct from cached page images. The viewer manages its image cache through `maxImageBytesCachedOnMemory` and `limitRenderingCache`. Engine callers should dispose rendered images and the document when finished.
 
+### Releasing Viewer Images
+
+Once the controller is attached to a viewer, release off-screen page images while retaining visible pages:
+
+```dart
+controller.releaseCachedImages();
+```
+
+Use `controller.releaseCachedImages(keepVisible: false)` to release all cached page images. Both forms also cancel rendering for released pages and clear the magnifier image cache. This is a one-time release, not a rendering pause: subsequent painting can render needed images again.
+
+### Background Work
+
+With native PDFium, use `Pdfrx.runAsBackgroundWork()` for work that can wait behind interactive operations:
+
+```dart
+final bytes = await Pdfrx.runAsBackgroundWork(() async {
+  return await document.encodePdf();
+});
+```
+
+The setting propagates through asynchronous calls inside the callback. Worker operations without an explicit priority use the lower priority; operations with an explicit high priority, such as rendering, retain it. Outside this scope, default priority is unchanged. It does not interrupt a native operation already running, and sustained higher-priority work can delay background work. Other backends execute the callback without this native scheduling effect.
+
+Keep documents alive until the returned future completes, then await their disposal. See [document lifetime](PDF-Page-Manipulation.md#document-lifetime) for assembly and raw-handle restrictions.
+
 ## Processing All Pages
 
 ```dart

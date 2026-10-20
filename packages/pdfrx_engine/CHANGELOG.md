@@ -1,3 +1,10 @@
+# 0.7.2
+
+- Added `Pdfrx.runAsBackgroundWork()` to give native PDFium background operations lower queue priority while preserving explicit rendering priorities ([#744](https://github.com/espresso3389/pdfrx/pull/744)).
+- Fixed disposal racing with queued or running document operations, including assembly, encoding, and native-handle callbacks ([#744](https://github.com/espresso3389/pdfrx/pull/744), [#751](https://github.com/espresso3389/pdfrx/pull/751)).
+- Fixed assembled pages retaining references to source documents. After awaiting assembly, the destination can be rendered or encoded after its sources are disposed ([#744](https://github.com/espresso3389/pdfrx/pull/744)).
+- Clarified source-document lifetime and concurrent page-mutation restrictions during assembly.
+
 # 0.7.1
 
 - Keep documents open when native PDFium cannot load an individual page. Preserve page numbering and use fallback page dimensions; rendering an unloadable page still returns null ([#740](https://github.com/espresso3389/pdfrx/pull/740)).
