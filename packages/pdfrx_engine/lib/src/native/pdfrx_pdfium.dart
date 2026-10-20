@@ -1538,9 +1538,13 @@ class _PdfDocumentPdfium extends PdfDocument {
   }) => _trackWork(BackgroundWorker.computeWithArena(callback, message, priority: priority));
 
   Future<void>? _disposeFuture;
+  bool _disposeCompleted = false;
 
   @override
-  Future<void> dispose() => _disposeFuture ??= _dispose();
+  Future<void> dispose() async {
+    if (_disposeCompleted) return;
+    await (_disposeFuture ??= _dispose());
+  }
 
   Future<void> _dispose() async {
     if (!isDisposed) {
@@ -1562,6 +1566,7 @@ class _PdfDocumentPdfium extends PdfDocument {
       }, (formHandle: formHandle.address, formInfo: formInfo.address, document: document.address));
 
       disposeCallback?.call();
+      _disposeCompleted = true;
     }
   }
 
