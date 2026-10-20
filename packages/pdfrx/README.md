@@ -53,6 +53,10 @@ class _MyAppState extends State<MyApp> {
 
 Anyway, please follow the instructions below to install on your environment.
 
+## Requirements
+
+Flutter 3.47 / Dart 3.13 or later, with iOS 15+ and macOS 12+ for Apple targets. Native builds require a C toolchain to compile a small bundled library that prevents simultaneous PDFium access from multiple Flutter engines; see [native build requirements](https://github.com/espresso3389/pdfrx/blob/master/doc/pdfrx-Initialization.md#native-build-requirements).
+
 ## Getting Started
 
 ### Installation
@@ -61,7 +65,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.6.5
+  pdfrx: ^2.8.0
 ```
 
 **Note:** You only need to add `pdfrx` to your dependencies. The `pdfrx_engine` package is automatically included as a dependency of `pdfrx`.

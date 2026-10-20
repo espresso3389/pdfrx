@@ -6,7 +6,7 @@ But if you use [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pd
 
 - Call [pdfrxFlutterInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html)
 - Call [pdfrxInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html)
-- [Initialize things by yourself](https://github.com/espresso3389/pdfrx/wiki/pdfrx-Initialization#initialize-things-by-yourself)
+- [Initialize things by yourself](#initialize-things-by-yourself)
 
 The first one is the recommended and the easiest way to initialize Flutter app.
 
@@ -22,6 +22,44 @@ Basically, these initialization functions do the following things:
 - Set [Pdfrx.loadAsset](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pdfrx/loadAsset.html) (Flutter only)
 - Configure the PDFium module path from `PDFIUM_PATH` when explicitly provided
 - Call [PdfrxEntryFunctions.init](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/init.html) to initialize the PDFium library (internally calls `FPDF_InitLibraryWithConfig`)
+
+## Multiple Flutter engines
+
+Apps that use [`desktop_multi_window`](https://pub.dev/packages/desktop_multi_window) (or any host that runs several Flutter engines in one OS process) must enable process-wide locking of PDFium access. This lock allows only one participating engine to use PDFium at a time. The API calls this protection a "gate", hence the option name `processWidePdfiumGate`. PDFium is a single native library in the process, but each engine has its own Dart isolates and pdfrx worker. Without this protection, a second engine re-inits PDFium, installs isolate-local font callbacks, or calls `FPDF_DestroyLibrary` while the first engine still needs it.
+
+Set the flag on **every** engine **before** initialization:
+
+```dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await pdfrxFlutterInitialize(processWidePdfiumGate: true);
+  runApp(MyApp());
+}
+```
+
+Or equivalently:
+
+```dart
+Pdfrx.useProcessWidePdfiumGate = true;
+await pdfrxFlutterInitialize();
+```
+
+Default is off. Single-engine apps (mobile, typical desktop, Linux without multi-window) are unchanged.
+
+When this protection is enabled:
+
+- `FPDF_InitLibrary` runs once per process; later engines do not init again
+- `FPDF_DestroyLibrary` is not called when one engine stops its worker
+- PDFium calls are serialized behind a native mutex in the `pdfrx_pdfium_gate` library bundled by `pdfium_dart` (not a named OS mutex, and not host-exe exports)
+- The Dart font mapper is skipped (`NativeCallable.isolateLocal` cannot be installed into process-global PDFium from more than one engine). PDFium's built-in mapper is used instead
+
+The mutex is not thread-owner-affine: Dart may resume an `await` on another OS thread. It serializes access; it does not make PDFium parallel.
+
+The configuration is fixed when the first worker starts in each isolate. Changing it afterwards throws `StateError`,
+even after stopping that worker. All engines must opt in before doing any PDFium work; mixing modes is unsupported.
+Worker `compute` callbacks hold the lock only for their synchronous portion and must not call PDFium after an `await`.
+For asynchronous access to native handles, use `suspendPdfiumWorkerDuringAction`; do not call worker APIs from inside
+that action because the worker is suspended until the action completes.
 
 ## Cache Directory
 
@@ -44,3 +82,15 @@ For Flutter apps, `pdfium_flutter` is the recommended PDFium integration package
 - Linux Flutter builds resolve `libpdfium.so` from the app's shared library directory relative to the executable
 - You can explicitly specify a `libpdfium` shared library path by setting the `PDFIUM_PATH` environment variable
 - Web builds use PDFium WASM instead of FFI
+
+
+## Native Build Requirements
+
+`pdfium_dart` uses its Dart build hook to compile a small native library that prevents simultaneous PDFium access from multiple Flutter engines. It contains a lock shared within the application process. The library is named `pdfrx_pdfium_gate`; "gate" refers to this access control. A C toolchain is required for native builds even when `processWidePdfiumGate` is false or a custom `PDFIUM_PATH` is used:
+
+- Windows: Visual Studio C++ build tools and a Windows SDK for the target architecture.
+- macOS/iOS: Xcode and its command-line tools.
+- Linux: a C compiler and the development tools/libraries required by the target.
+- Android: the Android NDK supplied/configured by the Flutter Android build.
+
+The C compiler builds this small locking library. It does not compile PDFium itself. PDFium binaries are downloaded or supplied through platform packaging. Web uses WASM and does not build this native locking library.

@@ -1,358 +1,120 @@
 # Progressive Loading
 
-Progressive loading is a feature that allows PDF documents to be loaded page-by-page instead of loading all pages at once. This is particularly useful for large PDF files, as it significantly reduces initial load time and memory usage.
+Progressive loading defers page metadata measurement, so a large document can open before every page's dimensions and rotation have been read. Page rendering, text extraction, and downloading document bytes are separate operations.
 
-## Overview
+## Defaults and Backends
 
-When you open a PDF document, pdfrx can operate in two modes:
-
-1. **Standard Loading** (default): All pages are loaded immediately when the document is opened
-2. **Progressive Loading**: Only the first page is loaded initially, and additional pages are loaded on-demand
-
-Progressive loading is especially beneficial when:
-
-- Working with large PDF files (hundreds of pages)
-- Memory is constrained
-- You want faster initial document load times
-- Users typically don't view all pages in a session
-
-**Note**: [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) uses progressive loading by default, while [`PdfDocument`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) requires explicit opt-in.
-
-## Understanding Page Loading States
-
-When progressive loading is enabled, pages can be in one of two states:
-
-### Loaded Pages
-
-Pages that are fully loaded have complete information:
-
-- Accurate [`width`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/width.html), [`height`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/height.html), and [`rotation`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/rotation.html) values
-- Can be rendered properly
-- Text extraction works ([`loadText()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/loadText.html), [`loadStructuredText()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/loadStructuredText.html))
-- Link extraction works ([`loadLinks()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/loadLinks.html))
-- [`isLoaded`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/isLoaded.html) property returns `true`
-
-### Unloaded Pages (Progressive Loading Only)
-
-Pages that haven't been loaded yet have limited functionality:
-
-- [`width`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/width.html), [`height`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/height.html), and [`rotation`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/rotation.html) are **estimated values** (may be incorrect)
-- Rendering produces an empty page with the specified background color
-- Text extraction returns `null`
-- Link extraction returns an empty list
-- [`isLoaded`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/isLoaded.html) property returns `false`
-
-## Enabling Progressive Loading
-
-### For PdfViewer
-
-[`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) uses progressive loading **by default** (`useProgressiveLoading: true`). This means PDF documents are loaded page-by-page automatically as you scroll, providing optimal performance for large files.
-
-All [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) constructors support the `useProgressiveLoading` parameter:
-
-```dart
-// Uses progressive loading by default
-PdfViewer.file('path/to/document.pdf')
-
-// Explicitly enable progressive loading (same as default)
-PdfViewer.asset(
-  'assets/large-document.pdf',
-  useProgressiveLoading: true,
-)
-
-// Disable progressive loading (load all pages at once)
-PdfViewer.uri(
-  Uri.parse('https://example.com/document.pdf'),
-  useProgressiveLoading: false,
-)
-```
-
-When using [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html), progressive loading happens automatically in the background as you scroll through the document. You don't need to manually call [`loadPagesProgressively()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/loadPagesProgressively.html).
-
-### For PdfDocument (Engine-Level API)
-
-When using [`PdfDocument`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) directly (without [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html)), progressive loading is **disabled by default** (`useProgressiveLoading: false`). You need to explicitly enable it:
-
-```dart
-import 'package:pdfrx_engine/pdfrx_engine.dart';
-
-// Open a document with progressive loading enabled
-final document = await PdfDocument.openFile(
-  'path/to/document.pdf',
-  useProgressiveLoading: true,
-);
-
-// At this point, only the first page is loaded
-print('First page loaded: ${document.pages[0].isLoaded}'); // true
-print('Second page loaded: ${document.pages[1].isLoaded}'); // false
-```
-
-## Working with Progressively Loaded Documents
-
-### Checking Page Load Status
-
-Use the [`isLoaded`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/isLoaded.html) property to check if a page is fully loaded:
-
-```dart
-final page = document.pages[5];
-
-if (page.isLoaded) {
-  // Page is fully loaded - all operations work normally
-  final text = await page.loadText();
-  print(text?.text);
-} else {
-  // Page is not loaded yet - dimensions may be estimates
-  print('Page not loaded yet');
-}
-```
-
-### Waiting for a Page to Load
-
-Use the [`ensureLoaded()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/ensureLoaded.html) extension method to wait for a specific page to load. This method waits indefinitely and always returns a loaded page:
-
-```dart
-final page = document.pages[10];
-
-// Wait for the page to load (waits indefinitely, never returns null)
-final loadedPage = await page.ensureLoaded();
-final text = await loadedPage.loadText();
-print(text?.text);
-```
-
-If you need to set a timeout, use [`waitForLoaded()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/waitForLoaded.html) instead. This method returns `null` if the timeout occurs:
-
-```dart
-final page = document.pages[10];
-
-// Wait for the page to load with a timeout
-final loadedPage = await page.waitForLoaded(
-  timeout: Duration(seconds: 5),
-);
-
-if (loadedPage != null) {
-  // Page loaded successfully
-  final text = await loadedPage.loadText();
-  print(text?.text);
-} else {
-  // Timeout occurred
-  print('Page failed to load within timeout');
-}
-```
-
-**Important**: The [`ensureLoaded()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/ensureLoaded.html) method may return a **different instance** of [`PdfPage`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage-class.html) than the original. Always use the returned instance:
-
-```dart
-// ❌ WRONG - using the old page instance
-final page = document.pages[10];
-await page.ensureLoaded();
-final text = await page.loadText(); // May not work as expected
-
-// ✅ CORRECT - using the returned loaded page instance
-final page = document.pages[10];
-final loadedPage = await page.ensureLoaded();
-final text = await loadedPage.loadText(); // Works correctly
-```
-
-### Monitoring Page Load Events
-
-You can listen to page status changes using the [`events`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/events.html) stream. The event provides the latest page instance directly via the `page` property:
-
-```dart
-final page = document.pages[5];
-
-// Listen for status changes on this specific page
-page.events.listen((change) {
-  // The change.page property provides the newest page instance
-  final updatedPage = change.page;
-  print('Page ${updatedPage.pageNumber} status changed');
-  print('Is loaded: ${updatedPage.isLoaded}');
-
-  if (updatedPage.isLoaded) {
-    print('Page dimensions: ${updatedPage.width} x ${updatedPage.height}');
-  }
-});
-```
-
-### Getting Latest Page Instance
-
-The [`latestPageStream`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/latestPageStream.html) provides the most recent page instance whenever the page status changes:
-
-```dart
-final page = document.pages[10];
-
-page.latestPageStream.listen((latestPage) {
-  print('Page updated, isLoaded: ${latestPage.isLoaded}');
-  if (latestPage.isLoaded) {
-    // Use the latest loaded instance
-  }
-});
-```
-
-## Manually Triggering Progressive Loading
-
-When using [`PdfDocument`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument-class.html) directly (not [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html)), you need to manually trigger progressive loading using [`loadPagesProgressively()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/loadPagesProgressively.html):
+- The `PdfViewer.asset`, `file`, `uri`, `data`, and `custom` constructors enable progressive loading by default. Pass `useProgressiveLoading: false` to wait for all page metadata before opening.
+- The engine's `PdfDocument.open*` functions default to `useProgressiveLoading: false`.
+- `PdfViewer(PdfDocumentRefDirect(document))` uses the document you provide; choose its loading mode when opening it.
+- The native PDFium backend implements progressive measurement. Other backends may load all pages immediately.
 
 ```dart
 final document = await PdfDocument.openFile(
-  'path/to/document.pdf',
+  'document.pdf',
   useProgressiveLoading: true,
 );
+```
 
-// Load pages progressively with progress callback
+The native backend initially measures the first page and creates estimated placeholders for the rest. An empty document has no first page. The viewer measures visible pages on demand and also starts background measurement after `PdfViewerBehaviorControlParams.trailingPageLoadingDelay`; it does not limit loading to pages you scroll to.
+
+## Page State
+
+[PdfPage.isLoaded](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/isLoaded.html) indicates whether the page has been measured. An unloaded placeholder has estimated dimensions and rotation. Its raw `loadText()` returns null and its links are empty. Do not rely on placeholder rendering as actual page content.
+
+A loaded page has measured metadata, but this does not guarantee that a malformed page can render. Handle a null result from `render()` and empty text or links.
+
+Page objects can be replaced during measurement or editing. Read the latest instance from `document.pages`, or use the instance returned by `ensureLoaded()`.
+
+## Loading Pages with the Engine API
+
+When using the engine directly, start loading yourself:
+
+```dart
 await document.loadPagesProgressively(
-  onPageLoadProgress: (loadedPageCount, totalPageCount, data) {
-    print('Loaded $loadedPageCount of $totalPageCount pages');
-
-    // Return true to continue loading, false to stop
+  startPageNumber: 1,
+  loadUnitDuration: const Duration(milliseconds: 250),
+  onPageLoadProgress: (loadedCount, totalCount, data) {
+    print('Measured $loadedCount of $totalCount pages');
     return true;
   },
-  loadUnitDuration: Duration(milliseconds: 250),
 );
 ```
 
-The callback is invoked periodically (every `loadUnitDuration`) as pages are loaded. Return `false` from the callback to stop the loading process early.
+Returning `false` from the callback stops further measurement. `loadedCount` counts loaded pages, not the highest page number. The callback reports progress per loading budget; the duration is not a strict timer interval.
 
-Internally, each `loadUnitDuration` slice is sent to the PDFium worker as a series of short measurement tasks rather than one long task. All PDFium calls in a process share that worker, so this keeps page rendering responsive while the rest of the document is being measured: a render requested during progressive loading waits for the current short task (and anything already queued ahead of it) to finish instead of the whole slice. The callback cadence is unaffected; it is still invoked once per `loadUnitDuration`.
+`startPageNumber` selects a starting point, followed by neighboring pages (`start`, `start+1`, `start-1`, ...). Already loaded pages are skipped. The viewer uses its initial page as the starting point.
 
-The callback receives the number of pages loaded so far (`loadedPageCount`), the total number of pages, and the optional `data` value passed to [`loadPagesProgressively()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/loadPagesProgressively.html). `loadedPageCount` is a count of loaded pages, not a page index; it does not depend on the order in which the pages are measured.
-
-By default, pages are measured from page 1 onward. Pass `startPageNumber` to measure pages in order of their distance from a given page instead (`start`, `start+1`, `start-1`, `start+2`, `start-2`, ...), so that the pages around the one being displayed become available first. Pages that are already loaded are skipped, and all pages are loaded when the call completes without being cancelled. [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) does this automatically using its initial page:
+To load specific pages without measuring the whole document, use [reloadPages](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/reloadPages.html):
 
 ```dart
-// Measure pages 300, 301, 299, 302, 298, ... before the rest of the document
-await document.loadPagesProgressively(startPageNumber: 300);
+await document.reloadPages(pageNumbersToReload: [6]);
+final page = document.pages[5];
+final text = await page.loadText();
+print(text?.fullText);
 ```
 
-## Common Pitfalls and Solutions
+Page numbers passed to `reloadPages` are one-based. List indices are zero-based.
 
-### Issue: Text Extraction Returns Null
+## Waiting and Observing
 
-**Problem**: Trying to extract text from an unloaded page returns `null`.
-
-```dart
-final page = document.pages[50];
-final text = await page.loadText(); // Returns null if page not loaded
-```
-
-**Solution**: Always wait for the page to load first:
+[ensureLoaded](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/ensureLoaded.html) and [waitForLoaded](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/waitForLoaded.html) wait for page-state changes; they do not start measurement themselves. In a standalone engine application, start `loadPagesProgressively()` or call `reloadPages()` before waiting. Otherwise an indefinite wait can remain pending.
 
 ```dart
-final page = document.pages[50];
-final loadedPage = await page.ensureLoaded();
-final text = await loadedPage.loadText();
-print(text?.text);
-```
-
-### Issue: Page Dimensions Are Incorrect
-
-**Problem**: Using [`width`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/width.html), [`height`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/height.html), or [`rotation`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/rotation.html) values from unloaded pages gives estimated values that may be wrong.
-
-```dart
-final page = document.pages[20];
-print('Width: ${page.width}'); // May be an estimate if page is not loaded
-```
-
-**Solution**: Check [`isLoaded`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/isLoaded.html) or use [`ensureLoaded()`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/ensureLoaded.html):
-
-```dart
-final page = document.pages[20];
-final loadedPage = await page.ensureLoaded();
-print('Actual width: ${loadedPage.width}');
-print('Actual height: ${loadedPage.height}');
-```
-
-### Issue: Processing All Pages Fails Silently
-
-**Problem**: Iterating through all pages without waiting for them to load:
-
-```dart
-// ❌ WRONG - pages may not be loaded yet
-for (final page in document.pages) {
-  final text = await page.loadText(); // May return null
-  processText(text?.text); // Silently skips unloaded pages
+// Some other task or the viewer must be loading this page.
+final page = await document.pages[5].waitForLoaded(
+  timeout: const Duration(seconds: 5),
+);
+if (page != null) {
+  print('${page.width} x ${page.height}');
 }
 ```
 
-**Solution**: Ensure pages are loaded before processing:
+`ensureLoaded()` waits without a timeout and returns the loaded instance. `waitForLoaded()` returns null on timeout. Always use the returned instance, not a previously saved placeholder.
+
+Observe a page with `page.events` or `page.latestPageStream`:
 
 ```dart
-// ✅ CORRECT - ensure each page is loaded
-for (final page in document.pages) {
-  final loadedPage = await page.ensureLoaded();
-  final text = await loadedPage.loadText();
-  processText(text?.text);
-}
-
-// Alternative: Load all pages first using loadPagesProgressively()
-await document.loadPagesProgressively();
-for (final page in document.pages) {
-  final text = await page.loadText();
-  processText(text?.text);
-}
+final subscription = document.pages[5].events.listen((change) {
+  final page = change.page;
+  print('Page ${page.pageNumber}: loaded=${page.isLoaded}');
+});
+// Cancel when the observation is no longer needed.
+await subscription.cancel();
 ```
 
-## Performance Considerations
+These streams follow a page number; editing can replace the page at that position.
 
-### When to Use Progressive Loading
+## Broken Pages and Display Stability
 
-**Use progressive loading when:**
+pdfrx 2.8.0 with pdfrx_engine 0.7.1 includes the following behavior:
 
-- Working with large PDFs (100+ pages)
-- Initial load time is critical
-- Users typically view only a few pages
-- Memory usage is a concern
-- Loading from network (reduces initial bandwidth)
+- If native PDFium cannot load an individual page, the document can still open. The page remains in the list with `isLoaded: true`, rotation zero, and fallback dimensions from the preceding page, or US Letter (612 x 792 points) when there is no preceding page.
+- Such a page still cannot render (`render()` returns null), has empty text and links, and retains its page number. This is recovery for an unloadable page, not repair of the PDF or a guarantee that every malformed document opens.
+- When page measurements change the layout without changing the viewport size, the viewer corrects its position in the same frame. This prevents a transient jump while pages above the current page finish loading.
 
-**Avoid progressive loading when:**
+## Scheduling and Memory
 
-- Working with small PDFs (< 20 pages)
-- You need to process all pages immediately
-- All pages will be accessed anyway
-- Simplicity is preferred over optimization
+Native page measurement is split into short worker tasks, including when progressive loading is disabled. This lets rendering requests run between tasks. Each Dart engine/isolate context has its own worker; multiple Flutter engines require the [process-wide lock for PDFium access](pdfrx-Initialization.md#multiple-flutter-engines).
 
-### Memory Management
+A measurement budget is cooperative: one expensive PDFium page load can exceed it. Progressive loading does not by itself guarantee lower network traffic; HTTP range support and the document's structure also affect downloading.
 
-Progressive loading reduces initial memory usage but doesn't automatically unload pages. Once a page is loaded, it stays in memory until the document is disposed. For very large documents, consider:
+Measured metadata is distinct from cached page images. The viewer manages its image cache through `maxImageBytesCachedOnMemory` and `limitRenderingCache`. Engine callers should dispose rendered images and the document when finished.
 
-- Loading and processing pages in batches
-- Disposing and reopening the document periodically if processing thousands of pages
-- Using [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) which handles page lifecycle automatically
-
-## Example: Processing Pages with Progress Indicator
-
-Here's a complete example showing how to process all pages in a large PDF with a progress indicator:
+## Processing All Pages
 
 ```dart
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 
 Future<void> processPdfPages(String filePath) async {
-  // Open document with progressive loading
-  final document = await PdfDocument.openFile(
-    filePath,
-    useProgressiveLoading: true,
-  );
-
+  await pdfrxInitialize();
+  final document = await PdfDocument.openFile(filePath, useProgressiveLoading: true);
   try {
-    // Load pages progressively with progress reporting
-    await document.loadPagesProgressively(
-      onPageLoadProgress: (loadedCount, totalCount, _) {
-        final progress = (loadedCount / totalCount * 100).toStringAsFixed(1);
-        print('Loading pages: $progress% ($loadedCount/$totalCount)');
-        return true; // Continue loading
-      },
-    );
-
-    // Now all pages are loaded, safe to process
-    for (int i = 0; i < document.pages.length; i++) {
-      final page = document.pages[i];
-
-      // Extract text from page
-      final text = await page.loadText();
-      print('Page ${i + 1}: ${text?.text.substring(0, 100)}...');
-
-      // Extract links
-      final links = await page.loadLinks();
-      print('Page ${i + 1} has ${links.length} links');
+    await document.loadPagesProgressively();
+    for (final page in document.pages) {
+      final text = (await page.loadText())?.fullText ?? '';
+      final preview = text.length > 100 ? text.substring(0, 100) : text;
+      print('Page ${page.pageNumber}: $preview');
     }
   } finally {
     await document.dispose();
@@ -360,8 +122,4 @@ Future<void> processPdfPages(String filePath) async {
 }
 ```
 
-## Related Documentation
-
-- [Document Loading Indicator](Document-Loading-Indicator.md) - Show loading progress in UI
-- [Low-Level PDFium Bindings Access](Low-Level-PDFium-Bindings-Access.md) - Advanced PDFium usage
-- [pdfrx Initialization](pdfrx-Initialization.md) - Setting up pdfrx
+In Flutter, initialize with `pdfrxFlutterInitialize()` instead. See [pdfrx Initialization](pdfrx-Initialization.md) and [Document Loading Indicator](Document-Loading-Indicator.md) for initialization and download progress.

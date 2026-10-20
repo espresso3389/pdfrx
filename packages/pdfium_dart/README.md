@@ -7,6 +7,9 @@ This package is part of the [pdfrx](https://github.com/espresso3389/pdfrx) proje
 ## Requirements
 
 - Dart 3.13 or later
+- A C compiler for native builds (MSVC on Windows, Xcode on Apple platforms, or Clang/GCC on Linux). The compiler builds a small bundled library that prevents simultaneous PDFium access from multiple Flutter engines, even when that protection is disabled at runtime; Flutter builds use their platform toolchain.
+
+See [native build requirements](https://github.com/espresso3389/pdfrx/blob/master/doc/pdfrx-Initialization.md#native-build-requirements).
 
 ## Overview
 
@@ -18,6 +21,7 @@ This package contains auto-generated FFI bindings for PDFium using [ffigen](http
 - Auto-generated FFI bindings using [ffigen](https://pub.dev/packages/ffigen)
 - Provides direct access to PDFium's C API
 - Downloads and bundles PDFium at build time using Dart native assets
+- Bundles `pdfrx_pdfium_gate`, a small native library that lets only one participating Flutter engine access PDFium at a time
 - Includes [getPdfium()](https://pub.dev/documentation/pdfium_dart/latest/pdfium_dart/getPdfium.html) for resolving PDFium across Dart and Flutter runtimes
 - Supports Windows, Linux, Android, and macOS build hooks
 

@@ -12,7 +12,7 @@ linkHandlerParams: PdfLinkHandlerParams(
       // FIXME: Don't open the link without prompting user to do so or validating the link destination
       launchUrl(link.url!);
     } else if (link.dest != null) {
-      controller.goToDest(link.dest);
+      controller.goToDest(link.dest!);
     }
   },
 ),
@@ -70,19 +70,14 @@ For PDF destinations, you can use [PdfViewerController.goToDest](https://pub.dev
 
 ## Link Appearance
 
-For link appearance, you can change its color using [PdfLinkHandlerParams.linkColor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/linkColor.html).
-
-For more further customization, you can use [PdfLinkHandlerParams.customPainter](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/customPainter.html):
+Use [linkColor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/linkColor.html) for the normal highlight and [linkHoverColor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/linkHoverColor.html) for a pointer hovering over a link. `linkHoverColor` is available from pdfrx 2.7.0; when null, the default painter uses `linkColor` for the hovered link too.
 
 ```dart
-customPainter: (canvas, pageRect, page, links) {
-  final paint = Paint()
-    ..color = Colors.red.withOpacity(0.2)
-    ..style = PaintingStyle.fill;
-  for (final link in links) {
-    // you can customize here to make your own link appearance
-    final rect = link.rect.toRectInPageRect(page: page, pageRect: pageRect);
-    canvas.drawRect(rect, paint);
-  }
-}
+linkHandlerParams: PdfLinkHandlerParams(
+  linkColor: Colors.blue.withValues(alpha: 0.15),
+  linkHoverColor: Colors.orange.withValues(alpha: 0.3),
+  onLinkTap: handleLinkTap,
+),
 ```
+
+A [customPainter](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/customPainter.html) replaces the default link painting and is responsible for its own colors. It receives `(canvas, pageRect, page, links)`; it does not receive a hovered-link argument. Convert each rectangle in `link.rects` with `toRectInDocument(page: page, pageRect: pageRect)` before painting.

@@ -1,6 +1,6 @@
 # pdfrx Documentation
 
-Welcome to the pdfrx documentation! This guide provides comprehensive information about using the pdfrx PDF viewer plugin for Flutter.
+Welcome to the pdfrx documentation! These guides describe the current repository code. Feature-specific version notes indicate when an API became available; the pub.dev API reference describes the published package.
 
 ## Getting Started
 
@@ -12,14 +12,14 @@ Welcome to the pdfrx documentation! This guide provides comprehensive informatio
 ### Text Features
 
 - [Text Search](Text-Search.md) - Implementing text search functionality
-- [Text Selection](Text-Selection.md) - Enabling text selection
+- [Text Selection](Text-Selection.md) - Selection control, asynchronous extraction, and cached text
 
 ### Navigation & Display
 
 - [Document Outline (Bookmarks)](Document-Outline-(a.k.a-Bookmarks).md) - Working with PDF bookmarks
 - [PDF Link Handling](PDF-Link-Handling.md) - Handling links within PDFs
 - [Page Layout Customization](Page-Layout-Customization.md) - Customizing page layouts
-- [Double-tap to Zoom](Double-tap-to-Zoom.md) - Implementing zoom gestures
+- [Zoom Gestures](Double-tap-to-Zoom.md) - Double-tap zoom, pinch sensitivity, and inertia limits
 
 ### UI Customization
 
@@ -50,3 +50,10 @@ Welcome to the pdfrx documentation! This guide provides comprehensive informatio
 ## API Reference
 
 For detailed API documentation, visit the [pub.dev documentation](https://pub.dev/documentation/pdfrx/latest/).
+
+
+## Development and Diagnostics
+
+- [Development commands](agents/COMMANDS.md) - Tests, builds, and binding generation
+- [PDF open benchmark](../packages/pdfrx_engine/tool/PDF_OPEN_BENCHMARK.md) - Manual measurements of loading and link extraction
+- [Android native-loading tests](../packages/pdfrx/example/viewer/doc/android-native-loading-tests.md) - Device and Firebase Test Lab checks

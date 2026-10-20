@@ -21,6 +21,7 @@ import '../pdf_document.dart';
 import '../pdf_document_event.dart';
 import '../pdf_exception.dart';
 import '../pdf_font_query.dart';
+import '../pdf_hebrew_text_normalizer.dart';
 import '../pdf_image.dart';
 import '../pdf_link.dart';
 import '../pdf_outline_node.dart';
@@ -53,22 +54,34 @@ Future<void> _init() async {
   if (_initialized) return;
   await _initSync.synchronized(() async {
     if (_initialized) return;
+    if (Pdfrx.useProcessWidePdfiumGate) {
+      pdfium_bindings.PdfiumProcessGate.enable();
+    }
     await BackgroundWorker.compute((params) {
-      pdfium.FPDF_InitLibrary();
+      // First Flutter engine in the process owns FPDF_InitLibrary.
+      if (!Pdfrx.useProcessWidePdfiumGate || pdfium_bindings.PdfiumProcessGate.claimInit()) {
+        pdfium.FPDF_InitLibrary();
+      }
     }, null);
     // Set on this isolate, not inside the worker callback: top-level variables are per-isolate.
     _initialized = true;
   });
 
-  await _installFontMapper();
+  if (!Pdfrx.useProcessWidePdfiumGate) {
+    await _installFontMapper();
+  }
 }
 
 Future<void> _deinit() async {
-  await BackgroundWorker.compute((params) {
-    pdfium.FPDF_DestroyLibrary();
-    _fontMapper?.dispose();
-    _fontMapper = null;
-  }, {});
+  if (!Pdfrx.useProcessWidePdfiumGate) {
+    await BackgroundWorker.compute((params) {
+      pdfium.FPDF_DestroyLibrary();
+      _fontMapper?.dispose();
+      _fontMapper = null;
+    }, {});
+  }
+  // Never FPDF_DestroyLibrary when the process-wide gate is on: a pop-out
+  // engine dying must not tear down PDFium still used by the main window.
   await BackgroundWorker.stop();
   _initialized = false;
 }
@@ -1012,6 +1025,8 @@ extension _FpdfUtf8StringExt on String {
   Pointer<Char> toUtf8(Arena arena) => Pointer.fromAddress(toNativeUtf8(allocator: arena).address);
 }
 
+typedef _PageMeasurement = ({int pageIndex, double width, double height, int rotation, double bbLeft, double bbBottom});
+
 class _PdfDocumentPdfium extends PdfDocument {
   final pdfium_bindings.FPDF_DOCUMENT document;
   final void Function()? disposeCallback;
@@ -1089,11 +1104,11 @@ class _PdfDocumentPdfium extends PdfDocument {
         disposeCallback: disposeCallback,
       );
 
-      final pages = await pdfDoc._loadPagesInLimitedTime(
-        maxPageCountToLoadAdditionally: useProgressiveLoading ? 1 : null,
-      );
-      pdfDoc._pages = List.unmodifiable(pages.pages);
-      if (!useProgressiveLoading) {
+      if (useProgressiveLoading) {
+        final pages = await pdfDoc._loadPagesInLimitedTime(maxPageCountToLoadAdditionally: 1);
+        pdfDoc._pages = List.unmodifiable(pages.pages);
+      } else {
+        pdfDoc._pages = List.unmodifiable(await pdfDoc._measureAllPagesInChunks());
         pdfDoc._notifyDocumentLoadComplete();
       }
       // Complete the initial missing-font query before exposing the document. The replaying event stream ensures that
@@ -1189,7 +1204,8 @@ class _PdfDocumentPdfium extends PdfDocument {
     return merged;
   }
 
-  /// Maximum duration of a single page-measurement task sent to the worker by [loadPagesProgressively].
+  /// Maximum duration of a single page-measurement task sent to the worker by [loadPagesProgressively] and by a
+  /// non-progressive open.
   ///
   /// About two pages on a typical desktop: small enough that a render queued behind it waits roughly one page's
   /// worth of measurement, large enough that the per-task worker round-trip stays negligible.
@@ -1222,6 +1238,19 @@ class _PdfDocumentPdfium extends PdfDocument {
     return indices;
   }
 
+  /// Measures every page in page order, as a series of short worker tasks so that work for other documents (renders
+  /// in particular) can run in between.
+  Future<List<PdfPage>> _measureAllPagesInChunks() async {
+    final pages = <PdfPage>[];
+    for (;;) {
+      final results = await _measurePages(firstPageIndex: pages.length, timeout: _measurementChunkDuration);
+      for (final data in results.pages) {
+        pages.add(_measuredPage(data, _sizeSourceFor(pages, data.pageIndex)));
+      }
+      if (pages.length >= results.totalPageCount) return pages;
+    }
+  }
+
   /// Loads pages in the document in a time-limited manner.
   ///
   /// [pageIndicesToLoad] lists the page indices to measure, in the order they should be measured. When null, all
@@ -1236,13 +1265,43 @@ class _PdfDocumentPdfium extends PdfDocument {
     int? maxPageCountToLoadAdditionally,
     Duration? timeout,
   }) async {
-    final results = await _computeWithArena(
+    final results = await _measurePages(
+      pageIndicesToLoad: pageIndicesToLoad,
+      maxPageCountToLoadAdditionally: maxPageCountToLoadAdditionally,
+      timeout: timeout,
+    );
+
+    final pages = [...pagesToPreserve];
+    for (final pageData in results.pages) {
+      final page = _measuredPage(pageData, _sizeSourceFor(pages, pageData.pageIndex));
+      if (pageData.pageIndex < pages.length) {
+        pages[pageData.pageIndex] = page;
+      } else {
+        pages.add(page);
+      }
+    }
+    _resizePagesWithPlaceholders(pages, results.totalPageCount);
+    final loadedPageCount = pages.where((page) => page.isLoaded).length;
+    return (pages: pages, loadedPageCount: loadedPageCount);
+  }
+
+  /// Measures pages on the worker; see [_loadPagesInLimitedTime]. When [pageIndicesToLoad] is null, the pages from
+  /// [firstPageIndex] to the end are measured in page order.
+  Future<({List<_PageMeasurement> pages, int totalPageCount})> _measurePages({
+    List<int>? pageIndicesToLoad,
+    int firstPageIndex = 0,
+    int? maxPageCountToLoadAdditionally,
+    Duration? timeout,
+  }) {
+    return _computeWithArena(
       (arena, params) {
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docAddress);
         final pageCount = pdfium.FPDF_GetPageCount(doc);
-        final indices = params.pageIndicesToLoad ?? Iterable<int>.generate(pageCount);
+        final indices =
+            params.pageIndicesToLoad ??
+            Iterable<int>.generate(max(pageCount - params.firstPageIndex, 0), (i) => params.firstPageIndex + i);
         final t = params.timeoutUs != null ? (Stopwatch()..start()) : null;
-        final pages = <({int pageIndex, double width, double height, int rotation, double bbLeft, double bbBottom})>[];
+        final pages = <_PageMeasurement>[];
         for (final i in indices) {
           if (i < 0 || i >= pageCount) continue;
           final page = pdfium.FPDF_LoadPage(doc, i);
@@ -1253,7 +1312,8 @@ class _PdfDocumentPdfium extends PdfDocument {
               pageIndex: i,
               width: pdfium.FPDF_GetPageWidthF(page),
               height: pdfium.FPDF_GetPageHeightF(page),
-              rotation: pdfium.FPDFPage_GetRotation(page),
+              // FPDF_LoadPage returns NULL for a broken page; FPDFPage_GetRotation(NULL) is -1.
+              rotation: page == nullptr ? 0 : pdfium.FPDFPage_GetRotation(page),
               bbLeft: rect.ref.left.toDouble(),
               bbBottom: rect.ref.bottom.toDouble(),
             ));
@@ -1264,7 +1324,7 @@ class _PdfDocumentPdfium extends PdfDocument {
             break;
           }
           // The timeout is checked after measuring a page, so every task measures at least one page even when the
-          // timeout is zero or already expired; loadPagesProgressively relies on this to guarantee progress.
+          // timeout is zero or already expired; the chunked measurement loops rely on this to guarantee progress.
           if (t != null && t.elapsedMicroseconds > params.timeoutUs!) {
             break;
           }
@@ -1274,32 +1334,38 @@ class _PdfDocumentPdfium extends PdfDocument {
       (
         docAddress: document.address,
         pageIndicesToLoad: pageIndicesToLoad,
+        firstPageIndex: firstPageIndex,
         maxPageCountToLoadAdditionally: maxPageCountToLoadAdditionally,
         timeoutUs: timeout?.inMicroseconds,
       ),
     );
+  }
 
-    final pages = [...pagesToPreserve];
-    for (final pageData in results.pages) {
-      final page = _PdfPagePdfium._(
-        document: this,
-        pageNumber: pageData.pageIndex + 1,
-        width: pageData.width,
-        height: pageData.height,
-        rotation: PdfPageRotation.values[pageData.rotation],
-        bbLeft: pageData.bbLeft,
-        bbBottom: pageData.bbBottom,
-        isLoaded: true,
-      );
-      if (pageData.pageIndex < pages.length) {
-        pages[pageData.pageIndex] = page;
-      } else {
-        pages.add(page);
-      }
-    }
-    _resizePagesWithPlaceholders(pages, results.totalPageCount);
-    final loadedPageCount = pages.where((page) => page.isLoaded).length;
-    return (pages: pages, loadedPageCount: loadedPageCount);
+  /// Creates a measured page from the worker's measurement of it.
+  ///
+  /// A page PDFium cannot load (e.g. a /Kids entry that is not a page) measures as 0x0; it takes the size of
+  /// [sizeSource] (or US Letter) so that the document still opens and layout never sees an empty page.
+  _PdfPagePdfium _measuredPage(
+    ({int pageIndex, double width, double height, int rotation, double bbLeft, double bbBottom}) data,
+    PdfPage? sizeSource,
+  ) {
+    final hasSize = data.width > 0 && data.height > 0;
+    return _PdfPagePdfium._(
+      document: this,
+      pageNumber: data.pageIndex + 1,
+      width: hasSize ? data.width : sizeSource?.width ?? 612,
+      height: hasSize ? data.height : sizeSource?.height ?? 792,
+      rotation: PdfPageRotation.values[data.rotation],
+      bbLeft: data.bbLeft,
+      bbBottom: data.bbBottom,
+      isLoaded: true,
+    );
+  }
+
+  /// The page before [pageIndex] in [pages], or the last page when [pages] does not reach it yet.
+  static PdfPage? _sizeSourceFor(List<PdfPage> pages, int pageIndex) {
+    if (pages.isEmpty || pageIndex == 0) return null;
+    return pages[min(max(pageIndex - 1, 0), pages.length - 1)];
   }
 
   /// Resizes [pages], using unloaded placeholders when the document grows.
@@ -1329,6 +1395,7 @@ class _PdfDocumentPdfium extends PdfDocument {
 
   @override
   Future<void> reloadPages({List<int>? pageNumbersToReload}) async {
+    _ensureNotDisposed();
     final results = await _computeWithArena(
       (arena, params) {
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docAddress);
@@ -1359,7 +1426,7 @@ class _PdfDocumentPdfium extends PdfDocument {
                 pageIndex: pageNumber - 1,
                 width: pdfium.FPDF_GetPageWidthF(page),
                 height: pdfium.FPDF_GetPageHeightF(page),
-                rotation: pdfium.FPDFPage_GetRotation(page),
+                rotation: page == nullptr ? 0 : pdfium.FPDFPage_GetRotation(page),
                 bbLeft: rect.ref.left.toDouble(),
                 bbBottom: rect.ref.bottom.toDouble(),
               ));
@@ -1384,16 +1451,7 @@ class _PdfDocumentPdfium extends PdfDocument {
     final newPages = [..._pages];
     for (var i = 0; i < results.pages.length; i++) {
       final pageData = results.pages[i];
-      final newPage = _PdfPagePdfium._(
-        document: this,
-        pageNumber: pageData.pageIndex + 1,
-        width: pageData.width,
-        height: pageData.height,
-        rotation: PdfPageRotation.values[pageData.rotation],
-        bbLeft: pageData.bbLeft,
-        bbBottom: pageData.bbBottom,
-        isLoaded: true,
-      );
+      final newPage = _measuredPage(pageData, _sizeSourceFor(newPages, pageData.pageIndex));
       if (pageData.pageIndex < newPages.length) {
         newPages[pageData.pageIndex] = newPage;
       } else {
@@ -1456,6 +1514,10 @@ class _PdfDocumentPdfium extends PdfDocument {
   bool isIdenticalDocumentHandle(Object? other) =>
       other is _PdfDocumentPdfium && document.address == other.document.address;
 
+  void _ensureNotDisposed() {
+    if (isDisposed) throw StateError('Document is already disposed.');
+  }
+
   /// Worker calls that use [document] and have not completed yet; [dispose] waits for them before closing it.
   final _pendingWork = <Future<void>>{};
 
@@ -1475,8 +1537,12 @@ class _PdfDocumentPdfium extends PdfDocument {
     BackgroundWorkerPriority? priority,
   }) => _trackWork(BackgroundWorker.computeWithArena(callback, message, priority: priority));
 
+  Future<void>? _disposeFuture;
+
   @override
-  Future<void> dispose() async {
+  Future<void> dispose() => _disposeFuture ??= _dispose();
+
+  Future<void> _dispose() async {
     if (!isDisposed) {
       isDisposed = true;
       subject.close();
@@ -1530,10 +1596,18 @@ class _PdfDocumentPdfium extends PdfDocument {
   }
 
   @override
-  Future<bool> assemble() => _DocumentPageArranger.doShufflePagesInPlace(this);
+  Future<bool> assemble() async {
+    _ensureNotDisposed();
+    return await _trackWork(_DocumentPageArranger.doShufflePagesInPlace(this));
+  }
 
   @override
   Future<Uint8List> encodePdf({bool incremental = false, bool removeSecurity = false}) async {
+    _ensureNotDisposed();
+    return await _trackWork(_encodePdf(incremental: incremental, removeSecurity: removeSecurity));
+  }
+
+  Future<Uint8List> _encodePdf({required bool incremental, required bool removeSecurity}) async {
     await assemble();
     final byteBuffer = BytesBuilder();
     return await _computeWithArena((arena, params) {
@@ -1567,9 +1641,11 @@ class _PdfDocumentPdfium extends PdfDocument {
     if (isDisposed) {
       throw StateError('Document is already disposed.');
     }
-    return await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
-      return task(document.address);
-    });
+    return await _trackWork(
+      PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
+        return task(document.address);
+      }),
+    );
   }
 }
 
@@ -1580,6 +1656,8 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
   /// Shuffle pages in place according to the current order of pages in [document].
   /// Returns true if the pages was modified.
   static Future<bool> doShufflePagesInPlace(_PdfDocumentPdfium document) async {
+    document._ensureNotDisposed();
+    final sources = <_PdfDocumentPdfium>{};
     final indices = <int>[];
     final rotations = <int?>[];
     final items = <int, ({int document, int pageNumber})>{};
@@ -1587,6 +1665,8 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
     for (var i = 0; i < document.pages.length; i++) {
       final page = document.pages[i];
       final pdfiumPage = page.unwrap<_PdfPagePdfium>()!;
+      pdfiumPage.document._ensureNotDisposed();
+      if (pdfiumPage.document != document) sources.add(pdfiumPage.document);
       // if rotation is different, we need to modify the page
       if (page.rotation.index != pdfiumPage.rotation.index) {
         rotations.add(page.rotation.index);
@@ -1612,13 +1692,13 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
       return false;
     }
 
-    await document._computeWithArena(
+    final work = document._computeWithArena(
       (arena, params) {
         final arranger = _DocumentPageArranger._(
           pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document),
           params.items,
         );
-        arranger.shuffleInPlaceAccordingToIndices(indices);
+        arranger.shuffleInPlaceAccordingToIndices(params.indices);
 
         for (var i = 0; i < params.length; i++) {
           final rotation = params.rotations[i];
@@ -1636,6 +1716,13 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
         length: document.pages.length,
       ),
     );
+    // Register on every source before yielding, so a normal-priority close cannot overtake this import.
+    for (final source in sources) {
+      source._trackWork(work);
+    }
+    await work;
+    // Replace source-backed pages with pages of the assembled document before releasing its lifetime protection.
+    document.pages = await document._measureAllPagesInChunks();
     return true;
   }
 
@@ -1878,34 +1965,48 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
   @override
   Future<PdfPageRawText?> loadText() async {
     if (document.isDisposed || !isLoaded) return null;
-    return await document._computeWithArena((arena, params) {
-      final doubleSize = sizeOf<Double>();
-      final rectBuffer = arena<Double>(4);
-      final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
-      final page = pdfium.FPDF_LoadPage(doc, params.pageNumber - 1);
-      final textPage = pdfium.FPDFText_LoadPage(page);
-      try {
-        final charCount = pdfium.FPDFText_CountChars(textPage);
-        final sb = StringBuffer();
-        final charRects = <PdfRect>[];
-        for (var i = 0; i < charCount; i++) {
-          sb.writeCharCode(pdfium.FPDFText_GetUnicode(textPage, i));
-          pdfium.FPDFText_GetCharBox(
-            textPage,
-            i,
-            rectBuffer, // L
-            rectBuffer.offset(doubleSize * 2), // R
-            rectBuffer.offset(doubleSize * 3), // B
-            rectBuffer.offset(doubleSize), // T
-          );
-          charRects.add(_rectFromLTRBBuffer(rectBuffer, params.bbLeft, params.bbBottom));
+    return await document._computeWithArena(
+      (arena, params) {
+        final doubleSize = sizeOf<Double>();
+        final rectBuffer = arena<Double>(4);
+        final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
+        final page = pdfium.FPDF_LoadPage(doc, params.pageNumber - 1);
+        final textPage = pdfium.FPDFText_LoadPage(page);
+        try {
+          final charCount = pdfium.FPDFText_CountChars(textPage);
+          final sb = StringBuffer();
+          final charRects = <PdfRect>[];
+          for (var i = 0; i < charCount; i++) {
+            sb.writeCharCode(pdfium.FPDFText_GetUnicode(textPage, i));
+            pdfium.FPDFText_GetCharBox(
+              textPage,
+              i,
+              rectBuffer, // L
+              rectBuffer.offset(doubleSize * 2), // R
+              rectBuffer.offset(doubleSize * 3), // B
+              rectBuffer.offset(doubleSize), // T
+            );
+            charRects.add(_rectFromLTRBBuffer(rectBuffer, params.bbLeft, params.bbBottom));
+          }
+          final raw = PdfPageRawText(sb.toString(), charRects);
+          // On the worker, so the reordering does not cost the UI isolate.
+          return params.normalizeHebrew
+              ? PdfHebrewTextNormalizer.normalize(raw, decodeLegacyEncoding: params.decodeLegacyHebrew)
+              : raw;
+        } finally {
+          pdfium.FPDFText_ClosePage(textPage);
+          pdfium.FPDF_ClosePage(page);
         }
-        return PdfPageRawText(sb.toString(), charRects);
-      } finally {
-        pdfium.FPDFText_ClosePage(textPage);
-        pdfium.FPDF_ClosePage(page);
-      }
-    }, (docHandle: document.document.address, pageNumber: pageNumber, bbLeft: bbLeft, bbBottom: bbBottom));
+      },
+      (
+        docHandle: document.document.address,
+        pageNumber: pageNumber,
+        bbLeft: bbLeft,
+        bbBottom: bbBottom,
+        normalizeHebrew: Pdfrx.normalizeHebrewText,
+        decodeLegacyHebrew: Pdfrx.decodeLegacyHebrewText,
+      ),
+    );
   }
 
   @override

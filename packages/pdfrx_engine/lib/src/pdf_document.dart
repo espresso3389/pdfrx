@@ -268,7 +268,9 @@ abstract class PdfDocument {
   ///
   /// You should call this function after modifying [pages] to make the document consistent and independent from
   /// the other source documents. If [pages] contains pages from other documents, those documents must be alive
-  /// until this function returns.
+  /// until this function returns. Do not modify the destination or source documents while assembly is in progress.
+  /// The native PDFium backend delays disposal of the documents used by an already-started assembly until their
+  /// native work completes; source documents that are already disposed are rejected.
   Future<bool> assemble();
 
   /// Save the PDF document.
@@ -281,6 +283,8 @@ abstract class PdfDocument {
   /// Only supported for native backends (e.g., PDFium).
   ///
   /// Please note that this function suspends pdfrx internal PDFium worker during the execution of [task].
+  /// Do not await worker operations or disposal of this document inside [task], and do not retain the handle after
+  /// [task] completes. The native PDFium backend keeps the document alive until [task] completes.
   ///
   /// If you modify the document inside [task], make sure to keep consistency of the document after the
   /// modification; e.g., call [reloadPages] if necessary.
