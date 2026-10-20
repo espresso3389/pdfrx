@@ -1,3 +1,7 @@
+# 0.7.4
+
+- Fixed Hebrew text normalization skipping or partially reversing words and lines containing punctuation. Punctuation now stays with Hebrew words during normalization, while mixed-script lines retain their existing order ([#754](https://github.com/espresso3389/pdfrx/pull/754)).
+
 # 0.7.3
 
 - Fixed static-analysis lint findings in native constructors without changing public APIs or runtime behavior ([#753](https://github.com/espresso3389/pdfrx/pull/753)).
