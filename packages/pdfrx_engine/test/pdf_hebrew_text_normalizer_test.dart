@@ -109,6 +109,41 @@ void main() {
     expect(PdfHebrewTextNormalizer.normalize(raw).fullText, 'שלום עולם ומלואו');
   });
 
+  test('punctuation, geresh and gershayim do not make a line mixed', () {
+    for (final line in [
+      ['שלום', 'עולם', 'ומלואו.'],
+      ['אמר', 'רבי', 'יוחנן:', 'כך', 'הוא'],
+      ['ר"ת', "וכו'", 'כמ"ש', 'ע״א', 'בית־המקדש'],
+    ]) {
+      final raw = _line(_layoutRtl(line).reversed.toList());
+      expect(PdfHebrewTextNormalizer.normalize(raw).fullText, line.join(' '));
+    }
+  });
+
+  test('words stored left to right are reordered with their punctuation', () {
+    // OCR layers: each word is logical, punctuation included, but the line runs left to right.
+    const line = ['אמר', 'רבי', 'יוחנן:', 'שלום.'];
+    final glyphs = <(String, double)>[];
+    var left = 0.0;
+    for (final word in line.reversed) {
+      if (glyphs.isNotEmpty) glyphs.add((' ', left - 10));
+      for (var i = 0; i < word.length; i++) {
+        glyphs.add((word[i], left + 10 * (word.length - 1 - i)));
+      }
+      left += 10 * (word.length + 1);
+    }
+    final raw = _line(glyphs);
+    expect(raw.fullText, line.reversed.join(' '));
+    expect(PdfHebrewTextNormalizer.normalize(raw).fullText, line.join(' '));
+  });
+
+  test('a line with a Latin word keeps its order', () {
+    final raw = _line(_layoutRtl(['שלום.', 'abc', 'עולם']).reversed.toList());
+    final result = PdfHebrewTextNormalizer.normalize(raw);
+    expect(result.fullText.indexOf('cba'), greaterThanOrEqualTo(0));
+    expect(result.fullText.indexOf('עולם'), lessThan(result.fullText.indexOf('שלום.')));
+  });
+
   test('points stay after their letter when a word is reversed', () {
     // שָׁלוֹם stored letter by letter left to right, each point after its letter.
     final glyphs = <(String, double)>[

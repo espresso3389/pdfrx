@@ -84,7 +84,9 @@ const _minPairs = 2;
     // Mixed scripts and separate physical lines need a full bidi/layout model.
     // Preserve their order rather than sorting unrelated runs by x alone.
     if (tokens.any((t) => !_isHebrewToken(codes, t.$1, t.$2))) continue;
-    if (tokens.any((t) => !_sameLine(_tokenBox(boxes, tokens.first.$1, tokens.first.$2), _tokenBox(boxes, t.$1, t.$2)))) {
+    if (tokens.any(
+      (t) => !_sameLine(_tokenBox(boxes, tokens.first.$1, tokens.first.$2), _tokenBox(boxes, t.$1, t.$2)),
+    )) {
       continue;
     }
     final v = _wordVote(codes, boxes, s, e);
@@ -111,9 +113,26 @@ bool _isVisual(_Vote v, bool pageVisual) {
   return v.total >= _minPairs || pageVisual;
 }
 
+/// Hebrew letters, points and punctuation only; Latin letters, digits and other scripts make a token mixed.
 bool _isHebrewToken(List<int> codes, int start, int end) {
-  return codes.getRange(start, end).every((c) => _isHebLetter(c) || _isHebMark(c));
+  return codes.getRange(start, end).every((c) => _isHebLetter(c) || _isHebMark(c) || _isPunctuation(c));
 }
+
+/// Punctuation that Hebrew text carries inside its words: periods, colons, quotes, geresh and gershayim, maqaf.
+bool _isPunctuation(int c) =>
+    (c >= 0x21 && c <= 0x2F) ||
+    (c >= 0x3A && c <= 0x40) ||
+    (c >= 0x5B && c <= 0x60) ||
+    (c >= 0x7B && c <= 0x7E) ||
+    c == 0xAB ||
+    c == 0xBB ||
+    c == 0x05BE ||
+    c == 0x05C0 ||
+    c == 0x05C3 ||
+    c == 0x05C6 ||
+    c == 0x05F3 ||
+    c == 0x05F4 ||
+    (c >= 0x2010 && c <= 0x2027);
 
 class _Vote {
   const _Vote(this.ltr, this.rtl);
