@@ -116,8 +116,8 @@ final pdfBytes = await document.encodePdf();
 await File('output.pdf').writeAsBytes(pdfBytes);
 
 // dispose the documents after use
-doc1.dispose();
-doc2.dispose();
+await doc1.dispose();
+await doc2.dispose();
 ```
 
 ### The assemble() Function
@@ -132,20 +132,28 @@ doc1.pages = [...doc1.pages, ...doc2.pages, ...doc3.pages];
 await doc1.assemble();
 
 // Now you can safely dispose doc2 and doc3
-doc2.dispose();
-doc3.dispose();
+await doc2.dispose();
+await doc3.dispose();
 
 // doc1 is still valid and can be encoded later
 final bytes = await doc1.encodePdf();
 
-doc1.dispose();
+await doc1.dispose();
 ```
 
 **Important Notes:**
 
 - [PdfDocument.assemble](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/assemble.html) is automatically called by [PdfDocument.encodePdf](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/encodePdf.html), so you don't need to call it explicitly before encoding
 - Call [PdfDocument.assemble](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/assemble.html) explicitly when you want to release source documents early to free memory
-- After calling [PdfDocument.assemble](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/assemble.html), the document becomes independent and source documents can be safely disposed
+- After awaiting [PdfDocument.assemble](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/assemble.html), the document becomes independent and source documents can be safely disposed
+
+### Document Lifetime
+
+Keep every source document open until `assemble()` or `encodePdf()` completes. Do not change the source or destination page lists while assembly is in progress. Assigning pages from another document does not immediately copy them; disposing that source before assembly starts makes the operation invalid.
+
+On native PDFium, disposal waits for already-started operations, including queued work and source imports. New independent operations are rejected once disposal begins. Use `await document.dispose()` when cleanup must finish before continuing. After successful assembly, use the destination's updated `pages` list; previously retained source page objects still belong to their source documents.
+
+Advanced callers using raw document handles with `PdfrxEntryFunctions.compute` must keep the documents alive themselves. Within `useNativeDocumentHandle`, do not await another worker operation or disposal of the same document, and do not retain the handle after the callback completes.
 
 ## Complete Working Examples
 

@@ -53,7 +53,7 @@ final pdfBytes = await imageDoc.encodePdf();
 await File('output.pdf').writeAsBytes(pdfBytes);
 
 // Clean up
-imageDoc.dispose();
+await imageDoc.dispose();
 ```
 
 **Important Note:** The `width` and `height` parameters only control the visible page size in the PDF document. They do NOT resize or compress the actual image data. The JPEG image is embedded in the PDF as-is. If you need to reduce the PDF file size, you must resize the image before converting it to JPEG.
@@ -143,8 +143,8 @@ final pdfBytes = await doc.encodePdf();
 await File('output.pdf').writeAsBytes(pdfBytes);
 
 // Clean up
-doc.dispose();
-imageDoc.dispose();
+await doc.dispose();
+await imageDoc.dispose();
 ```
 
 ## Converting Multiple Images to a Single PDF
@@ -198,9 +198,9 @@ try {
 } finally {
   // Clean up resources
   for (final doc in imageDocs) {
-    doc.dispose();
+    await doc.dispose();
   }
-  combinedDoc.dispose();
+  await combinedDoc.dispose();
 }
 ```
 
@@ -291,7 +291,7 @@ final pdfBytes = await doc.encodePdf();
 await File('output.pdf').writeAsBytes(pdfBytes);
 
 // Clean up
-doc.dispose();
+await doc.dispose();
 ```
 
 ### Recommended Image Resolutions

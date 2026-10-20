@@ -141,6 +141,9 @@ For detailed guides and tutorials, see the [documentation](https://github.com/es
 - [PDF open benchmark](tool/PDF_OPEN_BENCHMARK.md): a manual probe for document opening, page measurement, and link extraction.
 - [Hebrew text normalization](https://github.com/espresso3389/pdfrx/blob/master/doc/Text-Search.md#hebrew-text-order): opt-in native text-order correction.
 
+- [Background work and memory](https://github.com/espresso3389/pdfrx/blob/master/doc/Progressive-Loading.md#background-work): lower-priority native operations and viewer image-cache release.
+- [Document lifetime](https://github.com/espresso3389/pdfrx/blob/master/doc/PDF-Page-Manipulation.md#document-lifetime): awaiting disposal and keeping assembly sources alive.
+
 ## PDF API
 
 - Easy to use PDF APIs

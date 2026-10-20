@@ -1,3 +1,10 @@
+# 2.9.0
+
+- Added `PdfTextSearcher.stopTextSearch()` to stop a pending or running search while keeping its matches and current match ([#730](https://github.com/espresso3389/pdfrx/pull/730)).
+- Added `PdfViewerController.releaseCachedImages()` to release cached page images and cancel associated rendering, optionally retaining visible pages ([#730](https://github.com/espresso3389/pdfrx/pull/730)).
+- Updated to `pdfrx_engine` 0.7.2 for background-work scheduling and safe document disposal during queued operations ([#744](https://github.com/espresso3389/pdfrx/pull/744), [#751](https://github.com/espresso3389/pdfrx/pull/751)).
+- Documented search cancellation, image-cache release, background scheduling, and document lifetime requirements.
+
 # 2.8.0
 
 - Added `selectedTextIfLoaded` for synchronous access to cached selection text. Existing custom selection implementations remain compatible through the `PdfTextSelectionCachedText` extension and optional `PdfTextSelectionWithCachedText` interface ([#733](https://github.com/espresso3389/pdfrx/pull/733)).
