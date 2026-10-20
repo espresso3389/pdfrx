@@ -55,6 +55,11 @@ jobs:
       - name: Pub get (workspace)
         run: flutter pub get
 
+      - name: Reject engine analysis diagnostics
+        if: matrix.package_name == 'pdfrx_engine'
+        working-directory: packages/pdfrx_engine
+        run: dart analyze --fatal-infos
+
       - name: Activate pana
         run: |
           # pana 0.23.18 incorrectly follows material_ui's VM-only about implementation on Web.

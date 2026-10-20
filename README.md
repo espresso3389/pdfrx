@@ -96,7 +96,7 @@ Add [pdfrx_engine](https://pub.dev/packages/pdfrx_engine) to your `pubspec.yaml`
 
 ```yaml
 dependencies:
-  pdfrx_engine: ^0.7.2
+  pdfrx_engine: ^0.7.3
 ```
 
 ## Documentation
