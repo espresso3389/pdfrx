@@ -38,6 +38,7 @@ import 'pdf_file_cache.dart';
 import 'pdfium.dart';
 import 'pdfium_file_access.dart';
 import 'worker.dart';
+import 'resource_lifetime.dart';
 
 String? _fontCachePath;
 List<String> _fontPaths = const [];
@@ -1033,7 +1034,7 @@ class _PdfDocumentPdfium extends PdfDocument {
   final int securityHandlerRevision;
   final pdfium_bindings.FPDF_FORMHANDLE formHandle;
   final Pointer<pdfium_bindings.FPDF_FORMFILLINFO> formInfo;
-  bool isDisposed = false;
+  bool get isDisposed => _lifetime.isClosing;
   bool _documentLoadCompleteNotified = false;
   // Opening a document can produce both a load-complete event and a missing-font event before callers can subscribe.
   // Retain both so late subscribers do not have to race document creation.
@@ -1518,56 +1519,31 @@ class _PdfDocumentPdfium extends PdfDocument {
     if (isDisposed) throw StateError('Document is already disposed.');
   }
 
-  /// Worker calls that use [document] and have not completed yet; [dispose] waits for them before closing it.
-  final _pendingWork = <Future<void>>{};
-
-  Future<R> _trackWork<R>(Future<R> work) {
-    final done = work.then<void>((_) {}, onError: (_) {});
-    _pendingWork.add(done);
-    done.whenComplete(() => _pendingWork.remove(done));
-    return work;
-  }
+  final _lifetime = NativeResourceLifetime();
 
   Future<R> _compute<M, R>(PdfrxComputeCallback<M, R> callback, M message, {BackgroundWorkerPriority? priority}) =>
-      _trackWork(BackgroundWorker.compute(callback, message, priority: priority));
+      _lifetime.use(() => BackgroundWorker.compute(callback, message, priority: priority));
 
   Future<R> _computeWithArena<M, R>(
     R Function(Arena arena, M message) callback,
     M message, {
     BackgroundWorkerPriority? priority,
-  }) => _trackWork(BackgroundWorker.computeWithArena(callback, message, priority: priority));
-
-  Future<void>? _disposeFuture;
-  bool _disposeCompleted = false;
+  }) => _lifetime.use(() => BackgroundWorker.computeWithArena(callback, message, priority: priority));
 
   @override
-  Future<void> dispose() async {
-    if (_disposeCompleted) return;
-    await (_disposeFuture ??= _dispose());
-  }
-
-  Future<void> _dispose() async {
-    if (!isDisposed) {
-      isDisposed = true;
-      subject.close();
-      // Work that passed the isDisposed check may sit behind other work at a lower priority than the close; it must
-      // run before the close or it would touch a freed FPDF_DOCUMENT.
-      while (_pendingWork.isNotEmpty) {
-        await Future.wait(_pendingWork.toList());
-      }
+  Future<void> dispose() {
+    if (!isDisposed) subject.close();
+    return _lifetime.close(() async {
       await BackgroundWorker.compute((params) {
         final formHandle = pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle);
         final formInfo = Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(params.formInfo);
         pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
         calloc.free(formInfo);
-
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
         pdfium.FPDF_CloseDocument(doc);
       }, (formHandle: formHandle.address, formInfo: formInfo.address, document: document.address));
-
       disposeCallback?.call();
-      _disposeCompleted = true;
-    }
+    });
   }
 
   @override
@@ -1603,13 +1579,13 @@ class _PdfDocumentPdfium extends PdfDocument {
   @override
   Future<bool> assemble() async {
     _ensureNotDisposed();
-    return await _trackWork(_DocumentPageArranger.doShufflePagesInPlace(this));
+    return await _lifetime.use(() => _DocumentPageArranger.doShufflePagesInPlace(this));
   }
 
   @override
   Future<Uint8List> encodePdf({bool incremental = false, bool removeSecurity = false}) async {
     _ensureNotDisposed();
-    return await _trackWork(_encodePdf(incremental: incremental, removeSecurity: removeSecurity));
+    return await _lifetime.use(() => _encodePdf(incremental: incremental, removeSecurity: removeSecurity));
   }
 
   Future<Uint8List> _encodePdf({required bool incremental, required bool removeSecurity}) async {
@@ -1646,8 +1622,8 @@ class _PdfDocumentPdfium extends PdfDocument {
     if (isDisposed) {
       throw StateError('Document is already disposed.');
     }
-    return await _trackWork(
-      PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
+    return await _lifetime.use(
+      () => PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
         return task(document.address);
       }),
     );
@@ -1697,35 +1673,33 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
       return false;
     }
 
-    final work = document._computeWithArena(
-      (arena, params) {
-        final arranger = _DocumentPageArranger._(
-          pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document),
-          params.items,
-        );
-        arranger.shuffleInPlaceAccordingToIndices(params.indices);
+    await NativeResourceLifetime.useAll(
+      sources.map((source) => source._lifetime),
+      () => document._computeWithArena(
+        (arena, params) {
+          final arranger = _DocumentPageArranger._(
+            pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document),
+            params.items,
+          );
+          arranger.shuffleInPlaceAccordingToIndices(params.indices);
 
-        for (var i = 0; i < params.length; i++) {
-          final rotation = params.rotations[i];
-          if (rotation == null) continue;
-          final page = pdfium.FPDF_LoadPage(arranger.document, i);
-          pdfium.FPDFPage_SetRotation(page, rotation);
-          pdfium.FPDF_ClosePage(page);
-        }
-      },
-      (
-        document: document.document.address,
-        indices: indices,
-        rotations: rotations,
-        items: items,
-        length: document.pages.length,
+          for (var i = 0; i < params.length; i++) {
+            final rotation = params.rotations[i];
+            if (rotation == null) continue;
+            final page = pdfium.FPDF_LoadPage(arranger.document, i);
+            pdfium.FPDFPage_SetRotation(page, rotation);
+            pdfium.FPDF_ClosePage(page);
+          }
+        },
+        (
+          document: document.document.address,
+          indices: indices,
+          rotations: rotations,
+          items: items,
+          length: document.pages.length,
+        ),
       ),
     );
-    // Register on every source before yielding, so a normal-priority close cannot overtake this import.
-    for (final source in sources) {
-      source._trackWork(work);
-    }
-    await work;
     // Replace source-backed pages with pages of the assembled document before releasing its lifetime protection.
     document.pages = await document._measureAllPagesInChunks();
     return true;
