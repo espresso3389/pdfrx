@@ -496,7 +496,7 @@ class _CachedFont {
 }
 
 class _FontSource {
-  _FontSource._({required this.fontOffset, required Uint8List Function() loadFullData}) : _loadFullData = loadFullData;
+  _FontSource._({required this.fontOffset, required this._loadFullData});
 
   factory _FontSource.memory(Uint8List data) =>
       _FontSource._(fontOffset: getFontOffsetFromData(data), loadFullData: () => data);
@@ -2207,7 +2207,7 @@ class _PdfImagePdfium extends PdfImage {
 
   final Pointer<Uint8> _buffer;
 
-  _PdfImagePdfium._({required this.width, required this.height, required Pointer<Uint8> buffer}) : _buffer = buffer;
+  _PdfImagePdfium._({required this.width, required this.height, required this._buffer});
 
   @override
   void dispose() {
