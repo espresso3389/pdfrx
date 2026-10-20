@@ -928,7 +928,7 @@ void main() {
     expect(pageTopInViewport, moreOrLessEquals(controller.params.margin * controller.currentZoom, epsilon: 0.1));
 
     await tester.pumpWidget(const SizedBox.shrink());
-    await _finishNativeDisposal(tester, document!);
+    await _finishNativeDisposal(tester, document);
     await tester.pump(const Duration(milliseconds: 100));
   });
 
@@ -980,7 +980,7 @@ void main() {
     expect(pageCenterYInViewport, moreOrLessEquals(controller.viewSize.height / 2, epsilon: 0.1));
 
     await tester.pumpWidget(const SizedBox.shrink());
-    await _finishNativeDisposal(tester, document!);
+    await _finishNativeDisposal(tester, document);
     await tester.pump(const Duration(milliseconds: 100));
   });
 
@@ -1033,7 +1033,7 @@ void main() {
     expect(pageTopInViewport, moreOrLessEquals(controller.params.margin * controller.currentZoom, epsilon: 0.1));
 
     await tester.pumpWidget(const SizedBox.shrink());
-    await _finishNativeDisposal(tester, document!);
+    await _finishNativeDisposal(tester, document);
     await tester.pump(const Duration(milliseconds: 100));
   });
 
@@ -1087,7 +1087,7 @@ void main() {
 
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pumpWidget(const SizedBox.shrink());
-    await _finishNativeDisposal(tester, document!);
+    await _finishNativeDisposal(tester, document);
     await tester.pump(const Duration(milliseconds: 100));
   });
 
@@ -1200,7 +1200,7 @@ void main() {
       expect(controller.currentZoom, lessThanOrEqualTo(controller.maxScale));
 
       await tester.pumpWidget(const SizedBox.shrink());
-      await _finishNativeDisposal(tester, document!);
+      await _finishNativeDisposal(tester, document);
       await tester.pump(const Duration(milliseconds: 100));
     });
   }
