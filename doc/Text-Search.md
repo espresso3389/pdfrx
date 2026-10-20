@@ -81,7 +81,7 @@ To stop a pending or running search while keeping the matches found so far and t
 textSearcher.stopTextSearch();
 ```
 
-`stopTextSearch()` also cancels a delayed search that has not started yet. Starting the same search again after stopping performs a fresh scan; it does not resume from the last scanned page.
+[stopTextSearch()](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/stopTextSearch.html) also cancels a delayed search that has not started yet. Starting the same search again after stopping performs a fresh scan; it does not resume from the last scanned page.
 
 To cancel the search and clear its results:
 

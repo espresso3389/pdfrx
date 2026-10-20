@@ -103,7 +103,7 @@ Measured metadata is distinct from cached page images. The viewer manages its im
 
 ### Releasing Viewer Images
 
-Once the controller is attached to a viewer, release off-screen page images while retaining visible pages:
+Once the controller is attached to a viewer, use [releaseCachedImages()](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/releaseCachedImages.html) to release off-screen page images while retaining visible pages:
 
 ```dart
 controller.releaseCachedImages();
@@ -113,7 +113,7 @@ Use `controller.releaseCachedImages(keepVisible: false)` to release all cached p
 
 ### Background Work
 
-With native PDFium, use `Pdfrx.runAsBackgroundWork()` for work that can wait behind interactive operations:
+With native PDFium, use [Pdfrx.runAsBackgroundWork()](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/Pdfrx/runAsBackgroundWork.html) for work that can wait behind interactive operations:
 
 ```dart
 final bytes = await Pdfrx.runAsBackgroundWork(() async {
