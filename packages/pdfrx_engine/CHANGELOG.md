@@ -1,3 +1,7 @@
+# 0.7.3
+
+- Fixed static-analysis lint findings in native constructors without changing public APIs or runtime behavior ([#753](https://github.com/espresso3389/pdfrx/pull/753)).
+
 # 0.7.2
 
 - Added `Pdfrx.runAsBackgroundWork()` to give native PDFium background operations lower queue priority while preserving explicit rendering priorities ([#744](https://github.com/espresso3389/pdfrx/pull/744)).
