@@ -200,6 +200,40 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('the shared image budget charges pending native work until cancellation completes', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await binding.setSurfaceSize(const Size(800, 600));
+    addTearDown(() => binding.setSurfaceSize(null));
+    final document = _TestDocument(1);
+    addTearDown(document.dispose);
+    final control = (document.pages.single as _TestPage).renderControl..block();
+    final budget = PdfImageCacheBudget(maximumBytes: 12 * 1024 * 1024);
+    var externalEvicted = false;
+    budget.tryReserve(4 * 1024 * 1024)!.commit(retainedBytes: 4 * 1024 * 1024, onEvict: () => externalEvicted = true);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          params: PdfViewerParams(imageCacheBudget: budget, getPageRenderingScale: _largePreviewScale),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    expect(externalEvicted, isTrue);
+    expect(budget.pendingBytes, greaterThan(0));
+    expect(budget.pendingBytes, lessThanOrEqualTo(budget.maximumBytes));
+    expect(budget.retainedBytes, 0);
+    final charged = budget.pendingBytes;
+    await tester.pumpWidget(const SizedBox.shrink());
+    expect(control.tokens.every((token) => token.isCanceled), isTrue);
+    expect(budget.pendingBytes, charged);
+    control.release();
+    await _pumpPaintWork(tester);
+    expect(budget.pendingBytes, 0);
+    expect(budget.retainedBytes, 0);
+  });
+
   testWidgets('an initially hidden viewer defers page work and resumes at the same page', (tester) async {
     final document = _TestDocument(9);
     addTearDown(document.dispose);
