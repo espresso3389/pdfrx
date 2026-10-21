@@ -287,6 +287,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   PdfPageTextCache? _textCache;
   PdfPageTextCacheLease? _textCacheLease;
+  ({int? first, int? last, List<int> visible})? _textCachePins;
   final _pendingTextLoads = <int, Future<PdfPageText?>>{};
   Timer? _textSelectionChangedDebounceTimer;
   final double _hitTestMargin = 3.0;
@@ -484,6 +485,7 @@ class _PdfViewerState extends State<PdfViewer>
     _canvasLinkPainter.resetAll();
     _textCacheLease?.dispose();
     _textCacheLease = null;
+    _textCachePins = null;
     _textCache = null;
     _pendingTextLoads.clear();
     _clearTextSelections(invalidate: false);
@@ -1711,17 +1713,23 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _updateTextCachePins({bool keepVisible = true, bool keepSelection = true}) {
-    final pinned = <int>{};
-    if (keepVisible && widget.params.isVisible && _initialized && _pageLayoutIndex != null && _viewSize != null) {
-      pinned.addAll(_pageLayoutIndex!.intersecting(_visibleRect).map((i) => i + 1));
-    }
+    if (_textCacheLease == null) return;
+    final visible =
+        keepVisible && widget.params.isVisible && _initialized && _pageLayoutIndex != null && _viewSize != null
+        ? _pageLayoutIndex!.intersecting(_visibleRect)
+        : const <int>[];
     final a = _selA?.text.pageNumber;
     final b = _selB?.text.pageNumber;
-    if (keepSelection && a != null && b != null) {
-      for (var n = min(a, b); n <= max(a, b); n++) {
-        pinned.add(n);
-      }
-    }
+    final first = keepSelection && a != null && b != null ? min(a, b) : null;
+    final last = keepSelection && a != null && b != null ? max(a, b) : null;
+    final previous = _textCachePins;
+    if (previous?.first == first && previous?.last == last && listEquals(previous?.visible, visible)) return;
+    _textCachePins = (first: first, last: last, visible: visible);
+    final pinned = {
+      for (final i in visible) i + 1,
+      if (first != null && last != null)
+        for (var n = first; n <= last; n++) n,
+    };
     _textCacheLease?.updatePinnedPages(pinned);
   }
 
