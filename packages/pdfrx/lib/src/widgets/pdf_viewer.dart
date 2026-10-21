@@ -1786,6 +1786,10 @@ class _PdfViewerState extends State<PdfViewer>
     cacheTargetRect ??= targetRect;
 
     cache.visiblePageNumbers = _pageLayoutIndex!.intersecting(targetRect).map((i) => i + 1).toSet();
+    for (final pageNumber in cache.visiblePageNumbers) {
+      final preview = cache.pagePreviewRenderings[pageNumber];
+      if (preview?.priority == PdfPageRenderPriority.low) preview!.token.cancel();
+    }
     for (final pageNumber in cache.pageImagePartialRenderingRequests.keys.toList()) {
       if (!cache.visiblePageNumbers.contains(pageNumber)) {
         cache.pageImagePartialRenderingRequests.remove(pageNumber)?.cancel();
@@ -2267,8 +2271,11 @@ class _PdfViewerState extends State<PdfViewer>
     if (!mounted || !widget.params.isVisible) return;
     final prev = cache.pageImages[page.pageNumber];
     if (prev != null && !prev.isDirty && prev.scale == scale) return;
-    if (!cache.beginPagePreviewRendering(page.pageNumber)) return;
     final cancellationToken = page.createCancellationToken();
+    final priority = cache.visiblePageNumbers.contains(page.pageNumber)
+        ? PdfPageRenderPriority.high
+        : PdfPageRenderPriority.low;
+    if (!cache.beginPagePreviewRendering(page.pageNumber, cancellationToken, priority)) return;
 
     cache.addCancellationToken(page.pageNumber, cancellationToken);
 
@@ -2302,9 +2309,7 @@ class _PdfViewerState extends State<PdfViewer>
             annotationRenderingMode: widget.params.annotationRenderingMode,
             flags: widget.params.limitRenderingCache ? PdfPageRenderFlags.limitedImageCache : PdfPageRenderFlags.none,
             cancellationToken: cancellationToken,
-            priority: cache.visiblePageNumbers.contains(page.pageNumber)
-                ? PdfPageRenderPriority.high
-                : PdfPageRenderPriority.low,
+            priority: priority,
           );
           if (img == null || !mounted || !widget.params.isVisible || cancellationToken.isCanceled) {
             if (sw != null) {
@@ -4399,7 +4404,7 @@ class _PdfPageImageCache {
   final pageImageRenderingTimers = <int, Timer>{};
   final pageImagesPartial = <int, _PdfImageWithScaleAndRect>{};
   final cancellationTokens = <int, List<PdfPageRenderCancellationToken>>{};
-  final pagePreviewRenderings = <int>{};
+  final pagePreviewRenderings = <int, ({PdfPageRenderCancellationToken token, PdfPageRenderPriority priority})>{};
   final pageImagePartialRenderingRequests = <int, _PdfPartialImageRenderingRequest>{};
 
   Iterable<int> get pendingPageNumbers => {
@@ -4413,7 +4418,11 @@ class _PdfPageImageCache {
     tokens.add(token);
   }
 
-  bool beginPagePreviewRendering(int pageNumber) => pagePreviewRenderings.add(pageNumber);
+  bool beginPagePreviewRendering(int pageNumber, PdfPageRenderCancellationToken token, PdfPageRenderPriority priority) {
+    if (pagePreviewRenderings.containsKey(pageNumber)) return false;
+    pagePreviewRenderings[pageNumber] = (token: token, priority: priority);
+    return true;
+  }
 
   void endPagePreviewRendering(int pageNumber, PdfPageRenderCancellationToken token) {
     pagePreviewRenderings.remove(pageNumber);

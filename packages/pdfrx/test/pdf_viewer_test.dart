@@ -314,6 +314,46 @@ void main() {
     }
   });
 
+  testWidgets('a prefetch that becomes visible retries at high priority without canceling the new render', (
+    tester,
+  ) async {
+    final document = _TestDocument(3)..loadPagesForTest([1, 2, 3]);
+    addTearDown(document.dispose);
+    final control = (document.pages[1] as _TestPage).renderControl..block();
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          controller: controller,
+          params: PdfViewerParams(verticalCacheExtent: 3, getPageRenderingScale: (_, _, _, _) => 0.5),
+        ),
+      ),
+    );
+    var released = false;
+    try {
+      await _pumpPaintWork(tester);
+      expect(control.priorities.first, PdfPageRenderPriority.low);
+      await controller.goToPage(pageNumber: 2, duration: Duration.zero);
+      await _pumpPaintWork(tester);
+      expect(control.tokens.first.isCanceled, isTrue);
+      control.release();
+      released = true;
+      await _pumpPaintWork(tester);
+      expect(control.priorities.last, PdfPageRenderPriority.high);
+      expect(control.tokens.last.isCanceled, isFalse);
+      final renders = control.renderCount;
+      await _pumpPaintWork(tester);
+      expect(control.renderCount, renders);
+      expect(control.tokens.last.isCanceled, isFalse);
+    } finally {
+      if (!released) control.release();
+      await _pumpPaintWork(tester);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+  });
+
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));
