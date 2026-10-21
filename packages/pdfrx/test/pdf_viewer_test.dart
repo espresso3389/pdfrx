@@ -462,6 +462,84 @@ void main() {
     }
   });
 
+  testWidgets('stationary RTL book prefetch settles under a shared image budget', (tester) async {
+    await binding.setSurfaceSize(const Size(800, 600));
+    addTearDown(() => binding.setSurfaceSize(null));
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final document = _TestDocument(14)..loadPagesForTest(List.generate(14, (i) => i + 1));
+    addTearDown(document.dispose);
+    final pages = document.pages.cast<_TestPage>().toList();
+    for (final page in pages) {
+      page.renderControl.renderAtRequestedSize = true;
+    }
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final external = budget.tryReserve(32 * 1024 * 1024)!;
+    addTearDown(external.dispose);
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          controller: controller,
+          initialPageNumber: 8,
+          params: PdfViewerParams(
+            imageCacheBudget: budget,
+            maxImageBytesCachedOnMemory: 48 * 1024 * 1024,
+            sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(calculateInitialZoom: (_, _, _, _) => 1),
+            verticalCacheExtent: 2,
+            horizontalCacheExtent: 0,
+            getPageRenderingScale: (_, _, _, _) => 2,
+            layoutPages: (pages, params) => PdfPageLayout(
+              pageLayouts: [
+                for (var i = 0; i < pages.length; i++) Rect.fromLTWH(i.isEven ? 606 : 0, (i ~/ 2) * 816, 600, 800),
+              ],
+              documentSize: Size(1206, (pages.length / 2).ceil() * 816),
+            ),
+            behaviorControlParams: const PdfViewerBehaviorControlParams(
+              pageImageCachingDelay: Duration.zero,
+              partialImageLoadingDelay: Duration.zero,
+              trailingPageLoadingDelay: Duration.zero,
+            ),
+          ),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    await controller.goTo(controller.calcMatrixFor(const Offset(603, 2848), zoom: 1), duration: Duration.zero);
+    await _pumpPaintWork(tester);
+    controller.releaseCachedResources(keepVisible: false);
+    await _pumpPaintWork(tester);
+    final settled = pages.map((page) => page.renderControl.renderCount).toList();
+    expect(pages[6].renderControl.renderCount, greaterThan(0));
+    expect(pages[7].renderControl.renderCount, greaterThan(0));
+    expect(pages.any((page) => page.renderControl.priorities.contains(PdfPageRenderPriority.low)), isTrue);
+    await _pumpPaintWork(tester);
+    expect(pages.map((page) => page.renderControl.renderCount), settled);
+    expect(budget.pendingBytes, external.bytes);
+    expect(budget.estimatedBytes, lessThanOrEqualTo(budget.maximumBytes));
+
+    external.dispose();
+    await _pumpPaintWork(tester);
+    final afterRelease = pages.map((page) => page.renderControl.renderCount).toList();
+    expect(afterRelease.reduce((a, b) => a + b), greaterThan(settled.reduce((a, b) => a + b)));
+    await _pumpPaintWork(tester);
+    expect(pages.map((page) => page.renderControl.renderCount), afterRelease);
+
+    await controller.goTo(controller.calcMatrixFor(const Offset(603, 4480), zoom: 1), duration: Duration.zero);
+    await _pumpPaintWork(tester);
+    expect(pages[10].renderControl.priorities.last, PdfPageRenderPriority.high);
+    expect(pages[11].renderControl.priorities.last, PdfPageRenderPriority.high);
+    final afterNavigation = pages.map((page) => page.renderControl.renderCount).toList();
+    await _pumpPaintWork(tester);
+    expect(pages.map((page) => page.renderControl.renderCount), afterNavigation);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));

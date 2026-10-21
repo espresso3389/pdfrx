@@ -2306,8 +2306,13 @@ class _PdfViewerState extends State<PdfViewer>
         }
         final prev = cache.pageImages[page.pageNumber];
         if (prev != null && !prev.isDirty && prev.scale == scale) return;
+        final bytes = (max(1, width.toInt()) * max(1, height.toInt()) * 12).toInt();
+        // Prefetch must not evict images that the next paint would request again.
+        if (priority == PdfPageRenderPriority.low && _imageBudget.estimatedBytes + bytes > _imageBudget.maximumBytes) {
+          return;
+        }
         final reservation = _imageBudget.tryReserve(
-          (max(1, width.toInt()) * max(1, height.toInt()) * 12).toInt(),
+          bytes,
           allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _imageBudget.pendingBytes == 0,
         );
         if (reservation == null) return;
