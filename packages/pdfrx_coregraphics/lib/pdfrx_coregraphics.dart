@@ -619,6 +619,7 @@ class _CoreGraphicsPdfPage extends PdfPage with PdfPageLinkCache {
         PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
+    PdfPageRenderPriority? priority,
   }) async {
     if (_document._disposed) {
       return null;

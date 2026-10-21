@@ -51,6 +51,8 @@ abstract class PdfPage {
   /// - [annotationRenderingMode] controls to render annotations or not. The default is [PdfAnnotationRenderingMode.annotationAndForms].
   /// - [flags] is used to specify additional rendering flags. The default is [PdfPageRenderFlags.none].
   /// - [cancellationToken] can be used to cancel the rendering process. It must be created by [createCancellationToken].
+  /// - [priority] controls scheduling on backends that support it. When omitted, rendering is high priority, or low
+  ///   priority inside `Pdfrx.runAsBackgroundWork`. It does not change image quality.
   ///
   /// If the page is not loaded yet (progressive loading case only), the function renders empty page with specified
   /// background color.
@@ -78,6 +80,7 @@ abstract class PdfPage {
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
+    PdfPageRenderPriority? priority,
   });
 
   /// Create [PdfPageRenderCancellationToken] to cancel the rendering process.
@@ -366,4 +369,16 @@ abstract class PdfPageRenderCancellationToken {
 
   /// Determine whether the rendering process is canceled or not.
   bool get isCanceled;
+}
+
+/// Scheduling priority for page rendering. Backends may treat this as a hint.
+enum PdfPageRenderPriority {
+  /// Content the user is waiting to see.
+  high,
+
+  /// Work that can wait for visible content.
+  normal,
+
+  /// Speculative work such as prefetching and thumbnails.
+  low,
 }

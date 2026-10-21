@@ -1799,6 +1799,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
+    PdfPageRenderPriority? priority,
   }) async {
     if (cancellationToken != null && cancellationToken is! PdfPageRenderCancellationTokenPdfium) {
       throw ArgumentError(
@@ -1902,7 +1903,15 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
             formInfo: document.formInfo.address,
             cancelFlag: cancelFlag.address,
           ),
-          priority: BackgroundWorkerPriority.high,
+          priority: switch (priority) {
+            PdfPageRenderPriority.high => BackgroundWorkerPriority.high,
+            PdfPageRenderPriority.normal => BackgroundWorkerPriority.normal,
+            PdfPageRenderPriority.low => BackgroundWorkerPriority.low,
+            null =>
+              Zone.current[Pdfrx.backgroundWorkZoneKey] == true
+                  ? BackgroundWorkerPriority.low
+                  : BackgroundWorkerPriority.high,
+          },
         );
       });
 
