@@ -87,6 +87,8 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   bool _isSearching = false;
   StreamSubscription<PdfDocumentEvent>? _documentEventSubscription;
   PdfDocument? _observedDocument;
+  final _searchedPages = <int>{};
+  Completer<void> _cancelLoading = Completer<void>();
 
   /// The current match index in [matches] if available.
   int? get currentIndex => _currentIndex;
@@ -194,6 +196,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _cancelTextSearch();
     _matches = const [];
     _matchesPageStartIndices = const [];
+    _searchedPages.clear();
     _searchingPageNumber = null;
     _currentIndex = null;
     _currentMatch = null;
@@ -206,6 +209,8 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   void _cancelTextSearch() {
     _searchTextTimer?.cancel();
+    _cancelLoading.complete();
+    _cancelLoading = Completer<void>();
     ++_searchSession;
   }
 
@@ -222,6 +227,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
       _currentIndex = null;
       _currentMatch = null;
       _totalPageCount = document.pages.length;
+      _searchedPages.clear();
       if (document.pages.isEmpty) {
         _matches = const [];
         _matchesPageStartIndices = const [];
@@ -233,8 +239,10 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
         _searchingPageNumber = page.pageNumber;
         if (searchSession != _searchSession) return;
         textMatchesPageStartIndex.add(textMatches.length);
+        if (page.isLoaded) _searchedPages.add(page.pageNumber);
         final pageText = await loadText(pageNumber: page.pageNumber);
         if (searchSession != _searchSession) return;
+        _searchedPages.add(page.pageNumber);
         if (pageText != null) {
           await for (final f in pageText.allMatches(condition.pattern, caseInsensitive: condition.caseInsensitive)) {
             if (searchSession != _searchSession) return;
@@ -268,7 +276,9 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _documentEventSubscription?.cancel();
     _observedDocument = document;
     _documentEventSubscription = document?.events.listen((event) {
-      if (event is PdfDocumentPageStatusChangedEvent && _lastSearchCondition != null) {
+      if (event is PdfDocumentPageStatusChangedEvent &&
+          _lastSearchCondition != null &&
+          event.changes.keys.any(_searchedPages.contains)) {
         _restartSearch();
       }
     });
@@ -289,8 +299,13 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   /// Just a helper function to load the text of a page.
   Future<PdfPageText?> loadText({required int pageNumber}) async {
-    return await controller?.useDocument((document) async {
-      return PdfPageTextCache.forDocument(document).load(document.pages[pageNumber - 1]);
+    final cancelLoading = _cancelLoading.future;
+    return await controller?.useDocument<PdfPageText?>((document) async {
+      final page = document.pages[pageNumber - 1];
+      final loaded = page.isLoaded ? page : await page.waitForLoaded(cancelLoading: cancelLoading);
+      if (loaded == null) return null;
+      if (_lastSearchCondition != null) _searchedPages.add(pageNumber);
+      return PdfPageTextCache.forDocument(document).load(loaded);
     });
   }
 

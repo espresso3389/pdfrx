@@ -36,12 +36,23 @@ class _FakeDocument extends Fake implements PdfDocument {
   Stream<PdfDocumentEvent> get events => eventsController.stream;
 }
 
+class _UnloadedPage extends _FakePage {
+  _UnloadedPage(this.document, super.pageNumber);
+
+  @override
+  final PdfDocument document;
+
+  @override
+  bool get isLoaded => false;
+}
+
 class _FakeController extends PdfViewerController {
   _FakeController(this.fakeDocument);
 
   _FakeDocument fakeDocument;
   int currentPageSet = 0;
   Completer<void>? documentReady;
+  int activeTasks = 0;
 
   @override
   bool get isReady => true;
@@ -71,8 +82,13 @@ class _FakeController extends PdfViewerController {
     bool ensureLoaded = true,
     Completer<dynamic>? cancelLoading,
   }) async {
-    await documentReady?.future;
-    return task(fakeDocument);
+    activeTasks++;
+    try {
+      await documentReady?.future;
+      return await task(fakeDocument);
+    } finally {
+      activeTasks--;
+    }
   }
 }
 
@@ -99,6 +115,43 @@ class _GatedSearcher extends PdfTextSearcher {
 }
 
 void main() {
+  test('progressive measurement continues the same search when a placeholder becomes available', () async {
+    final document = _FakeDocument(2, texts: {1: 'word'});
+    document.pages[1] = _UnloadedPage(document, 2);
+    final searcher = PdfTextSearchSession(_FakeController(document));
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    final session = searcher.searchSession;
+    await pumpEventQueue();
+    expect(searcher.matches, hasLength(1));
+    expect(searcher.isSearching, isTrue);
+    final loaded = _FakePage(2, text: 'word');
+    document.pages[1] = loaded;
+    document.eventsController.add(
+      PdfDocumentPageStatusChangedEvent(document, changes: {2: PdfPageStatusChange.modified(page: loaded)}),
+    );
+    await pumpEventQueue();
+    expect(searcher.searchSession, session);
+    expect(searcher.matches.map((match) => match.pageNumber), [1, 2]);
+    expect(searcher.isSearching, isFalse);
+  });
+
+  test('stopping a search releases document references while waiting for an unmeasured page', () async {
+    final document = _FakeDocument(2, texts: {1: 'word'});
+    document.pages[1] = _UnloadedPage(document, 2);
+    final controller = _FakeController(document);
+    final searcher = PdfTextSearchSession(controller);
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    expect(controller.activeTasks, greaterThan(0));
+    searcher.stopTextSearch();
+    await pumpEventQueue();
+    expect(controller.activeTasks, 0);
+    expect(searcher.matches, hasLength(1));
+    expect(searcher.isSearching, isFalse);
+  });
+
   testWidgets('editing a previously unmatched page restarts lightweight search', (tester) async {
     final document = _FakeDocument(1, texts: {1: 'other'});
     final searcher = PdfTextSearchSession(_FakeController(document));
