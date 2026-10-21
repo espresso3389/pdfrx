@@ -51,6 +51,7 @@ class _FakeController extends PdfViewerController {
 
   _FakeDocument fakeDocument;
   int currentPageSet = 0;
+  int navigationCount = 0;
   Completer<void>? documentReady;
   int activeTasks = 0;
 
@@ -74,7 +75,10 @@ class _FakeController extends PdfViewerController {
   }) async {}
 
   @override
-  void setCurrentPageNumber(int pageNumber) => currentPageSet = pageNumber;
+  void setCurrentPageNumber(int pageNumber) {
+    currentPageSet = pageNumber;
+    navigationCount++;
+  }
 
   @override
   FutureOr<T?> useDocument<T>(
@@ -115,6 +119,145 @@ class _GatedSearcher extends PdfTextSearcher {
 }
 
 void main() {
+  testWidgets('inactive search queues only the latest query and does not run a debounce timer', (tester) async {
+    final document = _FakeDocument(1, texts: {1: 'alpha beta beta'});
+    final searcher = PdfTextSearchSession(_FakeController(document))..isActive = false;
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('alpha', goToFirstMatch: false);
+    searcher.startTextSearch('beta', goToFirstMatch: false, searchImmediately: true);
+    await tester.pump(const Duration(seconds: 1));
+    expect((document.pages.first as _FakePage).loads, 0);
+    expect(searcher.isSearching, isFalse);
+    searcher.isActive = true;
+    await tester.pump();
+    expect(searcher.matches.map((match) => match.text), ['beta', 'beta']);
+  });
+
+  test('resuming continues completed pages and preserves the selected match without navigating', () async {
+    final document = _FakeDocument(2, texts: {1: 'word'});
+    document.pages[1] = _UnloadedPage(document, 2);
+    final controller = _FakeController(document);
+    final searcher = PdfTextSearchSession(controller);
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', searchImmediately: true);
+    await pumpEventQueue();
+    final first = searcher.matches.first;
+    expect(searcher.currentIndex, 0);
+    expect(controller.navigationCount, 1);
+    searcher.isActive = false;
+    await pumpEventQueue();
+    expect(controller.activeTasks, 0);
+    expect(searcher.matches.single, same(first));
+    document.pages[1] = _FakePage(2, text: 'word');
+    searcher.isActive = true;
+    await pumpEventQueue();
+    expect(searcher.matches, hasLength(2));
+    expect(searcher.matches.first, same(first));
+    expect(searcher.currentIndex, 0);
+    expect(controller.navigationCount, 1);
+    expect((document.pages.first as _FakePage).loads, 1);
+  });
+
+  testWidgets('hiding preserves a debounced replacement instead of resuming the previous query', (tester) async {
+    final searcher = PdfTextSearchSession(_FakeController(_FakeDocument(1, texts: {1: 'alpha beta beta'})));
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('alpha', goToFirstMatch: false, searchImmediately: true);
+    await tester.pump();
+    searcher.startTextSearch('beta', goToFirstMatch: false);
+    searcher.isActive = false;
+    await tester.pump(const Duration(seconds: 1));
+    expect(searcher.matches.single.text, 'alpha');
+    searcher.isActive = true;
+    await tester.pump();
+    expect(searcher.matches.map((match) => match.text), ['beta', 'beta']);
+  });
+
+  for (final action in ['stop', 'reset', 'dispose']) {
+    test('$action while inactive discards queued and paused searches', () async {
+      final document = _FakeDocument(1, texts: {1: 'word'});
+      final searcher = PdfTextSearchSession(_FakeController(document))..isActive = false;
+      addTearDown(searcher.dispose);
+      searcher.startTextSearch('word', searchImmediately: true);
+      switch (action) {
+        case 'stop':
+          searcher.stopTextSearch();
+        case 'reset':
+          searcher.resetTextSearch();
+        case 'dispose':
+          searcher.dispose();
+      }
+      searcher.isActive = true;
+      await pumpEventQueue();
+      expect((document.pages.first as _FakePage).loads, 0);
+      expect(searcher.matches, isEmpty);
+      expect(searcher.isSearching, isFalse);
+    });
+
+    test('$action while paused does not restart a partially completed scan', () async {
+      final document = _FakeDocument(2, texts: {1: 'word'});
+      document.pages[1] = _UnloadedPage(document, 2);
+      final searcher = PdfTextSearchSession(_FakeController(document));
+      addTearDown(searcher.dispose);
+      searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+      await pumpEventQueue();
+      searcher.isActive = false;
+      switch (action) {
+        case 'stop':
+          searcher.stopTextSearch();
+        case 'reset':
+          searcher.resetTextSearch();
+        case 'dispose':
+          searcher.dispose();
+      }
+      final second = _FakePage(2, text: 'word');
+      document.pages[1] = second;
+      searcher.isActive = true;
+      await pumpEventQueue();
+      expect(second.loads, 0);
+      expect(searcher.matches, hasLength(action == 'stop' ? 1 : 0));
+      expect(searcher.isSearching, isFalse);
+    });
+  }
+
+  testWidgets('document changes while inactive queue a fresh scan without navigating', (tester) async {
+    final document = _FakeDocument(1, texts: {1: 'word'});
+    final controller = _FakeController(document);
+    final searcher = PdfTextSearchSession(controller);
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', searchImmediately: true);
+    await tester.pump();
+    expect(controller.navigationCount, 1);
+    searcher.isActive = false;
+    final changed = _FakePage(1, text: 'word word');
+    document.pages[0] = changed;
+    document.eventsController.add(
+      PdfDocumentPageStatusChangedEvent(document, changes: {1: PdfPageStatusChange.modified(page: changed)}),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(changed.loads, 0);
+    searcher.isActive = true;
+    await tester.pump();
+    expect(searcher.matches, hasLength(2));
+    expect(controller.navigationCount, 1);
+  });
+
+  test('pausing a replacement before its document becomes ready does not reuse previous matches', () async {
+    final controller = _FakeController(_FakeDocument(1, texts: {1: 'alpha beta beta'}));
+    final searcher = PdfTextSearchSession(controller);
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('alpha', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    controller.documentReady = Completer<void>();
+    searcher.startTextSearch('beta', goToFirstMatch: false, searchImmediately: true);
+    searcher.isActive = false;
+    controller.documentReady!.complete();
+    await pumpEventQueue();
+    searcher.isActive = true;
+    await pumpEventQueue();
+    expect(searcher.matches.map((match) => match.text), ['beta', 'beta']);
+  });
+
   test('progressive measurement continues the same search when a placeholder becomes available', () async {
     final document = _FakeDocument(2, texts: {1: 'word'});
     document.pages[1] = _UnloadedPage(document, 2);
