@@ -283,8 +283,9 @@ class _PdfViewerState extends State<PdfViewer>
   // Changes to the stream rebuilds the viewer
   final _updateStream = BehaviorSubject<Matrix4>();
 
-  /// page-number keyed cache of extracted text
-  final _textCache = <int, PdfPageText?>{};
+  PdfPageTextCache? _textCache;
+  PdfPageTextCacheLease? _textCacheLease;
+  final _pendingTextLoads = <int, Future<PdfPageText?>>{};
   Timer? _textSelectionChangedDebounceTimer;
   final double _hitTestMargin = 3.0;
 
@@ -463,7 +464,10 @@ class _PdfViewerState extends State<PdfViewer>
     _imageCache.releaseAllImages();
     _magnifierImageCache.releaseAllImages();
     _canvasLinkPainter.resetAll();
-    _textCache.clear();
+    _textCacheLease?.dispose();
+    _textCacheLease = null;
+    _textCache = null;
+    _pendingTextLoads.clear();
     _clearTextSelections(invalidate: false);
     _pagesBeingMeasured.clear();
     _measurementFailures.clear();
@@ -492,6 +496,8 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     _document = document;
+    _textCache = PdfPageTextCache.forDocument(document);
+    _textCacheLease = _textCache!.createLease();
 
     _controller ??= widget.controller ?? PdfViewerController();
     _controller!._attach(this);
@@ -588,6 +594,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   void dispose() {
+    _textCacheLease?.dispose();
     _selectionHandleTicker?.dispose();
     SemanticsBinding.instance.removeSemanticsEnabledListener(_onSemanticsEnabledChanged);
     _interactionDelegate?.dispose();
@@ -646,7 +653,7 @@ class _PdfViewerState extends State<PdfViewer>
         _imageCache.makeCacheImageForPageDirty(change.key, page: change.value.page);
         _magnifierImageCache.makeCacheImageForPageDirty(change.key, page: change.value.page);
         _canvasLinkPainter.releaseLinksForPage(change.key);
-        _textCache.remove(change.key);
+        _textCache?.invalidate(change.key);
       }
       // Only drop the selection if one of the changed pages is actually part of it;
       // otherwise incremental loading of unrelated pages would keep clearing it.
@@ -1641,6 +1648,7 @@ class _PdfViewerState extends State<PdfViewer>
       widget.params.forceEnableTextSemantics || SemanticsBinding.instance.semanticsEnabled;
 
   void _onSelectionChange() {
+    _updateTextCachePins();
     _textSelectionChangedDebounceTimer?.cancel();
     _textSelectionChangedDebounceTimer = Timer(const Duration(milliseconds: 300), () {
       if (!mounted) return;
@@ -1667,6 +1675,7 @@ class _PdfViewerState extends State<PdfViewer>
   /// [_CustomPainter] calls the function to paint PDF pages.
   void _paintPages(ui.Canvas canvas, ui.Size size) {
     if (!_initialized) return;
+    _updateTextCachePins();
     _paintPagesCustom(
       canvas,
       cache: _imageCache,
@@ -1677,6 +1686,21 @@ class _PdfViewerState extends State<PdfViewer>
       enableLowResolutionPagePreview: widget.params.behaviorControlParams.enableLowResolutionPagePreview,
       filterQuality: FilterQuality.low,
     );
+  }
+
+  void _updateTextCachePins() {
+    final pinned = <int>{};
+    if (_initialized && _pageLayoutIndex != null && _viewSize != null) {
+      pinned.addAll(_pageLayoutIndex!.intersecting(_visibleRect).map((i) => i + 1));
+    }
+    final a = _selA?.text.pageNumber;
+    final b = _selB?.text.pageNumber;
+    if (a != null && b != null) {
+      for (var n = min(a, b); n <= max(a, b); n++) {
+        pinned.add(n);
+      }
+    }
+    _textCacheLease?.updatePinnedPages(pinned);
   }
 
   void _paintPagesCustom(
@@ -1983,7 +2007,8 @@ class _PdfViewerState extends State<PdfViewer>
     if (document == null || pageNumber > document.pages.length) return null;
     final page = document.pages[pageNumber - 1];
     if (!page.isLoaded) return null;
-    if (_textCache.containsKey(pageNumber)) return _textCache[pageNumber];
+    final text = _textCache?.get(pageNumber);
+    if (text != null) return text;
     if (onTextLoaded == null && invalidate) {
       onTextLoaded = _invalidate;
     }
@@ -1991,41 +2016,42 @@ class _PdfViewerState extends State<PdfViewer>
     return null;
   }
 
-  Future<PdfPageText?> _loadTextAsync(int pageNumber, {void Function()? onTextLoaded}) async {
+  Future<PdfPageText?> _loadTextAsync(int pageNumber, {void Function()? onTextLoaded}) {
     final document = _document;
-    if (document == null || pageNumber > document.pages.length) return null;
+    final cache = _textCache;
+    if (document == null || cache == null || pageNumber > document.pages.length) return Future.value();
     final page = document.pages[pageNumber - 1];
-    if (!page.isLoaded) return null;
-    if (_textCache.containsKey(pageNumber)) return _textCache[pageNumber]!;
-    return await synchronized(() async {
-      if (_textCache.containsKey(pageNumber)) return _textCache[pageNumber]!;
-      // The document may be unloaded or replaced while this closure waits in
-      // the synchronized queue (e.g. the tab/page was closed or the widget
-      // switched documents); bail out instead of crashing on _document!.
-      final document = _document;
-      if (document == null || !mounted || pageNumber > document.pages.length) return null;
-      final page = document.pages[pageNumber - 1];
-      if (!page.isLoaded) return null;
-      // Paint asks for this for every measured page in the cache extent. On a
-      // scanned document it parses the whole content stream -- the same bytes
-      // and the same worker isolate the render needs -- so trace what it costs.
-      final sw = Pdfrx.debugLazyLoading ? (Stopwatch()..start()) : null;
-      final bytesAtStart = Pdfrx.debugBytesFetched;
-      final text = await page.loadStructuredText();
-      if (sw != null) {
-        final fetched = Pdfrx.debugBytesFetched - bytesAtStart;
-        pdfrxLazyLog(
-          '#$_viewerInstanceId TEXT p$pageNumber loaded ${text.fragments.length} fragment(s) '
-          'in ${sw.elapsedMilliseconds}ms  '
-          '${fetched > 0 ? 'NETWORK ${(fetched / 1024).toStringAsFixed(0)}KB' : 'cache hit'}',
-        );
-      }
-      _textCache[pageNumber] = text;
-      if (onTextLoaded != null) {
-        onTextLoaded();
-      }
-      return text;
-    });
+    if (!page.isLoaded) return Future.value();
+    final text = cache.get(pageNumber);
+    if (text != null) return Future.value(text);
+    final pending = _pendingTextLoads[pageNumber];
+    if (pending != null) return pending;
+    late final Future<PdfPageText?> future;
+    future =
+        synchronized(() async {
+          if (!mounted || document != _document || pageNumber > document.pages.length) return null;
+          final cached = cache.get(pageNumber);
+          if (cached != null) return cached;
+          final page = document.pages[pageNumber - 1];
+          if (!page.isLoaded) return null;
+          final sw = Pdfrx.debugLazyLoading ? (Stopwatch()..start()) : null;
+          final bytesAtStart = Pdfrx.debugBytesFetched;
+          final text = await cache.load(page);
+          if (!mounted || document != _document || !identical(page, document.pages[pageNumber - 1])) return null;
+          if (sw != null) {
+            final fetched = Pdfrx.debugBytesFetched - bytesAtStart;
+            pdfrxLazyLog(
+              '#$_viewerInstanceId TEXT p$pageNumber loaded ${text.fragments.length} fragment(s) '
+              'in ${sw.elapsedMilliseconds}ms  '
+              '${fetched > 0 ? 'NETWORK ${(fetched / 1024).toStringAsFixed(0)}KB' : 'cache hit'}',
+            );
+          }
+          onTextLoaded?.call();
+          return text;
+        }).whenComplete(() {
+          if (identical(_pendingTextLoads[pageNumber], future)) _pendingTextLoads.remove(pageNumber);
+        });
+    return _pendingTextLoads[pageNumber] = future;
   }
 
   bool _hitTestForTextSelection(ui.Offset position) {
@@ -3981,6 +4007,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   Future<List<PdfPageTextRange>> getSelectedTextRanges() async {
+    _updateTextCachePins();
     final a = _selA;
     final b = _selB;
     if (a == null || b == null) {
@@ -4018,9 +4045,9 @@ class _PdfViewerState extends State<PdfViewer>
     final selections = <PdfPageTextRange>[first.text.getRangeFromAB(first.index, first.text.charRects.length - 1)];
 
     for (var i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
-      if (!_textCache.containsKey(i)) return null;
-      final text = _textCache[i];
-      if (text == null || text.fullText.isEmpty) continue;
+      final text = _textCache?.get(i);
+      if (text == null) return null;
+      if (text.fullText.isEmpty) continue;
       selections.add(text.getRangeFromAB(0, text.charRects.length - 1));
     }
 

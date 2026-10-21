@@ -146,6 +146,26 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('viewers of the same document share extracted page text', (tester) async {
+    final document = _TestDocument(1);
+    addTearDown(document.dispose);
+    final page = document.pages.single as _TestPage;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            for (var i = 0; i < 2; i++) Expanded(child: PdfViewer(PdfDocumentRefDirect(document, autoDispose: false))),
+          ],
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    expect(page.renderControl.textLoadCount, 1);
+    expect(PdfPageTextCache.forDocument(document).length, 1);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('link hover color changes on entry, between links, and on exit', (tester) async {
     final document = _TestDocument(1);
     addTearDown(document.dispose);
@@ -1466,7 +1486,10 @@ class _TestPage implements PdfPage {
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async => links;
 
   @override
-  Future<PdfPageRawText?> loadText() async => null;
+  Future<PdfPageRawText?> loadText() async {
+    renderControl.textLoadCount++;
+    return null;
+  }
 
   @override
   Future<PdfImage?> render({
@@ -1509,6 +1532,7 @@ class _TestPageRenderControl {
   }
 
   int renderCount = 0;
+  int textLoadCount = 0;
 }
 
 class _TestCancellationToken implements PdfPageRenderCancellationToken {
