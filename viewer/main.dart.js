@@ -43193,7 +43193,7 @@ $2$enabled$hintMaxLines(a,b){return this.F(this,A.E("call","$2$enabled$hintMaxLi
 $1$extentOffset(a){return this.F(this,A.E("call","$1$extentOffset",0,[a],["extentOffset"],0))},
 $3$composing$selection$text(a,b,c){return this.F(this,A.E("call","$3$composing$selection$text",0,[a,b,c],["composing","selection","text"],0))},
 $9$firstAttemptByEmptyPassword$headers$passwordProvider$preferRangeAccess$progressCallback$timeout$useProgressiveLoading$withCredentials(a,b,c,d,e,f,g,h,i){return this.F(this,A.E("call","$9$firstAttemptByEmptyPassword$headers$passwordProvider$preferRangeAccess$progressCallback$timeout$useProgressiveLoading$withCredentials",0,[a,b,c,d,e,f,g,h,i],["firstAttemptByEmptyPassword","headers","passwordProvider","preferRangeAccess","progressCallback","timeout","useProgressiveLoading","withCredentials"],0))},
-$11$annotationRenderingMode$backgroundColor$cancellationToken$flags$fullHeight$fullWidth$height$rotationOverride$width$x$y(a,b,c,d,e,f,g,h,i,j,k){return this.F(this,A.E("call","$11$annotationRenderingMode$backgroundColor$cancellationToken$flags$fullHeight$fullWidth$height$rotationOverride$width$x$y",0,[a,b,c,d,e,f,g,h,i,j,k],["annotationRenderingMode","backgroundColor","cancellationToken","flags","fullHeight","fullWidth","height","rotationOverride","width","x","y"],0))},
+$12$annotationRenderingMode$backgroundColor$cancellationToken$flags$fullHeight$fullWidth$height$priority$rotationOverride$width$x$y(a,b,c,d,e,f,g,h,i,j,k,l){return this.F(this,A.E("call","$12$annotationRenderingMode$backgroundColor$cancellationToken$flags$fullHeight$fullWidth$height$priority$rotationOverride$width$x$y",0,[a,b,c,d,e,f,g,h,i,j,k,l],["annotationRenderingMode","backgroundColor","cancellationToken","flags","fullHeight","fullWidth","height","priority","rotationOverride","width","x","y"],0))},
 $3$acceptedTypeGroups$confirmButtonText$initialDirectory(a,b,c){return this.F(this,A.E("call","$3$acceptedTypeGroups$confirmButtonText$initialDirectory",0,[a,b,c],["acceptedTypeGroups","confirmButtonText","initialDirectory"],0))},
 $8$allowDataOwnershipTransfer$firstAttemptByEmptyPassword$maxSizeToCacheOnMemory$onDispose$passwordProvider$sourceName$useProgressiveLoading(a,b,c,d,e,f,g,h){return this.F(this,A.E("call","$8$allowDataOwnershipTransfer$firstAttemptByEmptyPassword$maxSizeToCacheOnMemory$onDispose$passwordProvider$sourceName$useProgressiveLoading",0,[a,b,c,d,e,f,g,h],["allowDataOwnershipTransfer","firstAttemptByEmptyPassword","maxSizeToCacheOnMemory","onDispose","passwordProvider","sourceName","useProgressiveLoading"],0))},
 $1$pageNumber(a){return this.F(this,A.E("call","$1$pageNumber",0,[a],["pageNumber"],0))},
@@ -90049,28 +90049,30 @@ s=1
 break
 case 1:return A.v(q,r)}})
 return A.w($async$rN,r)},
-k6(a,b,c,d,e,f,g,h,i,j,k){return this.aye(a,b,c,d,e,f,g,h,i,j,k)},
-a13(a,b,c,d,e,f){return this.k6(a,b,c,d,e,f,null,null,null,0,0)},
-a11(a,b,c,d,e,f,g,h,i,j){return this.k6(a,b,c,d,e,f,g,null,h,i,j)},
-a12(a,b,c,d){return this.k6(B.dq,null,a,0,b,c,null,d,null,0,0)},
-aye(a,b,c,d,e,f,g,h,i,a0,a1){var s=0,r=A.x(t.Kb),q,p=this,o,n,m,l,k,j
-var $async$k6=A.r(function(a2,a3){if(a2===1)return A.u(a3,r)
+k6(a,b,c,d,e,f,g,h,i,j,k,l){return this.aye(a,b,c,d,e,f,g,h,i,j,k,l)},
+a13(a,b,c,d,e,f){var s=null
+return this.k6(a,b,c,d,e,f,s,s,s,s,0,0)},
+a11(a,b,c,d,e,f,g,h,i,j){return this.k6(a,b,c,d,e,f,g,null,null,h,i,j)},
+a12(a,b,c,d){var s=null
+return this.k6(B.dq,s,a,0,b,c,s,s,d,s,0,0)},
+aye(a,b,c,d,e,f,g,h,i,a0,a1,a2){var s=0,r=A.x(t.Kb),q,p=this,o,n,m,l,k,j
+var $async$k6=A.r(function(a3,a4){if(a3===1)return A.u(a4,r)
 for(;;)switch(s){case 0:j=p.a
 if(j.d){q=null
 s=1
-break}if(i==null)i=B.c.cT(f)
+break}if(a0==null)a0=B.c.cT(f)
 if(g==null)g=B.c.cT(e)
 if(b==null)b=4294967295
 o=j.b
 n=o.h(0,"docHandle")
 s=3
-return A.n(A.fB("renderPage",A.a9(["docHandle",n,"pageIndex",p.b-1,"x",a0,"y",a1,"width",i,"height",g,"fullWidth",f,"fullHeight",e,"backgroundColor",b,"rotation",0,"annotationRenderingMode",a.a,"flags",d,"formHandle",o.h(0,"formHandle")],t.X,t.z),null),$async$k6)
-case 3:m=a3
+return A.n(A.fB("renderPage",A.a9(["docHandle",n,"pageIndex",p.b-1,"x",a1,"y",a2,"width",a0,"height",g,"fullWidth",f,"fullHeight",e,"backgroundColor",b,"rotation",0,"annotationRenderingMode",a.a,"flags",d,"formHandle",o.h(0,"formHandle")],t.X,t.z),null),$async$k6)
+case 3:m=a4
 l=t.pI.a(m.h(0,"imageData"))
 o=J.kB(l)
 k=J.iB(B.al.gbF(o.IF(l)),0,o.ga_Q(l))
 j.xb(m.h(0,"missingFonts"))
-q=new A.NK(i,g,k)
+q=new A.NK(a0,g,k)
 s=1
 break
 case 1:return A.v(q,r)}})
@@ -94702,10 +94704,12 @@ gaB(){return this.a.gaB()},
 giu(){return this.a.giu()},
 L2(a,b){return this.a.L2(a,!0)},
 rN(){return this.a.rN()},
-k6(a,b,c,d,e,f,g,h,i,j,k){return this.a.k6(a,b,c,d,e,f,g,h,i,j,k)},
-a13(a,b,c,d,e,f){return this.k6(a,b,c,d,e,f,null,null,null,0,0)},
-a11(a,b,c,d,e,f,g,h,i,j){return this.k6(a,b,c,d,e,f,g,null,h,i,j)},
-a12(a,b,c,d){return this.k6(B.dq,null,a,0,b,c,null,d,null,0,0)},
+k6(a,b,c,d,e,f,g,h,i,j,k,l){return this.a.k6(a,b,c,d,e,f,g,h,i,j,k,l)},
+a13(a,b,c,d,e,f){var s=null
+return this.k6(a,b,c,d,e,f,s,s,s,s,0,0)},
+a11(a,b,c,d,e,f,g,h,i,j){return this.k6(a,b,c,d,e,f,g,null,null,h,i,j)},
+a12(a,b,c,d){var s=null
+return this.k6(B.dq,s,a,0,b,c,s,s,d,s,0,0)},
 $icl:1,
 gba(){return this.b}}
 A.acl.prototype={
