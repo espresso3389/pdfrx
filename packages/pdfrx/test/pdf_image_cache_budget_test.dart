@@ -2,6 +2,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 void main() {
+  test('capacity notifications are deferred, coalesced and safe after disposal', () async {
+    final budget = PdfImageCacheBudget(maximumBytes: 100);
+    var notifications = 0;
+    budget.addListener(() => notifications++);
+    final first = budget.tryReserve(40)!;
+    final second = budget.tryReserve(40)!;
+    first.dispose();
+    second.dispose();
+    expect(notifications, 0);
+    await Future<void>.delayed(Duration.zero);
+    expect(notifications, 1);
+    budget.maximumBytes = 80;
+    budget.dispose();
+    await Future<void>.delayed(Duration.zero);
+    expect(notifications, 1);
+    expect(budget.tryReserve(1), isNull);
+  });
   test('an oversized background request leaves useful cached entries intact', () {
     final budget = PdfImageCacheBudget(maximumBytes: 100);
     final entry = budget.tryReserve(50)!.commit(retainedBytes: 50, onEvict: () => fail('Useful entry was evicted'))!;
