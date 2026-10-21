@@ -166,6 +166,73 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('an initially hidden viewer defers page work and resumes at the same page', (tester) async {
+    final document = _TestDocument(9);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    Widget viewer(bool visible) => MaterialApp(
+      home: PdfViewer(
+        PdfDocumentRefDirect(document, autoDispose: false),
+        controller: controller,
+        initialPageNumber: 5,
+        params: PdfViewerParams(isVisible: visible),
+      ),
+    );
+    await tester.pumpWidget(viewer(false));
+    await _pumpPaintWork(tester);
+    expect(controller.isReady, isTrue);
+    expect(document.reloadRequests, isEmpty);
+    expect(document.renderOrder, isEmpty);
+    expect(document.progressiveLoadingStarted, isFalse);
+    await tester.pumpWidget(viewer(true));
+    await _pumpPaintWork(tester);
+    expect(document.renderOrder, contains(5));
+    expect(controller.pageNumber, 5);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('hiding cancels in-flight renders and prevents late text and links from repopulating', (tester) async {
+    final document = _TestDocument(1);
+    addTearDown(document.dispose);
+    final control = (document.pages.single as _TestPage).renderControl;
+    control.block();
+    control.textGate = Completer<void>();
+    control.linkGate = Completer<void>();
+    Widget viewer(bool visible) => MaterialApp(
+      home: PdfViewer(
+        PdfDocumentRefDirect(document, autoDispose: false),
+        params: PdfViewerParams(
+          isVisible: visible,
+          getPageRenderingScale: _largePreviewScale,
+          linkHandlerParams: PdfLinkHandlerParams(onLinkTap: (_) {}),
+        ),
+      ),
+    );
+    await tester.pumpWidget(viewer(true));
+    await _pumpPaintWork(tester);
+    expect(control.renderCount, 1);
+    expect(control.textLoadCount, 1);
+    expect(control.linkLoadCount, 1);
+    await tester.pumpWidget(viewer(false));
+    expect(control.tokens.every((token) => token.isCanceled), isTrue);
+    control.release();
+    control.textGate!.complete();
+    control.linkGate!.complete();
+    await _pumpPaintWork(tester);
+    expect(PdfPageTextCache.forDocument(document).length, 0);
+    expect(control.renderCount, 1);
+    expect(control.textLoadCount, 1);
+    expect(control.linkLoadCount, 1);
+    await tester.pumpWidget(viewer(true));
+    await _pumpPaintWork(tester);
+    expect(control.renderCount, greaterThan(1));
+    expect(control.textLoadCount, 2);
+    expect(control.linkLoadCount, 2);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('link hover color changes on entry, between links, and on exit', (tester) async {
     final document = _TestDocument(1);
     addTearDown(document.dispose);
@@ -1483,11 +1550,16 @@ class _TestPage implements PdfPage {
   PdfPageRenderCancellationToken createCancellationToken() => _TestCancellationToken();
 
   @override
-  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async => links;
+  Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async {
+    renderControl.linkLoadCount++;
+    await renderControl.linkGate?.future;
+    return links;
+  }
 
   @override
   Future<PdfPageRawText?> loadText() async {
     renderControl.textLoadCount++;
+    await renderControl.textGate?.future;
     return null;
   }
 
@@ -1533,6 +1605,9 @@ class _TestPageRenderControl {
 
   int renderCount = 0;
   int textLoadCount = 0;
+  int linkLoadCount = 0;
+  Completer<void>? textGate;
+  Completer<void>? linkGate;
 }
 
 class _TestCancellationToken implements PdfPageRenderCancellationToken {
