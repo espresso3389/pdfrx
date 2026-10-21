@@ -216,6 +216,19 @@ void main() {
       '12:30': '12:30',
     };
 
+    test('logical numeric punctuation survives word reordering', () {
+      final runs = page(['שלום', 'עולם', '123', 'ומלואו']);
+      // Correct RTL display geometry: comma left of the LTR digits.
+      // Extraction stores the token logically as 123, (comma last).
+      runs[2].add((',', runs[2].first.$2 - 10));
+      final raw = store(runs.reversed.toList());
+      expect(raw.fullText, 'ומלואו 123, עולם שלום');
+      final result = PdfHebrewTextNormalizer.normalize(raw);
+      expect(result.fullText, 'שלום עולם 123, ומלואו');
+      final comma = result.fullText.indexOf(',');
+      expect(result.charRects[comma], raw.charRects[raw.fullText.indexOf(',')]);
+    });
+
     test('punctuation at the edge of a number is restored to logical order', () {
       for (final MapEntry(key: logical, value: drawn) in numbers.entries) {
         final line = ['שלום', 'עולם', logical, 'ומלואו'];
@@ -229,6 +242,21 @@ void main() {
         // Fully visual: every glyph left to right, the number still as drawn.
         final visual = store([for (final run in runs.reversed) List.of(run)..sort((a, b) => a.$2.compareTo(b.$2))]);
         expect(PdfHebrewTextNormalizer.normalize(visual).fullText, line.join(' '), reason: 'visual $drawn');
+
+        // OCR layer storing the number logically: each character sits where it is drawn, so it stays as is.
+        final core = RegExp(r'[0-9#$%](.*[0-9#$%])?').firstMatch(logical)!;
+        final lead = core.start, trail = logical.length - core.end;
+        double xOf(int k) =>
+            left +
+            10 *
+                (k < core.start
+                    ? trail + (core.end - core.start) + (lead - 1 - k)
+                    : k < core.end
+                    ? trail + (k - core.start)
+                    : trail - 1 - (k - core.end));
+        runs[2] = [for (var k = 0; k < logical.length; k++) (logical[k], xOf(k))];
+        final stored = store(runs.reversed.toList());
+        expect(PdfHebrewTextNormalizer.normalize(stored).fullText, line.join(' '), reason: 'logical $logical');
       }
     });
   });

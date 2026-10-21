@@ -260,6 +260,14 @@ void _reorderLine(List<int> codes, List<PdfRect> boxes, int start, int end) {
     while (!_isNumberCore(codes[ce - 1])) {
       ce--;
     }
+    // Only a token whose edge punctuation lies where the text order puts it is stored as drawn; a logical
+    // or ambiguous one is kept as is.
+    final core = _tokenBox(boxes, cs, ce);
+    bool drawn(int i) => _sameLine(boxes[i], core) && (i < cs ? _cx(boxes[i]) < core.left : _cx(boxes[i]) > core.right);
+    for (var i = s; i < e; i++) {
+      if ((i < cs || i >= ce) && !drawn(i)) return copy(s, e);
+    }
+
     void copyEdge(int i) {
       newCodes.add(_mirrored[codes[i]] ?? codes[i]);
       newBoxes.add(boxes[i]);
