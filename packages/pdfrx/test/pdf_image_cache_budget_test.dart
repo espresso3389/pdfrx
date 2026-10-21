@@ -26,6 +26,14 @@ void main() {
     expect(entry.isDisposed, isFalse);
     expect(budget.retainedBytes, 50);
   });
+
+  test('disposal during eviction prevents the reservation that caused it', () {
+    final budget = PdfImageCacheBudget(maximumBytes: 100);
+    budget.tryReserve(100)!.commit(retainedBytes: 100, onEvict: budget.dispose);
+    expect(budget.tryReserve(20), isNull);
+    expect(budget.estimatedBytes, 0);
+  });
+
   test('reservations and retained entries share one limit', () {
     final budget = PdfImageCacheBudget(maximumBytes: 100);
     final first = budget.tryReserve(60)!;

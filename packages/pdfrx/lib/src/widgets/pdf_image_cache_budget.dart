@@ -46,6 +46,7 @@ class PdfImageCacheBudget extends ChangeNotifier {
     if (bytes < 0) throw ArgumentError.value(bytes, 'bytes');
     if (!allowOverBudget && bytes > maximumBytes) return null;
     _evictToFit(bytes);
+    if (_disposed) return null;
     if (!allowOverBudget && estimatedBytes + bytes > maximumBytes) return null;
     _pendingBytes += bytes;
     _recordPeak();
