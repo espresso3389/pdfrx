@@ -291,6 +291,60 @@ class PdfPageTextRange {
   int get hashCode => pageText.hashCode ^ start.hashCode ^ end.hashCode;
 }
 
+/// A search match retaining bounded context and highlights, rather than page geometry.
+class PdfTextSearchResult {
+  /// Copies a match without retaining its [PdfPageText].
+  factory PdfTextSearchResult.fromRange(PdfPageTextRange range, {int contextLength = 80}) {
+    RangeError.checkNotNegative(contextLength, 'contextLength');
+    final contextStart = max(0, range.start - contextLength);
+    final contextEnd = min(range.pageText.fullText.length, range.end + contextLength);
+    final rects = range.pageText.fragments.isEmpty
+        ? [range.bounds]
+        : range.enumerateFragmentBoundingRects().map((fragment) => fragment.bounds).toList();
+    return PdfTextSearchResult._(
+      pageNumber: range.pageNumber,
+      start: range.start,
+      end: range.end,
+      contextStart: contextStart,
+      contextText: range.pageText.fullText.substring(contextStart, contextEnd),
+      rects: List.unmodifiable(rects),
+    );
+  }
+
+  const PdfTextSearchResult._({
+    required this.pageNumber,
+    required this.start,
+    required this.end,
+    required this.contextStart,
+    required this.contextText,
+    required this.rects,
+  });
+
+  /// One-based page number.
+  final int pageNumber;
+
+  /// Inclusive match start in the structured page text.
+  final int start;
+
+  /// Exclusive match end in the structured page text.
+  final int end;
+
+  /// Index of the first character of [contextText] in the structured page text.
+  final int contextStart;
+
+  /// The match and at most the requested context length on each side.
+  final String contextText;
+
+  /// Fragment highlights, keeping separate lines and columns separate.
+  final List<PdfRect> rects;
+
+  /// Matched text, without loading the full page.
+  String get text => contextText.substring(start - contextStart, end - contextStart);
+
+  /// Bounds for navigation; use [rects] for painting individual highlights.
+  PdfRect get bounds => rects.boundingRect();
+}
+
 /// Bounding rectangle for a text range in a PDF page.
 class PdfTextFragmentBoundingRect {
   const PdfTextFragmentBoundingRect(this.fragment, this.sif, this.eif);
