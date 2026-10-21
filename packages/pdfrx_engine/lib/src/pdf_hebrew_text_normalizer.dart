@@ -83,7 +83,8 @@ const _minPairs = 2;
     final tokens = _tokens(codes, s, e);
     // Mixed scripts and separate physical lines need a full bidi/layout model.
     // Preserve their order rather than sorting unrelated runs by x alone.
-    if (tokens.any((t) => !_isHebrewToken(codes, t.$1, t.$2))) continue;
+    // Numbers in a Hebrew line take its direction (bidi rule N1), so each one sorts by x like a Hebrew word.
+    if (tokens.any((t) => !_isHebrewToken(codes, t.$1, t.$2) && !_isNumberToken(codes, t.$1, t.$2))) continue;
     if (tokens.any(
       (t) => !_sameLine(_tokenBox(boxes, tokens.first.$1, tokens.first.$2), _tokenBox(boxes, t.$1, t.$2)),
     )) {
@@ -117,6 +118,14 @@ bool _isVisual(_Vote v, bool pageVisual) {
 bool _isHebrewToken(List<int> codes, int start, int end) {
   return codes.getRange(start, end).every((c) => _isHebLetter(c) || _isHebMark(c) || _isPunctuation(c));
 }
+
+/// ASCII digits with optional punctuation, such as `16`, `3.5` or `12:30`.
+bool _isNumberToken(List<int> codes, int start, int end) {
+  final range = codes.getRange(start, end);
+  return range.any(_isDigit) && range.every((c) => _isDigit(c) || _isPunctuation(c));
+}
+
+bool _isDigit(int c) => c >= 0x30 && c <= 0x39;
 
 /// Punctuation that Hebrew text carries inside its words: periods, colons, quotes, geresh and gershayim, maqaf.
 bool _isPunctuation(int c) =>

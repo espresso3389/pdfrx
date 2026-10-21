@@ -144,6 +144,65 @@ void main() {
     expect(result.fullText.indexOf('עולם'), lessThan(result.fullText.indexOf('שלום.')));
   });
 
+  group('numbers in a Hebrew line', () {
+    /// [words] as a reader sees them, right to left; digits run left to right as on a printed page.
+    /// Returns, per word, its glyphs in logical order with their x positions.
+    List<List<(String, double)>> page(List<String> words) {
+      final result = <List<(String, double)>>[];
+      var right = 500.0;
+      for (final word in words) {
+        final left = right - 10 * word.length;
+        final ltr = RegExp(r'^[0-9.:]+$').hasMatch(word);
+        result.add([for (var i = 0; i < word.length; i++) (word[i], ltr ? left + 10 * i : right - 10 * (i + 1))]);
+        right = left - 10;
+      }
+      return result;
+    }
+
+    PdfPageRawText store(List<List<(String, double)>> runs) {
+      final glyphs = <(String, double)>[];
+      for (final run in runs) {
+        if (glyphs.isNotEmpty) glyphs.add((' ', run.first.$2 - 10));
+        glyphs.addAll(run);
+      }
+      return _line(glyphs);
+    }
+
+    const lines = [
+      ['כיץ', '4', 'א', 'ו', 'אם', 'היה', '16', 'מחה'],
+      ['שלום', 'עולם', 'ומלואו', '123'],
+      ['שלום', 'עולם', '3.5', 'ומלואו'],
+    ];
+
+    test('a line whose words are stored left to right is reordered', () {
+      for (final line in lines) {
+        // OCR layers: each word in logical order, the words of the line left to right.
+        final raw = store(page(line).reversed.toList());
+        expect(PdfHebrewTextNormalizer.normalize(raw).fullText, line.join(' '));
+      }
+    });
+
+    test('a line stored fully in visual order is reversed, digits kept', () {
+      for (final line in lines) {
+        final glyphs = page(line).expand((run) => run).toList()..sort((a, b) => a.$2.compareTo(b.$2));
+        final words = <List<(String, double)>>[];
+        for (final g in glyphs) {
+          if (words.isEmpty || g.$2 - words.last.last.$2 > 10) words.add([]);
+          words.last.add(g);
+        }
+        final raw = store(words);
+        expect(PdfHebrewTextNormalizer.normalize(raw).fullText, line.join(' '));
+      }
+    });
+
+    test('a logical line with numbers is untouched', () {
+      for (final line in lines) {
+        final raw = store(page(line));
+        expect(PdfHebrewTextNormalizer.normalize(raw), same(raw));
+      }
+    });
+  });
+
   test('points stay after their letter when a word is reversed', () {
     // שָׁלוֹם stored letter by letter left to right, each point after its letter.
     final glyphs = <(String, double)>[
