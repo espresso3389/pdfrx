@@ -123,29 +123,37 @@ void main() {
 }
 
 void registerWorkerShutdownTests() {
-  test('external stop waits for a suspended action and drains its buffered requests', () async {
-    final entered = Completer<void>();
-    final release = Completer<void>();
-    late Future<int> queued;
-    final action = BackgroundWorker.suspendDuringAction(() async {
-      queued = BackgroundWorker.compute((_) => 42, null);
-      entered.complete();
-      await release.future;
+  for (final fromCompletedZone in [false, true]) {
+    test('external stop waits for a suspended action (completed zone: $fromCompletedZone)', () async {
+      Zone? completedZone;
+      if (fromCompletedZone) {
+        await BackgroundWorker.suspendDuringAction(() {
+          completedZone = Zone.current;
+        });
+      }
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      late Future<int> queued;
+      final action = BackgroundWorker.suspendDuringAction(() async {
+        queued = BackgroundWorker.compute((_) => 42, null);
+        entered.complete();
+        await release.future;
+      });
+      await entered.future;
+      var stopped = false;
+      final stopping = (completedZone ?? Zone.current).run(() => BackgroundWorker.stop()).then((_) => stopped = true);
+      try {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(stopped, isFalse);
+      } finally {
+        release.complete();
+      }
+      await action;
+      expect(await queued.timeout(const Duration(seconds: 2)), 42);
+      await stopping;
+      expect(await BackgroundWorker.compute((_) => 43, null), 43);
     });
-    await entered.future;
-    var stopped = false;
-    final stopping = BackgroundWorker.stop().then((_) => stopped = true);
-    try {
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(stopped, isFalse);
-    } finally {
-      release.complete();
-    }
-    await action;
-    expect(await queued.timeout(const Duration(seconds: 2)), 42);
-    await stopping;
-    expect(await BackgroundWorker.compute((_) => 43, null), 43);
-  });
+  }
 
   test('stop inside a suspended action fails immediately and leaves resume usable', () async {
     await BackgroundWorker.suspendDuringAction(() async {

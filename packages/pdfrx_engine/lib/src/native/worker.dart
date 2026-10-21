@@ -55,7 +55,7 @@ class BackgroundWorker {
   BackgroundWorker._(this.debugName);
 
   static final _instance = BackgroundWorker._('PdfrxEngineWorker');
-  static final _suspendLock = Lock(reentrant: true);
+  static final _lifecycleLock = Lock();
   static final _suspensionZoneKey = Object();
   static int _gateSuspendDepth = 0;
 
@@ -254,8 +254,12 @@ class BackgroundWorker {
   /// Work queued before the suspend request has run by the time [action] starts. This holds for synchronous
   /// callbacks (all PDFium callbacks in the engine are synchronous); an asynchronous callback only counts as "run" up
   /// to its first `await`.
-  static Future<T> suspendDuringAction<T>(FutureOr<T> Function() action) =>
-      _suspendLock.synchronized(() => _suspendDuringAction(action));
+  static Future<T> suspendDuringAction<T>(FutureOr<T> Function() action) {
+    if ((Zone.current[_suspensionZoneKey] as _WorkerSuspension?)?.isActive == true) {
+      return _suspendDuringAction(action);
+    }
+    return _lifecycleLock.synchronized(() => _suspendDuringAction(action));
+  }
 
   static Future<T> _suspendDuringAction<T>(FutureOr<T> Function() action) async {
     await _instance._sendComputeParams((sendPort) => _SuspendRequest._(sendPort));
@@ -301,7 +305,7 @@ class BackgroundWorker {
     if ((Zone.current[_suspensionZoneKey] as _WorkerSuspension?)?.isActive == true) {
       throw StateError('Cannot stop the worker from inside a suspended handle action.');
     }
-    await _suspendLock.synchronized(() => _instance._stop(beforeStop: beforeStop));
+    await _lifecycleLock.synchronized(() => _instance._stop(beforeStop: beforeStop));
   }
 }
 
