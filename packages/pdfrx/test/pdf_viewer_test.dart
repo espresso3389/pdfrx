@@ -92,6 +92,52 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  for (final maximumBytes in [0, 1, 8, 1024]) {
+    for (final preview in [true, false]) {
+      testWidgets('tiny image budget $maximumBytes keeps ${preview ? 'preview' : 'partial'} pixels and settles', (
+        tester,
+      ) async {
+        final document = _TestDocument(1);
+        addTearDown(document.dispose);
+        final page = document.pages.single as _TestPage;
+        page.renderControl.bgra = [255, 0, 0, 255];
+        final budget = PdfImageCacheBudget(maximumBytes: maximumBytes);
+        addTearDown(budget.dispose);
+        final controller = PdfViewerController();
+        final boundaryKey = GlobalKey();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: RepaintBoundary(
+              key: boundaryKey,
+              child: PdfViewer(
+                PdfDocumentRefDirect(document, autoDispose: false),
+                controller: controller,
+                params: PdfViewerParams(
+                  imageCacheBudget: budget,
+                  behaviorControlParams: PdfViewerBehaviorControlParams(
+                    enableLowResolutionPagePreview: preview,
+                    partialImageLoadingDelay: Duration.zero,
+                    pageImageCachingDelay: Duration.zero,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await _pumpPaintWork(tester);
+        final center = controller.documentToLocal(controller.layout.pageLayouts.single.center);
+        expect(await _pixelAt(tester, boundaryKey, center), 0xff0000ff);
+        final renders = page.renderControl.renderCount;
+        await _pumpPaintWork(tester);
+        expect(page.renderControl.renderCount, renders);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(budget.estimatedBytes, 0);
+      });
+    }
+  }
+
   for (final preview in [true, false]) {
     testWidgets('page color filter updates ${preview ? 'preview' : 'partial'} pixels without filtering overlays', (
       tester,
