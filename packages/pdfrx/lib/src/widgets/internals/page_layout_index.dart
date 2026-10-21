@@ -11,6 +11,15 @@ class PageLayoutIndex {
   late final _PageBoundsNode? _root;
   final _recentQueries = <Rect, List<int>>{};
 
+  /// Detects changes even when a custom layout reuses a mutable list.
+  bool matches(List<Rect> rects) {
+    if (rects.length != _pageRects.length) return false;
+    for (var i = 0; i < rects.length; i++) {
+      if (rects[i] != _pageRects[i]) return false;
+    }
+    return true;
+  }
+
   /// Page indices with a non-empty intersection with [rect].
   List<int> intersecting(Rect rect) => _recentQueries.putIfAbsent(rect, () {
     if (_recentQueries.length >= 4) _recentQueries.remove(_recentQueries.keys.first);

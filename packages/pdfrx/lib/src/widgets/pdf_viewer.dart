@@ -254,6 +254,7 @@ class _PdfViewerState extends State<PdfViewer>
   PdfDocument? _document;
   PdfPageLayout? _layout;
   PageLayoutIndex? _pageLayoutIndex;
+  bool _layoutDirty = true;
   bool _isSimplePageLayout = true;
   Size? _viewSize;
   late PdfViewerLayoutMetrics _layoutMetrics;
@@ -369,6 +370,7 @@ class _PdfViewerState extends State<PdfViewer>
   @override
   void didUpdateWidget(covariant PdfViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _layoutDirty = true;
     if (!identical(widget.params.imageCacheBudget, oldWidget.params.imageCacheBudget)) {
       (oldWidget.params.imageCacheBudget ?? _localImageBudget).removeListener(_onImageBudgetChanged);
       _imageBudget.addListener(_onImageBudgetChanged);
@@ -488,6 +490,7 @@ class _PdfViewerState extends State<PdfViewer>
     }
     _layout = null;
     _pageLayoutIndex = null;
+    _layoutDirty = true;
     _documentSubscription?.cancel();
     _documentSubscription = null;
     _clearFontManagerAssociation();
@@ -686,6 +689,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onDocumentEvent(PdfDocumentEvent event) {
     if (event is PdfDocumentPageStatusChangedEvent) {
+      _layoutDirty = true;
       // FIXME: We can handle the event more efficiently by only updating the affected pages.
       for (final change in event.changes.entries) {
         _imageCache.makeCacheImageForPageDirty(change.key, page: change.value.page);
@@ -966,6 +970,7 @@ class _PdfViewerState extends State<PdfViewer>
     final oldSize = _viewSize;
     final isViewSizeChanged = oldSize != viewSize;
     _viewSize = viewSize;
+    if (isViewSizeChanged) _layoutDirty = true;
     final isLayoutChanged = _relayoutPages();
 
     _recalculateMetrics();
@@ -1409,8 +1414,10 @@ class _PdfViewerState extends State<PdfViewer>
       _pageLayoutIndex = null;
       return false;
     }
+    if (!_layoutDirty && _layout != null) return false;
     final newLayout = (widget.params.layoutPages ?? _layoutPages)(_document!.pages, widget.params);
-    if (_layout == newLayout) {
+    _layoutDirty = false;
+    if (_layout?.documentSize == newLayout.documentSize && _pageLayoutIndex?.matches(newLayout.pageLayouts) == true) {
       return false;
     }
 
@@ -2177,7 +2184,10 @@ class _PdfViewerState extends State<PdfViewer>
     return PdfPageLayout(pageLayouts: pageLayout, documentSize: Size(width, y));
   }
 
-  void _invalidate() => _updateStream.add(_txController.value);
+  void _invalidate({bool relayout = false}) {
+    if (relayout) _layoutDirty = true;
+    _updateStream.add(_txController.value);
+  }
 
   void _releaseCachedImages({required bool keepVisible}) {
     final keep = <int>{};
@@ -5322,7 +5332,7 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// Invalidates the current Widget display state.
   ///
   /// Almost identical to `setState` but can be called outside the state.
-  void invalidate() => _state._invalidate();
+  void invalidate() => _state._invalidate(relayout: true);
 
   /// The text selection delegate.
   PdfTextSelectionDelegate get textSelectionDelegate => _state;

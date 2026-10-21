@@ -226,6 +226,52 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('matrix updates reuse the layout and explicit invalidation observes mutable custom layouts', (
+    tester,
+  ) async {
+    final document = _TestDocument(1);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    final custom = PdfPageLayout(
+      pageLayouts: [const Rect.fromLTWH(0, 0, 600, 800)],
+      documentSize: const Size(800, 800),
+    );
+    var layoutCalls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          controller: controller,
+          params: PdfViewerParams(
+            layoutPages: (_, _) {
+              layoutCalls++;
+              return custom;
+            },
+          ),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    final callsBeforeScroll = layoutCalls;
+    for (var i = 0; i < 10; i++) {
+      controller.value = controller.value.clone()..translateByDouble(0, -1, 0, 1);
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    expect(layoutCalls, callsBeforeScroll);
+    custom.pageLayouts[0] = const Rect.fromLTWH(100, 0, 600, 800);
+    controller.invalidate();
+    await tester.pump();
+    await tester.pump();
+    expect(layoutCalls, callsBeforeScroll + 1);
+    expect(controller.getPdfPageHitTestResult(const Offset(50, 100), useDocumentLayoutCoordinates: true), isNull);
+    expect(
+      controller.getPdfPageHitTestResult(const Offset(150, 100), useDocumentLayoutCoordinates: true)?.page.pageNumber,
+      1,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('viewers of the same document share extracted page text', (tester) async {
     final document = _TestDocument(1);
     addTearDown(document.dispose);
