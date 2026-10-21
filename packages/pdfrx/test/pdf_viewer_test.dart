@@ -380,6 +380,39 @@ void main() {
     expect(budget.retainedBytes, 0);
   });
 
+  testWidgets('partial images evicted before adoption are not inserted into the viewer cache', (tester) async {
+    final document = _TestDocument(1);
+    addTearDown(document.dispose);
+    final budget = PdfImageCacheBudget(maximumBytes: 100 * 1024 * 1024);
+    var evictions = 0;
+    budget.addListener(() {
+      if (budget.retainedBytes > 0 && evictions == 0) {
+        evictions++;
+        budget.clear(keepPinned: false);
+      }
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          params: PdfViewerParams(
+            imageCacheBudget: budget,
+            behaviorControlParams: const PdfViewerBehaviorControlParams(
+              enableLowResolutionPagePreview: false,
+              partialImageLoadingDelay: Duration.zero,
+            ),
+          ),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    expect(evictions, 1);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
   testWidgets('viewer forwards prefetches to the engine without a local FIFO render lock', (tester) async {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetDevicePixelRatio);
