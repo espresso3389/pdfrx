@@ -307,6 +307,7 @@ class PdfTextSearchResult {
       end: range.end,
       contextStart: contextStart,
       contextText: range.pageText.fullText.substring(contextStart, contextEnd),
+      pageTextLength: range.pageText.fullText.length,
       rects: List.unmodifiable(rects),
     );
   }
@@ -317,6 +318,7 @@ class PdfTextSearchResult {
     required this.end,
     required this.contextStart,
     required this.contextText,
+    required this.pageTextLength,
     required this.rects,
   });
 
@@ -334,6 +336,9 @@ class PdfTextSearchResult {
 
   /// The match and at most the requested context length on each side.
   final String contextText;
+
+  /// Full page text length, to distinguish clipped context from a page boundary.
+  final int pageTextLength;
 
   /// Fragment highlights, keeping separate lines and columns separate.
   final List<PdfRect> rects;

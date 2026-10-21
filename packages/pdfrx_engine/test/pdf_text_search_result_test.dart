@@ -31,6 +31,7 @@ void main() {
     expect(result.start, 7);
     expect(result.end, 19);
     expect(result.contextStart, 5);
+    expect(result.pageTextLength, pageText.fullText.length);
     expect(result.text, range.text);
     expect(result.contextText, pageText.fullText.substring(5, 21));
     expect(result.rects, hasLength(2));
