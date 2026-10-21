@@ -73,6 +73,22 @@ void main() {
     expect(cache.estimatedBytes, PdfPageTextCache.estimateBytes(current));
   });
 
+  test('releasing unpinned text preserves other consumers and their pending loads', () async {
+    final cache = PdfPageTextCache();
+    final lease = cache.createLease()..updatePinnedPages([1, 2]);
+    await cache.load(_Page(1));
+    await cache.load(_Page(3));
+    final page = _Page(2)..gate = Completer<void>();
+    final pending = cache.load(page);
+    cache.clear(keepPinned: true);
+    page.gate!.complete();
+    await pending;
+    expect(cache.get(1), isNotNull);
+    expect(cache.get(2), isNotNull);
+    expect(cache.get(3), isNull);
+    lease.dispose();
+  });
+
   test('failed loads can be retried', () async {
     final cache = PdfPageTextCache();
     final page = _Page(1)..fail = true;

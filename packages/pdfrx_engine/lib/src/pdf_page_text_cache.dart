@@ -22,7 +22,7 @@ class PdfPageTextCache {
   /// Estimated retained Dart bytes; excludes native memory and external owners.
   final int maximumBytes;
 
-  /// Maximum number of unpinned pages to retain.
+  /// Target page count; pinned pages may exceed this limit.
   final int maximumPages;
 
   final _entries = <int, PdfPageText>{};
@@ -96,7 +96,16 @@ class PdfPageTextCache {
 
   /// Releases cached text and prevents pending loads from repopulating it.
   /// Text already held by a selection or caller remains valid.
-  void clear() {
+  /// Set [keepPinned] to preserve all consumers' active leases.
+  void clear({bool keepPinned = false}) {
+    if (keepPinned) {
+      final pinned = {for (final lease in _leases) ...lease._pages};
+      for (final pageNumber in _entries.keys.where((page) => !pinned.contains(page)).toList()) {
+        invalidate(pageNumber);
+      }
+      _pending.removeWhere((page, _) => !pinned.contains(page));
+      return;
+    }
     _entries.clear();
     _pending.clear();
     _estimatedBytes = 0;
