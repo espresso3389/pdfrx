@@ -1419,6 +1419,7 @@ class _TestPage implements PdfPage {
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
+    PdfPageRenderPriority? priority,
   }) async {
     if (!isLoaded) return null;
     (document as _TestDocument).renderOrder.add(pageNumber);

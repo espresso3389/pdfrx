@@ -153,6 +153,7 @@ class _TestPage extends PdfPage with PdfPageLinkCache {
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
+    PdfPageRenderPriority? priority,
   }) async => null;
 }
 

@@ -871,6 +871,7 @@ class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
+    PdfPageRenderPriority? priority,
   }) async {
     if (document.isDisposed) return null;
     fullWidth ??= this.width;

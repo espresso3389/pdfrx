@@ -90,6 +90,7 @@ class PdfPageRenumbered implements PdfPageProxy {
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
+    PdfPageRenderPriority? priority,
   }) => basePage.render(
     x: x,
     y: y,
@@ -101,6 +102,7 @@ class PdfPageRenumbered implements PdfPageProxy {
     annotationRenderingMode: annotationRenderingMode,
     flags: flags,
     cancellationToken: cancellationToken,
+    priority: priority,
     rotationOverride: rotationOverride,
   );
 }
@@ -153,6 +155,7 @@ class PdfPageRotated implements PdfPageProxy {
     PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
+    PdfPageRenderPriority? priority,
   }) {
     return basePage.render(
       x: x,
@@ -166,6 +169,7 @@ class PdfPageRotated implements PdfPageProxy {
       annotationRenderingMode: annotationRenderingMode,
       flags: flags,
       cancellationToken: cancellationToken,
+      priority: priority,
     );
   }
 
