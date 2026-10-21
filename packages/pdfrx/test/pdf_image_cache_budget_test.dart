@@ -2,6 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 void main() {
+  test('an oversized background request leaves useful cached entries intact', () {
+    final budget = PdfImageCacheBudget(maximumBytes: 100);
+    final entry = budget.tryReserve(50)!.commit(retainedBytes: 50, onEvict: () => fail('Useful entry was evicted'))!;
+    expect(budget.tryReserve(101), isNull);
+    expect(entry.isDisposed, isFalse);
+    expect(budget.retainedBytes, 50);
+  });
   test('reservations and retained entries share one limit', () {
     final budget = PdfImageCacheBudget(maximumBytes: 100);
     final first = budget.tryReserve(60)!;

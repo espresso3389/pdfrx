@@ -36,6 +36,7 @@ class PdfImageCacheBudget {
   /// [allowOverBudget] is only for visible work that cannot wait for pinned images.
   PdfImageReservation? tryReserve(int bytes, {bool allowOverBudget = false}) {
     if (bytes < 0) throw ArgumentError.value(bytes, 'bytes');
+    if (!allowOverBudget && bytes > maximumBytes) return null;
     _evictToFit(bytes);
     if (!allowOverBudget && estimatedBytes + bytes > maximumBytes) return null;
     _pendingBytes += bytes;
