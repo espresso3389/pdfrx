@@ -84,6 +84,34 @@ void main() {
     });
   }
 
+  testWidgets('overlapping custom layouts retain paint order and first-page hit testing', (tester) async {
+    final document = _TestDocument(20);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    final painted = <int>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          controller: controller,
+          params: PdfViewerParams(
+            layoutPages: (pages, params) => PdfPageLayout(
+              pageLayouts: [for (final page in pages) Rect.fromLTWH(20.0 - page.pageNumber, 0, 600, 800)],
+              documentSize: const Size(620, 800),
+            ),
+            pagePaintCallbacks: [(canvas, rect, page) => painted.add(page.pageNumber)],
+          ),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    expect(painted.take(20), orderedEquals(List.generate(20, (i) => i + 1)));
+    final hit = controller.getPdfPageHitTestResult(const Offset(100, 100), useDocumentLayoutCoordinates: true);
+    expect(hit?.page.pageNumber, 1);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('link hover color changes on entry, between links, and on exit', (tester) async {
     final document = _TestDocument(1);
     addTearDown(document.dispose);
