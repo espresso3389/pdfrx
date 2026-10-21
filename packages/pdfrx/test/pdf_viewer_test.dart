@@ -17,6 +17,7 @@ final testPdfFile = File('example/viewer/assets/hello.pdf');
 final binding = TestWidgetsFlutterBinding.ensureInitialized();
 
 void main() {
+  _registerForwardedPanZoomTests();
   // For testing purpose, we should run on the command line
   // and pdfrxInitialize is a better way to initialize the library.
   setUp(() => pdfrxInitialize());
@@ -1496,4 +1497,63 @@ Future<void> _finishNativeDisposal(WidgetTester tester, PdfDocument document) as
   }
   expect(completed, isTrue, reason: 'native work and document disposal must complete before leaving fake time');
   await disposing;
+}
+
+void _registerForwardedPanZoomTests() {
+  for (final enabled in [true, false]) {
+    for (final canceled in [true, false]) {
+      testWidgets('forwarded cumulative pan/zoom preserves focal movement, scale=$enabled cancel=$canceled', (
+        tester,
+      ) async {
+        final document = _TestDocument(4);
+        addTearDown(document.dispose);
+        final controller = PdfViewerController();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Padding(
+              padding: const EdgeInsets.only(left: 40, top: 60),
+              child: PdfViewer(
+                PdfDocumentRefDirect(document, autoDispose: false),
+                controller: controller,
+                params: PdfViewerParams(scaleEnabled: enabled),
+              ),
+            ),
+          ),
+        );
+        await _pumpPaintWork(tester);
+        await controller.goToPage(pageNumber: 2, duration: Duration.zero);
+        await controller.setZoom(controller.centerPosition, controller.currentZoom * 1.5, duration: Duration.zero);
+        await tester.pump();
+        final local = controller.viewSize.center(Offset.zero);
+        final global = tester.getTopLeft(find.byType(PdfViewer)) + local;
+        final documentPoint = controller.localToDocument(local);
+        final initialZoom = controller.currentZoom;
+        controller.handlePointerPanZoomEvent(PointerPanZoomStartEvent(position: global));
+        for (final (pan, scale) in [
+          (const Offset(12, -20), 1.3),
+          (const Offset(24, -30), 1.1),
+          (const Offset(30, -40), 1.0),
+          (const Offset(36, -45), 1.0),
+        ]) {
+          controller.handlePointerPanZoomEvent(PointerPanZoomUpdateEvent(position: global, pan: pan, scale: scale));
+          await tester.pump();
+          expect(controller.currentZoom, closeTo(initialZoom * (enabled ? scale : 1), 0.000001));
+          if (enabled || scale == 1) {
+            expect((controller.documentToLocal(documentPoint) - local - pan).distance, lessThan(0.000001));
+          }
+        }
+        controller.handlePointerPanZoomEvent(canceled ? const PointerCancelEvent() : const PointerPanZoomEndEvent());
+        final endedMatrix = controller.value.clone();
+        await tester.pump(const Duration(seconds: 1));
+        expect(controller.value, endedMatrix);
+        controller.handlePointerPanZoomEvent(PointerPanZoomStartEvent(position: global));
+        controller.handlePointerPanZoomEvent(PointerPanZoomUpdateEvent(position: global, scale: 1.25));
+        await tester.pump();
+        expect(controller.currentZoom, closeTo(initialZoom * (enabled ? 1.25 : 1), 0.000001));
+        controller.handlePointerPanZoomEvent(const PointerPanZoomEndEvent());
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(milliseconds: 100));
+      });
+    }
+  }
 }
