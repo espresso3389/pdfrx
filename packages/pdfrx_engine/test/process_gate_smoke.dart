@@ -6,6 +6,7 @@ import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:test/test.dart';
 
 import 'hebrew_native.dart';
+import 'background_worker_task_test.dart' show registerWorkerShutdownTests;
 import 'pdf_progressive_render_test.dart' show registerProgressiveRenderTests;
 import 'utils.dart';
 
@@ -51,6 +52,7 @@ void main() {
     expect(() => Pdfrx.useProcessWidePdfiumGate = false, throwsStateError);
     expect(Pdfrx.useProcessWidePdfiumGate, isTrue);
   });
+  registerWorkerShutdownTests();
 }
 
 Future<void> _exerciseEngine() async {

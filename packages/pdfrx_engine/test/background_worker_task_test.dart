@@ -52,7 +52,7 @@ void main() {
     events.close();
   });
 
-  for (final error in [1, 2, 3, 4]) {
+  for (final error in [1, 2, 3, 4, 5, 6]) {
     test('task error in stage $error completes its future and leaves the worker usable', () async {
       final events = ReceivePort();
       final messages = <String>[];
@@ -118,6 +118,45 @@ void main() {
     await BackgroundWorker.stop(beforeStop: _failShutdown);
     expect(await BackgroundWorker.compute((_) => 42, null), 42);
   });
+
+  registerWorkerShutdownTests();
+}
+
+void registerWorkerShutdownTests() {
+  test('external stop waits for a suspended action and drains its buffered requests', () async {
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    late Future<int> queued;
+    final action = BackgroundWorker.suspendDuringAction(() async {
+      queued = BackgroundWorker.compute((_) => 42, null);
+      entered.complete();
+      await release.future;
+    });
+    await entered.future;
+    var stopped = false;
+    final stopping = BackgroundWorker.stop().then((_) => stopped = true);
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(stopped, isFalse);
+    } finally {
+      release.complete();
+    }
+    await action;
+    expect(await queued.timeout(const Duration(seconds: 2)), 42);
+    await stopping;
+    expect(await BackgroundWorker.compute((_) => 43, null), 43);
+  });
+
+  test('stop inside a suspended action fails immediately and leaves resume usable', () async {
+    await BackgroundWorker.suspendDuringAction(() async {
+      await expectLater(BackgroundWorker.stop(), throwsStateError);
+      await BackgroundWorker.suspendDuringAction(() async {
+        await expectLater(BackgroundWorker.stop(), throwsStateError);
+      });
+      await expectLater(BackgroundWorker.stop(), throwsStateError);
+    });
+    expect(await BackgroundWorker.compute((_) => 42, null), 42);
+  });
 }
 
 void _failShutdown() => throw StateError('shutdown failure');
@@ -138,7 +177,16 @@ class _TestTask extends BackgroundWorkerTask<int> {
   var _ownsResource = false;
 
   @override
-  bool get isReady => !params.exclusive || _ownsResource || !_owned;
+  bool get isReady {
+    if (params.error == 5) throw StateError('stage 5');
+    return !params.exclusive || _ownsResource || !_owned;
+  }
+
+  @override
+  bool get isCanceled {
+    if (params.error == 6) throw StateError('stage 6');
+    return false;
+  }
 
   @override
   bool run() {

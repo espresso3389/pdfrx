@@ -56,6 +56,7 @@ class BackgroundWorker {
 
   static final _instance = BackgroundWorker._('PdfrxEngineWorker');
   static final _suspendLock = Lock(reentrant: true);
+  static final _suspensionZoneKey = Object();
   static int _gateSuspendDepth = 0;
 
   final String debugName;
@@ -263,9 +264,11 @@ class BackgroundWorker {
     // from [action]: that worker would wait for this lock.
     final useGate = Pdfrx.useProcessWidePdfiumGate;
     if (useGate && _gateSuspendDepth++ == 0) PdfiumProcessGate.acquire();
+    final scope = _WorkerSuspension(Zone.current[_suspensionZoneKey] as _WorkerSuspension?);
     try {
-      return await action();
+      return await runZoned(action, zoneValues: {_suspensionZoneKey: scope});
     } finally {
+      scope.active = false;
       if (useGate && --_gateSuspendDepth == 0) PdfiumProcessGate.release();
       await _instance._sendComputeParams((sendPort) => _ResumeRequest._(sendPort));
     }
@@ -293,7 +296,20 @@ class BackgroundWorker {
   /// This will release all resources associated with the worker. But you can still call [compute], [computeWithArena],
   /// and [suspendDuringAction] afterwards, which will recreate the worker isolate.
   /// [beforeStop] runs under the process gate after all queued synchronous work and continuations have completed.
-  static Future<void> stop({void Function()? beforeStop}) => _instance._stop(beforeStop: beforeStop);
+  /// Waits for active handle actions. Calling it from inside such an action throws [StateError].
+  static Future<void> stop({void Function()? beforeStop}) async {
+    if ((Zone.current[_suspensionZoneKey] as _WorkerSuspension?)?.isActive == true) {
+      throw StateError('Cannot stop the worker from inside a suspended handle action.');
+    }
+    await _suspendLock.synchronized(() => _instance._stop(beforeStop: beforeStop));
+  }
+}
+
+class _WorkerSuspension {
+  _WorkerSuspension(this.parent);
+  final _WorkerSuspension? parent;
+  bool active = true;
+  bool get isActive => active || parent?.isActive == true;
 }
 
 /// Priority scheduler that runs inside the worker isolate.
@@ -434,6 +450,8 @@ class _TaskExecuteParams<M, R> extends _ComputeParams {
   final M message;
   Object? _creationError;
   StackTrace? _creationStack;
+  Object? _schedulingError;
+  StackTrace? _schedulingStack;
   late final BackgroundWorkerTask<R>? _task = _createTask();
 
   BackgroundWorkerTask<R>? _createTask() {
@@ -447,10 +465,21 @@ class _TaskExecuteParams<M, R> extends _ComputeParams {
   }
 
   @override
-  bool get isReady => _task?.isReady ?? true;
+  bool get isReady => _readSchedulingState(cancellation: false);
 
   @override
-  bool get isCanceled => _task?.isCanceled ?? false;
+  bool get isCanceled => _readSchedulingState(cancellation: true);
+
+  bool _readSchedulingState({required bool cancellation}) {
+    if (_schedulingError != null) return true;
+    try {
+      return cancellation ? _task?.isCanceled ?? false : _task?.isReady ?? true;
+    } catch (error, stackTrace) {
+      _schedulingError = error;
+      _schedulingStack = stackTrace;
+      return true;
+    }
+  }
 
   @override
   bool execute() {
@@ -463,6 +492,7 @@ class _TaskExecuteParams<M, R> extends _ComputeParams {
         PdfiumProcessGate.acquire();
         locked = true;
       }
+      if (_schedulingError != null) Error.throwWithStackTrace(_schedulingError!, _schedulingStack!);
       if (!task.run()) return false;
       final result = task.result;
       disposed = true;
