@@ -2210,7 +2210,8 @@ class _PdfViewerState extends State<PdfViewer>
 
   double _boundedRenderingScale(double scale, double width, double height, {int visiblePageCount = 1}) {
     if (!scale.isFinite || scale <= 0 || !width.isFinite || !height.isFinite || width <= 0 || height <= 0) return 0;
-    final maxPixels = max(1, _imageBudget.maximumBytes ~/ (12 * max(1, visiblePageCount)));
+    final maximumBytes = min(_imageBudget.maximumBytes, widget.params.maxImageBytesCachedOnMemory);
+    final maxPixels = max(1, maximumBytes ~/ (12 * max(1, visiblePageCount)));
     return max(1 / min(width, height), min(scale, sqrt(maxPixels / (width * height))));
   }
 

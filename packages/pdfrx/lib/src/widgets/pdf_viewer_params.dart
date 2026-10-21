@@ -503,6 +503,8 @@ class PdfViewerParams {
   /// Restrict the total amount of image bytes to be cached on memory. The default is 100 MB.
   ///
   /// The internal cache mechanism tries to limit the actual memory usage under the value but it is not guaranteed.
+  /// Also bounds each render's estimated working allocation when [imageCacheBudget] is shared.
+  /// Previews, partial images and magnifier images may coexist; this is not a process-memory limit.
   final int maxImageBytesCachedOnMemory;
 
   /// Optional budget shared with other viewers and application-owned image caches.

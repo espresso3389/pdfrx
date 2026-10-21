@@ -354,6 +354,68 @@ void main() {
     }
   });
 
+  testWidgets('shared budgets preserve each viewer rendering limit', (tester) async {
+    const localBytes = 96 * 1024;
+    final document = _TestDocument(1);
+    addTearDown(document.dispose);
+    final control = (document.pages.single as _TestPage).renderControl
+      ..renderAtRequestedSize = true
+      ..block();
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            for (var i = 0; i < 2; i++)
+              Expanded(
+                child: PdfViewer(
+                  PdfDocumentRefDirect(document, autoDispose: false),
+                  params: PdfViewerParams(
+                    imageCacheBudget: budget,
+                    maxImageBytesCachedOnMemory: localBytes,
+                    behaviorControlParams: const PdfViewerBehaviorControlParams(
+                      enableLowResolutionPagePreview: false,
+                      partialImageLoadingDelay: Duration.zero,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+    var released = false;
+    try {
+      await _pumpPaintWork(tester);
+      expect(control.tokens.where((token) => !token.isCanceled), hasLength(2));
+      var maximumPending = 0;
+      var maximumRetained = 0;
+      for (var i = 0; i < control.renderSizes.length; i++) {
+        final size = control.renderSizes[i];
+        // A cropped rectangle can round each edge out by one pixel.
+        final limit = localBytes + (size.width + size.height + 1).toInt() * 12;
+        expect(size.width * size.height * 12, lessThanOrEqualTo(limit));
+        maximumPending += limit;
+        if (!control.tokens[i].isCanceled) maximumRetained += limit * 8 ~/ 12;
+      }
+      expect(budget.pendingBytes, greaterThan(0));
+      expect(budget.pendingBytes, lessThanOrEqualTo(maximumPending));
+      control.release();
+      released = true;
+      await _pumpPaintWork(tester);
+      expect(budget.pendingBytes, 0);
+      expect(budget.retainedBytes, greaterThan(0));
+      expect(budget.retainedBytes, lessThanOrEqualTo(maximumRetained));
+    } finally {
+      if (!released) control.release();
+      await _pumpPaintWork(tester);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(budget.estimatedBytes, 0);
+    }
+  });
+
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));
@@ -1856,7 +1918,17 @@ class _TestPage implements PdfPage {
     (document as _TestDocument).renderOrder.add(pageNumber);
     renderControl.priorities.add(priority);
     renderControl.tokens.add(cancellationToken!);
+    final imageWidth = width ?? fullWidth?.toInt() ?? this.width.toInt();
+    final imageHeight = height ?? fullHeight?.toInt() ?? this.height.toInt();
+    renderControl.renderSizes.add(Size(imageWidth.toDouble(), imageHeight.toDouble()));
     await renderControl.beforeRender();
+    if (renderControl.renderAtRequestedSize) {
+      return PdfImage.createFromBgraData(
+        Uint8List.fromList(List.generate(imageWidth * imageHeight * 4, (i) => renderControl.bgra[i % 4])),
+        width: imageWidth,
+        height: imageHeight,
+      );
+    }
     return PdfImage.createFromBgraData(Uint8List.fromList(renderControl.bgra), width: 1, height: 1);
   }
 }
@@ -1864,6 +1936,8 @@ class _TestPage implements PdfPage {
 class _TestPageRenderControl {
   final priorities = <PdfPageRenderPriority?>[];
   final tokens = <PdfPageRenderCancellationToken>[];
+  final renderSizes = <Size>[];
+  bool renderAtRequestedSize = false;
   List<int> bgra = [255, 255, 255, 255];
   Completer<void>? _gate;
   bool started = false;
