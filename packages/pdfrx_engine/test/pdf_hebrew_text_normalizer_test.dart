@@ -201,6 +201,36 @@ void main() {
         expect(PdfHebrewTextNormalizer.normalize(raw), same(raw));
       }
     });
+
+    // Logical number -> how it is drawn left to right in a Hebrew line (UAX #9): edge punctuation moves to the
+    // other side and brackets show mirrored, while digits, inner separators, `%` and `$` stay in place.
+    const numbers = {
+      '123,': ',123',
+      '16.': '.16',
+      '1,000.': '.1,000',
+      '-5': '5-',
+      '(16)': '(16)',
+      '[3]:': ':[3]',
+      '50%': '50%',
+      r'$5': r'$5',
+      '12:30': '12:30',
+    };
+
+    test('punctuation at the edge of a number is restored to logical order', () {
+      for (final MapEntry(key: logical, value: drawn) in numbers.entries) {
+        final line = ['שלום', 'עולם', logical, 'ומלואו'];
+        // OCR layer: Hebrew words in logical order, the number as drawn, the words of the line left to right.
+        final runs = page(line);
+        final left = runs[2].map((g) => g.$2).reduce((a, b) => a < b ? a : b);
+        runs[2] = [for (var i = 0; i < drawn.length; i++) (drawn[i], left + 10 * i)];
+        final ocr = store(runs.reversed.toList());
+        expect(PdfHebrewTextNormalizer.normalize(ocr).fullText, line.join(' '), reason: 'OCR $drawn');
+
+        // Fully visual: every glyph left to right, the number still as drawn.
+        final visual = store([for (final run in runs.reversed) List.of(run)..sort((a, b) => a.$2.compareTo(b.$2))]);
+        expect(PdfHebrewTextNormalizer.normalize(visual).fullText, line.join(' '), reason: 'visual $drawn');
+      }
+    });
   });
 
   test('points stay after their letter when a word is reversed', () {

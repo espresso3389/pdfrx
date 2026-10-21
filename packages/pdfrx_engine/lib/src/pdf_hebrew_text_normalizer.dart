@@ -127,6 +127,22 @@ bool _isNumberToken(List<int> codes, int start, int end) {
 
 bool _isDigit(int c) => c >= 0x30 && c <= 0x39;
 
+/// Digits and the terminators that join an adjacent number (`#`, `$`, `%`).
+bool _isNumberCore(int c) => _isDigit(c) || c == 0x23 || c == 0x24 || c == 0x25;
+
+const _mirrored = {
+  0x28: 0x29,
+  0x29: 0x28,
+  0x3C: 0x3E,
+  0x3E: 0x3C,
+  0x5B: 0x5D,
+  0x5D: 0x5B,
+  0x7B: 0x7D,
+  0x7D: 0x7B,
+  0xAB: 0xBB,
+  0xBB: 0xAB,
+};
+
 /// Punctuation that Hebrew text carries inside its words: periods, colons, quotes, geresh and gershayim, maqaf.
 bool _isPunctuation(int c) =>
     (c >= 0x21 && c <= 0x2F) ||
@@ -233,9 +249,34 @@ void _reorderLine(List<int> codes, List<PdfRect> boxes, int start, int end) {
     }
   }
 
+  // Digits keep their order, but punctuation at a number's edge takes the line's direction (UAX #9 W4, W5, N1):
+  // `,123` stored left to right is logical `123,`. Brackets swap sides, so they are mirrored.
+  void copyToken(int s, int e) {
+    if (!_isNumberToken(codes, s, e)) return copy(s, e);
+    var cs = s, ce = e;
+    while (!_isNumberCore(codes[cs])) {
+      cs++;
+    }
+    while (!_isNumberCore(codes[ce - 1])) {
+      ce--;
+    }
+    void copyEdge(int i) {
+      newCodes.add(_mirrored[codes[i]] ?? codes[i]);
+      newBoxes.add(boxes[i]);
+    }
+
+    for (var i = e - 1; i >= ce; i--) {
+      copyEdge(i);
+    }
+    copy(cs, ce);
+    for (var i = cs - 1; i >= s; i--) {
+      copyEdge(i);
+    }
+  }
+
   for (var k = 0; k < tokens.length; k++) {
     copy(k == 0 ? start : tokens[k - 1].$2, tokens[k].$1);
-    copy(sorted[k].$1, sorted[k].$2);
+    copyToken(sorted[k].$1, sorted[k].$2);
   }
   copy(tokens.last.$2, end);
   codes.setRange(start, end, newCodes);
