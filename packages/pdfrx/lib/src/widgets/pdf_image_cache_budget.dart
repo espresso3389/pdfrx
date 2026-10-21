@@ -1,6 +1,10 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+
 /// Coordinates estimated image memory across viewers and application-owned caches.
 /// Counts caller-supplied estimates, not measured process or GPU memory.
-class PdfImageCacheBudget {
+class PdfImageCacheBudget extends ChangeNotifier {
   /// Creates a shared budget. Active pinned images may temporarily exceed it.
   PdfImageCacheBudget({required int maximumBytes}) : _maximumBytes = maximumBytes {
     if (maximumBytes < 0) throw ArgumentError.value(maximumBytes, 'maximumBytes');
@@ -11,6 +15,8 @@ class PdfImageCacheBudget {
   int _pendingBytes = 0;
   int _peakEstimatedBytes = 0;
   final _entries = <PdfImageCacheEntry>{};
+  bool _notificationScheduled = false;
+  bool _disposed = false;
 
   /// Desired limit for retained images plus active render/conversion reservations.
   int get maximumBytes => _maximumBytes;
@@ -18,6 +24,7 @@ class PdfImageCacheBudget {
     if (value < 0) throw ArgumentError.value(value, 'maximumBytes');
     _maximumBytes = value;
     trim();
+    _scheduleChanged();
   }
 
   /// Estimated bytes held by cached images.
@@ -35,6 +42,7 @@ class PdfImageCacheBudget {
   /// Evicts unpinned images before reserving [bytes], or returns null if they cannot fit.
   /// [allowOverBudget] is only for visible work that cannot wait for pinned images.
   PdfImageReservation? tryReserve(int bytes, {bool allowOverBudget = false}) {
+    if (_disposed) return null;
     if (bytes < 0) throw ArgumentError.value(bytes, 'bytes');
     if (!allowOverBudget && bytes > maximumBytes) return null;
     _evictToFit(bytes);
@@ -88,6 +96,22 @@ class PdfImageCacheBudget {
   void _recordPeak() {
     if (estimatedBytes > _peakEstimatedBytes) _peakEstimatedBytes = estimatedBytes;
   }
+
+  void _scheduleChanged() {
+    if (_notificationScheduled || _disposed) return;
+    _notificationScheduled = true;
+    scheduleMicrotask(() {
+      _notificationScheduled = false;
+      if (!_disposed) notifyListeners();
+    });
+  }
+
+  /// Stops availability notifications. Image owners still release their entries and pending reservations.
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
 }
 
 /// A render/conversion allocation, charged until [commit] or [dispose].
@@ -120,6 +144,7 @@ class PdfImageReservation {
     if (budget == null) return;
     _budget = null;
     budget._pendingBytes -= bytes;
+    budget._scheduleChanged();
   }
 }
 
@@ -155,5 +180,6 @@ class PdfImageCacheEntry {
     _budget = null;
     budget._entries.remove(this);
     budget._retainedBytes -= bytes;
+    budget._scheduleChanged();
   }
 }
