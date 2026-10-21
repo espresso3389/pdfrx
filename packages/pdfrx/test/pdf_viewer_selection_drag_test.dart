@@ -159,6 +159,11 @@ void selectionDragTests({bool useFlutterInitialization = false}) {
       PdfTextSelectionRange.fromPoints(PdfTextSelectionPoint(texts[0], 2), PdfTextSelectionPoint(texts[2], 4)),
     );
     final expected = (await tester.runAsync(delegate.getSelectedText))!;
+    for (var i = 0; i < 10; i++) {
+      controller.value = controller.value.clone()..translateByDouble(0, -1, 0, 1);
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    expect(delegate.selectedTextIfLoaded, expected);
     controller.releaseCachedResources(keepVisible: false);
     expect(delegate.hasSelectedText, isTrue);
     expect(delegate.selectedTextIfLoaded, expected);
