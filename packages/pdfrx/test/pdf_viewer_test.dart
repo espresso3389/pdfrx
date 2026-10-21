@@ -234,6 +234,59 @@ void main() {
     expect(budget.retainedBytes, 0);
   });
 
+  testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
+    await binding.setSurfaceSize(const Size(800, 600));
+    addTearDown(() => binding.setSurfaceSize(null));
+    final document = _TestDocument(1);
+    addTearDown(document.dispose);
+    final budget = PdfImageCacheBudget(maximumBytes: 100 * 1024 * 1024);
+    final external = budget.tryReserve(budget.maximumBytes)!;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          params: PdfViewerParams(imageCacheBudget: budget, getPageRenderingScale: _largePreviewScale),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    expect(document.renderOrder, isEmpty);
+    external.dispose();
+    await _pumpPaintWork(tester);
+    expect(document.renderOrder, isNotEmpty);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.pendingBytes, 0);
+    expect(budget.retainedBytes, 0);
+  });
+
+  testWidgets('viewer forwards prefetches to the engine without a local FIFO render lock', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await binding.setSurfaceSize(const Size(800, 600));
+    addTearDown(() => binding.setSurfaceSize(null));
+    final document = _TestDocument(3).._loadPages([1, 2, 3]);
+    addTearDown(document.dispose);
+    final blocked = (document.pages[1] as _TestPage).renderControl..block();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          params: PdfViewerParams(verticalCacheExtent: 3, getPageRenderingScale: (_, _, _, _) => 2),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    expect(blocked.started, isTrue);
+    expect(document.renderOrder, contains(3));
+    expect((document.pages.first as _TestPage).renderControl.priorities.first, PdfPageRenderPriority.high);
+    expect(blocked.priorities.first, PdfPageRenderPriority.low);
+    blocked.release();
+    await _pumpPaintWork(tester);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('an initially hidden viewer defers page work and resumes at the same page', (tester) async {
     final document = _TestDocument(9);
     addTearDown(document.dispose);
@@ -1648,6 +1701,7 @@ class _TestPage implements PdfPage {
   }) async {
     if (!isLoaded) return null;
     (document as _TestDocument).renderOrder.add(pageNumber);
+    renderControl.priorities.add(priority);
     renderControl.tokens.add(cancellationToken!);
     await renderControl.beforeRender();
     return PdfImage.createFromBgraData(Uint8List.fromList(renderControl.bgra), width: 1, height: 1);
@@ -1655,6 +1709,7 @@ class _TestPage implements PdfPage {
 }
 
 class _TestPageRenderControl {
+  final priorities = <PdfPageRenderPriority?>[];
   final tokens = <PdfPageRenderCancellationToken>[];
   List<int> bgra = [255, 255, 255, 255];
   Completer<void>? _gate;
