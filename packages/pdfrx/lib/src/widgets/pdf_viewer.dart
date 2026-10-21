@@ -1786,6 +1786,11 @@ class _PdfViewerState extends State<PdfViewer>
     cacheTargetRect ??= targetRect;
 
     cache.visiblePageNumbers = _pageLayoutIndex!.intersecting(targetRect).map((i) => i + 1).toSet();
+    for (final pageNumber in cache.pageImagePartialRenderingRequests.keys.toList()) {
+      if (!cache.visiblePageNumbers.contains(pageNumber)) {
+        cache.pageImagePartialRenderingRequests.remove(pageNumber)?.cancel();
+      }
+    }
     for (final entry in [...cache.pageImages.entries, ...cache.pageImagesPartial.entries]) {
       entry.value.budgetEntry?.touch(isPinned: cache.visiblePageNumbers.contains(entry.key));
     }

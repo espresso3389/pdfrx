@@ -280,6 +280,40 @@ void main() {
     expect(budget.retainedBytes, 0);
   });
 
+  testWidgets('offscreen partial renders cancel while their page remains in the cache extent', (tester) async {
+    final document = _TestDocument(3)..loadPagesForTest([1, 2, 3]);
+    addTearDown(document.dispose);
+    final control = (document.pages.first as _TestPage).renderControl..block();
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          controller: controller,
+          params: const PdfViewerParams(
+            verticalCacheExtent: 3,
+            behaviorControlParams: PdfViewerBehaviorControlParams(
+              enableLowResolutionPagePreview: false,
+              partialImageLoadingDelay: Duration.zero,
+            ),
+          ),
+        ),
+      ),
+    );
+    try {
+      await _pumpPaintWork(tester);
+      expect(control.tokens, isNotEmpty);
+      await controller.goToPage(pageNumber: 2, duration: Duration.zero);
+      await _pumpPaintWork(tester);
+      expect(control.tokens.every((token) => token.isCanceled), isTrue);
+    } finally {
+      control.release();
+      await _pumpPaintWork(tester);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+  });
+
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));
