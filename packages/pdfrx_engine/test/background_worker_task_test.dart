@@ -155,6 +155,36 @@ void registerWorkerShutdownTests() {
     });
   }
 
+  for (final stopping in [false, true]) {
+    test('external ${stopping ? 'stop' : 'action'} waits for a nested action that outlives its parent', () async {
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      late Future<void> child;
+      late Future<int> queued;
+      await BackgroundWorker.suspendDuringAction(() async {
+        child = BackgroundWorker.suspendDuringAction(() async {
+          queued = BackgroundWorker.compute((_) => 42, null);
+          entered.complete();
+          await release.future;
+        });
+        await entered.future;
+      });
+      var completed = false;
+      final next = (stopping ? BackgroundWorker.stop() : BackgroundWorker.suspendDuringAction(() {})).then(
+        (_) => completed = true,
+      );
+      try {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        expect(completed, isFalse);
+      } finally {
+        release.complete();
+      }
+      await child;
+      expect(await queued.timeout(const Duration(seconds: 2)), 42);
+      await next;
+    });
+  }
+
   test('stop inside a suspended action fails immediately and leaves resume usable', () async {
     await BackgroundWorker.suspendDuringAction(() async {
       await expectLater(BackgroundWorker.stop(), throwsStateError);

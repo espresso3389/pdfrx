@@ -58,6 +58,8 @@ class BackgroundWorker {
   static final _lifecycleLock = Lock();
   static final _suspensionZoneKey = Object();
   static int _gateSuspendDepth = 0;
+  static int _activeSuspensions = 0;
+  static Completer<void>? _suspensionsIdle;
 
   final String debugName;
   SendPort? _sendPort;
@@ -258,10 +260,29 @@ class BackgroundWorker {
     if ((Zone.current[_suspensionZoneKey] as _WorkerSuspension?)?.isActive == true) {
       return _suspendDuringAction(action);
     }
-    return _lifecycleLock.synchronized(() => _suspendDuringAction(action));
+    return _lifecycleLock.synchronized(() async {
+      await _waitForSuspensions();
+      return _suspendDuringAction(action);
+    });
   }
 
+  static Future<void> _waitForSuspensions() =>
+      _activeSuspensions == 0 ? Future.value() : (_suspensionsIdle ??= Completer<void>()).future;
+
   static Future<T> _suspendDuringAction<T>(FutureOr<T> Function() action) async {
+    // A nested action may outlive its caller, so track it before the first await.
+    _activeSuspensions++;
+    try {
+      return await _runSuspendedAction(action);
+    } finally {
+      if (--_activeSuspensions == 0) {
+        _suspensionsIdle?.complete();
+        _suspensionsIdle = null;
+      }
+    }
+  }
+
+  static Future<T> _runSuspendedAction<T>(FutureOr<T> Function() action) async {
     await _instance._sendComputeParams((sendPort) => _SuspendRequest._(sendPort));
     // Hold the process lock so other engines cannot enter PDFium while
     // [action] uses native handles on this isolate. Do not call [compute]
@@ -305,7 +326,10 @@ class BackgroundWorker {
     if ((Zone.current[_suspensionZoneKey] as _WorkerSuspension?)?.isActive == true) {
       throw StateError('Cannot stop the worker from inside a suspended handle action.');
     }
-    await _lifecycleLock.synchronized(() => _instance._stop(beforeStop: beforeStop));
+    await _lifecycleLock.synchronized(() async {
+      await _waitForSuspensions();
+      await _instance._stop(beforeStop: beforeStop);
+    });
   }
 }
 
