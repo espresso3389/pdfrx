@@ -1176,6 +1176,16 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
 
   // (Removed: _handleScaleEndAnimation)
 
+  // Wheel events go through the resolver so that a deeper handler (e.g. an app overlay
+  // forwarding to PdfViewerController.handlePointerSignalEvent) wins and the event is handled once.
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      GestureBinding.instance.pointerSignalResolver.register(event, _receivedPointerSignal);
+    } else {
+      _receivedPointerSignal(event);
+    }
+  }
+
   // Handle mousewheel and web trackpad scroll events.
   void _receivedPointerSignal(PointerSignalEvent event) {
     final local = event.localPosition;
@@ -1647,7 +1657,7 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
 
     return Listener(
       key: _parentKey,
-      onPointerSignal: _receivedPointerSignal,
+      onPointerSignal: _onPointerSignal,
       onPointerDown: _onPointerDown, // ScrollPhysics
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,

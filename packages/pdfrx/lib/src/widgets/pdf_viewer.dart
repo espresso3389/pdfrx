@@ -1473,7 +1473,10 @@ class _PdfViewerState extends State<PdfViewer>
                 child: child,
                 onPointerSignal: (event) {
                   if (event is PointerScrollEvent) {
-                    _onWheelDelta(event);
+                    GestureBinding.instance.pointerSignalResolver.register(
+                      event,
+                      (event) => _onWheelDelta(event as PointerScrollEvent),
+                    );
                   }
                 },
               ),
