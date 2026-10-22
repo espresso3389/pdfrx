@@ -1,3 +1,9 @@
+# 2.10.0
+
+- BREAKING: Updated to `pdfrx_engine` 0.8.0. Custom implementations of the re-exported `PdfPage.render` API must accept the optional `PdfPageRenderPriority? priority` named parameter; wrappers should forward it. Existing viewer usage and render calls remain compatible ([#758](https://github.com/espresso3389/pdfrx/pull/758)).
+- Added explicit rendering priorities for native PDFium. The Web backend accepts the priority hint without changing scheduling ([#758](https://github.com/espresso3389/pdfrx/pull/758)).
+- Includes the engine fix for Hebrew text normalization around numbers and their punctuation ([#756](https://github.com/espresso3389/pdfrx/pull/756)).
+
 # 2.9.1
 
 - Fixed `calculateInitialZoom` returning `fitZoom` displaying a page at full width instead of fitting the entire page ([#773](https://github.com/espresso3389/pdfrx/issues/773)).
