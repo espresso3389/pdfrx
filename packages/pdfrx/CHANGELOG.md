@@ -1,3 +1,7 @@
+# 2.9.1
+
+- Fixed `calculateInitialZoom` returning `fitZoom` displaying a page at full width instead of fitting the entire page ([#773](https://github.com/espresso3389/pdfrx/issues/773)).
+
 # 2.9.0
 
 - Added `PdfTextSearcher.stopTextSearch()` to stop a pending or running search while keeping its matches and current match ([#730](https://github.com/espresso3389/pdfrx/pull/730)).
