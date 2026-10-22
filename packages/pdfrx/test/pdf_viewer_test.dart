@@ -24,6 +24,40 @@ void main() {
     return http.Response.bytes(await testPdfFile.readAsBytes(), 200);
   });
 
+  testWidgets('legacy initial fit zoom uses the initial page minimum scale', (tester) async {
+    final document = _TestDocument(1);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    double? requestedZoom;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          controller: controller,
+          params: PdfViewerParams(
+            scrollPhysics: const BouncingScrollPhysics(),
+            margin: 10,
+            sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(
+              calculateInitialZoom: (document, controller, fitZoom, coverZoom) {
+                requestedZoom = fitZoom;
+                return fitZoom;
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+
+    expect(controller.isReady, isTrue);
+    expect(requestedZoom, isNotNull);
+    expect(requestedZoom!, lessThan(controller.coverScale));
+    expect(controller.currentZoom, moreOrLessEquals(requestedZoom!));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   for (final preview in [true, false]) {
     testWidgets('page color filter updates ${preview ? 'preview' : 'partial'} pixels without filtering overlays', (
       tester,

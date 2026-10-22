@@ -960,7 +960,13 @@ class _PdfViewerState extends State<PdfViewer>
         _calcZoomStopTable();
 
         _sizeDelegate?.onLayoutInitialized(
-          state: newSnapshot,
+          state: PdfViewerLayoutSnapshot(
+            viewSize: _viewSize!,
+            layout: _layout,
+            minScale: _layoutMetrics.minScale,
+            coverScale: _layoutMetrics.coverScale,
+            alternativeFitScale: _layoutMetrics.alternativeFitScale,
+          ),
           initialPageNumber: _pageNumber!,
           coverScale: _layoutMetrics.coverScale,
           alternativeFitScale: _layoutMetrics.alternativeFitScale,
