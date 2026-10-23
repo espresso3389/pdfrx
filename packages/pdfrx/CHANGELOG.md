@@ -1,3 +1,8 @@
+# 2.10.1
+
+- Fixed Web/WASM time handling when reading PDF metadata ([#776](https://github.com/espresso3389/pdfrx/issues/776)).
+- Fixed context menus and error displays when Material localizations are unavailable ([#775](https://github.com/espresso3389/pdfrx/issues/775)).
+
 # 2.10.0
 
 - BREAKING: Updated to `pdfrx_engine` 0.8.0. Custom implementations of the re-exported `PdfPage.render` API must accept the optional `PdfPageRenderPriority? priority` named parameter; wrappers should forward it. Existing viewer usage and render calls remain compatible ([#758](https://github.com/espresso3389/pdfrx/pull/758)).

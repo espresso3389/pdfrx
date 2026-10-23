@@ -20,7 +20,7 @@ Add the package to your Flutter app:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.10.0
+  pdfrx: ^2.10.1
   pdfrx_coregraphics: ^0.5.0
 ```
 
