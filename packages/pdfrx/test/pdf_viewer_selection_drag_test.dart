@@ -151,6 +151,28 @@ void selectionDragTests({bool useFlutterInitialization = false}) {
     expect(text, (await tester.runAsync(delegate.getSelectedText))!);
     await tester.pumpWidget(const SizedBox());
   });
+
+  testWidgets('releasing resources preserves all pages in the active selection', (tester) async {
+    final (controller, document, texts) = await _setup(tester);
+    final delegate = controller.textSelectionDelegate;
+    await delegate.setTextSelectionPointRange(
+      PdfTextSelectionRange.fromPoints(PdfTextSelectionPoint(texts[0], 2), PdfTextSelectionPoint(texts[2], 4)),
+    );
+    final expected = (await tester.runAsync(delegate.getSelectedText))!;
+    for (var i = 0; i < 10; i++) {
+      controller.value = controller.value.clone()..translateByDouble(0, -1, 0, 1);
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    expect(delegate.selectedTextIfLoaded, expected);
+    controller.releaseCachedResources(keepVisible: false);
+    expect(delegate.hasSelectedText, isTrue);
+    expect(delegate.selectedTextIfLoaded, expected);
+    expect(PdfPageTextCache.forDocument(document).get(2), isNotNull);
+    controller.releaseCachedResources(keepVisible: false, keepSelection: false);
+    expect(delegate.hasSelectedText, isFalse);
+    expect(PdfPageTextCache.forDocument(document).length, 0);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets('selectedTextIfLoaded reports an unloaded intermediate page and then the complete selection', (
     tester,
   ) async {
