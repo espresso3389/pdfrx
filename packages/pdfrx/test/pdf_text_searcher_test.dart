@@ -5,28 +5,54 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 class _FakePage extends Fake implements PdfPage {
-  _FakePage(this.pageNumber);
+  _FakePage(this.pageNumber, {this.text = ''});
 
   @override
   final int pageNumber;
+
+  final String text;
+  int loads = 0;
+
+  @override
+  bool get isLoaded => true;
+
+  @override
+  Future<PdfPageRawText?> loadText() async {
+    loads++;
+    return PdfPageRawText(text, [for (var i = 0; i < text.length; i++) PdfRect(i * 10.0, 10, i * 10.0 + 10, 0)]);
+  }
 }
 
 class _FakeDocument extends Fake implements PdfDocument {
-  _FakeDocument(int pageCount) : pages = [for (var i = 1; i <= pageCount; i++) _FakePage(i)];
+  _FakeDocument(int pageCount, {Map<int, String> texts = const {}})
+    : pages = [for (var i = 1; i <= pageCount; i++) _FakePage(i, text: texts[i] ?? '')];
 
   @override
   final List<PdfPage> pages;
 
+  final eventsController = StreamController<PdfDocumentEvent>.broadcast();
+
   @override
-  Stream<PdfDocumentEvent> get events => const Stream.empty();
+  Stream<PdfDocumentEvent> get events => eventsController.stream;
+}
+
+class _UnloadedPage extends _FakePage {
+  _UnloadedPage(this.document, super.pageNumber);
+
+  @override
+  final PdfDocument document;
+
+  @override
+  bool get isLoaded => false;
 }
 
 class _FakeController extends PdfViewerController {
   _FakeController(this.fakeDocument);
 
-  final _FakeDocument fakeDocument;
+  _FakeDocument fakeDocument;
   int currentPageSet = 0;
   Completer<void>? documentReady;
+  int activeTasks = 0;
 
   @override
   bool get isReady => true;
@@ -56,21 +82,28 @@ class _FakeController extends PdfViewerController {
     bool ensureLoaded = true,
     Completer<dynamic>? cancelLoading,
   }) async {
-    await documentReady?.future;
-    return task(fakeDocument);
+    activeTasks++;
+    try {
+      await documentReady?.future;
+      return await task(fakeDocument);
+    } finally {
+      activeTasks--;
+    }
   }
 }
 
 /// Serves page text from [texts]; a page listed in [gates] waits for its completer.
 class _GatedSearcher extends PdfTextSearcher {
-  _GatedSearcher(super.controller, this.texts);
+  _GatedSearcher(super.controller, this.texts, {super.notificationInterval});
 
   final Map<int, String> texts;
   final Map<int, Completer<void>> gates = {};
+  final Set<int> missingPages = {};
 
   @override
   Future<PdfPageText?> loadText({required int pageNumber}) async {
     await gates[pageNumber]?.future;
+    if (missingPages.contains(pageNumber)) return null;
     final text = texts[pageNumber] ?? '';
     return PdfPageText(
       pageNumber: pageNumber,
@@ -82,6 +115,175 @@ class _GatedSearcher extends PdfTextSearcher {
 }
 
 void main() {
+  test('progressive measurement continues the same search when a placeholder becomes available', () async {
+    final document = _FakeDocument(2, texts: {1: 'word'});
+    document.pages[1] = _UnloadedPage(document, 2);
+    final searcher = PdfTextSearchSession(_FakeController(document));
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    final session = searcher.searchSession;
+    await pumpEventQueue();
+    expect(searcher.matches, hasLength(1));
+    expect(searcher.isSearching, isTrue);
+    final loaded = _FakePage(2, text: 'word');
+    document.pages[1] = loaded;
+    document.eventsController.add(
+      PdfDocumentPageStatusChangedEvent(document, changes: {2: PdfPageStatusChange.modified(page: loaded)}),
+    );
+    await pumpEventQueue();
+    expect(searcher.searchSession, session);
+    expect(searcher.matches.map((match) => match.pageNumber), [1, 2]);
+    expect(searcher.isSearching, isFalse);
+  });
+
+  test('stopping a search releases document references while waiting for an unmeasured page', () async {
+    final document = _FakeDocument(2, texts: {1: 'word'});
+    document.pages[1] = _UnloadedPage(document, 2);
+    final controller = _FakeController(document);
+    final searcher = PdfTextSearchSession(controller);
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    expect(controller.activeTasks, greaterThan(0));
+    searcher.stopTextSearch();
+    await pumpEventQueue();
+    expect(controller.activeTasks, 0);
+    expect(searcher.matches, hasLength(1));
+    expect(searcher.isSearching, isFalse);
+  });
+
+  testWidgets('editing a previously unmatched page restarts lightweight search', (tester) async {
+    final document = _FakeDocument(1, texts: {1: 'other'});
+    final searcher = PdfTextSearchSession(_FakeController(document));
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await tester.pump();
+    expect(searcher.matches, isEmpty);
+    final newPage = _FakePage(1, text: 'word');
+    document.pages[0] = newPage;
+    document.eventsController.add(
+      PdfDocumentPageStatusChangedEvent(document, changes: {1: PdfPageStatusChange.modified(page: newPage)}),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(searcher.matches.single.text, 'word');
+  });
+
+  test('reusing a search session with a new document does not retain previous results', () async {
+    final controller = _FakeController(_FakeDocument(1, texts: {1: 'word word'}));
+    final searcher = PdfTextSearchSession(controller);
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    expect(searcher.matches, hasLength(2));
+    controller.fakeDocument = _FakeDocument(1, texts: {1: 'word'});
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    expect(searcher.matches, hasLength(1));
+  });
+
+  test('searching an empty document completes without retaining old results', () async {
+    final searcher = PdfTextSearchSession(_FakeController(_FakeDocument(0)));
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    expect(searcher.isSearching, isFalse);
+    expect(searcher.matches, isEmpty);
+  });
+
+  test('lightweight results survive geometry eviction and navigate without reloading text', () async {
+    final document = _FakeDocument(40, texts: {for (var page = 1; page <= 40; page++) page: 'prefix word suffix'});
+    final searcher = PdfTextSearchSession(_FakeController(document), contextLength: 3);
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue(times: 1000);
+    expect(searcher.matches, hasLength(40));
+    final match = searcher.matches.first;
+    expect(match.text, 'word');
+    expect(match.contextText, 'ix word su');
+    expect(match.contextStart, 4);
+    final cache = PdfPageTextCache.forDocument(document);
+    expect(cache.length, lessThanOrEqualTo(cache.maximumPages));
+    expect(cache.get(1), isNull);
+    searcher.releaseCachedText();
+    expect(cache.length, 0);
+    expect(await searcher.goToMatchOfIndex(0), 0);
+    expect((document.pages.first as _FakePage).loads, 1);
+    expect(searcher.matches.first.bounds, match.bounds);
+    expect(() => match.rects.clear(), throwsUnsupportedError);
+  });
+
+  test('lightweight search preserves RegExp, case sensitivity, and zero-width filtering', () async {
+    final searcher = PdfTextSearchSession(_FakeController(_FakeDocument(1, texts: {1: 'word WORD other'})));
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch(RegExp(r'word|(?=other)'), goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    expect(searcher.matches.map((match) => match.text), ['word']);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    expect(searcher.matches.map((match) => match.text), ['word', 'WORD']);
+    searcher.resetTextSearch();
+    expect(searcher.matches, isEmpty);
+  });
+
+  test('legacy and lightweight search share structured-text extraction', () async {
+    final document = _FakeDocument(1, texts: {1: 'word'});
+    final controller = _FakeController(document);
+    final legacy = PdfTextSearcher(controller);
+    final lightweight = PdfTextSearchSession(controller);
+    addTearDown(legacy.dispose);
+    addTearDown(lightweight.dispose);
+    legacy.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    lightweight.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    expect(legacy.matches.single.text, lightweight.matches.single.text);
+    expect((document.pages.first as _FakePage).loads, 1);
+  });
+
+  test('published results are immutable snapshots while later pages are appended', () async {
+    final searcher = _GatedSearcher(_FakeController(_FakeDocument(2)), {1: 'word', 2: 'word word'});
+    addTearDown(searcher.dispose);
+    final gate = searcher.gates[2] = Completer<void>();
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    final firstPage = searcher.matches;
+    gate.complete();
+    await pumpEventQueue();
+    expect(firstPage, hasLength(1));
+    expect(searcher.matches, hasLength(3));
+    expect(() => firstPage[1], throwsRangeError);
+    expect(() => firstPage.clear(), throwsUnsupportedError);
+    expect(() => searcher.matches[0] = searcher.matches[1], throwsUnsupportedError);
+  });
+
+  test('progress is batched with first and final notifications guaranteed', () async {
+    final searcher = _GatedSearcher(_FakeController(_FakeDocument(100)), {
+      for (var page = 1; page <= 100; page++) page: 'word',
+    }, notificationInterval: const Duration(days: 1));
+    addTearDown(searcher.dispose);
+    var notifications = 0;
+    searcher.addListener(() => notifications++);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue(times: 1000);
+    expect(searcher.matches, hasLength(100));
+    expect(searcher.isSearching, isFalse);
+    expect(searcher.searchProgress, 1);
+    expect(notifications, 2);
+  });
+
+  test('missing text preserves page indices and still completes the search', () async {
+    final searcher = _GatedSearcher(_FakeController(_FakeDocument(4)), {1: 'word', 3: 'word'})
+      ..missingPages.addAll([2, 4]);
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    expect(searcher.matches.map((match) => match.pageNumber), [1, 3]);
+    expect(searcher.getMatchesRangeForPage(2), (start: 1, end: 1));
+    expect(searcher.getMatchesRangeForPage(3), (start: 1, end: 2));
+    expect(searcher.getMatchesRangeForPage(4), (start: 2, end: 2));
+    expect(searcher.isSearching, isFalse);
+  });
+
   test('stopping while the document is loading prevents the search from starting later', () async {
     final controller = _FakeController(_FakeDocument(1))..documentReady = Completer<void>();
     final searcher = _GatedSearcher(controller, {1: 'word'});
