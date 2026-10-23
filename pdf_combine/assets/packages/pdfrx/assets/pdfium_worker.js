@@ -604,8 +604,8 @@ const emEnv = {
   _emscripten_throw_longjmp: function () {
     throw Infinity;
   },
-  _gmtime_js: function (time, tmPtr) {
-    time = Number(time);
+  _gmtime_js: function (timeLow, timeHigh, tmPtr) {
+    const time = (timeLow >>> 0) + timeHigh * 0x100000000;
     const date = new Date(time * 1000);
     const tm = new Int32Array(Pdfium.memory.buffer, tmPtr, 9);
     tm[0] = date.getUTCSeconds();
@@ -624,8 +624,8 @@ const emEnv = {
   _munmap_js: function (addr, len, prot, flags, fd, offset_low, offset_high) {
     _notImplemented('_munmap_js');
   },
-  _localtime_js: function (time, tmPtr) {
-    time = Number(time);
+  _localtime_js: function (timeLow, timeHigh, tmPtr) {
+    const time = (timeLow >>> 0) + timeHigh * 0x100000000;
     const date = new Date(time * 1000);
     const tm = new Int32Array(Pdfium.memory.buffer, tmPtr, 9);
     tm[0] = date.getSeconds();
