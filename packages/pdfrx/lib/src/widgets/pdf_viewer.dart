@@ -21,6 +21,7 @@ import '../utils/edge_insets_extensions.dart';
 import '../utils/platform.dart';
 import 'interactive_viewer.dart' as iv;
 import 'internals/partial_rendering.dart';
+import 'internals/page_layout_index.dart';
 import 'internals/pdf_error_widget.dart';
 import 'internals/pdf_viewer_key_handler.dart';
 import 'internals/widget_size_sniffer.dart';
@@ -250,6 +251,9 @@ class _PdfViewerState extends State<PdfViewer>
 
   PdfDocument? _document;
   PdfPageLayout? _layout;
+  PageLayoutIndex? _pageLayoutIndex;
+  bool _layoutDirty = true;
+  bool _isSimplePageLayout = true;
   Size? _viewSize;
   late PdfViewerLayoutMetrics _layoutMetrics;
   int? _pageNumber;
@@ -357,6 +361,7 @@ class _PdfViewerState extends State<PdfViewer>
   @override
   void didUpdateWidget(covariant PdfViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _layoutDirty = true;
     _widgetUpdated(oldWidget);
     if (widget.params.interactionDelegateProvider != oldWidget.params.interactionDelegateProvider) {
       _updateInteractionDelegate();
@@ -450,6 +455,8 @@ class _PdfViewerState extends State<PdfViewer>
       );
     }
     _layout = null;
+    _pageLayoutIndex = null;
+    _layoutDirty = true;
     _documentSubscription?.cancel();
     _documentSubscription = null;
     _clearFontManagerAssociation();
@@ -636,6 +643,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onDocumentEvent(PdfDocumentEvent event) {
     if (event is PdfDocumentPageStatusChangedEvent) {
+      _layoutDirty = true;
       // FIXME: We can handle the event more efficiently by only updating the affected pages.
       for (final change in event.changes.entries) {
         _imageCache.makeCacheImageForPageDirty(change.key, page: change.value.page);
@@ -915,6 +923,7 @@ class _PdfViewerState extends State<PdfViewer>
     final oldSize = _viewSize;
     final isViewSizeChanged = oldSize != viewSize;
     _viewSize = viewSize;
+    if (isViewSizeChanged) _layoutDirty = true;
     final isLayoutChanged = _relayoutPages();
 
     _recalculateMetrics();
@@ -1257,11 +1266,10 @@ class _PdfViewerState extends State<PdfViewer>
     final visibleRect = _visibleRect;
     final layout = _layout!;
     final isHorizontal = layout.documentSize.width > layout.documentSize.height;
-    final isSimple = _isSimpleLayout(layout.pageLayouts, isHorizontal);
+    final isSimple = _isSimplePageLayout;
 
-    // Calculate primary axis visibility for all pages (map: page number -> visibility %)
     final visible = <int, double>{};
-    for (var i = 0; i < layout.pageLayouts.length; i++) {
+    for (final i in _pageLayoutIndex!.intersectingAxis(visibleRect, horizontal: isHorizontal)) {
       final pct = _calcPrimaryAxisVisibility(layout.pageLayouts[i], visibleRect, isHorizontal);
       if (pct > 0) visible[i + 1] = pct;
     }
@@ -1356,14 +1364,22 @@ class _PdfViewerState extends State<PdfViewer>
   bool _relayoutPages() {
     if (_document == null) {
       _layout = null;
+      _pageLayoutIndex = null;
       return false;
     }
+    if (!_layoutDirty && _layout != null) return false;
     final newLayout = (widget.params.layoutPages ?? _layoutPages)(_document!.pages, widget.params);
-    if (_layout == newLayout) {
+    _layoutDirty = false;
+    if (_layout?.documentSize == newLayout.documentSize && _pageLayoutIndex?.matches(newLayout.pageLayouts) == true) {
       return false;
     }
 
     _layout = newLayout;
+    _pageLayoutIndex = PageLayoutIndex(newLayout.pageLayouts);
+    _isSimplePageLayout = _isSimpleLayout(
+      newLayout.pageLayouts,
+      newLayout.documentSize.width > newLayout.documentSize.height,
+    );
     return true;
   }
 
@@ -1459,10 +1475,8 @@ class _PdfViewerState extends State<PdfViewer>
     final overlayWidgets = <Widget>[];
     final targetRect = _getCacheExtentRect();
 
-    for (var i = 0; i < _document!.pages.length; i++) {
+    for (final i in _pageLayoutIndex!.intersecting(targetRect)) {
       final rect = _layout!.pageLayouts[i];
-      final intersection = rect.intersect(targetRect);
-      if (intersection.isEmpty) continue;
 
       final page = _document!.pages[i];
       final rectExternal = _documentToRenderBox(rect, renderBox);
@@ -1513,10 +1527,8 @@ class _PdfViewerState extends State<PdfViewer>
     final widgets = <Widget>[];
     final targetRect = _visibleRect;
 
-    for (var i = 0; i < _document!.pages.length; i++) {
+    for (final i in _pageLayoutIndex!.intersecting(targetRect)) {
       final pageRect = _layout!.pageLayouts[i];
-      final intersection = pageRect.intersect(targetRect);
-      if (intersection.isEmpty) continue;
 
       final page = _document!.pages[i];
       final pageRectExternal = _documentToRenderBox(pageRect, renderBox);
@@ -1697,18 +1709,14 @@ class _PdfViewerState extends State<PdfViewer>
     final pageImageColorFilter = widget.params.pageImageColorFilter;
     cacheTargetRect ??= targetRect;
 
-    for (var i = 0; i < _document!.pages.length; i++) {
+    final pageIndices = _pageLayoutIndex!.intersecting(cacheTargetRect);
+    final retainedPages = pageIndices.map((i) => i + 1).toSet();
+    for (final pageNumber in cache.pendingPageNumbers.toList()) {
+      if (!retainedPages.contains(pageNumber)) cache.cancelPendingRenderings(pageNumber);
+    }
+    unusedPageList.addAll(cache.pageImages.keys.where((pageNumber) => !retainedPages.contains(pageNumber)));
+    for (final i in pageIndices) {
       final rect = _layout!.pageLayouts[i];
-      final intersection = rect.intersect(cacheTargetRect);
-      if (intersection.isEmpty) {
-        final page = _document!.pages[i];
-        cache.cancelPendingRenderings(page.pageNumber);
-        if (cache.pageImages.containsKey(i + 1)) {
-          unusedPageList.add(i + 1);
-        }
-        continue;
-      }
-
       final page = _document!.pages[i];
       firstInExtent ??= page.pageNumber;
       lastInExtent = page.pageNumber;
@@ -2029,7 +2037,7 @@ class _PdfViewerState extends State<PdfViewer>
   bool _hitTestForTextSelection(ui.Offset position) {
     if (_selPartMoving != _TextSelectionPart.free && enableSelectionHandles) return false;
     if (_document == null || _layout == null) return false;
-    for (var i = 0; i < _document!.pages.length; i++) {
+    for (final i in _pageLayoutIndex!.containing(position)) {
       final pageRect = _layout!.pageLayouts[i];
       if (!pageRect.contains(position)) continue;
       final page = _document!.pages[i];
@@ -2063,16 +2071,17 @@ class _PdfViewerState extends State<PdfViewer>
     return PdfPageLayout(pageLayouts: pageLayout, documentSize: Size(width, y));
   }
 
-  void _invalidate() => _updateStream.add(_txController.value);
+  void _invalidate({bool relayout = false}) {
+    if (relayout) _layoutDirty = true;
+    _updateStream.add(_txController.value);
+  }
 
   void _releaseCachedImages({required bool keepVisible}) {
     final keep = <int>{};
     final layout = _layout;
     if (keepVisible && layout != null && _initialized && _viewSize != null) {
       final visible = _visibleRect;
-      for (var i = 0; i < layout.pageLayouts.length; i++) {
-        if (layout.pageLayouts[i].overlaps(visible)) keep.add(i + 1);
-      }
+      keep.addAll(_pageLayoutIndex!.intersecting(visible).map((i) => i + 1));
     }
     _imageCache.releaseImagesExcept(keep);
     _magnifierImageCache.releaseImagesExcept(const {});
@@ -2689,7 +2698,7 @@ class _PdfViewerState extends State<PdfViewer>
       final r = Matrix4.inverted(_txController.value);
       offset = r.transformOffset(offset);
     }
-    for (var i = 0; i < pages.length; i++) {
+    for (final i in _pageLayoutIndex!.containing(offset)) {
       final page = pages[i];
       final pageRect = pageLayouts[i];
       if (pageRect.contains(offset)) {
@@ -2974,7 +2983,7 @@ class _PdfViewerState extends State<PdfViewer>
   /// [point] is in the document coordinates.
   PdfTextSelectionPoint? _findTextAndIndexForPoint(Offset? point, {double hitTestMargin = 8}) {
     if (point == null) return null;
-    for (var pageIndex = 0; pageIndex < _document!.pages.length; pageIndex++) {
+    for (final pageIndex in _pageLayoutIndex!.containing(point)) {
       final pageRect = _layout!.pageLayouts[pageIndex];
       if (!pageRect.contains(point)) {
         continue;
@@ -3784,19 +3793,10 @@ class _PdfViewerState extends State<PdfViewer>
   PdfTextSelectionPoint? _findHandleTextAndIndex(Offset point) {
     final strict = _findTextAndIndexForPoint(point);
     if (strict != null) return strict;
-    var nearestPage = -1;
+    final nearestPage = _pageLayoutIndex!.nearest(point);
     var distance = double.infinity;
     final pages = _layout!.pageLayouts;
-    for (var i = 0; i < pages.length; i++) {
-      final rect = pages[i];
-      final nearest = Offset(point.dx.clamp(rect.left, rect.right), point.dy.clamp(rect.top, rect.bottom));
-      final d = (point - nearest).distanceSquared;
-      if (d < distance) {
-        distance = d;
-        nearestPage = i;
-      }
-    }
-    if (nearestPage < 0) return null;
+    if (nearestPage == null) return null;
     final text = _getCachedTextOrDelayLoadText(nearestPage + 1);
     if (text == null || text.charRects.isEmpty) return null;
     final pageRect = pages[nearestPage];
@@ -4104,7 +4104,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   @override
   Future<void> selectWord(Offset offset, {PointerDeviceKind? deviceKind}) async {
-    for (var i = 0; i < _document!.pages.length; i++) {
+    for (final i in _pageLayoutIndex!.containing(offset)) {
       final pageRect = _layout!.pageLayouts[i];
       if (!pageRect.contains(offset)) {
         continue;
@@ -4222,6 +4222,12 @@ class _PdfPageImageCache {
   final cancellationTokens = <int, List<PdfPageRenderCancellationToken>>{};
   final pagePreviewRenderings = <int>{};
   final pageImagePartialRenderingRequests = <int, _PdfPartialImageRenderingRequest>{};
+
+  Iterable<int> get pendingPageNumbers => {
+    ...pageImageRenderingTimers.keys,
+    ...cancellationTokens.keys,
+    ...pageImagePartialRenderingRequests.keys,
+  };
 
   void addCancellationToken(int pageNumber, PdfPageRenderCancellationToken token) {
     var tokens = cancellationTokens.putIfAbsent(pageNumber, () => []);
@@ -4911,7 +4917,7 @@ class PdfViewerController extends ValueListenable<Matrix4> {
     final viewRect = visibleRect;
     final result = <PdfPageFitInfo>[];
     final pos = centerPosition;
-    for (var i = 0; i < layout.pageLayouts.length; i++) {
+    for (final i in _state._pageLayoutIndex!.intersecting(viewRect)) {
       final page = layout.pageLayouts[i];
       if (page.intersect(viewRect).isEmpty) continue;
       final boundaryMargin = _state._adjustedBoundaryMargins;
@@ -5115,7 +5121,7 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// Invalidates the current Widget display state.
   ///
   /// Almost identical to `setState` but can be called outside the state.
-  void invalidate() => _state._invalidate();
+  void invalidate() => _state._invalidate(relayout: true);
 
   /// The text selection delegate.
   PdfTextSelectionDelegate get textSelectionDelegate => _state;
