@@ -20,6 +20,7 @@ import '../pdfrx_flutter.dart';
 import '../utils/edge_insets_extensions.dart';
 import '../utils/platform.dart';
 import 'interactive_viewer.dart' as iv;
+import 'internals/material_localizations_fallback.dart';
 import 'internals/partial_rendering.dart';
 import 'internals/pdf_error_widget.dart';
 import 'internals/pdf_viewer_key_handler.dart';
@@ -3709,19 +3710,15 @@ class _PdfViewerState extends State<PdfViewer>
         if (item.label == null) item.copyWith(label: _contextMenuButtonLabel(item.type, localizations)) else item,
     ];
 
-    Widget toolbar = AdaptiveTextSelectionToolbar.buttonItems(
+    final toolbar = AdaptiveTextSelectionToolbar.buttonItems(
       anchors: TextSelectionToolbarAnchors(primaryAnchor: params.anchorA, secondaryAnchor: params.anchorB),
       buttonItems: buttonItems,
     );
-    if (localizations == null) {
-      // The overflow menu also needs Material localizations, even with explicit button labels.
-      toolbar = Localizations.override(
-        context: context,
-        delegates: const [DefaultMaterialLocalizations.delegate],
-        child: toolbar,
-      );
-    }
-    return Align(alignment: Alignment.topLeft, child: toolbar);
+    // The overflow menu also needs Material localizations, even with explicit button labels.
+    return Align(
+      alignment: Alignment.topLeft,
+      child: withMaterialLocalizationsFallback(context, child: toolbar),
+    );
   }
 
   String _contextMenuButtonLabel(ContextMenuButtonType type, MaterialLocalizations? localizations) {
