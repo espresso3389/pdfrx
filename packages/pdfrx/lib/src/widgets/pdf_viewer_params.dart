@@ -9,6 +9,7 @@ import '../pdf_document_ref.dart';
 import '../utils/fixed_overscroll_physics.dart';
 import '../utils/platform.dart';
 import 'pdf_viewer.dart';
+import 'pdf_image_cache_budget.dart';
 import 'pdf_viewer_scroll_thumb.dart';
 import 'scroll_interaction/pdf_viewer_scroll_interaction_delegate.dart';
 import 'scroll_interaction/pdf_viewer_scroll_interaction_delegate_instant.dart';
@@ -25,6 +26,7 @@ import 'zoom_steps/pdf_viewer_zoom_steps_delegate_default.dart';
 @immutable
 class PdfViewerParams {
   const PdfViewerParams({
+    this.isVisible = true,
     this.margin = 8.0,
     this.backgroundColor = Colors.grey,
     this.layoutPages,
@@ -79,6 +81,7 @@ class PdfViewerParams {
     this.enableKeyboardNavigation = true,
     this.scrollByArrowKey = 25.0,
     this.maxImageBytesCachedOnMemory = 100 * 1024 * 1024,
+    this.imageCacheBudget,
     this.horizontalCacheExtent = 1.0,
     this.verticalCacheExtent = 1.0,
     this.linkHandlerParams,
@@ -118,6 +121,12 @@ class PdfViewerParams {
 
   /// Margin around the page.
   final double margin;
+
+  /// Whether the viewer should load and render its pages.
+  ///
+  /// Set false for a kept-alive hidden tab. This cancels pending renders and releases images,
+  /// links and unpinned text while preserving the position and active selection. Focus is independent.
+  final bool isVisible;
 
   /// Background color of the viewer.
   final Color backgroundColor;
@@ -494,7 +503,13 @@ class PdfViewerParams {
   /// Restrict the total amount of image bytes to be cached on memory. The default is 100 MB.
   ///
   /// The internal cache mechanism tries to limit the actual memory usage under the value but it is not guaranteed.
+  /// Also bounds each render's estimated working allocation when [imageCacheBudget] is shared.
+  /// Previews, partial images and magnifier images may coexist; this is not a process-memory limit.
   final int maxImageBytesCachedOnMemory;
+
+  /// Optional budget shared with other viewers and application-owned image caches.
+  /// Includes estimated render/conversion memory; visible pinned resources may temporarily exceed it.
+  final PdfImageCacheBudget? imageCacheBudget;
 
   /// The horizontal cache extent specified in ratio to the viewport width. The default is 1.0.
   final double horizontalCacheExtent;
@@ -811,7 +826,10 @@ class PdfViewerParams {
   bool operator ==(covariant PdfViewerParams other) {
     if (identical(this, other)) return true;
 
-    return other.margin == margin &&
+    return identical(other.imageCacheBudget, imageCacheBudget) &&
+        other.maxImageBytesCachedOnMemory == maxImageBytesCachedOnMemory &&
+        other.isVisible == isVisible &&
+        other.margin == margin &&
         other.backgroundColor == backgroundColor &&
         // ignore: deprecated_member_use_from_same_package
         other.maxScale == maxScale &&
@@ -885,7 +903,10 @@ class PdfViewerParams {
 
   @override
   int get hashCode {
-    return margin.hashCode ^
+    return imageCacheBudget.hashCode ^
+        maxImageBytesCachedOnMemory.hashCode ^
+        isVisible.hashCode ^
+        margin.hashCode ^
         backgroundColor.hashCode ^
         // ignore: deprecated_member_use_from_same_package
         maxScale.hashCode ^
