@@ -4,10 +4,11 @@ import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 import '../../utils/platform.dart';
+import 'material_localizations_fallback.dart';
 
 /// Show error widget when pdf viewer failed to load pdf.
 Widget pdfErrorWidget(BuildContext context, Object error, {StackTrace? stackTrace, bool bannerWarning = true}) {
-  return Container(
+  final child = Container(
     color: Colors.blue,
     child: Center(
       child: Column(
@@ -58,6 +59,7 @@ Widget pdfErrorWidget(BuildContext context, Object error, {StackTrace? stackTrac
       ),
     ),
   );
+  return withMaterialLocalizationsFallback(context, child: child);
 }
 
 typedef _GestureRecognizerDisposerFunction = GestureRecognizer Function(GestureRecognizer recognizer);

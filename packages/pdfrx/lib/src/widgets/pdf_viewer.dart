@@ -20,6 +20,7 @@ import '../pdfrx_flutter.dart';
 import '../utils/edge_insets_extensions.dart';
 import '../utils/platform.dart';
 import 'interactive_viewer.dart' as iv;
+import 'internals/material_localizations_fallback.dart';
 import 'internals/partial_rendering.dart';
 import 'internals/page_layout_index.dart';
 import 'internals/pdf_error_widget.dart';
@@ -252,6 +253,7 @@ class _PdfViewerState extends State<PdfViewer>
   PdfDocument? _document;
   PdfPageLayout? _layout;
   PageLayoutIndex? _pageLayoutIndex;
+  bool _layoutDirty = true;
   bool _isSimplePageLayout = true;
   Size? _viewSize;
   late PdfViewerLayoutMetrics _layoutMetrics;
@@ -380,6 +382,7 @@ class _PdfViewerState extends State<PdfViewer>
         unawaited(_loadPagesInBackground());
       }
     }
+    _layoutDirty = true;
     _widgetUpdated(oldWidget);
     if (widget.params.interactionDelegateProvider != oldWidget.params.interactionDelegateProvider) {
       _updateInteractionDelegate();
@@ -474,6 +477,7 @@ class _PdfViewerState extends State<PdfViewer>
     }
     _layout = null;
     _pageLayoutIndex = null;
+    _layoutDirty = true;
     _documentSubscription?.cancel();
     _documentSubscription = null;
     _clearFontManagerAssociation();
@@ -670,6 +674,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onDocumentEvent(PdfDocumentEvent event) {
     if (event is PdfDocumentPageStatusChangedEvent) {
+      _layoutDirty = true;
       // FIXME: We can handle the event more efficiently by only updating the affected pages.
       for (final change in event.changes.entries) {
         _imageCache.makeCacheImageForPageDirty(change.key, page: change.value.page);
@@ -814,6 +819,7 @@ class _PdfViewerState extends State<PdfViewer>
                             interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
                             scaleInertiaMaxExcursion: widget.params.scaleInertiaMaxExcursion,
                             onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
+                            ignoresWheelDelta: _ignoresWheelDelta,
                             onPointerScale: _onPointerScale,
                             scrollPhysics: widget.params.scrollPhysics,
                             scrollPhysicsScale: widget.params.scrollPhysicsScale,
@@ -950,6 +956,7 @@ class _PdfViewerState extends State<PdfViewer>
     final oldSize = _viewSize;
     final isViewSizeChanged = oldSize != viewSize;
     _viewSize = viewSize;
+    if (isViewSizeChanged) _layoutDirty = true;
     final isLayoutChanged = _relayoutPages();
 
     _recalculateMetrics();
@@ -995,7 +1002,13 @@ class _PdfViewerState extends State<PdfViewer>
         _calcZoomStopTable();
 
         _sizeDelegate?.onLayoutInitialized(
-          state: newSnapshot,
+          state: PdfViewerLayoutSnapshot(
+            viewSize: _viewSize!,
+            layout: _layout,
+            minScale: _layoutMetrics.minScale,
+            coverScale: _layoutMetrics.coverScale,
+            alternativeFitScale: _layoutMetrics.alternativeFitScale,
+          ),
           initialPageNumber: _pageNumber!,
           coverScale: _layoutMetrics.coverScale,
           alternativeFitScale: _layoutMetrics.alternativeFitScale,
@@ -1387,8 +1400,10 @@ class _PdfViewerState extends State<PdfViewer>
       _pageLayoutIndex = null;
       return false;
     }
+    if (!_layoutDirty && _layout != null && widget.params.layoutPages == null) return false;
     final newLayout = (widget.params.layoutPages ?? _layoutPages)(_document!.pages, widget.params);
-    if (_layout == newLayout) {
+    _layoutDirty = false;
+    if (_layout?.documentSize == newLayout.documentSize && _pageLayoutIndex?.matches(newLayout.pageLayouts) == true) {
       return false;
     }
 
@@ -1510,8 +1525,11 @@ class _PdfViewerState extends State<PdfViewer>
               wrapperBuilder: (child) => Listener(
                 child: child,
                 onPointerSignal: (event) {
-                  if (event is PointerScrollEvent) {
-                    _onWheelDelta(event);
+                  if (event is PointerScrollEvent && !_ignoresWheelDelta(event)) {
+                    GestureBinding.instance.pointerSignalResolver.register(
+                      event,
+                      (event) => _onWheelDelta(event as PointerScrollEvent),
+                    );
                   }
                 },
               ),
@@ -2124,7 +2142,10 @@ class _PdfViewerState extends State<PdfViewer>
     return PdfPageLayout(pageLayouts: pageLayout, documentSize: Size(width, y));
   }
 
-  void _invalidate() => _updateStream.add(_txController.value);
+  void _invalidate({bool relayout = false}) {
+    if (relayout) _layoutDirty = true;
+    _updateStream.add(_txController.value);
+  }
 
   void _releaseCachedImages({required bool keepVisible}) {
     final keep = <int>{};
@@ -2357,8 +2378,11 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
+  bool _ignoresWheelDelta(PointerScrollEvent event) =>
+      HardwareKeyboard.instance.isControlPressed && !widget.params.scaleEnabled;
+
   void _onWheelDelta(PointerScrollEvent event) {
-    if (HardwareKeyboard.instance.isControlPressed && !widget.params.scaleEnabled) {
+    if (_ignoresWheelDelta(event)) {
       return;
     }
 
@@ -3780,19 +3804,15 @@ class _PdfViewerState extends State<PdfViewer>
         if (item.label == null) item.copyWith(label: _contextMenuButtonLabel(item.type, localizations)) else item,
     ];
 
-    Widget toolbar = AdaptiveTextSelectionToolbar.buttonItems(
+    final toolbar = AdaptiveTextSelectionToolbar.buttonItems(
       anchors: TextSelectionToolbarAnchors(primaryAnchor: params.anchorA, secondaryAnchor: params.anchorB),
       buttonItems: buttonItems,
     );
-    if (localizations == null) {
-      // The overflow menu also needs Material localizations, even with explicit button labels.
-      toolbar = Localizations.override(
-        context: context,
-        delegates: const [DefaultMaterialLocalizations.delegate],
-        child: toolbar,
-      );
-    }
-    return Align(alignment: Alignment.topLeft, child: toolbar);
+    // The overflow menu also needs Material localizations, even with explicit button labels.
+    return Align(
+      alignment: Alignment.topLeft,
+      child: withMaterialLocalizationsFallback(context, child: toolbar),
+    );
   }
 
   String _contextMenuButtonLabel(ContextMenuButtonType type, MaterialLocalizations? localizations) {
@@ -5181,17 +5201,37 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// Converts document coordinates to local coordinates.
   PdfViewerCoordinateConverter get doc2local => _state;
 
-  /// Provided to workaround certain widgets eating wheel events. Use with [Listener.onPointerSignal].
+  /// Provided to workaround certain widgets eating wheel events.
+  ///
+  /// Call it from a [PointerSignalResolver] registration, not directly from [Listener.onPointerSignal]:
+  /// when the viewer is also in the hit path it claims the event through the resolver, and a direct call
+  /// would handle the event twice.
+  ///
+  /// ```dart
+  /// Listener(
+  ///   onPointerSignal: (event) => GestureBinding.instance.pointerSignalResolver.register(
+  ///     event,
+  ///     controller.handlePointerSignalEvent,
+  ///   ),
+  /// )
+  /// ```
   void handlePointerSignalEvent(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
       _state._onWheelDelta(event);
     }
   }
 
+  /// Forwards an overlay-owned pan/zoom gesture with global positions and cumulative pan and scale.
+  /// Send start, updates, then end (or [PointerCancelEvent]); an end does not add synthetic inertia.
+  void handlePointerPanZoomEvent(PointerEvent event) {
+    if (event is PointerPanZoomStartEvent) _state._interactionDelegate?.stop();
+    _state._interactiveViewerState?.handlePointerPanZoomEvent(event);
+  }
+
   /// Invalidates the current Widget display state.
   ///
   /// Almost identical to `setState` but can be called outside the state.
-  void invalidate() => _state._invalidate();
+  void invalidate() => _state._invalidate(relayout: true);
 
   /// The text selection delegate.
   PdfTextSelectionDelegate get textSelectionDelegate => _state;

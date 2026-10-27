@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart' as flutter;
+import 'package:flutter_localizations/flutter_localizations.dart' as flutter_localizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -9,6 +11,36 @@ final _binding = TestWidgetsFlutterBinding.ensureInitialized();
 
 void main() {
   setUp(() => pdfrxInitialize());
+
+  for (final locale in const [Locale('de', 'DE'), Locale('ar')]) {
+    testWidgets('default context menu falls back with Flutter localizations for $locale', (tester) async {
+      await _binding.setSurfaceSize(const Size(1080, 1920));
+      addTearDown(() => _binding.setSurfaceSize(null));
+
+      final controller = PdfViewerController();
+      final document = await _openTestDocument(tester, 'context-menu-$locale.pdf');
+      addTearDown(() => document?.dispose());
+
+      await _pumpTestViewer(
+        tester,
+        document!,
+        controller,
+        (child) => flutter.MaterialApp(
+          locale: locale,
+          supportedLocales: [locale],
+          localizationsDelegates: flutter_localizations.GlobalMaterialLocalizations.delegates,
+          home: flutter.Scaffold(body: child),
+        ),
+      );
+
+      await _expectContextMenu(tester, controller);
+      expect(find.text('Copy'), findsOneWidget);
+      final context = tester.element(find.byType(AdaptiveTextSelectionToolbar));
+      expect(Localizations.localeOf(context), locale);
+      expect(Directionality.of(context), locale.languageCode == 'ar' ? TextDirection.rtl : TextDirection.ltr);
+      expect(MaterialLocalizations.of(context), isA<DefaultMaterialLocalizations>());
+    });
+  }
 
   testWidgets('default context menu works with material_ui MaterialApp localizations', (tester) async {
     await _binding.setSurfaceSize(const Size(1080, 1920));
