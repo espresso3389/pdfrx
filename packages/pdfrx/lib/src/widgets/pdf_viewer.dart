@@ -281,7 +281,8 @@ class _PdfViewerState extends State<PdfViewer>
 
   final _imageCache = _PdfPageImageCache();
   final _magnifierImageCache = _PdfPageImageCache();
-  late final _localImageBudget = PdfImageCacheBudget(maximumBytes: widget.params.maxImageBytesCachedOnMemory);
+  // Without a shared budget, keep the legacy cache limit without capping in-flight renders.
+  late final _localImageBudget = PdfImageCacheBudget(maximumBytes: 0x1fffffffffffff);
   PdfImageCacheBudget get _imageBudget => widget.params.imageCacheBudget ?? _localImageBudget;
 
   late final _canvasLinkPainter = _CanvasLinkPainter(this);
@@ -392,9 +393,6 @@ class _PdfViewerState extends State<PdfViewer>
       _imageBudget.addListener(_onImageBudgetChanged);
       _imageCache.releaseAllImages();
       _magnifierImageCache.releaseAllImages();
-    }
-    if (widget.params.maxImageBytesCachedOnMemory != oldWidget.params.maxImageBytesCachedOnMemory) {
-      _localImageBudget.maximumBytes = widget.params.maxImageBytesCachedOnMemory;
     }
     if (widget.params.isVisible != oldWidget.params.isVisible) {
       _visibilityGeneration++;
