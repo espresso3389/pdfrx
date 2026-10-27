@@ -59,3 +59,23 @@ On [PdfViewerParams.pageOverlaysBuilder](https://pub.dev/documentation/pdfrx/lat
 
 - `pageRect` is the zoomed page rectangle inside the view
 - To correctly locate the position, it must be zoomed (by [PdfViewerController.currentZoom](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/currentZoom.html))
+
+## Forwarding Pointer Events
+
+When a custom overlay must consume and forward a mouse wheel event to an attached controller, register the event with Flutter's `PointerSignalResolver` rather than calling `handlePointerSignalEvent` directly in the listener. This lets the overlay and viewer resolve the event once:
+
+```dart
+Listener(
+  onPointerSignal: (event) {
+    if (event is PointerScrollEvent) {
+      GestureBinding.instance.pointerSignalResolver.register(
+        event,
+        controller.handlePointerSignalEvent,
+      );
+    }
+  },
+  child: overlay,
+)
+```
+
+Import `package:flutter/gestures.dart` for these event and binding types. For an overlay that owns a trackpad pan/zoom gesture, `controller.handlePointerPanZoomEvent(event)` accepts a start event, cumulative updates, and an end or cancel event with global positions. Do not also send the same gesture through another recognizer. An end does not add synthetic inertia.
