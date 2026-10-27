@@ -1,3 +1,9 @@
+# 0.8.0
+
+- BREAKING: Added the optional `PdfPageRenderPriority? priority` named parameter to `PdfPage.render`. Custom page implementations must accept it; wrappers should forward it. Existing render calls remain compatible ([#758](https://github.com/espresso3389/pdfrx/pull/758)).
+- Added high, normal, and low rendering priorities for native PDFium. Without an explicit priority, rendering is high priority normally and low priority inside `Pdfrx.runAsBackgroundWork`. Explicit priorities take precedence over the background-work scope ([#758](https://github.com/espresso3389/pdfrx/pull/758)).
+- Fixed Hebrew text normalization for lines containing numbers, including punctuation and brackets around numbers, while preserving logically stored or ambiguous number tokens ([#756](https://github.com/espresso3389/pdfrx/pull/756)).
+
 # 0.7.4
 
 - Fixed Hebrew text normalization skipping or partially reversing words and lines containing punctuation. Punctuation now stays with Hebrew words during normalization, while mixed-script lines retain their existing order ([#754](https://github.com/espresso3389/pdfrx/pull/754)).

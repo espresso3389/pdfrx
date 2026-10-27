@@ -159,8 +159,8 @@ extension PdfPageBaseExtensions on PdfPage {
   ///
   /// To access the raw text, use [loadText].
   ///
-  /// Waits for progressive loading unless [ensureLoaded] is false, which returns empty text for an unloaded page.
-  Future<PdfPageText> loadStructuredText({bool ensureLoaded = true}) async {
+  /// Returns empty text for an unloaded page unless [ensureLoaded] is true, in which case it waits for loading.
+  Future<PdfPageText> loadStructuredText({bool ensureLoaded = false}) async {
     final page = ensureLoaded && !isLoaded ? await this.ensureLoaded() : this;
     return PdfTextFormatter.loadStructuredText(page, pageNumberOverride: pageNumber);
   }

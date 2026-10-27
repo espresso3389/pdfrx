@@ -50,6 +50,10 @@ final _initSync = Object();
 @visibleForTesting
 bool get isPdfiumInitialized => _initialized;
 
+@visibleForTesting
+({int bytes, int count}) get activePdfiumRendersForTesting =>
+    (bytes: _PdfiumRenderTask._activeBytes, count: _PdfiumRenderTask._activePages.length);
+
 /// Initializes PDFium library.
 Future<void> _init() async {
   if (_initialized) return;
@@ -74,16 +78,17 @@ Future<void> _init() async {
 }
 
 Future<void> _deinit() async {
-  if (!Pdfrx.useProcessWidePdfiumGate) {
-    await BackgroundWorker.compute((params) {
-      pdfium.FPDF_DestroyLibrary();
-      _fontMapper?.dispose();
-      _fontMapper = null;
-    }, {});
-  }
   // Never FPDF_DestroyLibrary when the process-wide gate is on: a pop-out
   // engine dying must not tear down PDFium still used by the main window.
-  await BackgroundWorker.stop();
+  await BackgroundWorker.stop(
+    beforeStop: Pdfrx.useProcessWidePdfiumGate
+        ? null
+        : () {
+            pdfium.FPDF_DestroyLibrary();
+            _fontMapper?.dispose();
+            _fontMapper = null;
+          },
+  );
   _initialized = false;
 }
 
@@ -91,7 +96,7 @@ _PdfFontMapper? _fontMapper;
 
 /// Install the system font info in PDFium.
 Future<void> _installFontMapper() async {
-  await BackgroundWorker.compute((params) {
+  await _computeWithIdlePdfium((params) {
     if (_fontMapper != null) {
       return;
     }
@@ -106,7 +111,7 @@ Future<void> _installFontMapper() async {
 
 /// Reload font files into the current mapper without reinstalling PDFium callbacks.
 Future<void> _reloadFontFiles() async {
-  await BackgroundWorker.compute((params) {
+  await _computeWithIdlePdfium((params) {
     _fontMapper?.addFontFiles(fontCachePath: params.fontCachePath, fontPaths: params.fontPaths);
   }, (fontCachePath: _fontCachePath, fontPaths: _fontPaths));
 }
@@ -991,14 +996,14 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
       file = File('$fontCachePath/$name.ttf');
       await file.writeAsBytes(data);
     }
-    await BackgroundWorker.compute((params) {
+    await _computeWithIdlePdfium((params) {
       _fontMapper?.addFontData(face: params.face, data: params.data, resolvedFace: params.resolvedFace);
     }, (face: face, data: data, resolvedFace: resolvedFace));
   }
 
   @override
   Future<void> addFontFile({required String face, required String filePath, String? resolvedFace}) async {
-    await BackgroundWorker.compute((params) {
+    await _computeWithIdlePdfium((params) {
       _fontMapper?.addFontFile(face: params.face, filePath: params.filePath, resolvedFace: params.resolvedFace);
     }, (face: face, filePath: filePath, resolvedFace: resolvedFace));
   }
@@ -1013,7 +1018,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
         // ignored
       }
     }
-    await BackgroundWorker.compute((params) {
+    await _computeWithIdlePdfium((params) {
       _fontMapper?.clear();
     }, null);
   }
@@ -1521,14 +1526,19 @@ class _PdfDocumentPdfium extends PdfDocument {
 
   final _lifetime = NativeResourceLifetime();
 
-  Future<R> _compute<M, R>(PdfrxComputeCallback<M, R> callback, M message, {BackgroundWorkerPriority? priority}) =>
-      _lifetime.use(() => BackgroundWorker.compute(callback, message, priority: priority));
-
   Future<R> _computeWithArena<M, R>(
     R Function(Arena arena, M message) callback,
     M message, {
     BackgroundWorkerPriority? priority,
-  }) => _lifetime.use(() => BackgroundWorker.computeWithArena(callback, message, priority: priority));
+    List<int>? idleDocuments,
+  }) => _lifetime.use(
+    // Keep lazy parsing, metadata reads and modifications outside the document's live render contexts.
+    () => BackgroundWorker.computeTask((params) => _PdfiumIdleTask(params.callback, params.message, params.documents), (
+      callback: callback,
+      message: message,
+      documents: idleDocuments ?? [document.address],
+    ), priority: priority),
+  );
 
   @override
   Future<void> dispose() {
@@ -1698,6 +1708,7 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
           items: items,
           length: document.pages.length,
         ),
+        idleDocuments: [document.document.address, for (final source in sources) source.document.address],
       ),
     );
     // Replace source-backed pages with pages of the assembled document before releasing its lifetime protection.
@@ -1820,99 +1831,42 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
       final bufferAddress = await using((arena) async {
         final cancelFlag = arena<Bool>();
         ct?.attach(cancelFlag);
-
-        if (cancelFlag.value || document.isDisposed) return 0;
-        return await document._compute(
-          (params) {
-            final cancelFlag = Pointer<Bool>.fromAddress(params.cancelFlag);
-            if (cancelFlag.value) return 0;
-            Pointer<Uint8> buffer = nullptr;
-            try {
-              buffer = malloc<Uint8>(params.width * params.height * rgbaSize);
-              final bmp = pdfium.FPDFBitmap_CreateEx(
-                params.width,
-                params.height,
-                pdfium_bindings.FPDFBitmap_BGRA,
-                buffer.cast(),
-                params.width * rgbaSize,
-              );
-              if (bmp == nullptr) {
-                throw PdfException('FPDFBitmap_CreateEx(${params.width}, ${params.height}) failed.');
-              }
-              pdfium_bindings.FPDF_PAGE page = nullptr;
-              try {
-                final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
-                page = pdfium.FPDF_LoadPage(doc, params.pageNumber - 1);
-                if (page == nullptr) {
-                  throw PdfException('FPDF_LoadPage(${params.pageNumber}) failed.');
-                }
-                pdfium.FPDFBitmap_FillRect(bmp, 0, 0, params.width, params.height, params.backgroundColor!);
-
-                pdfium.FPDF_RenderPageBitmap(
-                  bmp,
-                  page,
-                  -params.x,
-                  -params.y,
-                  params.fullWidth,
-                  params.fullHeight,
-                  params.rotation,
-                  params.flags |
-                      (params.annotationRenderingMode != PdfAnnotationRenderingMode.none
-                          ? pdfium_bindings.FPDF_ANNOT
-                          : 0),
-                );
-
-                if (params.formHandle != 0 &&
-                    params.annotationRenderingMode == PdfAnnotationRenderingMode.annotationAndForms) {
-                  pdfium.FPDF_FFLDraw(
-                    pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle),
-                    bmp,
-                    page,
-                    -params.x,
-                    -params.y,
-                    params.fullWidth,
-                    params.fullHeight,
-                    params.rotation,
-                    params.flags,
-                  );
-                }
-              } finally {
-                pdfium.FPDF_ClosePage(page);
-                pdfium.FPDFBitmap_Destroy(bmp);
-              }
-              return buffer.address;
-            } catch (_) {
-              malloc.free(buffer);
-              rethrow;
-            }
-          },
-          (
-            document: document.document.address,
-            pageNumber: pageNumber,
-            x: x,
-            y: y,
-            width: width!,
-            height: height!,
-            fullWidth: fullWidth!.toInt(),
-            fullHeight: fullHeight!.toInt(),
-            backgroundColor: backgroundColor,
-            rotation: rotationOverride != null ? ((rotationOverride.index - rotation.index + 4) & 3) : 0,
-            annotationRenderingMode: annotationRenderingMode,
-            flags: flags & 0xffff, // Ensure flags are within 16-bit range
-            formHandle: document.formHandle.address,
-            formInfo: document.formInfo.address,
-            cancelFlag: cancelFlag.address,
-          ),
-          priority: switch (priority) {
-            PdfPageRenderPriority.high => BackgroundWorkerPriority.high,
-            PdfPageRenderPriority.normal => BackgroundWorkerPriority.normal,
-            PdfPageRenderPriority.low => BackgroundWorkerPriority.low,
-            null =>
-              Zone.current[Pdfrx.backgroundWorkZoneKey] == true
-                  ? BackgroundWorkerPriority.low
-                  : BackgroundWorkerPriority.high,
-          },
-        );
+        try {
+          if (cancelFlag.value || document.isDisposed) return 0;
+          return await document._lifetime.use(
+            () => BackgroundWorker.computeTask(
+              _PdfiumRenderTask.new,
+              (
+                document: document.document.address,
+                pageNumber: pageNumber,
+                x: x,
+                y: y,
+                width: width!,
+                height: height!,
+                fullWidth: fullWidth!.toInt(),
+                fullHeight: fullHeight!.toInt(),
+                backgroundColor: backgroundColor!,
+                rotation: rotationOverride != null ? ((rotationOverride.index - rotation.index + 4) & 3) : 0,
+                annotationRenderingMode: annotationRenderingMode,
+                flags: flags & 0xffff, // Ensure flags are within 16-bit range
+                formHandle: document.formHandle.address,
+                formInfo: document.formInfo.address,
+                cancelFlag: cancelFlag.address,
+              ),
+              priority: switch (priority) {
+                PdfPageRenderPriority.high => BackgroundWorkerPriority.high,
+                PdfPageRenderPriority.normal => BackgroundWorkerPriority.normal,
+                PdfPageRenderPriority.low => BackgroundWorkerPriority.low,
+                null =>
+                  Zone.current[Pdfrx.backgroundWorkZoneKey] == true
+                      ? BackgroundWorkerPriority.low
+                      : BackgroundWorkerPriority.high,
+              },
+            ),
+          );
+        } finally {
+          ct?.detach(cancelFlag);
+        }
       });
 
       document._notifyMissingFonts();
@@ -1922,6 +1876,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
       }
 
       buffer = Pointer<Uint8>.fromAddress(bufferAddress);
+      if (ct?.isCanceled == true) return null;
       final resultBuffer = buffer;
       buffer = nullptr;
 
@@ -1943,7 +1898,6 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
       return null;
     } finally {
       malloc.free(buffer);
-      ct?.detach();
     }
   }
 
@@ -2179,30 +2133,207 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
   }
 }
 
+typedef _PdfiumRenderParams = ({
+  int document,
+  int pageNumber,
+  int x,
+  int y,
+  int width,
+  int height,
+  int fullWidth,
+  int fullHeight,
+  int backgroundColor,
+  int rotation,
+  PdfAnnotationRenderingMode annotationRenderingMode,
+  int flags,
+  int formHandle,
+  int formInfo,
+  int cancelFlag,
+});
+
+Future<R> _computeWithIdlePdfium<M, R>(R Function(M message) callback, M message) => BackgroundWorker.computeTask(
+  (params) => _PdfiumIdleTask((arena, message) => params.callback(message), params.message, null),
+  (callback: callback, message: message),
+);
+
+class _PdfiumIdleTask<M, R> extends BackgroundWorkerTask<R> {
+  _PdfiumIdleTask(this.callback, this.message, this.documents);
+  final R Function(Arena arena, M message) callback;
+  final M message;
+  final List<int>? documents;
+  late R _result;
+
+  @override
+  bool get isReady => !_PdfiumRenderTask._activePages.any((page) => documents?.contains(page.$1) ?? true);
+
+  @override
+  bool run() {
+    _result = using((arena) => callback(arena, message));
+    return true;
+  }
+
+  @override
+  R get result => _result;
+
+  @override
+  void dispose() {}
+}
+
+class _PdfiumRenderTask extends BackgroundWorkerTask<int> {
+  _PdfiumRenderTask(this.params);
+  final _PdfiumRenderParams params;
+  static const _maxActiveBytes = 64 * 1024 * 1024;
+  static const _maxActiveTasks = 4;
+  static final _activePages = <(int, int)>{};
+  static var _activeBytes = 0;
+
+  int get _bytes => params.width * params.height * 4;
+  (int, int) get _pageKey => (params.document, params.pageNumber);
+  final _slice = Stopwatch();
+  Pointer<Uint8> _buffer = nullptr;
+  pdfium_bindings.FPDF_BITMAP _bitmap = nullptr;
+  pdfium_bindings.FPDF_PAGE _page = nullptr;
+  Pointer<pdfium_bindings.IFSDK_PAUSE> _pause = nullptr;
+  NativeCallable<Int Function(Pointer<pdfium_bindings.IFSDK_PAUSE>)>? _pauseCallback;
+  var _admitted = false;
+  var _renderStarted = false;
+  var _result = 0;
+
+  @override
+  bool get isCanceled => Pointer<Bool>.fromAddress(params.cancelFlag).value;
+
+  @override
+  bool get isReady =>
+      isCanceled ||
+      _admitted ||
+      (!_activePages.contains(_pageKey) &&
+          _activePages.length < _maxActiveTasks &&
+          (_activeBytes == 0 || _activeBytes + _bytes <= _maxActiveBytes));
+
+  @override
+  bool run() {
+    if (isCanceled) return true;
+    if (!_admitted) {
+      _activePages.add(_pageKey);
+      _activeBytes += _bytes;
+      _admitted = true;
+      _buffer = malloc<Uint8>(_bytes);
+      _bitmap = pdfium.FPDFBitmap_CreateEx(
+        params.width,
+        params.height,
+        pdfium_bindings.FPDFBitmap_BGRA,
+        _buffer.cast(),
+        params.width * 4,
+      );
+      if (_bitmap == nullptr) throw PdfException('FPDFBitmap_CreateEx(${params.width}, ${params.height}) failed.');
+      _page = pdfium.FPDF_LoadPage(pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document), params.pageNumber - 1);
+      if (_page == nullptr) throw PdfException('FPDF_LoadPage(${params.pageNumber}) failed.');
+      if (isCanceled) return true;
+      pdfium.FPDFBitmap_FillRect(_bitmap, 0, 0, params.width, params.height, params.backgroundColor);
+      _pause = calloc<pdfium_bindings.IFSDK_PAUSE>();
+      _pauseCallback = NativeCallable<Int Function(Pointer<pdfium_bindings.IFSDK_PAUSE>)>.isolateLocal(
+        (Pointer<pdfium_bindings.IFSDK_PAUSE> _) => isCanceled || _slice.elapsedMilliseconds >= 8 ? 1 : 0,
+        exceptionalReturn: 1,
+      );
+      _pause.ref
+        ..version = 1
+        ..NeedToPauseNow = _pauseCallback!.nativeFunction;
+    }
+
+    // PDFium decides where pauses are possible; parsing and individual objects may exceed the requested slice.
+    _slice
+      ..reset()
+      ..start();
+    final int status;
+    if (!_renderStarted) {
+      _renderStarted = true;
+      status = pdfium.FPDF_RenderPageBitmap_Start(
+        _bitmap,
+        _page,
+        -params.x,
+        -params.y,
+        params.fullWidth,
+        params.fullHeight,
+        params.rotation,
+        params.flags |
+            (params.annotationRenderingMode != PdfAnnotationRenderingMode.none ? pdfium_bindings.FPDF_ANNOT : 0),
+        _pause,
+      );
+    } else {
+      status = pdfium.FPDF_RenderPage_Continue(_page, _pause);
+    }
+    _slice.stop();
+    if (isCanceled) return true;
+    if (status == pdfium_bindings.FPDF_RENDER_TOBECONTINUED) return false;
+    if (status != pdfium_bindings.FPDF_RENDER_DONE) {
+      throw PdfException('PDFium progressive rendering failed ($status).');
+    }
+
+    pdfium.FPDF_RenderPage_Close(_page);
+    _renderStarted = false;
+    if (params.formHandle != 0 && params.annotationRenderingMode == PdfAnnotationRenderingMode.annotationAndForms) {
+      pdfium.FPDF_FFLDraw(
+        pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle),
+        _bitmap,
+        _page,
+        -params.x,
+        -params.y,
+        params.fullWidth,
+        params.fullHeight,
+        params.rotation,
+        params.flags,
+      );
+    }
+    if (isCanceled) return true;
+    _result = _buffer.address;
+    _buffer = nullptr;
+    return true;
+  }
+
+  @override
+  int get result => _result;
+
+  @override
+  void dispose() {
+    if (_renderStarted) pdfium.FPDF_RenderPage_Close(_page);
+    if (_page != nullptr) pdfium.FPDF_ClosePage(_page);
+    if (_bitmap != nullptr) pdfium.FPDFBitmap_Destroy(_bitmap);
+    _pauseCallback?.close();
+    calloc.free(_pause);
+    malloc.free(_buffer);
+    if (_admitted) {
+      _activePages.remove(_pageKey);
+      _activeBytes -= _bytes;
+    }
+  }
+}
+
 class PdfPageRenderCancellationTokenPdfium extends PdfPageRenderCancellationToken {
   PdfPageRenderCancellationTokenPdfium(this.page);
   final PdfPage page;
-  Pointer<Bool>? _cancelFlag;
+  final _cancelFlags = <Pointer<Bool>>{};
   bool _canceled = false;
 
   @override
   bool get isCanceled => _canceled;
 
   void attach(Pointer<Bool> pointer) {
-    _cancelFlag = pointer;
+    _cancelFlags.add(pointer);
     if (_canceled) {
-      _cancelFlag!.value = true;
+      pointer.value = true;
     }
   }
 
-  void detach() {
-    _cancelFlag = null;
+  void detach(Pointer<Bool> pointer) {
+    _cancelFlags.remove(pointer);
   }
 
   @override
   Future<void> cancel() async {
     _canceled = true;
-    _cancelFlag?.value = true;
+    for (final flag in _cancelFlags) {
+      flag.value = true;
+    }
   }
 }
 

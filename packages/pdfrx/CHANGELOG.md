@@ -1,3 +1,22 @@
+# Unreleased
+
+- Reused the built-in page layout during pan and zoom. Custom `layoutPages` callbacks continue to run on viewer updates; the built-in layout is no longer recalculated on every pan or zoom ([#767](https://github.com/espresso3389/pdfrx/pull/767)).
+
+# 2.10.1
+
+- Fixed Web/WASM time handling when reading PDF metadata ([#776](https://github.com/espresso3389/pdfrx/issues/776)).
+- Fixed context menus and error displays when Material localizations are unavailable ([#775](https://github.com/espresso3389/pdfrx/issues/775)).
+
+# 2.10.0
+
+- BREAKING: Updated to `pdfrx_engine` 0.8.0. Custom implementations of the re-exported `PdfPage.render` API must accept the optional `PdfPageRenderPriority? priority` named parameter; wrappers should forward it. Existing viewer usage and render calls remain compatible ([#758](https://github.com/espresso3389/pdfrx/pull/758)).
+- Added explicit rendering priorities for native PDFium. The Web backend accepts the priority hint without changing scheduling ([#758](https://github.com/espresso3389/pdfrx/pull/758)).
+- Includes the engine fix for Hebrew text normalization around numbers and their punctuation ([#756](https://github.com/espresso3389/pdfrx/pull/756)).
+
+# 2.9.1
+
+- Fixed `calculateInitialZoom` returning `fitZoom` displaying a page at full width instead of fitting the entire page ([#773](https://github.com/espresso3389/pdfrx/issues/773)).
+
 # 2.9.0
 
 - Added `PdfTextSearcher.stopTextSearch()` to stop a pending or running search while keeping its matches and current match ([#730](https://github.com/espresso3389/pdfrx/pull/730)).
@@ -1002,7 +1021,7 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.7
 
-- Requires Flutter 3.19/Dart 3.3 again (pub.dev is upgraded to the stable🎉)
+- Requires Flutter 3.19/Dart 3.3 again (pub.dev is upgraded to the stable﨟櫁р)
 - `dart:js_interop` based Pdf.js interop implementation (remove dependency on `package:js`)
 
 # 1.0.6

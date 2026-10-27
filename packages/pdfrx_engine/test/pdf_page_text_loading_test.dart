@@ -4,12 +4,12 @@ import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:test/test.dart';
 
 void main() {
-  test('structured text waits for the latest loaded page by default', () async {
+  test('structured text can wait for the latest loaded page', () async {
     final document = _Document();
     addTearDown(document.eventsController.close);
     final placeholder = document.pages.single as _Page;
     var completed = false;
-    final loading = placeholder.loadStructuredText().then((text) {
+    final loading = placeholder.loadStructuredText(ensureLoaded: true).then((text) {
       completed = true;
       return text;
     });
@@ -21,10 +21,10 @@ void main() {
     expect(loaded.loads, 1);
   });
 
-  test('ensureLoaded false does not wait for progressive measurement', () async {
+  test('the default does not wait for progressive measurement', () async {
     final document = _Document();
     addTearDown(document.eventsController.close);
-    expect((await document.pages.single.loadStructuredText(ensureLoaded: false)).fullText, isEmpty);
+    expect((await document.pages.single.loadStructuredText()).fullText, isEmpty);
   });
 
   test('a loaded renumbered page preserves its requested text page number', () async {

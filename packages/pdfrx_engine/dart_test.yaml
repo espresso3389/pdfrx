@@ -1,0 +1,2 @@
+# PDFium font callbacks belong to one isolate; independent native suites must not share the library concurrently.
+concurrency: 1
