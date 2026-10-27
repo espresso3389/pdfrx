@@ -1,3 +1,7 @@
+# Unreleased
+
+- Reused the built-in page layout during pan and zoom. Custom `layoutPages` callbacks continue to run on viewer updates; the built-in layout is no longer recalculated on every pan or zoom ([#767](https://github.com/espresso3389/pdfrx/pull/767)).
+
 # 2.10.1
 
 - Fixed Web/WASM time handling when reading PDF metadata ([#776](https://github.com/espresso3389/pdfrx/issues/776)).
@@ -1017,7 +1021,7 @@ This is a major release that introduces significant architectural changes and ne
 
 # 1.0.7
 
-- Requires Flutter 3.19/Dart 3.3 again (pub.dev is upgraded to the stable🎉)
+- Requires Flutter 3.19/Dart 3.3 again (pub.dev is upgraded to the stable﨟櫁р)
 - `dart:js_interop` based Pdf.js interop implementation (remove dependency on `package:js`)
 
 # 1.0.6
