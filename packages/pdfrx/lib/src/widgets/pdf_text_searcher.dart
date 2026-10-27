@@ -80,6 +80,11 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   List<T> _matches = const [];
   List<int> _matchesPageStartIndices = const [];
   _SearchCondition? _lastSearchCondition;
+  _SearchCondition? _pendingSearchCondition;
+  _SearchCondition? _pausedSearchCondition;
+  int _completedPageCount = 0;
+  bool _isActive = true;
+  bool _disposed = false;
   int? _currentIndex;
   T? _currentMatch;
   int? _searchingPageNumber;
@@ -88,6 +93,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   StreamSubscription<PdfDocumentEvent>? _documentEventSubscription;
   PdfDocument? _observedDocument;
   final _searchedPages = <int>{};
+  Completer<void> _cancelLoading = Completer<void>();
 
   /// The current match index in [matches] if available.
   int? get currentIndex => _currentIndex;
@@ -100,6 +106,30 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   /// Whether the search task is currently running or not
   bool get isSearching => _isSearching;
+
+  /// Whether searches may run. Inactive sessions retain results and queue the latest request.
+  bool get isActive => _isActive;
+
+  /// Pauses scanning when hidden and resumes completed-page progress without navigating.
+  set isActive(bool value) {
+    if (_disposed || value == _isActive) return;
+    _isActive = value;
+    if (!value) {
+      if (_isSearching) _pausedSearchCondition = _lastSearchCondition;
+      _cancelTextSearch();
+      _searchedPages.removeWhere((page) => page > _completedPageCount);
+      _isSearching = false;
+    } else {
+      final pending = _pendingSearchCondition;
+      final paused = _pausedSearchCondition;
+      if (pending != null) {
+        _beginTextSearch(pending);
+      } else if (paused != null) {
+        _beginTextSearch(paused, resume: true);
+      }
+    }
+    notifyListeners();
+  }
 
   /// The page currently being searched.
   int? get searchingPageNumber => _searchingPageNumber;
@@ -137,36 +167,49 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     bool goToFirstMatch = true,
     bool searchImmediately = false,
   }) {
+    if (_disposed) return;
     _registerForDocumentChanges();
     // Re-issuing the running pattern must not cancel it: search() below would return early for an identical pattern,
     // leaving the matches half collected and isSearching stuck. Only drop a pending search for another pattern.
     _searchTextTimer?.cancel();
+    _pendingSearchCondition = null;
     final last = _lastSearchCondition;
     if (last != null && last.caseInsensitive == caseInsensitive && _isIdenticalPattern(last.pattern, pattern)) {
       return;
     }
 
-    void search() {
-      // Keep the active search alive until a debounced replacement actually starts.
-      _cancelTextSearch();
-      final searchSession = _searchSession;
-      _lastSearchCondition = _SearchCondition(
-        pattern: pattern,
-        caseInsensitive: caseInsensitive,
-        goToFirstMatch: goToFirstMatch,
-      );
-      if (pattern.isEmpty) {
-        _resetTextSearch();
-        return;
-      }
-      _startTextSearchInternal(_lastSearchCondition!, searchSession);
-    }
+    final condition = _pendingSearchCondition = _SearchCondition(
+      pattern: pattern,
+      caseInsensitive: caseInsensitive,
+      goToFirstMatch: goToFirstMatch,
+    );
+    if (!_isActive) return;
 
     if (searchImmediately) {
-      search();
+      _beginTextSearch(condition);
     } else {
-      _searchTextTimer = Timer(const Duration(milliseconds: 500), search);
+      _searchTextTimer = Timer(const Duration(milliseconds: 500), () => _beginTextSearch(condition));
     }
+  }
+
+  void _beginTextSearch(_SearchCondition condition, {bool resume = false}) {
+    _cancelTextSearch();
+    _pendingSearchCondition = null;
+    _pausedSearchCondition = null;
+    _lastSearchCondition = condition;
+    if (!resume) {
+      _matches = const [];
+      _matchesPageStartIndices = const [];
+      _completedPageCount = 0;
+      _searchedPages.clear();
+      _currentIndex = null;
+      _currentMatch = null;
+    }
+    if (condition.pattern.isEmpty) {
+      _resetTextSearch();
+      return;
+    }
+    _startTextSearchInternal(condition, _searchSession, resume: resume);
   }
 
   /// Reset the current search.
@@ -177,15 +220,18 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   /// Unlike [resetTextSearch], [matches] and the current match stay; re-issuing the same pattern with
   /// [startTextSearch] then searches the whole document again.
   void stopTextSearch() {
-    if (!_isSearching && _searchTextTimer?.isActive != true) return;
+    if (!_isSearching && _pendingSearchCondition == null && _pausedSearchCondition == null) return;
     _cancelTextSearch();
     _isSearching = false;
     _lastSearchCondition = null;
+    _pendingSearchCondition = null;
+    _pausedSearchCondition = null;
     notifyListeners();
   }
 
   /// Almost identical to [resetTextSearch], but does not notify listeners.
   void dispose() {
+    _disposed = true;
     _documentEventSubscription?.cancel();
     _listeners.clear();
     _resetTextSearch(notify: false);
@@ -201,6 +247,9 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _currentMatch = null;
     _isSearching = false;
     _lastSearchCondition = null;
+    _pendingSearchCondition = null;
+    _pausedSearchCondition = null;
+    _completedPageCount = 0;
     if (notify) {
       notifyListeners();
     }
@@ -208,22 +257,27 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   void _cancelTextSearch() {
     _searchTextTimer?.cancel();
+    _cancelLoading.complete();
+    _cancelLoading = Completer<void>();
     ++_searchSession;
   }
 
-  Future<void> _startTextSearchInternal(_SearchCondition condition, int searchSession) async {
+  Future<void> _startTextSearchInternal(_SearchCondition condition, int searchSession, {bool resume = false}) async {
     _isSearching = controller != null;
     await controller?.useDocument((document) async {
       if (searchSession != _searchSession) return;
-      final textMatches = <T>[];
-      final textMatchesPageStartIndex = <int>[];
-      var first = true;
+      final textMatches = resume ? List<T>.of(_matches) : <T>[];
+      final textMatchesPageStartIndex = resume ? _matchesPageStartIndices.take(_completedPageCount).toList() : <int>[];
+      var first = !resume;
       final notificationClock = Stopwatch()..start();
       _isSearching = true;
       // The previous pattern's position does not index into the new matches.
-      _currentIndex = null;
-      _currentMatch = null;
-      _searchedPages.clear();
+      if (!resume) {
+        _currentIndex = null;
+        _currentMatch = null;
+        _completedPageCount = 0;
+        _searchedPages.clear();
+      }
       _totalPageCount = document.pages.length;
       if (document.pages.isEmpty) {
         _matches = const [];
@@ -232,13 +286,14 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
         notifyListeners();
         return;
       }
-      for (final page in document.pages) {
+      for (final page in document.pages.skip(_completedPageCount)) {
         _searchingPageNumber = page.pageNumber;
         if (searchSession != _searchSession) return;
         textMatchesPageStartIndex.add(textMatches.length);
-        _searchedPages.add(page.pageNumber);
+        if (page.isLoaded) _searchedPages.add(page.pageNumber);
         final pageText = await loadText(pageNumber: page.pageNumber);
         if (searchSession != _searchSession) return;
+        _searchedPages.add(page.pageNumber);
         if (pageText != null) {
           await for (final f in pageText.allMatches(condition.pattern, caseInsensitive: condition.caseInsensitive)) {
             if (searchSession != _searchSession) return;
@@ -247,11 +302,13 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
         }
         _matches = _MatchSnapshot(textMatches);
         _matchesPageStartIndices = textMatchesPageStartIndex;
+        _completedPageCount = page.pageNumber;
         _isSearching = page.pageNumber < document.pages.length;
         if (page.pageNumber == 1 || !_isSearching || notificationClock.elapsed >= notificationInterval) {
           notifyListeners();
           notificationClock.reset();
         }
+        if (searchSession != _searchSession) return;
 
         if (_matches.isNotEmpty && first) {
           first = false;
@@ -288,15 +345,22 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
       startTextSearch(
         condition.pattern,
         caseInsensitive: condition.caseInsensitive,
-        goToFirstMatch: condition.goToFirstMatch,
+        goToFirstMatch: _isActive && condition.goToFirstMatch,
       );
     }
   }
 
   /// Just a helper function to load the text of a page.
   Future<PdfPageText?> loadText({required int pageNumber}) async {
-    return await controller?.useDocument((document) async {
-      return PdfPageTextCache.forDocument(document).load(document.pages[pageNumber - 1]);
+    final cancelLoading = _cancelLoading.future;
+    final searchSession = _searchSession;
+    return await controller?.useDocument<PdfPageText?>((document) async {
+      if (searchSession != _searchSession) return null;
+      final page = document.pages[pageNumber - 1];
+      final loaded = page.isLoaded ? page : await page.waitForLoaded(cancelLoading: cancelLoading);
+      if (loaded == null || searchSession != _searchSession) return null;
+      if (_lastSearchCondition != null) _searchedPages.add(pageNumber);
+      return PdfPageTextCache.forDocument(document).load(loaded);
     });
   }
 
