@@ -370,6 +370,22 @@ class _PdfViewerState extends State<PdfViewer>
   @override
   void didUpdateWidget(covariant PdfViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.params.isVisible != oldWidget.params.isVisible) {
+      _visibilityGeneration++;
+      if (!widget.params.isVisible) {
+        _interactionDelegate?.stop();
+        _animController.stop();
+        _selectionHandleTicker?.stop();
+        _selectionHandleGlobalPosition = null;
+        _interactionEndedTimer?.cancel();
+        _isInteractionGoingOn = false;
+        _clearFontManagerAssociation();
+        _releaseCachedResources(keepVisible: false, keepSelection: true);
+      } else {
+        _updateFontManagerAssociation();
+        unawaited(_loadPagesInBackground());
+      }
+    }
     _layoutDirty = true;
     if (!identical(widget.params.imageCacheBudget, oldWidget.params.imageCacheBudget)) {
       (oldWidget.params.imageCacheBudget ?? _localImageBudget).removeListener(_onImageBudgetChanged);
