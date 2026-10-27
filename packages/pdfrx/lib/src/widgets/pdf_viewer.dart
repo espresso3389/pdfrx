@@ -647,6 +647,8 @@ class _PdfViewerState extends State<PdfViewer>
       _layoutDirty = true;
       // FIXME: We can handle the event more efficiently by only updating the affected pages.
       for (final change in event.changes.entries) {
+        _imageCache.cancelPendingPartialRendering(change.key);
+        _magnifierImageCache.cancelPendingPartialRendering(change.key);
         _imageCache.makeCacheImageForPageDirty(change.key, page: change.value.page);
         _magnifierImageCache.makeCacheImageForPageDirty(change.key, page: change.value.page);
         _canvasLinkPainter.releaseLinksForPage(change.key);
@@ -2228,6 +2230,10 @@ class _PdfViewerState extends State<PdfViewer>
     final prev = cache.pageImagesPartial[page.pageNumber];
     if (prev != null && !prev.isDirty && prev.rect == rect && prev.scale == scale) return;
     if (rect.width < 1 || rect.height < 1) return;
+    final pending = cache.pageImagePartialRenderingRequests[page.pageNumber];
+    if (pending != null && pending.rect == rect && pending.scale == scale && !pending.cancellationToken.isCanceled) {
+      return;
+    }
 
     cache.pageImagePartialRenderingRequests[page.pageNumber]?.cancel();
 
@@ -2253,6 +2259,8 @@ class _PdfViewerState extends State<PdfViewer>
         }
       }),
       cancellationToken,
+      rect,
+      scale,
     );
     cache.pageImagePartialRenderingRequests[page.pageNumber] = request;
   }
@@ -4295,9 +4303,13 @@ class _PdfPageImageCache {
     }
   }
 
+  void cancelPendingPartialRendering(int pageNumber) {
+    pageImagePartialRenderingRequests.remove(pageNumber)?.cancel();
+  }
+
   void cancelPendingRenderings(int pageNumber) {
     pageImageRenderingTimers.remove(pageNumber)?.cancel();
-    pageImagePartialRenderingRequests.remove(pageNumber)?.cancel();
+    cancelPendingPartialRendering(pageNumber);
     final tokens = cancellationTokens[pageNumber];
     if (tokens != null) {
       for (final token in tokens) {
@@ -4373,9 +4385,11 @@ class _PdfPageImageCache {
 }
 
 class _PdfPartialImageRenderingRequest {
-  _PdfPartialImageRenderingRequest(this.timer, this.cancellationToken);
+  _PdfPartialImageRenderingRequest(this.timer, this.cancellationToken, this.rect, this.scale);
   final Timer timer;
   final PdfPageRenderCancellationToken cancellationToken;
+  final Rect rect;
+  final double scale;
 
   void cancel() {
     timer.cancel();
