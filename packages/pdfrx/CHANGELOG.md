@@ -3,10 +3,11 @@
 - Reused the built-in page layout during pan and zoom. Custom `layoutPages` callbacks continue to run on viewer updates; the built-in layout is no longer recalculated on every pan or zoom ([#767](https://github.com/espresso3389/pdfrx/pull/767)).
 
 - Updated to `pdfrx_engine` 0.9.0; use `pdfrx_coregraphics` 0.5.1 or later when combining the packages.
-- Added lightweight search results, batched search progress, and pausing and resuming searches for hidden tabs ([#760](https://github.com/espresso3389/pdfrx/pull/760), [#764](https://github.com/espresso3389/pdfrx/pull/764), [#766](https://github.com/espresso3389/pdfrx/pull/766)).
+- `loadStructuredText(ensureLoaded: true)` now waits for an unloaded page; the default still returns empty text immediately.
+- Added lightweight search results and pausing and resuming searches for hidden tabs. Search progress notifications are batched by default; set `notificationInterval` to `Duration.zero` for per-page notifications ([#760](https://github.com/espresso3389/pdfrx/pull/760), [#764](https://github.com/espresso3389/pdfrx/pull/764), [#766](https://github.com/espresso3389/pdfrx/pull/766)).
 - Added controls for suspending hidden viewers, releasing cached resources, and sharing an image memory budget across viewers ([#769](https://github.com/espresso3389/pdfrx/pull/769), [#770](https://github.com/espresso3389/pdfrx/pull/770), [#771](https://github.com/espresso3389/pdfrx/pull/771)).
 - Reduced repeated layout, text extraction, and partial rendering work in the viewer ([#761](https://github.com/espresso3389/pdfrx/pull/761), [#762](https://github.com/espresso3389/pdfrx/pull/762), [#768](https://github.com/espresso3389/pdfrx/pull/768)).
-- Added controller forwarding for overlay-owned pan and zoom gestures, and corrected mouse-wheel event resolution ([#772](https://github.com/espresso3389/pdfrx/pull/772), [#774](https://github.com/espresso3389/pdfrx/pull/774)). Existing wheel-event forwarding should use Flutter's `PointerSignalResolver`.
+- Added controller forwarding for overlay-owned pan and zoom gestures, and corrected mouse-wheel event resolution ([#772](https://github.com/espresso3389/pdfrx/pull/772), [#774](https://github.com/espresso3389/pdfrx/pull/774)). Existing wheel-event forwarding should use Flutter's `PointerSignalResolver`; on Web, wheel events claimed by the viewer now suppress browser scrolling.
 
 # 2.10.1
 
