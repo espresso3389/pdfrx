@@ -398,7 +398,6 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   /// Go to the given match.
   Future<void> goToMatch(T match) async {
-    _currentIndex = _matches.indexOf(match);
     await _navigateToMatch(match);
   }
 
@@ -425,7 +424,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   Future<int> goToMatchOfIndex(int index) async {
     if (index < 0 || index >= _matches.length) return -1;
     _currentIndex = index;
-    await _navigateToMatch(_matches[index]);
+    await goToMatch(_matches[index]);
     return index;
   }
 

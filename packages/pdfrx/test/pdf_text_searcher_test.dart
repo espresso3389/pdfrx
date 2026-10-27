@@ -118,6 +118,18 @@ class _GatedSearcher extends PdfTextSearcher {
   }
 }
 
+class _NavigationSearcher extends _GatedSearcher {
+  _NavigationSearcher(super.controller, super.texts);
+
+  int calls = 0;
+
+  @override
+  Future<void> goToMatch(PdfPageTextRange match) async {
+    calls++;
+    await super.goToMatch(match);
+  }
+}
+
 void main() {
   testWidgets('inactive search queues only the latest query and does not run a debounce timer', (tester) async {
     final document = _FakeDocument(1, texts: {1: 'alpha beta beta'});
@@ -293,6 +305,35 @@ void main() {
     expect(controller.activeTasks, 0);
     expect(searcher.matches, hasLength(1));
     expect(searcher.isSearching, isFalse);
+  });
+
+  testWidgets('unsearched page changes do not restart an active scan', (tester) async {
+    final document = _FakeDocument(2);
+    final searcher = _GatedSearcher(_FakeController(document), {1: 'word', 2: 'word'});
+    addTearDown(searcher.dispose);
+    addTearDown(document.eventsController.close);
+    final gate = searcher.gates[1] = Completer<void>();
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await tester.pump();
+    document.eventsController.add(
+      PdfDocumentPageStatusChangedEvent(document, changes: {2: PdfPageStatusChange.modified(page: document.pages[1])}),
+    );
+    await tester.pump();
+    expect(searcher.isSearching, isTrue);
+    gate.complete();
+    await tester.pump();
+    await tester.pump();
+    expect(searcher.matches, hasLength(2));
+  });
+
+  test('indexed navigation continues to invoke an overridden goToMatch', () async {
+    final searcher = _NavigationSearcher(_FakeController(_FakeDocument(1)), {1: 'word'});
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    await searcher.goToMatchOfIndex(0);
+    expect(searcher.calls, 1);
+    expect(searcher.currentIndex, 0);
   });
 
   testWidgets('editing a previously unmatched page restarts lightweight search', (tester) async {
