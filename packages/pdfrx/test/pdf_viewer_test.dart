@@ -25,6 +25,74 @@ void main() {
     return http.Response.bytes(await testPdfFile.readAsBytes(), 200);
   });
 
+  testWidgets('repaints reuse a pending partial render with the same rectangle and scale', (tester) async {
+    final document = _TestDocument(1);
+    addTearDown(document.dispose);
+    final control = (document.pages.single as _TestPage).renderControl..block();
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          controller: controller,
+          params: const PdfViewerParams(
+            behaviorControlParams: PdfViewerBehaviorControlParams(
+              enableLowResolutionPagePreview: false,
+              partialImageLoadingDelay: Duration.zero,
+            ),
+          ),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    final count = control.renderCount;
+    expect(count, greaterThan(0));
+    for (var i = 0; i < 10; i++) {
+      controller.invalidate();
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    expect(control.renderCount, count);
+    expect(control.tokens.last.isCanceled, isFalse);
+    control.release();
+    await _pumpPaintWork(tester);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('page changes cancel pending partial renders with unchanged geometry', (tester) async {
+    final document = _TestDocument(1);
+    addTearDown(document.dispose);
+    final page = document.pages.single as _TestPage;
+    final control = page.renderControl..block();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          params: const PdfViewerParams(
+            behaviorControlParams: PdfViewerBehaviorControlParams(
+              enableLowResolutionPagePreview: false,
+              partialImageLoadingDelay: Duration.zero,
+            ),
+          ),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    final token = control.tokens.last;
+    final count = control.renderCount;
+    document._events.add(
+      PdfDocumentPageStatusChangedEvent(document, changes: {1: PdfPageStatusChange.modified(page: page)}),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(token.isCanceled, isTrue);
+    control.release();
+    await _pumpPaintWork(tester);
+    expect(control.renderCount, greaterThan(count));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('legacy initial fit zoom uses the initial page minimum scale', (tester) async {
     final document = _TestDocument(1);
     addTearDown(document.dispose);
