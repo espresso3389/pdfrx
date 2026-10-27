@@ -12,11 +12,60 @@ import 'pdf_viewer_params.dart' show PdfViewerParams;
 /// Helper class to interactively search text in a PDF document.
 ///
 /// To be notified when the search status change, use [addListener].
-class PdfTextSearcher extends Listenable {
+/// Its range results retain full page geometry; use [PdfTextSearchSession]
+/// to keep search results independent of the bounded structured-text cache.
+class PdfTextSearcher extends _PdfTextSearcherBase<PdfPageTextRange> {
   /// Creates a new instance of [PdfTextSearcher].
-  PdfTextSearcher(this._controller, {this.notificationInterval = const Duration(milliseconds: 100)}) {
+  PdfTextSearcher(super.controller, {super.notificationInterval});
+
+  @override
+  PdfPageTextRange _createMatch(PdfPageTextRange range) => range;
+
+  @override
+  int _pageNumberOf(PdfPageTextRange match) => match.pageNumber;
+
+  @override
+  PdfRect _boundsOf(PdfPageTextRange match) => match.bounds;
+
+  @override
+  Iterable<PdfRect> _highlightsOf(PdfPageTextRange match) => [match.bounds];
+}
+
+/// Searches without retaining every matched page's text and character geometry.
+///
+/// It shares the bounded [PdfPageTextCache] with other document consumers.
+/// Use [loadText] only when full page text or selection geometry is needed.
+class PdfTextSearchSession extends _PdfTextSearcherBase<PdfTextSearchResult> {
+  /// Creates a lightweight search session with bounded context for each match.
+  PdfTextSearchSession(super.controller, {this.contextLength = 80, super.notificationInterval})
+    : assert(contextLength >= 0);
+
+  /// Maximum context characters retained on each side of a match.
+  final int contextLength;
+
+  @override
+  PdfTextSearchResult _createMatch(PdfPageTextRange range) =>
+      PdfTextSearchResult.fromRange(range, contextLength: contextLength);
+
+  @override
+  int _pageNumberOf(PdfTextSearchResult match) => match.pageNumber;
+
+  @override
+  PdfRect _boundsOf(PdfTextSearchResult match) => match.bounds;
+
+  @override
+  Iterable<PdfRect> _highlightsOf(PdfTextSearchResult match) => match.rects;
+}
+
+abstract class _PdfTextSearcherBase<T> extends Listenable {
+  _PdfTextSearcherBase(this._controller, {this.notificationInterval = const Duration(milliseconds: 100)}) {
     _registerForDocumentChanges();
   }
+
+  T _createMatch(PdfPageTextRange range);
+  int _pageNumberOf(T match);
+  PdfRect _boundsOf(T match);
+  Iterable<PdfRect> _highlightsOf(T match);
 
   final PdfViewerController _controller;
 
@@ -28,22 +77,23 @@ class PdfTextSearcher extends Listenable {
 
   Timer? _searchTextTimer; // timer to start search
   int _searchSession = 0; // current search session
-  List<PdfPageTextRange> _matches = const [];
+  List<T> _matches = const [];
   List<int> _matchesPageStartIndices = const [];
   _SearchCondition? _lastSearchCondition;
   int? _currentIndex;
-  PdfPageTextRange? _currentMatch;
+  T? _currentMatch;
   int? _searchingPageNumber;
   int? _totalPageCount;
   bool _isSearching = false;
-  final _cachedText = <int, PdfPageText>{};
   StreamSubscription<PdfDocumentEvent>? _documentEventSubscription;
+  PdfDocument? _observedDocument;
+  final _searchedPages = <int>{};
 
   /// The current match index in [matches] if available.
   int? get currentIndex => _currentIndex;
 
   /// Get the current matches.
-  List<PdfPageTextRange> get matches => _matches;
+  List<T> get matches => _matches;
 
   /// Whether there are any matches or not (so far).
   bool get hasMatches => _currentIndex != null && matches.isNotEmpty;
@@ -87,6 +137,7 @@ class PdfTextSearcher extends Listenable {
     bool goToFirstMatch = true,
     bool searchImmediately = false,
   }) {
+    _registerForDocumentChanges();
     // Re-issuing the running pattern must not cancel it: search() below would return early for an identical pattern,
     // leaving the matches half collected and isSearching stuck. Only drop a pending search for another pattern.
     _searchTextTimer?.cancel();
@@ -137,7 +188,6 @@ class PdfTextSearcher extends Listenable {
   void dispose() {
     _documentEventSubscription?.cancel();
     _listeners.clear();
-    _cachedText.clear();
     _resetTextSearch(notify: false);
   }
 
@@ -145,6 +195,7 @@ class PdfTextSearcher extends Listenable {
     _cancelTextSearch();
     _matches = const [];
     _matchesPageStartIndices = const [];
+    _searchedPages.clear();
     _searchingPageNumber = null;
     _currentIndex = null;
     _currentMatch = null;
@@ -164,7 +215,7 @@ class PdfTextSearcher extends Listenable {
     _isSearching = controller != null;
     await controller?.useDocument((document) async {
       if (searchSession != _searchSession) return;
-      final textMatches = <PdfPageTextRange>[];
+      final textMatches = <T>[];
       final textMatchesPageStartIndex = <int>[];
       var first = true;
       final notificationClock = Stopwatch()..start();
@@ -172,17 +223,26 @@ class PdfTextSearcher extends Listenable {
       // The previous pattern's position does not index into the new matches.
       _currentIndex = null;
       _currentMatch = null;
+      _searchedPages.clear();
       _totalPageCount = document.pages.length;
+      if (document.pages.isEmpty) {
+        _matches = const [];
+        _matchesPageStartIndices = const [];
+        _isSearching = false;
+        notifyListeners();
+        return;
+      }
       for (final page in document.pages) {
         _searchingPageNumber = page.pageNumber;
         if (searchSession != _searchSession) return;
         textMatchesPageStartIndex.add(textMatches.length);
+        _searchedPages.add(page.pageNumber);
         final pageText = await loadText(pageNumber: page.pageNumber);
         if (searchSession != _searchSession) return;
         if (pageText != null) {
           await for (final f in pageText.allMatches(condition.pattern, caseInsensitive: condition.caseInsensitive)) {
             if (searchSession != _searchSession) return;
-            textMatches.add(f);
+            textMatches.add(_createMatch(f));
           }
         }
         _matches = _MatchSnapshot(textMatches);
@@ -206,14 +266,16 @@ class PdfTextSearcher extends Listenable {
   }
 
   void _registerForDocumentChanges() {
+    final document = controller?.document;
+    if (identical(document, _observedDocument)) return;
+    if (_observedDocument != null) _resetTextSearch(notify: false);
     _documentEventSubscription?.cancel();
-    _documentEventSubscription = controller!.document.events.listen((event) {
-      if (event is PdfDocumentPageStatusChangedEvent) {
-        final changedPages = event.changes.keys.toSet();
-        final needRestart = _matches.any((m) => changedPages.contains(m.pageNumber));
-        if (needRestart) {
-          _restartSearch();
-        }
+    _observedDocument = document;
+    _documentEventSubscription = document?.events.listen((event) {
+      if (event is PdfDocumentPageStatusChangedEvent &&
+          _lastSearchCondition != null &&
+          event.changes.keys.any(_searchedPages.contains)) {
+        _restartSearch();
       }
     });
   }
@@ -222,7 +284,6 @@ class PdfTextSearcher extends Listenable {
     final condition = _lastSearchCondition;
     // Clearing the condition lets startTextSearch run the same pattern again.
     _resetTextSearch();
-    _cachedText.clear();
     if (condition != null) {
       startTextSearch(
         condition.pattern,
@@ -234,11 +295,15 @@ class PdfTextSearcher extends Listenable {
 
   /// Just a helper function to load the text of a page.
   Future<PdfPageText?> loadText({required int pageNumber}) async {
-    final cached = _cachedText[pageNumber];
-    if (cached != null) return cached;
     return await controller?.useDocument((document) async {
-      return _cachedText[pageNumber] ??= await document.pages[pageNumber - 1].loadStructuredText();
+      return PdfPageTextCache.forDocument(document).load(document.pages[pageNumber - 1]);
     });
+  }
+
+  /// Releases unpinned structured text while retaining the current results.
+  void releaseCachedText() {
+    final document = controller?.document;
+    if (document != null) PdfPageTextCache.forDocument(document).clear(keepPinned: true);
   }
 
   /// Go to the previous match.
@@ -268,14 +333,17 @@ class PdfTextSearcher extends Listenable {
   }
 
   /// Go to the given match.
-  Future<void> goToMatch(PdfPageTextRange match) async {
+  Future<void> goToMatch(T match) async {
+    await _navigateToMatch(match);
+  }
+
+  Future<void> _navigateToMatch(T match) async {
     _currentMatch = match;
-    _currentIndex = _matches.indexOf(match);
     await controller?.ensureVisible(
-      controller!.calcRectForRectInsidePage(pageNumber: match.pageNumber, rect: match.bounds),
+      controller!.calcRectForRectInsidePage(pageNumber: _pageNumberOf(match), rect: _boundsOf(match)),
       margin: 50,
     );
-    controller?.setCurrentPageNumber(match.pageNumber);
+    controller?.setCurrentPageNumber(_pageNumberOf(match));
     controller?.invalidate();
     notifyListeners();
   }
@@ -308,8 +376,10 @@ class PdfTextSearcher extends Listenable {
 
     for (var i = range.start; i < range.end; i++) {
       final m = _matches[i];
-      final rect = m.bounds.toRect(page: page, scaledPageSize: pageRect.size).translate(pageRect.left, pageRect.top);
-      canvas.drawRect(rect, Paint()..color = m == _currentMatch ? activeMatchTextColor : matchTextColor);
+      for (final bounds in _highlightsOf(m)) {
+        final rect = bounds.toRect(page: page, scaledPageSize: pageRect.size).translate(pageRect.left, pageRect.top);
+        canvas.drawRect(rect, Paint()..color = m == _currentMatch ? activeMatchTextColor : matchTextColor);
+      }
     }
   }
 
