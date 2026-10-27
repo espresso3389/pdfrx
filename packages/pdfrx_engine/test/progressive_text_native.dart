@@ -11,7 +11,7 @@ void registerProgressiveTextNativeTests() {
     final page = document.pages.last;
     expect(page.isLoaded, isFalse);
     var completed = false;
-    final loading = page.loadStructuredText().then((text) {
+    final loading = page.loadStructuredText(ensureLoaded: true).then((text) {
       completed = true;
       return text;
     });
