@@ -834,6 +834,7 @@ class _PdfViewerState extends State<PdfViewer>
                             interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
                             scaleInertiaMaxExcursion: widget.params.scaleInertiaMaxExcursion,
                             onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
+                            ignoresWheelDelta: _ignoresWheelDelta,
                             onPointerScale: _onPointerScale,
                             scrollPhysics: widget.params.scrollPhysics,
                             scrollPhysicsScale: widget.params.scrollPhysicsScale,
@@ -1414,7 +1415,7 @@ class _PdfViewerState extends State<PdfViewer>
       _pageLayoutIndex = null;
       return false;
     }
-    if (!_layoutDirty && _layout != null) return false;
+    if (!_layoutDirty && _layout != null && widget.params.layoutPages == null) return false;
     final newLayout = (widget.params.layoutPages ?? _layoutPages)(_document!.pages, widget.params);
     _layoutDirty = false;
     if (_layout?.documentSize == newLayout.documentSize && _pageLayoutIndex?.matches(newLayout.pageLayouts) == true) {
@@ -1539,8 +1540,11 @@ class _PdfViewerState extends State<PdfViewer>
               wrapperBuilder: (child) => Listener(
                 child: child,
                 onPointerSignal: (event) {
-                  if (event is PointerScrollEvent) {
-                    _onWheelDelta(event);
+                  if (event is PointerScrollEvent && !_ignoresWheelDelta(event)) {
+                    GestureBinding.instance.pointerSignalResolver.register(
+                      event,
+                      (event) => _onWheelDelta(event as PointerScrollEvent),
+                    );
                   }
                 },
               ),
@@ -2219,6 +2223,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   double _boundedRenderingScale(double scale, double width, double height, {int visiblePageCount = 1}) {
+    if (widget.params.imageCacheBudget == null) return scale;
     if (!scale.isFinite || scale <= 0 || !width.isFinite || !height.isFinite || width <= 0 || height <= 0) return 0;
     final maximumBytes = min(_imageBudget.maximumBytes, widget.params.maxImageBytesCachedOnMemory);
     final maxPixels = max(1, maximumBytes ~/ (12 * max(1, visiblePageCount)));
@@ -2497,8 +2502,11 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
+  bool _ignoresWheelDelta(PointerScrollEvent event) =>
+      HardwareKeyboard.instance.isControlPressed && !widget.params.scaleEnabled;
+
   void _onWheelDelta(PointerScrollEvent event) {
-    if (HardwareKeyboard.instance.isControlPressed && !widget.params.scaleEnabled) {
+    if (_ignoresWheelDelta(event)) {
       return;
     }
 
@@ -5327,11 +5335,31 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// Converts document coordinates to local coordinates.
   PdfViewerCoordinateConverter get doc2local => _state;
 
-  /// Provided to workaround certain widgets eating wheel events. Use with [Listener.onPointerSignal].
+  /// Provided to workaround certain widgets eating wheel events.
+  ///
+  /// Call it from a [PointerSignalResolver] registration, not directly from [Listener.onPointerSignal]:
+  /// when the viewer is also in the hit path it claims the event through the resolver, and a direct call
+  /// would handle the event twice.
+  ///
+  /// ```dart
+  /// Listener(
+  ///   onPointerSignal: (event) => GestureBinding.instance.pointerSignalResolver.register(
+  ///     event,
+  ///     controller.handlePointerSignalEvent,
+  ///   ),
+  /// )
+  /// ```
   void handlePointerSignalEvent(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
       _state._onWheelDelta(event);
     }
+  }
+
+  /// Forwards an overlay-owned pan/zoom gesture with global positions and cumulative pan and scale.
+  /// Send start, updates, then end (or [PointerCancelEvent]); an end does not add synthetic inertia.
+  void handlePointerPanZoomEvent(PointerEvent event) {
+    if (event is PointerPanZoomStartEvent) _state._interactionDelegate?.stop();
+    _state._interactiveViewerState?.handlePointerPanZoomEvent(event);
   }
 
   /// Invalidates the current Widget display state.

@@ -184,6 +184,73 @@ void main() {
       }
     });
   });
+
+  group('mouse wheel pointer signal', () {
+    Future<({int viewer, int overlay})> sendWheel(WidgetTester tester, {required bool withOverlay}) async {
+      var viewer = 0;
+      var overlay = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Stack(
+            children: [
+              pdfrx.InteractiveViewer(
+                constrained: false,
+                onWheelDelta: (_) => viewer++,
+                child: const SizedBox(width: 2000, height: 2000),
+              ),
+              if (withOverlay)
+                Positioned.fill(
+                  child: Listener(
+                    behavior: HitTestBehavior.translucent,
+                    onPointerSignal: (event) =>
+                        GestureBinding.instance.pointerSignalResolver.register(event, (_) => overlay++),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+      await tester.sendEventToBinding(
+        const PointerScrollEvent(position: Offset(100, 100), scrollDelta: Offset(0, 100)),
+      );
+      return (viewer: viewer, overlay: overlay);
+    }
+
+    testWidgets('is handled by the viewer when nothing else claims it', (tester) async {
+      expect(await sendWheel(tester, withOverlay: false), (viewer: 1, overlay: 0));
+    });
+
+    testWidgets('is left for an ancestor when the viewer would ignore it', (tester) async {
+      Future<int> ancestorCount({required bool ignored}) async {
+        var ancestor = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Listener(
+              onPointerSignal: (event) =>
+                  GestureBinding.instance.pointerSignalResolver.register(event, (_) => ancestor++),
+              child: pdfrx.InteractiveViewer(
+                constrained: false,
+                onWheelDelta: (_) {},
+                ignoresWheelDelta: (_) => ignored,
+                child: const SizedBox(width: 2000, height: 2000),
+              ),
+            ),
+          ),
+        );
+        await tester.sendEventToBinding(
+          const PointerScrollEvent(position: Offset(100, 100), scrollDelta: Offset(0, 100)),
+        );
+        return ancestor;
+      }
+
+      expect(await ancestorCount(ignored: false), 0);
+      expect(await ancestorCount(ignored: true), 1);
+    });
+
+    testWidgets('is handled once, by a deeper handler that claims it through the resolver', (tester) async {
+      expect(await sendWheel(tester, withOverlay: true), (viewer: 0, overlay: 1));
+    });
+  });
 }
 
 /// Pumps an [pdfrx.InteractiveViewer] that can scale between [_kMinScale] and
