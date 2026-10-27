@@ -25,6 +25,7 @@ import 'zoom_steps/pdf_viewer_zoom_steps_delegate_default.dart';
 @immutable
 class PdfViewerParams {
   const PdfViewerParams({
+    this.isVisible = true,
     this.margin = 8.0,
     this.backgroundColor = Colors.grey,
     this.layoutPages,
@@ -118,6 +119,12 @@ class PdfViewerParams {
 
   /// Margin around the page.
   final double margin;
+
+  /// Whether the viewer should load and render its pages.
+  ///
+  /// Set false for a kept-alive hidden tab. This cancels pending renders and releases images,
+  /// links and unpinned text while preserving the position and active selection. Focus is independent.
+  final bool isVisible;
 
   /// Background color of the viewer.
   final Color backgroundColor;
@@ -814,7 +821,8 @@ class PdfViewerParams {
   bool operator ==(covariant PdfViewerParams other) {
     if (identical(this, other)) return true;
 
-    return other.margin == margin &&
+    return other.isVisible == isVisible &&
+        other.margin == margin &&
         other.backgroundColor == backgroundColor &&
         // ignore: deprecated_member_use_from_same_package
         other.maxScale == maxScale &&
@@ -888,7 +896,8 @@ class PdfViewerParams {
 
   @override
   int get hashCode {
-    return margin.hashCode ^
+    return isVisible.hashCode ^
+        margin.hashCode ^
         backgroundColor.hashCode ^
         // ignore: deprecated_member_use_from_same_package
         maxScale.hashCode ^
