@@ -124,6 +124,9 @@ class PdfViewerParams {
 
   /// Function to customize the layout of the pages.
   ///
+  /// Custom layouts are recalculated on viewer updates, including pan and zoom. The built-in
+  /// layout may be reused until the document, viewport, parameters, or explicit invalidation changes.
+  ///
   /// Changes to this function does not take effect until the viewer is re-layout-ed. You can relayout the viewer by calling [PdfViewerController.invalidate].
   ///
   /// The following fragment is an example to layout pages horizontally with margin:

@@ -144,6 +144,123 @@ void main() {
     expect(result.fullText.indexOf('עולם'), lessThan(result.fullText.indexOf('שלום.')));
   });
 
+  group('numbers in a Hebrew line', () {
+    /// [words] as a reader sees them, right to left; digits run left to right as on a printed page.
+    /// Returns, per word, its glyphs in logical order with their x positions.
+    List<List<(String, double)>> page(List<String> words) {
+      final result = <List<(String, double)>>[];
+      var right = 500.0;
+      for (final word in words) {
+        final left = right - 10 * word.length;
+        final ltr = RegExp(r'^[0-9.:]+$').hasMatch(word);
+        result.add([for (var i = 0; i < word.length; i++) (word[i], ltr ? left + 10 * i : right - 10 * (i + 1))]);
+        right = left - 10;
+      }
+      return result;
+    }
+
+    PdfPageRawText store(List<List<(String, double)>> runs) {
+      final glyphs = <(String, double)>[];
+      for (final run in runs) {
+        if (glyphs.isNotEmpty) glyphs.add((' ', run.first.$2 - 10));
+        glyphs.addAll(run);
+      }
+      return _line(glyphs);
+    }
+
+    const lines = [
+      ['כיץ', '4', 'א', 'ו', 'אם', 'היה', '16', 'מחה'],
+      ['שלום', 'עולם', 'ומלואו', '123'],
+      ['שלום', 'עולם', '3.5', 'ומלואו'],
+    ];
+
+    test('a line whose words are stored left to right is reordered', () {
+      for (final line in lines) {
+        // OCR layers: each word in logical order, the words of the line left to right.
+        final raw = store(page(line).reversed.toList());
+        expect(PdfHebrewTextNormalizer.normalize(raw).fullText, line.join(' '));
+      }
+    });
+
+    test('a line stored fully in visual order is reversed, digits kept', () {
+      for (final line in lines) {
+        final glyphs = page(line).expand((run) => run).toList()..sort((a, b) => a.$2.compareTo(b.$2));
+        final words = <List<(String, double)>>[];
+        for (final g in glyphs) {
+          if (words.isEmpty || g.$2 - words.last.last.$2 > 10) words.add([]);
+          words.last.add(g);
+        }
+        final raw = store(words);
+        expect(PdfHebrewTextNormalizer.normalize(raw).fullText, line.join(' '));
+      }
+    });
+
+    test('a logical line with numbers is untouched', () {
+      for (final line in lines) {
+        final raw = store(page(line));
+        expect(PdfHebrewTextNormalizer.normalize(raw), same(raw));
+      }
+    });
+
+    // Logical number -> how it is drawn left to right in a Hebrew line (UAX #9): edge punctuation moves to the
+    // other side and brackets show mirrored, while digits, inner separators, `%` and `$` stay in place.
+    const numbers = {
+      '123,': ',123',
+      '16.': '.16',
+      '1,000.': '.1,000',
+      '-5': '5-',
+      '(16)': '(16)',
+      '[3]:': ':[3]',
+      '50%': '50%',
+      r'$5': r'$5',
+      '12:30': '12:30',
+    };
+
+    test('logical numeric punctuation survives word reordering', () {
+      final runs = page(['שלום', 'עולם', '123', 'ומלואו']);
+      // Correct RTL display geometry: comma left of the LTR digits.
+      // Extraction stores the token logically as 123, (comma last).
+      runs[2].add((',', runs[2].first.$2 - 10));
+      final raw = store(runs.reversed.toList());
+      expect(raw.fullText, 'ומלואו 123, עולם שלום');
+      final result = PdfHebrewTextNormalizer.normalize(raw);
+      expect(result.fullText, 'שלום עולם 123, ומלואו');
+      final comma = result.fullText.indexOf(',');
+      expect(result.charRects[comma], raw.charRects[raw.fullText.indexOf(',')]);
+    });
+
+    test('punctuation at the edge of a number is restored to logical order', () {
+      for (final MapEntry(key: logical, value: drawn) in numbers.entries) {
+        final line = ['שלום', 'עולם', logical, 'ומלואו'];
+        // OCR layer: Hebrew words in logical order, the number as drawn, the words of the line left to right.
+        final runs = page(line);
+        final left = runs[2].map((g) => g.$2).reduce((a, b) => a < b ? a : b);
+        runs[2] = [for (var i = 0; i < drawn.length; i++) (drawn[i], left + 10 * i)];
+        final ocr = store(runs.reversed.toList());
+        expect(PdfHebrewTextNormalizer.normalize(ocr).fullText, line.join(' '), reason: 'OCR $drawn');
+
+        // Fully visual: every glyph left to right, the number still as drawn.
+        final visual = store([for (final run in runs.reversed) List.of(run)..sort((a, b) => a.$2.compareTo(b.$2))]);
+        expect(PdfHebrewTextNormalizer.normalize(visual).fullText, line.join(' '), reason: 'visual $drawn');
+
+        // OCR layer storing the number logically: each character sits where it is drawn, so it stays as is.
+        final core = RegExp(r'[0-9#$%](.*[0-9#$%])?').firstMatch(logical)!;
+        final lead = core.start, trail = logical.length - core.end;
+        double xOf(int k) =>
+            left +
+            10 *
+                (k < core.start
+                    ? trail + (core.end - core.start) + (lead - 1 - k)
+                    : k < core.end
+                    ? trail + (k - core.start)
+                    : trail - 1 - (k - core.end));
+        runs[2] = [for (var k = 0; k < logical.length; k++) (logical[k], xOf(k))];
+        final stored = store(runs.reversed.toList());
+        expect(PdfHebrewTextNormalizer.normalize(stored).fullText, line.join(' '), reason: 'logical $logical');
+      }
+    });
+  });
+
   test('points stay after their letter when a word is reversed', () {
     // שָׁלוֹם stored letter by letter left to right, each point after its letter.
     final glyphs = <(String, double)>[
