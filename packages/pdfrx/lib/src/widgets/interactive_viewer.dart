@@ -917,6 +917,41 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
     }
   }
 
+  /// Forwards an overlay-owned pan/zoom gesture through the native scale behavior.
+  /// Send start, cumulative updates, then end or cancel, without also forwarding it to another recognizer.
+  void handlePointerPanZoomEvent(PointerEvent event) {
+    final box = _parentKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    if (event is PointerPanZoomStartEvent) {
+      _onScaleStart(
+        ScaleStartDetails(
+          focalPoint: event.position,
+          localFocalPoint: box.globalToLocal(event.position),
+          pointerCount: 2,
+          sourceTimeStamp: event.timeStamp,
+          kind: event.kind,
+        ),
+      );
+    } else if (event is PointerPanZoomUpdateEvent) {
+      final focalPoint = event.position + event.pan;
+      _onScaleUpdate(
+        ScaleUpdateDetails(
+          focalPoint: focalPoint,
+          localFocalPoint: box.globalToLocal(focalPoint),
+          focalPointDelta: box.globalToLocal(focalPoint) - box.globalToLocal(focalPoint - event.panDelta),
+          scale: event.scale,
+          horizontalScale: event.scale,
+          verticalScale: event.scale,
+          rotation: event.rotation,
+          pointerCount: 2,
+          sourceTimeStamp: event.timeStamp,
+        ),
+      );
+    } else if (event is PointerPanZoomEndEvent || event is PointerCancelEvent) {
+      _onScaleEnd(ScaleEndDetails());
+    }
+  }
+
   // Handle the start of a gesture. All of pan, scale, and rotate are handled
   // with GestureDetector's scale gesture.
   void _onScaleStart(ScaleStartDetails details) {

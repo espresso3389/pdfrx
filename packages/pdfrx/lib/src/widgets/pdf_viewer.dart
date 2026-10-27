@@ -5109,6 +5109,13 @@ class PdfViewerController extends ValueListenable<Matrix4> {
     }
   }
 
+  /// Forwards an overlay-owned pan/zoom gesture with global positions and cumulative pan and scale.
+  /// Send start, updates, then end (or [PointerCancelEvent]); an end does not add synthetic inertia.
+  void handlePointerPanZoomEvent(PointerEvent event) {
+    if (event is PointerPanZoomStartEvent) _state._interactionDelegate?.stop();
+    _state._interactiveViewerState?.handlePointerPanZoomEvent(event);
+  }
+
   /// Invalidates the current Widget display state.
   ///
   /// Almost identical to `setState` but can be called outside the state.
