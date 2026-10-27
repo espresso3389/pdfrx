@@ -44,13 +44,14 @@ class PdfPageTextCache {
   }
 
   /// Loads structured text once for simultaneous requests of the same page.
+  /// Does not wait for progressive measurement; load the page before caching it.
   Future<PdfPageText> load(PdfPage page) {
     final cached = get(page.pageNumber);
     if (cached != null) return Future.value(cached);
     final pending = _pending[page.pageNumber];
     if (pending != null) return pending;
     late final Future<PdfPageText> future;
-    future = Future<PdfPageText>.sync(page.loadStructuredText).then(
+    future = Future<PdfPageText>.sync(() => page.loadStructuredText(ensureLoaded: false)).then(
       (text) {
         if (identical(_pending[page.pageNumber], future)) {
           _pending.remove(page.pageNumber);
