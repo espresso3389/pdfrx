@@ -85,6 +85,7 @@ class InteractiveViewer extends StatefulWidget {
     this.alignment,
     this.trackpadScrollCausesScale = false,
     this.onWheelDelta,
+    this.ignoresWheelDelta,
     this.onPointerScale,
     this.scrollPhysics,
     this.scrollPhysicsScale,
@@ -139,6 +140,7 @@ class InteractiveViewer extends StatefulWidget {
     this.alignment,
     this.trackpadScrollCausesScale = false,
     this.onWheelDelta,
+    this.ignoresWheelDelta,
     this.onPointerScale,
     this.scrollPhysics,
     this.scrollPhysicsScale,
@@ -457,6 +459,9 @@ class InteractiveViewer extends StatefulWidget {
   /// To override the default mouse wheel behavior.
   ///
   final void Function(PointerScrollEvent event)? onWheelDelta;
+
+  /// Whether [onWheelDelta] would ignore the event; such events are not claimed, so an ancestor can handle them.
+  final bool Function(PointerScrollEvent event)? ignoresWheelDelta;
 
   /// To override the default pointer scale behavior.
   final void Function(PointerScaleEvent event)? onPointerScale;
@@ -917,6 +922,41 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
     }
   }
 
+  /// Forwards an overlay-owned pan/zoom gesture through the native scale behavior.
+  /// Send start, cumulative updates, then end or cancel, without also forwarding it to another recognizer.
+  void handlePointerPanZoomEvent(PointerEvent event) {
+    final box = _parentKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    if (event is PointerPanZoomStartEvent) {
+      _onScaleStart(
+        ScaleStartDetails(
+          focalPoint: event.position,
+          localFocalPoint: box.globalToLocal(event.position),
+          pointerCount: 2,
+          sourceTimeStamp: event.timeStamp,
+          kind: event.kind,
+        ),
+      );
+    } else if (event is PointerPanZoomUpdateEvent) {
+      final focalPoint = event.position + event.pan;
+      _onScaleUpdate(
+        ScaleUpdateDetails(
+          focalPoint: focalPoint,
+          localFocalPoint: box.globalToLocal(focalPoint),
+          focalPointDelta: box.globalToLocal(focalPoint) - box.globalToLocal(focalPoint - event.panDelta),
+          scale: event.scale,
+          horizontalScale: event.scale,
+          verticalScale: event.scale,
+          rotation: event.rotation,
+          pointerCount: 2,
+          sourceTimeStamp: event.timeStamp,
+        ),
+      );
+    } else if (event is PointerPanZoomEndEvent || event is PointerCancelEvent) {
+      _onScaleEnd(ScaleEndDetails());
+    }
+  }
+
   // Handle the start of a gesture. All of pan, scale, and rotate are handled
   // with GestureDetector's scale gesture.
   void _onScaleStart(ScaleStartDetails details) {
@@ -1175,6 +1215,24 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
   }
 
   // (Removed: _handleScaleEndAnimation)
+
+  // Wheel events go through the resolver so that a deeper handler (e.g. an app overlay
+  // forwarding to PdfViewerController.handlePointerSignalEvent) wins and the event is handled once.
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      if (_ignoresScroll(event)) return;
+      GestureBinding.instance.pointerSignalResolver.register(event, _receivedPointerSignal);
+    } else {
+      _receivedPointerSignal(event);
+    }
+  }
+
+  // Mirrors the early returns of [_receivedPointerSignal] for scroll events it would not act on.
+  bool _ignoresScroll(PointerScrollEvent event) {
+    if (event.kind == PointerDeviceKind.trackpad && !widget.trackpadScrollCausesScale) return false;
+    if (widget.onWheelDelta != null) return widget.ignoresWheelDelta?.call(event) ?? false;
+    return event.scrollDelta.dy == 0.0;
+  }
 
   // Handle mousewheel and web trackpad scroll events.
   void _receivedPointerSignal(PointerSignalEvent event) {
@@ -1647,7 +1705,7 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
 
     return Listener(
       key: _parentKey,
-      onPointerSignal: _receivedPointerSignal,
+      onPointerSignal: _onPointerSignal,
       onPointerDown: _onPointerDown, // ScrollPhysics
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,

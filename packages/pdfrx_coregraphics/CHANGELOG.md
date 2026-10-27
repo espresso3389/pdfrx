@@ -1,3 +1,8 @@
+# 0.5.0
+
+- BREAKING: Updated to `pdfrx_engine` 0.8.0 for compatibility with `pdfrx` 2.10.0. Custom page implementations must accept the optional `PdfPageRenderPriority? priority` parameter on `render` ([#758](https://github.com/espresso3389/pdfrx/pull/758)).
+- Accepts the rendering priority hint without changing CoreGraphics scheduling. Hebrew normalization remains specific to the native PDFium backend.
+
 # 0.4.2
 
 - Updated compatibility to `pdfrx_engine` 0.7.0. Hebrew normalization and the process-wide PDFium gate remain specific to the native PDFium backend.

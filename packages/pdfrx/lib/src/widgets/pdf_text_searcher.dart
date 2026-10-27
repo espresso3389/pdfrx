@@ -87,6 +87,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   bool _isSearching = false;
   StreamSubscription<PdfDocumentEvent>? _documentEventSubscription;
   PdfDocument? _observedDocument;
+  final _searchedPages = <int>{};
 
   /// The current match index in [matches] if available.
   int? get currentIndex => _currentIndex;
@@ -194,6 +195,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _cancelTextSearch();
     _matches = const [];
     _matchesPageStartIndices = const [];
+    _searchedPages.clear();
     _searchingPageNumber = null;
     _currentIndex = null;
     _currentMatch = null;
@@ -221,6 +223,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
       // The previous pattern's position does not index into the new matches.
       _currentIndex = null;
       _currentMatch = null;
+      _searchedPages.clear();
       _totalPageCount = document.pages.length;
       if (document.pages.isEmpty) {
         _matches = const [];
@@ -233,6 +236,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
         _searchingPageNumber = page.pageNumber;
         if (searchSession != _searchSession) return;
         textMatchesPageStartIndex.add(textMatches.length);
+        _searchedPages.add(page.pageNumber);
         final pageText = await loadText(pageNumber: page.pageNumber);
         if (searchSession != _searchSession) return;
         if (pageText != null) {
@@ -268,7 +272,9 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _documentEventSubscription?.cancel();
     _observedDocument = document;
     _documentEventSubscription = document?.events.listen((event) {
-      if (event is PdfDocumentPageStatusChangedEvent && _lastSearchCondition != null) {
+      if (event is PdfDocumentPageStatusChangedEvent &&
+          _lastSearchCondition != null &&
+          event.changes.keys.any(_searchedPages.contains)) {
         _restartSearch();
       }
     });
@@ -328,7 +334,6 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   /// Go to the given match.
   Future<void> goToMatch(T match) async {
-    _currentIndex = _matches.indexOf(match);
     await _navigateToMatch(match);
   }
 
@@ -355,7 +360,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   Future<int> goToMatchOfIndex(int index) async {
     if (index < 0 || index >= _matches.length) return -1;
     _currentIndex = index;
-    await _navigateToMatch(_matches[index]);
+    await goToMatch(_matches[index]);
     return index;
   }
 

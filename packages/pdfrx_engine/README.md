@@ -62,6 +62,12 @@ void main() async {
 
 You should call [pdfrxInitialize()](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/pdfrxInitialize.html) before using any PDF engine APIs to ensure the native PDFium library is properly loaded. For more information, see [pdfrx Initialization](https://github.com/espresso3389/pdfrx/blob/master/doc/pdfrx-Initialization.md)
 
+### Rendering priority and migration to 0.8.0
+
+Pass `priority: PdfPageRenderPriority.low` to [PdfPage.render](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/render.html) for speculative renders such as thumbnails. Native PDFium supports `high`, `normal`, and `low` scheduling priorities; this does not change image quality. Without a priority, rendering uses high priority normally and low priority inside [Pdfrx.runAsBackgroundWork](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/Pdfrx/runAsBackgroundWork.html). An explicit priority overrides that scope. Web and CoreGraphics accept the hint without changing scheduling.
+
+Existing render calls need no changes. Custom classes that extend or implement [PdfPage](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage-class.html) must add `PdfPageRenderPriority? priority` to their `render` named parameters. Wrappers should pass `priority: priority` to the underlying page. This also applies to custom pages imported through `pdfrx` 2.10.0.
+
 ### Page Manipulation Example
 
 The following example demonstrates how to combine pages from multiple PDF documents:
