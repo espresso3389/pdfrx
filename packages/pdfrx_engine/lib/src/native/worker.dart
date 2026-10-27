@@ -12,6 +12,27 @@ import '../pdfrx.dart';
 
 typedef PdfrxComputeCallback<M, R> = FutureOr<R> Function(M message);
 
+/// A synchronous native task that yields between units of work.
+///
+/// Instances are created and retained on the worker isolate. Native calls belong in [run] and [dispose], which run
+/// under the process gate. Readiness must depend only on resources released by another queued task.
+abstract class BackgroundWorkerTask<R> {
+  /// Whether this task can acquire its resources or resume its existing work.
+  bool get isReady => true;
+
+  /// Canceled tasks are drained first so their resources can be released promptly.
+  bool get isCanceled => false;
+
+  /// Runs one synchronous step; returns true when [result] is available.
+  bool run();
+
+  /// The completed result, which must be sendable between isolates.
+  R get result;
+
+  /// Releases task-owned native resources after completion or failure.
+  void dispose();
+}
+
 /// Scheduling priority of a [BackgroundWorker.compute] call.
 ///
 /// All PDFium work in the process funnels through a single worker isolate, so a long run of background work
@@ -34,8 +55,11 @@ class BackgroundWorker {
   BackgroundWorker._(this.debugName);
 
   static final _instance = BackgroundWorker._('PdfrxEngineWorker');
-  static final _suspendLock = Lock(reentrant: true);
+  static final _lifecycleLock = Lock();
+  static final _suspensionZoneKey = Object();
   static int _gateSuspendDepth = 0;
+  static int _activeSuspensions = 0;
+  static Completer<void>? _suspensionsIdle;
 
   final String debugName;
   SendPort? _sendPort;
@@ -52,39 +76,55 @@ class BackgroundWorker {
       _sendPort = await receivePort.first as SendPort;
 
       // Propagate process configuration to the worker isolate.
-      await _compute(
-        (params) {
-          Pdfrx.pdfiumModulePath = params.modulePath;
-          Pdfrx.pdfiumNativeBindings = params.bindings;
-          Pdfrx.useProcessWidePdfiumGate = params.useGate;
-          Pdfrx.lockProcessWidePdfiumGateConfiguration();
-          if (params.useGate) PdfiumProcessGate.enable();
-        },
-        (
-          modulePath: Pdfrx.pdfiumModulePath,
-          bindings: Pdfrx.pdfiumNativeBindings,
-          useGate: Pdfrx.useProcessWidePdfiumGate,
+      final configured = await _sendComputeParamsNoInit(
+        _sendPort!,
+        (sendPort) => _ExecuteParams(
+          sendPort,
+          (params) {
+            Pdfrx.pdfiumModulePath = params.modulePath;
+            Pdfrx.pdfiumNativeBindings = params.bindings;
+            Pdfrx.useProcessWidePdfiumGate = params.useGate;
+            Pdfrx.lockProcessWidePdfiumGateConfiguration();
+            if (params.useGate) PdfiumProcessGate.enable();
+          },
+          (
+            modulePath: Pdfrx.pdfiumModulePath,
+            bindings: Pdfrx.pdfiumNativeBindings,
+            useGate: Pdfrx.useProcessWidePdfiumGate,
+          ),
+          BackgroundWorkerPriority.normal,
         ),
-        BackgroundWorkerPriority.normal,
       );
+      if (configured is _ComputeError) {
+        Error.throwWithStackTrace(
+          _WorkerComputeException(configured.errorString),
+          StackTrace.fromString(configured.stackTraceString),
+        );
+      }
     });
     return _sendPort!;
   }
 
   /// Stops the worker isolate.
-  Future<void> _stop() async {
+  Future<void> _stop({void Function()? beforeStop}) async {
     if (_sendPort == null) return;
     await synchronized(() async {
       try {
         if (_sendPort == null) return;
-        await _sendComputeParamsNoInit(_sendPort!, (sendPort) => _StopRequest._(sendPort));
-        _sendPort = null;
+        final result = await _sendComputeParamsNoInit(_sendPort!, (sendPort) => _StopRequest._(sendPort, beforeStop));
+        if (result is _ComputeError) {
+          Error.throwWithStackTrace(
+            _WorkerComputeException(result.errorString),
+            StackTrace.fromString(result.stackTraceString),
+          );
+        }
       } catch (e) {
         developer.log('Failed to dispose worker (possible double-dispose?): $e');
       }
+      _sendPort = null;
+      _isolate?.kill(priority: Isolate.immediate);
+      _isolate = null;
     });
-    _isolate?.kill(priority: Isolate.immediate);
-    _isolate = null;
   }
 
   /// Entry point for the worker isolate.
@@ -112,12 +152,6 @@ class BackgroundWorker {
           }
         }
         message.execute();
-      } else if (message is _ComputeParams) {
-        if (suspendingLevel > 0) {
-          suspendingQueue.add(message);
-        } else {
-          scheduler.enqueue(message);
-        }
       } else if (message is _StopRequest) {
         developer.log('Stopping worker isolate.');
         scheduler.drainAll();
@@ -125,6 +159,12 @@ class BackgroundWorker {
         sub?.cancel();
         sub = null;
         receivePort.close();
+      } else if (message is _ComputeParams) {
+        if (suspendingLevel > 0) {
+          suspendingQueue.add(message);
+        } else {
+          scheduler.enqueue(message);
+        }
       }
     });
   }
@@ -139,7 +179,15 @@ class BackgroundWorker {
   }
 
   Future<dynamic> _sendComputeParams<T extends _ComputeParams>(T Function(SendPort) createParams) async {
-    return _sendComputeParamsNoInit(await _ensureInit(), createParams);
+    while (true) {
+      final sendPort = await _ensureInit();
+      Future<dynamic>? response;
+      await synchronized(() {
+        // Stop may have closed this port while _ensureInit's result was in flight.
+        if (_sendPort == sendPort) response = _sendComputeParamsNoInit(sendPort, createParams);
+      });
+      if (response != null) return await response;
+    }
   }
 
   /// Runs [callback] in the worker isolate with [message].
@@ -182,24 +230,70 @@ class BackgroundWorker {
       ? BackgroundWorkerPriority.low
       : BackgroundWorkerPriority.normal;
 
+  /// Executes a cooperative task, yielding to the queue after each incomplete step.
+  ///
+  /// [createTask] must only construct Dart state; native resources are acquired by the task's first [BackgroundWorkerTask.run].
+  /// Unlike asynchronous [compute] callbacks, every resumed step is protected by the process gate.
+  static Future<R> computeTask<M, R>(
+    BackgroundWorkerTask<R> Function(M message) createTask,
+    M message, {
+    BackgroundWorkerPriority? priority,
+  }) async {
+    final result = await _instance._sendComputeParams(
+      (sendPort) => _TaskExecuteParams(sendPort, createTask, message, priority ?? _defaultPriority()),
+    );
+    if (result is _ComputeError) {
+      Error.throwWithStackTrace(
+        _WorkerComputeException(result.errorString),
+        StackTrace.fromString(result.stackTraceString),
+      );
+    }
+    return (result as _ComputeResult<R>).value;
+  }
+
   /// Suspends the worker isolate during the execution of [action].
   ///
   /// Work queued before the suspend request has run by the time [action] starts. This holds for synchronous
   /// callbacks (all PDFium callbacks in the engine are synchronous); an asynchronous callback only counts as "run" up
   /// to its first `await`.
-  static Future<T> suspendDuringAction<T>(FutureOr<T> Function() action) =>
-      _suspendLock.synchronized(() => _suspendDuringAction(action));
+  static Future<T> suspendDuringAction<T>(FutureOr<T> Function() action) {
+    if ((Zone.current[_suspensionZoneKey] as _WorkerSuspension?)?.isActive == true) {
+      return _suspendDuringAction(action);
+    }
+    return _lifecycleLock.synchronized(() async {
+      await _waitForSuspensions();
+      return _suspendDuringAction(action);
+    });
+  }
+
+  static Future<void> _waitForSuspensions() =>
+      _activeSuspensions == 0 ? Future.value() : (_suspensionsIdle ??= Completer<void>()).future;
 
   static Future<T> _suspendDuringAction<T>(FutureOr<T> Function() action) async {
+    // A nested action may outlive its caller, so track it before the first await.
+    _activeSuspensions++;
+    try {
+      return await _runSuspendedAction(action);
+    } finally {
+      if (--_activeSuspensions == 0) {
+        _suspensionsIdle?.complete();
+        _suspensionsIdle = null;
+      }
+    }
+  }
+
+  static Future<T> _runSuspendedAction<T>(FutureOr<T> Function() action) async {
     await _instance._sendComputeParams((sendPort) => _SuspendRequest._(sendPort));
     // Hold the process lock so other engines cannot enter PDFium while
     // [action] uses native handles on this isolate. Do not call [compute]
     // from [action]: that worker would wait for this lock.
     final useGate = Pdfrx.useProcessWidePdfiumGate;
     if (useGate && _gateSuspendDepth++ == 0) PdfiumProcessGate.acquire();
+    final scope = _WorkerSuspension(Zone.current[_suspensionZoneKey] as _WorkerSuspension?);
     try {
-      return await action();
+      return await runZoned(action, zoneValues: {_suspensionZoneKey: scope});
     } finally {
+      scope.active = false;
       if (useGate && --_gateSuspendDepth == 0) PdfiumProcessGate.release();
       await _instance._sendComputeParams((sendPort) => _ResumeRequest._(sendPort));
     }
@@ -226,7 +320,24 @@ class BackgroundWorker {
   ///
   /// This will release all resources associated with the worker. But you can still call [compute], [computeWithArena],
   /// and [suspendDuringAction] afterwards, which will recreate the worker isolate.
-  static Future<void> stop() => _instance._stop();
+  /// [beforeStop] runs under the process gate after all queued synchronous work and continuations have completed.
+  /// Waits for active handle actions. Calling it from inside such an action throws [StateError].
+  static Future<void> stop({void Function()? beforeStop}) async {
+    if ((Zone.current[_suspensionZoneKey] as _WorkerSuspension?)?.isActive == true) {
+      throw StateError('Cannot stop the worker from inside a suspended handle action.');
+    }
+    await _lifecycleLock.synchronized(() async {
+      await _waitForSuspensions();
+      await _instance._stop(beforeStop: beforeStop);
+    });
+  }
+}
+
+class _WorkerSuspension {
+  _WorkerSuspension(this.parent);
+  final _WorkerSuspension? parent;
+  bool active = true;
+  bool get isActive => active || parent?.isActive == true;
 }
 
 /// Priority scheduler that runs inside the worker isolate.
@@ -238,15 +349,11 @@ class BackgroundWorker {
 /// item per turn does not change the relative execution order of items of the same priority, so a worker that only
 /// ever receives normal-priority work behaves exactly like a plain FIFO.
 ///
-/// Ordering invariant: an item never runs before an item of equal-or-higher priority that was enqueued earlier. An
-/// item may overtake earlier items of lower priority, never earlier items of higher priority. There is deliberately no
-/// starvation guard that lets lower-priority work through while higher-priority work is pending. Ordering alone does
-/// not protect a document from being closed under queued work of lower priority, so `PdfDocument.dispose()` waits for
-/// the document's outstanding calls before it queues `FPDF_CloseDocument`.
+/// Ordinary compute calls retain priority/FIFO ordering. Document disposal additionally waits for the document's
+/// outstanding calls before queuing `FPDF_CloseDocument`.
 ///
-/// High work cannot starve normal work in practice: high priority is only used for rendering and measuring the pages
-/// that are currently visible, so a burst of it is bounded by the visible page set and background work simply waits
-/// for the burst to end, which is the intent. Low work waits for all other work by design.
+/// Cooperative continuations rejoin the end of their priority queue. Tasks waiting for resources are skipped so the
+/// task holding those resources can finish; canceled tasks are drained before other work.
 class _WorkerScheduler {
   final _queues = [for (final _ in BackgroundWorkerPriority.values) Queue<_ComputeParams>()];
   var _drainScheduled = false;
@@ -265,7 +372,7 @@ class _WorkerScheduler {
   /// asynchronous callback has only run up to its first `await` when this returns.
   void drainAll() {
     while (!isEmpty) {
-      _next().execute();
+      _executeNext();
     }
   }
 
@@ -281,15 +388,31 @@ class _WorkerScheduler {
     _drainScheduled = false;
     if (isEmpty) return;
     try {
-      _next().execute();
+      _executeNext();
     } finally {
       // Re-arm even if execute() threw synchronously; otherwise the remaining items would never be drained.
       if (!isEmpty) _scheduleDrain();
     }
   }
 
-  /// Picks the next item to run: the oldest item of the highest priority that has one.
-  _ComputeParams _next() => _queues.firstWhere((queue) => queue.isNotEmpty).removeFirst();
+  void _executeNext() {
+    final params = _next();
+    if (!params.execute()) _queues[params.priority.index].addLast(params);
+  }
+
+  _ComputeParams _next() {
+    for (final canceledOnly in [true, false]) {
+      for (final queue in _queues) {
+        for (final item in queue) {
+          if (canceledOnly ? item.isCanceled : item.isReady) {
+            queue.remove(item);
+            return item;
+          }
+        }
+      }
+    }
+    throw StateError('Cooperative worker tasks are waiting without a runnable resource owner.');
+  }
 }
 
 class _ComputeParams {
@@ -297,7 +420,13 @@ class _ComputeParams {
   final SendPort sendPort;
   final BackgroundWorkerPriority priority;
 
-  void execute() => sendPort.send(null);
+  bool get isReady => true;
+  bool get isCanceled => false;
+
+  bool execute() {
+    sendPort.send(null);
+    return true;
+  }
 }
 
 class _ExecuteParams<M, R> extends _ComputeParams {
@@ -310,7 +439,7 @@ class _ExecuteParams<M, R> extends _ComputeParams {
   // (value or stringified error). PDFium work runs synchronously while the
   // process gate is held; genuinely asynchronous callbacks continue unlocked.
   @override
-  void execute() {
+  bool execute() {
     var locked = false;
     try {
       // Hold the process lock only around the synchronous invocation. A blocking
@@ -331,7 +460,7 @@ class _ExecuteParams<M, R> extends _ComputeParams {
           onError: (Object error, StackTrace stackTrace) =>
               sendPort.send(_ComputeError(error.toString(), stackTrace.toString())),
         );
-        return;
+        return true;
       }
       sendPort.send(_ComputeResult<R>(result));
     } catch (error, stackTrace) {
@@ -339,6 +468,76 @@ class _ExecuteParams<M, R> extends _ComputeParams {
     } finally {
       if (locked) PdfiumProcessGate.release();
     }
+    return true;
+  }
+}
+
+class _TaskExecuteParams<M, R> extends _ComputeParams {
+  _TaskExecuteParams(super.sendPort, this.createTask, this.message, super.priority);
+  final BackgroundWorkerTask<R> Function(M message) createTask;
+  final M message;
+  Object? _creationError;
+  StackTrace? _creationStack;
+  Object? _schedulingError;
+  StackTrace? _schedulingStack;
+  late final BackgroundWorkerTask<R>? _task = _createTask();
+
+  BackgroundWorkerTask<R>? _createTask() {
+    try {
+      return createTask(message);
+    } catch (error, stackTrace) {
+      _creationError = error;
+      _creationStack = stackTrace;
+      return null;
+    }
+  }
+
+  @override
+  bool get isReady => _readSchedulingState(cancellation: false);
+
+  @override
+  bool get isCanceled => _readSchedulingState(cancellation: true);
+
+  bool _readSchedulingState({required bool cancellation}) {
+    if (_schedulingError != null) return true;
+    try {
+      return cancellation ? _task?.isCanceled ?? false : _task?.isReady ?? true;
+    } catch (error, stackTrace) {
+      _schedulingError = error;
+      _schedulingStack = stackTrace;
+      return true;
+    }
+  }
+
+  @override
+  bool execute() {
+    var locked = false;
+    var disposed = false;
+    final task = _task;
+    try {
+      if (task == null) Error.throwWithStackTrace(_creationError!, _creationStack!);
+      if (Pdfrx.useProcessWidePdfiumGate) {
+        PdfiumProcessGate.acquire();
+        locked = true;
+      }
+      if (_schedulingError != null) Error.throwWithStackTrace(_schedulingError!, _schedulingStack!);
+      if (!task.run()) return false;
+      final result = task.result;
+      disposed = true;
+      task.dispose();
+      sendPort.send(_ComputeResult<R>(result));
+    } catch (error, stackTrace) {
+      try {
+        if (!disposed) task?.dispose();
+      } catch (cleanupError, cleanupStack) {
+        sendPort.send(_ComputeError('$error\nTask cleanup: $cleanupError', '$stackTrace\n$cleanupStack'));
+        return true;
+      }
+      sendPort.send(_ComputeError(error.toString(), stackTrace.toString()));
+    } finally {
+      if (locked) PdfiumProcessGate.release();
+    }
+    return true;
   }
 }
 
@@ -374,5 +573,16 @@ class _ResumeRequest extends _ComputeParams {
 }
 
 class _StopRequest extends _ComputeParams {
-  _StopRequest._(super.sendPort);
+  _StopRequest._(super.sendPort, this.beforeStop);
+  final void Function()? beforeStop;
+
+  @override
+  bool execute() => _ExecuteParams<void, void>(
+    sendPort,
+    (_) {
+      beforeStop?.call();
+    },
+    null,
+    priority,
+  ).execute();
 }

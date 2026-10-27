@@ -1,3 +1,6 @@
+// The named constructor parameters intentionally omit private field prefixes.
+// ignore_for_file: prefer_initializing_formals
+
 import 'dart:async';
 import 'dart:math';
 
@@ -97,13 +100,15 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
       useProgressiveLoading: useProgressiveLoading,
       onDispose: onDispose,
       opener: (password) async {
-        final result = await _channel
-            .invokeMapMethod<Object?, Object?>('openDocument', {
-              'sourceType': 'bytes',
-              'bytes': data,
-              'password': password,
-              'sourceName': sourceName,
-            });
+        final result = await _channel.invokeMapMethod<Object?, Object?>(
+          'openDocument',
+          {
+            'sourceType': 'bytes',
+            'bytes': data,
+            'password': password,
+            'sourceName': sourceName,
+          },
+        );
         return result;
       },
     );
@@ -619,6 +624,7 @@ class _CoreGraphicsPdfPage extends PdfPage with PdfPageLinkCache {
         PdfAnnotationRenderingMode.annotationAndForms,
     int flags = PdfPageRenderFlags.none,
     PdfPageRenderCancellationToken? cancellationToken,
+    PdfPageRenderPriority? priority,
   }) async {
     if (_document._disposed) {
       return null;
@@ -638,27 +644,29 @@ class _CoreGraphicsPdfPage extends PdfPage with PdfPageLinkCache {
 
     final Map<Object?, Object?>? result;
     try {
-      result = await _document.channel
-          .invokeMapMethod<Object?, Object?>('renderPage', {
-            'handle': _document.handle,
-            'pageIndex': index,
-            'x': x,
-            'y': y,
-            'width': targetWidth,
-            'height': targetHeight,
-            'fullWidth': targetFullWidth,
-            'fullHeight': targetFullHeight,
-            'backgroundColor': backgroundColor ?? 0xffffffff,
-            'rotation': rotationOverride != null
-                ? (rotationOverride.index - rotation.index + 4) & 3
-                : 0,
-            'flags': flags,
-            'renderAnnotations':
-                annotationRenderingMode != PdfAnnotationRenderingMode.none,
-            'renderForms':
-                annotationRenderingMode ==
-                PdfAnnotationRenderingMode.annotationAndForms,
-          });
+      result = await _document.channel.invokeMapMethod<Object?, Object?>(
+        'renderPage',
+        {
+          'handle': _document.handle,
+          'pageIndex': index,
+          'x': x,
+          'y': y,
+          'width': targetWidth,
+          'height': targetHeight,
+          'fullWidth': targetFullWidth,
+          'fullHeight': targetFullHeight,
+          'backgroundColor': backgroundColor ?? 0xffffffff,
+          'rotation': rotationOverride != null
+              ? (rotationOverride.index - rotation.index + 4) & 3
+              : 0,
+          'flags': flags,
+          'renderAnnotations':
+              annotationRenderingMode != PdfAnnotationRenderingMode.none,
+          'renderForms':
+              annotationRenderingMode ==
+              PdfAnnotationRenderingMode.annotationAndForms,
+        },
+      );
     } on MissingPluginException {
       return null;
     }
@@ -721,12 +729,14 @@ class _CoreGraphicsPdfPage extends PdfPage with PdfPageLinkCache {
   @override
   Future<List<PdfLink>> loadLinksUncached(bool enableAutoLinkDetection) async {
     try {
-      final result = await _document.channel
-          .invokeListMethod<Object?>('loadPageLinks', {
-            'handle': _document.handle,
-            'pageIndex': index,
-            'enableAutoLinkDetection': enableAutoLinkDetection,
-          });
+      final result = await _document.channel.invokeListMethod<Object?>(
+        'loadPageLinks',
+        {
+          'handle': _document.handle,
+          'pageIndex': index,
+          'enableAutoLinkDetection': enableAutoLinkDetection,
+        },
+      );
       if (result == null) {
         return const [];
       }

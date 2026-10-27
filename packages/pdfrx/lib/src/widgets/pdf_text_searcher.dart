@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:ui' as ui;
 
 import 'package:material_ui/material_ui.dart';
@@ -13,11 +14,14 @@ import 'pdf_viewer_params.dart' show PdfViewerParams;
 /// To be notified when the search status change, use [addListener].
 class PdfTextSearcher extends Listenable {
   /// Creates a new instance of [PdfTextSearcher].
-  PdfTextSearcher(this._controller) {
+  PdfTextSearcher(this._controller, {this.notificationInterval = const Duration(milliseconds: 100)}) {
     _registerForDocumentChanges();
   }
 
   final PdfViewerController _controller;
+
+  /// Minimum interval between progress notifications, excluding first and final results.
+  final Duration notificationInterval;
 
   /// The [PdfViewerController] to use.
   PdfViewerController? get controller => _controller.isReady ? _controller : null;
@@ -163,6 +167,7 @@ class PdfTextSearcher extends Listenable {
       final textMatches = <PdfPageTextRange>[];
       final textMatchesPageStartIndex = <int>[];
       var first = true;
+      final notificationClock = Stopwatch()..start();
       _isSearching = true;
       // The previous pattern's position does not index into the new matches.
       _currentIndex = null;
@@ -171,18 +176,22 @@ class PdfTextSearcher extends Listenable {
       for (final page in document.pages) {
         _searchingPageNumber = page.pageNumber;
         if (searchSession != _searchSession) return;
+        textMatchesPageStartIndex.add(textMatches.length);
         final pageText = await loadText(pageNumber: page.pageNumber);
         if (searchSession != _searchSession) return;
-        if (pageText == null) continue;
-        textMatchesPageStartIndex.add(textMatches.length);
-        await for (final f in pageText.allMatches(condition.pattern, caseInsensitive: condition.caseInsensitive)) {
-          if (searchSession != _searchSession) return;
-          textMatches.add(f);
+        if (pageText != null) {
+          await for (final f in pageText.allMatches(condition.pattern, caseInsensitive: condition.caseInsensitive)) {
+            if (searchSession != _searchSession) return;
+            textMatches.add(f);
+          }
         }
-        _matches = List.unmodifiable(textMatches);
-        _matchesPageStartIndices = List.unmodifiable(textMatchesPageStartIndex);
+        _matches = _MatchSnapshot(textMatches);
+        _matchesPageStartIndices = textMatchesPageStartIndex;
         _isSearching = page.pageNumber < document.pages.length;
-        notifyListeners();
+        if (page.pageNumber == 1 || !_isSearching || notificationClock.elapsed >= notificationInterval) {
+          notifyListeners();
+          notificationClock.reset();
+        }
 
         if (_matches.isNotEmpty && first) {
           first = false;
@@ -312,6 +321,29 @@ class PdfTextSearcher extends Listenable {
 
   @override
   void removeListener(VoidCallback listener) => _listeners.remove(listener);
+}
+
+/// Captures a read-only prefix of the current search's append-only results.
+class _MatchSnapshot<T> extends ListBase<T> {
+  _MatchSnapshot(this._values) : _length = _values.length;
+
+  final List<T> _values;
+  final int _length;
+
+  @override
+  int get length => _length;
+
+  @override
+  set length(int value) => throw UnsupportedError('Search results are read-only.');
+
+  @override
+  T operator [](int index) {
+    RangeError.checkValidIndex(index, this);
+    return _values[index];
+  }
+
+  @override
+  void operator []=(int index, T value) => throw UnsupportedError('Search results are read-only.');
 }
 
 extension _PatternExts on Pattern {
