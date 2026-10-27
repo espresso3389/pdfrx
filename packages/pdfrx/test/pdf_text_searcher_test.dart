@@ -63,14 +63,16 @@ class _FakeController extends PdfViewerController {
 
 /// Serves page text from [texts]; a page listed in [gates] waits for its completer.
 class _GatedSearcher extends PdfTextSearcher {
-  _GatedSearcher(super.controller, this.texts);
+  _GatedSearcher(super.controller, this.texts, {super.notificationInterval});
 
   final Map<int, String> texts;
   final Map<int, Completer<void>> gates = {};
+  final Set<int> missingPages = {};
 
   @override
   Future<PdfPageText?> loadText({required int pageNumber}) async {
     await gates[pageNumber]?.future;
+    if (missingPages.contains(pageNumber)) return null;
     final text = texts[pageNumber] ?? '';
     return PdfPageText(
       pageNumber: pageNumber,
@@ -82,6 +84,50 @@ class _GatedSearcher extends PdfTextSearcher {
 }
 
 void main() {
+  test('published results are immutable snapshots while later pages are appended', () async {
+    final searcher = _GatedSearcher(_FakeController(_FakeDocument(2)), {1: 'word', 2: 'word word'});
+    addTearDown(searcher.dispose);
+    final gate = searcher.gates[2] = Completer<void>();
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    final firstPage = searcher.matches;
+    gate.complete();
+    await pumpEventQueue();
+    expect(firstPage, hasLength(1));
+    expect(searcher.matches, hasLength(3));
+    expect(() => firstPage[1], throwsRangeError);
+    expect(() => firstPage.clear(), throwsUnsupportedError);
+    expect(() => searcher.matches[0] = searcher.matches[1], throwsUnsupportedError);
+  });
+
+  test('progress is batched with first and final notifications guaranteed', () async {
+    final searcher = _GatedSearcher(_FakeController(_FakeDocument(100)), {
+      for (var page = 1; page <= 100; page++) page: 'word',
+    }, notificationInterval: const Duration(days: 1));
+    addTearDown(searcher.dispose);
+    var notifications = 0;
+    searcher.addListener(() => notifications++);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue(times: 1000);
+    expect(searcher.matches, hasLength(100));
+    expect(searcher.isSearching, isFalse);
+    expect(searcher.searchProgress, 1);
+    expect(notifications, 2);
+  });
+
+  test('missing text preserves page indices and still completes the search', () async {
+    final searcher = _GatedSearcher(_FakeController(_FakeDocument(4)), {1: 'word', 3: 'word'})
+      ..missingPages.addAll([2, 4]);
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    expect(searcher.matches.map((match) => match.pageNumber), [1, 3]);
+    expect(searcher.getMatchesRangeForPage(2), (start: 1, end: 1));
+    expect(searcher.getMatchesRangeForPage(3), (start: 1, end: 2));
+    expect(searcher.getMatchesRangeForPage(4), (start: 2, end: 2));
+    expect(searcher.isSearching, isFalse);
+  });
+
   test('stopping while the document is loading prevents the search from starting later', () async {
     final controller = _FakeController(_FakeDocument(1))..documentReady = Completer<void>();
     final searcher = _GatedSearcher(controller, {1: 'word'});
