@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui_web' as ui_web;
@@ -53,6 +54,18 @@ Future<Map<Object?, dynamic>> _sendCommand(
 }) async {
   final result = await _pdfiumWasmCommunicator.sendCommand(command, parameters?.jsify(), transfer).toDart;
   return (result.dartify()) as Map<Object?, dynamic>;
+}
+
+/// Like [_sendCommand], but moves [property] out of the result before `dartify()`, which only handles plain data.
+Future<(Map<Object?, dynamic>, T?)> _sendCommandTaking<T extends JSAny>(
+  String command,
+  String property, {
+  Map<Object?, dynamic>? parameters,
+}) async {
+  final result = (await _pdfiumWasmCommunicator.sendCommand(command, parameters?.jsify()).toDart)! as JSObject;
+  final taken = result.getProperty<T?>(property.toJS);
+  result.delete(property.toJS);
+  return (result.dartify() as Map<Object?, dynamic>, taken);
 }
 
 /// The URL of the PDFium WASM worker script; pdfium_client.js tries to load worker script from this URL.'
@@ -741,6 +754,14 @@ class _PdfPageRenderCancellationTokenWasm extends PdfPageRenderCancellationToken
   bool get isCanceled => _isCanceled;
 }
 
+/// Whether this page and its built-in wrappers preserve the worker render hint.
+bool supportsWorkerBitmap(PdfPage page) {
+  while (page.runtimeType == PdfPageRenumbered || page.runtimeType == PdfPageRotated) {
+    page = (page as PdfPageProxy).basePage;
+  }
+  return page is _PdfPageWasm;
+}
+
 class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
   _PdfPageWasm(
     this.document,
@@ -880,8 +901,9 @@ class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
     height ??= fullHeight.toInt();
     backgroundColor ??= 0xffffffff; // white background
 
-    final result = await _sendCommand(
+    final (result, imageBitmap) = await _sendCommandTaking<web.ImageBitmap>(
       'renderPage',
+      'imageBitmap',
       parameters: {
         'docHandle': document.document['docHandle'],
         'pageIndex': pageNumber - 1,
@@ -903,12 +925,12 @@ class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
 
     document.updateMissingFonts(result['missingFonts']);
 
-    return PdfImageWeb(width: width, height: height, pixels: pixels);
+    return PdfImageWeb(width: width, height: height, pixels: pixels, imageBitmap: imageBitmap);
   }
 }
 
 class PdfImageWeb extends PdfImage {
-  PdfImageWeb({required this.width, required this.height, required this.pixels});
+  PdfImageWeb({required this.width, required this.height, required this.pixels, this._imageBitmap});
 
   @override
   final int width;
@@ -916,8 +938,23 @@ class PdfImageWeb extends PdfImage {
   final int height;
   @override
   final Uint8List pixels;
+
+  /// The same pixels as [pixels], already converted by the PDFium worker into an `ImageBitmap` (RGBA,
+  /// non-premultiplied source); null if the browser cannot create one in a worker.
+  web.ImageBitmap? _imageBitmap;
+
+  /// Hands the `ImageBitmap` over to the caller, who then owns it; returns null if there is none or it was taken.
+  web.ImageBitmap? takeImageBitmap() {
+    final bitmap = _imageBitmap;
+    _imageBitmap = null;
+    return bitmap;
+  }
+
   @override
-  void dispose() {}
+  void dispose() {
+    _imageBitmap?.close();
+    _imageBitmap = null;
+  }
 }
 
 PdfDest? _pdfDestFromMap(dynamic dest) {

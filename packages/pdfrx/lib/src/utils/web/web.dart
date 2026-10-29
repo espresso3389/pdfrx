@@ -1,4 +1,6 @@
 import 'dart:js_interop';
+import 'dart:ui' as ui;
+import 'dart:ui_web' as ui_web;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +8,7 @@ import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:web/web.dart' as web;
 
 import '../../wasm/pdfrx_wasm.dart';
+import '../../wasm/pdfrx_wasm.dart' as wasm;
 
 final isApple = false;
 final isAndroid = false;
@@ -52,6 +55,27 @@ Future<void> platformInitialize() async {
     }).toJS,
   );
   await PdfrxEntryFunctions.instance.init();
+}
+
+/// Whether this page supports the web worker bitmap hint.
+bool supportsWorkerBitmap(PdfPage page) => wasm.supportsWorkerBitmap(page);
+
+/// Creates the [ui.Image] from the `ImageBitmap` the PDFium worker rendered alongside [image]'s pixels, so no pixel
+/// passes through the main thread. Returns null if [image] carries no bitmap; the caller then decodes [PdfImage.pixels].
+Future<ui.Image>? createImageFromWorkerBitmap(PdfImage image) {
+  if (image is! PdfImageWeb) return null;
+  final bitmap = image.takeImageBitmap();
+  if (bitmap == null) return null;
+  return _createImageFromBitmap(bitmap);
+}
+
+Future<ui.Image> _createImageFromBitmap(web.ImageBitmap bitmap) async {
+  try {
+    return await ui_web.createImageFromImageBitmap(bitmap);
+  } catch (_) {
+    bitmap.close();
+    rethrow;
+  }
 }
 
 /// Reports focus changes for the Web platform to handle right-click context menus.
