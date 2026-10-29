@@ -30,7 +30,7 @@ void main() {
         await Future.wait(
           List.generate(
             4,
-            (id) => Isolate.run(() => _exerciseEngine(id, round)),
+            (_) => Isolate.run(_exerciseEngine),
           ),
         );
         stderr.writeln('GATE main: round $round isolates done');
