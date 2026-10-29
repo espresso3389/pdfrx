@@ -10,14 +10,16 @@ Converts PDF pages to PNG images and extracts text from each page.
 
 **Usage:**
 
+Run this command from `packages/pdfrx_engine`:
+
 ```bash
-dart run example/main.dart <pdf_file> [output_dir]
+dart run example/pdf2image.dart <pdf_file> [output_dir]
 ```
 
 **Example:**
 
 ```bash
-dart run example/main.dart document.pdf ./output
+dart run example/pdf2image.dart document.pdf ./output
 ```
 
 ### pdfcombine.dart
@@ -58,13 +60,13 @@ dart run example/pdfcombine.dart -o output.pdf doc1.pdf doc2.pdf doc3.pdf -- a b
 Combine specific pages from multiple PDFs (-o at the beginning):
 
 ```bash
-dart run example/pdfcombine.dart -o output.pdf doc1.pdf doc2.pdf doc3.pdf -- a b[1-3] c b[4,5,6]
+dart run example/pdfcombine.dart -o output.pdf doc1.pdf doc2.pdf doc3.pdf -- a 'b[1-3]' c 'b[4,5,6]'
 ```
 
 Same command with -o in the middle (files can be split around -o flag):
 
 ```bash
-dart run example/pdfcombine.dart doc1.pdf doc2.pdf -o output.pdf doc3.pdf -- a b[1-3] c b[4,5,6]
+dart run example/pdfcombine.dart doc1.pdf doc2.pdf -o output.pdf doc3.pdf -- a 'b[1-3]' c 'b[4,5,6]'
 ```
 
 This will:
@@ -77,19 +79,19 @@ This will:
 Split and reorder pages from a single file:
 
 ```bash
-dart run example/pdfcombine.dart -o output.pdf input.pdf -- a[1-10] a[20-30] a[11-19]
+dart run example/pdfcombine.dart -o output.pdf input.pdf -- 'a[1-10]' 'a[20-30]' 'a[11-19]'
 ```
 
 Merge two PDFs with custom ordering:
 
 ```bash
-dart run example/pdfcombine.dart -o merged.pdf input1.pdf input2.pdf -- a[1-10] b a[11-20]
+dart run example/pdfcombine.dart -o merged.pdf input1.pdf input2.pdf -- 'a[1-10]' b 'a[11-20]'
 ```
 
 Use hybrid page specifications (ranges and individual pages):
 
 ```bash
-dart run example/pdfcombine.dart -o output.pdf doc.pdf -- a[1-3,5,6,7,10]
+dart run example/pdfcombine.dart -o output.pdf doc.pdf -- 'a[1-3,5,6,7,10]'
 ```
 
 This extracts pages 1,2,3,5,6,7,10 from `doc.pdf`.
@@ -100,7 +102,7 @@ From the repository root:
 
 ```bash
 # Run pdf2image example
-dart run packages/pdfrx_engine/example/main.dart <pdf_file> [output_dir]
+dart run packages/pdfrx_engine/example/pdf2image.dart <pdf_file> [output_dir]
 
 # Run pdfcombine example
 dart run packages/pdfrx_engine/example/pdfcombine.dart <args>
@@ -110,7 +112,7 @@ From the `packages/pdfrx_engine` directory:
 
 ```bash
 # Run pdf2image example
-dart run example/main.dart <pdf_file> [output_dir]
+dart run example/pdf2image.dart <pdf_file> [output_dir]
 
 # Run pdfcombine example
 dart run example/pdfcombine.dart <args>

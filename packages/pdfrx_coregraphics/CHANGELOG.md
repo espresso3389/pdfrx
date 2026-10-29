@@ -1,3 +1,7 @@
+# 0.5.1
+
+- Updated compatibility to `pdfrx_engine` 0.9.0.
+
 # 0.5.0
 
 - BREAKING: Updated to `pdfrx_engine` 0.8.0 for compatibility with `pdfrx` 2.10.0. Custom page implementations must accept the optional `PdfPageRenderPriority? priority` parameter on `render` ([#758](https://github.com/espresso3389/pdfrx/pull/758)).

@@ -90,13 +90,13 @@ class Pdfrx {
 
   /// Runs [action] with the PDFium work it starts scheduled as background work.
   ///
-  /// The native PDFium backend runs all PDFium calls on one worker. Calls made inside [action] (opening documents,
-  /// loading text, outlines, links, ...) wait until no other work is pending, so a long background job such as
-  /// extracting the text of many documents does not delay viewers. Page renders keep their higher priority. Other
+  /// The native PDFium backend runs PDFium calls on one worker. Operations started inside [action] use lower
+  /// priority unless they specify one explicitly; this includes page renders with no explicit priority. Other
   /// backends run [action] unchanged.
   ///
-  /// This changes queue order; it does not interrupt a running call. Background work can wait indefinitely while
-  /// higher-priority work keeps arriving. Calls started by asynchronous work in this zone inherit its priority.
+  /// Native page renders yield cooperatively at PDFium pause points, but individual native calls and final form
+  /// drawing may not be interruptible. Background work can wait indefinitely while higher-priority work keeps
+  /// arriving. Calls started by asynchronous work in this zone inherit its priority.
   /// The PDFium backend protects the documents used by its own operations, including sources of `assemble()`.
   /// Raw native handles passed to `PdfrxEntryFunctions.compute` are not tracked: await those calls before disposing
   /// their documents, and do not retain a handle beyond `useNativeDocumentHandle`'s callback.

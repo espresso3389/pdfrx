@@ -1,6 +1,6 @@
 # pdfrx Documentation
 
-Welcome to the pdfrx documentation! These guides describe the current repository code. Feature-specific version notes indicate when an API became available; the pub.dev API reference describes the published package.
+Welcome to the pdfrx documentation! These guides describe the current repository code. They can include changes not yet published on pub.dev. Feature-specific version notes indicate when an API became available; check the pub.dev API reference for the version you use.
 
 ## Getting Started
 

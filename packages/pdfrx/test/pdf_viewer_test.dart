@@ -25,6 +25,41 @@ void main() {
     return http.Response.bytes(await testPdfFile.readAsBytes(), 200);
   });
 
+  testWidgets('discard a deferred resize when the document changes during layout', (tester) async {
+    final document = _TestDocument(1);
+    addTearDown(document.dispose);
+    final ref = PdfDocumentRefDirect(document, autoDispose: false);
+    final controller = PdfViewerController();
+    var sizeChanges = 0;
+    Widget viewer(double width) => MaterialApp(
+      home: Align(
+        child: SizedBox(
+          width: width,
+          height: 400,
+          child: PdfViewer(
+            ref,
+            controller: controller,
+            params: PdfViewerParams(onViewSizeChanged: (_, _, _) => sizeChanges++),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(viewer(400));
+    await _pumpPaintWork(tester);
+    expect(controller.isReady, isTrue);
+    final initialSizeChanges = sizeChanges;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.resolveListenable().setError(StateError('document changed'));
+    });
+    await tester.pumpWidget(viewer(300));
+    expect(tester.takeException(), isNull);
+    expect(controller.isReady, isFalse);
+    expect(sizeChanges, initialSizeChanges);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('repaints reuse a pending partial render with the same rectangle and scale', (tester) async {
     final document = _TestDocument(1);
     addTearDown(document.dispose);

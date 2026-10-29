@@ -577,12 +577,28 @@ class _StopRequest extends _ComputeParams {
   final void Function()? beforeStop;
 
   @override
-  bool execute() => _ExecuteParams<void, void>(
-    sendPort,
-    (_) {
+  bool execute() {
+    Object? error;
+    StackTrace? stackTrace;
+    var locked = false;
+    try {
+      if (Pdfrx.useProcessWidePdfiumGate) {
+        PdfiumProcessGate.acquire();
+        locked = true;
+      }
       beforeStop?.call();
-    },
-    null,
-    priority,
-  ).execute();
+    } catch (e, stack) {
+      error = e;
+      stackTrace = stack;
+    } finally {
+      if (locked) PdfiumProcessGate.release();
+    }
+    // The caller can kill this isolate as soon as it receives the reply.
+    if (error != null) {
+      sendPort.send(_ComputeError(error.toString(), stackTrace.toString()));
+    } else {
+      sendPort.send(_ComputeResult<void>(null));
+    }
+    return true;
+  }
 }

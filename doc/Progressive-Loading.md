@@ -20,7 +20,7 @@ The native backend initially measures the first page and creates estimated place
 
 ## Page State
 
-[PdfPage.isLoaded](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/isLoaded.html) indicates whether the page has been measured. An unloaded placeholder has estimated dimensions and rotation. Its raw `loadText()` returns null and its links are empty. Do not rely on placeholder rendering as actual page content.
+[PdfPage.isLoaded](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/isLoaded.html) indicates whether the page has been measured. An unloaded placeholder has estimated dimensions and rotation. Its raw `loadText()` returns null, `loadStructuredText()` returns empty structured text, and its links are empty. Do not rely on placeholder rendering as actual page content.
 
 A loaded page has measured metadata, but this does not guarantee that a malformed page can render. Handle a null result from `render()` and empty text or links.
 
@@ -70,7 +70,9 @@ if (page != null) {
 }
 ```
 
-`ensureLoaded()` waits without a timeout and returns the loaded instance. `waitForLoaded()` returns null on timeout. Always use the returned instance, not a previously saved placeholder.
+`ensureLoaded()` waits without a timeout and returns the loaded instance; it throws `StateError` if the document closes first. `waitForLoaded()` returns null on timeout, document closure, or completion of its optional `cancelLoading` future. Always use the returned instance, not a previously saved placeholder.
+
+`loadStructuredText()` returns empty text immediately for an unloaded page by default. To wait for measurement before extracting text, pass `ensureLoaded: true`. Like `ensureLoaded()`, this waits for another task or the viewer to load the page; it does not initiate measurement.
 
 Observe a page with `page.events` or `page.latestPageStream`:
 
@@ -99,7 +101,20 @@ Native page measurement is split into short worker tasks, including when progres
 
 A measurement budget is cooperative: one expensive PDFium page load can exceed it. Progressive loading does not by itself guarantee lower network traffic; HTTP range support and the document's structure also affect downloading.
 
-Measured metadata is distinct from cached page images. The viewer manages its image cache through `maxImageBytesCachedOnMemory` and `limitRenderingCache`. Engine callers should dispose rendered images and the document when finished.
+Measured metadata is distinct from cached page images. `maxImageBytesCachedOnMemory` controls the viewer's image cache, while `limitRenderingCache` sets a PDFium rendering flag. Engine callers should dispose rendered images and the document when finished.
+
+### Sharing an Image Budget
+
+Viewers can share a `PdfImageCacheBudget` through `PdfViewerParams.imageCacheBudget`:
+
+```dart
+final imageBudget = PdfImageCacheBudget(maximumBytes: 100 * 1024 * 1024);
+
+// Pass the same budget to each viewer that should share it.
+final params = PdfViewerParams(imageCacheBudget: imageBudget);
+```
+
+Keep the budget alive while its viewers use it, and dispose it after they have been disposed. It accounts for estimated retained images and in-flight rendering and conversion allocations, not actual process or GPU memory. Visible pinned images may exceed the target. A shared budget can reduce render resolution to fit the budget and each viewer's `maxImageBytesCachedOnMemory`; leaving it unset preserves the normal rendering resolution and local cache behavior.
 
 ### Releasing Viewer Images
 
@@ -109,7 +124,9 @@ Once the controller is attached to a viewer, use [releaseCachedImages()](https:/
 controller.releaseCachedImages();
 ```
 
-Use `controller.releaseCachedImages(keepVisible: false)` to release all cached page images. Both forms also cancel rendering for released pages and clear the magnifier image cache. This is a one-time release, not a rendering pause: subsequent painting can render needed images again.
+Use `controller.releaseCachedImages(keepVisible: false)` to release all cached page images. Both forms also cancel rendering for released pages and clear the magnifier image cache. This is a one-time release, not a rendering pause: subsequent painting can render needed images again. `releaseCachedResources()` also releases links and unpinned shared text; its `keepVisible` and `keepSelection` arguments default to true. Text pinned by other consumers is retained.
+
+For a kept-alive hidden tab, set `PdfViewerParams.isVisible` to false. The viewer cancels pending work and releases images, links, and unpinned text while retaining its position and selection. Set it back to true to resume; this setting does not control focus. Pause a separate search explicitly with `searcher.isActive = false` as described in [Text Search](Text-Search.md#pausing-a-search).
 
 ### Background Work
 
@@ -121,7 +138,7 @@ final bytes = await Pdfrx.runAsBackgroundWork(() async {
 });
 ```
 
-The setting propagates through asynchronous calls inside the callback. Worker operations without an explicit priority use the lower priority; operations with an explicit high priority, such as rendering, retain it. Outside this scope, default priority is unchanged. It does not interrupt a native operation already running, and sustained higher-priority work can delay background work. Other backends execute the callback without this native scheduling effect.
+The setting propagates through asynchronous calls inside the callback. Worker operations without an explicit priority use the lower priority; operations with an explicit high priority, such as rendering, retain it. Outside this scope, default priority is unchanged. Native PDFium page renders yield cooperatively at PDFium pause points, allowing higher-priority work to run and cancellation to release an active render. Pause points are not guaranteed to be immediate: parsing, individual objects, and final form drawing may take longer. Other native operations are not necessarily interruptible, and sustained higher-priority work can delay background work. Other backends execute the callback without this native scheduling effect.
 
 Keep documents alive until the returned future completes, then await their disposal. See [document lifetime](PDF-Page-Manipulation.md#document-lifetime) for assembly and raw-handle restrictions.
 
