@@ -84,6 +84,13 @@ extension PdfImageExt on PdfImage {
       }
     }
 
+    // On web the PDFium worker already turned the pixels into an ImageBitmap; uploading that skips the per-pixel
+    // BMP encoding (dart2js) and the byte-wise copy into the renderer's heap (dart2wasm) on the main thread.
+    if (targetWidth == null) {
+      final image = createImageFromWorkerBitmap(this);
+      if (image != null) return image;
+    }
+
     // This is what `decodeImageFromPixels` does internally, driven directly
     // instead. That function only takes a success callback, so a decode or
     // allocation failure leaves the caller awaiting a future that never

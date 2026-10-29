@@ -1,4 +1,6 @@
 import 'dart:js_interop';
+import 'dart:ui' as ui;
+import 'dart:ui_web' as ui_web;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -52,6 +54,15 @@ Future<void> platformInitialize() async {
     }).toJS,
   );
   await PdfrxEntryFunctions.instance.init();
+}
+
+/// Creates the [ui.Image] from the `ImageBitmap` the PDFium worker rendered alongside [image]'s pixels, so no pixel
+/// passes through the main thread. Returns null if [image] carries no bitmap; the caller then decodes [PdfImage.pixels].
+Future<ui.Image>? createImageFromWorkerBitmap(PdfImage image) {
+  if (image is! PdfImageWeb) return null;
+  final bitmap = image.takeImageBitmap();
+  if (bitmap == null) return null;
+  return Future.value(ui_web.createImageFromImageBitmap(bitmap));
 }
 
 /// Reports focus changes for the Web platform to handle right-click context menus.

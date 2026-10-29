@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -34,6 +35,9 @@ PdfrxEntryFunctions? get pdfrxEntryFunctionsOverride => null;
 Future<void> platformInitialize() async {
   await PdfrxEntryFunctions.instance.init();
 }
+
+/// Web only: native renders have no `ImageBitmap`, so this always returns null.
+Future<ui.Image>? createImageFromWorkerBitmap(PdfImage image) => null;
 
 /// Reports focus changes for the Web platform to handle right-click context menus.
 ///

@@ -1798,21 +1798,53 @@ async function renderPage(params) {
       dest.set(src);
     }
 
+    const imageBitmap = _createImageBitmapFromBgra(src, width, height);
+
     _updateMissingFonts(docHandle);
 
     return {
       result: {
         imageData: copiedBuffer,
+        imageBitmap: imageBitmap,
         width: width,
         height: height,
         missingFonts: missingFonts[docHandle],
       },
-      transfer: [copiedBuffer],
+      transfer: imageBitmap ? [copiedBuffer, imageBitmap] : [copiedBuffer],
     };
   } finally {
     Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
     Pdfium.wasmExports.FPDFBitmap_Destroy(bitmap);
     Pdfium.wasmExports.free(bufferPtr);
+  }
+}
+
+/**
+ * Converts PDFium's (non-premultiplied) BGRA output into an ImageBitmap, so the main thread can hand it to the
+ * renderer without touching pixels (`ui_web.createImageFromImageBitmap`). Returns null where OffscreenCanvas is
+ * unavailable or the canvas cannot be allocated; callers then fall back to the BGRA buffer.
+ * @param {Uint8Array} src BGRA pixels
+ * @param {number} width
+ * @param {number} height
+ * @returns {ImageBitmap|null}
+ */
+function _createImageBitmapFromBgra(src, width, height) {
+  if (typeof OffscreenCanvas === 'undefined' || typeof ImageData === 'undefined') return null;
+  try {
+    const rgba = new Uint8ClampedArray(width * height * 4);
+    const s32 = new Uint32Array(src.buffer, src.byteOffset, width * height);
+    const d32 = new Uint32Array(rgba.buffer);
+    for (let i = 0; i < d32.length; i++) {
+      const p = s32[i];
+      d32[i] = (p & 0xff00ff00) | ((p & 0xff) << 16) | ((p >>> 16) & 0xff); // BGRA -> RGBA (little endian)
+    }
+    const canvas = new OffscreenCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.putImageData(new ImageData(rgba, width, height), 0, 0);
+    return canvas.transferToImageBitmap();
+  } catch (e) {
+    return null;
   }
 }
 
