@@ -10,7 +10,7 @@ environment:
 resolution: workspace
 
 dependencies:
-  pdfium_dart: ^0.4.0
+  pdfium_dart: ^0.4.1
   collection: ^1.19.1
   crypto: ^3.0.7
   ffi: ^2.2.0

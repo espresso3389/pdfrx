@@ -1,3 +1,7 @@
+# 0.4.1
+
+- Updated the bundled PDFium binaries to chromium/8125.
+
 # 0.4.0
 
 - Added the bundled `PdfiumProcessGate` native coordinator for serializing PDFium access and claiming initialization once across engines or isolates in one process ([#723](https://github.com/espresso3389/pdfrx/pull/723)).

@@ -15,7 +15,7 @@ resolution: workspace
 
 dependencies:
   pdfrx_engine: ^0.9.0
-  pdfium_flutter: ^0.4.0
+  pdfium_flutter: ^0.4.1
   collection:
   crypto:
   flutter:

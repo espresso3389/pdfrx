@@ -1,3 +1,8 @@
+# 0.4.1
+
+- Updated PDFium binaries to chromium/8125 and `pdfium_dart` to 0.4.1.
+- Fixed CocoaPods package version metadata to follow the package version ([#786](https://github.com/espresso3389/pdfrx/pull/786)).
+
 # 0.4.0
 
 - Updated to `pdfium_dart` 0.4.0, exposing the process-wide PDFium gate for multi-engine applications ([#723](https://github.com/espresso3389/pdfrx/pull/723)).

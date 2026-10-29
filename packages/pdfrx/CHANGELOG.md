@@ -1,5 +1,8 @@
 # 2.11.0
 
+- Added `PdfPage.renderForDisplay` and improved Web page rendering performance ([#787](https://github.com/espresso3389/pdfrx/pull/787)).
+- Updated to `pdfium_flutter` 0.4.1.
+
 - Reused the built-in page layout during pan and zoom. Custom `layoutPages` callbacks continue to run on viewer updates; the built-in layout is no longer recalculated on every pan or zoom ([#767](https://github.com/espresso3389/pdfrx/pull/767)).
 
 - Updated to `pdfrx_engine` 0.9.0; use `pdfrx_coregraphics` 0.5.1 or later when combining the packages.

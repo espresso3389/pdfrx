@@ -1,5 +1,8 @@
 # 0.9.0
 
+- Fixed a process-wide PDFium gate deadlock when concurrent workers stop ([#788](https://github.com/espresso3389/pdfrx/pull/788)).
+- Updated to `pdfium_dart` 0.4.1.
+
 - Added a bounded structured-text cache shared by document consumers and lightweight search results ([#759](https://github.com/espresso3389/pdfrx/pull/759), [#764](https://github.com/espresso3389/pdfrx/pull/764)).
 - Improved native PDFium rendering cancellation and responsiveness to higher-priority work ([#763](https://github.com/espresso3389/pdfrx/pull/763)).
 - `loadStructuredText(ensureLoaded: true)` now waits for progressive page loading; the default still returns empty text for an unloaded page. `waitForLoaded()` also supports cancellation and returns null on document closure ([#765](https://github.com/espresso3389/pdfrx/pull/765)).
