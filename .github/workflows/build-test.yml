@@ -165,8 +165,13 @@ jobs:
         run: flutter test test/pdfium_loading_test.dart
 
       - name: Test process-wide PDFium gate
+        timeout-minutes: 5
         working-directory: packages/pdfrx_engine
-        run: dart test test/process_gate_smoke.dart
+        run: |
+          for i in $(seq 1 10); do
+            echo "GATE diagnostic run $i"
+            dart test --reporter expanded test/process_gate_smoke.dart
+          done
 
   # Linux build
   linux:
