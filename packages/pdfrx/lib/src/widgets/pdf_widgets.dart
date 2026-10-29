@@ -166,8 +166,11 @@ class PdfDocumentViewBuilder extends StatefulWidget {
 /// [context] is the build context.
 /// [error] is the error that occurred.
 /// [stackTrace] is the stack trace of the error, which may be null.
-typedef PdfDocumentViewBuilderErrorBuilder =
-    Widget Function(BuildContext context, Object error, StackTrace? stackTrace);
+typedef PdfDocumentViewBuilderErrorBuilder = Widget Function(
+  BuildContext context,
+  Object error,
+  StackTrace? stackTrace,
+);
 
 class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
   StreamSubscription<PdfDocumentEvent>? _updateSubscription;
@@ -257,8 +260,12 @@ typedef PdfPageViewSizeCallback = Size Function(Size biggestSize, PdfPage page, 
 /// [pageImage] is the page image; it is null if the page is not rendered yet.
 /// The image size may be different from [pageSize] because of the screen DPI
 /// or some other reasons.
-typedef PdfPageViewDecorationBuilder =
-    Widget Function(BuildContext context, Size pageSize, PdfPage page, RawImage? pageImage);
+typedef PdfPageViewDecorationBuilder = Widget Function(
+  BuildContext context,
+  Size pageSize,
+  PdfPage page,
+  RawImage? pageImage,
+);
 
 /// A widget that displays a page of a PDF document.
 class PdfPageView extends StatefulWidget {
@@ -441,15 +448,14 @@ class _PdfPageViewState extends State<PdfPageView> {
 
     _cancellationToken?.cancel();
     _cancellationToken = page.createCancellationToken();
-    final pageImage = await page.render(
-      fullWidth: pageSize.width,
-      fullHeight: pageSize.height,
-      rotationOverride: widget.rotationOverride,
-      cancellationToken: _cancellationToken,
-    );
-    if (pageImage == null) return;
     try {
-      final newImage = await pageImage.createImage();
+      final newImage = await page.renderForDisplay(
+        fullWidth: pageSize.width,
+        fullHeight: pageSize.height,
+        rotationOverride: widget.rotationOverride,
+        cancellationToken: _cancellationToken,
+      );
+      if (newImage == null) return;
       if (!mounted) {
         newImage.dispose();
         return;
@@ -463,8 +469,6 @@ class _PdfPageViewState extends State<PdfPageView> {
       // already claimed `_pageSize`. Otherwise the equality guard above locks
       // this page out of ever retrying and it stays blank for good.
       if (_pageSize == pageSize) _pageSize = previousPageSize;
-    } finally {
-      pageImage.dispose();
     }
   }
 }

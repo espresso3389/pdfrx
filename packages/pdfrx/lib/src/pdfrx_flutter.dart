@@ -9,6 +9,9 @@ import 'utils/platform.dart';
 
 bool _isInitialized = false;
 
+// Internal worker hint; native backends never receive it.
+const _renderForDisplayFlag = 0x40000000;
+
 /// Explicitly initializes the Pdfrx library for Flutter.
 ///
 /// This function actually sets up the following functions:
@@ -56,6 +59,55 @@ Future<void> pdfrxFlutterInitialize({
 extension PdfPageExt on PdfPage {
   /// PDF page size in points (size in pixels at 72 dpi) (rotated).
   Size get size => Size(width, height);
+
+  /// Render this page for display as a Flutter image.
+  ///
+  /// Rendering arguments have the same meaning as in [PdfPage.render].
+  /// The returned image must be disposed by the caller. Returns null when the
+  /// page cannot be rendered. Web may use a display-optimized representation.
+  /// [pixelSizeThreshold] limits the size as in [PdfImageExt.createImage].
+  Future<Image?> renderForDisplay({
+    int x = 0,
+    int y = 0,
+    int? width,
+    int? height,
+    double? fullWidth,
+    double? fullHeight,
+    int? backgroundColor,
+    PdfPageRotation? rotationOverride,
+    PdfAnnotationRenderingMode annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
+    int flags = PdfPageRenderFlags.none,
+    PdfPageRenderCancellationToken? cancellationToken,
+    PdfPageRenderPriority? priority,
+    int? pixelSizeThreshold,
+  }) async {
+    final rendered = await render(
+      x: x,
+      y: y,
+      width: width,
+      height: height,
+      fullWidth: fullWidth,
+      fullHeight: fullHeight,
+      backgroundColor: backgroundColor,
+      rotationOverride: rotationOverride,
+      annotationRenderingMode: annotationRenderingMode,
+      flags: flags | (supportsWorkerBitmap(this) ? _renderForDisplayFlag : 0),
+      cancellationToken: cancellationToken,
+      priority: priority,
+    );
+    if (rendered == null) return null;
+    try {
+      if (cancellationToken?.isCanceled ?? false) return null;
+      if (pixelSizeThreshold == null ||
+          (rendered.width <= pixelSizeThreshold && rendered.height <= pixelSizeThreshold)) {
+        final image = createImageFromWorkerBitmap(rendered);
+        if (image != null) return await image;
+      }
+      return await rendered.createImage(pixelSizeThreshold: pixelSizeThreshold);
+    } finally {
+      rendered.dispose();
+    }
+  }
 }
 
 extension PdfImageExt on PdfImage {
@@ -82,13 +134,6 @@ extension PdfImageExt on PdfImage {
         targetHeight = pixelSizeThreshold;
         targetWidth = (pixelSizeThreshold * aspectRatio).round();
       }
-    }
-
-    // On web the PDFium worker already turned the pixels into an ImageBitmap; uploading that skips the per-pixel
-    // BMP encoding (dart2js) and the byte-wise copy into the renderer's heap (dart2wasm) on the main thread.
-    if (targetWidth == null) {
-      final image = createImageFromWorkerBitmap(this);
-      if (image != null) return image;
     }
 
     // This is what `decodeImageFromPixels` does internally, driven directly

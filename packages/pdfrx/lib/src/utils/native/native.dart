@@ -36,6 +36,9 @@ Future<void> platformInitialize() async {
   await PdfrxEntryFunctions.instance.init();
 }
 
+/// Native pages do not use the web worker bitmap hint.
+bool supportsWorkerBitmap(PdfPage page) => false;
+
 /// Web only: native renders have no `ImageBitmap`, so this always returns null.
 Future<ui.Image>? createImageFromWorkerBitmap(PdfImage image) => null;
 

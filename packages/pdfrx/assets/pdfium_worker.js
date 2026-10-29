@@ -1798,7 +1798,9 @@ async function renderPage(params) {
       dest.set(src);
     }
 
-    const imageBitmap = _createImageBitmapFromBgra(src, width, height);
+    // Preserve the raw rendering behavior for transparent and premultiplied images.
+    const useBitmap = (flags & 0x40000000) && !(flags & premultipliedAlpha) && (backgroundColor >>> 24) === 255;
+    const imageBitmap = useBitmap ? _createImageBitmapFromBgra(src, width, height) : null;
 
     _updateMissingFonts(docHandle);
 

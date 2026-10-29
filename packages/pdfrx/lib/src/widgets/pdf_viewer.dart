@@ -2337,9 +2337,9 @@ class _PdfViewerState extends State<PdfViewer>
           allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _imageBudget.pendingBytes == 0,
         );
         if (reservation == null) return;
-        PdfImage? img;
+        ui.Image? rendered;
         try {
-          img = await page.render(
+          rendered = await page.renderForDisplay(
             fullWidth: width,
             fullHeight: height,
             backgroundColor: 0xffffffff,
@@ -2348,13 +2348,13 @@ class _PdfViewerState extends State<PdfViewer>
             cancellationToken: cancellationToken,
             priority: priority,
           );
-          if (img == null || !mounted || !widget.params.isVisible || cancellationToken.isCanceled) {
+          if (rendered == null || !mounted || !widget.params.isVisible || cancellationToken.isCanceled) {
             if (sw != null) {
               // A null here is a silent failure that leaves the page white --
               // pdfium declined to produce a bitmap and nothing upstream records
               // it. Note render does not require the page to be measured: it
               // happily renders at the estimated size.
-              final why = img == null
+              final why = rendered == null
                   ? 'pdfium returned no image'
                   : (!mounted ? 'viewer gone' : 'cancelled mid-render');
               pdfrxLazyLog(
@@ -2365,9 +2365,8 @@ class _PdfViewerState extends State<PdfViewer>
             return;
           }
 
-          final newImage = _PdfImageWithScale(await img.createImage(), scale, pageGeometry: _pageGeometryOf(page));
-          img.dispose();
-          img = null;
+          final newImage = _PdfImageWithScale(rendered, scale, pageGeometry: _pageGeometryOf(page));
+          rendered = null;
           if (!mounted || !widget.params.isVisible || cancellationToken.isCanceled) {
             newImage.dispose();
             return;
@@ -2391,7 +2390,7 @@ class _PdfViewerState extends State<PdfViewer>
           }
           return; // ignore error
         } finally {
-          img?.dispose();
+          rendered?.dispose();
           reservation.dispose();
         }
       });
@@ -2473,14 +2472,14 @@ class _PdfViewerState extends State<PdfViewer>
     var flags = 0;
     if (widget.params.limitRenderingCache) flags |= PdfPageRenderFlags.limitedImageCache;
 
-    PdfImage? img;
+    ui.Image? rendered;
     final reservation = _imageBudget.tryReserve(
       width * height * 12,
       allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _imageBudget.pendingBytes == 0,
     );
     if (reservation == null) return null;
     try {
-      img = await page.render(
+      rendered = await page.renderForDisplay(
         x: x,
         y: y,
         width: width,
@@ -2493,17 +2492,9 @@ class _PdfViewerState extends State<PdfViewer>
         cancellationToken: cancellationToken,
         priority: PdfPageRenderPriority.high,
       );
-      if (img == null || !mounted || cancellationToken.isCanceled) return null;
-      final image = _PdfImageWithScaleAndRect(
-        await img.createImage(),
-        scale,
-        rect,
-        x,
-        y,
-        pageGeometry: _pageGeometryOf(page),
-      );
-      img.dispose();
-      img = null;
+      if (rendered == null || !mounted || cancellationToken.isCanceled) return null;
+      final image = _PdfImageWithScaleAndRect(rendered, scale, rect, x, y, pageGeometry: _pageGeometryOf(page));
+      rendered = null;
       if (!mounted || cancellationToken.isCanceled) {
         image.dispose();
         return null;
@@ -2513,7 +2504,7 @@ class _PdfViewerState extends State<PdfViewer>
     } catch (e) {
       return null; // ignore error
     } finally {
-      img?.dispose();
+      rendered?.dispose();
       reservation.dispose();
     }
   }

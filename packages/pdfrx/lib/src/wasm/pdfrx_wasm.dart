@@ -754,6 +754,14 @@ class _PdfPageRenderCancellationTokenWasm extends PdfPageRenderCancellationToken
   bool get isCanceled => _isCanceled;
 }
 
+/// Whether this page and its built-in wrappers preserve the worker render hint.
+bool supportsWorkerBitmap(PdfPage page) {
+  while (page.runtimeType == PdfPageRenumbered || page.runtimeType == PdfPageRotated) {
+    page = (page as PdfPageProxy).basePage;
+  }
+  return page is _PdfPageWasm;
+}
+
 class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
   _PdfPageWasm(
     this.document,
