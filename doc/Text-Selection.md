@@ -98,9 +98,9 @@ You can programmatically set the text selection using [setTextSelectionPointRang
 final controller = PdfViewerController();
 ...
 
-// First, load the page text for the target page
+// First, wait for the target page to be measured and load its text
 final page = controller.document.pages[pageNumber - 1];
-final pageText = await page.loadStructuredText();
+final pageText = await page.loadStructuredText(ensureLoaded: true);
 
 // Create selection points with page text and character indices
 final startPoint = PdfTextSelectionPoint(pageText, startCharIndex);
@@ -111,15 +111,17 @@ final range = PdfTextSelectionRange.fromPoints(startPoint, endPoint);
 await controller.textSelectionDelegate.setTextSelectionPointRange(range);
 ```
 
+`ensureLoaded: true` waits for progressive page measurement; the viewer or another task must be loading the page. Without it, an unloaded placeholder returns empty structured text. See [Progressive Loading](Progressive-Loading.md#waiting-and-observing).
+
 **Note:** Text selection can span across multiple pages. The start and end points can be on different pages:
 
 ```dart
 // Example: Select from the beginning of page 1 to the end of page 3
 final startPage = controller.document.pages[0];
-final startPageText = await startPage.loadStructuredText();
+final startPageText = await startPage.loadStructuredText(ensureLoaded: true);
 
 final endPage = controller.document.pages[2];
-final endPageText = await endPage.loadStructuredText();
+final endPageText = await endPage.loadStructuredText(ensureLoaded: true);
 
 if (startPageText.fullText.isNotEmpty && endPageText.fullText.isNotEmpty) {
   final startPoint = PdfTextSelectionPoint(startPageText, 0);

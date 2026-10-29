@@ -54,8 +54,8 @@ abstract class PdfPage {
   /// - [priority] controls scheduling on backends that support it. When omitted, rendering is high priority, or low
   ///   priority inside `Pdfrx.runAsBackgroundWork`. It does not change image quality.
   ///
-  /// If the page is not loaded yet (progressive loading case only), the function renders empty page with specified
-  /// background color.
+  /// If the page is not loaded yet (progressive loading case only), its dimensions and rotation may be estimates.
+  /// Rendering behavior for an unloaded page depends on the backend.
   ///
   /// The following code extract the area of (20,30)-(120,130) from the page image rendered at 1000x1500 pixels:
   /// ```dart

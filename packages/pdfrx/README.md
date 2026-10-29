@@ -1,6 +1,6 @@
 # pdfrx
 
-Upgrading to 2.10.0: existing viewer usage and render calls remain compatible. Custom `PdfPage.render` implementations must accept the new optional `PdfPageRenderPriority? priority` parameter. See the [engine migration notes](https://github.com/espresso3389/pdfrx/tree/master/packages/pdfrx_engine#rendering-priority-and-migration-to-080). CoreGraphics users should upgrade `pdfrx_coregraphics` to 0.5.0.
+Upgrading to 2.10.0: existing viewer usage and render calls remain compatible. Custom `PdfPage.render` implementations must accept the new optional `PdfPageRenderPriority? priority` parameter. See the [engine migration notes](https://github.com/espresso3389/pdfrx/tree/master/packages/pdfrx_engine#rendering-priority-and-migration-to-080). With pdfrx 2.11.0, CoreGraphics users should use `pdfrx_coregraphics` 0.5.1 or later.
 
 [![Build Test](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml/badge.svg)](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml)
 
@@ -67,7 +67,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.10.1
+  pdfrx: ^2.11.0
 ```
 
 **Note:** You only need to add `pdfrx` to your dependencies. The `pdfrx_engine` package is automatically included as a dependency of `pdfrx`.

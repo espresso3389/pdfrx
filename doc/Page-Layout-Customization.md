@@ -2,6 +2,8 @@
 
 > NOTE: setting [PdfViewerParams.layoutPages](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/layoutPages.html) dynamically does not refresh the viewer. You should call [PdfViewerController.invalidate](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/invalidate.html), [setState](https://api.flutter.dev/flutter/widgets/State/setState.html) or some equivalent function.
 
+The built-in layout can be reused during pan and zoom. A custom `layoutPages` callback continues to be called on viewer updates, including matrix changes. If its output depends on external state or a mutable rectangle list, call `controller.invalidate()` when that state changes so the viewer updates even without another interaction.
+
 ## Horizontal Scroll View
 
 By default, the pages are laid out vertically.

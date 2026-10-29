@@ -95,7 +95,7 @@ final doc = await PdfDocument.openFile('document.pdf');
 
 // Use the rotated page in page manipulation
 doc.pages = [
-  doc.pages[0],          // Page 2 with original rotation
+  doc.pages[0],          // Page 1 with original rotation
   doc.pages[1],          // Page 2 with original rotation
   doc.pages[2].rotatedCW90(), // Page 3 rotated right
 ];
@@ -159,17 +159,17 @@ Advanced callers using raw document handles with `PdfrxEntryFunctions.compute` m
 
 ### Command-Line PDF Combiner
 
-The [pdfcombine.dart](../packages/pdfrx_engine/example/pdfcombine.dart) example demonstrates a full-featured command-line tool for combining PDFs:
+The [pdfcombine.dart](../packages/pdfrx_engine/example/pdfcombine.dart) example demonstrates a command-line tool for combining PDFs. Run these commands from the `packages/pdfrx_engine` directory:
 
 ```bash
 # Combine entire documents
-dart run pdfrx_engine:pdfcombine -o output.pdf doc1.pdf doc2.pdf doc3.pdf -- a b c
+dart run example/pdfcombine.dart -o output.pdf doc1.pdf doc2.pdf doc3.pdf -- a b c
 
 # Combine specific page ranges
-dart run pdfrx_engine:pdfcombine -o output.pdf doc1.pdf doc2.pdf -- a[1-10] b[5-15]
+dart run example/pdfcombine.dart -o output.pdf doc1.pdf doc2.pdf -- 'a[1-10]' 'b[5-15]'
 
 # Mix pages from multiple documents
-dart run pdfrx_engine:pdfcombine -o output.pdf doc1.pdf doc2.pdf -- a[1-3] b a[4-6] b[1-2]
+dart run example/pdfcombine.dart -o output.pdf doc1.pdf doc2.pdf -- 'a[1-3]' b 'a[4-6]' 'b[1-2]'
 ```
 
 Key features:
