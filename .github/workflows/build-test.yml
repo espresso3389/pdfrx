@@ -165,6 +165,7 @@ jobs:
         run: flutter test test/pdfium_loading_test.dart
 
       - name: Test process-wide PDFium gate
+        timeout-minutes: 5
         working-directory: packages/pdfrx_engine
         run: dart test test/process_gate_smoke.dart
 
@@ -197,6 +198,7 @@ jobs:
         run: flutter build linux --debug --verbose
 
       - name: Test process-wide PDFium gate
+        timeout-minutes: 5
         working-directory: packages/pdfrx_engine
         run: dart test test/process_gate_smoke.dart
 
@@ -253,6 +255,7 @@ jobs:
         run: C:\flutter\bin\flutter.bat build windows --debug --verbose
 
       - name: Test process-wide PDFium gate
+        timeout-minutes: 5
         working-directory: packages/pdfrx_engine
         run: C:\flutter\bin\dart.bat test test/process_gate_smoke.dart
 
