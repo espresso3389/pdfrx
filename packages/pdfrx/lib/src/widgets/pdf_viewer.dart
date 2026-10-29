@@ -263,6 +263,7 @@ class _PdfViewerState extends State<PdfViewer>
   bool _initialized = false;
   bool _documentLoadFinishedNotified = false;
   int _visibilityGeneration = 0;
+  int _documentGeneration = 0;
   int _resourceGeneration = 0;
 
   /// Pending wait of [_notifyDocumentLoadFinished] for the initial page's preview image.
@@ -493,6 +494,8 @@ class _PdfViewerState extends State<PdfViewer>
     if (_document != null && identical(currentDocument, _document)) {
       return;
     }
+
+    _documentGeneration++;
 
     if (Pdfrx.debugLazyLoading) {
       final listenable = widget.documentRef.resolveListenable();
@@ -975,6 +978,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _updateLayout(Size viewSize) {
     if (viewSize.height <= 0) return; // For fix blank pdf when restore window from minimize on Windows
+    final documentGeneration = _documentGeneration;
     final currentPageNumber = _guessCurrentPageNumber();
     final oldSnapshot = PdfViewerLayoutSnapshot(
       viewSize: _viewSize ?? Size.zero,
@@ -1013,7 +1017,7 @@ class _PdfViewerState extends State<PdfViewer>
     if (!_initialized && _layout != null) {
       _initialized = true;
       Future.microtask(() {
-        if (!mounted) {
+        if (!mounted || documentGeneration != _documentGeneration || _controller?.isReady != true) {
           return;
         }
 
@@ -1075,7 +1079,7 @@ class _PdfViewerState extends State<PdfViewer>
       });
     } else if (isLayoutChanged || isViewSizeChanged) {
       Future.microtask(() {
-        if (!mounted) {
+        if (!mounted || documentGeneration != _documentGeneration || _controller?.isReady != true) {
           return;
         }
 
@@ -1089,7 +1093,7 @@ class _PdfViewerState extends State<PdfViewer>
           isViewSizeChanged: isViewSizeChanged,
         );
 
-        if (!mounted) {
+        if (!mounted || documentGeneration != _documentGeneration || _controller?.isReady != true) {
           return;
         }
 
