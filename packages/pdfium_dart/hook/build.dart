@@ -7,7 +7,7 @@ import 'package:native_toolchain_c/native_toolchain_c.dart';
 
 import '../lib/src/proxy_http_client.dart';
 
-const _pdfiumRelease = 'chromium%2F7811';
+const _pdfiumRelease = 'chromium%2F8125';
 const _assetName = 'libpdfium';
 
 void main(List<String> args) async {
