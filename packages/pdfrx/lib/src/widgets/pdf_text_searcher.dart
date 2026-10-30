@@ -134,10 +134,15 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   }
 
   /// The page currently being searched.
+  ///
+  /// It does not increase monotonically when the search starts from a page other than the first one.
   int? get searchingPageNumber => _searchingPageNumber;
 
   int? get totalPageCount => _totalPageCount;
 
+  /// The ratio of scanned pages to [totalPageCount].
+  ///
+  /// It is not the position of [searchingPageNumber] in the document, which may wrap around.
   double? get searchProgress {
     if (_totalPageCount == null || _searchingPageNumber == null) return null;
     return _completedPageCount / _totalPageCount!;
@@ -160,7 +165,8 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   ///
   /// [pattern] is the text to search for. It can be a [String] or a [RegExp].
   /// If [caseInsensitive] is true, the search will be case insensitive.
-  /// If [goToFirstMatch] is true, the viewer will automatically go to the first match.
+  /// If [goToFirstMatch] is true, the viewer will automatically go to the first match; with [startPageNumber],
+  /// it is the first match at or after that page, wrapping around to the first page.
   /// If [searchImmediately] is true, the search will start immediately,
   /// otherwise it will wait for a short delay not to make the process too heavy.
   /// [startPageNumber] is the page to scan first; the search continues to the last page and then wraps around
@@ -181,7 +187,17 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _pendingSearchCondition = null;
     final last = _lastSearchCondition;
     if (last != null && last.caseInsensitive == caseInsensitive && _isIdenticalPattern(last.pattern, pattern)) {
-      if (startPageNumber != null) _nextPageNumber = startPageNumber;
+      if (startPageNumber != null) {
+        _nextPageNumber = startPageNumber;
+        // A restart after a document change scans from the moved position too.
+        _lastSearchCondition = _SearchCondition(
+          pattern: last.pattern,
+          caseInsensitive: last.caseInsensitive,
+          goToFirstMatch: last.goToFirstMatch,
+          startPageNumber: startPageNumber,
+        );
+        if (_pausedSearchCondition != null) _pausedSearchCondition = _lastSearchCondition;
+      }
       return;
     }
 
@@ -303,7 +319,8 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
       }
       for (var page = _nextPageToSearch(document.pages); page != null; page = _nextPageToSearch(document.pages)) {
         _searchingPageNumber = page.pageNumber;
-        _nextPageNumber = page.pageNumber + 1;
+        // Not + 1: a page whose scan is interrupted (e.g. by pausing) must be scanned first on resume.
+        _nextPageNumber = page.pageNumber;
         if (searchSession != _searchSession) return;
         if (page.isLoaded) _searchedPages.add(page.pageNumber);
         final pageText = await loadText(pageNumber: page.pageNumber);
@@ -335,7 +352,10 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
         _matches = _MatchSnapshot(textMatches);
         _completedPageCount++;
         _isSearching = _completedPageCount < pageCount;
-        if (_completedPageCount == 1 || !_isSearching || notificationClock.elapsed >= notificationInterval) {
+        if (_completedPageCount == 1 ||
+            !_isSearching ||
+            page.pageNumber == _lastSearchCondition?.startPageNumber ||
+            notificationClock.elapsed >= notificationInterval) {
           notifyListeners();
           notificationClock.reset();
         }
@@ -502,7 +522,10 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   void removeListener(VoidCallback listener) => _listeners.remove(listener);
 }
 
-/// Captures a read-only prefix of the current search's append-only results.
+/// Captures a read-only prefix of a results buffer.
+///
+/// The search only appends to a buffer; inserting matches of an earlier page creates a new buffer, so a
+/// published snapshot never changes.
 class _MatchSnapshot<T> extends ListBase<T> {
   _MatchSnapshot(this._values) : _length = _values.length;
 
