@@ -79,10 +79,12 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   int _searchSession = 0; // current search session
   List<T> _matches = const [];
   List<int> _matchesPageStartIndices = const [];
+  List<int?> _pageMatchCounts = const []; // null for pages not scanned yet
   _SearchCondition? _lastSearchCondition;
   _SearchCondition? _pendingSearchCondition;
   _SearchCondition? _pausedSearchCondition;
   int _completedPageCount = 0;
+  int _nextPageNumber = 1;
   bool _isActive = true;
   bool _disposed = false;
   int? _currentIndex;
@@ -117,7 +119,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     if (!value) {
       if (_isSearching) _pausedSearchCondition = _lastSearchCondition;
       _cancelTextSearch();
-      _searchedPages.removeWhere((page) => page > _completedPageCount);
+      _searchedPages.removeWhere((page) => !_isPageScanned(page));
       _isSearching = false;
     } else {
       final pending = _pendingSearchCondition;
@@ -138,7 +140,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   double? get searchProgress {
     if (_totalPageCount == null || _searchingPageNumber == null) return null;
-    return _searchingPageNumber! / _totalPageCount!;
+    return _completedPageCount / _totalPageCount!;
   }
 
   Pattern? get pattern => _lastSearchCondition?.pattern;
@@ -161,11 +163,15 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   /// If [goToFirstMatch] is true, the viewer will automatically go to the first match.
   /// If [searchImmediately] is true, the search will start immediately,
   /// otherwise it will wait for a short delay not to make the process too heavy.
+  /// [startPageNumber] is the page to scan first; the search continues to the last page and then wraps around
+  /// to the first page, while [matches] stay sorted by page. If it is null or out of range, the scan starts from
+  /// the first page. Re-issuing the running search with another [startPageNumber] only moves the scan to that page.
   void startTextSearch(
     Pattern pattern, {
     bool caseInsensitive = true,
     bool goToFirstMatch = true,
     bool searchImmediately = false,
+    int? startPageNumber,
   }) {
     if (_disposed) return;
     _registerForDocumentChanges();
@@ -175,6 +181,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _pendingSearchCondition = null;
     final last = _lastSearchCondition;
     if (last != null && last.caseInsensitive == caseInsensitive && _isIdenticalPattern(last.pattern, pattern)) {
+      if (startPageNumber != null) _nextPageNumber = startPageNumber;
       return;
     }
 
@@ -182,6 +189,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
       pattern: pattern,
       caseInsensitive: caseInsensitive,
       goToFirstMatch: goToFirstMatch,
+      startPageNumber: startPageNumber,
     );
     if (!_isActive) return;
 
@@ -200,7 +208,9 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     if (!resume) {
       _matches = const [];
       _matchesPageStartIndices = const [];
+      _pageMatchCounts = const [];
       _completedPageCount = 0;
+      _nextPageNumber = condition.startPageNumber ?? 1;
       _searchedPages.clear();
       _currentIndex = null;
       _currentMatch = null;
@@ -241,6 +251,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _cancelTextSearch();
     _matches = const [];
     _matchesPageStartIndices = const [];
+    _pageMatchCounts = const [];
     _searchedPages.clear();
     _searchingPageNumber = null;
     _currentIndex = null;
@@ -266,8 +277,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _isSearching = controller != null;
     await controller?.useDocument((document) async {
       if (searchSession != _searchSession) return;
-      final textMatches = resume ? List<T>.of(_matches) : <T>[];
-      final textMatchesPageStartIndex = resume ? _matchesPageStartIndices.take(_completedPageCount).toList() : <int>[];
+      var textMatches = resume ? List<T>.of(_matches) : <T>[];
       var first = !resume;
       final notificationClock = Stopwatch()..start();
       _isSearching = true;
@@ -278,42 +288,63 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
         _completedPageCount = 0;
         _searchedPages.clear();
       }
-      _totalPageCount = document.pages.length;
+      final pageCount = _totalPageCount = document.pages.length;
       if (document.pages.isEmpty) {
         _matches = const [];
         _matchesPageStartIndices = const [];
+        _pageMatchCounts = const [];
         _isSearching = false;
         notifyListeners();
         return;
       }
-      for (final page in document.pages.skip(_completedPageCount)) {
+      if (_pageMatchCounts.length != pageCount) {
+        _matchesPageStartIndices = List<int>.filled(pageCount, 0);
+        _pageMatchCounts = List<int?>.filled(pageCount, null);
+      }
+      for (var page = _nextPageToSearch(document.pages); page != null; page = _nextPageToSearch(document.pages)) {
         _searchingPageNumber = page.pageNumber;
+        _nextPageNumber = page.pageNumber + 1;
         if (searchSession != _searchSession) return;
-        textMatchesPageStartIndex.add(textMatches.length);
         if (page.isLoaded) _searchedPages.add(page.pageNumber);
         final pageText = await loadText(pageNumber: page.pageNumber);
         if (searchSession != _searchSession) return;
         _searchedPages.add(page.pageNumber);
+        final pageMatches = <T>[];
         if (pageText != null) {
           await for (final f in pageText.allMatches(condition.pattern, caseInsensitive: condition.caseInsensitive)) {
             if (searchSession != _searchSession) return;
-            textMatches.add(_createMatch(f));
+            pageMatches.add(_createMatch(f));
           }
         }
+        final pageIndex = page.pageNumber - 1;
+        final insertAt = _matchesPageStartIndices[pageIndex];
+        if (pageMatches.isNotEmpty) {
+          if (insertAt == textMatches.length) {
+            textMatches.addAll(pageMatches);
+          } else {
+            // Published snapshots share the buffer, so inserting before their end needs a new buffer.
+            textMatches = [...textMatches.take(insertAt), ...pageMatches, ...textMatches.skip(insertAt)];
+            final current = _currentIndex;
+            if (current != null && current >= insertAt) _currentIndex = current + pageMatches.length;
+          }
+          for (var i = pageIndex + 1; i < pageCount; i++) {
+            _matchesPageStartIndices[i] += pageMatches.length;
+          }
+        }
+        _pageMatchCounts[pageIndex] = pageMatches.length;
         _matches = _MatchSnapshot(textMatches);
-        _matchesPageStartIndices = textMatchesPageStartIndex;
-        _completedPageCount = page.pageNumber;
-        _isSearching = page.pageNumber < document.pages.length;
-        if (page.pageNumber == 1 || !_isSearching || notificationClock.elapsed >= notificationInterval) {
+        _completedPageCount++;
+        _isSearching = _completedPageCount < pageCount;
+        if (_completedPageCount == 1 || !_isSearching || notificationClock.elapsed >= notificationInterval) {
           notifyListeners();
           notificationClock.reset();
         }
         if (searchSession != _searchSession) return;
 
-        if (_matches.isNotEmpty && first) {
+        if (pageMatches.isNotEmpty && first) {
           first = false;
           if (condition.goToFirstMatch) {
-            _currentIndex = 0;
+            _currentIndex = insertAt;
             _currentMatch = null;
             goToMatchOfIndex(_currentIndex!);
           }
@@ -321,6 +352,20 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
       }
     });
   }
+
+  /// Returns the first page not scanned yet, starting at [_nextPageNumber] and wrapping around.
+  PdfPage? _nextPageToSearch(List<PdfPage> pages) {
+    var start = _nextPageNumber - 1;
+    if (start < 0 || start >= pages.length) start = 0;
+    for (var i = 0; i < pages.length; i++) {
+      final index = (start + i) % pages.length;
+      if (_pageMatchCounts[index] == null) return pages[index];
+    }
+    return null;
+  }
+
+  bool _isPageScanned(int pageNumber) =>
+      pageNumber >= 1 && pageNumber <= _pageMatchCounts.length && _pageMatchCounts[pageNumber - 1] != null;
 
   void _registerForDocumentChanges() {
     final document = controller?.document;
@@ -346,6 +391,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
         condition.pattern,
         caseInsensitive: condition.caseInsensitive,
         goToFirstMatch: _isActive && condition.goToFirstMatch,
+        startPageNumber: condition.startPageNumber,
       );
     }
   }
@@ -414,10 +460,9 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   /// Get the matches range for the given page number.
   ({int start, int end})? getMatchesRangeForPage(int pageNumber) {
-    if (_matchesPageStartIndices.length < pageNumber) return null;
+    if (!_isPageScanned(pageNumber)) return null;
     final start = _matchesPageStartIndices[pageNumber - 1];
-    final end = _matchesPageStartIndices.length > pageNumber ? _matchesPageStartIndices[pageNumber] : _matches.length;
-    return (start: start, end: end);
+    return (start: start, end: start + _pageMatchCounts[pageNumber - 1]!);
   }
 
   /// Go to the match of the given index.
@@ -494,10 +539,16 @@ extension _PatternExts on Pattern {
 }
 
 class _SearchCondition {
-  const _SearchCondition({required this.pattern, required this.caseInsensitive, required this.goToFirstMatch});
+  const _SearchCondition({
+    required this.pattern,
+    required this.caseInsensitive,
+    required this.goToFirstMatch,
+    this.startPageNumber,
+  });
   final Pattern pattern;
   final bool caseInsensitive;
   final bool goToFirstMatch;
+  final int? startPageNumber;
 }
 
 bool _isIdenticalPattern(Pattern? a, Pattern? b) {
