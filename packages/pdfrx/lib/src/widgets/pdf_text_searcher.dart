@@ -163,8 +163,10 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   /// Start a new search.
   ///
-  /// [pattern] is the text to search for. It can be a [String] or a [RegExp].
-  /// If [caseInsensitive] is true, the search will be case insensitive.
+  /// [pattern] is the text to search for. It is usually a [String] or a [RegExp]; any other [Pattern] is matched
+  /// with [Pattern.allMatches] against [PdfPageText.fullText] of each page, and it is compared with `==` to
+  /// decide whether a call re-issues the running search.
+  /// If [caseInsensitive] is true, the search will be case insensitive; it applies only to a [String] pattern.
   /// If [goToFirstMatch] is true, the viewer will automatically go to the first match; with [startPageNumber],
   /// it is the first match at or after that page, wrapping around to the first page.
   /// If [searchImmediately] is true, the search will start immediately,
@@ -328,7 +330,11 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
         _searchedPages.add(page.pageNumber);
         final pageMatches = <T>[];
         if (pageText != null) {
-          await for (final f in pageText.allMatches(condition.pattern, caseInsensitive: condition.caseInsensitive)) {
+          await for (final f in _allMatchesOf(
+            pageText,
+            condition.pattern,
+            caseInsensitive: condition.caseInsensitive,
+          )) {
             if (searchSession != _searchSession) return;
             pageMatches.add(_createMatch(f));
           }
@@ -556,7 +562,7 @@ extension _PatternExts on Pattern {
       case RegExp r:
         return r.pattern.isEmpty;
       default:
-        throw UnsupportedError('Pattern type not supported: $this');
+        return false;
     }
   }
 }
@@ -585,8 +591,21 @@ bool _isIdenticalPattern(Pattern? a, Pattern? b) {
         a.isUnicode == b.isUnicode &&
         a.isDotAll == b.isDotAll;
   }
-  if (a == null && b == null) {
-    return true;
+  if (a is String || a is RegExp || b is String || b is RegExp) {
+    return false;
   }
-  return false;
+  return a == b;
+}
+
+/// Works like [PdfPageText.allMatches], which supports only [String] and [RegExp], for any other [Pattern].
+Stream<PdfPageTextRange> _allMatchesOf(PdfPageText pageText, Pattern pattern, {required bool caseInsensitive}) {
+  if (pattern is String || pattern is RegExp) {
+    return pageText.allMatches(pattern, caseInsensitive: caseInsensitive);
+  }
+  return Stream.fromIterable(
+    pattern
+        .allMatches(pageText.fullText)
+        .where((match) => match.start != match.end)
+        .map((match) => PdfPageTextRange(pageText: pageText, start: match.start, end: match.end)),
+  );
 }
