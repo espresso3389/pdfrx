@@ -1312,6 +1312,34 @@ void main() {
     expect(budget.estimatedBytes, 0);
   });
 
+  testWidgets('an image evicted while paint updates its pins is not iterated over', (tester) async {
+    await binding.setSurfaceSize(const Size(800, 600));
+    addTearDown(() => binding.setSurfaceSize(null));
+    final document = _documentRenderingAtRequestedSize(6);
+    addTearDown(document.dispose);
+    // Smaller than one preview, so every visible image is kept over budget and trimmed once hidden.
+    final budget = PdfImageCacheBudget(maximumBytes: 1024 * 1024);
+    addTearDown(budget.dispose);
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          controller: controller,
+          params: _sharedBudgetParams(budget),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    expect(budget.retainedBytes, greaterThan(budget.maximumBytes));
+    await controller.goToPage(pageNumber: 4, duration: Duration.zero);
+    await _pumpPaintWork(tester);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));
@@ -2960,6 +2988,12 @@ class _TestPage implements PdfPage {
     (width == null ? renderControl.previewSizes : renderControl.partialSizes).add(size);
     if (width == null) renderControl.previewPriorities.add(priority);
     await renderControl.beforeRender();
+    // A timed render stops early when cancelled, as the native engine does.
+    for (var waited = Duration.zero; waited < renderControl.renderDuration; waited += const Duration(milliseconds: 5)) {
+      if (cancellationToken.isCanceled) return null;
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+    width == null ? renderControl.previewsDone++ : renderControl.partialsDone++;
     if (renderControl.renderAtRequestedSize) {
       final pixels = Uint8List(imageWidth * imageHeight * 4);
       for (var i = 0; i < pixels.length; i++) {
@@ -2979,6 +3013,9 @@ class _TestPageRenderControl {
   final previewPriorities = <PdfPageRenderPriority?>[];
   final partialSizes = <Size>[];
   bool renderAtRequestedSize = false;
+  Duration renderDuration = Duration.zero;
+  int previewsDone = 0;
+  int partialsDone = 0;
   List<int> bgra = [255, 255, 255, 255];
   Completer<void>? _gate;
   bool started = false;

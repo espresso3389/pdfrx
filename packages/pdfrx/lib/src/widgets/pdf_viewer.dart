@@ -1838,14 +1838,15 @@ class _PdfViewerState extends State<PdfViewer>
     }
     final pageIndices = _pageLayoutIndex!.intersecting(cacheTargetRect);
     final retainedPages = pageIndices.map((i) => i + 1).toSet();
-    for (final entry in cache.pageImages.entries) {
+    // Unpinning can trim the budget, whose evictions remove entries from these maps.
+    for (final entry in cache.pageImages.entries.toList()) {
       entry.value.budgetEntry?.touch(
         isPinned: cache.visiblePageNumbers.contains(entry.key),
         isNeeded: retainedPages.contains(entry.key),
       );
     }
     // Partials are requested only for visible pages, so an offscreen one is never needed again.
-    for (final entry in cache.pageImagesPartial.entries) {
+    for (final entry in cache.pageImagesPartial.entries.toList()) {
       final isVisible = cache.visiblePageNumbers.contains(entry.key);
       entry.value.budgetEntry?.touch(isPinned: isVisible, isNeeded: isVisible);
     }
