@@ -1817,6 +1817,10 @@ class _PdfViewerState extends State<PdfViewer>
     cacheTargetRect ??= targetRect;
 
     cache.visiblePageNumbers = _pageLayoutIndex!.intersecting(targetRect).map((i) => i + 1).toSet();
+    final visibleArea = cache.visiblePageNumbers.fold(0.0, (area, pageNumber) {
+      final r = _layout!.pageLayouts[pageNumber - 1].intersect(targetRect);
+      return area + max(0.0, r.width) * max(0.0, r.height);
+    });
     for (final pageNumber in cache.visiblePageNumbers) {
       final preview = cache.pagePreviewRenderings[pageNumber];
       if (preview?.priority == PdfPageRenderPriority.low) preview!.token.cancel();
@@ -1865,7 +1869,8 @@ class _PdfViewerState extends State<PdfViewer>
         getPageRenderingScale(context, page, _controller!, _sizeDelegate!.onePassRenderingScaleThreshold),
         page.width,
         page.height,
-        visiblePageCount: cache.visiblePageNumbers.length,
+        // Previews are not cropped, so every visible page charges its whole area.
+        sharedArea: page.width * page.height * cache.visiblePageNumbers.length,
       );
 
       if (dropShadowPaint != null) {
@@ -1918,7 +1923,7 @@ class _PdfViewerState extends State<PdfViewer>
         // `_createRealSizePartialImage` would apply a second time via
         // `pageRect.width * scale` -- under-rendering a custom `layoutPages`
         // that does not lay pages out at their natural size.
-        _requestRealSizePartialImage(cache, page, scale, targetRect);
+        _requestRealSizePartialImage(cache, page, scale, targetRect, visibleArea);
       }
 
       if ((!enableLowResolutionPagePreview || pageScale > previewScaleLimit) && partial != null) {
@@ -2242,12 +2247,14 @@ class _PdfViewerState extends State<PdfViewer>
     return dx * dx + dy * dy;
   }
 
-  double _boundedRenderingScale(double scale, double width, double height, {int visiblePageCount = 1}) {
+  /// Scales the images that share the rendering limit alike so that their pixels fit it together.
+  /// [sharedArea] is their combined area, in the units of [width] and [height].
+  double _boundedRenderingScale(double scale, double width, double height, {required double sharedArea}) {
     if (widget.params.imageCacheBudget == null) return scale;
     if (!scale.isFinite || scale <= 0 || !width.isFinite || !height.isFinite || width <= 0 || height <= 0) return 0;
     final maximumBytes = min(_imageBudget.maximumBytes, widget.params.maxImageBytesCachedOnMemory);
-    final maxPixels = max(1, maximumBytes ~/ (12 * max(1, visiblePageCount)));
-    return max(1 / min(width, height), min(scale, sqrt(maxPixels / (width * height))));
+    final maxPixels = max(1, maximumBytes ~/ 12);
+    return max(1 / min(width, height), min(scale, sqrt(maxPixels / max(width * height, sharedArea))));
   }
 
   bool _retainImage(
@@ -2413,11 +2420,12 @@ class _PdfViewerState extends State<PdfViewer>
     PdfPage page,
     double scale,
     Rect targetRect,
+    double visibleArea,
   ) async {
     if (!mounted || !widget.params.isVisible) return;
     final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
     final rect = pageRect.intersect(targetRect);
-    scale = _boundedRenderingScale(scale, rect.width, rect.height, visiblePageCount: cache.visiblePageNumbers.length);
+    scale = _boundedRenderingScale(scale, rect.width, rect.height, sharedArea: visibleArea);
     final prev = cache.pageImagesPartial[page.pageNumber];
     if (prev != null && !prev.isDirty && prev.rect == rect && prev.scale == scale) return;
     if (rect.width < 1 || rect.height < 1) return;

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
@@ -682,6 +683,129 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       expect(budget.estimatedBytes, 0);
     }
+  });
+
+  testWidgets('a neighbor strip does not lower the partial resolution of the page beside it', (tester) async {
+    tester.view.physicalSize = const Size(2560, 1440);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final document = _documentRenderingAtRequestedSize(3);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    await tester.pumpWidget(MaterialApp(home: _budgetedViewer(document, controller, budget, 48 * 1024 * 1024)));
+    await _pumpPaintWork(tester);
+    final pages = controller.layout.pageLayouts;
+    final viewHeight = controller.viewSize.height / controller.currentZoom;
+    // Page 1 alone, page 1 with 2.5% of the viewport showing page 2, then page 2 alone -- all at one zoom.
+    for (final top in [
+      pages[0].bottom - viewHeight * 1.05,
+      pages[1].top - viewHeight * 0.975,
+      pages[1].top + viewHeight * 0.05,
+    ]) {
+      await _scrollViewportTopTo(controller, top);
+      await _pumpPaintWork(tester);
+      _expectPartialsAtVisibleResolution(document, controller, devicePixelRatio: 2);
+      final renders = _renderCount(document);
+      await _pumpPaintWork(tester);
+      expect(_renderCount(document), renders);
+    }
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
+  testWidgets('visible regions that exceed the rendering limit share it at one scale', (tester) async {
+    tester.view.physicalSize = const Size(3840, 2160);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    const localBytes = 48 * 1024 * 1024;
+    const maxPixels = localBytes ~/ 12;
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final document = _documentRenderingAtRequestedSize(3);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    await tester.pumpWidget(MaterialApp(home: _budgetedViewer(document, controller, budget, localBytes)));
+    await _pumpPaintWork(tester);
+    final pages = controller.layout.pageLayouts;
+    final viewHeight = controller.viewSize.height / controller.currentZoom;
+    for (final top in [pages[0].bottom - viewHeight * 1.05, pages[1].top - viewHeight * 0.975]) {
+      await _scrollViewportTopTo(controller, top);
+      await _pumpPaintWork(tester);
+      final regions = _visibleRegions(controller, devicePixelRatio: 2);
+      final requiredPixels = regions.values.fold(0.0, (sum, size) => sum + size.width * size.height);
+      expect(requiredPixels, greaterThan(maxPixels));
+      _expectPartialsAtVisibleResolution(
+        document,
+        controller,
+        devicePixelRatio: 2,
+        factor: math.sqrt(maxPixels / requiredPixels),
+      );
+      var requestedPixels = 0.0;
+      for (final pageNumber in regions.keys) {
+        final size = (document.pages[pageNumber - 1] as _TestPage).renderControl.partialSizes.last;
+        requestedPixels += size.width * size.height;
+      }
+      expect(requestedPixels, lessThanOrEqualTo(maxPixels));
+      final renders = _renderCount(document);
+      await _pumpPaintWork(tester);
+      expect(_renderCount(document), renders);
+    }
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
+  testWidgets('viewers on a shared budget each render their visible regions within their own limit', (tester) async {
+    tester.view.physicalSize = const Size(2560, 1440);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    const localBytes = 24 * 1024 * 1024;
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final documents = [for (var i = 0; i < 2; i++) _documentRenderingAtRequestedSize(3, sourceName: 'test:pane$i')];
+    for (final document in documents) {
+      addTearDown(document.dispose);
+    }
+    final controllers = [PdfViewerController(), PdfViewerController()];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            for (var i = 0; i < 2; i++)
+              Expanded(child: _budgetedViewer(documents[i], controllers[i], budget, localBytes)),
+          ],
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    for (final controller in controllers) {
+      final pages = controller.layout.pageLayouts;
+      final zoom = controller.currentZoom * 1.5;
+      final viewHeight = controller.viewSize.height / zoom;
+      await controller.goTo(
+        controller.calcMatrixFor(Offset(pages[0].center.dx, pages[1].top - viewHeight * 0.475), zoom: zoom),
+        duration: Duration.zero,
+      );
+    }
+    await _pumpPaintWork(tester);
+    for (var i = 0; i < 2; i++) {
+      final regions = _visibleRegions(controllers[i], devicePixelRatio: 2);
+      expect(regions.keys, [1, 2]);
+      final requiredPixels = regions.values.fold(0.0, (sum, size) => sum + size.width * size.height);
+      expect(requiredPixels, lessThan(localBytes ~/ 12));
+      _expectPartialsAtVisibleResolution(documents[i], controllers[i], devicePixelRatio: 2);
+    }
+    expect(budget.pendingBytes, 0);
+    expect(budget.estimatedBytes, lessThanOrEqualTo(budget.maximumBytes));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
   });
 
   testWidgets('stationary RTL book prefetch settles under a shared image budget', (tester) async {
@@ -2063,6 +2187,82 @@ Future<int> _pixelAt(WidgetTester tester, GlobalKey key, Offset position) async 
   }))!;
 }
 
+_TestDocument _documentRenderingAtRequestedSize(int pageCount, {String sourceName = 'test:priority'}) {
+  final document = _TestDocument(pageCount, sourceName: sourceName)
+    ..loadPagesForTest([for (var i = 1; i <= pageCount; i++) i]);
+  for (final page in document.pages.cast<_TestPage>()) {
+    page.renderControl.renderAtRequestedSize = true;
+  }
+  return document;
+}
+
+// An app preview scale: the display scale rounded up to a power of two and capped at the threshold.
+double _powerOfTwoPreviewScale(BuildContext context, PdfPage page, PdfViewerController controller, double threshold) {
+  final pageRect = controller.layout.pageLayouts[page.pageNumber - 1];
+  final displayScale = controller.currentZoom * MediaQuery.devicePixelRatioOf(context) * pageRect.width / page.width;
+  final longestEdge = math.max(page.width, page.height);
+  final cap = longestEdge > 2000 ? 2000 / longestEdge : threshold;
+  if (!displayScale.isFinite || displayScale <= 0) return cap;
+  return math.min(math.pow(2, (math.log(displayScale) / math.ln2).ceil()).toDouble(), cap);
+}
+
+Widget _budgetedViewer(
+  _TestDocument document,
+  PdfViewerController controller,
+  PdfImageCacheBudget budget,
+  int localBytes,
+) => PdfViewer(
+  PdfDocumentRefDirect(document, autoDispose: false),
+  controller: controller,
+  params: PdfViewerParams(
+    imageCacheBudget: budget,
+    maxImageBytesCachedOnMemory: localBytes,
+    sizeDelegateProvider: const PdfViewerSizeDelegateProviderSmart(maxScale: 20, smartMaxScale: 20, maxPagesVisible: 1),
+    getPageRenderingScale: _powerOfTwoPreviewScale,
+    horizontalCacheExtent: 0,
+    verticalCacheExtent: 1,
+    behaviorControlParams: const PdfViewerBehaviorControlParams(
+      pageImageCachingDelay: Duration.zero,
+      partialImageLoadingDelay: Duration.zero,
+      trailingPageLoadingDelay: Duration.zero,
+    ),
+  ),
+);
+
+Future<void> _scrollViewportTopTo(PdfViewerController controller, double top) {
+  final zoom = controller.currentZoom;
+  final center = Offset(controller.documentSize.width / 2, top + controller.viewSize.height / zoom / 2);
+  return controller.goTo(controller.calcMatrixFor(center, zoom: zoom), duration: Duration.zero);
+}
+
+Map<int, Size> _visibleRegions(PdfViewerController controller, {required double devicePixelRatio}) {
+  final scale = controller.currentZoom * devicePixelRatio;
+  return {
+    for (final (i, page) in controller.layout.pageLayouts.indexed)
+      if (page.intersect(controller.visibleRect) case final region when region.width > 0 && region.height > 0)
+        i + 1: region.size * scale,
+  };
+}
+
+void _expectPartialsAtVisibleResolution(
+  _TestDocument document,
+  PdfViewerController controller, {
+  required double devicePixelRatio,
+  double factor = 1,
+}) {
+  final regions = _visibleRegions(controller, devicePixelRatio: devicePixelRatio);
+  expect(regions, isNotEmpty);
+  for (final MapEntry(key: pageNumber, value: region) in regions.entries) {
+    final requested = (document.pages[pageNumber - 1] as _TestPage).renderControl.partialSizes.last;
+    // Render coordinates are truncated to whole pixels.
+    expect(requested.width, closeTo(region.width * factor, 1), reason: 'page $pageNumber width');
+    expect(requested.height, closeTo(region.height * factor, 1), reason: 'page $pageNumber height');
+  }
+}
+
+int _renderCount(_TestDocument document) =>
+    document.pages.fold(0, (sum, page) => sum + (page as _TestPage).renderControl.renderCount);
+
 class _TestDocument extends PdfDocument {
   _TestDocument(
     int pageCount, {
@@ -2266,14 +2466,16 @@ class _TestPage implements PdfPage {
     renderControl.tokens.add(cancellationToken!);
     final imageWidth = width ?? fullWidth?.toInt() ?? this.width.toInt();
     final imageHeight = height ?? fullHeight?.toInt() ?? this.height.toInt();
-    renderControl.renderSizes.add(Size(imageWidth.toDouble(), imageHeight.toDouble()));
+    final size = Size(imageWidth.toDouble(), imageHeight.toDouble());
+    renderControl.renderSizes.add(size);
+    (width == null ? renderControl.previewSizes : renderControl.partialSizes).add(size);
     await renderControl.beforeRender();
     if (renderControl.renderAtRequestedSize) {
-      return PdfImage.createFromBgraData(
-        Uint8List.fromList(List.generate(imageWidth * imageHeight * 4, (i) => renderControl.bgra[i % 4])),
-        width: imageWidth,
-        height: imageHeight,
-      );
+      final pixels = Uint8List(imageWidth * imageHeight * 4);
+      for (var i = 0; i < pixels.length; i++) {
+        pixels[i] = renderControl.bgra[i % 4];
+      }
+      return PdfImage.createFromBgraData(pixels, width: imageWidth, height: imageHeight);
     }
     return PdfImage.createFromBgraData(Uint8List.fromList(renderControl.bgra), width: 1, height: 1);
   }
@@ -2283,6 +2485,8 @@ class _TestPageRenderControl {
   final priorities = <PdfPageRenderPriority?>[];
   final tokens = <PdfPageRenderCancellationToken>[];
   final renderSizes = <Size>[];
+  final previewSizes = <Size>[];
+  final partialSizes = <Size>[];
   bool renderAtRequestedSize = false;
   List<int> bgra = [255, 255, 255, 255];
   Completer<void>? _gate;
