@@ -91896,9 +91896,9 @@ if(h==null)h=-1
 if(h!==-1)q.m(0,j,new A.BQ(i,h+1))
 else q.m(0,j,new A.BP(i))}g.w=A.ns(r,t.SZ)
 if(q.a!==0||r.length!==s){g.e=!1
-g.f.D(0,new A.qt(q))}},
+if(!g.d)g.f.D(0,new A.qt(q))}},
 wV(a){var s,r,q,p,o,n,m,l
-if(a==null||a.ga1(a))return
+if(this.d||a==null||a.ga1(a))return
 s=A.b([],t.b4)
 for(r=a.gfZ(),r=r.ga2(r),q=t.Ol;r.q();){p=q.a(r.gL().b)
 o=A.bB(p.h(0,"face"))
@@ -91961,7 +91961,7 @@ return A.A($async$vE,r)}}
 A.atf.prototype={
 $0(){var s=0,r=A.B(t.P),q,p=this,o,n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2,a3,a4,a5,a6,a7
 var $async$$0=A.C(function(a8,a9){if(a8===1)return A.y(a9,r)
-for(;;)switch(s){case 0:o=p.a,n=o.b,m=p.c.a,l=t.X,k=t.z,j=t.j,i=t.t,h=p.b,g=t.tq,f=t.wF,e=p.d,d=p.e
+for(;;)switch(s){case 0:o=p.a,n=t.j,m=o.b,l=p.c.a,k=t.X,j=t.z,i=t.t,h=p.b,g=t.tq,f=t.wF,e=p.d,d=p.e
 case 3:if(o.d){s=1
 break}c=o.w
 c===$&&A.a()
@@ -91982,9 +91982,10 @@ a0=B.b.py(b,B.CU)
 c=A.b([],i)
 for(a1=a0+1;a1<a.length;++a1)if(a[a1].ghr())c.push(a1)
 s=5
-return A.t(A.hK("loadPagesProgressively",A.aq(["docHandle",n.h(0,"docHandle"),"firstPageIndex",a0,"loadedPageIndices",c,"pageIndices",b,"loadUnitDuration",B.f.fp(m,1000)],l,k),null),$async$$0)
+return A.t(A.hK("loadPagesProgressively",A.aq(["docHandle",m.h(0,"docHandle"),"firstPageIndex",a0,"loadedPageIndices",c,"pageIndices",b,"loadUnitDuration",B.f.fp(l,1000)],k,j),null),$async$$0)
 case 5:a2=a9
-a3=A.aDG(o,j.a(a2.h(0,"pages")))
+if(o.d){s=1
+break}a3=A.aDG(o,n.a(a2.h(0,"pages")))
 for(c=a3.length,a4=0;a4<a3.length;a3.length===c||(0,A.r)(a3),++a4){a5=a3[a4]
 a[a5.gb2()-1]=a5}o.sLL(a)
 o.wV(a2.h(0,"missingFonts"))
@@ -92020,30 +92021,31 @@ A.atc.prototype={
 $1(a){if(a>=0&&a<this.a&&!this.b[a].ghr())this.c.push(a)},
 $S:20}
 A.atj.prototype={
-$0(){var s=0,r=A.B(t.P),q=this,p,o,n,m,l,k,j,i,h,g
+$0(){var s=0,r=A.B(t.P),q,p=this,o,n,m,l,k,j,i,h,g,f
 var $async$$0=A.C(function(a,b){if(a===1)return A.y(b,r)
-for(;;)switch(s){case 0:i=q.b
-h=A.V(i).i("U<1,j>")
-g=A.W(new A.U(i,new A.ati(),h),h.i("ae.E"))
-i=A.o(t.X,t.z)
-h=q.a
-i.m(0,"docHandle",h.b.h(0,"docHandle"))
-if(g!=null)i.m(0,"pageIndices",g)
-p=h.w
-p===$&&A.a()
-i.m(0,"currentPagesCount",p.length)
-s=2
-return A.t(A.hK("reloadPages",i,null),$async$$0)
-case 2:o=b
-n=A.aDG(h,t.j.a(o.h(0,"pages")))
-i=h.w
-m=A.b(i.slice(0),A.V(i))
-for(i=n.length,l=0;l<n.length;n.length===i||(0,A.r)(n),++l){k=n[l]
-j=k.gb2()-1
-if(j<m.length)m[j]=k
-else m.push(k)}h.sLL(m)
-h.wV(o.h(0,"missingFonts"))
-return A.z(null,r)}})
+for(;;)switch(s){case 0:h=p.b
+g=A.V(h).i("U<1,j>")
+f=A.W(new A.U(h,new A.ati(),g),g.i("ae.E"))
+h=A.o(t.X,t.z)
+g=p.a
+h.m(0,"docHandle",g.b.h(0,"docHandle"))
+if(f!=null)h.m(0,"pageIndices",f)
+o=g.w
+o===$&&A.a()
+h.m(0,"currentPagesCount",o.length)
+s=3
+return A.t(A.hK("reloadPages",h,null),$async$$0)
+case 3:n=b
+if(g.d){s=1
+break}m=A.aDG(g,t.j.a(n.h(0,"pages")))
+h=g.w
+l=A.b(h.slice(0),A.V(h))
+for(h=m.length,k=0;k<m.length;m.length===h||(0,A.r)(m),++k){j=m[k]
+i=j.gb2()-1
+if(i<l.length)l[i]=j
+else l.push(j)}g.sLL(l)
+g.wV(n.h(0,"missingFonts"))
+case 1:return A.z(q,r)}})
 return A.A($async$$0,r)},
 $S:70}
 A.ati.prototype={
