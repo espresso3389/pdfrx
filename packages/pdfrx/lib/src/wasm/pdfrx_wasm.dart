@@ -504,6 +504,7 @@ class _PdfDocumentWasm extends PdfDocument {
             'loadUnitDuration': loadUnitDuration.inMilliseconds,
           },
         );
+        if (isDisposed) return;
         final pagesLoaded = parsePages(this, result['pages'] as List<dynamic>);
         for (final page in pagesLoaded) {
           newPages[page.pageNumber - 1] = page; // Update the existing page
@@ -560,6 +561,7 @@ class _PdfDocumentWasm extends PdfDocument {
           'currentPagesCount': pages.length,
         },
       );
+      if (isDisposed) return;
       final reloadedPages = parsePages(this, result['pages'] as List<dynamic>);
       final newPages = pages.toList();
       for (final page in reloadedPages) {
@@ -620,12 +622,14 @@ class _PdfDocumentWasm extends PdfDocument {
     _pages = List.unmodifiable(pages);
     if (changes.isNotEmpty || pages.length != previousPageCount) {
       _documentLoadCompleteNotified = false;
-      subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+      if (!isDisposed) {
+        subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
+      }
     }
   }
 
   void updateMissingFonts(Map<dynamic, dynamic>? missingFonts) {
-    if (missingFonts == null || missingFonts.isEmpty) {
+    if (isDisposed || missingFonts == null || missingFonts.isEmpty) {
       return;
     }
     final fontQueries = <PdfFontQuery>[];
