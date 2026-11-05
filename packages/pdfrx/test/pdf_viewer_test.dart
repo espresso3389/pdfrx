@@ -886,6 +886,138 @@ void main() {
     expect(budget.estimatedBytes, 0);
   });
 
+  testWidgets('prefetch replaces far pages instead of stalling after navigation fills a shared budget', (tester) async {
+    await binding.setSurfaceSize(const Size(800, 600));
+    addTearDown(() => binding.setSurfaceSize(null));
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final document = _TestDocument(10)..loadPagesForTest(List.generate(10, (i) => i + 1));
+    addTearDown(document.dispose);
+    final pages = document.pages.cast<_TestPage>().toList();
+    for (final page in pages) {
+      page.renderControl.renderAtRequestedSize = true;
+    }
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    var evictions = 0;
+    var retained = 0;
+    budget.addListener(() {
+      if (budget.retainedBytes < retained) evictions++;
+      retained = budget.retainedBytes;
+    });
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          controller: controller,
+          params: _sharedBudgetParams(budget),
+        ),
+      ),
+    );
+    List<int> counts() => pages.map((page) => page.renderControl.renderCount).toList();
+    bool prefetched(int pageNumber) =>
+        pages[pageNumber - 1].renderControl.priorities.contains(PdfPageRenderPriority.low);
+
+    await _pumpPaintWork(tester);
+    expect(counts().sublist(0, 2), everyElement(greaterThan(0)));
+    for (final pageNumber in [4, 5, 6, 7]) {
+      await controller.goToPage(pageNumber: pageNumber, duration: Duration.zero);
+      await _pumpPaintWork(tester);
+      expect(controller.pageNumber, pageNumber);
+      expect(prefetched(pageNumber + 1), isTrue, reason: 'page ${pageNumber + 1} is inside the cache extent');
+    }
+    final settled = counts();
+    final settledEvictions = evictions;
+    await _pumpPaintWork(tester);
+    await _pumpPaintWork(tester);
+    expect(counts(), settled);
+    expect(evictions, settledEvictions);
+    expect(budget.estimatedBytes, lessThanOrEqualTo(budget.maximumBytes));
+    await controller.goToPage(pageNumber: 8, duration: Duration.zero);
+    await _pumpPaintWork(tester);
+    expect(pages[7].renderControl.renderCount, settled[7], reason: 'the prefetched preview is reused');
+
+    await controller.goToPage(pageNumber: 3, duration: Duration.zero);
+    await _pumpPaintWork(tester);
+    final afterBackward = counts();
+    await _pumpPaintWork(tester);
+    expect(counts(), afterBackward);
+    await controller.goToPage(pageNumber: 2, duration: Duration.zero);
+    await _pumpPaintWork(tester);
+    expect(
+      pages[1].renderControl.renderCount,
+      afterBackward[1],
+      reason: 'the previous page was ready before it showed',
+    );
+    expect(budget.peakEstimatedBytes, lessThanOrEqualTo(budget.maximumBytes));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
+  testWidgets('prefetch evicts unused external entries but not images another viewer still needs', (tester) async {
+    await binding.setSurfaceSize(const Size(1600, 600));
+    addTearDown(() => binding.setSurfaceSize(null));
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    _TestDocument loadedDocument(String name) {
+      final document = _TestDocument(10, sourceName: name)..loadPagesForTest(List.generate(10, (i) => i + 1));
+      addTearDown(document.dispose);
+      for (final page in document.pages.cast<_TestPage>()) {
+        page.renderControl.renderAtRequestedSize = true;
+      }
+      return document;
+    }
+
+    final first = loadedDocument('test:first');
+    final second = loadedDocument('test:second');
+    const imageBytes = 1200 * 1600 * 8;
+    // Fits both visible pages and one neighbor, but not a neighbor for each viewer.
+    final budget = PdfImageCacheBudget(maximumBytes: imageBytes * 3 + imageBytes * 12 ~/ 8 - 1);
+    addTearDown(budget.dispose);
+    var externalEvicted = false;
+    final external = budget
+        .tryReserve(imageBytes * 5 ~/ 2)!
+        .commit(retainedBytes: imageBytes * 5 ~/ 2, onEvict: () => externalEvicted = true);
+    addTearDown(() => external?.dispose());
+    Widget viewers({required bool showSecond}) => MaterialApp(
+      home: Row(
+        children: [
+          Expanded(
+            child: PdfViewer(PdfDocumentRefDirect(first, autoDispose: false), params: _sharedBudgetParams(budget)),
+          ),
+          Expanded(
+            child: PdfViewer(
+              PdfDocumentRefDirect(second, autoDispose: false),
+              params: _sharedBudgetParams(budget, isVisible: showSecond),
+            ),
+          ),
+        ],
+      ),
+    );
+    List<int> counts(PdfDocument document) =>
+        document.pages.cast<_TestPage>().map((page) => page.renderControl.renderCount).toList();
+
+    await tester.pumpWidget(viewers(showSecond: false));
+    await _pumpPaintWork(tester);
+    expect(externalEvicted, isTrue);
+    expect(counts(first).sublist(0, 2), [1, 1]);
+
+    await tester.pumpWidget(viewers(showSecond: true));
+    await _pumpPaintWork(tester);
+    expect(counts(first).sublist(0, 2), [1, 1]);
+    expect(counts(second).sublist(0, 2), [1, 0], reason: 'the first viewer still needs its neighbor');
+    final settled = [...counts(first), ...counts(second)];
+    await _pumpPaintWork(tester);
+    expect([...counts(first), ...counts(second)], settled);
+    expect(budget.retainedBytes, imageBytes * 3);
+    expect(budget.estimatedBytes, lessThanOrEqualTo(budget.maximumBytes));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));
@@ -2384,6 +2516,21 @@ class _TestDocument extends PdfDocument {
   @override
   Future<T> useNativeDocumentHandle<T>(FutureOr<T> Function(int nativeDocumentHandle) task) async => await task(0);
 }
+
+PdfViewerParams _sharedBudgetParams(PdfImageCacheBudget budget, {bool isVisible = true}) => PdfViewerParams(
+  imageCacheBudget: budget,
+  maxImageBytesCachedOnMemory: 48 * 1024 * 1024,
+  isVisible: isVisible,
+  sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(calculateInitialZoom: (_, _, _, _) => 1),
+  verticalCacheExtent: 1,
+  horizontalCacheExtent: 0,
+  getPageRenderingScale: (_, _, _, _) => 2,
+  behaviorControlParams: const PdfViewerBehaviorControlParams(
+    pageImageCachingDelay: Duration.zero,
+    partialImageLoadingDelay: Duration.zero,
+    trailingPageLoadingDelay: Duration.zero,
+  ),
+);
 
 double _largePreviewScale(BuildContext context, PdfPage page, PdfViewerController controller, double scale) => 10;
 

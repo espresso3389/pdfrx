@@ -1750,7 +1750,7 @@ class _PdfViewerState extends State<PdfViewer>
         ..._magnifierImageCache.pageImages.values,
         ..._magnifierImageCache.pageImagesPartial.values,
       ]) {
-        image.budgetEntry?.touch(isPinned: false);
+        image.budgetEntry?.touch(isPinned: false, isNeeded: false);
       }
     }
     _updateTextCachePins();
@@ -1830,12 +1830,14 @@ class _PdfViewerState extends State<PdfViewer>
         cache.pageImagePartialRenderingRequests.remove(pageNumber)?.cancel();
       }
     }
-    for (final entry in [...cache.pageImages.entries, ...cache.pageImagesPartial.entries]) {
-      entry.value.budgetEntry?.touch(isPinned: cache.visiblePageNumbers.contains(entry.key));
-    }
-
     final pageIndices = _pageLayoutIndex!.intersecting(cacheTargetRect);
     final retainedPages = pageIndices.map((i) => i + 1).toSet();
+    for (final entry in [...cache.pageImages.entries, ...cache.pageImagesPartial.entries]) {
+      entry.value.budgetEntry?.touch(
+        isPinned: cache.visiblePageNumbers.contains(entry.key),
+        isNeeded: retainedPages.contains(entry.key),
+      );
+    }
     for (final pageNumber in cache.pendingPageNumbers.toList()) {
       if (!retainedPages.contains(pageNumber)) cache.cancelPendingRenderings(pageNumber);
     }
@@ -2267,6 +2269,7 @@ class _PdfViewerState extends State<PdfViewer>
     final entry = reservation.commit(
       retainedBytes: image.width * image.height * 8,
       isPinned: cache.visiblePageNumbers.contains(pageNumber),
+      isNeeded: true,
       onEvict: () {
         if (partial) {
           if (identical(cache.pageImagesPartial[pageNumber], image)) cache.pageImagesPartial.remove(pageNumber);
@@ -2338,14 +2341,11 @@ class _PdfViewerState extends State<PdfViewer>
         }
         final prev = cache.pageImages[page.pageNumber];
         if (prev != null && !prev.isDirty && prev.scale == scale) return;
-        final bytes = (max(1, width.toInt()) * max(1, height.toInt()) * 12).toInt();
         // Prefetch must not evict images that the next paint would request again.
-        if (priority == PdfPageRenderPriority.low && _imageBudget.estimatedBytes + bytes > _imageBudget.maximumBytes) {
-          return;
-        }
         final reservation = _imageBudget.tryReserve(
-          bytes,
+          (max(1, width.toInt()) * max(1, height.toInt()) * 12).toInt(),
           allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _imageBudget.pendingBytes == 0,
+          keepNeeded: priority == PdfPageRenderPriority.low,
         );
         if (reservation == null) return;
         ui.Image? rendered;

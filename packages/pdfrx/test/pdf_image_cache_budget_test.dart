@@ -65,6 +65,20 @@ void main() {
     expect(budget.pendingBytes, 0);
   });
 
+  test('speculative reservations evict only entries their owners no longer need', () {
+    final budget = PdfImageCacheBudget(maximumBytes: 100);
+    final evicted = <int>[];
+    final unneeded = budget.tryReserve(40)!.commit(retainedBytes: 40, onEvict: () => evicted.add(1))!;
+    final needed = budget.tryReserve(40)!.commit(retainedBytes: 40, onEvict: () => evicted.add(2), isNeeded: true)!;
+    expect(budget.tryReserve(70, keepNeeded: true), isNull);
+    expect(evicted, [1]);
+    expect(needed.isDisposed, isFalse);
+    expect(unneeded.isDisposed, isTrue);
+    needed.touch(isNeeded: false);
+    expect(budget.tryReserve(70, keepNeeded: true), isNotNull);
+    expect(evicted, [1, 2]);
+  });
+
   test('visible allocations may overflow while background work is rejected', () {
     final budget = PdfImageCacheBudget(maximumBytes: 100);
     var evictions = 0;
