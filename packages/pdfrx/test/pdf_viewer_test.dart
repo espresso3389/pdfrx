@@ -1174,6 +1174,36 @@ void main() {
     expect(budget.estimatedBytes, 0);
   });
 
+  testWidgets('a neighbor scrolling in does not re-render the preview of the page beside it', (tester) async {
+    tester.view.physicalSize = const Size(1280, 720) * 1.25;
+    tester.view.devicePixelRatio = 1.25;
+    addTearDown(tester.view.reset);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final document = _documentRenderingAtRequestedSize(6);
+    addTearDown(document.dispose);
+    final pages = document.pages.cast<_TestPage>().toList();
+    final controller = PdfViewerController();
+    await tester.pumpWidget(MaterialApp(home: _budgetedViewer(document, controller, budget, 48 * 1024 * 1024)));
+    await _pumpPaintWork(tester);
+    final layouts = controller.layout.pageLayouts;
+    await _scrollViewportTopTo(controller, layouts[1].top);
+    await _pumpPaintWork(tester);
+    final previews = [for (final page in pages) page.renderControl.previewSizes.length];
+    final partials = [for (final page in pages) page.renderControl.partialSizes.length];
+    for (var top = layouts[1].top; top <= layouts[2].top; top += 40) {
+      await _scrollViewportTopTo(controller, top);
+      await _pumpPaintWork(tester);
+    }
+    expect(pages[1].renderControl.previewSizes, hasLength(previews[1]));
+    expect(pages[2].renderControl.previewSizes, hasLength(previews[2] + 1));
+    expect(pages[2].renderControl.previewSizes.last, const Size(1666, 2222));
+    expect([for (final page in pages) page.renderControl.partialSizes.length], partials);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));

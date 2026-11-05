@@ -1872,8 +1872,14 @@ class _PdfViewerState extends State<PdfViewer>
             return estimatedScale;
           };
 
+      final previewScale = getPageRenderingScale(
+        context,
+        page,
+        _controller!,
+        _sizeDelegate!.onePassRenderingScaleThreshold,
+      );
       final previewScaleLimit = _boundedRenderingScale(
-        getPageRenderingScale(context, page, _controller!, _sizeDelegate!.onePassRenderingScaleThreshold),
+        previewScale,
         page.width,
         page.height,
         // Previews are not cropped, so every visible page charges its whole area.
@@ -1916,15 +1922,23 @@ class _PdfViewerState extends State<PdfViewer>
         );
       }
 
+      // A preview sharpened while fewer pages were visible stays while a neighbor scrolls in.
+      final previewImageScale = previewImage?.scale ?? 0;
+      final shownPreviewScale =
+          previewImageScale > previewScaleLimit &&
+              previewImageScale <=
+                  _boundedRenderingScale(previewScale, page.width, page.height, sharedArea: page.width * page.height)
+          ? previewImageScale
+          : previewScaleLimit;
       if (enableLowResolutionPagePreview &&
-          (previewImage == null || previewImage.isDirty || previewImage.scale != previewScaleLimit)) {
+          (previewImage == null || previewImage.isDirty || previewImage.scale != shownPreviewScale)) {
         previewRequests.add((page: page, scale: previewScaleLimit, rect: rect));
       }
 
       final pageScale = page.width > 0 && page.height > 0
           ? scale * max(rect.width / page.width, rect.height / page.height)
           : 0.0;
-      if (!enableLowResolutionPagePreview || pageScale > previewScaleLimit) {
+      if (!enableLowResolutionPagePreview || pageScale > shownPreviewScale) {
         // `scale` (not `pageScale`) converts document units to physical pixels.
         // `pageScale` additionally carries the layout-to-page-size ratio, which
         // `_createRealSizePartialImage` would apply a second time via
@@ -1933,7 +1947,7 @@ class _PdfViewerState extends State<PdfViewer>
         _requestRealSizePartialImage(cache, page, scale, targetRect, visibleArea);
       }
 
-      if ((!enableLowResolutionPagePreview || pageScale > previewScaleLimit) && partial != null) {
+      if ((!enableLowResolutionPagePreview || pageScale > shownPreviewScale) && partial != null) {
         partial.draw(canvas, filterQuality, pageImageColorFilter);
       }
 
