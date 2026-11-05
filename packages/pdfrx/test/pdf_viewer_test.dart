@@ -1533,6 +1533,109 @@ void main() {
     expect(budget.estimatedBytes, 0);
   });
 
+  testWidgets('a slow prefetch in another viewer does not hold back the visible page', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900) * 2;
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final first = _scannedDocument(12);
+    final second = _scannedDocument(12, sourceName: 'test:scan2');
+    addTearDown(first.dispose);
+    addTearDown(second.dispose);
+    final firstPages = first.pages.cast<_TestPage>().toList();
+    final secondPages = second.pages.cast<_TestPage>().toList();
+    for (final page in [...firstPages, ...secondPages]) {
+      page.renderControl.renderDuration = const Duration(milliseconds: 60);
+    }
+    final firstController = PdfViewerController();
+    final secondController = PdfViewerController();
+    const params = PdfViewerBehaviorControlParams(partialImageLoadingDelay: Duration(milliseconds: 50));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            Expanded(
+              child: _scannedBookViewer(
+                first,
+                firstController,
+                budget,
+                verticalCacheExtent: 2,
+                behaviorControlParams: params,
+              ),
+            ),
+            Expanded(
+              child: _scannedBookViewer(
+                second,
+                secondController,
+                budget,
+                verticalCacheExtent: 2,
+                behaviorControlParams: params,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    await _pumpFrames(tester);
+    final slow = firstPages[8].renderControl..block();
+    var released = false;
+    try {
+      await _goToPageTop(firstController, 8);
+      await _pumpFrames(tester, frames: 12);
+      expect(slow.started, isTrue, reason: 'the first viewer is prefetching page 9');
+      expect(budget.speculativePendingBytes, greaterThan(0));
+      await _goToPageTop(secondController, 10);
+      await _pumpFrames(tester, frames: 12);
+      expect(secondPages[9].renderControl.previewsDone, 1, reason: 'the second viewer showed its page');
+      slow.release();
+      released = true;
+    } finally {
+      if (!released) slow.release();
+    }
+    await _pumpFrames(tester);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(budget.estimatedBytes, 0);
+    expect(budget.speculativePendingBytes, 0);
+  });
+
+  testWidgets('a prefetch left on a replaced budget does not let visible work overshoot the new one', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900) * 2;
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final first = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(first.dispose);
+    final second = PdfImageCacheBudget(maximumBytes: 8 * 1024 * 1024);
+    addTearDown(second.dispose);
+    final document = _scannedDocument(12);
+    addTearDown(document.dispose);
+    final pages = document.pages.cast<_TestPage>().toList();
+    final controller = PdfViewerController();
+    Widget viewer(PdfImageCacheBudget budget) =>
+        MaterialApp(home: _scannedBookViewer(document, controller, budget, verticalCacheExtent: 2));
+    await tester.pumpWidget(viewer(first));
+    await _pumpFrames(tester);
+    final slow = pages[8].renderControl..block();
+    try {
+      await _goToPageTop(controller, 8);
+      await _pumpFrames(tester, frames: 12);
+      expect(slow.started, isTrue);
+      final visibleElsewhere = second.tryReserve(4 * 1024 * 1024)!;
+      await tester.pumpWidget(viewer(second));
+      await _pumpFrames(tester, frames: 12);
+      expect(second.peakEstimatedBytes, lessThanOrEqualTo(second.maximumBytes));
+      visibleElsewhere.dispose();
+    } finally {
+      slow.release();
+    }
+    await _pumpFrames(tester);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(first.estimatedBytes, 0);
+    expect(second.estimatedBytes, 0);
+  });
+
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));
@@ -2877,8 +2980,8 @@ Widget _budgetedViewer(
 );
 
 // Scanned-book pages whose preview fills the 48 MiB rendering limit almost exactly.
-_TestDocument _scannedDocument(int pageCount) {
-  final document = _TestDocument(pageCount, sourceName: 'test:scan');
+_TestDocument _scannedDocument(int pageCount, {String sourceName = 'test:scan'}) {
+  final document = _TestDocument(pageCount, sourceName: sourceName);
   document.pages = [
     for (var i = 0; i < pageCount; i++)
       _TestPage(document, i + 1, isLoaded: true, height: 900.0 + (i * 7) % 11)

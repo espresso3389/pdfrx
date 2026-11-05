@@ -14,6 +14,7 @@ class PdfImageCacheBudget extends ChangeNotifier {
   int _maximumBytes;
   int _retainedBytes = 0;
   int _pendingBytes = 0;
+  int _speculativePendingBytes = 0;
   int _peakEstimatedBytes = 0;
   final _entries = <PdfImageCacheEntry>{};
   bool _notificationScheduled = false;
@@ -34,6 +35,9 @@ class PdfImageCacheBudget extends ChangeNotifier {
   /// Estimated bytes reserved for active renders and image conversions.
   int get pendingBytes => _pendingBytes;
 
+  /// Part of [pendingBytes] reserved with `keepNeeded`, i.e. for speculative work such as prefetch.
+  int get speculativePendingBytes => _speculativePendingBytes;
+
   /// Combined current estimate.
   int get estimatedBytes => _retainedBytes + _pendingBytes;
 
@@ -51,8 +55,9 @@ class PdfImageCacheBudget extends ChangeNotifier {
     if (_disposed) return null;
     if (!allowOverBudget && estimatedBytes + bytes > maximumBytes) return null;
     _pendingBytes += bytes;
+    if (keepNeeded) _speculativePendingBytes += bytes;
     _recordPeak();
-    return PdfImageReservation._(this, bytes);
+    return PdfImageReservation._(this, bytes, keepNeeded);
   }
 
   /// Evicts least-recently-used unpinned entries until the current estimate fits.
@@ -137,9 +142,10 @@ class PdfImageCacheBudget extends ChangeNotifier {
 
 /// A render/conversion allocation, charged until [commit] or [dispose].
 class PdfImageReservation {
-  PdfImageReservation._(this._budget, this.bytes);
+  PdfImageReservation._(this._budget, this.bytes, this._isSpeculative);
 
   PdfImageCacheBudget? _budget;
+  final bool _isSpeculative;
 
   /// Estimated active allocation size.
   final int bytes;
@@ -170,6 +176,7 @@ class PdfImageReservation {
     if (budget == null) return;
     _budget = null;
     budget._pendingBytes -= bytes;
+    if (_isSpeculative) budget._speculativePendingBytes -= bytes;
     budget._scheduleChanged();
   }
 }

@@ -2058,11 +2058,8 @@ class _PdfViewerState extends State<PdfViewer>
   /// Last logged extent/unmeasured/white tuple, to keep the trace to changes.
   String? _lastExtentSignature;
 
-  /// Bytes reserved by this viewer's prefetches that are still rendering.
-  int _prefetchPendingBytes = 0;
-
   /// Visible work may exceed the budget unless other visible work already does; a prefetch never holds it back.
-  bool get _onlyPrefetchesPending => _imageBudget.pendingBytes <= _prefetchPendingBytes;
+  bool get _onlyPrefetchesPending => _imageBudget.pendingBytes <= _imageBudget.speculativePendingBytes;
 
   /// The last movement of the viewport, so that prefetch serves the pages ahead of the reader first.
   Offset _readingDirection = Offset.zero;
@@ -2419,7 +2416,6 @@ class _PdfViewerState extends State<PdfViewer>
           keepNeeded: priority == PdfPageRenderPriority.low,
         );
         if (reservation == null) return;
-        if (priority == PdfPageRenderPriority.low) _prefetchPendingBytes += reservation.bytes;
         ui.Image? rendered;
         try {
           rendered = await page.renderForDisplay(
@@ -2475,7 +2471,6 @@ class _PdfViewerState extends State<PdfViewer>
         } finally {
           rendered?.dispose();
           reservation.dispose();
-          if (priority == PdfPageRenderPriority.low) _prefetchPendingBytes -= reservation.bytes;
         }
       });
     } finally {

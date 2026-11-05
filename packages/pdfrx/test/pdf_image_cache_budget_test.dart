@@ -112,6 +112,21 @@ void main() {
     expect(evicted, [2]);
   });
 
+  test('speculative reservations are counted until committed or released', () {
+    final budget = PdfImageCacheBudget(maximumBytes: 100);
+    final visible = budget.tryReserve(20)!;
+    final first = budget.tryReserve(30, keepNeeded: true)!;
+    final second = budget.tryReserve(10, keepNeeded: true)!;
+    expect(budget.pendingBytes, 60);
+    expect(budget.speculativePendingBytes, 40);
+    first.commit(retainedBytes: 20, onEvict: () {});
+    second.dispose();
+    second.dispose();
+    expect(budget.speculativePendingBytes, 0);
+    visible.dispose();
+    expect(budget.pendingBytes, 0);
+  });
+
   test('visible allocations may overflow while background work is rejected', () {
     final budget = PdfImageCacheBudget(maximumBytes: 100);
     var evictions = 0;
