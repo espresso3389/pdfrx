@@ -78,7 +78,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   Timer? _searchTextTimer; // timer to start search
   int _searchSession = 0; // current search session
   List<T> _matches = const [];
-  List<int> _matchesPageStartIndices = const [];
+  _PageMatchIndex? _matchIndex;
   List<int?> _pageMatchCounts = const []; // null for pages not scanned yet
   _SearchCondition? _lastSearchCondition;
   _SearchCondition? _pendingSearchCondition;
@@ -225,7 +225,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _lastSearchCondition = condition;
     if (!resume) {
       _matches = const [];
-      _matchesPageStartIndices = const [];
+      _matchIndex = null;
       _pageMatchCounts = const [];
       _completedPageCount = 0;
       _nextPageNumber = condition.startPageNumber ?? 1;
@@ -268,7 +268,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   void _resetTextSearch({bool notify = true}) {
     _cancelTextSearch();
     _matches = const [];
-    _matchesPageStartIndices = const [];
+    _matchIndex = null;
     _pageMatchCounts = const [];
     _searchedPages.clear();
     _searchingPageNumber = null;
@@ -309,14 +309,14 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
       final pageCount = _totalPageCount = document.pages.length;
       if (document.pages.isEmpty) {
         _matches = const [];
-        _matchesPageStartIndices = const [];
+        _matchIndex = null;
         _pageMatchCounts = const [];
         _isSearching = false;
         notifyListeners();
         return;
       }
       if (_pageMatchCounts.length != pageCount) {
-        _matchesPageStartIndices = List<int>.filled(pageCount, 0);
+        _matchIndex = _PageMatchIndex(pageCount);
         _pageMatchCounts = List<int?>.filled(pageCount, null);
       }
       for (var page = _nextPageToSearch(document.pages); page != null; page = _nextPageToSearch(document.pages)) {
@@ -340,7 +340,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
           }
         }
         final pageIndex = page.pageNumber - 1;
-        final insertAt = _matchesPageStartIndices[pageIndex];
+        final insertAt = _matchIndex!.prefixSum(pageIndex);
         if (pageMatches.isNotEmpty) {
           if (insertAt == textMatches.length) {
             textMatches.addAll(pageMatches);
@@ -350,9 +350,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
             final current = _currentIndex;
             if (current != null && current >= insertAt) _currentIndex = current + pageMatches.length;
           }
-          for (var i = pageIndex + 1; i < pageCount; i++) {
-            _matchesPageStartIndices[i] += pageMatches.length;
-          }
+          _matchIndex!.add(pageIndex, pageMatches.length);
         }
         _pageMatchCounts[pageIndex] = pageMatches.length;
         _matches = _MatchSnapshot(textMatches);
@@ -487,7 +485,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   /// Get the matches range for the given page number.
   ({int start, int end})? getMatchesRangeForPage(int pageNumber) {
     if (!_isPageScanned(pageNumber)) return null;
-    final start = _matchesPageStartIndices[pageNumber - 1];
+    final start = _matchIndex!.prefixSum(pageNumber - 1);
     return (start: start, end: start + _pageMatchCounts[pageNumber - 1]!);
   }
 
@@ -526,6 +524,27 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   @override
   void removeListener(VoidCallback listener) => _listeners.remove(listener);
+}
+
+/// Stores page match counts for efficient prefix sums as pages are scanned out of order.
+class _PageMatchIndex {
+  _PageMatchIndex(int pageCount) : _tree = List<int>.filled(pageCount + 1, 0);
+
+  final List<int> _tree;
+
+  void add(int pageIndex, int count) {
+    for (var i = pageIndex + 1; i < _tree.length; i += i & -i) {
+      _tree[i] += count;
+    }
+  }
+
+  int prefixSum(int pageCount) {
+    var sum = 0;
+    for (var i = pageCount; i > 0; i -= i & -i) {
+      sum += _tree[i];
+    }
+    return sum;
+  }
 }
 
 /// Captures a read-only prefix of a results buffer.
