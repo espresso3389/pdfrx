@@ -662,6 +662,38 @@ void main() {
     expect(searcher.isSearching, isFalse);
   });
 
+  test('page ranges follow out-of-order insertions with differing match counts', () async {
+    final searcher = _GatedSearcher(_FakeController(_FakeDocument(7)), {
+      1: 'word word',
+      2: '',
+      3: 'word',
+      4: 'word word word',
+      5: '',
+      6: 'word',
+      7: 'word word',
+    });
+    addTearDown(searcher.dispose);
+    final gate = searcher.gates[1] = Completer<void>();
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true, startPageNumber: 4);
+    await pumpEventQueue();
+    expect(searcher.getMatchesRangeForPage(4), (start: 0, end: 3));
+    expect(searcher.getMatchesRangeForPage(6), (start: 3, end: 4));
+    gate.complete();
+    await pumpEventQueue();
+    expect(
+      [for (var page = 1; page <= 7; page++) searcher.getMatchesRangeForPage(page)],
+      [
+        (start: 0, end: 2),
+        (start: 2, end: 2),
+        (start: 2, end: 3),
+        (start: 3, end: 6),
+        (start: 6, end: 6),
+        (start: 6, end: 7),
+        (start: 7, end: 9),
+      ],
+    );
+  });
+
   test('goToFirstMatch with startPageNumber goes to the first match at or after that page', () async {
     final controller = _FakeController(_FakeDocument(4));
     final searcher = _GatedSearcher(controller, {1: 'word', 3: 'word'});
