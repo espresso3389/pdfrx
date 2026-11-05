@@ -918,6 +918,24 @@ void main() {
     expect(restored, bytes);
   });
 
+  test('a full download releases its cache file after document disposal', () async {
+    final dir = await Directory.systemTemp.createTemp('pdfrx-cache-close-');
+    final oldClient = Pdfrx.createHttpClient;
+    final cache = PdfFileCache(File('${dir.path}/cache.pdf'));
+    addTearDown(() async {
+      Pdfrx.createHttpClient = oldClient;
+      await cache.close();
+      if (await dir.exists()) await dir.delete(recursive: true);
+    });
+    final bytes = await testPdfFile.readAsBytes();
+    Pdfrx.createHttpClient = () => MockClient.streaming((request, body) async {
+      return http.StreamedResponse(Stream.value(bytes), 200);
+    });
+    final document = await pdfDocumentFromUri(Uri.parse('https://example.com/close.pdf'), cache: cache, blockSize: 64);
+    await document.dispose();
+    await dir.delete(recursive: true);
+  });
+
   group('PdfDocument.openCustom with maxSizeToCacheOnMemory=0', () {
     test('repeated synchronous reads do not stall the Windows worker', () async {
       if (!Platform.isWindows) return;

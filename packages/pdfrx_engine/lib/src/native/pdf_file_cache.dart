@@ -358,6 +358,8 @@ Future<PdfDocument> pdfDocumentFromUri(
         timeout: timeout,
       );
       if (result.isFullDownload) {
+        await resolvedCache.close();
+        httpClientWrapper.reset();
         return await entryFunctions.openFile(
           resolvedCache.filePath,
           passwordProvider: passwordProvider,
