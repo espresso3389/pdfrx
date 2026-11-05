@@ -1754,11 +1754,17 @@ class _PdfViewerState extends State<PdfViewer>
       }
     }
     _updateTextCachePins();
+    final visibleRect = _visibleRect;
+    final previousCenter = _lastPaintedCenter;
+    if (previousCenter != null && previousCenter != visibleRect.center) {
+      _readingDirection = visibleRect.center - previousCenter;
+    }
+    _lastPaintedCenter = visibleRect.center;
     _paintPagesCustom(
       canvas,
       cache: _imageCache,
       maxImageCacheBytes: widget.params.maxImageBytesCachedOnMemory,
-      targetRect: _visibleRect,
+      targetRect: visibleRect,
       cacheTargetRect: _getCacheExtentRect(),
       scale: _currentZoom * MediaQuery.of(context).devicePixelRatio,
       enableLowResolutionPagePreview: widget.params.behaviorControlParams.enableLowResolutionPagePreview,
@@ -1983,11 +1989,18 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     // The preview lock serves requests in call order, and the loop above walks pages by index -- so the page above
-    // the viewport used to render before the one on screen. Ask for the visible pages first.
+    // the viewport used to render before the one on screen. Ask for the visible pages first, then those ahead.
+    bool isAhead(Rect rect) {
+      final offset = rect.center - targetRect.center;
+      return offset.dx * _readingDirection.dx + offset.dy * _readingDirection.dy > 0;
+    }
+
     previewRequests.sort((a, b) {
       final aVisible = a.rect.overlaps(targetRect);
       final bVisible = b.rect.overlaps(targetRect);
       if (aVisible != bVisible) return aVisible ? -1 : 1;
+      final aAhead = isAhead(a.rect);
+      if (aAhead != isAhead(b.rect)) return aAhead ? -1 : 1;
       return _distanceToRect(a.rect, targetRect).compareTo(_distanceToRect(b.rect, targetRect));
     });
     if (previewRequests.any((request) => cache.visiblePageNumbers.contains(request.page.pageNumber))) {
@@ -2036,6 +2049,10 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// Last logged extent/unmeasured/white tuple, to keep the trace to changes.
   String? _lastExtentSignature;
+
+  /// The last movement of the viewport, so that prefetch serves the pages ahead of the reader first.
+  Offset _readingDirection = Offset.zero;
+  Offset? _lastPaintedCenter;
 
   /// Pages whose real dimensions have been requested but not yet applied.
   final _pagesBeingMeasured = <int>{};

@@ -873,10 +873,15 @@ void main() {
     await _pumpPaintWork(tester);
     expect(pages.map((page) => page.renderControl.renderCount), afterRelease);
 
+    final beforeNavigation = [for (final page in pages) page.renderControl.priorities.length];
     await controller.goTo(controller.calcMatrixFor(const Offset(603, 4480), zoom: 1), duration: Duration.zero);
     await _pumpPaintWork(tester);
-    expect(pages[10].renderControl.priorities.last, PdfPageRenderPriority.high);
-    expect(pages[11].renderControl.priorities.last, PdfPageRenderPriority.high);
+    for (final i in [10, 11]) {
+      // A visible page is either already prefetched or rendered at high priority, never at low.
+      final rendered = pages[i].renderControl.priorities.skip(beforeNavigation[i]);
+      expect(beforeNavigation[i] > 0 || rendered.contains(PdfPageRenderPriority.high), isTrue);
+      expect(rendered, isNot(contains(PdfPageRenderPriority.low)));
+    }
     final afterNavigation = pages.map((page) => page.renderControl.renderCount).toList();
     await _pumpPaintWork(tester);
     expect(pages.map((page) => page.renderControl.renderCount), afterNavigation);
@@ -1271,6 +1276,37 @@ void main() {
       }
     }
     expect(budget.peakEstimatedBytes, lessThanOrEqualTo(budget.maximumBytes));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
+  testWidgets('prefetch serves the page ahead of the reader before the page behind', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final document = _scannedDocument(12);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(home: _scannedBookViewer(document, controller, budget, verticalCacheExtent: 2)),
+    );
+    await _pumpFrames(tester);
+    for (final (from, to, ahead, behind) in [(3, 8, 9, 7), (8, 5, 4, 6)]) {
+      expect(controller.pageNumber, from);
+      document.renderOrder.clear();
+      await _goToPageTop(controller, to);
+      await _pumpFrames(tester);
+      final order = document.renderOrder.where((pageNumber) => pageNumber == ahead || pageNumber == behind).toList();
+      expect(
+        order.first,
+        ahead,
+        reason: 'moving from $from to $to, page $ahead is next; order ${document.renderOrder}',
+      );
+      expect(order, contains(behind));
+    }
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 100));
     expect(budget.estimatedBytes, 0);
