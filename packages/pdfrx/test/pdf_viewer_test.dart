@@ -1204,6 +1204,38 @@ void main() {
     expect(budget.estimatedBytes, 0);
   });
 
+  testWidgets('jumping to the next page keeps the previous page instead of rendering it again', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final document = _scannedDocument(12);
+    addTearDown(document.dispose);
+    final pages = document.pages.cast<_TestPage>().toList();
+    final controller = PdfViewerController();
+    await tester.pumpWidget(MaterialApp(home: _scannedBookViewer(document, controller, budget)));
+    await _pumpFrames(tester);
+    for (var pageNumber = 4; pageNumber <= 8; pageNumber++) {
+      await _goToPageTop(controller, pageNumber);
+      await _pumpFrames(tester);
+      final settled = [for (final page in pages) page.renderControl.renderCount];
+      await _pumpFrames(tester);
+      expect([for (final page in pages) page.renderControl.renderCount], settled);
+    }
+    for (var pageNumber = 3; pageNumber <= 8; pageNumber++) {
+      expect(
+        pages[pageNumber - 1].renderControl.previewSizes,
+        hasLength(1),
+        reason: 'page $pageNumber was rendered once and kept while it stayed in the cache extent',
+      );
+    }
+    expect(budget.peakEstimatedBytes, lessThanOrEqualTo(budget.maximumBytes));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));
@@ -2546,6 +2578,54 @@ Widget _budgetedViewer(
     ),
   ),
 );
+
+// Scanned-book pages whose preview fills the 48 MiB rendering limit almost exactly.
+_TestDocument _scannedDocument(int pageCount) {
+  final document = _TestDocument(pageCount, sourceName: 'test:scan');
+  document.pages = [
+    for (var i = 0; i < pageCount; i++)
+      _TestPage(document, i + 1, isLoaded: true, height: 900.0 + (i * 7) % 11)
+        ..renderControl.renderAtRequestedSize = true,
+  ];
+  return document;
+}
+
+Widget _scannedBookViewer(
+  _TestDocument document,
+  PdfViewerController controller,
+  PdfImageCacheBudget budget, {
+  PdfViewerBehaviorControlParams behaviorControlParams = const PdfViewerBehaviorControlParams(),
+  double verticalCacheExtent = 1,
+}) => PdfViewer(
+  PdfDocumentRefDirect(document, autoDispose: false),
+  controller: controller,
+  initialPageNumber: 3,
+  params: PdfViewerParams(
+    imageCacheBudget: budget,
+    maxImageBytesCachedOnMemory: 48 * 1024 * 1024,
+    horizontalCacheExtent: 0,
+    verticalCacheExtent: verticalCacheExtent,
+    pageAnchor: PdfPageAnchor.top,
+    getPageRenderingScale: _powerOfTwoPreviewScale,
+    sizeDelegateProvider: const PdfViewerSizeDelegateProviderSmart(maxScale: 20, smartMaxScale: 20, maxPagesVisible: 1),
+    behaviorControlParams: behaviorControlParams,
+  ),
+);
+
+// Paint at frame-like intervals so renders land between frames, as on a device.
+Future<void> _pumpFrames(WidgetTester tester, {int frames = 40}) async {
+  for (var i = 0; i < frames; i++) {
+    await tester.pump(const Duration(milliseconds: 25));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 2)));
+  }
+}
+
+Future<void> _goToPageTop(PdfViewerController controller, int pageNumber) {
+  final zoom = controller.currentZoom;
+  final top = controller.layout.pageLayouts[pageNumber - 1].top - 4;
+  final center = Offset(controller.documentSize.width / 2, top + controller.viewSize.height / zoom / 2);
+  return controller.goTo(controller.calcMatrixFor(center, zoom: zoom), duration: Duration.zero);
+}
 
 Future<void> _scrollViewportTopTo(PdfViewerController controller, double top) {
   final zoom = controller.currentZoom;

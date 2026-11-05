@@ -103,6 +103,15 @@ void main() {
     pending.dispose();
   });
 
+  test('entries nobody needs are evicted before needed ones, whatever their recency', () {
+    final budget = PdfImageCacheBudget(maximumBytes: 100);
+    final evicted = <int>[];
+    budget.tryReserve(40)!.commit(retainedBytes: 40, onEvict: () => evicted.add(1), isNeeded: true);
+    budget.tryReserve(40)!.commit(retainedBytes: 40, onEvict: () => evicted.add(2));
+    expect(budget.tryReserve(50), isNotNull);
+    expect(evicted, [2]);
+  });
+
   test('visible allocations may overflow while background work is rejected', () {
     final budget = PdfImageCacheBudget(maximumBytes: 100);
     var evictions = 0;

@@ -76,9 +76,17 @@ class PdfImageCacheBudget extends ChangeNotifier {
 
   void _evictToFit(int extraBytes, {bool keepNeeded = false}) {
     final evicted = <PdfImageCacheEntry>[];
-    for (final entry in _entries.toList()) {
+    // Entries nobody needs go first, so visible work takes a needed neighbor only as a last resort.
+    final candidates = [
+      for (final entry in _entries)
+        if (!entry._isNeeded) entry,
+      if (!keepNeeded)
+        for (final entry in _entries)
+          if (entry._isNeeded) entry,
+    ];
+    for (final entry in candidates) {
       if (estimatedBytes + extraBytes <= maximumBytes) break;
-      if (entry._isPinned || (keepNeeded && entry._isNeeded)) continue;
+      if (entry._isPinned) continue;
       entry.dispose();
       evicted.add(entry);
     }
