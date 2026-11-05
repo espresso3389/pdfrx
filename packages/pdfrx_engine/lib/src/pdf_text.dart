@@ -75,6 +75,7 @@ class PdfPageText {
       return -1; // range error
     }
     if (index == fragments.length) {
+      if (fragments.isEmpty) return -1; // range error
       final f = fragments.last;
       if (textIndex >= f.index + f.length) {
         return -1; // range error
