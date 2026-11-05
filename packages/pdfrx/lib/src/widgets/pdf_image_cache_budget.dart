@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
@@ -45,7 +46,7 @@ class PdfImageCacheBudget extends ChangeNotifier {
   PdfImageReservation? tryReserve(int bytes, {bool allowOverBudget = false, bool keepNeeded = false}) {
     if (_disposed) return null;
     if (bytes < 0) throw ArgumentError.value(bytes, 'bytes');
-    if (!allowOverBudget && !_canFit(bytes, keepNeeded: keepNeeded)) return null;
+    if (!allowOverBudget && bytes > reservableBytes(keepNeeded: keepNeeded)) return null;
     _evictToFit(bytes, keepNeeded: keepNeeded);
     if (_disposed) return null;
     if (!allowOverBudget && estimatedBytes + bytes > maximumBytes) return null;
@@ -63,14 +64,14 @@ class PdfImageCacheBudget extends ChangeNotifier {
     _evict(_entries.where((entry) => !keepPinned || !entry._isPinned).toList());
   }
 
-  /// Whether evicting what [_evictToFit] may evict would make room, so a failing reservation evicts nothing.
-  bool _canFit(int extraBytes, {required bool keepNeeded}) {
-    var bytes = estimatedBytes + extraBytes;
+  /// The largest reservation [tryReserve] could make room for by evicting what it may evict.
+  /// A reservation larger than this fails without evicting anything.
+  int reservableBytes({bool keepNeeded = false}) {
+    var bytes = maximumBytes - estimatedBytes;
     for (final entry in _entries) {
-      if (bytes <= maximumBytes) return true;
-      if (!entry._isPinned && !(keepNeeded && entry._isNeeded)) bytes -= entry.bytes;
+      if (!entry._isPinned && !(keepNeeded && entry._isNeeded)) bytes += entry.bytes;
     }
-    return bytes <= maximumBytes;
+    return max(0, bytes);
   }
 
   void _evictToFit(int extraBytes, {bool keepNeeded = false}) {

@@ -90,6 +90,19 @@ void main() {
     expect(budget.retainedBytes, 90);
   });
 
+  test('reservable bytes count only what a reservation may evict', () {
+    final budget = PdfImageCacheBudget(maximumBytes: 100);
+    budget.tryReserve(20)!.commit(retainedBytes: 20, onEvict: () {});
+    budget.tryReserve(30)!.commit(retainedBytes: 30, onEvict: () {}, isNeeded: true);
+    budget.tryReserve(10)!.commit(retainedBytes: 10, onEvict: () {}, isPinned: true);
+    final pending = budget.tryReserve(15)!;
+    expect(budget.reservableBytes(), 75);
+    expect(budget.reservableBytes(keepNeeded: true), 45);
+    expect(budget.tryReserve(46, keepNeeded: true), isNull);
+    expect(budget.retainedBytes, 60);
+    pending.dispose();
+  });
+
   test('visible allocations may overflow while background work is rejected', () {
     final budget = PdfImageCacheBudget(maximumBytes: 100);
     var evictions = 0;

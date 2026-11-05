@@ -2341,9 +2341,23 @@ class _PdfViewerState extends State<PdfViewer>
         }
         final prev = cache.pageImages[page.pageNumber];
         if (prev != null && !prev.isDirty && prev.scale == scale) return;
-        // Prefetch must not evict images that the next paint would request again.
+        var bytes = (max(1, width.toInt()) * max(1, height.toInt()) * 12).toInt();
+        if (priority == PdfPageRenderPriority.low) {
+          // Prefetch must not evict images that the next paint would request again, so it shrinks to fit.
+          // It waits while other work is in flight, which repaints when it releases its room.
+          final fit = sqrt(_imageBudget.reservableBytes(keepNeeded: true) / bytes);
+          if (fit < 1 && (fit < 0.5 || _imageBudget.pendingBytes > 0)) return;
+          // Keep a preview that the shrunk one would not improve; the page renders at full scale once visible.
+          if (fit < 1 && prev != null && !prev.isDirty && prev.scale >= scale * fit && prev.scale <= scale) return;
+          if (fit < 1) {
+            width *= fit;
+            height *= fit;
+            scale *= fit;
+            bytes = (max(1, width.toInt()) * max(1, height.toInt()) * 12).toInt();
+          }
+        }
         final reservation = _imageBudget.tryReserve(
-          (max(1, width.toInt()) * max(1, height.toInt()) * 12).toInt(),
+          bytes,
           allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _imageBudget.pendingBytes == 0,
           keepNeeded: priority == PdfPageRenderPriority.low,
         );
