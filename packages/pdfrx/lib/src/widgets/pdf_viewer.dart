@@ -1838,8 +1838,25 @@ class _PdfViewerState extends State<PdfViewer>
     }
     final pageIndices = _pageLayoutIndex!.intersecting(cacheTargetRect);
     final retainedPages = pageIndices.map((i) => i + 1).toSet();
+    bool isAhead(Rect rect) {
+      final offset = rect.center - targetRect.center;
+      return offset.dx * _readingDirection.dx + offset.dy * _readingDirection.dy > 0;
+    }
+
+    // Visible pages first, then those ahead of the reader, then the nearest.
+    int byPriority(Rect a, Rect b) {
+      final aVisible = a.overlaps(targetRect);
+      if (aVisible != b.overlaps(targetRect)) return aVisible ? -1 : 1;
+      final aAhead = isAhead(a);
+      if (aAhead != isAhead(b)) return aAhead ? -1 : 1;
+      return _distanceToRect(a, targetRect).compareTo(_distanceToRect(b, targetRect));
+    }
+
+    // Touched least important first, so that the budget evicts the farthest needed image first.
     // Unpinning can trim the budget, whose evictions remove entries from these maps.
-    for (final entry in cache.pageImages.entries.toList()) {
+    final images = cache.pageImages.entries.toList()
+      ..sort((a, b) => byPriority(_layout!.pageLayouts[b.key - 1], _layout!.pageLayouts[a.key - 1]));
+    for (final entry in images) {
       entry.value.budgetEntry?.touch(
         isPinned: cache.visiblePageNumbers.contains(entry.key),
         isNeeded: retainedPages.contains(entry.key),
@@ -1990,20 +2007,8 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     // The preview lock serves requests in call order, and the loop above walks pages by index -- so the page above
-    // the viewport used to render before the one on screen. Ask for the visible pages first, then those ahead.
-    bool isAhead(Rect rect) {
-      final offset = rect.center - targetRect.center;
-      return offset.dx * _readingDirection.dx + offset.dy * _readingDirection.dy > 0;
-    }
-
-    previewRequests.sort((a, b) {
-      final aVisible = a.rect.overlaps(targetRect);
-      final bVisible = b.rect.overlaps(targetRect);
-      if (aVisible != bVisible) return aVisible ? -1 : 1;
-      final aAhead = isAhead(a.rect);
-      if (aAhead != isAhead(b.rect)) return aAhead ? -1 : 1;
-      return _distanceToRect(a.rect, targetRect).compareTo(_distanceToRect(b.rect, targetRect));
-    });
+    // the viewport used to render before the one on screen. Ask in order of priority.
+    previewRequests.sort((a, b) => byPriority(a.rect, b.rect));
     if (previewRequests.any((request) => cache.visiblePageNumbers.contains(request.page.pageNumber))) {
       for (final pageNumber in cache.pendingPageNumbers.toList()) {
         if (!cache.visiblePageNumbers.contains(pageNumber)) cache.cancelPendingRenderings(pageNumber);

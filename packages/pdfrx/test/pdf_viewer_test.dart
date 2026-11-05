@@ -1391,6 +1391,39 @@ void main() {
     expect(budget.estimatedBytes, 0);
   });
 
+  testWidgets('the budget takes the needed image behind the reader before the one ahead', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final document = _scannedDocument(12);
+    addTearDown(document.dispose);
+    final pages = document.pages.cast<_TestPage>().toList();
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(home: _scannedBookViewer(document, controller, budget, verticalCacheExtent: 2)),
+    );
+    await _pumpFrames(tester);
+    // Page 8 is prefetched before page 7's other neighbor, so it is the older entry.
+    await _goToPageTop(controller, 7);
+    await _pumpFrames(tester);
+    expect(pages[5].renderControl.previewsDone, greaterThan(0));
+    expect(pages[7].renderControl.previewsDone, greaterThan(0));
+    final previews = [for (final page in pages) page.renderControl.previewSizes.length];
+    budget.tryReserve(budget.maximumBytes - budget.estimatedBytes + 1)!.dispose();
+    await _pumpFrames(tester);
+    expect(pages[7].renderControl.previewSizes, hasLength(previews[7]), reason: 'page 8 is ahead of the reader');
+    expect(
+      pages[5].renderControl.previewSizes,
+      hasLength(previews[5] + 1),
+      reason: 'page 6 was evicted and prefetched again',
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));
