@@ -58,9 +58,27 @@ Then, you can use [PdfTextSearcher.startTextSearch](https://pub.dev/documentatio
 textSearcher.startTextSearch('hello', caseInsensitive: true);
 ```
 
-The search starts asynchronously. Progress notifications are batched by `notificationInterval` (100 ms by default), with the first and final page notifications sent without waiting for the interval. Listeners should read the current results and progress rather than assume one notification per page. `matches` is a read-only snapshot.
+The search starts asynchronously. Progress notifications are batched by `notificationInterval` (100 ms by default), with the first and final page notifications sent without waiting for the interval. The page selected with `startPageNumber` is also published immediately when scanned. Listeners should read the current results and progress rather than assume one notification per page. `matches` is a read-only snapshot.
 
 When a document uses progressive page loading, search waits for an unmeasured page. The viewer must continue loading that page; pausing or stopping a search releases its wait.
+
+## Search from a Page
+
+For a large document, start scanning near the page the reader is viewing:
+
+```dart
+textSearcher.startTextSearch('hello', startPageNumber: controller.pageNumber);
+```
+
+`startPageNumber` is one-based. The search scans from that page through the end of the document and then wraps to page 1. A null or out-of-range value starts at page 1. With the default `goToFirstMatch: true`, navigation selects the first match in that scan order. This option controls text search, not progressive page measurement; the viewer still needs to load unmeasured pages.
+
+Matches remain sorted by page, so results from earlier pages can be inserted before existing results as the search wraps. Previously returned `matches` snapshots do not change, and `currentIndex` continues to identify the same current match when earlier results are inserted. `getMatchesRangeForPage()` returns null until that page has been scanned. `searchProgress` counts completed pages divided by the total; `searchingPageNumber` can wrap and should not be used as the progress count.
+
+While the same search is running or paused, calling `startTextSearch` again with a new `startPageNumber` moves the scan to that page without discarding results. Reissuing an identical completed search does not rescan it; reset or stop the search first if a fresh scan is required.
+
+## Search Patterns
+
+The pattern may be a `String`, `RegExp`, or another Dart `Pattern`. `caseInsensitive` applies to strings; configure a regular expression's flags directly. For other patterns, the searcher runs `Pattern.allMatches` on each page's full text and skips zero-width matches. Custom patterns are compared with `==` when determining whether a search is being reissued.
 
 There are several functions that helps you to navigate user to the search matches:
 
@@ -91,7 +109,7 @@ To cancel the search and clear its results:
 textSearcher.resetTextSearch();
 ```
 
-`resetTextSearch()` cancels a pending or running search and clears its matches and current search-match position. Starting a different pattern or changing `caseInsensitive` replaces the previous search. Repeating an identical active/completed search condition is ignored; reset first when you need a fresh scan with the same condition.
+`resetTextSearch()` cancels a pending or running search and clears its matches and current search-match position. Starting a different pattern or changing `caseInsensitive` replaces the previous search. Reissuing an identical pattern preserves the current search, subject to the `startPageNumber` behavior above.
 
 ## Lightweight Results
 
