@@ -2393,18 +2393,20 @@ class _PdfViewerState extends State<PdfViewer>
         if (priority == PdfPageRenderPriority.low) {
           // Prefetch must not evict images that the next paint would request again, so it shrinks to fit.
           // It waits while other work is in flight, which repaints when it releases its room.
-          final reservable = _imageBudget.reservableBytes(keepNeeded: true);
+          // The page's own preview counts as room, since the new one replaces it.
+          final reservable = _imageBudget.reservableBytes(keepNeeded: true) + (prev?.budgetEntry?.bytes ?? 0);
           // Measured on the unrounded size, so that the rounded-down result always fits.
           final fit = bytes <= reservable ? 1.0 : sqrt(reservable / (width * height * 12));
           if (fit < 1 && (fit < 0.5 || _imageBudget.pendingBytes > 0)) return;
-          // Keep any preview a full-scale one cannot replace yet; the page renders at full scale once visible.
-          if (fit < 1 && prev != null && !prev.isDirty && prev.scale <= scale) return;
+          // A shrunk preview is replaced only by a clearly sharper one, so that freed room cannot cause churn.
+          if (fit < 1 && prev != null && !prev.isDirty && prev.scale <= scale && scale * fit < prev.scale * 1.1) return;
           if (fit < 1) {
             width *= fit;
             height *= fit;
             scale *= fit;
             bytes = (max(1, width.toInt()) * max(1, height.toInt()) * 12).toInt();
           }
+          if (bytes > _imageBudget.reservableBytes(keepNeeded: true)) prev?.budgetEntry?.touch(isNeeded: false);
         }
         final reservation = _imageBudget.tryReserve(
           bytes,

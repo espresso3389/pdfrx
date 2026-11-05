@@ -1424,6 +1424,82 @@ void main() {
     expect(budget.estimatedBytes, 0);
   });
 
+  testWidgets('a shrunk neighbor is replaced once a clearly sharper one fits', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final document = _scannedDocument(12);
+    addTearDown(document.dispose);
+    final pages = document.pages.cast<_TestPage>().toList();
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(home: _scannedBookViewer(document, controller, budget, verticalCacheExtent: 2)),
+    );
+    await _pumpFrames(tester);
+    final neighbor = pages[1].renderControl;
+    expect(neighbor.previewSizes.last.width, lessThan(1500), reason: 'page 2 was prefetched shrunk beside page 3');
+
+    // Beside page 1 there is room for a sharper page 2, counting the preview it replaces.
+    await _goToPageTop(controller, 1);
+    await _pumpFrames(tester);
+    final upgraded = neighbor.previewSizes.length;
+    expect(neighbor.previewSizes.last.width, closeTo(pages[0].renderControl.previewSizes.last.width, 2));
+    expect(neighbor.previewPriorities.last, PdfPageRenderPriority.low);
+
+    // Freeing a little room does not re-render it again.
+    final squeeze = budget.tryReserve(budget.reservableBytes(keepNeeded: true) ~/ 2)!;
+    final settled = [for (final page in pages) page.renderControl.renderCount];
+    await _pumpFrames(tester);
+    squeeze.dispose();
+    await _pumpFrames(tester);
+    expect(neighbor.previewSizes, hasLength(upgraded));
+    expect([for (final page in pages) page.renderControl.renderCount], settled);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
+  testWidgets('a shrunk prefetch is upgraded partway when room for a clearly sharper one frees', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final document = _scannedDocument(12);
+    addTearDown(document.dispose);
+    final pages = document.pages.cast<_TestPage>().toList();
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(home: _scannedBookViewer(document, controller, budget, verticalCacheExtent: 2)),
+    );
+    await _pumpFrames(tester);
+    await _goToPageTop(controller, 1);
+    await _pumpFrames(tester);
+    final p1 = pages[0].renderControl.previewSizes.last;
+    final full = (p1.width * p1.height * 12).toInt();
+    PdfImageCacheEntry pin(int bytes) =>
+        budget.tryReserve(bytes, allowOverBudget: true)!.commit(retainedBytes: bytes, isPinned: true, onEvict: () {})!;
+    final e1 = pin(budget.maximumBytes - (p1.width * p1.height * 8).toInt() - (full * 1.21).toInt());
+    final e2 = pin((full * 0.61).toInt());
+    controller.releaseCachedImages(keepVisible: true);
+    await _pumpFrames(tester);
+    final neighbor = pages[1].renderControl;
+    final shrunk = neighbor.previewSizes.last.width;
+    expect(shrunk, lessThan(p1.width * 0.8), reason: 'setup: page 2 is shrunk');
+    e2.dispose();
+    await _pumpFrames(tester);
+    expect(neighbor.previewSizes.last.width, greaterThan(shrunk * 1.1));
+    final settled = [for (final page in pages) page.renderControl.renderCount];
+    await _pumpFrames(tester);
+    expect([for (final page in pages) page.renderControl.renderCount], settled);
+    e1.dispose();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));
