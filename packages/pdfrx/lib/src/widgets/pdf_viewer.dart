@@ -1755,11 +1755,15 @@ class _PdfViewerState extends State<PdfViewer>
     }
     _updateTextCachePins();
     final visibleRect = _visibleRect;
-    final previousCenter = _lastPaintedCenter;
-    if (previousCenter != null && previousCenter != visibleRect.center) {
-      _readingDirection = visibleRect.center - previousCenter;
+    // Only scrolling sets the direction: a zoom restarts the measure, and small corrections are ignored.
+    final anchor = _directionAnchor;
+    if (anchor == null || _directionZoom != _currentZoom) {
+      _directionAnchor = visibleRect.center;
+      _directionZoom = _currentZoom;
+    } else if ((visibleRect.center - anchor).distance * _currentZoom >= 8) {
+      _readingDirection = visibleRect.center - anchor;
+      _directionAnchor = visibleRect.center;
     }
-    _lastPaintedCenter = visibleRect.center;
     _paintPagesCustom(
       canvas,
       cache: _imageCache,
@@ -2063,7 +2067,8 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// The last movement of the viewport, so that prefetch serves the pages ahead of the reader first.
   Offset _readingDirection = Offset.zero;
-  Offset? _lastPaintedCenter;
+  Offset? _directionAnchor;
+  double? _directionZoom;
 
   /// Pages whose real dimensions have been requested but not yet applied.
   final _pagesBeingMeasured = <int>{};

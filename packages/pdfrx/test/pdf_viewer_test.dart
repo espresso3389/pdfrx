@@ -1424,7 +1424,7 @@ void main() {
     expect(budget.estimatedBytes, 0);
   });
 
-  testWidgets('a shrunk neighbor is replaced once a clearly sharper one fits', (tester) async {
+  testWidgets('a shrunk neighbor counts the preview it replaces as room', (tester) async {
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -1438,24 +1438,31 @@ void main() {
       MaterialApp(home: _scannedBookViewer(document, controller, budget, verticalCacheExtent: 2)),
     );
     await _pumpFrames(tester);
-    final neighbor = pages[1].renderControl;
-    expect(neighbor.previewSizes.last.width, lessThan(1500), reason: 'page 2 was prefetched shrunk beside page 3');
-
-    // Beside page 1 there is room for a sharper page 2, counting the preview it replaces.
     await _goToPageTop(controller, 1);
     await _pumpFrames(tester);
-    final upgraded = neighbor.previewSizes.length;
-    expect(neighbor.previewSizes.last.width, closeTo(pages[0].renderControl.previewSizes.last.width, 2));
-    expect(neighbor.previewPriorities.last, PdfPageRenderPriority.low);
+    final p1 = pages[0].renderControl.previewSizes.last;
+    final full = (p1.width * p1.height * 12).toInt();
+    PdfImageCacheEntry pin(int bytes) =>
+        budget.tryReserve(bytes, allowOverBudget: true)!.commit(retainedBytes: bytes, isPinned: true, onEvict: () {})!;
+    final e1 = pin(budget.maximumBytes - (p1.width * p1.height * 8).toInt() - (full * 1.21).toInt());
+    final e2 = pin((full * 0.61).toInt());
+    controller.releaseCachedImages(keepVisible: true);
+    await _pumpFrames(tester);
+    final neighbor = pages[1].renderControl;
+    final shrunk = neighbor.previewSizes.last;
+    expect(shrunk.width, lessThan(p1.width * 0.8), reason: 'setup: page 2 is shrunk');
 
-    // Freeing a little room does not re-render it again.
-    final squeeze = budget.tryReserve(budget.reservableBytes(keepNeeded: true) ~/ 2)!;
+    // A full preview fits only if the shrunk one it replaces is counted as room.
+    e2.dispose();
+    final own = (shrunk.width * shrunk.height * 8).toInt();
+    final e3 = pin(budget.reservableBytes(keepNeeded: true) - (full - own + full ~/ 50));
+    await _pumpFrames(tester);
+    expect(neighbor.previewSizes.last.width, closeTo(p1.width, 2));
     final settled = [for (final page in pages) page.renderControl.renderCount];
     await _pumpFrames(tester);
-    squeeze.dispose();
-    await _pumpFrames(tester);
-    expect(neighbor.previewSizes, hasLength(upgraded));
     expect([for (final page in pages) page.renderControl.renderCount], settled);
+    e3.dispose();
+    e1.dispose();
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 100));
     expect(budget.estimatedBytes, 0);
@@ -1634,6 +1641,48 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     expect(first.estimatedBytes, 0);
     expect(second.estimatedBytes, 0);
+  });
+
+  testWidgets('zooming or a tiny correction does not turn the reading direction around', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final document = _scannedDocument(14);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(home: _scannedBookViewer(document, controller, budget, verticalCacheExtent: 2)),
+    );
+    await _pumpFrames(tester);
+    await _goToPageTop(controller, 8);
+    await _pumpFrames(tester);
+
+    // Zoom out around a point above the center: the view moves up, but the reader did not.
+    final visible = controller.visibleRect;
+    document.renderOrder.clear();
+    await controller.goTo(
+      controller.calcMatrixFor(visible.center - Offset(0, visible.height * 0.3), zoom: controller.currentZoom * 0.8),
+      duration: Duration.zero,
+    );
+    await _pumpFrames(tester);
+    final afterZoom = document.renderOrder.where((pageNumber) => pageNumber == 6 || pageNumber == 9).toList();
+    expect(afterZoom.first, 9, reason: 'order ${document.renderOrder}');
+
+    // A one-unit step back after moving forward keeps the forward direction.
+    final zoom = controller.currentZoom;
+    final top = controller.layout.pageLayouts[10].top - 4;
+    final center = Offset(controller.documentSize.width / 2, top + controller.viewSize.height / zoom / 2);
+    await controller.goTo(controller.calcMatrixFor(center + const Offset(0, 1), zoom: zoom), duration: Duration.zero);
+    await tester.pump();
+    document.renderOrder.clear();
+    await controller.goTo(controller.calcMatrixFor(center, zoom: zoom), duration: Duration.zero);
+    await _pumpFrames(tester);
+    final afterStep = document.renderOrder.where((pageNumber) => pageNumber == 10 || pageNumber == 12).toList();
+    expect(afterStep.first, 12, reason: 'order ${document.renderOrder}');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
   });
 
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
