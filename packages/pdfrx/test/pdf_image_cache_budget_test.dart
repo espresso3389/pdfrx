@@ -71,12 +71,23 @@ void main() {
     final unneeded = budget.tryReserve(40)!.commit(retainedBytes: 40, onEvict: () => evicted.add(1))!;
     final needed = budget.tryReserve(40)!.commit(retainedBytes: 40, onEvict: () => evicted.add(2), isNeeded: true)!;
     expect(budget.tryReserve(70, keepNeeded: true), isNull);
+    expect(evicted, isEmpty);
+    budget.tryReserve(50, keepNeeded: true)!.dispose();
     expect(evicted, [1]);
     expect(needed.isDisposed, isFalse);
     expect(unneeded.isDisposed, isTrue);
     needed.touch(isNeeded: false);
     expect(budget.tryReserve(70, keepNeeded: true), isNotNull);
     expect(evicted, [1, 2]);
+  });
+
+  test('a reservation that cannot fit evicts nothing', () {
+    final budget = PdfImageCacheBudget(maximumBytes: 100);
+    budget.tryReserve(80)!.commit(retainedBytes: 80, onEvict: () => fail('Pinned entry was evicted'), isPinned: true);
+    final cached = budget.tryReserve(10)!.commit(retainedBytes: 10, onEvict: () => fail('Useful entry was evicted'))!;
+    expect(budget.tryReserve(30), isNull);
+    expect(cached.isDisposed, isFalse);
+    expect(budget.retainedBytes, 90);
   });
 
   test('visible allocations may overflow while background work is rejected', () {

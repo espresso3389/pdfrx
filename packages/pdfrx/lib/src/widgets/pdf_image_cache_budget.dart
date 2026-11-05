@@ -45,7 +45,7 @@ class PdfImageCacheBudget extends ChangeNotifier {
   PdfImageReservation? tryReserve(int bytes, {bool allowOverBudget = false, bool keepNeeded = false}) {
     if (_disposed) return null;
     if (bytes < 0) throw ArgumentError.value(bytes, 'bytes');
-    if (!allowOverBudget && bytes > maximumBytes) return null;
+    if (!allowOverBudget && !_canFit(bytes, keepNeeded: keepNeeded)) return null;
     _evictToFit(bytes, keepNeeded: keepNeeded);
     if (_disposed) return null;
     if (!allowOverBudget && estimatedBytes + bytes > maximumBytes) return null;
@@ -61,6 +61,16 @@ class PdfImageCacheBudget extends ChangeNotifier {
   /// Pending reservations remain charged until their work completes or is cancelled.
   void clear({bool keepPinned = true}) {
     _evict(_entries.where((entry) => !keepPinned || !entry._isPinned).toList());
+  }
+
+  /// Whether evicting what [_evictToFit] may evict would make room, so a failing reservation evicts nothing.
+  bool _canFit(int extraBytes, {required bool keepNeeded}) {
+    var bytes = estimatedBytes + extraBytes;
+    for (final entry in _entries) {
+      if (bytes <= maximumBytes) return true;
+      if (!entry._isPinned && !(keepNeeded && entry._isNeeded)) bytes -= entry.bytes;
+    }
+    return bytes <= maximumBytes;
   }
 
   void _evictToFit(int extraBytes, {bool keepNeeded = false}) {
