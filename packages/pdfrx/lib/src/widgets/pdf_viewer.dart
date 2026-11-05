@@ -1832,11 +1832,16 @@ class _PdfViewerState extends State<PdfViewer>
     }
     final pageIndices = _pageLayoutIndex!.intersecting(cacheTargetRect);
     final retainedPages = pageIndices.map((i) => i + 1).toSet();
-    for (final entry in [...cache.pageImages.entries, ...cache.pageImagesPartial.entries]) {
+    for (final entry in cache.pageImages.entries) {
       entry.value.budgetEntry?.touch(
         isPinned: cache.visiblePageNumbers.contains(entry.key),
         isNeeded: retainedPages.contains(entry.key),
       );
+    }
+    // Partials are requested only for visible pages, so an offscreen one is never needed again.
+    for (final entry in cache.pageImagesPartial.entries) {
+      final isVisible = cache.visiblePageNumbers.contains(entry.key);
+      entry.value.budgetEntry?.touch(isPinned: isVisible, isNeeded: isVisible);
     }
     for (final pageNumber in cache.pendingPageNumbers.toList()) {
       if (!retainedPages.contains(pageNumber)) cache.cancelPendingRenderings(pageNumber);

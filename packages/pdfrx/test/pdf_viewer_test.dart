@@ -1128,6 +1128,52 @@ void main() {
     expect(budget.estimatedBytes, 0);
   });
 
+  testWidgets('a partial image stops being needed once its page is offscreen', (tester) async {
+    await binding.setSurfaceSize(const Size(800, 600));
+    addTearDown(() => binding.setSurfaceSize(null));
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final document = _documentRenderingAtRequestedSize(6);
+    addTearDown(document.dispose);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          controller: controller,
+          params: PdfViewerParams(
+            imageCacheBudget: budget,
+            maxImageBytesCachedOnMemory: 48 * 1024 * 1024,
+            sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(calculateInitialZoom: (_, _, _, _) => 1),
+            verticalCacheExtent: 1,
+            horizontalCacheExtent: 0,
+            getPageRenderingScale: (_, _, _, _) => 1,
+            behaviorControlParams: const PdfViewerBehaviorControlParams(
+              pageImageCachingDelay: Duration.zero,
+              partialImageLoadingDelay: Duration.zero,
+              trailingPageLoadingDelay: Duration.zero,
+            ),
+          ),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    final partial = (document.pages.first as _TestPage).renderControl.partialSizes.single;
+    await controller.goToPage(pageNumber: 2, duration: Duration.zero);
+    await _pumpPaintWork(tester);
+    expect(controller.visibleRect.overlaps(controller.layout.pageLayouts[0]), isFalse);
+    expect(
+      budget.reservableBytes(keepNeeded: true) - (budget.maximumBytes - budget.estimatedBytes),
+      (partial.width * partial.height * 8).toInt(),
+      reason: 'only the offscreen partial may make room for a prefetch',
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));
