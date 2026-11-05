@@ -235,7 +235,25 @@ class PdfFileCache {
       await invalidateCache();
     }
 
-    _cacheBlockCount = max(1, (fileSize + blockSize - 1) ~/ blockSize);
+    final blockCount = max(1, (fileSize + blockSize - 1) ~/ blockSize);
+    final newHeaderSize = header1Size + dataStrSizeMax + ((blockCount + 7) >> 3);
+    final oldHeaderSize = _headerSize;
+    if (!truncateExistingContent && oldHeaderSize != null && newHeaderSize > oldHeaderSize) {
+      await _ensureFileOpen();
+      final raf = _raf!;
+      var remaining = max(0, await raf.length() - oldHeaderSize);
+      // Copy backwards because the new bitmap overlaps the start of the downloaded PDF.
+      while (remaining > 0) {
+        final count = min(remaining, 1024 * 1024);
+        remaining -= count;
+        await raf.setPosition(oldHeaderSize + remaining);
+        final bytes = await raf.read(count);
+        await raf.setPosition(newHeaderSize + remaining);
+        await raf.writeFrom(bytes);
+      }
+    }
+
+    _cacheBlockCount = blockCount;
     _fileSize = fileSize;
 
     _cacheState = Uint8List((_cacheBlockCount! + 7) >> 3);
@@ -340,6 +358,8 @@ Future<PdfDocument> pdfDocumentFromUri(
         timeout: timeout,
       );
       if (result.isFullDownload) {
+        await resolvedCache.close();
+        httpClientWrapper.reset();
         return await entryFunctions.openFile(
           resolvedCache.filePath,
           passwordProvider: passwordProvider,

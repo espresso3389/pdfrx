@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:pdfrx_engine/src/native/pdfrx_pdfium.dart' show isPdfiumInitialized;
+import 'package:pdfrx_engine/src/native/pdf_file_cache.dart';
 import 'package:test/test.dart';
 
 import 'utils.dart';
@@ -864,6 +865,75 @@ void main() {
     Pdfrx.createHttpClient = () =>
         MockClient((request) async => http.Response.bytes(await testPdfFile.readAsBytes(), 200));
     await testDocument(await PdfDocument.openUri(Uri.parse('https://example.com/hello.pdf')));
+  });
+
+  test('unknown-length full download preserves PDF when the cache bitmap grows', () async {
+    final dir = await Directory.systemTemp.createTemp('pdfrx-cache-test-');
+    final oldClient = Pdfrx.createHttpClient;
+    addTearDown(() async {
+      Pdfrx.createHttpClient = oldClient;
+      await dir.delete(recursive: true);
+    });
+    final bytes = await testPdfFile.readAsBytes();
+    final cache = PdfFileCache(File('${dir.path}/cache.pdf'));
+    Pdfrx.createHttpClient = () => MockClient.streaming((request, body) async {
+      expect(request.headers['range'], 'bytes=0-63');
+      return http.StreamedResponse(Stream.value(bytes), 200);
+    });
+    final document = await pdfDocumentFromUri(
+      Uri.parse('https://example.com/chunked.pdf'),
+      cache: cache,
+      blockSize: 64,
+    );
+    addTearDown(document.dispose);
+    expect(document.pages, isNotEmpty);
+    final cached = Uint8List(bytes.length);
+    await cache.read(cached, 0, 0, cached.length);
+    expect(cached, bytes);
+    await cache.close();
+  });
+
+  test('growing a cache bitmap preserves data across multiple copy chunks', () async {
+    final dir = await Directory.systemTemp.createTemp('pdfrx-cache-resize-');
+    final cache = PdfFileCache(File('${dir.path}/cache.pdf'));
+    addTearDown(() async {
+      await cache.close();
+      await dir.delete(recursive: true);
+    });
+    cache.setBlockSize(65536);
+    await cache.initializeWithFileSize(0, truncateExistingContent: true);
+    final bytes = Uint8List.fromList(List.generate(2 * 1024 * 1024 + 123, (i) => (i * 37) % 251));
+    await cache.write(0, bytes);
+    await cache.initializeWithFileSize(bytes.length, truncateExistingContent: false);
+    final actual = Uint8List(bytes.length);
+    await cache.read(actual, 0, 0, actual.length);
+    expect(actual, bytes);
+    await cache.setCached(0, lastBlock: cache.totalBlocks - 1);
+    await cache.close();
+    final reopened = await PdfFileCache.fromFile(cache.file);
+    addTearDown(reopened.close);
+    expect(reopened.isFullyCached, isTrue);
+    final restored = Uint8List(bytes.length);
+    await reopened.read(restored, 0, 0, restored.length);
+    expect(restored, bytes);
+  });
+
+  test('a full download releases its cache file after document disposal', () async {
+    final dir = await Directory.systemTemp.createTemp('pdfrx-cache-close-');
+    final oldClient = Pdfrx.createHttpClient;
+    final cache = PdfFileCache(File('${dir.path}/cache.pdf'));
+    addTearDown(() async {
+      Pdfrx.createHttpClient = oldClient;
+      await cache.close();
+      if (await dir.exists()) await dir.delete(recursive: true);
+    });
+    final bytes = await testPdfFile.readAsBytes();
+    Pdfrx.createHttpClient = () => MockClient.streaming((request, body) async {
+      return http.StreamedResponse(Stream.value(bytes), 200);
+    });
+    final document = await pdfDocumentFromUri(Uri.parse('https://example.com/close.pdf'), cache: cache, blockSize: 64);
+    await document.dispose();
+    await dir.delete(recursive: true);
   });
 
   group('PdfDocument.openCustom with maxSizeToCacheOnMemory=0', () {
