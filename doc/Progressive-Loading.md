@@ -101,6 +101,8 @@ Native page measurement is split into short worker tasks, including when progres
 
 A measurement budget is cooperative: one expensive PDFium page load can exceed it. Progressive loading does not by itself guarantee lower network traffic; HTTP range support and the document's structure also affect downloading.
 
+For native PDFium, `PdfViewer.uri` and `PdfDocument.openUri` default to `preferRangeAccess: false`. Set it to `true` to request byte ranges when the server supports them. If the server responds with the whole file instead, pdfrx downloads it into its file cache, including when the response has no `Content-Length`. Allow for the time and disk space needed for the entire PDF. Web and CoreGraphics use their respective backend loading paths.
+
 Measured metadata is distinct from cached page images. `maxImageBytesCachedOnMemory` controls the viewer's image cache, while `limitRenderingCache` sets a PDFium rendering flag. Engine callers should dispose rendered images and the document when finished.
 
 ### Sharing an Image Budget

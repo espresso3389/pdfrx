@@ -1,3 +1,10 @@
+# 2.12.0
+
+- Added a starting page and custom `Pattern` support to text search. Searches wrap around the document while keeping results sorted by page ([#789](https://github.com/espresso3389/pdfrx/pull/789)).
+- Improved search indexing for documents with matches on many pages ([#793](https://github.com/espresso3389/pdfrx/pull/793)).
+- Fixed a Web error when a document is disposed while pages are loading ([#792](https://github.com/espresso3389/pdfrx/pull/792)).
+- Updated to `pdfrx_engine` 0.9.1 for fixes to text selection and URI loading ([#790](https://github.com/espresso3389/pdfrx/issues/790), [#778](https://github.com/espresso3389/pdfrx/issues/778)).
+
 # 2.11.0
 
 - Added `PdfPage.renderForDisplay` and improved Web page rendering performance ([#787](https://github.com/espresso3389/pdfrx/pull/787)).

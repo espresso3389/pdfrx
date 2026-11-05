@@ -1,3 +1,8 @@
+# 0.9.1
+
+- Fixed an error when a text selection spans a page with no text fragments ([#790](https://github.com/espresso3389/pdfrx/issues/790)).
+- Fixed native URI loading for large PDFs served without a `Content-Length` header, and released the download cache file after a full download ([#778](https://github.com/espresso3389/pdfrx/issues/778)).
+
 # 0.9.0
 
 - Fixed a process-wide PDFium gate deadlock when concurrent workers stop ([#788](https://github.com/espresso3389/pdfrx/pull/788)).
