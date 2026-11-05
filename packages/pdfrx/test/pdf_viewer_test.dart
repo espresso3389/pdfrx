@@ -1195,9 +1195,17 @@ void main() {
       await _scrollViewportTopTo(controller, top);
       await _pumpPaintWork(tester);
     }
-    expect(pages[1].renderControl.previewSizes, hasLength(previews[1]));
-    expect(pages[2].renderControl.previewSizes, hasLength(previews[2] + 1));
-    expect(pages[2].renderControl.previewSizes.last, const Size(1666, 2222));
+    final main = pages[1].renderControl;
+    expect(main.previewPriorities.skip(previews[1]), isNot(contains(PdfPageRenderPriority.high)));
+    expect(main.previewSizes.skip(previews[1]), everyElement(const Size(1666, 2222)));
+    final next = pages[2].renderControl;
+    expect(
+      next.previewPriorities.skip(previews[2]).first,
+      PdfPageRenderPriority.low,
+      reason: 'prefetched before it shows',
+    );
+    expect(next.previewSizes.skip(previews[2]), hasLength(lessThanOrEqualTo(2)));
+    expect(next.previewSizes.last, const Size(1666, 2222));
     expect([for (final page in pages) page.renderControl.partialSizes.length], partials);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 100));
@@ -1229,6 +1237,38 @@ void main() {
         hasLength(1),
         reason: 'page $pageNumber was rendered once and kept while it stayed in the cache extent',
       );
+    }
+    expect(budget.peakEstimatedBytes, lessThanOrEqualTo(budget.maximumBytes));
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
+  testWidgets('both neighbors inside the cache extent get a preview after a jump', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final document = _scannedDocument(12);
+    addTearDown(document.dispose);
+    final pages = document.pages.cast<_TestPage>().toList();
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(home: _scannedBookViewer(document, controller, budget, verticalCacheExtent: 2)),
+    );
+    await _pumpFrames(tester);
+    for (final pageNumber in [8, 5, 10, 2]) {
+      final before = [for (final page in pages) page.renderControl.previewSizes.length];
+      await _goToPageTop(controller, pageNumber);
+      await _pumpFrames(tester);
+      for (final neighbor in [pageNumber - 1, pageNumber + 1]) {
+        expect(
+          pages[neighbor - 1].renderControl.previewSizes.length,
+          greaterThan(before[neighbor - 1]),
+          reason: 'page $neighbor beside page $pageNumber',
+        );
+      }
     }
     expect(budget.peakEstimatedBytes, lessThanOrEqualTo(budget.maximumBytes));
     await tester.pumpWidget(const SizedBox.shrink());
