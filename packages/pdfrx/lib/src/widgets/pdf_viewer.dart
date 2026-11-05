@@ -2014,8 +2014,10 @@ class _PdfViewerState extends State<PdfViewer>
         if (!cache.visiblePageNumbers.contains(pageNumber)) cache.cancelPendingRenderings(pageNumber);
       }
     }
+    // Once a request waits for pageImageCachingDelay, later offscreen ones wait too, so they keep their order.
+    var deferred = false;
     for (final request in previewRequests) {
-      _requestPagePreviewImageCached(cache, request.page, request.scale);
+      deferred = _requestPagePreviewImageCached(cache, request.page, request.scale, defer: deferred) || deferred;
     }
 
     // Once per paint, after the loop: inside it the list was still growing and the cache was trimmed once per page.
@@ -2335,24 +2337,27 @@ class _PdfViewerState extends State<PdfViewer>
     return true;
   }
 
-  Future<void> _requestPagePreviewImageCached(_PdfPageImageCache cache, PdfPage page, double scale) async {
-    if (!widget.params.isVisible) return;
+  /// Returns whether the request waits for pageImageCachingDelay.
+  bool _requestPagePreviewImageCached(_PdfPageImageCache cache, PdfPage page, double scale, {bool defer = false}) {
+    if (!widget.params.isVisible) return false;
     final width = page.width * scale;
     final height = page.height * scale;
-    if (width < 1 || height < 1) return;
+    if (width < 1 || height < 1) return false;
 
     // if this is the first time to render the page, render it immediately
-    if (!cache.pageImages.containsKey(page.pageNumber)) {
+    if (!cache.pageImages.containsKey(page.pageNumber) &&
+        (!defer || cache.visiblePageNumbers.contains(page.pageNumber))) {
       _cachePagePreviewImage(cache, page, width, height, scale);
-      return;
+      return false;
     }
 
     cache.pageImageRenderingTimers[page.pageNumber]?.cancel();
-    if (!mounted || !widget.params.isVisible) return;
+    if (!mounted || !widget.params.isVisible) return false;
     cache.pageImageRenderingTimers[page.pageNumber] = Timer(
       widget.params.behaviorControlParams.pageImageCachingDelay,
       () => _cachePagePreviewImage(cache, page, width, height, scale),
     );
+    return true;
   }
 
   Future<void> _cachePagePreviewImage(

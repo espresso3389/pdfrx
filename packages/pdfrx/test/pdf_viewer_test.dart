@@ -1500,6 +1500,39 @@ void main() {
     expect(budget.estimatedBytes, 0);
   });
 
+  testWidgets('freed room goes to the page ahead even when the page behind has no preview yet', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final document = _scannedDocument(12);
+    addTearDown(document.dispose);
+    final pages = document.pages.cast<_TestPage>().toList();
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(home: _scannedBookViewer(document, controller, budget, verticalCacheExtent: 2)),
+    );
+    await _pumpFrames(tester);
+    final full = pages[2].renderControl.previewSizes.last;
+    final hold =
+        budget.maximumBytes - (full.width * full.height * 8).toInt() - (full.width * full.height * 12 * 0.6).toInt();
+    final pinned = budget
+        .tryReserve(hold, allowOverBudget: true)!
+        .commit(retainedBytes: hold, isPinned: true, onEvict: () {})!;
+    await _goToPageTop(controller, 6);
+    await _pumpFrames(tester);
+    final ahead = pages[6].renderControl;
+    expect(ahead.previewSizes.single.width, lessThan(full.width * 0.9), reason: 'setup: page 7 got a shrunk prefetch');
+    expect(pages[4].renderControl.previewSizes, isEmpty, reason: 'setup: page 5 behind has no preview');
+    pinned.dispose();
+    await _pumpFrames(tester);
+    expect(ahead.previewSizes.last.width, greaterThan(full.width * 0.98), reason: 'page 7 is ahead of the reader');
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));
