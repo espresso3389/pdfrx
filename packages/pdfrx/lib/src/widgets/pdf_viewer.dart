@@ -2051,6 +2051,12 @@ class _PdfViewerState extends State<PdfViewer>
   /// Last logged extent/unmeasured/white tuple, to keep the trace to changes.
   String? _lastExtentSignature;
 
+  /// Bytes reserved by this viewer's prefetches that are still rendering.
+  int _prefetchPendingBytes = 0;
+
+  /// Visible work may exceed the budget unless other visible work already does; a prefetch never holds it back.
+  bool get _onlyPrefetchesPending => _imageBudget.pendingBytes <= _prefetchPendingBytes;
+
   /// The last movement of the viewport, so that prefetch serves the pages ahead of the reader first.
   Offset _readingDirection = Offset.zero;
   Offset? _lastPaintedCenter;
@@ -2397,10 +2403,11 @@ class _PdfViewerState extends State<PdfViewer>
         }
         final reservation = _imageBudget.tryReserve(
           bytes,
-          allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _imageBudget.pendingBytes == 0,
+          allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _onlyPrefetchesPending,
           keepNeeded: priority == PdfPageRenderPriority.low,
         );
         if (reservation == null) return;
+        if (priority == PdfPageRenderPriority.low) _prefetchPendingBytes += reservation.bytes;
         ui.Image? rendered;
         try {
           rendered = await page.renderForDisplay(
@@ -2456,6 +2463,7 @@ class _PdfViewerState extends State<PdfViewer>
         } finally {
           rendered?.dispose();
           reservation.dispose();
+          if (priority == PdfPageRenderPriority.low) _prefetchPendingBytes -= reservation.bytes;
         }
       });
     } finally {
@@ -2540,7 +2548,7 @@ class _PdfViewerState extends State<PdfViewer>
     ui.Image? rendered;
     final reservation = _imageBudget.tryReserve(
       width * height * 12,
-      allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _imageBudget.pendingBytes == 0,
+      allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _onlyPrefetchesPending,
     );
     if (reservation == null) return null;
     try {

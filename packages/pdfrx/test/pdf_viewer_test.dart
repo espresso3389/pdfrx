@@ -1340,6 +1340,57 @@ void main() {
     expect(budget.estimatedBytes, 0);
   });
 
+  testWidgets('a slow prefetch does not hold back the visible page', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900) * 2;
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final document = _scannedDocument(12);
+    addTearDown(document.dispose);
+    final pages = document.pages.cast<_TestPage>().toList();
+    for (final page in pages) {
+      page.renderControl.renderDuration = const Duration(milliseconds: 60);
+    }
+    final controller = PdfViewerController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: _scannedBookViewer(
+          document,
+          controller,
+          budget,
+          verticalCacheExtent: 2,
+          behaviorControlParams: const PdfViewerBehaviorControlParams(
+            partialImageLoadingDelay: Duration(milliseconds: 50),
+          ),
+        ),
+      ),
+    );
+    await _pumpFrames(tester);
+    final slow = pages[8].renderControl..block();
+    var released = false;
+    try {
+      await _goToPageTop(controller, 8);
+      await _pumpFrames(tester, frames: 12);
+      expect(slow.started, isTrue, reason: 'page 9 is being prefetched');
+      expect(pages[7].renderControl.partialsDone, 1, reason: 'the visible partial does not wait for the prefetch');
+
+      await _goToPageTop(controller, 10);
+      await _pumpFrames(tester, frames: 12);
+      expect(pages[9].renderControl.previewsDone, 1, reason: 'the visible preview does not wait for the prefetch');
+      slow.release();
+      released = true;
+      await _pumpFrames(tester);
+      expect(budget.estimatedBytes, lessThanOrEqualTo(budget.maximumBytes));
+    } finally {
+      if (!released) slow.release();
+    }
+    await _pumpFrames(tester);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(budget.estimatedBytes, 0);
+  });
+
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));
