@@ -138,10 +138,4 @@ Follows standard Dart package versioning practices.
 
 ### pdfrx
 
-Intentionally does NOT specify version constraints for core Flutter-managed packages (collection, ffi, http, path, rxdart). This allows:
-
-- Flutter SDK to manage dependencies based on user's Flutter version
-- Broader compatibility across different Flutter stable versions
-- Avoiding version conflicts for users on older Flutter stable releases
-
-Warnings about missing version constraints during `flutter pub publish` can be safely ignored.
+Keep shared dependency constraints compatible with `pdfrx_engine` and the supported Flutter SDK. For dependencies used by both packages, align their constraints unless a documented compatibility reason requires otherwise. Avoid narrowing the supported Flutter dependency graph solely to silence publishing warnings.

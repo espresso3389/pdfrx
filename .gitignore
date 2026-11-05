@@ -47,6 +47,12 @@ pubspec_overrides.yaml
 **/ios/**/*.xcodeproj/project.pbxproj
 **/macos/**/*.xcodeproj/project.pbxproj
 
+# These example project files are tracked.
+!packages/pdfrx/example/viewer/ios/Podfile.lock
+!packages/pdfrx/example/viewer/ios/Runner.xcodeproj/project.pbxproj
+!packages/pdfrx/example/viewer/macos/Podfile.lock
+!packages/pdfrx/example/viewer/macos/Runner.xcodeproj/project.pbxproj
+
 build/ios/
 
 .flutter-plugins-dependencies
