@@ -1210,7 +1210,8 @@ void main() {
       reason: 'prefetched before it shows',
     );
     expect(next.previewSizes.skip(previews[2]), hasLength(lessThanOrEqualTo(2)));
-    expect(next.previewSizes.last, const Size(1666, 2222));
+    // At least as sharp as the screen, so neither a re-render nor a partial is needed.
+    expect(next.previewSizes.last.width / 600, greaterThanOrEqualTo(controller.currentZoom * 1.25));
     expect([for (final page in pages) page.renderControl.partialSizes.length], partials);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 100));
@@ -1683,6 +1684,89 @@ void main() {
     expect(afterStep.first, 12, reason: 'order ${document.renderOrder}');
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('two panes on one budget render each page once while one pane scrolls', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final scrolling = _scannedDocument(70, sourceName: 'test:scrolling', width: 623, height: 838);
+    final still = _scannedDocument(70, sourceName: 'test:still', width: 623, height: 838);
+    addTearDown(scrolling.dispose);
+    addTearDown(still.dispose);
+    for (final page in [...scrolling.pages, ...still.pages].cast<_TestPage>()) {
+      page.renderControl.renderDuration = const Duration(milliseconds: 50);
+    }
+    final controller = PdfViewerController();
+    final stillController = PdfViewerController();
+    // Power-of-two previews of these pages need up to 4x the screen's pixels, so both panes cannot keep them all.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            Expanded(
+              child: _scannedBookViewer(scrolling, controller, budget, maxImageBytesCachedOnMemory: 24 * 1024 * 1024),
+            ),
+            Expanded(
+              child: _scannedBookViewer(
+                still,
+                stillController,
+                budget,
+                initialPageNumber: 60,
+                maxImageBytesCachedOnMemory: 24 * 1024 * 1024,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    Future<void> frames(int count) async {
+      for (var i = 0; i < count; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 1)));
+      }
+    }
+
+    await frames(60);
+    await _goToPageTop(stillController, 60);
+    await _goToPageTop(controller, 3);
+    await frames(60);
+    List<int> counts(_TestDocument document) => [
+      for (final page in document.pages.cast<_TestPage>()) page.renderControl.previewSizes.length,
+    ];
+    final scrollingBefore = counts(scrolling);
+    final stillBefore = counts(still);
+    final zoom = controller.currentZoom;
+    var blankFrames = 0;
+    for (var step = 0; step < 8; step++) {
+      final from = controller.layout.pageLayouts[2 + step].top - 4;
+      final to = controller.layout.pageLayouts[3 + step].top - 4;
+      for (var f = 1; f <= 18; f++) {
+        final top = from + (to - from) * f / 18;
+        final center = Offset(controller.documentSize.width / 2, top + controller.viewSize.height / zoom / 2);
+        await controller.goTo(controller.calcMatrixFor(center, zoom: zoom), duration: Duration.zero);
+        await frames(1);
+        for (final (i, rect) in controller.layout.pageLayouts.indexed) {
+          final shown = (scrolling.pages[i] as _TestPage).renderControl.previewsDone > 0;
+          if (rect.overlaps(controller.visibleRect) && !shown) blankFrames++;
+        }
+      }
+      await frames(62);
+    }
+    final scrollingRenders = [for (final (i, n) in counts(scrolling).indexed) n - scrollingBefore[i]];
+    final stillRenders = [for (final (i, n) in counts(still).indexed) n - stillBefore[i]];
+    expect(
+      scrollingRenders,
+      everyElement(lessThanOrEqualTo(1)),
+      reason: 'scrolling pane ${scrollingRenders.sublist(0, 14)}',
+    );
+    expect(stillRenders, everyElement(0), reason: 'still pane ${stillRenders.sublist(57, 63)}');
+    expect(blankFrames, 0);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(budget.estimatedBytes, 0);
   });
 
   testWidgets('viewer retries when an external image reservation releases capacity', (tester) async {
@@ -3029,11 +3113,16 @@ Widget _budgetedViewer(
 );
 
 // Scanned-book pages whose preview fills the 48 MiB rendering limit almost exactly.
-_TestDocument _scannedDocument(int pageCount, {String sourceName = 'test:scan'}) {
+_TestDocument _scannedDocument(
+  int pageCount, {
+  String sourceName = 'test:scan',
+  double width = 600,
+  double height = 900,
+}) {
   final document = _TestDocument(pageCount, sourceName: sourceName);
   document.pages = [
     for (var i = 0; i < pageCount; i++)
-      _TestPage(document, i + 1, isLoaded: true, height: 900.0 + (i * 7) % 11)
+      _TestPage(document, i + 1, isLoaded: true, width: width, height: height + (i * 7) % 11)
         ..renderControl.renderAtRequestedSize = true,
   ];
   return document;
@@ -3045,13 +3134,15 @@ Widget _scannedBookViewer(
   PdfImageCacheBudget budget, {
   PdfViewerBehaviorControlParams behaviorControlParams = const PdfViewerBehaviorControlParams(),
   double verticalCacheExtent = 1,
+  int initialPageNumber = 3,
+  int maxImageBytesCachedOnMemory = 48 * 1024 * 1024,
 }) => PdfViewer(
   PdfDocumentRefDirect(document, autoDispose: false),
   controller: controller,
-  initialPageNumber: 3,
+  initialPageNumber: initialPageNumber,
   params: PdfViewerParams(
     imageCacheBudget: budget,
-    maxImageBytesCachedOnMemory: 48 * 1024 * 1024,
+    maxImageBytesCachedOnMemory: maxImageBytesCachedOnMemory,
     horizontalCacheExtent: 0,
     verticalCacheExtent: verticalCacheExtent,
     pageAnchor: PdfPageAnchor.top,
@@ -3266,6 +3357,7 @@ class _TestPage implements PdfPage {
     this.pageNumber, {
     required this.isLoaded,
     this.height = 800,
+    this.width = 600,
     _TestPageRenderControl? renderControl,
   }) : renderControl = renderControl ?? _TestPageRenderControl();
 
@@ -3282,7 +3374,7 @@ class _TestPage implements PdfPage {
   List<PdfLink> links = const [];
 
   @override
-  double get width => 600;
+  final double width;
 
   @override
   final double height;

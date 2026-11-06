@@ -1950,10 +1950,14 @@ class _PdfViewerState extends State<PdfViewer>
         );
       }
 
-      // A preview sharpened while fewer pages were visible stays while a neighbor scrolls in.
+      final pageScale = page.width > 0 && page.height > 0
+          ? scale * max(rect.width / page.width, rect.height / page.height)
+          : 0.0;
+      // A preview is kept while it is at least as sharp as the screen needs, or was sharpened while fewer pages
+      // were visible; a smaller one that fitted the budget is not re-rendered just to reach the wanted scale.
       final previewImageScale = previewImage?.scale ?? 0;
       final shownPreviewScale =
-          previewImageScale > previewScaleLimit &&
+          (previewImageScale > previewScaleLimit || previewImageScale >= pageScale) &&
               previewImageScale <=
                   _boundedRenderingScale(previewScale, page.width, page.height, sharedArea: page.width * page.height)
           ? previewImageScale
@@ -1962,10 +1966,6 @@ class _PdfViewerState extends State<PdfViewer>
           (previewImage == null || previewImage.isDirty || previewImage.scale != shownPreviewScale)) {
         previewRequests.add((page: page, scale: previewScaleLimit, rect: rect));
       }
-
-      final pageScale = page.width > 0 && page.height > 0
-          ? scale * max(rect.width / page.width, rect.height / page.height)
-          : 0.0;
       if (!enableLowResolutionPagePreview || pageScale > shownPreviewScale) {
         // `scale` (not `pageScale`) converts document units to physical pixels.
         // `pageScale` additionally carries the layout-to-page-size ratio, which
