@@ -16,7 +16,7 @@ import 'pdf_viewer_params.dart' show PdfViewerParams;
 /// to keep search results independent of the bounded structured-text cache.
 class PdfTextSearcher extends _PdfTextSearcherBase<PdfPageTextRange> {
   /// Creates a new instance of [PdfTextSearcher].
-  PdfTextSearcher(super.controller, {super.notificationInterval});
+  PdfTextSearcher(super.controller, {super.notificationInterval, super.onNavigateToMatch});
 
   @override
   PdfPageTextRange _createMatch(PdfPageTextRange range) => range;
@@ -37,7 +37,7 @@ class PdfTextSearcher extends _PdfTextSearcherBase<PdfPageTextRange> {
 /// Use [loadText] only when full page text or selection geometry is needed.
 class PdfTextSearchSession extends _PdfTextSearcherBase<PdfTextSearchResult> {
   /// Creates a lightweight search session with bounded context for each match.
-  PdfTextSearchSession(super.controller, {this.contextLength = 80, super.notificationInterval})
+  PdfTextSearchSession(super.controller, {this.contextLength = 80, super.notificationInterval, super.onNavigateToMatch})
     : assert(contextLength >= 0);
 
   /// Maximum context characters retained on each side of a match.
@@ -58,7 +58,11 @@ class PdfTextSearchSession extends _PdfTextSearcherBase<PdfTextSearchResult> {
 }
 
 abstract class _PdfTextSearcherBase<T> extends Listenable {
-  _PdfTextSearcherBase(this._controller, {this.notificationInterval = const Duration(milliseconds: 100)}) {
+  _PdfTextSearcherBase(
+    this._controller, {
+    this.notificationInterval = const Duration(milliseconds: 100),
+    this.onNavigateToMatch,
+  }) {
     _registerForDocumentChanges();
   }
 
@@ -71,6 +75,9 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   /// Minimum interval between progress notifications, excluding first and final results.
   final Duration notificationInterval;
+
+  /// Optional match navigation, replacing ensureVisible while preserving selection state.
+  final Future<void> Function(PdfViewerController controller, T match)? onNavigateToMatch;
 
   /// The [PdfViewerController] to use.
   PdfViewerController? get controller => _controller.isReady ? _controller : null;
@@ -472,13 +479,25 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   }
 
   Future<void> _navigateToMatch(T match) async {
+    final navigationSession = _searchSession;
+    final controller = this.controller;
     _currentMatch = match;
-    await controller?.ensureVisible(
-      controller!.calcRectForRectInsidePage(pageNumber: _pageNumberOf(match), rect: _boundsOf(match)),
-      margin: 50,
-    );
-    controller?.setCurrentPageNumber(_pageNumberOf(match));
-    controller?.invalidate();
+    if (controller != null) {
+      final navigate = onNavigateToMatch;
+      if (navigate != null) {
+        await navigate(controller, match);
+      } else {
+        await controller.ensureVisible(
+          controller.calcRectForRectInsidePage(pageNumber: _pageNumberOf(match), rect: _boundsOf(match)),
+          margin: 50,
+        );
+      }
+    }
+    if (_disposed || navigationSession != _searchSession || !identical(_currentMatch, match)) {
+      return;
+    }
+    this.controller?.setCurrentPageNumber(_pageNumberOf(match));
+    this.controller?.invalidate();
     notifyListeners();
   }
 
