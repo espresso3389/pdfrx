@@ -126,6 +126,34 @@ void main() {
     await testDocument(await PdfDocument.openData(data, maxSizeToCacheOnMemory: 0));
   });
 
+  group('openCustom (on-demand) treats a failed or short read as an error', () {
+    // Each read fills the whole buffer, so the document opens only if the reported failure is ignored.
+    Future<PdfDocument> openReporting(int Function(int size) result) async {
+      final data = await testPdfFile.readAsBytes();
+      return PdfDocument.openCustom(
+        read: (buffer, position, size) {
+          buffer.setRange(0, size, data, position);
+          return result(size);
+        },
+        fileSize: data.length,
+        sourceName: 'custom-read-failure',
+        maxSizeToCacheOnMemory: 0,
+      );
+    }
+
+    test('read throws', () async {
+      await expectLater(openReporting((size) => throw StateError('read failed')), throwsA(isA<PdfException>()));
+    });
+
+    test('read returns -1', () async {
+      await expectLater(openReporting((size) => -1), throwsA(isA<PdfException>()));
+    });
+
+    test('read returns fewer bytes than requested', () async {
+      await expectLater(openReporting((size) => size - 1), throwsA(isA<PdfException>()));
+    });
+  });
+
   group('open failures report the PDFium error code', () {
     // PDFium keeps FPDF_GetLastError in thread-local storage; the code must read it on the worker isolate that
     // performed the load. If it is read on the caller isolate instead, a non-PDF file used to be mistaken for a
