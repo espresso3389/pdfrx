@@ -503,8 +503,10 @@ class PdfDocumentListenable extends Listenable {
   }
 
   void notifyListeners() {
-    for (final listener in _listeners) {
-      listener();
+    // Listeners may detach themselves (or other listeners) while the document
+    // load completes. Iterate a snapshot and skip callbacks since removed.
+    for (final listener in _listeners.toList()) {
+      if (_listeners.contains(listener)) listener();
     }
   }
 

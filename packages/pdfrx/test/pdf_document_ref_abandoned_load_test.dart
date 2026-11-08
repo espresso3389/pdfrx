@@ -51,4 +51,30 @@ void main() {
     listenable.removeListener(listener);
     expect(document.disposed, isTrue);
   });
+
+  test('document notification tolerates listeners removing others during dispatch', () {
+    final ref = PdfDocumentRefByLoader(
+      (_) async => _FakeDocument(),
+      key: PdfDocumentRefKey('notification-removal-test'),
+      autoDispose: false,
+    );
+    final listenable = ref.resolveListenable();
+    final called = <int>[];
+    late void Function() removeFirst;
+    late void Function() removeSecond;
+    removeFirst = listenable.addListener(() {
+      called.add(1);
+      removeFirst();
+      removeSecond();
+    });
+    removeSecond = listenable.addListener(() => called.add(2));
+    final removeThird = listenable.addListener(() => called.add(3));
+
+    listenable.notifyListeners();
+    expect(called, [1, 3]);
+    called.clear();
+    listenable.notifyListeners();
+    expect(called, [3]);
+    removeThird();
+  });
 }
