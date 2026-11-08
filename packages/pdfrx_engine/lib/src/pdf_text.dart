@@ -24,7 +24,7 @@ class PdfPageRawText {
   }
 
   @override
-  int get hashCode => fullText.hashCode ^ charRects.hashCode;
+  int get hashCode => Object.hash(fullText, charRects.length);
 }
 
 /// Handles text extraction from PDF page.
@@ -148,7 +148,7 @@ class PdfPageText {
   }
 
   @override
-  int get hashCode => pageNumber.hashCode ^ fullText.hashCode ^ charRects.hashCode ^ fragments.hashCode;
+  int get hashCode => Object.hash(pageNumber, fullText, charRects.length, fragments.length);
 }
 
 /// Text direction in PDF page.
