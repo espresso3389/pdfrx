@@ -152,6 +152,25 @@ class _WordPattern implements Pattern {
 }
 
 void main() {
+  test('navigating before any match is found leaves the current index unset', () async {
+    final searcher = _GatedSearcher(_FakeController(_FakeDocument(1)), {1: 'word'});
+    addTearDown(searcher.dispose);
+    final gate = searcher.gates[1] = Completer<void>();
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+
+    expect(await searcher.goToPrevMatch(), -1);
+    expect(await searcher.goToNextMatch(), -1);
+    expect(searcher.currentIndex, isNull);
+
+    gate.complete();
+    await pumpEventQueue();
+    expect(searcher.matches, hasLength(1));
+    expect(searcher.hasMatches, isFalse);
+    expect(await searcher.goToNextMatch(), 0);
+    expect(searcher.currentIndex, 0);
+  });
+
   testWidgets('inactive search queues only the latest query and does not run a debounce timer', (tester) async {
     final document = _FakeDocument(1, texts: {1: 'alpha beta beta'});
     final searcher = PdfTextSearchSession(_FakeController(document))..isActive = false;
