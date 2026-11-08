@@ -528,15 +528,26 @@ Future<_DownloadResult> _downloadBlock(
     await cache.invalidateCache();
   }
 
-  final contentRange = response.headers['content-range'];
-  var isFullDownload = false;
-  if (contentRange != null) {
-    final m = RegExp(r'bytes (\d+)-(\d+)/(\d+)').firstMatch(contentRange);
-    fileSize = int.parse(m!.group(3)!);
-  } else {
-    // The server does not support range request and returns the whole file.
+  final isFullDownload = response.statusCode == 200;
+  if (isFullDownload) {
+    // The server does not support range request and returns the whole file, which starts at byte 0.
+    if (blockOffset != 0) {
+      throw const PdfException('Server ignored the byte-range request for a later block');
+    }
     fileSize = response.contentLength;
-    isFullDownload = true;
+  } else {
+    final contentRange = response.headers['content-range'];
+    final m = contentRange == null ? null : RegExp(r'^bytes (\d+)-(\d+)/(\d+)$').firstMatch(contentRange.trim());
+    if (m == null) {
+      throw PdfException('Invalid Content-Range: $contentRange');
+    }
+    fileSize = int.parse(m.group(3)!);
+    // Bytes written at the wrong offset would be served from the cache as if they were valid.
+    if (int.parse(m.group(1)!) != blockOffset ||
+        int.parse(m.group(2)!) != min(end, fileSize) - 1 ||
+        (cache.isInitialized && cache.fileSize != fileSize)) {
+      throw PdfException('Content-Range $contentRange does not match the requested bytes $blockOffset-${end - 1}');
+    }
   }
   if (!cache.isInitialized) {
     await cache.initializeWithFileSize(fileSize ?? 0, truncateExistingContent: true);
@@ -557,8 +568,8 @@ Future<_DownloadResult> _downloadBlock(
 
   if (isFullDownload) {
     if (fileSize != null) {
-      if (fileSize != cache.fileSize) {
-        throw PdfException('File size mismatch after full download: expected $fileSize, got ${cache.fileSize}');
+      if (fileSize != bytesThisRequest) {
+        throw PdfException('File size mismatch after full download: expected $fileSize, got $bytesThisRequest');
       }
     } else {
       fileSize = cachedBytesSoFar;
@@ -584,6 +595,10 @@ Future<_DownloadResult> _downloadBlock(
       if (blocksFilled > 0) {
         await cache.setCached(blockId, lastBlock: blockId + blocksFilled - 1);
       }
+      // The pending read must not consume the hole either.
+      throw PdfException(
+        'Short range response for block $blockId: expected $bytesExpected bytes, got $bytesThisRequest',
+      );
     } else {
       await cache.setCached(blockId, lastBlock: blockId + blockCount - 1);
     }
