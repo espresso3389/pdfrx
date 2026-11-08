@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
@@ -55,6 +56,116 @@ void main() {
 
     expect(response.statusCode, HttpStatus.notFound);
     expect(attempts, 1);
+  });
+
+  final direct = Uri.parse(
+    'https://github.com/bblanchon/pdfium-binaries/releases/download/'
+    'chromium%2F8125/pdfium-linux-x64.tgz',
+  );
+  final releaseApi = Uri.parse(
+    'https://api.github.com/repos/bblanchon/pdfium-binaries/releases/tags/'
+    'chromium%2F8125',
+  );
+  const assetApi =
+      'https://api.github.com/repos/bblanchon/pdfium-binaries/'
+      'releases/assets/123456789';
+
+  test('returns original PDFium binary without calling the API', () async {
+    final visited = <Uri>[];
+    final result = await getPdfiumArchiveWithApiFallback(
+      direct,
+      clientFactory: () async => MockClient((request) async {
+        visited.add(request.url);
+        return http.Response.bytes([0x1f, 0x8b, 1], HttpStatus.ok);
+      }),
+      retryDelays: [],
+    );
+    expect(result.statusCode, HttpStatus.ok);
+    expect(visited, [direct]);
+  });
+
+  test('recovers a 504 through the pinned GitHub release asset API', () async {
+    final visited = <Uri>[];
+    final result = await getPdfiumArchiveWithApiFallback(
+      direct,
+      clientFactory: () async => MockClient((request) async {
+        visited.add(request.url);
+        if (request.url == direct) {
+          return http.Response('gateway timeout', HttpStatus.gatewayTimeout);
+        }
+        if (request.url == releaseApi) {
+          expect(request.headers['accept'], 'application/vnd.github+json');
+          return http.Response(
+            jsonEncode({
+              'assets': [
+                {'name': 'unrelated.tgz', 'url': assetApi},
+                {'name': 'pdfium-linux-x64.tgz', 'url': assetApi},
+              ],
+            }),
+            HttpStatus.ok,
+          );
+        }
+        if (request.url.toString() == assetApi) {
+          expect(request.headers['accept'], 'application/octet-stream');
+          return http.Response.bytes([0x1f, 0x8b, 0, 7], HttpStatus.ok);
+        }
+        throw StateError('Unexpected API request ${request.url}');
+      }),
+      retryDelays: [],
+    );
+    expect(result.bodyBytes, [0x1f, 0x8b, 0, 7]);
+    expect(visited, [direct, releaseApi, Uri.parse(assetApi)]);
+  });
+
+  test('refuses an untrusted release asset URL', () async {
+    final visited = <Uri>[];
+    final result = await getPdfiumArchiveWithApiFallback(
+      direct,
+      clientFactory: () async => MockClient((request) async {
+        visited.add(request.url);
+        if (request.url == direct) {
+          return http.Response('gateway timeout', HttpStatus.gatewayTimeout);
+        }
+        return http.Response(
+          jsonEncode({
+            'assets': [
+              {
+                'name': 'pdfium-linux-x64.tgz',
+                'url': 'https://example.invalid/evil.tgz',
+              },
+            ],
+          }),
+          HttpStatus.ok,
+        );
+      }),
+      retryDelays: [],
+    );
+    expect(result.statusCode, HttpStatus.gatewayTimeout);
+    expect(visited, [direct, releaseApi]);
+  });
+
+  test('does not accept JSON instead of an archive', () async {
+    final result = await getPdfiumArchiveWithApiFallback(
+      direct,
+      clientFactory: () async => MockClient((request) async {
+        if (request.url == direct) {
+          return http.Response('gateway timeout', HttpStatus.gatewayTimeout);
+        }
+        if (request.url == releaseApi) {
+          return http.Response(
+            jsonEncode({
+              'assets': [
+                {'name': 'pdfium-linux-x64.tgz', 'url': assetApi},
+              ],
+            }),
+            HttpStatus.ok,
+          );
+        }
+        return http.Response('{"id":123456789}', HttpStatus.ok);
+      }),
+      retryDelays: [],
+    );
+    expect(result.statusCode, HttpStatus.gatewayTimeout);
   });
 
   test('parses Windows proxy strings from the API', () {
