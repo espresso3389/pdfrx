@@ -120,6 +120,20 @@ class _GatedSearcher extends PdfTextSearcher {
   }
 }
 
+class _FlakySearcher extends _GatedSearcher {
+  _FlakySearcher(super.controller, super.texts);
+
+  bool failFirstPage = true;
+
+  @override
+  Future<PdfPageText?> loadText({required int pageNumber}) {
+    if (pageNumber == 1 && failFirstPage) {
+      throw StateError('Transient text extraction failure');
+    }
+    return super.loadText(pageNumber: pageNumber);
+  }
+}
+
 class _NavigationSearcher extends _GatedSearcher {
   _NavigationSearcher(super.controller, super.texts);
 
@@ -152,6 +166,29 @@ class _WordPattern implements Pattern {
 }
 
 void main() {
+  test('failed page extraction stops safely and permits retry of the same query', () async {
+    final searcher = _FlakySearcher(_FakeController(_FakeDocument(2)), {1: 'word', 2: 'word'});
+    addTearDown(searcher.dispose);
+    var notified = 0;
+    searcher.addListener(() => notified++);
+
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    expect(searcher.isSearching, isFalse);
+    expect(searcher.searchError, isA<StateError>());
+    expect(searcher.searchingPageNumber, isNull);
+    expect(searcher.pattern, 'word');
+    expect(searcher.matches, isEmpty);
+    expect(notified, greaterThan(0));
+
+    searcher.failFirstPage = false;
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    expect(searcher.searchError, isNull);
+    expect(searcher.isSearching, isFalse);
+    expect(searcher.matches.map((m) => m.pageNumber), [1, 2]);
+  });
+
   testWidgets('inactive search queues only the latest query and does not run a debounce timer', (tester) async {
     final document = _FakeDocument(1, texts: {1: 'alpha beta beta'});
     final searcher = PdfTextSearchSession(_FakeController(document))..isActive = false;

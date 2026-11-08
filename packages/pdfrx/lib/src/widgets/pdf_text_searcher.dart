@@ -92,6 +92,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   int? _searchingPageNumber;
   int? _totalPageCount;
   bool _isSearching = false;
+  Object? _searchError;
   StreamSubscription<PdfDocumentEvent>? _documentEventSubscription;
   PdfDocument? _observedDocument;
   final _searchedPages = <int>{};
@@ -108,6 +109,9 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   /// Whether the search task is currently running or not
   bool get isSearching => _isSearching;
+
+  /// The error that stopped the last search, or null; re-issuing the same pattern then searches again.
+  Object? get searchError => _searchError;
 
   /// Whether searches may run. Inactive sessions retain results and queue the latest request.
   bool get isActive => _isActive;
@@ -188,7 +192,10 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _searchTextTimer?.cancel();
     _pendingSearchCondition = null;
     final last = _lastSearchCondition;
-    if (last != null && last.caseInsensitive == caseInsensitive && _isIdenticalPattern(last.pattern, pattern)) {
+    if (_searchError == null &&
+        last != null &&
+        last.caseInsensitive == caseInsensitive &&
+        _isIdenticalPattern(last.pattern, pattern)) {
       if (startPageNumber != null) {
         _nextPageNumber = startPageNumber;
         // A restart after a document change scans from the moved position too.
@@ -223,6 +230,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _pendingSearchCondition = null;
     _pausedSearchCondition = null;
     _lastSearchCondition = condition;
+    _searchError = null;
     if (!resume) {
       _matches = const [];
       _matchIndex = null;
@@ -237,7 +245,14 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
       _resetTextSearch();
       return;
     }
-    _startTextSearchInternal(condition, _searchSession, resume: resume);
+    final searchSession = _searchSession;
+    _startTextSearchInternal(condition, searchSession, resume: resume).catchError((Object error) {
+      if (_disposed || searchSession != _searchSession) return;
+      _searchError = error;
+      _isSearching = false;
+      _searchingPageNumber = null;
+      notifyListeners();
+    });
   }
 
   /// Reset the current search.
@@ -275,6 +290,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _currentIndex = null;
     _currentMatch = null;
     _isSearching = false;
+    _searchError = null;
     _lastSearchCondition = null;
     _pendingSearchCondition = null;
     _pausedSearchCondition = null;
