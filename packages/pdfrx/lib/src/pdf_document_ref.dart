@@ -77,10 +77,9 @@ abstract class PdfDocumentRef {
   /// [PdfDocument] is cached based on the [PdfDocumentRefKey]. If you create multiple [PdfDocumentRef]s with the same
   /// key, they share the same [PdfDocumentListenable] and thus the same [PdfDocument] instance.
   ///
-  /// By default, the key is created from the source name (for example, file path or URI) of the document. But it may
-  /// be insufficient to identify the document uniquely in some cases. For example, if the document is not only
-  /// identified by the URI but also by some HTTP headers (for example, authentication/authorization headers),
-  /// you should create a custom key that includes the headers as well.
+  /// By default, the key is created from the source name (for example, file path or URI) of the document.
+  /// [PdfDocumentRefUri] also separates request headers and credential mode. Custom reference implementations
+  /// should use a key that distinguishes sources with different content or access credentials.
   final PdfDocumentRefKey key;
 
   /// The name that identifies the source of the document.
@@ -145,6 +144,18 @@ class PdfDocumentRefAsset extends PdfDocumentRef {
   }
 }
 
+/// Builds a stable cache identity for a URL and its request authentication context.
+PdfDocumentRefKey _uriDocumentKey(Uri uri, Map<String, String>? headers, bool withCredentials) {
+  final normalizedHeaders = <String, String>{};
+  headers?.forEach((name, value) => normalizedHeaders[name.toLowerCase()] = value);
+  final names = normalizedHeaders.keys.toList()..sort();
+  return PdfDocumentRefKey(uri.toString(), [
+    'uri',
+    withCredentials,
+    for (final name in names) (name, normalizedHeaders[name]!),
+  ]);
+}
+
 /// A [PdfDocumentRef] that loads the document from network.
 class PdfDocumentRefUri extends PdfDocumentRef {
   PdfDocumentRefUri(
@@ -158,7 +169,7 @@ class PdfDocumentRefUri extends PdfDocumentRef {
     this.timeout,
     this.useProgressiveLoading = true,
     PdfDocumentRefKey? key,
-  }) : super(key: key ?? PdfDocumentRefKey(uri.toString()));
+  }) : super(key: key ?? _uriDocumentKey(uri, headers, withCredentials));
 
   /// The URI to load the document.
   final Uri uri;
