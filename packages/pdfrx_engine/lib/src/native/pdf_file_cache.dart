@@ -534,7 +534,9 @@ Future<_DownloadResult> _downloadBlock(
     if (blockOffset != 0) {
       throw const PdfException('Server ignored the byte-range request for a later block');
     }
-    fileSize = response.contentLength;
+    // IOClient decodes gzip but keeps the compressed Content-Length header.
+    // Derive the decoded size from the completed stream instead.
+    fileSize = response.headers['content-encoding']?.trim().toLowerCase() == 'gzip' ? null : response.contentLength;
   } else {
     final contentRange = response.headers['content-range'];
     final m = contentRange == null ? null : RegExp(r'^bytes (\d+)-(\d+)/(\d+)$').firstMatch(contentRange.trim());

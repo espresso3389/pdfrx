@@ -77,6 +77,72 @@ void main() {
   Future<void> open(({PdfFileCache cache, _ReadingBackend backend}) f) =>
       pdfDocumentFromUri(uri, cache: f.cache, blockSize: 4, entryFunctions: f.backend);
 
+  Future<({PdfFileCache cache, Uri uri})> httpFixture(
+    List<int> body, {
+    String? contentEncoding,
+    int? contentLength,
+    bool chunked = false,
+  }) async {
+    final directory = await Directory.systemTemp.createTemp('pdfrx-http-test-');
+    final cache = await PdfFileCache.fromFile(File(path.join(directory.path, 'book.cache')));
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      final socket = await request.response.detachSocket(writeHeaders: false);
+      socket.add(
+        ascii.encode(
+          [
+            'HTTP/1.1 200 OK',
+            if (chunked) 'Transfer-Encoding: chunked' else 'Content-Length: ${contentLength ?? body.length}',
+            if (contentEncoding != null) 'Content-Encoding: $contentEncoding',
+            'Connection: close',
+            '',
+            '',
+          ].join('\r\n'),
+        ),
+      );
+      if (chunked) socket.add(ascii.encode('${body.length.toRadixString(16)}\r\n'));
+      socket.add(body);
+      if (chunked) socket.add(ascii.encode('\r\n0\r\n\r\n'));
+      await socket.flush();
+      await socket.close();
+    });
+    addTearDown(() async {
+      await server.close(force: true);
+      await cache.close();
+      await directory.delete(recursive: true);
+    });
+    return (cache: cache, uri: Uri.parse('http://127.0.0.1:${server.port}/book.pdf'));
+  }
+
+  for (final encoding in [null, 'gzip']) {
+    for (final chunked in [false, true]) {
+      test('caches the decoded full HTTP body with encoding $encoding (chunked: $chunked)', () async {
+        final body = encoding == null ? content : gzip.encode(content);
+        final f = await httpFixture(body, contentEncoding: encoding, chunked: chunked);
+        await pdfDocumentFromUri(f.uri, cache: f.cache, entryFunctions: _ReadingBackend());
+        expect(f.cache.fileSize, content.length);
+        expect(f.cache.isFullyCached, isTrue);
+        final cached = Uint8List(content.length);
+        await f.cache.read(cached, 0, 0, cached.length);
+        expect(cached, content);
+      });
+    }
+
+    test('rejects a truncated full HTTP body with encoding $encoding', () async {
+      final body = encoding == null ? content : gzip.encode(content);
+      final f = await httpFixture(
+        body.sublist(0, body.length ~/ 2),
+        contentEncoding: encoding,
+        contentLength: body.length,
+      );
+      await expectLater(
+        pdfDocumentFromUri(f.uri, cache: f.cache, entryFunctions: _ReadingBackend()),
+        throwsA(anything),
+      );
+      expect(f.cache.isFullyCached, isFalse);
+    });
+  }
+
   test('reads adjacent ranges into the right cache blocks', () async {
     final seenRanges = <String?>[];
     final f = await fixture((range) async {
