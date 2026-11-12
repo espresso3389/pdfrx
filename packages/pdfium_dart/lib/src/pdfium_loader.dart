@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 
+import 'native_assets_manifest.dart';
 import 'pdfium_bindings.dart' as pdfium_bindings;
 
 const _isFlutter = bool.fromEnvironment('dart.library.ui');
@@ -24,6 +25,7 @@ bool get _isFlutterTest => Platform.environment.containsKey('FLUTTER_TEST');
 /// - If all above strategies fail, it falls back to loading the library from
 ///   the bundled native asset; `dart test`, `dart run`, and `dart compile`
 ///   ensure the asset is available through `.dart_tool/native_assets.yaml`.
+///   Flutter tests prefer their installed `build/native_assets/<os>/native_assets.json` manifest.
 pdfium_bindings.PDFium getPdfium({String? modulePath}) {
   try {
     return pdfium_bindings.PDFium(_getModule(modulePath: modulePath));
@@ -92,7 +94,7 @@ String _getModuleFileName() {
 }
 
 String _resolveNativeAssetPath(String assetId) {
-  final nativeAssetsFile = _findNativeAssetsFile();
+  final nativeAssetsFile = findNativeAssetsFile(flutterTest: _isFlutterTest);
   final contents = nativeAssetsFile
       .readAsLinesSync()
       .where((line) => !line.trimLeft().startsWith('#'))
@@ -105,20 +107,6 @@ String _resolveNativeAssetPath(String assetId) {
     return asset[1]! as String;
   }
   throw Exception('Asset not found in native assets file: $assetId');
-}
-
-File _findNativeAssetsFile() {
-  Directory directory = Directory.current;
-  while (true) {
-    final candidate = File('${directory.path}/.dart_tool/native_assets.yaml');
-    if (candidate.existsSync()) return candidate;
-
-    final parent = directory.parent;
-    if (parent.path == directory.path) {
-      throw Exception('Native assets file not found.');
-    }
-    directory = parent;
-  }
 }
 
 String _targetKey() {
