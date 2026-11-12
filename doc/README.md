@@ -20,6 +20,7 @@ Welcome to the pdfrx documentation! These guides describe the current repository
 - [PDF Link Handling](PDF-Link-Handling.md) - Handling links within PDFs
 - [Page Layout Customization](Page-Layout-Customization.md) - Customizing page layouts
 - [Zoom Gestures](Double-tap-to-Zoom.md) - Double-tap zoom, pinch sensitivity, and inertia limits
+- [Visible Page Rendering State](Visible-Page-Rendering-State.md) - Knowing when the pages on screen are fully rendered
 
 ### UI Customization
 
