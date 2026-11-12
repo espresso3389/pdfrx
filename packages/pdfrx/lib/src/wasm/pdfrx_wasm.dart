@@ -552,6 +552,7 @@ class _PdfDocumentWasm extends PdfDocument {
   Future<void> reloadPages({List<int>? pageNumbersToReload}) async {
     if (isDisposed) return;
     await synchronized(() async {
+      if (isDisposed) return;
       final pageIndices = pageNumbersToReload?.map((n) => n - 1).toList();
       final result = await _sendCommand(
         'reloadPages',

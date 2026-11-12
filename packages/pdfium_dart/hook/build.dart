@@ -130,7 +130,7 @@ final class _PdfiumTarget {
         archivePlatform: 'mac',
         archiveArch: arch,
         archiveLibraryPath: 'lib/libpdfium.dylib',
-        libraryFileName: 'libpdfium.dylib',
+        libraryFileName: 'libpdfium_dart.dylib',
       ),
       _ => throw UnsupportedError(
         'Unsupported PDFium platform: ${config.targetOS}',

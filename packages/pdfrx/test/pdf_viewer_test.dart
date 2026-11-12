@@ -2035,6 +2035,92 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     });
   }
+
+  testWidgets('tiny image placeholder is replaced before rendering a normal page', (tester) async {
+    final document = (await tester.runAsync(
+      () => PdfDocument.openData(_pdfWithTinyImageAndNormalPage(), useProgressiveLoading: true),
+    ))!;
+    addTearDown(document.dispose);
+    expect(document.pages.first.width, 8);
+    expect(document.pages[1].isLoaded, isFalse);
+    expect(document.pages[1].width, 8);
+    final placeholderImage = await tester.runAsync(() => document.pages[1].render());
+    expect(placeholderImage, isNotNull);
+    expect(placeholderImage!.width, 8);
+    expect(placeholderImage.height, 8);
+    placeholderImage.dispose();
+
+    final controller = PdfViewerController();
+    final observedSizes = <Size>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          controller: controller,
+          params: PdfViewerParams(
+            getPageRenderingScale: (context, page, controller, scale) {
+              if (page.pageNumber == 2 && page.isLoaded) observedSizes.add(Size(page.width, page.height));
+              return scale;
+            },
+            behaviorControlParams: const PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
+          ),
+        ),
+      ),
+    );
+    for (var i = 0; i < 100 && (observedSizes.isEmpty || !controller.isReady); i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+    }
+    expect(document.pages[1].isLoaded, isTrue);
+    expect(observedSizes, contains(const Size(612, 792)));
+    expect(controller.layout.pageLayouts[1].size, const Size(612, 792));
+    final measuredImage = await tester.runAsync(() => document.pages[1].render());
+    expect(measuredImage, isNotNull);
+    expect(measuredImage!.width, 612);
+    expect(measuredImage.height, 792);
+    expect(measuredImage.pixels.where((value) => value < 128), isNotEmpty);
+    measuredImage.dispose();
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _finishNativeDisposal(tester, document);
+  });
+
+  testWidgets('measurement cancels an in-flight preview made with placeholder dimensions', (tester) async {
+    final document = _TestDocument(
+      2,
+      loadAllOnProgressive: false,
+      firstPageSize: 8,
+      unloadedPageWidth: 8,
+      unloadedPageHeight: 8,
+    );
+    addTearDown(document.dispose);
+    document.reloadGate = Completer<void>();
+    final control = (document.pages[1] as _TestPage).renderControl
+      ..renderUnloaded = true
+      ..block();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document, autoDispose: false),
+          params: const PdfViewerParams(
+            behaviorControlParams: PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration(hours: 1)),
+          ),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    expect(control.renderSizes, isNotEmpty);
+    final oldToken = control.tokens.first;
+    document.loadPagesForTest([2]);
+    await tester.pump();
+    expect(oldToken.isCanceled, isTrue);
+    control.release();
+    document.reloadGate!.complete();
+    await _pumpPaintWork(tester);
+    expect(control.renderSizes.any((size) => size.width > 8 && size.height > 8), isTrue);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(hours: 1));
+  });
 }
 
 enum _TestDocumentEvent { loadComplete, missingFonts }
@@ -2071,11 +2157,19 @@ class _TestDocument extends PdfDocument {
     this.emitCompletionOnProgressive = true,
     this.loadAllOnProgressive = true,
     this.unloadedPageHeight = 800,
+    this.unloadedPageWidth = 600,
+    this.firstPageSize,
     super.sourceName = 'test:priority',
   }) {
     _pages = List.generate(
       pageCount,
-      (index) => _TestPage(this, index + 1, isLoaded: index == 0, height: index == 0 ? 800 : unloadedPageHeight),
+      (index) => _TestPage(
+        this,
+        index + 1,
+        isLoaded: index == 0,
+        width: index == 0 ? firstPageSize ?? 600 : unloadedPageWidth,
+        height: index == 0 ? firstPageSize ?? 800 : unloadedPageHeight,
+      ),
     );
   }
 
@@ -2085,6 +2179,9 @@ class _TestDocument extends PdfDocument {
   final bool emitCompletionOnProgressive;
   final bool loadAllOnProgressive;
   final double unloadedPageHeight;
+  final double unloadedPageWidth;
+  final double? firstPageSize;
+  Completer<void>? reloadGate;
   late List<PdfPage> _pages;
   final reloadRequests = <List<int>?>[];
   final renderOrder = <int>[];
@@ -2147,6 +2244,7 @@ class _TestDocument extends PdfDocument {
   @override
   Future<void> reloadPages({List<int>? pageNumbersToReload}) async {
     reloadRequests.add(pageNumbersToReload?.toList());
+    await reloadGate?.future;
     if (reloadError != null) throw reloadError!;
     final pageNumbers =
         pageNumbersToReload ?? [for (var pageNumber = 1; pageNumber <= _pages.length; pageNumber++) pageNumber];
@@ -2203,6 +2301,7 @@ class _TestPage implements PdfPage {
     this.document,
     this.pageNumber, {
     required this.isLoaded,
+    this.width = 600,
     this.height = 800,
     _TestPageRenderControl? renderControl,
   }) : renderControl = renderControl ?? _TestPageRenderControl();
@@ -2220,7 +2319,7 @@ class _TestPage implements PdfPage {
   List<PdfLink> links = const [];
 
   @override
-  double get width => 600;
+  final double width;
 
   @override
   final double height;
@@ -2260,7 +2359,7 @@ class _TestPage implements PdfPage {
     PdfPageRenderCancellationToken? cancellationToken,
     PdfPageRenderPriority? priority,
   }) async {
-    if (!isLoaded) return null;
+    if (!isLoaded && !renderControl.renderUnloaded) return null;
     (document as _TestDocument).renderOrder.add(pageNumber);
     renderControl.priorities.add(priority);
     renderControl.tokens.add(cancellationToken!);
@@ -2280,6 +2379,7 @@ class _TestPage implements PdfPage {
 }
 
 class _TestPageRenderControl {
+  bool renderUnloaded = false;
   final priorities = <PdfPageRenderPriority?>[];
   final tokens = <PdfPageRenderCancellationToken>[];
   final renderSizes = <Size>[];
@@ -2327,6 +2427,36 @@ Uint8List _pdfWithBrokenPages() {
         '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
       else
         '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 ${i == 0 ? 400 : 800}] >>',
+  ];
+  final buffer = StringBuffer('%PDF-1.4\n');
+  final offsets = <int>[];
+  for (var i = 0; i < objects.length; i++) {
+    offsets.add(buffer.length);
+    buffer.write('${i + 1} 0 obj\n${objects[i]}\nendobj\n');
+  }
+  final xref = buffer.length;
+  buffer.write('xref\n0 ${objects.length + 1}\n0000000000 65535 f \n');
+  for (final offset in offsets) {
+    buffer.write('${offset.toString().padLeft(10, '0')} 00000 n \n');
+  }
+  buffer.write('trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n$xref\n%%EOF\n');
+  return Uint8List.fromList(buffer.toString().codeUnits);
+}
+
+Uint8List _pdfWithTinyImageAndNormalPage() {
+  final image = List.generate(8 * 8 * 3, (i) => i.isEven ? '00' : 'ff').join();
+  const content = 'q 8 0 0 8 0 0 cm /Im0 Do Q';
+  const normalContent = 'BT /F1 16 Tf 72 700 Td (Normal PDF page) Tj ET';
+  final objects = <String>[
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 8 8] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 6 0 R >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 7 0 R >>',
+    '<< /Type /XObject /Subtype /Image /Width 8 /Height 8 /ColorSpace /DeviceRGB /BitsPerComponent 8 '
+        '/Filter /ASCIIHexDecode /Length ${image.length + 1} >>\nstream\n$image>\nendstream',
+    '<< /Length ${content.length} >>\nstream\n$content\nendstream',
+    '<< /Length ${normalContent.length} >>\nstream\n$normalContent\nendstream',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
   ];
   final buffer = StringBuffer('%PDF-1.4\n');
   final offsets = <int>[];

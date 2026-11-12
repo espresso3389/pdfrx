@@ -2,10 +2,14 @@
 library;
 
 import 'dart:convert';
+import 'dart:async';
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:synchronized/extension.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -23,6 +27,38 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     await doc.dispose();
     await expectLater(loading, completes);
+  });
+
+  test('a reload queued before disposal does not reach the worker', () async {
+    final doc = await PdfDocument.openData(_pdf(pageCount: 2));
+    final communicator = globalContext.getProperty<JSObject>('PdfiumWasmCommunicator'.toJS);
+    final original = communicator.getProperty<JSFunction>('sendCommand'.toJS);
+    var reloads = 0;
+    JSAny? sendCommand(JSString command, JSAny? parameters, JSAny? transfer) {
+      if (command.toDart == 'reloadPages') reloads++;
+      return original.callAsFunction(communicator, command, parameters, transfer);
+    }
+
+    communicator.setProperty('sendCommand'.toJS, sendCommand.toJS);
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    try {
+      final holding = doc.synchronized(() async {
+        entered.complete();
+        await release.future;
+      });
+      await entered.future;
+      final reload = doc.reloadPages();
+      await doc.dispose();
+      release.complete();
+      await holding;
+      await reload;
+      expect(reloads, 0);
+    } finally {
+      if (!release.isCompleted) release.complete();
+      communicator.setProperty('sendCommand'.toJS, original);
+      await doc.dispose();
+    }
   });
 }
 

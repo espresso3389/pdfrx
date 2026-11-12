@@ -709,8 +709,8 @@ class _PdfViewerState extends State<PdfViewer>
       _layoutDirty = true;
       // FIXME: We can handle the event more efficiently by only updating the affected pages.
       for (final change in event.changes.entries) {
-        _imageCache.cancelPendingPartialRendering(change.key);
-        _magnifierImageCache.cancelPendingPartialRendering(change.key);
+        _imageCache.cancelPendingRenderings(change.key);
+        _magnifierImageCache.cancelPendingRenderings(change.key);
         _imageCache.makeCacheImageForPageDirty(change.key, page: change.value.page);
         _magnifierImageCache.makeCacheImageForPageDirty(change.key, page: change.value.page);
         _canvasLinkPainter.releaseLinksForPage(change.key);
@@ -1841,10 +1841,8 @@ class _PdfViewerState extends State<PdfViewer>
       final page = _document!.pages[i];
       firstInExtent ??= page.pageNumber;
       lastInExtent = page.pageNumber;
-      // A page that has never been measured cannot render -- PdfPage.render
-      // returns null while isLoaded is false -- so collect it and measure it
-      // after this paint. Only reachable when loadPageDimensionsOnDemand is on;
-      // otherwise every page was measured at open time.
+      // Measure visible pages whose dimensions are still estimates. Some
+      // backends can render them before measurement, using those estimates.
       if (!page.isLoaded) {
         unmeasuredPageList.add(page.pageNumber);
       }

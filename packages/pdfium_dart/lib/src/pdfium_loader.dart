@@ -23,7 +23,7 @@ bool get _isFlutterTest => Platform.environment.containsKey('FLUTTER_TEST');
 /// - For other platforms, it tries to load the library from system paths using the standard file name.
 /// - If all above strategies fail, it falls back to loading the library from
 ///   the bundled native asset; `dart test`, `dart run`, and `dart compile`
-///   ensure the asset is available through `.dart_tool/native_assets.yaml`.
+///   provide a native assets manifest.
 pdfium_bindings.PDFium getPdfium({String? modulePath}) {
   try {
     return pdfium_bindings.PDFium(_getModule(modulePath: modulePath));
@@ -110,6 +110,12 @@ String _resolveNativeAssetPath(String assetId) {
 File _findNativeAssetsFile() {
   Directory directory = Directory.current;
   while (true) {
+    if (_isFlutterTest) {
+      final candidate = File(
+        '${directory.path}/build/native_assets/${Platform.operatingSystem}/native_assets.json',
+      );
+      if (candidate.existsSync()) return candidate;
+    }
     final candidate = File('${directory.path}/.dart_tool/native_assets.yaml');
     if (candidate.existsSync()) return candidate;
 
