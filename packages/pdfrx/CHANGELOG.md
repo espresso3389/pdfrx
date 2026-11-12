@@ -1,3 +1,9 @@
+# 2.12.1
+
+- Fixed a Web document disposal race during page reload ([#795](https://github.com/espresso3389/pdfrx/issues/795)).
+- Fixed stale page previews when progressive loading replaces estimated dimensions ([#817](https://github.com/espresso3389/pdfrx/issues/817)).
+- Updated PDFium packages to fix macOS framework collisions and Flutter test loading ([#814](https://github.com/espresso3389/pdfrx/issues/814), [#818](https://github.com/espresso3389/pdfrx/issues/818)).
+
 # 2.12.0
 
 - Added a starting page and custom `Pattern` support to text search. Searches wrap around the document while keeping results sorted by page ([#789](https://github.com/espresso3389/pdfrx/pull/789)).

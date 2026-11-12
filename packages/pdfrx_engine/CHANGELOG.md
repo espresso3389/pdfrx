@@ -1,3 +1,7 @@
+# 0.9.2
+
+- Updated to `pdfium_dart` 0.4.2 for macOS framework and Flutter test fixes ([#814](https://github.com/espresso3389/pdfrx/issues/814), [#818](https://github.com/espresso3389/pdfrx/issues/818)).
+
 # 0.9.1
 
 - Fixed an error when a text selection spans a page with no text fragments ([#790](https://github.com/espresso3389/pdfrx/issues/790)).

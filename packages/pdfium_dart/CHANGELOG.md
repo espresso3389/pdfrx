@@ -1,3 +1,8 @@
+# 0.4.2
+
+- Fixed macOS framework name collisions that could prevent hardened apps from launching ([#814](https://github.com/espresso3389/pdfrx/issues/814)).
+- Fixed PDFium loading in Flutter tests when an outdated native asset manifest is present ([#818](https://github.com/espresso3389/pdfrx/issues/818)).
+
 # 0.4.1
 
 - Updated the bundled PDFium binaries to chromium/8125.
