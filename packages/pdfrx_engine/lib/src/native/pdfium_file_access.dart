@@ -18,9 +18,10 @@ class PdfiumFileAccess {
     void readAndSignal(int position, Pointer<Uint8> buffer, int size) async {
       try {
         final readSize = await read(buffer.asTypedList(size), position, size);
-        PdfiumFileAccessHelper.instance.setValue(fa.fileAccess, readSize);
+        // m_GetBlock returns a success flag: any non-zero value (even -1) tells PDFium the whole buffer was filled.
+        PdfiumFileAccessHelper.instance.setValue(fa.fileAccess, readSize == size ? 1 : 0);
       } catch (e) {
-        PdfiumFileAccessHelper.instance.setValue(fa.fileAccess, -1);
+        PdfiumFileAccessHelper.instance.setValue(fa.fileAccess, 0);
       }
     }
 

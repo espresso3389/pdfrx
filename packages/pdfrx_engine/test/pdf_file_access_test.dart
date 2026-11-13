@@ -27,7 +27,7 @@ void main() {
     });
     try {
       final (result, bytes) = await BackgroundWorker.compute(_getBlock, fa.fileAccess);
-      expect(result, 16);
+      expect(result, 1);
       expect(bytes, List.generate(16, (i) => 32 + i));
     } finally {
       fa.dispose();
