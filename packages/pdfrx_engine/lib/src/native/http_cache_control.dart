@@ -91,7 +91,10 @@ class HttpCacheControlState {
 
   /// [maxAgeForNoStore] to convert `no-store` directive to `no-cache` with `maxAge`.
   static HttpCacheControlState fromHeaders(Map<String, String> headers, {Duration? maxAgeForNoStore}) {
-    final cacheControl = headers['cache-control']?.split(',');
+    final cacheControl = headers['cache-control']
+        ?.split(',')
+        .map((directive) => directive.trim().toLowerCase())
+        .toList();
     final date = _parseHttpDateTime(headers['date']);
     final expires = _parseHttpDateTime(headers['expires']);
     final etag = headers['etag'];
@@ -219,7 +222,11 @@ extension DateTimeHttpExtension on DateTime {
     // final _httpDateTimeFormat = DateFormat('EEE, dd MMM yyyy HH:mm:ss zzz', 'en_US');
     // '${_httpDateTimeFormat.format(toUtc())}GMT';
     final time = toUtc();
-    return '${_weekDays[time.weekday - 1]}, ${time.day} ${_months[time.month - 1]} ${time.year} ${time.hour}:${time.minute}:${time.second} GMT';
+    final day = time.day.toString().padLeft(2, '0');
+    final hour = time.hour.toString().padLeft(2, '0');
+    final minute = time.minute.toString().padLeft(2, '0');
+    final second = time.second.toString().padLeft(2, '0');
+    return '${_weekDays[time.weekday - 1]}, $day ${_months[time.month - 1]} ${time.year} $hour:$minute:$second GMT';
   }
 
   int get secondsSinceEpoch => millisecondsSinceEpoch ~/ 1000;
