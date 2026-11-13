@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 
@@ -65,11 +66,12 @@ Future<http.Response> getWithRetries(
   Uri uri, {
   HttpClientFactory clientFactory = createProxyAwareHttpClient,
   List<Duration> retryDelays = _downloadRetryDelays,
+  Map<String, String>? headers,
 }) async {
   for (var attempt = 0; ; attempt++) {
     final client = await clientFactory();
     try {
-      final response = await client.get(uri);
+      final response = await client.get(uri, headers: headers);
       if (!_isTransientStatus(response.statusCode) ||
           attempt == retryDelays.length) {
         return response;
@@ -92,6 +94,112 @@ Future<http.Response> getWithRetries(
     }
     await Future<void>.delayed(retryDelays[attempt]);
   }
+}
+
+/// Download a pdfium-binaries release archive. If the release download still
+/// fails with a transient status, fetch the same asset of the same release
+/// through the GitHub releases API; otherwise the original response is kept.
+Future<http.Response> getPdfiumArchiveWithApiFallback(
+  Uri directUri, {
+  HttpClientFactory clientFactory = createProxyAwareHttpClient,
+  List<Duration> retryDelays = _downloadRetryDelays,
+}) async {
+  final direct = await getWithRetries(
+    directUri,
+    clientFactory: clientFactory,
+    retryDelays: retryDelays,
+  );
+  if (!_isTransientStatus(direct.statusCode)) return direct;
+
+  final segments = directUri.pathSegments;
+  if (directUri.scheme != 'https' ||
+      directUri.host != 'github.com' ||
+      segments.length != 6 ||
+      segments[0] != 'bblanchon' ||
+      segments[1] != 'pdfium-binaries' ||
+      segments[2] != 'releases' ||
+      segments[3] != 'download' ||
+      !segments[4].startsWith('chromium/') ||
+      !segments[5].startsWith('pdfium-') ||
+      !segments[5].endsWith('.tgz')) {
+    return direct;
+  }
+
+  final tag = Uri.encodeComponent(segments[4]);
+  final apiUri = Uri.parse(
+    'https://api.github.com/repos/bblanchon/pdfium-binaries/releases/tags/$tag',
+  );
+
+  try {
+    final metadata = await getWithRetries(
+      apiUri,
+      clientFactory: clientFactory,
+      retryDelays: retryDelays,
+      headers: const {
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    );
+    if (metadata.statusCode != HttpStatus.ok) return direct;
+    final decoded = jsonDecode(metadata.body);
+    if (decoded is! Map<String, dynamic> ||
+        decoded['assets'] is! List<dynamic>) {
+      return direct;
+    }
+
+    Uri? assetUri;
+    for (final asset in decoded['assets'] as List<dynamic>) {
+      if (asset is! Map<String, dynamic> ||
+          asset['name'] != segments[5] ||
+          asset['url'] is! String) {
+        continue;
+      }
+      final candidate = Uri.tryParse(asset['url'] as String);
+      if (candidate == null ||
+          candidate.scheme != 'https' ||
+          candidate.host != 'api.github.com' ||
+          candidate.query.isNotEmpty ||
+          candidate.fragment.isNotEmpty ||
+          candidate.pathSegments.length != 6 ||
+          candidate.pathSegments[0] != 'repos' ||
+          candidate.pathSegments[1] != 'bblanchon' ||
+          candidate.pathSegments[2] != 'pdfium-binaries' ||
+          candidate.pathSegments[3] != 'releases' ||
+          candidate.pathSegments[4] != 'assets' ||
+          int.tryParse(candidate.pathSegments[5]) == null) {
+        continue;
+      }
+      assetUri = candidate;
+      break;
+    }
+    if (assetUri == null) return direct;
+
+    final response = await getWithRetries(
+      assetUri,
+      clientFactory: clientFactory,
+      retryDelays: retryDelays,
+      headers: const {
+        'Accept': 'application/octet-stream',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    );
+    // Some proxies respond 200 with JSON metadata despite the Accept header.
+    // Return only actual gzip content to the caller's Tar/GZip decoder.
+    if (response.statusCode == HttpStatus.ok &&
+        response.bodyBytes.length >= 2 &&
+        response.bodyBytes[0] == 0x1f &&
+        response.bodyBytes[1] == 0x8b) {
+      stderr.writeln('PDFium release asset retrieved through GitHub API.');
+      return response;
+    }
+  } on FormatException {
+    // Invalid metadata is not a reason to accept a different asset.
+  } on http.ClientException {
+    // Keep the original HTTP failure as the caller's error.
+  } on SocketException {
+    // Keep the original HTTP failure as the caller's error.
+  }
+  return direct;
 }
 
 bool _isTransientStatus(int statusCode) =>

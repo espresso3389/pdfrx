@@ -62,7 +62,7 @@ Future<void> _downloadPdfium({
     '$pdfiumRelease/pdfium-${target.archivePlatform}-${target.archiveArch}.tgz',
   );
 
-  final response = await getWithRetries(archiveUri);
+  final response = await getPdfiumArchiveWithApiFallback(archiveUri);
   if (response.statusCode != 200) {
     throw Exception(
       'Failed to download PDFium: HTTP ${response.statusCode} $archiveUri',
