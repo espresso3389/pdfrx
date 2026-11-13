@@ -287,12 +287,19 @@ class PdfFileCache {
     await _saveCacheControlState();
   }
 
-  static Future<File> getCacheFilePathForUri(Uri uri) async {
+  /// Authentication-specific headers must not reuse another user's disk cache.
+  /// Header-less URLs retain their existing cache paths for compatibility.
+  static Future<File> getCacheFilePathForUri(Uri uri, {Map<String, String>? headers}) async {
     if (Pdfrx.cacheDirectoryPath == null) {
       throw StateError('Pdfrx.cacheDirectoryPath is not set. Please initialize pdfrx or set it explicitly.');
     }
+    final normalizedHeaders = <String, String>{};
+    headers?.forEach((name, value) => normalizedHeaders[name.toLowerCase()] = value);
+    final names = normalizedHeaders.keys.toList()..sort();
+    // HTTP header lines cannot contain CR/LF, so the joined identity is unambiguous.
+    final identity = [uri.toString(), for (final name in names) '$name: ${normalizedHeaders[name]}'].join('\n');
     final fnHash = sha1
-        .convert(utf8.encode(uri.toString()))
+        .convert(utf8.encode(identity))
         .bytes
         .map((b) => b.toRadixString(16).padLeft(2, '0'))
         .join();
@@ -303,8 +310,8 @@ class PdfFileCache {
     return File(path.join(dir.path, '$body.pdf'));
   }
 
-  static Future<PdfFileCache> fromUri(Uri uri) async {
-    return await fromFile(await getCacheFilePathForUri(uri));
+  static Future<PdfFileCache> fromUri(Uri uri, {Map<String, String>? headers}) async {
+    return await fromFile(await getCacheFilePathForUri(uri, headers: headers));
   }
 }
 
@@ -341,7 +348,7 @@ Future<PdfDocument> pdfDocumentFromUri(
   progressCallback?.call(0);
   // Keep the cache in a non-null local variable. Some Dart backends used by Windows ARM64 builds do not
   // promote the nullable parameter reliably after `??=` once it is captured by the read/onDispose callbacks.
-  final resolvedCache = cache ?? await PdfFileCache.fromUri(uri);
+  final resolvedCache = cache ?? await PdfFileCache.fromUri(uri, headers: headers);
   final httpClientWrapper = _HttpClientWrapper(Pdfrx.createHttpClient ?? () => http.Client());
 
   try {
