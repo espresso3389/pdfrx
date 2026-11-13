@@ -694,6 +694,10 @@ void main() {
     final document = _documentRenderingAtRequestedSize(3);
     addTearDown(document.dispose);
     final controller = PdfViewerController();
+    final states = <PdfVisibleRenderState>[];
+    void recordState() => states.add(controller.visibleRenderState.value);
+    controller.visibleRenderState.addListener(recordState);
+    addTearDown(() => controller.visibleRenderState.removeListener(recordState));
     await tester.pumpWidget(MaterialApp(home: _budgetedViewer(document, controller, budget, 48 * 1024 * 1024)));
     await _pumpPaintWork(tester);
     final pages = controller.layout.pageLayouts;
@@ -707,10 +711,12 @@ void main() {
       await _scrollViewportTopTo(controller, top);
       await _pumpPaintWork(tester);
       _expectPartialsAtVisibleResolution(document, controller, devicePixelRatio: 2);
+      expect(controller.visibleRenderState.value, PdfVisibleRenderState.ready);
       final renders = _renderCount(document);
       await _pumpPaintWork(tester);
       expect(_renderCount(document), renders);
     }
+    expect(states, contains(PdfVisibleRenderState.ready));
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 100));
@@ -1199,6 +1205,7 @@ void main() {
     for (var top = layouts[1].top; top <= layouts[2].top; top += 40) {
       await _scrollViewportTopTo(controller, top);
       await _pumpPaintWork(tester);
+      expect(controller.visibleRenderState.value, PdfVisibleRenderState.ready);
     }
     final main = pages[1].renderControl;
     expect(main.previewPriorities.skip(previews[1]), isNot(contains(PdfPageRenderPriority.high)));

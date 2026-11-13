@@ -158,11 +158,11 @@ jobs:
 
       - name: Prepare PDFium native asset for macOS Flutter tests - ${{ matrix.package_manager }}
         working-directory: packages/pdfium_dart
-        run: dart test test/pdfium_test.dart
+        run: dart test test/pdfium_test.dart test/native_assets_manifest_test.dart
 
       - name: Test pdfrx on macOS - ${{ matrix.package_manager }}
         working-directory: packages/pdfrx
-        run: flutter test test/pdfium_loading_test.dart
+        run: flutter test test/pdfium_loading_test.dart test/pdf_viewer_visible_render_state_test.dart
 
       - name: Test process-wide PDFium gate
         timeout-minutes: 5
