@@ -442,10 +442,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   /// Go to the previous match.
   Future<int> goToPrevMatch() async {
-    if (_currentIndex == null) {
-      _currentIndex = _matches.length - 1;
-      return await goToMatchOfIndex(_currentIndex!);
-    }
+    if (_currentIndex == null) return await goToMatchOfIndex(_matches.length - 1);
     if (_currentIndex! > 0) {
       _currentIndex = _currentIndex! - 1;
       return await goToMatchOfIndex(_currentIndex!);
@@ -455,10 +452,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   /// Go to the next match.
   Future<int> goToNextMatch() async {
-    if (_currentIndex == null) {
-      _currentIndex = 0;
-      return await goToMatchOfIndex(_currentIndex!);
-    }
+    if (_currentIndex == null) return await goToMatchOfIndex(0);
     if (_currentIndex! + 1 < _matches.length) {
       _currentIndex = _currentIndex! + 1;
       return await goToMatchOfIndex(_currentIndex!);
