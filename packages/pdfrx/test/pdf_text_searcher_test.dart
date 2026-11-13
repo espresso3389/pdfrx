@@ -896,4 +896,39 @@ void main() {
     expect(searcher.searchSession, isNot(session));
     expect(searcher.matches.map((m) => m.text), List.filled(6, 'other'));
   });
+
+  test('search notifications tolerate listeners removing others during dispatch', () {
+    final searcher = PdfTextSearchSession(_FakeController(_FakeDocument(0)));
+    addTearDown(searcher.dispose);
+    final called = <int>[];
+    late void Function() removeSelf;
+    late void Function() removeSecond;
+    removeSelf = searcher.addListener(() {
+      called.add(1);
+      removeSelf();
+      removeSecond();
+    });
+    removeSecond = searcher.addListener(() => called.add(2));
+    final removeThird = searcher.addListener(() => called.add(3));
+
+    searcher.notifyListeners();
+    expect(called, [1, 3]);
+    called.clear();
+    searcher.notifyListeners();
+    expect(called, [3]);
+    removeThird();
+  });
+
+  test('search notifications stop when a listener disposes the searcher', () {
+    final searcher = PdfTextSearchSession(_FakeController(_FakeDocument(0)));
+    final called = <int>[];
+    searcher.addListener(() {
+      called.add(1);
+      searcher.dispose();
+    });
+    searcher.addListener(() => called.add(2));
+
+    searcher.notifyListeners();
+    expect(called, [1]);
+  });
 }

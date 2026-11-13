@@ -156,8 +156,10 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   void notifyListeners() {
     controller?.invalidate();
-    for (final listener in _listeners) {
-      listener();
+    // A listener may remove itself or dispose the searcher during a result
+    // update; do not mutate the collection currently being iterated.
+    for (final listener in List<VoidCallback>.of(_listeners)) {
+      if (_listeners.contains(listener)) listener();
     }
   }
 
