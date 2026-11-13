@@ -1750,15 +1750,25 @@ class _PdfViewerState extends State<PdfViewer>
         ..._magnifierImageCache.pageImages.values,
         ..._magnifierImageCache.pageImagesPartial.values,
       ]) {
-        image.budgetEntry?.touch(isPinned: false);
+        image.budgetEntry?.touch(isPinned: false, isNeeded: false);
       }
     }
     _updateTextCachePins();
+    final visibleRect = _visibleRect;
+    // Only scrolling sets the direction: a zoom restarts the measure, and small corrections are ignored.
+    final anchor = _directionAnchor;
+    if (anchor == null || _directionZoom != _currentZoom) {
+      _directionAnchor = visibleRect.center;
+      _directionZoom = _currentZoom;
+    } else if ((visibleRect.center - anchor).distance * _currentZoom >= 8) {
+      _readingDirection = visibleRect.center - anchor;
+      _directionAnchor = visibleRect.center;
+    }
     _paintPagesCustom(
       canvas,
       cache: _imageCache,
       maxImageCacheBytes: widget.params.maxImageBytesCachedOnMemory,
-      targetRect: _visibleRect,
+      targetRect: visibleRect,
       cacheTargetRect: _getCacheExtentRect(),
       scale: _currentZoom * MediaQuery.of(context).devicePixelRatio,
       enableLowResolutionPagePreview: widget.params.behaviorControlParams.enableLowResolutionPagePreview,
@@ -1817,6 +1827,10 @@ class _PdfViewerState extends State<PdfViewer>
     cacheTargetRect ??= targetRect;
 
     cache.visiblePageNumbers = _pageLayoutIndex!.intersecting(targetRect).map((i) => i + 1).toSet();
+    final visibleArea = cache.visiblePageNumbers.fold(0.0, (area, pageNumber) {
+      final r = _layout!.pageLayouts[pageNumber - 1].intersect(targetRect);
+      return area + max(0.0, r.width) * max(0.0, r.height);
+    });
     for (final pageNumber in cache.visiblePageNumbers) {
       final preview = cache.pagePreviewRenderings[pageNumber];
       if (preview?.priority == PdfPageRenderPriority.low) preview!.token.cancel();
@@ -1826,12 +1840,37 @@ class _PdfViewerState extends State<PdfViewer>
         cache.pageImagePartialRenderingRequests.remove(pageNumber)?.cancel();
       }
     }
-    for (final entry in [...cache.pageImages.entries, ...cache.pageImagesPartial.entries]) {
-      entry.value.budgetEntry?.touch(isPinned: cache.visiblePageNumbers.contains(entry.key));
-    }
-
     final pageIndices = _pageLayoutIndex!.intersecting(cacheTargetRect);
     final retainedPages = pageIndices.map((i) => i + 1).toSet();
+    bool isAhead(Rect rect) {
+      final offset = rect.center - targetRect.center;
+      return offset.dx * _readingDirection.dx + offset.dy * _readingDirection.dy > 0;
+    }
+
+    // Visible pages first, then those ahead of the reader, then the nearest.
+    int byPriority(Rect a, Rect b) {
+      final aVisible = a.overlaps(targetRect);
+      if (aVisible != b.overlaps(targetRect)) return aVisible ? -1 : 1;
+      final aAhead = isAhead(a);
+      if (aAhead != isAhead(b)) return aAhead ? -1 : 1;
+      return _distanceToRect(a, targetRect).compareTo(_distanceToRect(b, targetRect));
+    }
+
+    // Touched least important first, so that the budget evicts the farthest needed image first.
+    // Unpinning can trim the budget, whose evictions remove entries from these maps.
+    final images = cache.pageImages.entries.toList()
+      ..sort((a, b) => byPriority(_layout!.pageLayouts[b.key - 1], _layout!.pageLayouts[a.key - 1]));
+    for (final entry in images) {
+      entry.value.budgetEntry?.touch(
+        isPinned: cache.visiblePageNumbers.contains(entry.key),
+        isNeeded: retainedPages.contains(entry.key),
+      );
+    }
+    // Partials are requested only for visible pages, so an offscreen one is never needed again.
+    for (final entry in cache.pageImagesPartial.entries.toList()) {
+      final isVisible = cache.visiblePageNumbers.contains(entry.key);
+      entry.value.budgetEntry?.touch(isPinned: isVisible, isNeeded: isVisible);
+    }
     for (final pageNumber in cache.pendingPageNumbers.toList()) {
       if (!retainedPages.contains(pageNumber)) cache.cancelPendingRenderings(pageNumber);
     }
@@ -1859,11 +1898,18 @@ class _PdfViewerState extends State<PdfViewer>
             return estimatedScale;
           };
 
+      final previewScale = getPageRenderingScale(
+        context,
+        page,
+        _controller!,
+        _sizeDelegate!.onePassRenderingScaleThreshold,
+      );
       final previewScaleLimit = _boundedRenderingScale(
-        getPageRenderingScale(context, page, _controller!, _sizeDelegate!.onePassRenderingScaleThreshold),
+        previewScale,
         page.width,
         page.height,
-        visiblePageCount: cache.visiblePageNumbers.length,
+        // Previews are not cropped, so every visible page charges its whole area.
+        sharedArea: page.width * page.height * cache.visiblePageNumbers.length,
       );
 
       if (dropShadowPaint != null) {
@@ -1902,24 +1948,32 @@ class _PdfViewerState extends State<PdfViewer>
         );
       }
 
-      if (enableLowResolutionPagePreview &&
-          (previewImage == null || previewImage.isDirty || previewImage.scale != previewScaleLimit)) {
-        previewRequests.add((page: page, scale: previewScaleLimit, rect: rect));
-      }
-
       final pageScale = page.width > 0 && page.height > 0
           ? scale * max(rect.width / page.width, rect.height / page.height)
           : 0.0;
-      if (!enableLowResolutionPagePreview || pageScale > previewScaleLimit) {
+      // A preview is kept while it is at least as sharp as the screen needs, or was sharpened while fewer pages
+      // were visible; a smaller one that fitted the budget is not re-rendered just to reach the wanted scale.
+      final previewImageScale = previewImage?.scale ?? 0;
+      final shownPreviewScale =
+          (previewImageScale > previewScaleLimit || previewImageScale >= pageScale) &&
+              previewImageScale <=
+                  _boundedRenderingScale(previewScale, page.width, page.height, sharedArea: page.width * page.height)
+          ? previewImageScale
+          : previewScaleLimit;
+      if (enableLowResolutionPagePreview &&
+          (previewImage == null || previewImage.isDirty || previewImage.scale != shownPreviewScale)) {
+        previewRequests.add((page: page, scale: previewScaleLimit, rect: rect));
+      }
+      if (!enableLowResolutionPagePreview || pageScale > shownPreviewScale) {
         // `scale` (not `pageScale`) converts document units to physical pixels.
         // `pageScale` additionally carries the layout-to-page-size ratio, which
         // `_createRealSizePartialImage` would apply a second time via
         // `pageRect.width * scale` -- under-rendering a custom `layoutPages`
         // that does not lay pages out at their natural size.
-        _requestRealSizePartialImage(cache, page, scale, targetRect);
+        _requestRealSizePartialImage(cache, page, scale, targetRect, visibleArea);
       }
 
-      if ((!enableLowResolutionPagePreview || pageScale > previewScaleLimit) && partial != null) {
+      if ((!enableLowResolutionPagePreview || pageScale > shownPreviewScale) && partial != null) {
         partial.draw(canvas, filterQuality, pageImageColorFilter);
       }
 
@@ -1955,20 +2009,17 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     // The preview lock serves requests in call order, and the loop above walks pages by index -- so the page above
-    // the viewport used to render before the one on screen. Ask for the visible pages first.
-    previewRequests.sort((a, b) {
-      final aVisible = a.rect.overlaps(targetRect);
-      final bVisible = b.rect.overlaps(targetRect);
-      if (aVisible != bVisible) return aVisible ? -1 : 1;
-      return _distanceToRect(a.rect, targetRect).compareTo(_distanceToRect(b.rect, targetRect));
-    });
+    // the viewport used to render before the one on screen. Ask in order of priority.
+    previewRequests.sort((a, b) => byPriority(a.rect, b.rect));
     if (previewRequests.any((request) => cache.visiblePageNumbers.contains(request.page.pageNumber))) {
       for (final pageNumber in cache.pendingPageNumbers.toList()) {
         if (!cache.visiblePageNumbers.contains(pageNumber)) cache.cancelPendingRenderings(pageNumber);
       }
     }
+    // Once a request waits for pageImageCachingDelay, later offscreen ones wait too, so they keep their order.
+    var deferred = false;
     for (final request in previewRequests) {
-      _requestPagePreviewImageCached(cache, request.page, request.scale);
+      deferred = _requestPagePreviewImageCached(cache, request.page, request.scale, defer: deferred) || deferred;
     }
 
     // Once per paint, after the loop: inside it the list was still growing and the cache was trimmed once per page.
@@ -2008,6 +2059,14 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// Last logged extent/unmeasured/white tuple, to keep the trace to changes.
   String? _lastExtentSignature;
+
+  /// Visible work may exceed the budget unless other visible work already does; a prefetch never holds it back.
+  bool get _onlyPrefetchesPending => _imageBudget.pendingBytes <= _imageBudget.speculativePendingBytes;
+
+  /// The last movement of the viewport, so that prefetch serves the pages ahead of the reader first.
+  Offset _readingDirection = Offset.zero;
+  Offset? _directionAnchor;
+  double? _directionZoom;
 
   /// Pages whose real dimensions have been requested but not yet applied.
   final _pagesBeingMeasured = <int>{};
@@ -2240,12 +2299,14 @@ class _PdfViewerState extends State<PdfViewer>
     return dx * dx + dy * dy;
   }
 
-  double _boundedRenderingScale(double scale, double width, double height, {int visiblePageCount = 1}) {
+  /// Scales the images that share the rendering limit alike so that their pixels fit it together.
+  /// [sharedArea] is their combined area, in the units of [width] and [height].
+  double _boundedRenderingScale(double scale, double width, double height, {required double sharedArea}) {
     if (widget.params.imageCacheBudget == null) return scale;
     if (!scale.isFinite || scale <= 0 || !width.isFinite || !height.isFinite || width <= 0 || height <= 0) return 0;
     final maximumBytes = min(_imageBudget.maximumBytes, widget.params.maxImageBytesCachedOnMemory);
-    final maxPixels = max(1, maximumBytes ~/ (12 * max(1, visiblePageCount)));
-    return max(1 / min(width, height), min(scale, sqrt(maxPixels / (width * height))));
+    final maxPixels = max(1, maximumBytes ~/ 12);
+    return max(1 / min(width, height), min(scale, sqrt(maxPixels / max(width * height, sharedArea))));
   }
 
   bool _retainImage(
@@ -2258,6 +2319,7 @@ class _PdfViewerState extends State<PdfViewer>
     final entry = reservation.commit(
       retainedBytes: image.width * image.height * 8,
       isPinned: cache.visiblePageNumbers.contains(pageNumber),
+      isNeeded: true,
       onEvict: () {
         if (partial) {
           if (identical(cache.pageImagesPartial[pageNumber], image)) cache.pageImagesPartial.remove(pageNumber);
@@ -2275,24 +2337,27 @@ class _PdfViewerState extends State<PdfViewer>
     return true;
   }
 
-  Future<void> _requestPagePreviewImageCached(_PdfPageImageCache cache, PdfPage page, double scale) async {
-    if (!widget.params.isVisible) return;
+  /// Returns whether the request waits for pageImageCachingDelay.
+  bool _requestPagePreviewImageCached(_PdfPageImageCache cache, PdfPage page, double scale, {bool defer = false}) {
+    if (!widget.params.isVisible) return false;
     final width = page.width * scale;
     final height = page.height * scale;
-    if (width < 1 || height < 1) return;
+    if (width < 1 || height < 1) return false;
 
     // if this is the first time to render the page, render it immediately
-    if (!cache.pageImages.containsKey(page.pageNumber)) {
+    if (!cache.pageImages.containsKey(page.pageNumber) &&
+        (!defer || cache.visiblePageNumbers.contains(page.pageNumber))) {
       _cachePagePreviewImage(cache, page, width, height, scale);
-      return;
+      return false;
     }
 
     cache.pageImageRenderingTimers[page.pageNumber]?.cancel();
-    if (!mounted || !widget.params.isVisible) return;
+    if (!mounted || !widget.params.isVisible) return false;
     cache.pageImageRenderingTimers[page.pageNumber] = Timer(
       widget.params.behaviorControlParams.pageImageCachingDelay,
       () => _cachePagePreviewImage(cache, page, width, height, scale),
     );
+    return true;
   }
 
   Future<void> _cachePagePreviewImage(
@@ -2329,14 +2394,29 @@ class _PdfViewerState extends State<PdfViewer>
         }
         final prev = cache.pageImages[page.pageNumber];
         if (prev != null && !prev.isDirty && prev.scale == scale) return;
-        final bytes = (max(1, width.toInt()) * max(1, height.toInt()) * 12).toInt();
-        // Prefetch must not evict images that the next paint would request again.
-        if (priority == PdfPageRenderPriority.low && _imageBudget.estimatedBytes + bytes > _imageBudget.maximumBytes) {
-          return;
+        var bytes = (max(1, width.toInt()) * max(1, height.toInt()) * 12).toInt();
+        if (priority == PdfPageRenderPriority.low) {
+          // Prefetch must not evict images that the next paint would request again, so it shrinks to fit.
+          // It waits while other work is in flight, which repaints when it releases its room.
+          // The page's own preview counts as room, since the new one replaces it.
+          final reservable = _imageBudget.reservableBytes(keepNeeded: true) + (prev?.budgetEntry?.bytes ?? 0);
+          // Measured on the unrounded size, so that the rounded-down result always fits.
+          final fit = bytes <= reservable ? 1.0 : sqrt(reservable / (width * height * 12));
+          if (fit < 1 && (fit < 0.5 || _imageBudget.pendingBytes > 0)) return;
+          // A shrunk preview is replaced only by a clearly sharper one, so that freed room cannot cause churn.
+          if (fit < 1 && prev != null && !prev.isDirty && prev.scale <= scale && scale * fit < prev.scale * 1.1) return;
+          if (fit < 1) {
+            width *= fit;
+            height *= fit;
+            scale *= fit;
+            bytes = (max(1, width.toInt()) * max(1, height.toInt()) * 12).toInt();
+          }
+          if (bytes > _imageBudget.reservableBytes(keepNeeded: true)) prev?.budgetEntry?.touch(isNeeded: false);
         }
         final reservation = _imageBudget.tryReserve(
           bytes,
-          allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _imageBudget.pendingBytes == 0,
+          allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _onlyPrefetchesPending,
+          keepNeeded: priority == PdfPageRenderPriority.low,
         );
         if (reservation == null) return;
         ui.Image? rendered;
@@ -2411,11 +2491,12 @@ class _PdfViewerState extends State<PdfViewer>
     PdfPage page,
     double scale,
     Rect targetRect,
+    double visibleArea,
   ) async {
     if (!mounted || !widget.params.isVisible) return;
     final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
     final rect = pageRect.intersect(targetRect);
-    scale = _boundedRenderingScale(scale, rect.width, rect.height, visiblePageCount: cache.visiblePageNumbers.length);
+    scale = _boundedRenderingScale(scale, rect.width, rect.height, sharedArea: visibleArea);
     final prev = cache.pageImagesPartial[page.pageNumber];
     if (prev != null && !prev.isDirty && prev.rect == rect && prev.scale == scale) return;
     if (rect.width < 1 || rect.height < 1) return;
@@ -2477,7 +2558,7 @@ class _PdfViewerState extends State<PdfViewer>
     ui.Image? rendered;
     final reservation = _imageBudget.tryReserve(
       width * height * 12,
-      allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _imageBudget.pendingBytes == 0,
+      allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _onlyPrefetchesPending,
     );
     if (reservation == null) return null;
     try {
