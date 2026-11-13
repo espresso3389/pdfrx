@@ -4,8 +4,8 @@
 
 - This project uses a **pub workspace**. Running `dart pub get` in any directory fetches dependencies for all packages.
 - All workspace packages require Dart 3.13+, and Flutter packages require Flutter 3.47+.
-- The example Android projects use Java 17 bytecode, Android Gradle Plugin 9.1.1, Kotlin Gradle Plugin 2.4.0,
-  and Gradle 9.3.1. The Gradle daemon may run on a newer compatible JDK.
+- The example Android projects use Java 17 bytecode, Android Gradle Plugin 9.3.1, Kotlin Gradle Plugin 2.4.20,
+  and Gradle 9.5.0. The Gradle daemon may run on a newer compatible JDK.
 - Darwin packages target iOS 15+ and macOS 12+.
 - `pdfium_dart` uses Dart native assets and requires recent Dart/Flutter tooling.
 - Prefer `rg`/`rg --files` for search and discovery tasks; they are significantly faster than alternatives.
