@@ -968,4 +968,49 @@ void main() {
     searcher.notifyListeners();
     expect(called, [1]);
   });
+
+  test('a navigation callback replaces ensureVisible and ignores stale query completion', () async {
+    final document = _FakeDocument(1, texts: {1: 'word other'});
+    final controller = _FakeController(document);
+    final gate = Completer<void>();
+    final navigated = <String>[];
+    final searcher = PdfTextSearchSession(
+      controller,
+      onNavigateToMatch: (_, match) async {
+        navigated.add(match.text);
+        await gate.future;
+      },
+    );
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    final navigation = searcher.goToMatchOfIndex(0);
+    await pumpEventQueue();
+    searcher.startTextSearch('other', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    gate.complete();
+    await navigation;
+    expect(navigated, ['word']);
+    expect(searcher.currentIndex, isNull);
+    expect(controller.navigationCount, 0);
+  });
+
+  test('a navigation callback preserves normal match selection', () async {
+    final document = _FakeDocument(1, texts: {1: 'word'});
+    final controller = _FakeController(document);
+    final navigated = <String>[];
+    final searcher = PdfTextSearchSession(
+      controller,
+      onNavigateToMatch: (_, match) async {
+        navigated.add(match.text);
+      },
+    );
+    addTearDown(searcher.dispose);
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true);
+    await pumpEventQueue();
+    expect(await searcher.goToMatchOfIndex(0), 0);
+    expect(navigated, ['word']);
+    expect(searcher.currentIndex, 0);
+    expect(controller.navigationCount, 1);
+  });
 }
