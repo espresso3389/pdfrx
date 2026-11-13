@@ -13,7 +13,7 @@ class PdfiumFileAccessHelperPthread implements PdfiumFileAccessHelper {
   @override
   Future<int> create(int fileSize, int readBlock) async {
     final buffer = malloc<Uint8>(
-      sizeOf<pdfium_bindings.FPDF_FILEACCESS>() + sizeOfPthreadMutex + sizeOfPthreadCond + sizeOf<IntPtr>() * 2,
+      sizeOf<pdfium_bindings.FPDF_FILEACCESS>() + sizeOfPthreadMutex + sizeOfPthreadCond + sizeOf<IntPtr>() * 3,
     );
     final fa = buffer.cast<pdfium_bindings.FPDF_FILEACCESS>();
     fa.ref.m_FileLen = fileSize;
@@ -41,6 +41,7 @@ class PdfiumFileAccessHelperPthread implements PdfiumFileAccessHelper {
     pthread_mutex_lock(faAddress + _mutexOffset);
     final returnValue = Pointer<IntPtr>.fromAddress(faAddress + _retValueOffset);
     returnValue.value = value;
+    Pointer<IntPtr>.fromAddress(faAddress + _completedOffset).value = 1;
     pthread_cond_signal(faAddress + _condOffset);
     pthread_mutex_unlock(faAddress + _mutexOffset);
   }
@@ -67,10 +68,14 @@ int _read(Pointer<Void> param, int position, Pointer<UnsignedChar> buffer, int s
   ).asFunction<void Function(int, Pointer<UnsignedChar>, int)>();
 
   pthread_mutex_lock(cs);
+  final completed = Pointer<IntPtr>.fromAddress(faAddress + _completedOffset);
+  completed.value = 0;
   // Call Dart side read function. The call is returned immediately (it runs asynchronously)
   readFunc(position, buffer, size);
-  // So, we should wait for Dart to signal completion
-  pthread_cond_wait(cv, cs);
+  // pthread_cond_wait may wake spuriously, so wait until the Dart callback has completed.
+  while (completed.value == 0) {
+    pthread_cond_wait(cv, cs);
+  }
   final returnValue = Pointer<IntPtr>.fromAddress(faAddress + _retValueOffset).value;
   pthread_mutex_unlock(cs);
   return returnValue;
@@ -87,3 +92,6 @@ final _readFuncOffset = _condOffset + sizeOfPthreadCond;
 
 /// return-value offset within FPDF_FILEACCESS
 final _retValueOffset = _readFuncOffset + sizeOf<IntPtr>();
+
+/// completion-predicate offset within FPDF_FILEACCESS
+final _completedOffset = _retValueOffset + sizeOf<IntPtr>();
