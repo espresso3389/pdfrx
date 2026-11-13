@@ -3456,7 +3456,6 @@ class _TestPage implements PdfPage {
     required this.isLoaded,
     this.width = 600,
     this.height = 800,
-    this.width = 600,
     _TestPageRenderControl? renderControl,
   }) : renderControl = renderControl ?? _TestPageRenderControl();
 
