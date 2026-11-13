@@ -5,9 +5,9 @@ import 'package:code_assets/code_assets.dart';
 import 'package:hooks/hooks.dart';
 import 'package:native_toolchain_c/native_toolchain_c.dart';
 
+import '../lib/src/pdfium_archive_integrity.dart';
 import '../lib/src/proxy_http_client.dart';
 
-const _pdfiumRelease = 'chromium%2F8125';
 const _assetName = 'libpdfium';
 
 void main(List<String> args) async {
@@ -27,7 +27,7 @@ void main(List<String> args) async {
     if (input.config.code.targetOS == OS.iOS) return;
 
     final target = _PdfiumTarget.fromCodeConfig(input.config.code);
-    final outputSubdir = _pdfiumRelease.replaceAll('%2F', '_');
+    final outputSubdir = pdfiumRelease.replaceAll('%2F', '_');
     final outputFile = input.outputDirectoryShared.resolve(
       '$outputSubdir/${target.archivePlatform}-${target.archiveArch}/${target.libraryFileName}',
     );
@@ -35,7 +35,7 @@ void main(List<String> args) async {
     await _downloadPdfium(
       outputFile: outputFile,
       target: target,
-      pdfiumRelease: _pdfiumRelease,
+      pdfiumRelease: pdfiumRelease,
     );
 
     output.assets.code.add(
@@ -57,9 +57,11 @@ Future<void> _downloadPdfium({
   final output = File.fromUri(outputFile);
   if (await output.exists()) return;
 
+  final archiveName =
+      'pdfium-${target.archivePlatform}-${target.archiveArch}.tgz';
   final archiveUri = Uri.parse(
     'https://github.com/bblanchon/pdfium-binaries/releases/download/'
-    '$pdfiumRelease/pdfium-${target.archivePlatform}-${target.archiveArch}.tgz',
+    '$pdfiumRelease/$archiveName',
   );
 
   final response = await getPdfiumArchiveWithApiFallback(archiveUri);
@@ -69,6 +71,7 @@ Future<void> _downloadPdfium({
     );
   }
 
+  verifyPdfiumArchive(archiveName, response.bodyBytes);
   final archive = TarDecoder().decodeBytes(
     GZipDecoder().decodeBytes(response.bodyBytes),
   );

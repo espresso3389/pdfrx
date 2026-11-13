@@ -12,6 +12,7 @@ resolution: workspace
 dependencies:
   archive:
   code_assets:
+  crypto: ^3.0.7
   ffi:
   hooks:
   http:
