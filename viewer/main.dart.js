@@ -92781,10 +92781,8 @@ var $async$tN=A.r(function(a,b){if(a===1)return A.t(b,r)
 for(;;)switch(s){case 0:o=p.ax
 s=o==null?3:4
 break
-case 3:o=J.bm(p.e)-1
-p.ax=o
-s=5
-return A.n(p.lr(o),$async$tN)
+case 3:s=5
+return A.n(p.lr(J.bm(p.e)-1),$async$tN)
 case 5:q=b
 s=1
 break
@@ -92807,8 +92805,7 @@ var $async$tM=A.r(function(a,b){if(a===1)return A.t(b,r)
 for(;;)switch(s){case 0:o=p.ax
 s=o==null?3:4
 break
-case 3:p.ax=0
-s=5
+case 3:s=5
 return A.n(p.lr(0),$async$tM)
 case 5:q=b
 s=1
