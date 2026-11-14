@@ -2956,8 +2956,10 @@ class _PdfViewerState extends State<PdfViewer>
     if (dest == null) return null;
     final page = _document!.pages[dest.pageNumber - 1];
     final pageRect = _layout!.pageLayouts[dest.pageNumber - 1];
-    double calcX(double? x) => (x ?? 0) / page.width * pageRect.width;
-    double calcY(double? y) => (page.height - (y ?? 0)) / page.height * pageRect.height;
+    // Coordinates outside the page are clamped to it, as other viewers do: some PDF producers write a large top
+    // such as `/XYZ 0 10000 0` to mean "the top of the page", which would otherwise scroll many pages before it.
+    double calcX(double? x) => (x ?? 0).clamp(0.0, page.width) / page.width * pageRect.width;
+    double calcY(double? y) => (page.height - (y ?? 0).clamp(0.0, page.height)) / page.height * pageRect.height;
     final params = dest.params;
     switch (dest.command) {
       case PdfDestCommand.xyz:

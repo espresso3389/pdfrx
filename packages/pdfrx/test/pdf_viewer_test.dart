@@ -163,6 +163,43 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('destination coordinates outside the page are clamped to the page', (tester) async {
+    final document = _TestDocument(30);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Align(
+          child: SizedBox(
+            width: 400,
+            height: 400,
+            child: PdfViewer(PdfDocumentRefDirect(document, autoDispose: false), controller: controller),
+          ),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    expect(controller.isReady, isTrue);
+
+    const pageNumber = 20;
+    final page = document.pages[pageNumber - 1];
+    List<double> matrix(PdfDestCommand command, List<double?> params) =>
+        controller.calcMatrixForDest(PdfDest(pageNumber, command, params))!.storage.toList();
+
+    // `/XYZ 0 10000 0` is a common way of saying "the top of the page": it must not land pages before it
+    expect(matrix(PdfDestCommand.xyz, [0, 10000, 0]), matrix(PdfDestCommand.xyz, [0, page.height, 0]));
+    expect(matrix(PdfDestCommand.xyz, [-50, 10000, 0]), matrix(PdfDestCommand.xyz, [0, page.height, 0]));
+    expect(matrix(PdfDestCommand.fitH, [10000]), matrix(PdfDestCommand.fitH, [page.height]));
+    expect(matrix(PdfDestCommand.xyz, [0, -500, 0]), matrix(PdfDestCommand.xyz, [0, 0, 0]));
+    expect(
+      matrix(PdfDestCommand.fitR, [-10, -10, page.width + 10, page.height + 10]),
+      matrix(PdfDestCommand.fitR, [0, 0, page.width, page.height]),
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('repaints reuse a pending partial render with the same rectangle and scale', (tester) async {
     final document = _TestDocument(1);
     addTearDown(document.dispose);
