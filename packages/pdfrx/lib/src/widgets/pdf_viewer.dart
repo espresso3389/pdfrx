@@ -1859,10 +1859,20 @@ class _PdfViewerState extends State<PdfViewer>
       return offset.dx * _readingDirection.dx + offset.dy * _readingDirection.dy > 0;
     }
 
-    // Visible pages first, then those ahead of the reader, then the nearest.
+    double visibleAreaOf(Rect rect) {
+      final visible = rect.intersect(targetRect);
+      return max(0.0, visible.width) * max(0.0, visible.height);
+    }
+
+    // Visible pages first, the most visible of them first, then those ahead of the reader, then the nearest.
+    // Without the area, a sliver of the page ahead renders before the page that fills the screen.
     int byPriority(Rect a, Rect b) {
       final aVisible = a.overlaps(targetRect);
       if (aVisible != b.overlaps(targetRect)) return aVisible ? -1 : 1;
+      if (aVisible) {
+        final byArea = visibleAreaOf(b).compareTo(visibleAreaOf(a));
+        if (byArea != 0) return byArea;
+      }
       final aAhead = isAhead(a);
       if (aAhead != isAhead(b)) return aAhead ? -1 : 1;
       return _distanceToRect(a, targetRect).compareTo(_distanceToRect(b, targetRect));

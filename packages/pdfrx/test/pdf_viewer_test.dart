@@ -1320,6 +1320,42 @@ void main() {
     expect(budget.estimatedBytes, 0);
   });
 
+  testWidgets('a jump renders the target page before neighbors that show only a sliver', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900) * 2;
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final document = _scannedDocument(24);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    await tester.pumpWidget(MaterialApp(home: _scannedBookViewer(document, controller, budget)));
+    await _pumpFrames(tester);
+    // Fit the whole page: around the shortest pages, the pages above and below show a sliver.
+    final page = controller.layout.pageLayouts[2];
+    final zoom = math.min(
+      controller.viewSize.width / (page.width + 16),
+      controller.viewSize.height / (page.height + 16),
+    );
+    await controller.goTo(controller.calcMatrixFor(page.center, zoom: zoom), duration: Duration.zero);
+    await _pumpFrames(tester);
+    for (final target in [12, 20]) {
+      document.renderOrder.clear();
+      await controller.goToPage(pageNumber: target, anchor: PdfPageAnchor.top, duration: Duration.zero);
+      final layouts = controller.layout.pageLayouts;
+      expect(
+        layouts[target].overlaps(controller.visibleRect) || layouts[target - 2].overlaps(controller.visibleRect),
+        isTrue,
+        reason: 'a neighbor of page $target is partly visible',
+      );
+      await _pumpFrames(tester);
+      expect(document.renderOrder.first, target, reason: 'jumping to $target; order ${document.renderOrder}');
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
   testWidgets('an image evicted while paint updates its pins is not iterated over', (tester) async {
     await binding.setSurfaceSize(const Size(800, 600));
     addTearDown(() => binding.setSurfaceSize(null));
