@@ -2936,6 +2936,67 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('PointerScaleEvent with scrollPhysics respects boundaryMargin on zoom in and out', (tester) async {
+    await binding.setSurfaceSize(const Size(500, 1000));
+    addTearDown(() => binding.setSurfaceSize(null));
+    final controller = PdfViewerController();
+    final document = await tester.runAsync(
+      () async => PdfDocument.openData(
+        await testPdfFile.readAsBytes(),
+        sourceName: 'pointer-scale-scroll-physics-test.pdf',
+        useProgressiveLoading: false,
+      ),
+    );
+    addTearDown(() => document?.dispose());
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfViewer(
+          PdfDocumentRefDirect(document!),
+          controller: controller,
+          params: const PdfViewerParams(
+            scrollPhysics: ClampingScrollPhysics(),
+            boundaryMargin: EdgeInsets.zero,
+            behaviorControlParams: PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
+          ),
+        ),
+      ),
+    );
+
+    for (var i = 0; i < 20 && (!controller.isReady || controller.alternativeFitScale == null); i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+    }
+    expect(controller.isReady, isTrue);
+    await tester.pump();
+
+    // Zoom in using PointerScaleEvent (e.g. Flutter Web Ctrl+Wheel)
+    binding.handlePointerEvent(const PointerScaleEvent(position: Offset(250, 500), scale: 2.0));
+    await tester.pump();
+
+    final docSize = controller.layout.documentSize;
+    final visibleIn = controller.visibleRect;
+    // With boundaryMargin EdgeInsets.zero, visibleRect must not exceed document bounds when zoomed in
+    expect(visibleIn.left, greaterThanOrEqualTo(-0.01));
+    expect(visibleIn.top, greaterThanOrEqualTo(-0.01));
+    expect(visibleIn.right, lessThanOrEqualTo(docSize.width + 0.01));
+    expect(visibleIn.bottom, lessThanOrEqualTo(docSize.height + 0.01));
+
+    // Zoom out using PointerScaleEvent
+    binding.handlePointerEvent(const PointerScaleEvent(position: Offset(250, 500), scale: 0.5));
+    await tester.pump();
+
+    // When underflowing, content must remain centered in the viewport
+    final visibleOut = controller.visibleRect;
+    final pageRect = controller.layout.pageLayouts.first;
+    final pageCenterX = (pageRect.center.dx - visibleOut.left) * controller.currentZoom;
+    expect(pageCenterX, moreOrLessEquals(250.0, epsilon: 0.5));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _finishNativeDisposal(tester, document);
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   group('physics wheel scrolling', () {
     const center = Offset(400, 600);
 

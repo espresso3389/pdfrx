@@ -584,7 +584,7 @@ class InteractiveViewer extends StatefulWidget {
 
 class InteractiveViewerState extends State<InteractiveViewer> with TickerProviderStateMixin {
   // Preserve the originally provided boundaryMargin for recalculation overrides.
-  late final EdgeInsets _originalBoundaryMargin = widget.boundaryMargin;
+  late EdgeInsets _originalBoundaryMargin = widget.boundaryMargin;
   late TransformationController _transformer = widget.transformationController ?? TransformationController();
 
   final GlobalKey _childKey = GlobalKey();
@@ -1308,18 +1308,23 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
       return;
     }
 
-    final focalPointScene = _transformer.toScene(local);
-    _transformer.value = _matrixScale(_transformer.value, scaleChange);
+    _gestureType = _GestureType.scale;
+    try {
+      final focalPointScene = _transformer.toScene(local);
+      _transformer.value = _matrixScale(_transformer.value, scaleChange);
 
-    // After scaling, translate such that the event's position is at the
-    // same scene point before and after the scale.
-    final focalPointSceneScaled = _transformer.toScene(local);
-    _transformer.value = _matrixClamp(_matrixTranslate(_transformer.value, focalPointSceneScaled - focalPointScene));
+      // After scaling, translate such that the event's position is at the
+      // same scene point before and after the scale.
+      final focalPointSceneScaled = _transformer.toScene(local);
+      _transformer.value = _matrixClamp(_matrixTranslate(_transformer.value, focalPointSceneScaled - focalPointScene));
 
-    widget.onInteractionUpdate?.call(
-      ScaleUpdateDetails(focalPoint: global, localFocalPoint: local, scale: scaleChange),
-    );
-    widget.onInteractionEnd?.call(ScaleEndDetails());
+      widget.onInteractionUpdate?.call(
+        ScaleUpdateDetails(focalPoint: global, localFocalPoint: local, scale: scaleChange),
+      );
+      widget.onInteractionEnd?.call(ScaleEndDetails());
+    } finally {
+      _gestureType = null;
+    }
   }
 
   void _handleInertiaAnimation() {
@@ -1646,6 +1651,10 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
   @override
   void didUpdateWidget(InteractiveViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    if (widget.boundaryMargin != oldWidget.boundaryMargin) {
+      _originalBoundaryMargin = widget.boundaryMargin;
+    }
 
     final newController = widget.transformationController;
     if (newController == oldWidget.transformationController) {

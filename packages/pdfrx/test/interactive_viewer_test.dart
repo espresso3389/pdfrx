@@ -150,6 +150,42 @@ void main() {
       expect(amplified, plain, reason: 'the pointer-signal path must ignore scaleGestureSensitivity');
       expect(plain, closeTo(_kStartScale * 1.2, 1e-9));
     });
+
+    testWidgets('PointerScaleEvent with scrollPhysics scales and clamps to boundaryMargin', (tester) async {
+      final controller = TransformationController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: SizedBox(
+              width: 500,
+              height: 500,
+              child: pdfrx.InteractiveViewer(
+                transformationController: controller,
+                constrained: false,
+                minScale: 0.5,
+                maxScale: 4.0,
+                scrollPhysics: const ClampingScrollPhysics(),
+                boundaryMargin: EdgeInsets.zero,
+                child: const SizedBox(width: 500, height: 500),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.sendEventToBinding(
+        PointerScaleEvent(timeStamp: Duration.zero, device: _nextId++, position: const Offset(250, 250), scale: 1.5),
+      );
+      await tester.pump(const Duration(milliseconds: 4));
+
+      expect(controller.value.getMaxScaleOnAxis(), closeTo(1.5, 1e-4));
+      final trans = controller.value.getTranslation();
+      expect(trans.x, lessThanOrEqualTo(0.01));
+      expect(trans.x, greaterThanOrEqualTo(-250.0 - 0.01));
+    });
   });
 
   group('scaleGestureSensitivity validation', () {
