@@ -251,6 +251,137 @@ void main() {
       expect(await sendWheel(tester, withOverlay: true), (viewer: 0, overlay: 1));
     });
   });
+
+  group('Matrix invertibility and zero-distance pinch protection (#690)', () {
+    testWidgets('pinch fingers together to distance 0 does not crash and keeps matrix invertible', (tester) async {
+      final controller = TransformationController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 400,
+              height: 400,
+              child: pdfrx.InteractiveViewer(
+                constrained: false,
+                minScale: 0.5,
+                maxScale: 4.0,
+                transformationController: controller,
+                scrollPhysics: FixedOverscrollPhysics(),
+                child: const SizedBox(width: 400, height: 400),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final firstFinger = await tester.startGesture(const Offset(180, 200), pointer: 1);
+      final secondFinger = await tester.startGesture(const Offset(220, 200), pointer: 2);
+      await tester.pump();
+
+      // Move fingers to the exact same point (distance = 0, scale = 0)
+      await firstFinger.moveTo(const Offset(200, 200));
+      await secondFinger.moveTo(const Offset(200, 200));
+      await tester.pump();
+
+      // Separate fingers again
+      await firstFinger.moveTo(const Offset(180, 200));
+      await secondFinger.moveTo(const Offset(220, 200));
+      await tester.pump();
+
+      await firstFinger.up();
+      await secondFinger.up();
+      await tester.pumpAndSettle();
+
+      final det = controller.value.determinant();
+      expect(det.isFinite, isTrue);
+      expect(det, isNot(0.0));
+      expect(() => controller.toScene(const Offset(200, 200)), returnsNormally);
+    });
+
+    testWidgets('trackpad pan/zoom event with zero or tiny scale does not corrupt matrix', (tester) async {
+      final controller = TransformationController();
+      addTearDown(controller.dispose);
+
+      final viewerKey = GlobalKey();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 400,
+              height: 400,
+              child: pdfrx.InteractiveViewer(
+                key: viewerKey,
+                constrained: false,
+                minScale: 0.5,
+                maxScale: 4.0,
+                transformationController: controller,
+                child: const SizedBox(width: 400, height: 400),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      const device = 101;
+      const position = Offset(200, 200);
+
+      // Start gesture
+      await tester.sendEventToBinding(
+        PointerPanZoomStartEvent(device: device, pointer: device, position: position, timeStamp: Duration.zero),
+      );
+      await tester.pump();
+
+      // Send update with scale 0.0
+      await tester.sendEventToBinding(
+        PointerPanZoomUpdateEvent(
+          device: device,
+          pointer: device,
+          position: position,
+          scale: 0.0,
+          pan: Offset.zero,
+          panDelta: Offset.zero,
+          rotation: 0,
+          timeStamp: const Duration(milliseconds: 16),
+        ),
+      );
+      await tester.pump();
+
+      // Send update with very small scale
+      await tester.sendEventToBinding(
+        PointerPanZoomUpdateEvent(
+          device: device,
+          pointer: device,
+          position: position,
+          scale: 1e-6,
+          pan: Offset.zero,
+          panDelta: Offset.zero,
+          rotation: 0,
+          timeStamp: const Duration(milliseconds: 32),
+        ),
+      );
+      await tester.pump();
+
+      await tester.sendEventToBinding(
+        PointerPanZoomEndEvent(
+          device: device,
+          pointer: device,
+          position: position,
+          timeStamp: const Duration(milliseconds: 48),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final det = controller.value.determinant();
+      expect(det.isFinite, isTrue);
+      expect(det, isNot(0.0));
+      expect(() => controller.toScene(const Offset(200, 200)), returnsNormally);
+    });
+  });
 }
 
 /// Pumps an [pdfrx.InteractiveViewer] that can scale between [_kMinScale] and
