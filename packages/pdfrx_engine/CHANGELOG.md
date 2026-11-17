@@ -1,3 +1,10 @@
+# 0.9.3
+
+- Isolated authenticated document caches and corrected HTTP range and compressed response handling ([#811](https://github.com/espresso3389/pdfrx/pull/811), [#808](https://github.com/espresso3389/pdfrx/pull/808)).
+- Fixed error handling and synchronization for custom document reads ([#806](https://github.com/espresso3389/pdfrx/pull/806), [#807](https://github.com/espresso3389/pdfrx/pull/807)).
+- Corrected HTTP cache directives and PDF text hashing ([#809](https://github.com/espresso3389/pdfrx/pull/809), [#799](https://github.com/espresso3389/pdfrx/pull/799)).
+- Updated to `pdfium_dart` 0.4.3.
+
 # 0.9.2
 
 - Updated to `pdfium_dart` 0.4.2 for macOS framework and Flutter test fixes ([#814](https://github.com/espresso3389/pdfrx/issues/814), [#818](https://github.com/espresso3389/pdfrx/issues/818)).

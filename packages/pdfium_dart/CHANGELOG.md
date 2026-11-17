@@ -1,3 +1,9 @@
+# 0.4.3
+
+- Verify downloaded PDFium archives against pinned SHA-256 hashes ([#810](https://github.com/espresso3389/pdfrx/pull/810)).
+- Retry transient download failures through the GitHub releases API ([#801](https://github.com/espresso3389/pdfrx/pull/801)).
+- Resolve the current native asset manifest in Flutter tests.
+
 # 0.4.2
 
 - Fixed macOS framework name collisions that could prevent hardened apps from launching ([#814](https://github.com/espresso3389/pdfrx/issues/814)).

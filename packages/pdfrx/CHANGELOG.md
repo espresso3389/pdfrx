@@ -1,3 +1,11 @@
+# 2.13.0
+
+- Added visible page rendering state and customizable navigation to search matches ([#815](https://github.com/espresso3389/pdfrx/pull/815), [#805](https://github.com/espresso3389/pdfrx/pull/805)).
+- Improved rendering priority and image-budget behavior for visible and nearby pages ([#798](https://github.com/espresso3389/pdfrx/pull/798), [#820](https://github.com/espresso3389/pdfrx/pull/820)).
+- Fixed search recovery and navigation with no results, and listener removal during notifications ([#803](https://github.com/espresso3389/pdfrx/pull/803), [#802](https://github.com/espresso3389/pdfrx/pull/802), [#804](https://github.com/espresso3389/pdfrx/pull/804)).
+- Fixed zoom and page navigation edge cases ([#547](https://github.com/espresso3389/pdfrx/issues/547), [#690](https://github.com/espresso3389/pdfrx/issues/690), [#819](https://github.com/espresso3389/pdfrx/pull/819)).
+- Updated to `pdfrx_engine` 0.9.3 and `pdfium_flutter` 0.4.3.
+
 # 2.12.1
 
 - Fixed a Web document disposal race during page reload ([#795](https://github.com/espresso3389/pdfrx/issues/795)).

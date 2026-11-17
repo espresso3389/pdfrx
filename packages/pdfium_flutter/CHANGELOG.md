@@ -1,3 +1,7 @@
+# 0.4.3
+
+- Updated to `pdfium_dart` 0.4.3 for download verification and loading fixes.
+
 # 0.4.2
 
 - Updated to `pdfium_dart` 0.4.2 for macOS framework and Flutter test fixes ([#814](https://github.com/espresso3389/pdfrx/issues/814), [#818](https://github.com/espresso3389/pdfrx/issues/818)).
