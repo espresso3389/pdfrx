@@ -2,6 +2,7 @@ import 'package:flutter/rendering.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 
 import '../interactive_viewer.dart';
+import '../layout/pdf_fit_mode.dart';
 import '../pdf_viewer.dart';
 import '../pdf_viewer_layout_metrics.dart';
 import '../pdf_viewer_params.dart';
@@ -72,12 +73,16 @@ abstract class PdfViewerSizeDelegate {
   /// [pageNumber]: The page currently being viewed (used to calculate "fit page" logic).
   /// [pageMargin]: The margin configuration from parameters.
   /// [boundaryMargin]: The boundary margin configuration from parameters.
+  /// [fitMode]: the active [PdfFitMode]. Lets the delegate floor the min scale at the matching
+  /// fit (fit-width for `fill`/`cover`, fit-page for `fit`); `none` keeps the previous behavior.
+  /// Defaults to [PdfFitMode.none], so existing delegates are unaffected.
   PdfViewerLayoutMetrics calculateMetrics({
     required Size viewSize,
     required PdfPageLayout? layout,
     required int? pageNumber, // Pivot page for calculation
     required double pageMargin,
     required EdgeInsets? boundaryMargin,
+    PdfFitMode fitMode = PdfFitMode.none,
   });
 
   /// The scale threshold for switching between one-pass rendering and progressive rendering.
