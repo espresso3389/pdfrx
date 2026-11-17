@@ -336,6 +336,11 @@ void main() {
       );
       await tester.pump();
 
+      await tester.sendEventToBinding(
+        const PointerPanZoomUpdateEvent(device: device, pointer: device, position: position, scale: 1.5),
+      );
+      await tester.pump();
+      final beforeZero = controller.value.clone();
       // Send update with scale 0.0
       await tester.sendEventToBinding(
         PointerPanZoomUpdateEvent(
@@ -351,6 +356,7 @@ void main() {
       );
       await tester.pump();
 
+      expect(controller.value, beforeZero);
       // Send update with very small scale
       await tester.sendEventToBinding(
         PointerPanZoomUpdateEvent(

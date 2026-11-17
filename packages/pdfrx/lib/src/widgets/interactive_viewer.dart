@@ -991,7 +991,8 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
       );
     } else if (event is PointerPanZoomUpdateEvent) {
       final focalPoint = event.position + event.pan;
-      final safeScale = (event.scale.isFinite && event.scale >= 0.0) ? event.scale : 1.0;
+      if (!event.scale.isFinite || event.scale <= 0) return;
+      final safeScale = event.scale;
       _onScaleUpdate(
         ScaleUpdateDetails(
           focalPoint: focalPoint,
@@ -1042,6 +1043,7 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
   // Handle an update to an ongoing gesture. All of pan, scale, and rotate are
   // handled with GestureDetector's scale gesture.
   void _onScaleUpdate(ScaleUpdateDetails details) {
+    if (!details.scale.isFinite || details.scale <= 0) return;
     final scale = _transformer.value.getMaxScaleOnAxis();
     _scaleAnimationFocalPoint = details.localFocalPoint;
     final focalPointScene = _toScene(details.localFocalPoint);
