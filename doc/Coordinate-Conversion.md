@@ -107,7 +107,7 @@ final pageOffset = pdfPoint.toOffset(
 final docPos = pageOffset.translate(pageRect.left, pageRect.top);
 ```
 
-**Important Note about Page Rotation**: PDF pages can have rotation metadata (0°, 90°, 180°, or 270°). When converting between document and page coordinates, the conversion methods automatically account for the page's rotation. The coordinate system is rotated so that (0,0) in page coordinates always represents the bottom-left corner of the page as it appears when rendered (after rotation is applied).
+**Important Note about Page Rotation**: PDF pages can have rotation metadata (0°, 90°, 180°, or 270°). When converting between document and page coordinates, the conversion methods automatically account for the page's rotation. PDF page coordinates refer to the unrotated page; the conversion applies the page rotation when mapping them to the rendered page.
 
 ## Common Use Cases
 

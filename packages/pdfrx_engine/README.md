@@ -144,11 +144,14 @@ For detailed guides and tutorials, see the [documentation](https://github.com/es
 ## Loading and Performance Guides
 
 - [Progressive loading](https://github.com/espresso3389/pdfrx/blob/master/doc/Progressive-Loading.md): page metadata, on-demand measurement, and page-state events.
-- [PDF open benchmark](tool/PDF_OPEN_BENCHMARK.md): a manual probe for document opening, page measurement, and link extraction.
 - [Hebrew text normalization](https://github.com/espresso3389/pdfrx/blob/master/doc/Text-Search.md#hebrew-text-order): opt-in native text-order correction.
 
 - [Background work and memory](https://github.com/espresso3389/pdfrx/blob/master/doc/Progressive-Loading.md#background-work): lower-priority native operations and viewer image-cache release.
 - [Document lifetime](https://github.com/espresso3389/pdfrx/blob/master/doc/PDF-Page-Manipulation.md#document-lifetime): awaiting disposal and keeping assembly sources alive.
+
+### PDF open benchmark
+
+From `packages/pdfrx_engine`, run `dart run tool/pdf_open_benchmark.dart /path/to/document.pdf [page-number]` to measure document opening, priority-page loading, link extraction, repeated link access, and trailing-page loading. Use `--scan-links` instead of the page number to scan embedded annotation links across the document. Timings depend on the PDF, platform, build mode, cache, and hardware.
 
 ## PDF API
 

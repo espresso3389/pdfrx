@@ -31,15 +31,15 @@ import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:pdfrx_coregraphics/pdfrx_coregraphics.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   PdfrxEntryFunctions.instance = PdfrxCoreGraphicsEntryFunctions();
-  pdfrxFlutterInitialize();
+  await pdfrxFlutterInitialize();
   runApp(const MyApp());
 }
 ```
 
-After installation, use pdfrx as usual. All [`PdfDocument`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) and widget APIs continue to work, but rendering is routed
-through CoreGraphics.
+After installation, pdfrx uses the CoreGraphics backend. See the limitations below when using document and widget APIs.
 
 ## Removing PDFium Dependencies (Reducing App Size)
 
@@ -53,7 +53,7 @@ flutter pub get
 dart run pdfrx:remove_darwin_pdfium_modules
 ```
 
-This will comment out the iOS and macOS ffiPlugin configurations in pdfrx's `pubspec.yaml`, preventing PDFium binaries from being bundled with your app.
+This comments out the iOS and macOS ffiPlugin configurations in the resolved `pdfium_flutter` package's `pubspec.yaml`, preventing its PDFium XCFramework from being bundled with your app. The resolved package may be in the shared pub cache, so this change can also affect other projects using that cached package. Revert it when PDFium is needed again.
 
 To revert the changes (restore PDFium dependencies):
 
@@ -67,6 +67,7 @@ After executing it, you can run `flutter build` or `flutter run` for iOS/macOS.
 
 ## Limitations
 
+- `compute` and `stopBackgroundWorker` are not implemented
 - Incremental/custom stream loading is converted to in-memory loading
 - Custom font registration is not yet supported
 - In document links are always `xyz` and zoom is not reliable (or omitted) in certain situations

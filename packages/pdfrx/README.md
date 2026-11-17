@@ -80,9 +80,9 @@ If you access the document API directly (for example, opening a [PdfDocument](ht
 import 'package:flutter/widgets.dart';
 import 'package:pdfrx/pdfrx.dart';
 
-Future<void> main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  pdfrxFlutterInitialize(); // Required when using engine APIs before widgets
+  await pdfrxFlutterInitialize(); // Required when using engine APIs before widgets
   runApp(const MyApp());
 }
 ```

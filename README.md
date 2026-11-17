@@ -40,8 +40,8 @@ A cross-platform PDF viewer and manipulation plugin for Flutter.
 **⚠️ EXPERIMENTAL** - CoreGraphics-backed renderer for [pdfrx](https://pub.dev/packages/pdfrx) on iOS/macOS.
 
 - Uses PDFKit/CoreGraphics instead of [PDFium](https://pdfium.googlesource.com/pdfium/) on Apple platforms
-- Drop-in replacement for teams preferring the system PDF stack
-- Maintains full compatibility with [pdfrx](https://pub.dev/packages/pdfrx) widget API
+- Alternative backend for teams preferring the system PDF stack
+- Supports pdfrx widgets, subject to the [backend limitations](packages/pdfrx_coregraphics/README.md#limitations)
 - iOS and macOS only
 
 [View repo](packages/pdfrx_coregraphics/) | [API reference](https://pub.dev/documentation/pdfrx_coregraphics/latest/)

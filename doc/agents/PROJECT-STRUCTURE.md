@@ -57,7 +57,7 @@ Cross-platform PDF viewer plugin for Flutter.
 CoreGraphics-backed renderer for iOS/macOS.
 
 - Experimental package using PDFKit/CoreGraphics instead of PDFium
-- Drop-in replacement for Apple platforms
+- Alternative backend for Apple platforms, with documented limitations
 - iOS and macOS only
 
 ## Platform-Specific Notes

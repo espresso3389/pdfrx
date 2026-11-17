@@ -56,5 +56,5 @@ For detailed API documentation, visit the [pub.dev documentation](https://pub.de
 ## Development and Diagnostics
 
 - [Development commands](agents/COMMANDS.md) - Tests, builds, and binding generation
-- [PDF open benchmark](../packages/pdfrx_engine/tool/PDF_OPEN_BENCHMARK.md) - Manual measurements of loading and link extraction
-- [Android native-loading tests](../packages/pdfrx/example/viewer/doc/android-native-loading-tests.md) - Device and Firebase Test Lab checks
+- [PDF open benchmark](../packages/pdfrx_engine/README.md#pdf-open-benchmark) - Manual measurements of loading and link extraction
+- [Android native-loading test](../packages/pdfrx/example/viewer/README.md#android-native-loading-test) - Device or emulator check
