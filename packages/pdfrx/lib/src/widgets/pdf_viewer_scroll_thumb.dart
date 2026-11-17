@@ -89,11 +89,14 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
                   ),
                 ],
               ),
-              child: Center(child: Text(widget.controller.pageNumber?.toString() ?? '')),
+              child: Center(child: Text(widget.controller.currentPageRange?.label ?? '')),
             ),
         onPanStart: (details) {
           _panStartOffset = top - details.localPosition.dy;
+          widget.controller.beginUserScroll();
         },
+        onPanEnd: (_) => widget.controller.endUserScroll(),
+        onPanCancel: () => widget.controller.endUserScroll(),
         onPanUpdate: (details) {
           final y = (_panStartOffset + details.localPosition.dy) / vh;
           final m = widget.controller.value.clone();
@@ -144,11 +147,14 @@ class _PdfViewerScrollThumbState extends State<PdfViewerScrollThumb> {
                   ),
                 ],
               ),
-              child: Center(child: Text(widget.controller.pageNumber?.toString() ?? '')),
+              child: Center(child: Text(widget.controller.currentPageRange?.label ?? '')),
             ),
         onPanStart: (details) {
           _panStartOffset = left - details.localPosition.dx;
+          widget.controller.beginUserScroll();
         },
+        onPanEnd: (_) => widget.controller.endUserScroll(),
+        onPanCancel: () => widget.controller.endUserScroll(),
         onPanUpdate: (details) {
           final x = (_panStartOffset + details.localPosition.dx) / vw;
           final m = widget.controller.value.clone();

@@ -69,6 +69,7 @@ class SequentialPagesLayout extends PdfPageLayoutStrategy {
 
   @override
   PdfPageLayout resolve(PdfPageLayoutContext context) {
+    final paged = context.paged;
     final pages = context.pages;
     final viewport = context.viewport;
     final isVertical = scrollDirection == Axis.vertical;
@@ -110,8 +111,17 @@ class SequentialPagesLayout extends PdfPageLayoutStrategy {
       PdfFitMode.none || PdfFitMode.cover => maxCross,
     };
 
+    // Paged: the view length along the main axis at the home zoom, in document units. The home zoom
+    // fits the document's cross axis to the viewport (1.0 for fill/fit, whose column is the
+    // viewport).
+    final viewportCross = crossOf(viewport.width, viewport.height);
+    final viewportMain = mainOf(viewport.width, viewport.height);
+    final slotLength = paged && viewportCross > 0
+        ? viewportMain * (columnCross + effectiveMargin * 2) / viewportCross
+        : 0.0;
+
     final rects = <Rect>[];
-    var main = effectiveMargin;
+    var main = paged ? 0.0 : effectiveMargin;
     for (var i = 0; i < sizes.length; i++) {
       final s = sizes[i];
       final cross = crossOf(s.width, s.height);
@@ -122,20 +132,33 @@ class SequentialPagesLayout extends PdfPageLayoutStrategy {
             PdfCrossAxisAlignment.center => (columnCross - cross) / 2,
             PdfCrossAxisAlignment.end => columnCross - cross,
           };
+      final pageMain = mainOf(s.width, s.height);
+      final slot = paged ? max(pageMain + effectiveMargin * 2, slotLength) : 0.0;
+      final pageStart = paged ? main + (slot - pageMain) / 2 : main;
       rects.add(
         isVertical
-            ? Rect.fromLTWH(crossOffset, main, s.width, s.height)
-            : Rect.fromLTWH(main, crossOffset, s.width, s.height),
+            ? Rect.fromLTWH(crossOffset, pageStart, s.width, s.height)
+            : Rect.fromLTWH(pageStart, crossOffset, s.width, s.height),
       );
-      main += isVertical ? s.height : s.width;
-      if (i < sizes.length - 1) main += effectiveSpacing;
+      if (paged) {
+        main += slot;
+      } else {
+        main += pageMain;
+        if (i < sizes.length - 1) main += effectiveSpacing;
+      }
     }
-    main += effectiveMargin;
+    if (!paged) main += effectiveMargin;
 
     final documentSize = isVertical
         ? Size(columnCross + effectiveMargin * 2, main)
         : Size(main, columnCross + effectiveMargin * 2);
-    return PdfPageLayout(pageLayouts: rects, documentSize: documentSize, margin: effectiveMargin, fitMode: fitMode);
+    return PdfPageLayout(
+      pageLayouts: rects,
+      documentSize: documentSize,
+      margin: effectiveMargin,
+      fitMode: fitMode,
+      primaryAxis: scrollDirection,
+    );
   }
 
   /// The fit scale applied to the largest page (by native area). Used to scale the margin/spacing

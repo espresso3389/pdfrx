@@ -13,6 +13,7 @@ import 'layout/pdf_page_layout_strategy.dart';
 import 'layout/sequential_pages_layout.dart';
 import 'pdf_viewer.dart';
 import 'pdf_image_cache_budget.dart';
+import 'pdf_paging.dart';
 import 'pdf_viewer_scroll_thumb.dart';
 import 'scroll_interaction/pdf_viewer_scroll_interaction_delegate.dart';
 import 'scroll_interaction/pdf_viewer_scroll_interaction_delegate_instant.dart';
@@ -33,6 +34,7 @@ class PdfViewerParams {
     this.isVisible = true,
     this.backgroundColor = Colors.grey,
     this.layoutStrategy = const SequentialPagesLayout(),
+    this.paging,
     this.normalizeMatrix,
     @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(maxScale: ...) instead') this.maxScale,
     @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(minScale: ...) instead') this.minScale,
@@ -64,6 +66,7 @@ class PdfViewerParams {
     this.scaleInertiaMaxExcursion,
     this.scaleGestureSensitivity = 1.0,
     this.onInteractionEnd,
+    this.onAnimationEnd,
     this.onInteractionStart,
     this.onInteractionUpdate,
     this.interactionEndFrictionCoefficient = _kDrag,
@@ -141,6 +144,10 @@ class PdfViewerParams {
   /// Strategies are value types, so changing this relayouts the viewer automatically; there is no
   /// need to call [PdfViewerController.invalidate].
   final PdfPageLayoutStrategy layoutStrategy;
+
+  /// Shows one page (spread) at a time and turns pages, instead of scrolling continuously; null
+  /// (the default) scrolls continuously, without snapping. See [PdfPaging].
+  final PdfPaging? paging;
 
   /// Function to normalize the matrix.
   ///
@@ -349,6 +356,13 @@ class PdfViewerParams {
 
   /// See [InteractiveViewer.onInteractionEnd] for details.
   final GestureScaleEndCallback? onInteractionEnd;
+
+  /// Called when the view stops moving: after a gesture, fling inertia, mouse wheel scrolling,
+  /// page snapping, or an animated move such as [PdfViewerController.goToPage] has finished.
+  ///
+  /// Useful for updating UI that depends on the final position or zoom, without reacting to every
+  /// intermediate frame.
+  final VoidCallback? onAnimationEnd;
 
   /// See [InteractiveViewer.onInteractionStart] for details.
   final GestureScaleStartCallback? onInteractionStart;
@@ -774,6 +788,7 @@ class PdfViewerParams {
         forceReload ||
         other.backgroundColor != backgroundColor ||
         other.layoutStrategy != layoutStrategy ||
+        (other.paging == null) != (paging == null) || // relayout only when paged mode switches
         // ignore: deprecated_member_use_from_same_package
         other.maxScale != maxScale ||
         // ignore: deprecated_member_use_from_same_package
@@ -824,6 +839,7 @@ class PdfViewerParams {
         other.isVisible == isVisible &&
         other.backgroundColor == backgroundColor &&
         other.layoutStrategy == layoutStrategy &&
+        other.paging == paging &&
         // ignore: deprecated_member_use_from_same_package
         other.maxScale == maxScale &&
         // ignore: deprecated_member_use_from_same_package
@@ -851,6 +867,7 @@ class PdfViewerParams {
         other.scaleInertiaMaxExcursion == scaleInertiaMaxExcursion &&
         other.scaleGestureSensitivity == scaleGestureSensitivity &&
         other.onInteractionEnd == onInteractionEnd &&
+        other.onAnimationEnd == onAnimationEnd &&
         other.onInteractionStart == onInteractionStart &&
         other.onInteractionUpdate == onInteractionUpdate &&
         other.interactionEndFrictionCoefficient == interactionEndFrictionCoefficient &&
@@ -902,6 +919,7 @@ class PdfViewerParams {
         isVisible.hashCode ^
         backgroundColor.hashCode ^
         layoutStrategy.hashCode ^
+        paging.hashCode ^
         // ignore: deprecated_member_use_from_same_package
         maxScale.hashCode ^
         // ignore: deprecated_member_use_from_same_package
@@ -929,6 +947,7 @@ class PdfViewerParams {
         scaleInertiaMaxExcursion.hashCode ^
         scaleGestureSensitivity.hashCode ^
         onInteractionEnd.hashCode ^
+        onAnimationEnd.hashCode ^
         onInteractionStart.hashCode ^
         onInteractionUpdate.hashCode ^
         interactionEndFrictionCoefficient.hashCode ^

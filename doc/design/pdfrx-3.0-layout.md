@@ -100,8 +100,59 @@ Note: since strategies are value types, a strategy is resolved only when the lay
 - `PdfPageLayout` gains `margin` / `fitMode` (constructor is backward compatible; `implements
   PdfPageLayout` is not).
 
+## Paged mode (#505)
+
+#505's discrete page transitions are taken over as `PdfViewerParams.paging` (`PdfPaging?`), in
+the place of #505's `pageTransition`; everything is additive (no change for apps that do not opt
+in). Null scrolls continuously; `const PdfPaging()` shows one page (spread) at a time, and its
+fields tune page turning.
+
+- `PdfPageLayout` gains `spreads` (`List<PdfPageRange>`, derived from page rects overlapping along
+  `primaryAxis` when a layout does not set it), `spreadBounds`, `spreadSlots` and
+  `spreadIndexOf`. `PdfPageRange` replaces #505's `PdfSpreadLayout`/`PdfPageRange` pair; no layout
+  subclassing is needed.
+- The viewer passes `PdfPageLayoutContext.paged` to the strategy; `SequentialPagesLayout` and
+  `FacingPagesLayout` then center each spread in a slot at least as long as the view at the home
+  zoom, which is #505's `_addDiscreteSpacing` done by the strategy instead of the viewer. Only a
+  switch of paged mode (null <-> non-null) relayouts; changing the tuning does not.
+- In paged mode, the viewer turns pages:
+  - swipe: decided on release, like `PageView`: a fling faster than `PdfPaging.flingVelocity`
+    (300 px/s) turns exactly one spread (a flick reversing the drag returns), otherwise the spread
+    that is more than half visible; fling inertia is dropped;
+  - mouse wheel: one spread per notch (raw delta >= 50 px; notches during the turn animation
+    queue further turns); web trackpad scroll (`PointerScrollEvent` of kind trackpad, routed
+    through the inner InteractiveViewer's `onTrackpadScroll`): one spread per swipe (events
+    < 200 ms apart, including momentum);
+  - zoomed in: user panning stops at the spread edge (#505's `boundaryProvider`, implemented in
+    `_calcOverscroll` while `_confinedSpread` is set, and with `scrollPhysics` through the inner
+    InteractiveViewer's `boundaryRectProvider`; programmatic moves clear it); a fling or wheel
+    gesture that starts at the edge turns the page;
+  - settle: when the view comes to rest elsewhere (pinch, scroll thumb), the most visible spread
+    is centered if it fits, otherwise a visible edge is aligned.
+- Programmatic moves (`goToPage`, `goToArea`, `goToRectInsidePage`, `goToDest` incl. links,
+  `ensureVisible`, `setZoom`/`zoomUp`/`zoomDown`) in paged mode snap their destination with
+  the same rules (`_snapDestination`), using the target page's spread so the target stays in view.
+  `goTo(matrix)`, `goToPosition` and `value =` stay exact, as the escape hatch.
+- Without `paging`, the viewer never snaps. Tried and dropped along the way:
+  - page flipping on a continuous layout (not useful);
+  - a settle snap for continuous layouts (`pageSnap` as an on/off switch, with overview alignment):
+    it pulled back small wheel scrolls, and `pageSnap` was then an on/off switch for continuous
+    layouts but only tuning for paged ones;
+  - `paged: bool` on each layout strategy with the tuning (`pageSnap`) in `PdfViewerParams`: one
+    feature configured in two places. The switch and the tuning are now one param, and strategies
+    read `context.paged`.
+- `PdfViewerController.currentPageRange` (spread of the current page) and `visiblePageRange`
+  (pages intersecting the view); the default scroll thumb shows `currentPageRange.label` (e.g.
+  `2-3`). `thumbBuilder`'s signature is unchanged (#505 changed it).
+- `PdfViewerController.beginUserScroll` / `endUserScroll`: external widgets that set the matrix on
+  behalf of the user (the scroll thumb) mark the scroll so that snapping and `onAnimationEnd` run
+  after it, as after a gesture.
+- `PdfViewerParams.onAnimationEnd`: called once the view stops moving (50 ms debounce, no gesture
+  or animation running).
+- `FacingPagesLayout` moved from the example into the library (`margin`, `coverPage`,
+  `rightToLeft`, `fitMode`).
+
 ## Future work (same slot)
 
-`FacingPagesLayout`, discrete page transitions, page-range API (see #505's `PdfSpreadLayout` /
-`PdfPageRange` for prior art). These will likely need spread info on `PdfPageLayout`; keep its
+Horizontal `FacingPagesLayout`. Keep `PdfPageLayout`'s
 constructor additive.

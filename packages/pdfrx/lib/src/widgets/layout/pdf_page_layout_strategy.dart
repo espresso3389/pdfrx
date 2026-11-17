@@ -67,7 +67,7 @@ abstract class PdfPageLayoutStrategy {
 /// without breaking existing [PdfPageLayoutStrategy] implementations.
 @immutable
 class PdfPageLayoutContext {
-  const PdfPageLayoutContext({required this.pages, required this.viewport, this.boundaryMargin});
+  const PdfPageLayoutContext({required this.pages, required this.viewport, this.boundaryMargin, this.paged = false});
 
   /// The pages of the document, in order.
   final List<PdfPage> pages;
@@ -79,4 +79,12 @@ class PdfPageLayoutContext {
 
   /// [PdfViewerParams.boundaryMargin], for strategies that fit pages into the viewport.
   final EdgeInsets? boundaryMargin;
+
+  /// Whether the viewer shows one page (spread) at a time ([PdfViewerParams.paging] is set).
+  ///
+  /// A strategy should then give each spread a slot along the scroll axis that is at least as long
+  /// as the view at the home zoom, with the spread centered in it, so that neighbor spreads are not
+  /// visible while a spread is shown (see [PdfPageLayout.spreadSlots]). A strategy that ignores it
+  /// still gets page turning, but neighbor pages may peek into the view.
+  final bool paged;
 }

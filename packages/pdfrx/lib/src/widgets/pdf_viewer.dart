@@ -28,8 +28,10 @@ import 'internals/pdf_viewer_key_handler.dart';
 import 'internals/widget_size_sniffer.dart';
 import 'layout/pdf_fit_mode.dart';
 import 'layout/pdf_page_layout_strategy.dart';
+import 'layout/pdf_page_range.dart';
 import 'pdf_page_links_overlay.dart';
 import 'pdf_image_cache_budget.dart';
+import 'pdf_paging.dart';
 import 'pdf_viewer_layout_metrics.dart';
 import 'pdf_viewer_params.dart';
 import 'scroll_interaction/pdf_viewer_scroll_interaction_delegate.dart';
@@ -327,6 +329,12 @@ class _PdfViewerState extends State<PdfViewer>
   Timer? _interactionEndedTimer;
   bool _isInteractionGoingOn = false;
 
+  /// Pending page snap check; see [PdfViewerParams.paging].
+  Timer? _pageSnapTimer;
+
+  /// True once the user has moved the view since the last page snap.
+  bool _pageSnapPending = false;
+
   BuildContext? _contextForFocusNode;
 
   /// last pointer location in viewer local coordinates
@@ -390,6 +398,8 @@ class _PdfViewerState extends State<PdfViewer>
         _selectionHandleGlobalPosition = null;
         _interactionEndedTimer?.cancel();
         _isInteractionGoingOn = false;
+        _pageSnapTimer?.cancel();
+        _pageSnapPending = false;
         _clearFontManagerAssociation();
         _releaseCachedResources(keepVisible: false, keepSelection: true);
       } else {
@@ -658,6 +668,9 @@ class _PdfViewerState extends State<PdfViewer>
     _clearFontManagerAssociation();
     _textSelectionChangedDebounceTimer?.cancel();
     _interactionEndedTimer?.cancel();
+    _pageSnapTimer?.cancel();
+    _wheelBurstTimer?.cancel();
+    _animationEndTimer?.cancel();
     _imageCache.cancelAllPendingRenderings();
     _magnifierImageCache.cancelAllPendingRenderings();
     _completeInitialPageImageWaiter();
@@ -677,7 +690,28 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onMatrixChanged() {
     _updateSelectionHandleAtPointer();
+    if (_pageSnapPending) _schedulePageSnap();
+    if (widget.params.onAnimationEnd != null) _scheduleAnimationEndCheck();
     _invalidate();
+  }
+
+  /// Debounce timer for [PdfViewerParams.onAnimationEnd].
+  Timer? _animationEndTimer;
+
+  /// Calls [PdfViewerParams.onAnimationEnd] once the matrix has not changed for a short while and no
+  /// gesture or animation is active.
+  void _scheduleAnimationEndCheck() {
+    _animationEndTimer?.cancel();
+    _animationEndTimer = Timer(const Duration(milliseconds: 50), () {
+      _animationEndTimer = null;
+      if (!mounted) return;
+      if (_interactionStartRect != null || _isUserScrolling) return; // the gesture end checks again
+      if (_animController.isAnimating || _interactiveViewerState?.hasActiveAnimations == true) {
+        _scheduleAnimationEndCheck();
+        return;
+      }
+      widget.params.onAnimationEnd?.call();
+    });
   }
 
   void _updateFontManagerAssociation() {
@@ -837,6 +871,10 @@ class _PdfViewerState extends State<PdfViewer>
                             boundaryMargin: widget.params.scrollPhysics == null
                                 ? const EdgeInsets.all(double.infinity) // NOTE: boundaryMargin is handled manually
                                 : (widget.params.boundaryMargin ?? EdgeInsets.zero),
+                            onTrackpadScroll: _onTrackpadScroll,
+                            boundaryRectProvider: widget.params.scrollPhysics == null
+                                ? null
+                                : _scrollPhysicsBoundaryRect,
                             maxScale: _layoutMetrics.maxScale,
                             minScale: _layoutMetrics.minScale,
                             panAxis: widget.params.panAxis,
@@ -940,12 +978,26 @@ class _PdfViewerState extends State<PdfViewer>
     var dxDoc = 0.0;
     var dyDoc = 0.0;
 
-    final leftBoundary = -boundaryMargin.left; // negative margin reduces allowed leftward scroll
-    final rightBoundary =
+    var leftBoundary = -boundaryMargin.left; // negative margin reduces allowed leftward scroll
+    var rightBoundary =
         layout.documentSize.width + boundaryMargin.right; // negative margin reduces allowed rightward scroll
-    final topBoundary = -boundaryMargin.top; // negative margin reduces allowed upward scroll
-    final bottomBoundary =
+    var topBoundary = -boundaryMargin.top; // negative margin reduces allowed upward scroll
+    var bottomBoundary =
         layout.documentSize.height + boundaryMargin.bottom; // negative margin reduces allowed downward scroll
+
+    // Paged layout, zoomed in: user panning stops at the current spread's edges.
+    final confined = _confinedSpread;
+    if (confined != null && _isPaged && confined < layout.spreads.length) {
+      final vertical = layout.effectivePrimaryAxis == Axis.vertical;
+      final area = _spreadArea(layout, confined, vertical);
+      if (vertical) {
+        topBoundary = max(topBoundary, area.top);
+        bottomBoundary = min(bottomBoundary, area.bottom);
+      } else {
+        leftBoundary = max(leftBoundary, area.left);
+        rightBoundary = min(rightBoundary, area.right);
+      }
+    }
 
     if (rightBoundary - leftBoundary <= visible.width) {
       dxDoc = (leftBoundary + rightBoundary - visible.left - visible.right) / 2;
@@ -1074,6 +1126,7 @@ class _PdfViewerState extends State<PdfViewer>
           isLayoutChanged: true,
           isViewSizeChanged: false,
         );
+        _centerPagedSpread(currentPageNumber);
       });
     } else if (isLayoutChanged || isViewSizeChanged) {
       Future.microtask(() {
@@ -1090,6 +1143,7 @@ class _PdfViewerState extends State<PdfViewer>
           isLayoutChanged: isLayoutChanged,
           isViewSizeChanged: isViewSizeChanged,
         );
+        _centerPagedSpread(currentPageNumber);
 
         if (!mounted || documentGeneration != _documentGeneration || _controller?.isReady != true) {
           return;
@@ -1102,6 +1156,45 @@ class _PdfViewerState extends State<PdfViewer>
     } else if (currentPageNumber != null && _pageNumber != currentPageNumber) {
       _setCurrentPageNumber(currentPageNumber);
     }
+  }
+
+  /// In paged mode ([PdfViewerParams.paging]), moves the view so that the spread of [pageNumber] is shown
+  /// as page turning shows it (centered if it fits in the view), keeping the zoom.
+  void _centerPagedSpread(int? pageNumber) {
+    final layout = _layout;
+    if (pageNumber == null || layout == null || !_isPaged || _viewSize == null) return;
+    final m = _calcMatrixForPagedSpread(_txController.value, pageNumber);
+    if (m != null) _txController.value = m;
+  }
+
+  /// In paged mode ([PdfViewerParams.paging]), adjusts [m] along the primary axis so that the spread of
+  /// [pageNumber] is centered if it fits in the view, or its start is aligned with the view start.
+  /// Returns null for other layouts or if no adjustment is needed.
+  Matrix4? _calcMatrixForPagedSpread(Matrix4 m, int pageNumber) {
+    final layout = _layout;
+    final viewSize = _viewSize;
+    if (layout == null || !_isPaged || viewSize == null) return null;
+    final index = layout.spreadIndexOf(pageNumber);
+    if (index < 0) return null;
+    final vertical = layout.effectivePrimaryAxis == Axis.vertical;
+    final view = m.calcVisibleRect(viewSize);
+    final area = _spreadArea(layout, index, vertical);
+    final zoom = m.zoom;
+    final double delta;
+    if (_lengthOf(area, vertical) <= _lengthOf(view, vertical) + 0.5 / zoom) {
+      delta =
+          (_startOf(area, vertical) + _endOf(area, vertical)) / 2 -
+          (_startOf(view, vertical) + _endOf(view, vertical)) / 2;
+    } else {
+      delta = _startOf(area, vertical) - _startOf(view, vertical);
+    }
+    if (delta.abs() <= 0.5 / zoom) return null;
+    final center = view.center;
+    return _calcMatrixFor(
+      vertical ? center.translate(0, delta) : center.translate(delta, 0),
+      zoom: zoom,
+      viewSize: viewSize,
+    );
   }
 
   /// Get the state of the internal [iv.InteractiveViewer].
@@ -1199,6 +1292,8 @@ class _PdfViewerState extends State<PdfViewer>
     _interactionEndedTimer?.cancel();
     _interactionEndedTimer = null;
     _isInteractionGoingOn = true;
+    _pageSnapTimer?.cancel();
+    _pageSnapPending = _paging != null;
   }
 
   void _stopInteraction() {
@@ -1206,18 +1301,404 @@ class _PdfViewerState extends State<PdfViewer>
     if (!mounted) return;
     _interactionEndedTimer = Timer(const Duration(milliseconds: 300), () {
       _isInteractionGoingOn = false;
+      if (_pageSnapPending) _schedulePageSnap();
       _invalidate();
     });
   }
 
+  /// [PdfViewerParams.paging]; null in continuous mode, which does not snap.
+  PdfPaging? get _paging => widget.params.paging;
+
+  /// Whether the viewer shows one page (spread) at a time; see [PdfViewerParams.paging].
+  bool get _isPaged => widget.params.paging != null;
+
+  /// (Re)starts the settle timer for page snapping. Called on every matrix change while a snap is
+  /// pending, so the snap runs only once the view has been still for [PdfPaging.settleDelay]
+  /// (after drag, fling inertia, wheel scrolling or pinch).
+  void _schedulePageSnap() {
+    final paging = _paging;
+    _pageSnapTimer?.cancel();
+    if (paging == null) {
+      _pageSnapPending = false;
+      _confinedSpread = null;
+      return;
+    }
+    _pageSnapTimer = Timer(paging.settleDelay, _snapToPage);
+  }
+
+  void _snapToPage() {
+    _pageSnapTimer = null;
+    final paging = _paging;
+    if (!mounted || !_pageSnapPending || paging == null || !widget.params.isVisible) return;
+    // Still moving; the next matrix change or interaction end reschedules.
+    if (_isInteractionGoingOn ||
+        _animController.isAnimating ||
+        _interactiveViewerState?.hasActiveAnimations == true ||
+        _selPartMoving != _TextSelectionPart.none) {
+      return;
+    }
+    _pageSnapPending = false;
+    _confinedSpread = null;
+    final destination = _calcPageSnapMatrix();
+    if (destination != null) unawaited(_goTo(destination, duration: paging.duration));
+  }
+
+  double _startOf(Rect r, bool vertical) => vertical ? r.top : r.left;
+  double _endOf(Rect r, bool vertical) => vertical ? r.bottom : r.right;
+  double _lengthOf(Rect r, bool vertical) => vertical ? r.height : r.width;
+
+  /// The spread's bounds with [PdfPageLayout.margin] on the primary-axis ends.
+  Rect _spreadArea(PdfPageLayout layout, int index, bool vertical) {
+    final b = layout.spreadBounds[index];
+    final m = layout.margin;
+    return vertical
+        ? Rect.fromLTRB(b.left, b.top - m, b.right, b.bottom + m)
+        : Rect.fromLTRB(b.left - m, b.top, b.right + m, b.bottom);
+  }
+
+  /// Index of the spread that is the most visible in [view] along the primary axis, or -1.
+  ///
+  /// In paged mode ([PdfViewerParams.paging]), the spread slots are compared, so the gaps between pages
+  /// count towards the nearest spread.
+  int _mostVisibleSpread(PdfPageLayout layout, Rect view) {
+    final vertical = layout.effectivePrimaryAxis == Axis.vertical;
+    final viewStart = _startOf(view, vertical);
+    final viewEnd = _endOf(view, vertical);
+    var best = -1;
+    var bestVisible = 0.0;
+    for (var i = 0; i < layout.spreads.length; i++) {
+      final area = _isPaged ? layout.spreadSlots[i] : _spreadArea(layout, i, vertical);
+      final visible = min(_endOf(area, vertical), viewEnd) - max(_startOf(area, vertical), viewStart);
+      if (visible > bestVisible) {
+        best = i;
+        bestVisible = visible;
+      }
+    }
+    return best;
+  }
+
+  /// Whether the spread (with margins) fits in [view] along the primary axis.
+  bool _spreadFits(PdfPageLayout layout, int index, Rect view, {double? zoom}) {
+    final vertical = layout.effectivePrimaryAxis == Axis.vertical;
+    return _lengthOf(_spreadArea(layout, index, vertical), vertical) <=
+        _lengthOf(view, vertical) + 0.5 / (zoom ?? _currentZoom);
+  }
+
+  /// Matrix that moves the view of [base] (the current matrix by default) along the primary axis by
+  /// [delta] (document units), or null if the move is less than half a pixel.
+  Matrix4? _calcMatrixShiftedAlongPrimaryAxis(double delta, bool vertical, {Matrix4? base}) {
+    final viewSize = _viewSize;
+    if (viewSize == null) return null;
+    final zoom = base?.zoom ?? _currentZoom;
+    if (delta.abs() <= 0.5 / zoom) return null;
+    final center = base != null ? base.calcVisibleRect(viewSize).center : _visibleRect.center;
+    return _calcMatrixFor(
+      vertical ? center.translate(0, delta) : center.translate(delta, 0),
+      zoom: zoom,
+      viewSize: viewSize,
+    );
+  }
+
+  /// Matrix that shows the spread at [index] at the current zoom: centered if it fits in the view,
+  /// otherwise with its start (or end, if [fromEnd]) aligned with the view.
+  Matrix4? _calcMatrixToShowSpread(PdfPageLayout layout, int index, {bool fromEnd = false}) {
+    final vertical = layout.effectivePrimaryAxis == Axis.vertical;
+    final view = _visibleRect;
+    final area = _spreadArea(layout, index, vertical);
+    final double delta;
+    if (_spreadFits(layout, index, view)) {
+      delta =
+          (_startOf(area, vertical) + _endOf(area, vertical)) / 2 -
+          (_startOf(view, vertical) + _endOf(view, vertical)) / 2;
+    } else if (fromEnd) {
+      delta = _endOf(area, vertical) - _endOf(view, vertical);
+    } else {
+      delta = _startOf(area, vertical) - _startOf(view, vertical);
+    }
+    return _calcMatrixShiftedAlongPrimaryAxis(delta, vertical);
+  }
+
+  /// Calculates the matrix that snaps the view of [base] (the current matrix by default) to a page
+  /// (or spread) boundary, or null if no snap is needed. See [PdfPaging] for the rules.
+  ///
+  /// With [pageNumber], the spread of that page is snapped to instead of the most visible one.
+  Matrix4? _calcPageSnapMatrix({Matrix4? base, int? pageNumber}) {
+    final layout = _layout;
+    final viewSize = _viewSize;
+    if (layout == null || viewSize == null || layout.pageLayouts.isEmpty || viewSize.isEmpty) return null;
+    final vertical = layout.effectivePrimaryAxis == Axis.vertical;
+    final view = base != null ? base.calcVisibleRect(viewSize) : _visibleRect;
+    final zoom = base?.zoom ?? _currentZoom;
+    final pageSpread = pageNumber != null ? layout.spreadIndexOf(pageNumber) : -1;
+    final index = pageSpread >= 0 ? pageSpread : _mostVisibleSpread(layout, view);
+    if (index < 0) return null;
+    final area = _spreadArea(layout, index, vertical);
+    final viewStart = _startOf(view, vertical);
+    final viewEnd = _endOf(view, vertical);
+    Matrix4? shift(double delta) => _calcMatrixShiftedAlongPrimaryAxis(delta, vertical, base: base);
+
+    if (_spreadFits(layout, index, view, zoom: zoom)) {
+      return shift((_startOf(area, vertical) + _endOf(area, vertical)) / 2 - (viewStart + viewEnd) / 2);
+    }
+    // Larger than the view (zoomed in): only align an edge that is visible.
+    if (_startOf(area, vertical) > viewStart) return shift(_startOf(area, vertical) - viewStart);
+    if (_endOf(area, vertical) < viewEnd) return shift(_endOf(area, vertical) - viewEnd);
+    return null; // inside a page larger than the view
+  }
+
+  /// In paged mode ([PdfViewerParams.paging]), snaps the destination of a programmatic move such as
+  /// [PdfViewerController.goToDest] to a page, so that it lands where a user scroll would settle.
+  ///
+  /// [pageNumber] is the page the move targets, if known: its spread is snapped to, so that the
+  /// target stays in view even if a neighbor is more visible at the destination.
+  Matrix4? _snapDestination(Matrix4? destination, {int? pageNumber}) {
+    if (destination == null || _paging == null || _selPartMoving != _TextSelectionPart.none) {
+      return destination;
+    }
+    return _calcPageSnapMatrix(base: destination, pageNumber: pageNumber) ?? destination;
+  }
+
+  /// View rect and zoom when the current gesture started; used by [_turnPageOnInteractionEnd].
+  Rect? _interactionStartRect;
+  double? _interactionStartZoom;
+
+  /// In paged mode ([PdfViewerParams.paging]), zoomed in so that the current spread is larger than the
+  /// view: the index of that spread. While set, user panning stops at the spread's edges (see
+  /// [_calcOverscroll]); programmatic moves ([_goTo]) and the settle snap clear it.
+  int? _confinedSpread;
+
+  /// With [PdfViewerParams.scrollPhysics], the inner InteractiveViewer computes the pan boundaries;
+  /// this narrows them to the confined spread (see [_confinedSpread]), or returns null to use the
+  /// default boundaries.
+  Rect? _scrollPhysicsBoundaryRect() {
+    final confined = _confinedSpread;
+    final layout = _layout;
+    if (confined == null || layout == null || !_isPaged || confined >= layout.spreads.length) return null;
+    final vertical = layout.effectivePrimaryAxis == Axis.vertical;
+    final boundaryMargin = widget.params.boundaryMargin ?? EdgeInsets.zero;
+    final docRect = Offset.zero & layout.documentSize;
+    final base = boundaryMargin.containsInfinite ? docRect : boundaryMargin.inflateRect(docRect);
+    final area = _spreadArea(layout, confined, vertical);
+    return vertical
+        ? Rect.fromLTRB(base.left, max(base.top, area.top), base.right, min(base.bottom, area.bottom))
+        : Rect.fromLTRB(max(base.left, area.left), base.top, min(base.right, area.right), base.bottom);
+  }
+
+  /// Sets [_confinedSpread] for the current view of a paged layout, if it is zoomed in.
+  void _updateConfinedSpread() {
+    final layout = _layout;
+    _confinedSpread = null;
+    if (layout == null || !_isPaged || _viewSize == null || layout.pageLayouts.isEmpty) return;
+    final index = _mostVisibleSpread(layout, _visibleRect);
+    if (index >= 0 && !_spreadFits(layout, index, _visibleRect)) _confinedSpread = index;
+  }
+
+  /// Turns to the adjacent spread in paged mode ([PdfViewerParams.paging]) ([direction] is 1 or -1) and
+  /// animates there. Returns false if there is no spread in that direction.
+  bool _turnPage(PdfPageLayout layout, int from, int direction, PdfPaging paging) {
+    final target = from + direction;
+    if (target < 0 || target >= layout.spreads.length) return false;
+    _turnPageTo(layout, target, paging, fromEnd: direction < 0);
+    return true;
+  }
+
+  void _turnPageTo(PdfPageLayout layout, int target, PdfPaging paging, {bool fromEnd = false}) {
+    _pageSnapTimer?.cancel();
+    _pageSnapPending = false;
+    _confinedSpread = null;
+    final destination = _calcMatrixToShowSpread(layout, target, fromEnd: fromEnd);
+    // The inner InteractiveViewer starts the fling inertia right after onInteractionEnd returns.
+    scheduleMicrotask(() {
+      if (!mounted) return;
+      _stopInteractiveViewerAnimation();
+      if (destination != null) unawaited(_goTo(destination, duration: paging.duration));
+    });
+  }
+
+  /// Page turning when a pan gesture ends in paged mode ([PdfViewerParams.paging]). Returns true if
+  /// handled; see [PdfPaging] for the rules.
+  bool _turnPageOnInteractionEnd(ScaleEndDetails details) {
+    final startView = _interactionStartRect;
+    final startZoom = _interactionStartZoom;
+    _interactionStartRect = null;
+    _interactionStartZoom = null;
+
+    final paging = _paging;
+    final layout = _layout;
+    if (paging == null ||
+        startView == null ||
+        startZoom == null ||
+        layout == null ||
+        !_isPaged ||
+        layout.pageLayouts.isEmpty ||
+        !widget.params.isVisible ||
+        _selPartMoving != _TextSelectionPart.none) {
+      return false;
+    }
+    final zoom = _currentZoom;
+    if ((zoom - startZoom).abs() > startZoom * 0.01) return false; // pinch-zoom; snapped on settle
+
+    final vertical = layout.effectivePrimaryAxis == Axis.vertical;
+    final startIndex = _mostVisibleSpread(layout, startView);
+    if (startIndex < 0) return false;
+
+    final view = _visibleRect;
+    final velocity = details.velocity.pixelsPerSecond;
+    final primaryVelocity = vertical ? velocity.dy : velocity.dx;
+    final crossVelocity = vertical ? velocity.dx : velocity.dy;
+    final isFling = primaryVelocity.abs() >= paging.flingVelocity && primaryVelocity.abs() >= crossVelocity.abs();
+    // Content follows the finger, so the view moves against the velocity.
+    final direction = primaryVelocity < 0 ? 1 : -1;
+
+    if (!_spreadFits(layout, startIndex, startView)) {
+      // Zoomed in: panning stops at the page edge; a fling that starts there turns the page.
+      if (!isFling) return false;
+      final area = _spreadArea(layout, startIndex, vertical);
+      final tolerance = 2 / zoom;
+      final atEdge = direction > 0
+          ? _endOf(startView, vertical) >= _endOf(area, vertical) - tolerance
+          : _startOf(startView, vertical) <= _startOf(area, vertical) + tolerance;
+      if (!atEdge) return false;
+      return _turnPage(layout, startIndex, direction, paging);
+    }
+
+    int target;
+    if (isFling) {
+      final moved = _startOf(view, vertical) - _startOf(startView, vertical);
+      // A flick against the drag returns to the starting spread.
+      target = moved * direction < 0 ? startIndex : (startIndex + direction).clamp(0, layout.spreads.length - 1);
+    } else {
+      // The spread that is more than half visible.
+      target = _mostVisibleSpread(layout, view);
+      if (target < 0) target = startIndex;
+    }
+    _turnPageTo(layout, target, paging, fromEnd: target < startIndex);
+    return true;
+  }
+
+  /// Wheel bursts: wheel events less than this apart belong to one gesture.
+  static const _wheelBurstGap = Duration(milliseconds: 200);
+  Timer? _wheelBurstTimer;
+
+  /// How the current wheel burst is handled: true to turn pages, false to scroll within a zoomed-in
+  /// spread (the burst did not start at its edge), null if not decided yet.
+  bool? _wheelBurstTurns;
+
+  /// Mouse wheel: the spread the current burst has turned to (notches during the turn animation turn
+  /// further from it), and the delta accumulated towards the next turn.
+  int? _wheelTargetSpread;
+  double _wheelAccumulated = 0;
+
+  /// Wheel delta (logical pixels) that turns one page; a mouse wheel notch is usually 100 or more.
+  static const _wheelDeltaPerPage = 50.0;
+
+  /// Mouse wheel / trackpad scrolling in paged mode ([PdfViewerParams.paging]). Returns true if [delta]
+  /// (content movement in view pixels) was consumed.
+  ///
+  /// * Mouse wheel ([trackpad] false): each notch turns one spread; notches during the turn
+  ///   animation turn further.
+  /// * Trackpad (web): each swipe (including its momentum) turns one spread.
+  /// * When zoomed in, it scrolls within the spread instead, and turns only if the burst of wheel
+  ///   events started at the spread's edge.
+  bool _onPagedWheel(Offset delta, {required bool trackpad}) {
+    final layout = _layout;
+    final paging = _paging;
+    if (layout == null || !_isPaged || paging == null || _viewSize == null || layout.pageLayouts.isEmpty) {
+      return false;
+    }
+    final vertical = layout.effectivePrimaryAxis == Axis.vertical;
+    final primaryDelta = vertical ? delta.dy : delta.dx;
+    final isNewBurst = _wheelBurstTimer == null;
+    _wheelBurstTimer?.cancel();
+    _wheelBurstTimer = Timer(_wheelBurstGap, () {
+      _wheelBurstTimer = null;
+      _wheelBurstTurns = null;
+      _wheelTargetSpread = null;
+      _wheelAccumulated = 0;
+    });
+    if (primaryDelta.abs() < 0.01) return _wheelBurstTurns != false;
+    final direction = primaryDelta < 0 ? 1 : -1;
+
+    if (_wheelBurstTurns == null) {
+      final view = _visibleRect;
+      final index = _mostVisibleSpread(layout, view);
+      if (index < 0) return false;
+      if (_spreadFits(layout, index, view)) {
+        _wheelBurstTurns = true;
+      } else {
+        // Zoomed in: turn only if the burst starts at the edge; otherwise scroll within the spread.
+        final area = _spreadArea(layout, index, vertical);
+        final tolerance = 2 / _currentZoom;
+        final atEdge = direction > 0
+            ? _endOf(view, vertical) >= _endOf(area, vertical) - tolerance
+            : _startOf(view, vertical) <= _startOf(area, vertical) + tolerance;
+        _confinedSpread = index;
+        if (!atEdge) {
+          if (isNewBurst) _wheelBurstTurns = false;
+          return false;
+        }
+        _wheelBurstTurns = true;
+        // A zoomed-in page is scrolled after the turn, so the rest of the burst only turns once.
+        _turnPage(layout, index, direction, paging);
+        _wheelTargetSpread = -1;
+        return true;
+      }
+    }
+    if (_wheelBurstTurns == false) return false;
+    if (_wheelTargetSpread == -1) return true; // turned once while zoomed in; ignore the rest
+
+    // A trackpad turns one spread per swipe; ignore the rest of it (and its momentum).
+    if (trackpad && _wheelTargetSpread != null) return true;
+
+    if (_wheelAccumulated * primaryDelta < 0) _wheelAccumulated = 0; // direction changed
+    _wheelAccumulated += primaryDelta;
+    if (_wheelAccumulated.abs() < _wheelDeltaPerPage) return true;
+    _wheelAccumulated = 0;
+    final from = _wheelTargetSpread ?? _mostVisibleSpread(layout, _visibleRect);
+    if (from < 0) return false;
+    final target = from + direction;
+    if (target < 0 || target >= layout.spreads.length) return true;
+    _wheelTargetSpread = target;
+    _turnPageTo(layout, target, paging, fromEnd: direction < 0);
+    return true;
+  }
+
+  /// Web trackpad scroll events (which the inner InteractiveViewer would otherwise pan by).
+  bool _onTrackpadScroll(PointerScrollEvent event) => _onPagedWheel(-event.scrollDelta, trackpad: true);
+
+  /// Whether a scroll by an external widget is in progress; see [PdfViewerController.beginUserScroll].
+  bool _isUserScrolling = false;
+
+  void _beginUserScroll() {
+    _stopInteractiveViewerAnimation();
+    _interactionDelegate?.stop();
+    _startInteraction();
+    _confinedSpread = null;
+    _isUserScrolling = true;
+  }
+
+  void _endUserScroll() {
+    if (!_isUserScrolling) return;
+    _isUserScrolling = false;
+    _stopInteraction();
+    if (widget.params.onAnimationEnd != null) _scheduleAnimationEndCheck();
+  }
+
   void _onInteractionEnd(ScaleEndDetails details) {
     widget.params.onInteractionEnd?.call(details);
+    _turnPageOnInteractionEnd(details);
     _stopInteraction();
+    if (widget.params.onAnimationEnd != null) _scheduleAnimationEndCheck();
   }
 
   void _onInteractionStart(ScaleStartDetails details) {
     _interactionDelegate?.stop(); // Stop physics when user touches
     _startInteraction();
+    if (_viewSize != null) {
+      _interactionStartRect = _visibleRect;
+      _interactionStartZoom = _currentZoom;
+      _updateConfinedSpread();
+    }
     _requestFocus();
     widget.params.onInteractionStart?.call(details);
   }
@@ -1441,12 +1922,14 @@ class _PdfViewerState extends State<PdfViewer>
         pages: _document!.pages,
         viewport: _viewSize ?? Size.zero,
         boundaryMargin: widget.params.boundaryMargin,
+        paged: _isPaged,
       ),
     );
     _layoutDirty = false;
     if (_layout?.documentSize == newLayout.documentSize &&
         _layout?.margin == newLayout.margin &&
         _layout?.fitMode == newLayout.fitMode &&
+        _layout?.primaryAxis == newLayout.primaryAxis &&
         _pageLayoutIndex?.matches(newLayout.pageLayouts) == true) {
       return false;
     }
@@ -2822,6 +3305,8 @@ class _PdfViewerState extends State<PdfViewer>
         delta = Offset(dx, dy);
       }
 
+      // Page turning uses the raw wheel delta, not the scroll speed set by scrollByMouseWheel.
+      if (_onPagedWheel(scrollMultiplier == 0 ? delta : delta / scrollMultiplier, trackpad: false)) return;
       _interactionDelegate?.pan(delta, _layoutMetrics);
     } finally {
       _stopInteraction();
@@ -3037,6 +3522,7 @@ class _PdfViewerState extends State<PdfViewer>
 
     try {
       if (destination == null) return; // do nothing
+      _confinedSpread = null;
       _stopInteractiveViewerAnimation();
       _animationResettingGuard++;
       _animController.reset();
@@ -3080,15 +3566,19 @@ class _PdfViewerState extends State<PdfViewer>
     return _calcMatrixForRect(rect, margin: margin);
   }
 
-  Future<void> _ensureVisible(Rect rect, {Duration duration = const Duration(milliseconds: 200), double margin = 0}) =>
-      _goTo(_calcMatrixToEnsureRectVisible(rect, margin: margin), duration: duration);
+  Future<void> _ensureVisible(Rect rect, {Duration duration = const Duration(milliseconds: 200), double margin = 0}) {
+    final m = _calcMatrixToEnsureRectVisible(rect, margin: margin);
+    // Already visible: keep the current position.
+    if (identical(m, _txController.value)) return _goTo(m, duration: duration);
+    return _goTo(_snapDestination(m), duration: duration);
+  }
 
   Future<void> _goToArea({
     required Rect rect,
     PdfPageAnchor? anchor,
     Duration duration = const Duration(milliseconds: 200),
   }) => _goTo(
-    _calcMatrixForArea(rect: rect, anchor: anchor),
+    _snapDestination(_calcMatrixForArea(rect: rect, anchor: anchor)),
     duration: duration,
     anchor: anchor,
   );
@@ -3110,9 +3600,10 @@ class _PdfViewerState extends State<PdfViewer>
     }
     _gotoTargetPageNumber = pageNumber;
 
+    final pageMatrix = _calcMatrixForPage(pageNumber: targetPageNumber, anchor: anchor);
     await _goTo(
       _calcMatrixForClampedToNearestBoundary(
-        _calcMatrixForPage(pageNumber: targetPageNumber, anchor: anchor),
+        _snapDestination(pageMatrix, pageNumber: targetPageNumber)!,
         viewSize: _viewSize!,
         anchor: anchor,
       ),
@@ -3152,7 +3643,10 @@ class _PdfViewerState extends State<PdfViewer>
   }) async {
     _gotoTargetPageNumber = pageNumber;
     await _goTo(
-      _calcMatrixForRectInsidePage(pageNumber: pageNumber, rect: rect, anchor: anchor),
+      _snapDestination(
+        _calcMatrixForRectInsidePage(pageNumber: pageNumber, rect: rect, anchor: anchor),
+        pageNumber: pageNumber,
+      ),
       duration: duration,
       anchor: anchor,
     );
@@ -3165,7 +3659,7 @@ class _PdfViewerState extends State<PdfViewer>
     if (dest != null) {
       _gotoTargetPageNumber = dest.pageNumber;
     }
-    await _goTo(m, duration: duration);
+    await _goTo(_snapDestination(m, pageNumber: dest?.pageNumber), duration: duration);
     if (dest != null) {
       _setCurrentPageNumber(dest.pageNumber);
     }
@@ -3201,7 +3695,7 @@ class _PdfViewerState extends State<PdfViewer>
   Future<void> _setZoom(Offset position, double zoom, {Duration duration = const Duration(milliseconds: 200)}) {
     _adjustBoundaryMargins(_viewSize!, zoom);
     return _goTo(
-      _calcMatrixFor(position, zoom: zoom, viewSize: _viewSize!),
+      _snapDestination(_calcMatrixFor(position, zoom: zoom, viewSize: _viewSize!)),
       duration: duration,
     );
   }
@@ -5214,7 +5708,9 @@ class PdfPageLayout {
     required this.documentSize,
     this.margin = 0.0,
     this.fitMode = PdfFitMode.none,
-  });
+    this.primaryAxis,
+    List<PdfPageRange>? spreads,
+  }) : _spreads = spreads; // ignore: prefer_initializing_formals
 
   /// Page rectangles in document coordinates; index `i` is page `i + 1`.
   final List<Rect> pageLayouts;
@@ -5232,6 +5728,100 @@ class PdfPageLayout {
   /// (fit-width for `fill`/`cover`, fit-page for `fit`).
   final PdfFitMode fitMode;
 
+  /// The axis pages are arranged and scrolled along, used for page turning ([PdfViewerParams.paging]).
+  ///
+  /// If null, it is inferred from [documentSize]: horizontal if the document is wider than tall,
+  /// otherwise vertical. Layouts should set it when that guess can be wrong (e.g. a facing-pages
+  /// layout of a short document).
+  final Axis? primaryAxis;
+
+  /// [primaryAxis], or the axis inferred from [documentSize] when it is null.
+  Axis get effectivePrimaryAxis =>
+      primaryAxis ?? (documentSize.width > documentSize.height ? Axis.horizontal : Axis.vertical);
+
+  final List<PdfPageRange>? _spreads;
+
+  /// The spreads (groups of pages shown side by side, such as facing pages), in order.
+  ///
+  /// If the layout did not specify them, consecutive pages whose rects overlap along
+  /// [effectivePrimaryAxis] are grouped.
+  late final List<PdfPageRange> spreads = _spreads ?? _calcSpreads();
+
+  List<PdfPageRange> _calcSpreads() {
+    final vertical = effectivePrimaryAxis == Axis.vertical;
+    final result = <PdfPageRange>[];
+    Rect? last;
+    for (var i = 0; i < pageLayouts.length; i++) {
+      final rect = pageLayouts[i];
+      if (last != null &&
+          (vertical
+              ? rect.top < last.bottom && rect.bottom > last.top
+              : rect.left < last.right && rect.right > last.left)) {
+        result[result.length - 1] = PdfPageRange(result.last.firstPageNumber, i + 1);
+        last = last.expandToInclude(rect);
+        continue;
+      }
+      result.add(PdfPageRange.single(i + 1));
+      last = rect;
+    }
+    return result;
+  }
+
+  /// Bounding rect of each spread in [spreads] (pages only, without [margin]).
+  late final List<Rect> spreadBounds = [
+    for (final spread in spreads)
+      spread.pageNumbers.map((n) => pageLayouts[n - 1]).reduce((a, b) => a.expandToInclude(b)),
+  ];
+
+  /// The slot of each spread in [spreads]: the spread's area along [effectivePrimaryAxis] extended
+  /// halfway into the gaps to its neighbors (and to the document edges), spanning the document on
+  /// the cross axis. With [PdfViewerParams.paging], this is what the view shows at the home zoom.
+  late final List<Rect> spreadSlots = _calcSpreadSlots();
+
+  List<Rect> _calcSpreadSlots() {
+    final vertical = effectivePrimaryAxis == Axis.vertical;
+    final bounds = spreadBounds;
+    final docEnd = vertical ? documentSize.height : documentSize.width;
+    return [
+      for (var i = 0; i < bounds.length; i++)
+        () {
+          final start = i == 0
+              ? 0.0
+              : ((vertical ? bounds[i - 1].bottom : bounds[i - 1].right) +
+                        (vertical ? bounds[i].top : bounds[i].left)) /
+                    2;
+          final end = i == bounds.length - 1
+              ? docEnd
+              : ((vertical ? bounds[i].bottom : bounds[i].right) +
+                        (vertical ? bounds[i + 1].top : bounds[i + 1].left)) /
+                    2;
+          return vertical
+              ? Rect.fromLTRB(0, start, documentSize.width, end)
+              : Rect.fromLTRB(start, 0, end, documentSize.height);
+        }(),
+    ];
+  }
+
+  /// Index into [spreads] of the spread that contains [pageNumber], or -1 if it is out of range.
+  int spreadIndexOf(int pageNumber) {
+    if (pageNumber < 1 || pageNumber > pageLayouts.length) return -1;
+    final list = spreads;
+    var lo = 0;
+    var hi = list.length - 1;
+    while (lo <= hi) {
+      final mid = (lo + hi) >> 1;
+      final range = list[mid];
+      if (pageNumber < range.firstPageNumber) {
+        hi = mid - 1;
+      } else if (pageNumber > range.lastPageNumber) {
+        lo = mid + 1;
+      } else {
+        return mid;
+      }
+    }
+    return -1;
+  }
+
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
@@ -5239,11 +5829,20 @@ class PdfPageLayout {
     return listEquals(pageLayouts, other.pageLayouts) &&
         documentSize == other.documentSize &&
         margin == other.margin &&
-        fitMode == other.fitMode;
+        fitMode == other.fitMode &&
+        primaryAxis == other.primaryAxis &&
+        listEquals(_spreads, other._spreads);
   }
 
   @override
-  int get hashCode => Object.hash(Object.hashAll(pageLayouts), documentSize, margin, fitMode);
+  int get hashCode => Object.hash(
+    Object.hashAll(pageLayouts),
+    documentSize,
+    margin,
+    fitMode,
+    primaryAxis,
+    _spreads == null ? null : Object.hashAll(_spreads),
+  );
 }
 
 /// Represents the result of the hit test on the page.
@@ -5474,6 +6073,32 @@ class PdfViewerController extends ValueListenable<Matrix4> {
 
   /// The current page number if available.
   int? get pageNumber => _state._pageNumber;
+
+  /// The pages of the spread that contains [pageNumber] (see [PdfPageLayout.spreads]), e.g. `2-3`
+  /// for facing pages; a single page for sequential layouts. Null if not available.
+  PdfPageRange? get currentPageRange {
+    final layout = _state._layout;
+    final pageNumber = _state._pageNumber;
+    if (layout == null || pageNumber == null) return null;
+    final index = layout.spreadIndexOf(pageNumber);
+    return index < 0 ? PdfPageRange.single(pageNumber) : layout.spreads[index];
+  }
+
+  /// The range of pages that intersect the view (first to last), or null if no page is visible.
+  PdfPageRange? get visiblePageRange {
+    final layout = _state._layout;
+    if (layout == null || _state._viewSize == null) return null;
+    final view = _state._visibleRect;
+    int? first;
+    int? last;
+    for (var i = 0; i < layout.pageLayouts.length; i++) {
+      if (layout.pageLayouts[i].overlaps(view)) {
+        first ??= i + 1;
+        last = i + 1;
+      }
+    }
+    return first == null ? null : PdfPageRange(first, last!);
+  }
 
   /// The document reference associated to the [PdfViewer].
   PdfDocumentRef get documentRef => _state.widget.documentRef;
@@ -5886,6 +6511,16 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// This is useful when you want to manually update the matrix without
   /// fighting against the active inertia animation.
   void stopInteractiveViewerAnimation() => _state._stopInteractiveViewerAnimation();
+
+  /// Call when a widget other than the viewer itself starts scrolling the view on behalf of the
+  /// user, e.g. a custom scroll bar that sets [value] while dragged; call [endUserScroll] when it
+  /// ends. The viewer then treats the moves like a user gesture: in paged mode
+  /// ([PdfViewerParams.paging]), the view snaps to a page after it, and
+  /// [PdfViewerParams.onAnimationEnd] is called once it is over. `PdfViewerScrollThumb` does this.
+  void beginUserScroll() => _state._beginUserScroll();
+
+  /// Ends a scroll started with [beginUserScroll].
+  void endUserScroll() => _state._endUserScroll();
 
   /// Calculate the matrix that clamps the given [matrix] to the nearest boundary.
   ///

@@ -90,6 +90,8 @@ class InteractiveViewer extends StatefulWidget {
     this.scrollPhysics,
     this.scrollPhysicsScale,
     this.scrollPhysicsAutoAdjustBoundaries = true,
+    this.boundaryRectProvider,
+    this.onTrackpadScroll,
     this.underflowAlignment = Alignment.center,
   }) : assert(minScale > 0),
        assert(interactionEndFrictionCoefficient > 0),
@@ -146,6 +148,8 @@ class InteractiveViewer extends StatefulWidget {
     this.scrollPhysics,
     this.scrollPhysicsScale,
     this.scrollPhysicsAutoAdjustBoundaries = true,
+    this.boundaryRectProvider,
+    this.onTrackpadScroll,
     this.underflowAlignment = Alignment.center,
   }) : assert(minScale > 0),
        assert(interactionEndFrictionCoefficient > 0),
@@ -206,6 +210,15 @@ class InteractiveViewer extends StatefulWidget {
   /// Defaults to [EdgeInsets.zero], which results in boundaries that are the
   /// exact same size and position as the [child].
   final EdgeInsets boundaryMargin;
+
+  /// With [scrollPhysics], returns the boundary rect in child coordinates to use instead of
+  /// [boundaryMargin] around the child, or null to use [boundaryMargin]. Called whenever the pan
+  /// boundaries are computed, so it can change dynamically (e.g. to stop panning at a page edge).
+  final Rect? Function()? boundaryRectProvider;
+
+  /// Called for a trackpad scroll event (on the web, where trackpad scrolling arrives as
+  /// [PointerScrollEvent]s) before it is applied as a pan; return true to consume it.
+  final bool Function(PointerScrollEvent event)? onTrackpadScroll;
 
   /// Builds the child of this widget.
   ///
@@ -1317,6 +1330,7 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
     final double scaleChange;
     if (event is PointerScrollEvent) {
       if (event.kind == PointerDeviceKind.trackpad && !widget.trackpadScrollCausesScale) {
+        if (widget.onTrackpadScroll?.call(event) == true) return;
         // Trackpad scroll, so treat it as a pan.
         widget.onInteractionStart?.call(ScaleStartDetails(focalPoint: global, localFocalPoint: local));
 
@@ -1462,6 +1476,9 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
     if (_boundaryRect.isInfinite) {
       return const Rect.fromLTRB(-double.maxFinite, -double.maxFinite, double.maxFinite, double.maxFinite);
     }
+    final overrideRect = widget.boundaryRectProvider?.call();
+    if (overrideRect != null) return _computePanBoundariesForRect(overrideRect, viewportSize, scale);
+
     // Compute the raw boundary rect using the baseMargin, then scale it
     final baseBoundaryRect = baseMargin.inflateRect(Offset.zero & _childSize());
     final effectiveWidth = baseBoundaryRect.width * scale;
@@ -1488,6 +1505,24 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
     final maxY = extraHeight < -kOverflowTolerance
         ? minY // Force centering
         : -((baseMargin.bottom * scale + extraBoundaryVertical)) + extraHeight;
+    return Rect.fromLTRB(minX, minY, maxX, maxY).round10BitFrac();
+  }
+
+  /// Pan boundaries (as in [_computePanBoundaries]) for a boundary rect in child coordinates.
+  Rect _computePanBoundariesForRect(Rect rect, Size viewportSize, double scale) {
+    final extraWidth = rect.width * scale - viewportSize.width;
+    final extraHeight = rect.height * scale - viewportSize.height;
+    const kOverflowTolerance = 0.1; // logical pixels
+    final extraBoundaryHorizontal = extraWidth < -kOverflowTolerance
+        ? (extraWidth.abs() * (widget.underflowAlignment.x + 1) / 2)
+        : 0.0;
+    final extraBoundaryVertical = extraHeight < -kOverflowTolerance
+        ? (extraHeight.abs() * (widget.underflowAlignment.y + 1) / 2)
+        : 0.0;
+    final minX = rect.left * scale - extraBoundaryHorizontal;
+    final maxX = extraWidth < -kOverflowTolerance ? minX : rect.left * scale + extraWidth;
+    final minY = rect.top * scale - extraBoundaryVertical;
+    final maxY = extraHeight < -kOverflowTolerance ? minY : rect.top * scale + extraHeight;
     return Rect.fromLTRB(minX, minY, maxX, maxY).round10BitFrac();
   }
 
