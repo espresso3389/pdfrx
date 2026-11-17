@@ -1,3 +1,8 @@
+# 0.9.4
+
+- Requires Dart 3.14 or later.
+- Updated dependency constraints (`archive`, `image`, `synchronized`) and `pdfium_dart` 0.4.4.
+
 # 0.9.3
 
 - Isolated authenticated document caches and corrected HTTP range and compressed response handling ([#811](https://github.com/espresso3389/pdfrx/pull/811), [#808](https://github.com/espresso3389/pdfrx/pull/808)).

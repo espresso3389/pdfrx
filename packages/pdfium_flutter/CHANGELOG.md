@@ -1,3 +1,8 @@
+# 0.4.4
+
+- Requires Flutter 3.50 / Dart 3.14 or later.
+- Updated to `pdfium_dart` 0.4.4 and added missing dependency version constraints.
+
 # 0.4.3
 
 - Updated to `pdfium_dart` 0.4.3 for download verification and loading fixes.

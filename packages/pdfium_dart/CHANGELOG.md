@@ -1,3 +1,8 @@
+# 0.4.4
+
+- Requires Dart 3.14 or later.
+- Updated dependency constraints and added missing version constraints.
+
 # 0.4.3
 
 - Verify downloaded PDFium archives against pinned SHA-256 hashes ([#810](https://github.com/espresso3389/pdfrx/pull/810)).

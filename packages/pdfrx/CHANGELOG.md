@@ -1,3 +1,8 @@
+# 3.0.1
+
+- Requires Flutter 3.50 / Dart 3.14 or later.
+- Updated dependency constraints (`synchronized`, `url_launcher`, `web`, `material_ui`), `pdfrx_engine` 0.9.4 and `pdfium_flutter` 0.4.4.
+
 # 3.0.0
 
 See [Migrating to pdfrx 3.0](https://github.com/espresso3389/pdfrx/blob/master/doc/Migrating-to-pdfrx-3.0.md) for upgrade steps.

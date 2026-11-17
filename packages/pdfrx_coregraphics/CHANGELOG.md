@@ -1,3 +1,8 @@
+# 0.5.3
+
+- Requires Flutter 3.50 / Dart 3.14 or later.
+- Updated to `pdfrx_engine` 0.9.4.
+
 # 0.5.2
 
 - Fixed the document completion event for progressive loading ([#800](https://github.com/espresso3389/pdfrx/pull/800)).
