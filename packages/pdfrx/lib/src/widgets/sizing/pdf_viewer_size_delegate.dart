@@ -194,3 +194,19 @@ class PdfViewerLayoutSnapshot {
   @override
   int get hashCode => Object.hash(viewSize, layout, minScale, coverScale, alternativeFitScale);
 }
+
+/// Whether a layout update changed the [PdfFitMode] (e.g. [PdfFitMode.none] to [PdfFitMode.fit]
+/// or back).
+///
+/// In that case the previous zoom is meaningless for the new geometry: switching to
+/// [PdfFitMode.fit] at 1.3x would crop the fitted page, and leaving it while at its min scale
+/// would jump to the new layout's (possibly tiny) min scale. Delegates should go to the new
+/// layout's home zoom, [PdfViewerLayoutSnapshot.coverScale] (the same zoom used initially),
+/// instead of preserving the zoom. For [PdfFitMode.fill]/[PdfFitMode.fit] geometry that is about
+/// 1.0.
+bool shouldResetZoomForFitMode(PdfViewerLayoutSnapshot oldState, PdfViewerLayoutSnapshot newState) {
+  final oldLayout = oldState.layout;
+  final newLayout = newState.layout;
+  if (oldLayout == null || newLayout == null) return false;
+  return oldLayout.fitMode != newLayout.fitMode;
+}

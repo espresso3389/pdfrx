@@ -286,7 +286,9 @@ class PdfViewerSizeDelegateSmart implements PdfViewerSizeDelegate {
 
     // Calculate the target zoom based on the legacy "preserve zoom" rule first.
     // This is often just currentZoom, but handles minScale clamping logic.
-    final zoomTo = currentZoom < newState.minScale || currentZoom == oldState.minScale
+    final zoomTo = shouldResetZoomForFitMode(oldState, newState)
+        ? newState.coverScale
+        : currentZoom < newState.minScale || currentZoom == oldState.minScale
         ? newState.minScale
         : currentZoom;
 

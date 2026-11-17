@@ -117,4 +117,38 @@ void main() {
       reason: 'fitMode change took effect',
     );
   });
+
+  for (final provider in const <PdfViewerSizeDelegateProvider>[
+    PdfViewerSizeDelegateProviderLegacy(),
+    PdfViewerSizeDelegateProviderSmart(),
+  ]) {
+    testWidgets('switching fitMode resets the zoom to the home zoom (${provider.runtimeType})', (tester) async {
+      final doc = await openDoc(tester);
+      final controller = PdfViewerController();
+      PdfViewerParams params(PdfFitMode fitMode) => PdfViewerParams(
+        layoutStrategy: SequentialPagesLayout(fitMode: fitMode),
+        sizeDelegateProvider: provider,
+        behaviorControlParams: const PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
+      );
+
+      await tester.pumpWidget(viewer(doc, controller, 600, params: params(PdfFitMode.none)));
+      await settle(tester);
+      // Zoom in to something clearly different from the fitted home zoom.
+      unawaited(controller.setZoom(Offset.zero, 1.5, duration: Duration.zero));
+      await settle(tester);
+      expect(controller.currentZoom, closeTo(1.5, 0.01));
+
+      await tester.pumpWidget(viewer(doc, controller, 600, params: params(PdfFitMode.fit)));
+      await settle(tester);
+
+      expect(controller.currentZoom, closeTo(1.0, 0.01), reason: 'fitted geometry is shown at its home zoom');
+      final page = controller.layout.pageLayouts[0];
+      expect(page.height, lessThanOrEqualTo(controller.viewSize.height), reason: 'whole page fits vertically');
+
+      // Switching back must not jump to the native layout's min scale.
+      await tester.pumpWidget(viewer(doc, controller, 600, params: params(PdfFitMode.none)));
+      await settle(tester);
+      expect(controller.currentZoom, closeTo(controller.coverScale, 0.01), reason: 'back to the home zoom');
+    });
+  }
 }

@@ -257,7 +257,9 @@ class PdfViewerSizeDelegateLegacy implements PdfViewerSizeDelegate {
     final oldLayout = oldState.layout;
 
     // preserve the current zoom whilst respecting the new minScale
-    final zoomTo = currentZoom < newState.minScale || currentZoom == oldState.minScale
+    final zoomTo = shouldResetZoomForFitMode(oldState, newState)
+        ? newState.coverScale
+        : currentZoom < newState.minScale || currentZoom == oldState.minScale
         ? newState.minScale
         : currentZoom;
     if (isLayoutChanged) {
