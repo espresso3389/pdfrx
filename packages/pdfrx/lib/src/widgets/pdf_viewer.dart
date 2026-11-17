@@ -2874,6 +2874,7 @@ class _PdfViewerState extends State<PdfViewer>
   Matrix4 _calcMatrixForRect(Rect rect, {double? zoomMax, double? margin}) {
     margin ??= 0;
     var zoom = min((_viewSize!.width - margin * 2) / rect.width, (_viewSize!.height - margin * 2) / rect.height);
+    if (!zoom.isFinite) zoom = _currentZoom;
     if (zoomMax != null && zoom > zoomMax) zoom = zoomMax;
     return _calcMatrixFor(rect.center, zoom: zoom, viewSize: _viewSize!);
   }

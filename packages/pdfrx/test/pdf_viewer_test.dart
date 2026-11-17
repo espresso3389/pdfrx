@@ -187,6 +187,7 @@ void main() {
     List<double> matrix(PdfDestCommand command, List<double?> params) =>
         controller.calcMatrixForDest(PdfDest(pageNumber, command, params))!.storage.toList();
 
+    expect(matrix(PdfDestCommand.fitR, [-100, -100, -50, -50]).every((v) => v.isFinite), isTrue);
     // `/XYZ 0 10000 0` is a common way of saying "the top of the page": it must not land pages before it
     expect(matrix(PdfDestCommand.xyz, [0, 10000, 0]), matrix(PdfDestCommand.xyz, [0, page.height, 0]));
     expect(matrix(PdfDestCommand.xyz, [-50, 10000, 0]), matrix(PdfDestCommand.xyz, [0, page.height, 0]));
