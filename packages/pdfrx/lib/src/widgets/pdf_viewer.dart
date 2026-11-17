@@ -850,7 +850,7 @@ class _PdfViewerState extends State<PdfViewer>
                             constrained: false,
                             boundaryMargin: widget.params.scrollPhysics == null
                                 ? const EdgeInsets.all(double.infinity) // NOTE: boundaryMargin is handled manually
-                                : _adjustedBoundaryMargins,
+                                : (widget.params.boundaryMargin ?? EdgeInsets.zero),
                             maxScale: _layoutMetrics.maxScale,
                             minScale: _layoutMetrics.minScale,
                             panAxis: widget.params.panAxis,
@@ -867,7 +867,11 @@ class _PdfViewerState extends State<PdfViewer>
                             onPointerScale: _onPointerScale,
                             scrollPhysics: widget.params.scrollPhysics,
                             scrollPhysicsScale: widget.params.scrollPhysicsScale,
-                            scrollPhysicsAutoAdjustBoundaries: false,
+                            scrollPhysicsAutoAdjustBoundaries: true,
+                            underflowAlignment: Alignment(
+                              _splitHorizontalBoundaryExtra(2, widget.params.underflowAnchor).$1 - 1,
+                              _splitVerticalBoundaryExtra(2, widget.params.underflowAnchor).$1 - 1,
+                            ),
                             // PDF pages
                             child: GestureDetector(
                               behavior: HitTestBehavior.opaque,
@@ -976,9 +980,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   Matrix4 _calcMatrixForClampedToNearestBoundary(Matrix4 candidate, {required Size viewSize, PdfPageAnchor? anchor}) {
-    if (widget.params.scrollPhysics == null) {
-      _adjustBoundaryMargins(_viewSize!, candidate.zoom, anchor: anchor);
-    }
+    _adjustBoundaryMargins(_viewSize!, candidate.zoom, anchor: anchor);
     final overScroll = _calcOverscroll(candidate, viewSize: viewSize);
     if (overScroll == Offset.zero) {
       return candidate;

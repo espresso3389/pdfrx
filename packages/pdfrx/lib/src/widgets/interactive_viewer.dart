@@ -90,6 +90,7 @@ class InteractiveViewer extends StatefulWidget {
     this.scrollPhysics,
     this.scrollPhysicsScale,
     this.scrollPhysicsAutoAdjustBoundaries = true,
+    this.underflowAlignment = Alignment.center,
   }) : assert(minScale > 0),
        assert(interactionEndFrictionCoefficient > 0),
        assert(scaleInertiaMaxExcursion == null || (scaleInertiaMaxExcursion > 0 && scaleInertiaMaxExcursion < 1)),
@@ -145,6 +146,7 @@ class InteractiveViewer extends StatefulWidget {
     this.scrollPhysics,
     this.scrollPhysicsScale,
     this.scrollPhysicsAutoAdjustBoundaries = true,
+    this.underflowAlignment = Alignment.center,
   }) : assert(minScale > 0),
        assert(interactionEndFrictionCoefficient > 0),
        assert(scaleInertiaMaxExcursion == null || (scaleInertiaMaxExcursion > 0 && scaleInertiaMaxExcursion < 1)),
@@ -480,6 +482,9 @@ class InteractiveViewer extends StatefulWidget {
   /// child size is smaller than the viewport size.
   final bool scrollPhysicsAutoAdjustBoundaries;
 
+  /// Alignment of content smaller than the viewport when using scroll physics.
+  final Alignment underflowAlignment;
+
   /// Returns the closest point to the given point on the given line segment.
   @visibleForTesting
   static Vector3 getNearestPointOnLine(Vector3 point, Vector3 l1, Vector3 l2) {
@@ -584,7 +589,7 @@ class InteractiveViewer extends StatefulWidget {
 
 class InteractiveViewerState extends State<InteractiveViewer> with TickerProviderStateMixin {
   // Preserve the originally provided boundaryMargin for recalculation overrides.
-  late final EdgeInsets _originalBoundaryMargin = widget.boundaryMargin;
+  late EdgeInsets _originalBoundaryMargin = widget.boundaryMargin;
   late TransformationController _transformer = widget.transformationController ?? TransformationController();
 
   final GlobalKey _childKey = GlobalKey();
@@ -1379,18 +1384,23 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
       return;
     }
 
-    final focalPointScene = _toScene(local);
-    _transformer.value = _matrixScale(_transformer.value, scaleChange);
+    _gestureType = _GestureType.scale;
+    try {
+      final focalPointScene = _toScene(local);
+      _transformer.value = _matrixScale(_transformer.value, scaleChange);
 
-    // After scaling, translate such that the event's position is at the
-    // same scene point before and after the scale.
-    final focalPointSceneScaled = _toScene(local);
-    _transformer.value = _matrixClamp(_matrixTranslate(_transformer.value, focalPointSceneScaled - focalPointScene));
+      // After scaling, translate such that the event's position is at the
+      // same scene point before and after the scale.
+      final focalPointSceneScaled = _toScene(local);
+      _transformer.value = _matrixClamp(_matrixTranslate(_transformer.value, focalPointSceneScaled - focalPointScene));
 
-    widget.onInteractionUpdate?.call(
-      ScaleUpdateDetails(focalPoint: global, localFocalPoint: local, scale: scaleChange),
-    );
-    widget.onInteractionEnd?.call(ScaleEndDetails());
+      widget.onInteractionUpdate?.call(
+        ScaleUpdateDetails(focalPoint: global, localFocalPoint: local, scale: scaleChange),
+      );
+      widget.onInteractionEnd?.call(ScaleEndDetails());
+    } finally {
+      _gestureType = null;
+    }
   }
 
   void _handleInertiaAnimation() {
@@ -1462,8 +1472,12 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
 
     // Always center when content is smaller than viewport, using a small tolerance for floating imprecision.
     const kOverflowTolerance = 0.1; // logical pixels
-    final extraBoundaryHorizontal = extraWidth < -kOverflowTolerance ? (extraWidth.abs() / 2) : 0.0;
-    final extraBoundaryVertical = extraHeight < -kOverflowTolerance ? (extraHeight.abs() / 2) : 0.0;
+    final extraBoundaryHorizontal = extraWidth < -kOverflowTolerance
+        ? (extraWidth.abs() * (widget.underflowAlignment.x + 1) / 2)
+        : 0.0;
+    final extraBoundaryVertical = extraHeight < -kOverflowTolerance
+        ? (extraHeight.abs() * (widget.underflowAlignment.y + 1) / 2)
+        : 0.0;
 
     // When content is smaller than viewport, force centering by making min==max
     final minX = -((baseMargin.left * scale + extraBoundaryHorizontal));
@@ -1731,6 +1745,10 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
   @override
   void didUpdateWidget(InteractiveViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    if (widget.boundaryMargin != oldWidget.boundaryMargin) {
+      _originalBoundaryMargin = widget.boundaryMargin;
+    }
 
     final newController = widget.transformationController;
     if (newController == oldWidget.transformationController) {
