@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart' as flutter;
 import 'package:flutter_localizations/flutter_localizations.dart' as flutter_localizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -13,7 +12,7 @@ void main() {
   setUp(() => pdfrxInitialize());
 
   for (final locale in const [Locale('de', 'DE'), Locale('ar')]) {
-    testWidgets('default context menu falls back with Flutter localizations for $locale', (tester) async {
+    testWidgets('default context menu falls back with Widgets localizations for $locale', (tester) async {
       await _binding.setSurfaceSize(const Size(1080, 1920));
       addTearDown(() => _binding.setSurfaceSize(null));
 
@@ -25,11 +24,12 @@ void main() {
         tester,
         document!,
         controller,
-        (child) => flutter.MaterialApp(
+        (child) => WidgetsApp(
+          color: const Color(0xff000000),
           locale: locale,
           supportedLocales: [locale],
-          localizationsDelegates: flutter_localizations.GlobalMaterialLocalizations.delegates,
-          home: flutter.Scaffold(body: child),
+          localizationsDelegates: [flutter_localizations.GlobalWidgetsLocalizations.delegate],
+          builder: (context, _) => Overlay(initialEntries: [OverlayEntry(builder: (_) => child)]),
         ),
       );
 
