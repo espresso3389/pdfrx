@@ -8,7 +8,7 @@ This package depends on [pdfium_dart](https://pub.dartlang.org/packages/pdfium_d
 
 ## Requirements
 
-- Dart 3.13 or later
+- Dart 3.14 or later
 
 Native builds also require a C toolchain to compile a small bundled library that prevents simultaneous PDFium access from multiple Flutter engines. This library is built even when that protection is disabled at runtime. See [native build requirements](https://github.com/espresso3389/pdfrx/blob/master/doc/pdfrx-Initialization.md#native-build-requirements).
 

@@ -3,8 +3,8 @@ description: 'Demonstrates how to use the pdfrx plugin.'
 publish_to: 'none'
 
 environment:
-  sdk: ^3.13.0
-  flutter: '>=3.47.0'
+  sdk: ^3.14.0
+  flutter: '>=3.50.0'
 resolution: workspace
 
 dependencies:
@@ -13,14 +13,14 @@ dependencies:
   pdfrx:
     path: ../../
 
-  cupertino_icons: ^1.0.9
+  cupertino_icons: ^2.0.0
   rxdart: ^0.28.0
-  url_launcher: ^6.3.2
-  synchronized: ^3.4.0
+  url_launcher: ^6.3.3
+  synchronized: ^3.6.1
   file_selector: ^1.1.0
   http: ^1.6.0
 
-  material_ui: ^1.0.0
+  material_ui: ^1.11.1
 dev_dependencies:
   integration_test:
     sdk: flutter

@@ -6,7 +6,7 @@ This package is part of the [pdfrx](https://github.com/espresso3389/pdfrx) proje
 
 ## Requirements
 
-- Dart 3.13 or later
+- Dart 3.14 or later
 - A C compiler for native builds (MSVC on Windows, Xcode on Apple platforms, or Clang/GCC on Linux). The compiler builds a small bundled library that prevents simultaneous PDFium access from multiple Flutter engines, even when that protection is disabled at runtime; Flutter builds use their platform toolchain.
 
 See [native build requirements](https://github.com/espresso3389/pdfrx/blob/master/doc/pdfrx-Initialization.md#native-build-requirements).

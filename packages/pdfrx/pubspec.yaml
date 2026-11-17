@@ -9,8 +9,8 @@ screenshots:
     path: screenshot.jpg
 
 environment:
-  sdk: ^3.13.0
-  flutter: '>=3.47.0'
+  sdk: ^3.14.0
+  flutter: '>=3.50.0'
 resolution: workspace
 
 dependencies:
@@ -23,13 +23,13 @@ dependencies:
   path: ^1.9.1
   path_provider: ^2.1.0
   rxdart: ^0.28.0
-  synchronized: ^3.4.0
-  url_launcher: ^6.3.2
+  synchronized: ^3.6.1
+  url_launcher: ^6.3.3
   vector_math: ^2.2.0
-  web: ^1.1.1
+  web: ^1.1.2
   yaml: ^3.1.0
 
-  material_ui: ^1.0.0
+  material_ui: ^1.11.1
 dev_dependencies:
   flutter_localizations:
     sdk: flutter

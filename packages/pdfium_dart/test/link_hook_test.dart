@@ -81,9 +81,9 @@ LinkInput _linkInput({
       targetOS: targetOS,
       linkModePreference: LinkModePreference.dynamic,
       iOS: targetOS == OS.iOS
-          ? IOSCodeConfig(targetSdk: IOSSdk.iPhoneOS, targetVersion: 17)
+          ? IOSCodeConfig(targetSdk: IOSSdk.iPhoneOS, deploymentVersion: AppleVersion(17))
           : null,
-      macOS: targetOS == OS.macOS ? MacOSCodeConfig(targetVersion: 13) : null,
+      macOS: targetOS == OS.macOS ? MacOSCodeConfig(deploymentVersion: AppleVersion(13)) : null,
     ),
   );
   return builder.build();

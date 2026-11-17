@@ -10,7 +10,7 @@ API.
 
 ## Requirements
 
-- Flutter 3.47 or later (Dart 3.13 or later)
+- Flutter 3.50 or later (Dart 3.14 or later)
 - iOS 15 or later
 - macOS 12 or later
 

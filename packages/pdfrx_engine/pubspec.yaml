@@ -6,7 +6,7 @@ repository: https://github.com/espresso3389/pdfrx/tree/master/packages/pdfrx_eng
 issue_tracker: https://github.com/espresso3389/pdfrx/issues
 
 environment:
-  sdk: ^3.13.0
+  sdk: ^3.14.0
 resolution: workspace
 
 dependencies:
@@ -18,10 +18,10 @@ dependencies:
   meta: ^1.18.0
   path: ^1.9.1
   rxdart: ^0.28.0
-  synchronized: ^3.4.0
+  synchronized: ^3.6.1
   vector_math: ^2.2.0
-  archive: ^4.0.9
-  image: ^4.8.0
+  archive: ^4.7.1
+  image: ^4.13.1
 
 dev_dependencies:
   lints:
