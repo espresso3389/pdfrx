@@ -66,6 +66,36 @@ void main() {
   // affect the separate pointer-signal path (`PointerScaleEvent` / Ctrl+wheel ->
   // `scaleByPointerScale`); that is covered in the isolation group below.
 
+  for (final alignment in [Alignment.topLeft, Alignment.center, Alignment.bottomRight]) {
+    testWidgets('scroll physics preserves underflow alignment $alignment', (tester) async {
+      final controller = TransformationController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: SizedBox(
+              width: 500,
+              height: 500,
+              child: pdfrx.InteractiveViewer(
+                constrained: false,
+                transformationController: controller,
+                minScale: 0.1,
+                maxScale: 4,
+                scrollPhysics: const ClampingScrollPhysics(),
+                underflowAlignment: alignment,
+                child: const SizedBox(width: 100, height: 100),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.sendEventToBinding(const PointerScaleEvent(position: Offset(400, 300), scale: 2));
+      await tester.pump();
+      final translation = controller.value.getTranslation();
+      expect(translation.x, closeTo(300 * (alignment.x + 1) / 2, 0.01));
+      expect(translation.y, closeTo(300 * (alignment.y + 1) / 2, 0.01));
+    });
+  }
   group('scaleGestureSensitivity - touch pinch', () {
     testWidgets('applies the configured exponent to an actual touch pinch', (tester) async {
       const spread = 1.8;
