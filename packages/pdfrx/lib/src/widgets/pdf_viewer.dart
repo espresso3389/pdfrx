@@ -868,6 +868,10 @@ class _PdfViewerState extends State<PdfViewer>
                             scrollPhysics: widget.params.scrollPhysics,
                             scrollPhysicsScale: widget.params.scrollPhysicsScale,
                             scrollPhysicsAutoAdjustBoundaries: true,
+                            underflowAlignment: Alignment(
+                              _splitHorizontalBoundaryExtra(2, widget.params.underflowAnchor).$1 - 1,
+                              _splitVerticalBoundaryExtra(2, widget.params.underflowAnchor).$1 - 1,
+                            ),
                             // PDF pages
                             child: GestureDetector(
                               behavior: HitTestBehavior.opaque,
@@ -1857,10 +1861,20 @@ class _PdfViewerState extends State<PdfViewer>
       return offset.dx * _readingDirection.dx + offset.dy * _readingDirection.dy > 0;
     }
 
-    // Visible pages first, then those ahead of the reader, then the nearest.
+    double visibleAreaOf(Rect rect) {
+      final visible = rect.intersect(targetRect);
+      return max(0.0, visible.width) * max(0.0, visible.height);
+    }
+
+    // Visible pages first, the most visible of them first, then those ahead of the reader, then the nearest.
+    // Without the area, a sliver of the page ahead renders before the page that fills the screen.
     int byPriority(Rect a, Rect b) {
       final aVisible = a.overlaps(targetRect);
       if (aVisible != b.overlaps(targetRect)) return aVisible ? -1 : 1;
+      if (aVisible) {
+        final byArea = visibleAreaOf(b).compareTo(visibleAreaOf(a));
+        if (byArea != 0) return byArea;
+      }
       final aAhead = isAhead(a);
       if (aAhead != isAhead(b)) return aAhead ? -1 : 1;
       return _distanceToRect(a, targetRect).compareTo(_distanceToRect(b, targetRect));
@@ -2872,6 +2886,7 @@ class _PdfViewerState extends State<PdfViewer>
   Matrix4 _calcMatrixForRect(Rect rect, {double? zoomMax, double? margin}) {
     margin ??= 0;
     var zoom = min((_viewSize!.width - margin * 2) / rect.width, (_viewSize!.height - margin * 2) / rect.height);
+    if (!zoom.isFinite) zoom = _currentZoom;
     if (zoomMax != null && zoom > zoomMax) zoom = zoomMax;
     return _calcMatrixFor(rect.center, zoom: zoom, viewSize: _viewSize!);
   }
@@ -2954,8 +2969,10 @@ class _PdfViewerState extends State<PdfViewer>
     if (dest == null) return null;
     final page = _document!.pages[dest.pageNumber - 1];
     final pageRect = _layout!.pageLayouts[dest.pageNumber - 1];
-    double calcX(double? x) => (x ?? 0) / page.width * pageRect.width;
-    double calcY(double? y) => (page.height - (y ?? 0)) / page.height * pageRect.height;
+    // Coordinates outside the page are clamped to it, as other viewers do: some PDF producers write a large top
+    // such as `/XYZ 0 10000 0` to mean "the top of the page", which would otherwise scroll many pages before it.
+    double calcX(double? x) => (x ?? 0).clamp(0.0, page.width) / page.width * pageRect.width;
+    double calcY(double? y) => (page.height - (y ?? 0).clamp(0.0, page.height)) / page.height * pageRect.height;
     final params = dest.params;
     switch (dest.command) {
       case PdfDestCommand.xyz:

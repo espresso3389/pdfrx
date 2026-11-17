@@ -163,6 +163,44 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
+  testWidgets('destination coordinates outside the page are clamped to the page', (tester) async {
+    final document = _TestDocument(30);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Align(
+          child: SizedBox(
+            width: 400,
+            height: 400,
+            child: PdfViewer(PdfDocumentRefDirect(document, autoDispose: false), controller: controller),
+          ),
+        ),
+      ),
+    );
+    await _pumpPaintWork(tester);
+    expect(controller.isReady, isTrue);
+
+    const pageNumber = 20;
+    final page = document.pages[pageNumber - 1];
+    List<double> matrix(PdfDestCommand command, List<double?> params) =>
+        controller.calcMatrixForDest(PdfDest(pageNumber, command, params))!.storage.toList();
+
+    expect(matrix(PdfDestCommand.fitR, [-100, -100, -50, -50]).every((v) => v.isFinite), isTrue);
+    // `/XYZ 0 10000 0` is a common way of saying "the top of the page": it must not land pages before it
+    expect(matrix(PdfDestCommand.xyz, [0, 10000, 0]), matrix(PdfDestCommand.xyz, [0, page.height, 0]));
+    expect(matrix(PdfDestCommand.xyz, [-50, 10000, 0]), matrix(PdfDestCommand.xyz, [0, page.height, 0]));
+    expect(matrix(PdfDestCommand.fitH, [10000]), matrix(PdfDestCommand.fitH, [page.height]));
+    expect(matrix(PdfDestCommand.xyz, [0, -500, 0]), matrix(PdfDestCommand.xyz, [0, 0, 0]));
+    expect(
+      matrix(PdfDestCommand.fitR, [-10, -10, page.width + 10, page.height + 10]),
+      matrix(PdfDestCommand.fitR, [0, 0, page.width, page.height]),
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
   testWidgets('repaints reuse a pending partial render with the same rectangle and scale', (tester) async {
     final document = _TestDocument(1);
     addTearDown(document.dispose);
@@ -1314,6 +1352,42 @@ void main() {
         reason: 'moving from $from to $to, page $ahead is next; order ${document.renderOrder}',
       );
       expect(order, contains(behind));
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(budget.estimatedBytes, 0);
+  });
+
+  testWidgets('a jump renders the target page before neighbors that show only a sliver', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900) * 2;
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    final budget = PdfImageCacheBudget(maximumBytes: 96 * 1024 * 1024);
+    addTearDown(budget.dispose);
+    final document = _scannedDocument(24);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    await tester.pumpWidget(MaterialApp(home: _scannedBookViewer(document, controller, budget)));
+    await _pumpFrames(tester);
+    // Fit the whole page: around the shortest pages, the pages above and below show a sliver.
+    final page = controller.layout.pageLayouts[2];
+    final zoom = math.min(
+      controller.viewSize.width / (page.width + 16),
+      controller.viewSize.height / (page.height + 16),
+    );
+    await controller.goTo(controller.calcMatrixFor(page.center, zoom: zoom), duration: Duration.zero);
+    await _pumpFrames(tester);
+    for (final target in [12, 20]) {
+      document.renderOrder.clear();
+      await controller.goToPage(pageNumber: target, anchor: PdfPageAnchor.top, duration: Duration.zero);
+      final layouts = controller.layout.pageLayouts;
+      expect(
+        layouts[target].overlaps(controller.visibleRect) || layouts[target - 2].overlaps(controller.visibleRect),
+        isTrue,
+        reason: 'a neighbor of page $target is partly visible',
+      );
+      await _pumpFrames(tester);
+      expect(document.renderOrder.first, target, reason: 'jumping to $target; order ${document.renderOrder}');
     }
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 100));

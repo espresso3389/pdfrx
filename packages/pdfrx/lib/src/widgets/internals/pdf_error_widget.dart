@@ -32,8 +32,7 @@ Widget pdfErrorWidget(BuildContext context, Object error, {StackTrace? stackTrac
                         TextSpan(text: stackTrace.toString(), style: const TextStyle(fontSize: 14)),
                       if (error is PdfPasswordException && isWindows)
                         const TextSpan(
-                          text:
-                              '\n***On Windows, PDFium could not report errors correctly and every error is recognized as password error.',
+                          text: '\n***On Windows, PDFium could not report errors correctly and every error is recognized as password error.',
                           style: TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.yellow),
                         ),
                       if (bannerWarning)
@@ -63,8 +62,10 @@ Widget pdfErrorWidget(BuildContext context, Object error, {StackTrace? stackTrac
 }
 
 typedef _GestureRecognizerDisposerFunction = GestureRecognizer Function(GestureRecognizer recognizer);
-typedef _GestureRecognizerDisposerBuilderFunction =
-    Widget Function(BuildContext context, _GestureRecognizerDisposerFunction markForDispose);
+typedef _GestureRecognizerDisposerBuilderFunction = Widget Function(
+  BuildContext context,
+  _GestureRecognizerDisposerFunction markForDispose,
+);
 
 class _GestureRecognizerDisposer extends StatefulWidget {
   const _GestureRecognizerDisposer({required this.builder});
