@@ -19,16 +19,19 @@ class _FakePage implements PdfPage {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Resolves [layout] with its fit mode replaced by [fitMode] (when given).
 PdfPageLayout _resolve(
   SequentialPagesLayout layout,
   List<PdfPage> pages, {
   Size viewport = Size.zero,
-  PdfFitMode fitMode = PdfFitMode.none,
-}) => layout.resolve(
-  pages: pages,
-  viewport: viewport,
-  params: PdfViewerParams(fitMode: fitMode),
-);
+  PdfFitMode? fitMode,
+}) => SequentialPagesLayout(
+  scrollDirection: layout.scrollDirection,
+  spacing: layout.spacing,
+  margin: layout.margin,
+  fitMode: fitMode ?? layout.fitMode,
+  crossAxisAlignment: layout.crossAxisAlignment,
+).resolve(PdfPageLayoutContext(pages: pages, viewport: viewport));
 
 void main() {
   // dart:ui Size/Rect need the binding initialized.
@@ -80,37 +83,37 @@ void main() {
     });
   });
 
-  group('PdfViewerParams folds layout + fitMode into equality', () {
-    test('params with equal layout and fitMode are == with equal hashCode', () {
-      const p1 = PdfViewerParams(layout: SequentialPagesLayout(), fitMode: PdfFitMode.fill);
-      final p2 = PdfViewerParams(layout: const SequentialPagesLayout(), fitMode: PdfFitMode.fill);
+  group('PdfViewerParams folds layoutStrategy into equality', () {
+    test('params with equal strategies are == with equal hashCode', () {
+      const p1 = PdfViewerParams(layoutStrategy: SequentialPagesLayout(fitMode: PdfFitMode.fill));
+      final p2 = PdfViewerParams(layoutStrategy: SequentialPagesLayout(fitMode: PdfFitMode.fill)); // non-const
       expect(p1, equals(p2));
       expect(p1.hashCode, equals(p2.hashCode));
     });
 
     test('params differing only in fitMode are not ==', () {
-      const p1 = PdfViewerParams(layout: SequentialPagesLayout(), fitMode: PdfFitMode.fill);
-      const p2 = PdfViewerParams(layout: SequentialPagesLayout(), fitMode: PdfFitMode.none);
+      const p1 = PdfViewerParams(layoutStrategy: SequentialPagesLayout(fitMode: PdfFitMode.fill));
+      const p2 = PdfViewerParams(layoutStrategy: SequentialPagesLayout());
       expect(p1, isNot(equals(p2)));
     });
 
-    test('params differing only in layout are not ==', () {
-      const p1 = PdfViewerParams(layout: SequentialPagesLayout(scrollDirection: Axis.vertical));
-      const p2 = PdfViewerParams(layout: SequentialPagesLayout(scrollDirection: Axis.horizontal));
+    test('params differing only in scroll direction are not ==', () {
+      const p1 = PdfViewerParams(layoutStrategy: SequentialPagesLayout(scrollDirection: Axis.vertical));
+      const p2 = PdfViewerParams(layoutStrategy: SequentialPagesLayout(scrollDirection: Axis.horizontal));
       expect(p1, isNot(equals(p2)));
     });
 
-    test('params with a layout differ from params without one', () {
-      const withLayout = PdfViewerParams(layout: SequentialPagesLayout());
-      const without = PdfViewerParams();
-      expect(withLayout, isNot(equals(without)));
+    test('default params use the default SequentialPagesLayout', () {
+      const explicit = PdfViewerParams(layoutStrategy: SequentialPagesLayout());
+      const implicit = PdfViewerParams();
+      expect(explicit, equals(implicit));
     });
 
-    test('doChangesRequireReload reflects layout and fitMode changes', () {
-      const a = PdfViewerParams(layout: SequentialPagesLayout(), fitMode: PdfFitMode.fill);
-      const aSame = PdfViewerParams(layout: SequentialPagesLayout(), fitMode: PdfFitMode.fill);
-      const diffFit = PdfViewerParams(layout: SequentialPagesLayout(), fitMode: PdfFitMode.none);
-      const diffLayout = PdfViewerParams(layout: SequentialPagesLayout(spacing: 20), fitMode: PdfFitMode.fill);
+    test('doChangesRequireReload reflects strategy changes', () {
+      const a = PdfViewerParams(layoutStrategy: SequentialPagesLayout(fitMode: PdfFitMode.fill));
+      const aSame = PdfViewerParams(layoutStrategy: SequentialPagesLayout(fitMode: PdfFitMode.fill));
+      const diffFit = PdfViewerParams(layoutStrategy: SequentialPagesLayout());
+      const diffLayout = PdfViewerParams(layoutStrategy: SequentialPagesLayout(spacing: 20, fitMode: PdfFitMode.fill));
 
       expect(a.doChangesRequireReload(aSame), isFalse, reason: 'equal config ⇒ no reload signal');
       expect(a.doChangesRequireReload(diffFit), isTrue, reason: 'changed fitMode ⇒ reload signal');
@@ -171,7 +174,7 @@ void main() {
       // The margin scales with the largest page's fit: page 0 is largest (fill scale 2), so the
       // effective margin/spacing become 10*2=20 and 5*2=10. Refit against the scaled margin:
       // available width = 220 - 2*20 = 180, scales 180/100=1.8 and 180/50=3.6 → both pages 180 wide.
-      expect(result.effectiveMargin, 20);
+      expect(result.margin, 20);
       expect(result.pageLayouts[0], const Rect.fromLTWH(20, 20, 180, 360));
       expect(result.pageLayouts[1], const Rect.fromLTWH(20, 390, 180, 360));
       // Document width tracks the viewport (so the home zoom is ≈ 1.0).
@@ -196,7 +199,7 @@ void main() {
       final a = result.pageLayouts[0]; // 100x200, fills the viewport
       final b = result.pageLayouts[1]; // 100x800, very tall → main-constrained
       // The margin scales with the largest page (B, fit scale 0.5) → effective margin 10*0.5 = 5.
-      expect(result.effectiveMargin, 5);
+      expect(result.margin, 5);
       // Each page fits entirely within the viewport main extent (whole page visible).
       expect(a.height, lessThan(420));
       expect(b.height, lessThan(420));

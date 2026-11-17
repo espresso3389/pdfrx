@@ -5,8 +5,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdfrx/pdfrx.dart';
 
-/// Widget tests for [SequentialPagesLayout] wired through [PdfViewerParams.layout] +
-/// [PdfViewerParams.fitMode], exercising relayout-vs-reload against the real engine.
+/// Widget tests for [SequentialPagesLayout] wired through [PdfViewerParams.layoutStrategy],
+/// exercising relayout-vs-reload against the real engine.
 ///
 /// hello.pdf is 3 uniform A4 pages (595.32 × 841.92).
 ///
@@ -18,8 +18,7 @@ final testPdfFile = File('example/viewer/assets/hello.pdf');
 
 // Continuous fit-to-width.
 const fillParams = PdfViewerParams(
-  layout: SequentialPagesLayout(),
-  fitMode: PdfFitMode.fill,
+  layoutStrategy: SequentialPagesLayout(fitMode: PdfFitMode.fill),
   behaviorControlParams: PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
 );
 
@@ -73,10 +72,10 @@ void main() {
     expect(controller.pageNumber, 2);
 
     // Resize the viewport: must relayout (new geometry) without losing the page.
-    await tester.pumpWidget(viewer(doc, controller, 900, params: fillParams));
+    await tester.pumpWidget(viewer(doc, controller, 700, params: fillParams));
     await settle(tester);
 
-    expect(controller.layout.documentSize.width, closeTo(900, 0.5), reason: 'relayout tracked the new viewport');
+    expect(controller.layout.documentSize.width, closeTo(700, 0.5), reason: 'relayout tracked the new viewport');
     expect(controller.pageNumber, 2, reason: 'anchor page preserved across resize');
   });
 
@@ -101,7 +100,6 @@ void main() {
     final controller = PdfViewerController();
 
     const noneParams = PdfViewerParams(
-      layout: SequentialPagesLayout(),
       behaviorControlParams: PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
     );
 

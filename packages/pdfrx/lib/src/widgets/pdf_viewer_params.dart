@@ -9,7 +9,8 @@ import '../pdf_document_ref.dart';
 import '../utils/fixed_overscroll_physics.dart';
 import '../utils/platform.dart';
 import 'layout/pdf_fit_mode.dart';
-import 'layout/pdf_layout.dart';
+import 'layout/pdf_page_layout_strategy.dart';
+import 'layout/sequential_pages_layout.dart';
 import 'pdf_viewer.dart';
 import 'pdf_image_cache_budget.dart';
 import 'pdf_viewer_scroll_thumb.dart';
@@ -23,22 +24,20 @@ import 'zoom_steps/pdf_viewer_zoom_steps_delegate_default.dart';
 
 /// Viewer customization parameters.
 ///
-/// Changes to several functions such as [layoutPages] does not
-/// take effect until the viewer is re-layout-ed. You can relayout the viewer by calling [PdfViewerController.invalidate].
+/// Function-typed parameters such as [normalizeMatrix] cannot be compared, so changes to them
+/// do not take effect until the viewer is re-layout-ed. You can relayout the viewer by calling
+/// [PdfViewerController.invalidate].
 @immutable
 class PdfViewerParams {
   const PdfViewerParams({
     this.isVisible = true,
-    this.margin = 8.0,
     this.backgroundColor = Colors.grey,
-    this.layout,
-    this.fitMode = PdfFitMode.none,
-    this.layoutPages,
+    this.layoutStrategy = const SequentialPagesLayout(),
     this.normalizeMatrix,
     @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(maxScale: ...) instead') this.maxScale,
     @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(minScale: ...) instead') this.minScale,
     @Deprecated(
-      'Prefer fitMode: PdfFitMode.fit (true) / PdfFitMode.none (false). For exact legacy behavior, '
+      'Prefer layoutStrategy: SequentialPagesLayout(fitMode: PdfFitMode.fit). For exact legacy behavior, '
       'use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(useAlternativeFitScaleAsMinScale: ...).',
     )
     this.useAlternativeFitScaleAsMinScale,
@@ -124,14 +123,6 @@ class PdfViewerParams {
          'Please configure these values in the sizeDelegateProvider instead.',
        );
 
-  /// Margin around the page, used by the built-in layout.
-  ///
-  /// When [layout] is set, that layout's own margin is authoritative (it bakes the margin into the
-  /// geometry and reports it via `PdfPageLayout.effectiveMargin`), and the viewer uses it everywhere
-  /// — geometry, size delegate, navigation, and fit-zoom — so this value is ignored. E.g. with
-  /// `SequentialPagesLayout`, set the margin on the layout, not here.
-  final double margin;
-
   /// Whether the viewer should load and render its pages.
   ///
   /// Set false for a kept-alive hidden tab. This cancels pending renders and releases images,
@@ -141,60 +132,15 @@ class PdfViewerParams {
   /// Background color of the viewer.
   final Color backgroundColor;
 
-  /// Declarative, value-type layout that computes page geometry.
+  /// Computes page geometry; see [PdfPageLayoutStrategy].
   ///
-  /// When non-null it is used before [layoutPages] and the built-in default:
-  /// `layout.resolve(...)` → [layoutPages] → built-in default.
+  /// Defaults to `const SequentialPagesLayout()`, which matches the pdfrx 2.x built-in layout
+  /// (vertical, centered, 8.0 margin and spacing). Page margin, spacing, scroll direction and
+  /// [PdfFitMode] are configured on the strategy.
   ///
-  /// Unlike [layoutPages] (a closure, which can't take part in [PdfViewerParams] equality),
-  /// a [PdfLayout] is a value type with `==`/`hashCode`, so changing it relayouts
-  /// automatically — no manual [PdfViewerController.invalidate]. The viewport is passed to
-  /// [PdfLayout.resolve] at call time and not stored, so a resize relayouts but keeps params
-  /// equal.
-  final PdfLayout? layout;
-
-  /// How pages are fitted within the viewport.
-  ///
-  /// Read by [layout] (and, for [PdfFitMode.cover], by the size delegate). `SequentialPagesLayout`
-  /// scales each page's rect for [PdfFitMode.fill]/[PdfFitMode.fit]; [PdfFitMode.cover] keeps native
-  /// geometry and uses the delegate's cover scale.
-  ///
-  /// Ignored by the built-in default layout and by a [layoutPages] closure. Defaults to
-  /// [PdfFitMode.none].
-  final PdfFitMode fitMode;
-
-  /// Function to customize the layout of the pages.
-  ///
-  /// Custom layouts are recalculated on viewer updates, including pan and zoom. The built-in
-  /// layout may be reused until the document, viewport, parameters, or explicit invalidation changes.
-  ///
-  /// Changes to this function does not take effect until the viewer is re-layout-ed. You can relayout the viewer by calling [PdfViewerController.invalidate].
-  ///
-  /// The following fragment is an example to layout pages horizontally with margin:
-  ///
-  /// ```dart
-  /// PdfViewerParams(
-  ///   layoutPages: (pages, params) {
-  ///     final height = pages.fold(
-  ///       0.0, (prev, page) => max(prev, page.height)) + params.margin * 2;
-  ///     final pageLayouts = <Rect>[];
-  ///     double x = params.margin;
-  ///     for (final page in pages) {
-  ///       pageLayouts.add(
-  ///         Rect.fromLTWH(
-  ///           x,
-  ///           (height - page.height) / 2, // center vertically
-  ///           page.width,
-  ///           page.height,
-  ///         ),
-  ///       );
-  ///       x += page.width + params.margin;
-  ///     }
-  ///     return PageLayout(pageLayouts: pageLayouts, documentSize: Size(x, height));
-  ///   },
-  /// ),
-  /// ```
-  final PdfPageLayoutFunction? layoutPages;
+  /// Strategies are value types, so changing this relayouts the viewer automatically; there is no
+  /// need to call [PdfViewerController.invalidate].
+  final PdfPageLayoutStrategy layoutStrategy;
 
   /// Function to normalize the matrix.
   ///
@@ -242,11 +188,11 @@ class PdfViewerParams {
   /// If true, the minimum scale is floored at the "fit page" scale
   /// ([PdfViewerController.alternativeFitScale]) so the user cannot zoom out past a whole page.
   ///
-  /// **Prefer [fitMode].** This boolean is a *policy* that conflates two things — computing the
-  /// fit-page scalar and using it as the min scale. [PdfFitMode] expresses that policy
-  /// declaratively (and also fits per-page geometry for mixed page sizes):
-  /// - `useAlternativeFitScaleAsMinScale: true`  ≈ `fitMode: PdfFitMode.fit`
-  /// - `useAlternativeFitScaleAsMinScale: false` ≈ `fitMode: PdfFitMode.none` (honors [minScale])
+  /// **Prefer [PdfFitMode] on the [layoutStrategy].** This boolean is a *policy* that conflates
+  /// two things: computing the fit-page scalar and using it as the min scale. [PdfFitMode]
+  /// expresses that policy declaratively (and also fits per-page geometry for mixed page sizes):
+  /// - `useAlternativeFitScaleAsMinScale: true` is roughly `SequentialPagesLayout(fitMode: PdfFitMode.fit)`
+  /// - `useAlternativeFitScaleAsMinScale: false` is roughly `fitMode: PdfFitMode.none` (honors [minScale])
   ///
   /// Flooring the min scale at fit-page avoids zooming out so far that many pages render at once,
   /// which can be slow or memory-heavy on large documents.
@@ -255,7 +201,7 @@ class PdfViewerParams {
   /// while this is true), use
   /// `sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(useAlternativeFitScaleAsMinScale: ...)`.
   @Deprecated(
-    'Prefer fitMode: PdfFitMode.fit (true) / PdfFitMode.none (false). For exact legacy behavior, '
+    'Prefer layoutStrategy: SequentialPagesLayout(fitMode: PdfFitMode.fit). For exact legacy behavior, '
     'use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(useAlternativeFitScaleAsMinScale: ...).',
   )
   final bool? useAlternativeFitScaleAsMinScale;
@@ -826,10 +772,8 @@ class PdfViewerParams {
   bool doChangesRequireReload(PdfViewerParams? other) {
     return other == null ||
         forceReload ||
-        other.margin != margin ||
         other.backgroundColor != backgroundColor ||
-        other.layout != layout ||
-        other.fitMode != fitMode ||
+        other.layoutStrategy != layoutStrategy ||
         // ignore: deprecated_member_use_from_same_package
         other.maxScale != maxScale ||
         // ignore: deprecated_member_use_from_same_package
@@ -878,10 +822,8 @@ class PdfViewerParams {
     return identical(other.imageCacheBudget, imageCacheBudget) &&
         other.maxImageBytesCachedOnMemory == maxImageBytesCachedOnMemory &&
         other.isVisible == isVisible &&
-        other.margin == margin &&
         other.backgroundColor == backgroundColor &&
-        other.layout == layout &&
-        other.fitMode == fitMode &&
+        other.layoutStrategy == layoutStrategy &&
         // ignore: deprecated_member_use_from_same_package
         other.maxScale == maxScale &&
         // ignore: deprecated_member_use_from_same_package
@@ -958,10 +900,8 @@ class PdfViewerParams {
     return imageCacheBudget.hashCode ^
         maxImageBytesCachedOnMemory.hashCode ^
         isVisible.hashCode ^
-        margin.hashCode ^
         backgroundColor.hashCode ^
-        layout.hashCode ^
-        fitMode.hashCode ^
+        layoutStrategy.hashCode ^
         // ignore: deprecated_member_use_from_same_package
         maxScale.hashCode ^
         // ignore: deprecated_member_use_from_same_package
@@ -1713,13 +1653,6 @@ typedef PdfViewerGetPageRenderingScale = double Function(
   PdfViewerController controller,
   double estimatedScale,
 );
-
-/// Function to customize the layout of the pages.
-///
-/// - [pages] is the list of pages.
-///   This is just a copy of the first loaded page of the document.
-/// - [params] is the viewer parameters.
-typedef PdfPageLayoutFunction = PdfPageLayout Function(List<PdfPage> pages, PdfViewerParams params);
 
 /// Function to normalize the matrix.
 ///

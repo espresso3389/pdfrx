@@ -26,6 +26,8 @@ import 'internals/page_layout_index.dart';
 import 'internals/pdf_error_widget.dart';
 import 'internals/pdf_viewer_key_handler.dart';
 import 'internals/widget_size_sniffer.dart';
+import 'layout/pdf_fit_mode.dart';
+import 'layout/pdf_page_layout_strategy.dart';
 import 'pdf_page_links_overlay.dart';
 import 'pdf_image_cache_budget.dart';
 import 'pdf_viewer_layout_metrics.dart';
@@ -1447,19 +1449,20 @@ class _PdfViewerState extends State<PdfViewer>
       _pageLayoutIndex = null;
       return false;
     }
-    if (!_layoutDirty && _layout != null && widget.params.layoutPages == null) return false;
-    // Order: params.layout -> params.layoutPages -> built-in default. The viewport is passed to
-    // resolve() here and not stored on the layout, so a resize relayouts but keeps params equal.
-    final newLayout =
-        widget.params.layout?.resolve(
-          pages: _document!.pages,
-          viewport: _viewSize ?? Size.zero,
-          params: widget.params,
-        ) ??
-        (widget.params.layoutPages ?? _layoutPages)(_document!.pages, widget.params);
+    if (!_layoutDirty && _layout != null) return false;
+    // The viewport is passed to resolve() and never stored on the strategy, so a resize relayouts
+    // (it sets _layoutDirty) while params stay equal.
+    final newLayout = widget.params.layoutStrategy.resolve(
+      PdfPageLayoutContext(
+        pages: _document!.pages,
+        viewport: _viewSize ?? Size.zero,
+        boundaryMargin: widget.params.boundaryMargin,
+      ),
+    );
     _layoutDirty = false;
     if (_layout?.documentSize == newLayout.documentSize &&
-        _layout?.effectiveMargin == newLayout.effectiveMargin &&
+        _layout?.margin == newLayout.margin &&
+        _layout?.fitMode == newLayout.fitMode &&
         _pageLayoutIndex?.matches(newLayout.pageLayouts) == true) {
       return false;
     }
@@ -1480,11 +1483,10 @@ class _PdfViewerState extends State<PdfViewer>
       viewSize: _viewSize ?? Size.zero,
       layout: _layout,
       pageNumber: pageNumber,
-      // A declarative layout bakes its own margin into the geometry; the delegate must use that
-      // same margin (not params.margin) so its fit/min scale matches the geometry exactly.
-      pageMargin: _effectivePageMargin,
+      // The layout bakes its margin into the geometry; pass the same margin so the delegate's
+      // fit/min scale matches.
+      pageMargin: _pageMargin,
       boundaryMargin: widget.params.boundaryMargin,
-      fitMode: widget.params.fitMode,
     );
   }
 
@@ -2008,7 +2010,7 @@ class _PdfViewerState extends State<PdfViewer>
         // `scale` (not `pageScale`) converts document units to physical pixels.
         // `pageScale` additionally carries the layout-to-page-size ratio, which
         // `_createRealSizePartialImage` would apply a second time via
-        // `pageRect.width * scale` -- under-rendering a custom `layoutPages`
+        // `pageRect.width * scale` -- under-rendering a layout strategy
         // that does not lay pages out at their natural size.
         partialRequest = _requestRealSizePartialImage(cache, page, scale, targetRect, visibleArea);
       }
@@ -2422,21 +2424,6 @@ class _PdfViewerState extends State<PdfViewer>
       }
     }
     return false;
-  }
-
-  PdfPageLayout _layoutPages(List<PdfPage> pages, PdfViewerParams params) {
-    final width = pages.fold(0.0, (w, p) => max(w, p.width)) + params.margin * 2;
-
-    final pageLayout = <Rect>[];
-    var y = params.margin;
-    for (var i = 0; i < pages.length; i++) {
-      final page = pages[i];
-      final rect = Rect.fromLTWH((width - page.width) / 2, y, page.width, page.height);
-      pageLayout.add(rect);
-      y += page.height + params.margin;
-    }
-
-    return PdfPageLayout(pageLayouts: pageLayout, documentSize: Size(width, y));
   }
 
   void _invalidate({bool relayout = false}) {
@@ -2948,15 +2935,13 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
-  /// The page margin in effect: the active layout's own margin when it reports one (a declarative
-  /// [PdfViewerParams.layout]), else [PdfViewerParams.margin] (the built-in layout / fallback). Used
-  /// everywhere a "page margin" is needed so the layout, size delegate, navigation, and fit-zoom all
-  /// agree.
-  double get _effectivePageMargin => _layout?.effectiveMargin ?? widget.params.margin;
+  /// The page margin reported by the current layout ([PdfPageLayout.margin]). Used everywhere a
+  /// "page margin" is needed so the layout, size delegate, navigation, and fit-zoom all agree.
+  double get _pageMargin => _layout?.margin ?? 0.0;
 
   Matrix4 _calcMatrixForPage({required int pageNumber, PdfPageAnchor? anchor}) {
     final effectiveAnchor = anchor ?? widget.params.pageAnchor;
-    final pageRect = _layout!.pageLayouts[pageNumber - 1].inflate(_effectivePageMargin);
+    final pageRect = _layout!.pageLayouts[pageNumber - 1].inflate(_pageMargin);
     if (effectiveAnchor == PdfPageAnchor.center) {
       return _calcMatrixFor(pageRect.center, zoom: _currentZoom, viewSize: _viewSize!);
     }
@@ -5236,19 +5221,32 @@ class PdfTextSelectionAnchor {
 /// It can be either [a] or [b], which represents the start and end of the selection respectively.
 enum PdfTextSelectionAnchorType { a, b }
 
-/// Defines page layout.
 String _fmtPageSize(PdfPage page) => '${page.width.toStringAsFixed(0)}x${page.height.toStringAsFixed(0)}';
 
+/// The resolved page geometry produced by a [PdfPageLayoutStrategy].
 class PdfPageLayout {
-  PdfPageLayout({required this.pageLayouts, required this.documentSize, this.effectiveMargin});
+  PdfPageLayout({
+    required this.pageLayouts,
+    required this.documentSize,
+    this.margin = 0.0,
+    this.fitMode = PdfFitMode.none,
+  });
+
+  /// Page rectangles in document coordinates; index `i` is page `i + 1`.
   final List<Rect> pageLayouts;
+
+  /// Overall document size in document coordinates.
   final Size documentSize;
 
-  /// The per-page margin baked into this layout's geometry, if the layout applied one. The size
-  /// delegate uses it (in place of [PdfViewerParams.margin]) when computing the fit/min scale, so
-  /// its fit matches the geometry. Null for the built-in layout and [PdfViewerParams.layoutPages]
-  /// closures, which fall back to [PdfViewerParams.margin].
-  final double? effectiveMargin;
+  /// The margin around pages baked into this geometry, in document units.
+  ///
+  /// The viewer uses it for page navigation and fit-zoom, and passes it to the size delegate so
+  /// its fit/min scale matches the geometry.
+  final double margin;
+
+  /// The [PdfFitMode] the geometry was produced with. Size delegates use it to floor the min scale
+  /// (fit-width for `fill`/`cover`, fit-page for `fit`).
+  final PdfFitMode fitMode;
 
   @override
   bool operator ==(Object other) {
@@ -5256,11 +5254,12 @@ class PdfPageLayout {
     if (other is! PdfPageLayout) return false;
     return listEquals(pageLayouts, other.pageLayouts) &&
         documentSize == other.documentSize &&
-        effectiveMargin == other.effectiveMargin;
+        margin == other.margin &&
+        fitMode == other.fitMode;
   }
 
   @override
-  int get hashCode => pageLayouts.hashCode ^ documentSize.hashCode ^ effectiveMargin.hashCode;
+  int get hashCode => Object.hash(Object.hashAll(pageLayouts), documentSize, margin, fitMode);
 }
 
 /// Represents the result of the hit test on the page.
@@ -5625,7 +5624,7 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   ///
   Matrix4? calcMatrixFitWidthForPage({required int pageNumber}) {
     final page = layout.pageLayouts[pageNumber - 1];
-    final margin = layout.effectiveMargin ?? params.margin;
+    final margin = layout.margin;
     final zoom = (viewSize.width - margin * 2) / page.width;
     final y = (viewSize.height / 2 - margin) / zoom;
     return calcMatrixFor(page.topCenter.translate(0, y), zoom: zoom, viewSize: viewSize);
@@ -5635,7 +5634,7 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   ///
   Matrix4? calcMatrixFitHeightForPage({required int pageNumber}) {
     final page = layout.pageLayouts[pageNumber - 1];
-    final margin = layout.effectiveMargin ?? params.margin;
+    final margin = layout.margin;
     final zoom = (viewSize.height - margin * 2) / page.height;
     return calcMatrixFor(page.center, zoom: zoom, viewSize: viewSize);
   }
@@ -5657,7 +5656,7 @@ class PdfViewerController extends ValueListenable<Matrix4> {
       final page = layout.pageLayouts[i];
       if (page.intersect(viewRect).isEmpty) continue;
       final boundaryMargin = _state._adjustedBoundaryMargins;
-      final zoom = viewSize.width / (page.width + (params.margin * 2) + boundaryMargin.horizontal);
+      final zoom = viewSize.width / (page.width + (layout.margin * 2) + boundaryMargin.horizontal);
 
       // NOTE: keep the y-position but center the x-position
       final newMatrix = calcMatrixFor(Offset(page.left + page.width / 2, pos.dy), zoom: zoom);

@@ -69,7 +69,7 @@ class PdfViewerSizeDelegateProviderLegacy extends PdfViewerSizeDelegateProvider 
   /// renders many pages at once. It may make the viewer to be slow or even crash due to high memory consumption.
   /// So, it is recommended to set this to false if you want to show PDF documents with many pages.
   ///
-  /// **Precedence:** used only when [PdfViewerParams.fitMode] is [PdfFitMode.none]. With any
+  /// **Precedence:** used only when the layout's [PdfPageLayout.fitMode] is [PdfFitMode.none]. With any
   /// other fit mode the min scale is floored at that mode's fit (fit-width for `fill`/`cover`,
   /// fit-page for `fit`) and this flag is ignored. (`true` is roughly `fitMode: fit`.)
   final bool useAlternativeFitScaleAsMinScale;
@@ -162,7 +162,6 @@ class PdfViewerSizeDelegateLegacy implements PdfViewerSizeDelegate {
     required int? pageNumber,
     required double pageMargin,
     required EdgeInsets? boundaryMargin,
-    PdfFitMode fitMode = PdfFitMode.none,
   }) {
     final bmh = boundaryMargin?.horizontal == double.infinity ? 0 : boundaryMargin?.horizontal ?? 0;
     final bmv = boundaryMargin?.vertical == double.infinity ? 0 : boundaryMargin?.vertical ?? 0;
@@ -192,7 +191,7 @@ class PdfViewerSizeDelegateLegacy implements PdfViewerSizeDelegate {
     // Min scale floored at the fit for the active mode, so e.g. `fill` can't zoom out below
     // fit-width.
     final double effectiveMinScale;
-    switch (fitMode) {
+    switch (layout?.fitMode ?? PdfFitMode.none) {
       case PdfFitMode.fill:
       case PdfFitMode.cover:
         // Floor at fit-width (for `fill` geometry this is about 1.0).

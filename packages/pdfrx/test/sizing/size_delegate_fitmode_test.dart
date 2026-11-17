@@ -10,15 +10,20 @@ import 'package:pdfrx/pdfrx.dart';
 ///   viewport 500×400, margin 8, document 500×800, page rect (8,8,484,784).
 ///   ⇒ coverScale (fit-width) = max(500/500, 400/800) = 1.0
 ///     alternativeFitScale (fit-page) = min(500/500, 400/800) = 0.5
-final _layout = PdfPageLayout(pageLayouts: [const Rect.fromLTWH(8, 8, 484, 784)], documentSize: const Size(500, 800));
+PdfPageLayout _layout(PdfFitMode fitMode) => PdfPageLayout(
+  pageLayouts: [const Rect.fromLTWH(8, 8, 484, 784)],
+  documentSize: const Size(500, 800),
+  margin: 8,
+  fitMode: fitMode,
+);
 
+/// The fit mode reaches the delegate through [PdfPageLayout.fitMode], not a separate argument.
 PdfViewerLayoutMetrics _metrics(PdfViewerSizeDelegate delegate, PdfFitMode fitMode) => delegate.calculateMetrics(
   viewSize: const Size(500, 400),
-  layout: _layout,
+  layout: _layout(fitMode),
   pageNumber: 1,
   pageMargin: 8,
   boundaryMargin: null,
-  fitMode: fitMode,
 );
 
 void main() {

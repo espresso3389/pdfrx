@@ -175,7 +175,6 @@ class PdfViewerSizeDelegateSmart implements PdfViewerSizeDelegate {
     required int? pageNumber,
     required double pageMargin,
     required EdgeInsets? boundaryMargin,
-    PdfFitMode fitMode = PdfFitMode.none,
   }) {
     // Geometric limits (coverScale / alternativeFitScale). Same math as the legacy delegate,
     // duplicated here to keep the two independent.
@@ -202,7 +201,7 @@ class PdfViewerSizeDelegateSmart implements PdfViewerSizeDelegate {
 
     // Smart min scale, floored by the active fit mode.
     final double effectiveMinScale;
-    switch (fitMode) {
+    switch (layout?.fitMode ?? PdfFitMode.none) {
       case PdfFitMode.fill:
       case PdfFitMode.cover:
         // Floor at fit-width; don't allow a multi-page zoom-out.

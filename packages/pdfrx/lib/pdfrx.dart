@@ -5,7 +5,7 @@ export 'src/pdf_document_ref.dart';
 export 'src/pdfrx_flutter.dart';
 export 'src/utils/fixed_overscroll_physics.dart';
 export 'src/widgets/layout/pdf_fit_mode.dart';
-export 'src/widgets/layout/pdf_layout.dart';
+export 'src/widgets/layout/pdf_page_layout_strategy.dart';
 export 'src/widgets/layout/sequential_pages_layout.dart';
 export 'src/widgets/pdf_text_searcher.dart';
 export 'src/widgets/pdf_image_cache_budget.dart';

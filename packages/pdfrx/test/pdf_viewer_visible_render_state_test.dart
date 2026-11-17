@@ -770,7 +770,7 @@ Widget _viewer(
     params: PdfViewerParams(
       isVisible: isVisible,
       imageCacheBudget: imageCacheBudget,
-      margin: margin,
+      layoutStrategy: SequentialPagesLayout(margin: margin, spacing: margin),
       verticalCacheExtent: verticalCacheExtent,
       getPageRenderingScale: _fixedPreviewScale,
       behaviorControlParams: behavior,

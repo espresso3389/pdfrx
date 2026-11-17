@@ -6,7 +6,7 @@ import 'package:pdfrx_engine/pdfrx_engine.dart';
 import '../pdf_viewer.dart';
 import '../pdf_viewer_params.dart';
 import 'pdf_fit_mode.dart';
-import 'pdf_layout.dart';
+import 'pdf_page_layout_strategy.dart';
 
 /// Cross-axis alignment for pages narrower than the widest page.
 ///
@@ -14,10 +14,10 @@ import 'pdf_layout.dart';
 /// [PdfFitMode.fill] all pages share one cross-axis extent, so this has no effect.
 enum PdfCrossAxisAlignment { start, center, end }
 
-/// A continuous [PdfLayout] that places pages end-to-end along [scrollDirection], handling
-/// mixed page sizes.
+/// A continuous [PdfPageLayoutStrategy] that places pages end-to-end along [scrollDirection],
+/// handling mixed page sizes.
 ///
-/// Applies [PdfViewerParams.fitMode] by scaling each page's rect:
+/// Applies [fitMode] by scaling each page's rect:
 /// * [PdfFitMode.none] — native page sizes.
 /// * [PdfFitMode.fill] — each page scaled so its cross axis fills the viewport.
 /// * [PdfFitMode.fit]  — each page scaled to fit entirely within the viewport.
@@ -29,16 +29,20 @@ enum PdfCrossAxisAlignment { start, center, end }
 /// Under [PdfFitMode.fit] a very tall page is constrained by the main axis instead, stays
 /// narrower, and is positioned by [crossAxisAlignment].
 ///
-/// Equality is over the config fields only ([scrollDirection], [spacing], [margin],
-/// [crossAxisAlignment]); the resulting geometry, the viewport, and [PdfViewerParams.fitMode]
-/// never take part. Two equal configs resolved at different viewport sizes stay equal, so a
-/// resize relayouts without changing [PdfViewerParams] equality.
+/// With the defaults (`fitMode: none`, `spacing == margin`), the geometry is identical to the
+/// pdfrx 2.x built-in layout, so this is the default [PdfViewerParams.layoutStrategy].
+///
+/// Equality is over the config fields only ([scrollDirection], [spacing], [margin], [fitMode],
+/// [crossAxisAlignment]); the resulting geometry and the viewport never take part. Two equal
+/// configs resolved at different viewport sizes stay equal, so a resize relayouts without
+/// changing [PdfViewerParams] equality.
 @immutable
-class SequentialPagesLayout extends PdfLayout {
+class SequentialPagesLayout extends PdfPageLayoutStrategy {
   const SequentialPagesLayout({
     this.scrollDirection = Axis.vertical,
     this.spacing = 8.0,
     this.margin = 8.0,
+    this.fitMode = PdfFitMode.none,
     this.crossAxisAlignment = PdfCrossAxisAlignment.center,
   });
 
@@ -54,11 +58,19 @@ class SequentialPagesLayout extends PdfLayout {
   /// so every page gets the same margin regardless of its fit scale; scales with the zoom.
   final double margin;
 
+  /// How each page is sized to the viewport. See [PdfFitMode].
+  ///
+  /// Reported on the resolved [PdfPageLayout.fitMode] so the size delegate can floor the min
+  /// scale to match.
+  final PdfFitMode fitMode;
+
   /// How narrower pages are aligned within the cross axis. See [PdfCrossAxisAlignment].
   final PdfCrossAxisAlignment crossAxisAlignment;
 
   @override
-  PdfPageLayout resolve({required List<PdfPage> pages, required Size viewport, required PdfViewerParams params}) {
+  PdfPageLayout resolve(PdfPageLayoutContext context) {
+    final pages = context.pages;
+    final viewport = context.viewport;
     final isVertical = scrollDirection == Axis.vertical;
     // Cross-axis / main-axis extent selectors (cross = perpendicular to scrolling).
     double crossOf(double width, double height) => isVertical ? width : height;
@@ -70,11 +82,11 @@ class SequentialPagesLayout extends PdfLayout {
     // proportional resize-reposition land correctly with no delegate change. For `none`/`cover` the
     // reference scale is 1, so the gaps are exactly the supplied values. The fit is recomputed
     // against the scaled margin so pages still fit exactly (no overflow).
-    var scales = _pageScales(pages, viewport, crossOf, mainOf, params.fitMode, margin);
+    var scales = _pageScales(pages, viewport, crossOf, mainOf, fitMode, margin);
     final referenceScale = _largestPageScale(pages, scales);
     final effectiveMargin = margin * referenceScale;
     final effectiveSpacing = spacing * referenceScale;
-    scales = _pageScales(pages, viewport, crossOf, mainOf, params.fitMode, effectiveMargin);
+    scales = _pageScales(pages, viewport, crossOf, mainOf, fitMode, effectiveMargin);
 
     // Bake each page's cross-axis fit scale into its size. Rendering scales by the
     // rect/native ratio, so upscaled pages still rasterize at full resolution.
@@ -93,7 +105,7 @@ class SequentialPagesLayout extends PdfLayout {
     // under-zoom) regardless of page aspect or the scaled margin. `none`/`cover` keep the natural
     // (widest-page) extent so the document stays its native width.
     final availCross = crossOf(viewport.width, viewport.height) - effectiveMargin * 2;
-    final columnCross = switch (params.fitMode) {
+    final columnCross = switch (fitMode) {
       PdfFitMode.fill || PdfFitMode.fit => max(maxCross, availCross),
       PdfFitMode.none || PdfFitMode.cover => maxCross,
     };
@@ -123,7 +135,7 @@ class SequentialPagesLayout extends PdfLayout {
     final documentSize = isVertical
         ? Size(columnCross + effectiveMargin * 2, main)
         : Size(main, columnCross + effectiveMargin * 2);
-    return PdfPageLayout(pageLayouts: rects, documentSize: documentSize, effectiveMargin: effectiveMargin);
+    return PdfPageLayout(pageLayouts: rects, documentSize: documentSize, margin: effectiveMargin, fitMode: fitMode);
   }
 
   /// The fit scale applied to the largest page (by native area). Used to scale the margin/spacing
@@ -182,8 +194,9 @@ class SequentialPagesLayout extends PdfLayout {
           other.scrollDirection == scrollDirection &&
           other.spacing == spacing &&
           other.margin == margin &&
+          other.fitMode == fitMode &&
           other.crossAxisAlignment == crossAxisAlignment;
 
   @override
-  int get hashCode => Object.hash(scrollDirection, spacing, margin, crossAxisAlignment);
+  int get hashCode => Object.hash(scrollDirection, spacing, margin, fitMode, crossAxisAlignment);
 }

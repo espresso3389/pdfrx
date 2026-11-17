@@ -60,15 +60,19 @@ final PdfPageLayoutStrategy layoutStrategy; // default: const SequentialPagesLay
 built-in `_layoutPages` with `margin: 8` (cross offset `m + (maxW - w) / 2`, gap `m`, document size
 `(maxW + 2m, last + m)`), so the default viewer does not move.
 
-Open: whether `resolve` should also see `PdfViewerParams` (#657 passes it). Proposal: no; anything a
-strategy needs goes on the strategy or the context.
+`resolve` does not see `PdfViewerParams` (#657 passed it); anything a strategy needs goes on the
+strategy or the context.
+
+Note: since strategies are value types, a strategy is resolved only when the layout is dirty
+(document/page change, viewport change, widget update, `invalidate()`), not on every pan/zoom as
+2.x did for custom `layoutPages` callbacks.
 
 ## Size delegates
 
 - `calculateMetrics` signature is unchanged (no `fitMode` argument; #657's addition breaks every
   third-party `implements PdfViewerSizeDelegate`).
-- Delegates read `layout?.fitMode` and `layout?.margin`. The `pageMargin` argument stays for source
-  compatibility, is marked deprecated, and the viewer passes `layout.margin`.
+- Delegates read `layout?.fitMode`. The `pageMargin` argument stays (not deprecated, to avoid
+  warnings in every implementer) and the viewer always passes `layout.margin`.
 - Fit-mode min-scale policy from #657 is kept, but must keep master's `caf98839` cap
   (`min(..., maxScale)`) in both Legacy and Smart.
 - Policy precedence to document: with `fitMode != none`, Legacy ignores
@@ -89,6 +93,8 @@ strategy needs goes on the strategy or the context.
 - `PdfViewerParams.layoutPages` removed -> subclass `PdfPageLayoutStrategy`.
 - `PdfViewerParams.margin` removed -> `SequentialPagesLayout(margin:, spacing:)`.
 - `PdfPageLayoutFunction` typedef removed.
+- Custom layouts must report their margin in `PdfPageLayout.margin` (default 0); 2.x used
+  `params.margin` for page navigation/fit-zoom regardless of the custom layout.
 - `PdfPageLayout` gains `margin` / `fitMode` (constructor is backward compatible; `implements
   PdfPageLayout` is not).
 

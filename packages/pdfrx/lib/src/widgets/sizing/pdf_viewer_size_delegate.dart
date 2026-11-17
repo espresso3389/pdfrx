@@ -71,18 +71,18 @@ abstract class PdfViewerSizeDelegate {
   /// [viewSize]: The current size of the widget.
   /// [layout]: The current PDF layout (may be null during first build).
   /// [pageNumber]: The page currently being viewed (used to calculate "fit page" logic).
-  /// [pageMargin]: The margin configuration from parameters.
+  /// [pageMargin]: The page margin baked into [layout]; always equal to `layout?.margin` (0 when
+  /// [layout] is null). Kept as an argument for source compatibility.
   /// [boundaryMargin]: The boundary margin configuration from parameters.
-  /// [fitMode]: the active [PdfFitMode]. Lets the delegate floor the min scale at the matching
-  /// fit (fit-width for `fill`/`cover`, fit-page for `fit`); `none` keeps the previous behavior.
-  /// Defaults to [PdfFitMode.none], so existing delegates are unaffected.
+  ///
+  /// The [PdfFitMode] the layout was produced with is available as `layout?.fitMode`; delegates
+  /// can use it to floor the min scale (fit-width for `fill`/`cover`, fit-page for `fit`).
   PdfViewerLayoutMetrics calculateMetrics({
     required Size viewSize,
     required PdfPageLayout? layout,
     required int? pageNumber, // Pivot page for calculation
     required double pageMargin,
     required EdgeInsets? boundaryMargin,
-    PdfFitMode fitMode = PdfFitMode.none,
   });
 
   /// The scale threshold for switching between one-pass rendering and progressive rendering.

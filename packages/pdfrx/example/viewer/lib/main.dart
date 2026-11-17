@@ -1,11 +1,10 @@
-import 'dart:math' as math;
-
 import 'package:file_selector/file_selector.dart' as fs;
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'facing_pages_layout.dart';
 import 'google_fonts_resolver.dart';
 import 'markers_view.dart';
 import 'outline_view.dart';
@@ -308,12 +307,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
                       controller: controller,
                       fontManager: _fontManager,
                       params: PdfViewerParams(
-                        // Declarative layout; used instead of layoutPages when non-null.
-                        layout: isDeclarativeLayout
-                            ? const SequentialPagesLayout(scrollDirection: Axis.vertical)
-                            : null,
-                        fitMode: isDeclarativeLayout ? PdfFitMode.fit : PdfFitMode.none,
-                        layoutPages: _layoutPages[_layoutTypeIndex],
+                        layoutStrategy: _layoutStrategies[_layoutTypeIndex],
                         scrollHorizontallyByMouseWheel: isHorizontalLayout,
                         pageAnchor: isHorizontalLayout ? PdfPageAnchor.left : PdfPageAnchor.top,
                         pageAnchorEnd: isHorizontalLayout ? PdfPageAnchor.right : PdfPageAnchor.bottom,
@@ -593,18 +587,14 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
 
   int _layoutTypeIndex = 0;
 
-  /// Change the layout logic; see [_layoutPages] for the logics
+  /// Change the layout logic; see [_layoutStrategies] for the logics
   void _changeLayoutType() {
     setState(() {
-      _layoutTypeIndex = (_layoutTypeIndex + 1) % _layoutPages.length;
+      _layoutTypeIndex = (_layoutTypeIndex + 1) % _layoutStrategies.length;
     });
   }
 
   bool get isHorizontalLayout => _layoutTypeIndex == 1;
-
-  /// Declarative value-type layout (params.layout + params.fitMode) instead of a
-  /// layoutPages closure.
-  bool get isDeclarativeLayout => _layoutTypeIndex == 3;
 
   /// Page reading order; true to L-to-R that is commonly used by books like manga or such
   var isRightToLeftReadingOrder = false;
@@ -612,63 +602,17 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver, Single
   /// Use the first page as cover page
   var needCoverPage = true;
 
-  late final List<PdfPageLayoutFunction?> _layoutPages = [
+  /// Layout strategies to cycle through. Strategies are value types, so rebuilding this list
+  /// with different settings relayouts the viewer without calling `invalidate()`.
+  List<PdfPageLayoutStrategy> get _layoutStrategies => [
     // The default layout
-    null,
+    const SequentialPagesLayout(),
     // Horizontal layout
-    (pages, params) {
-      final height = pages.fold(0.0, (prev, page) => math.max(prev, page.height)) + params.margin * 2;
-      final pageLayouts = <Rect>[];
-      double x = params.margin;
-      for (var page in pages) {
-        pageLayouts.add(
-          Rect.fromLTWH(
-            x,
-            (height - page.height) / 2, // center vertically
-            page.width,
-            page.height,
-          ),
-        );
-        x += page.width + params.margin;
-      }
-      return PdfPageLayout(pageLayouts: pageLayouts, documentSize: Size(x, height));
-    },
-    // Facing pages layout
-    (pages, params) {
-      final width = pages.fold(0.0, (prev, page) => math.max(prev, page.width));
-
-      final pageLayouts = <Rect>[];
-      final offset = needCoverPage ? 1 : 0;
-      double y = params.margin;
-      for (int i = 0; i < pages.length; i++) {
-        final page = pages[i];
-        final pos = i + offset;
-        final isLeft = isRightToLeftReadingOrder ? (pos & 1) == 1 : (pos & 1) == 0;
-
-        final otherSide = (pos ^ 1) - offset;
-        final h = 0 <= otherSide && otherSide < pages.length
-            ? math.max(page.height, pages[otherSide].height)
-            : page.height;
-
-        pageLayouts.add(
-          Rect.fromLTWH(
-            isLeft ? width + params.margin - page.width : params.margin * 2 + width,
-            y + (h - page.height) / 2,
-            page.width,
-            page.height,
-          ),
-        );
-        if (pos & 1 == 1 || i + 1 == pages.length) {
-          y += h + params.margin;
-        }
-      }
-      return PdfPageLayout(
-        pageLayouts: pageLayouts,
-        documentSize: Size((params.margin + width) * 2 + params.margin, y),
-      );
-    },
-    // Declarative SequentialPagesLayout; geometry comes from params.layout (above).
-    null,
+    const SequentialPagesLayout(scrollDirection: Axis.horizontal),
+    // Facing pages layout (a custom strategy; see facing_pages_layout.dart)
+    FacingPagesLayout(coverPage: needCoverPage, rightToLeft: isRightToLeftReadingOrder),
+    // Each page fitted to the viewport
+    const SequentialPagesLayout(fitMode: PdfFitMode.fit),
   ];
 
   void _addCurrentSelectionToMarkers(Color color) {
