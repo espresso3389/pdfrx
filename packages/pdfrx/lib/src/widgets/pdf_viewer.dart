@@ -329,11 +329,11 @@ class _PdfViewerState extends State<PdfViewer>
   Timer? _interactionEndedTimer;
   bool _isInteractionGoingOn = false;
 
-  /// Pending page snap check; see [PdfViewerParams.paging].
-  Timer? _pageSnapTimer;
+  /// Pending settle check in paged mode; see [PdfViewerParams.paging].
+  Timer? _settleTimer;
 
-  /// True once the user has moved the view since the last page snap.
-  bool _pageSnapPending = false;
+  /// True once the user has moved the view since the last settle.
+  bool _settlePending = false;
 
   BuildContext? _contextForFocusNode;
 
@@ -398,8 +398,8 @@ class _PdfViewerState extends State<PdfViewer>
         _selectionHandleGlobalPosition = null;
         _interactionEndedTimer?.cancel();
         _isInteractionGoingOn = false;
-        _pageSnapTimer?.cancel();
-        _pageSnapPending = false;
+        _settleTimer?.cancel();
+        _settlePending = false;
         _clearFontManagerAssociation();
         _releaseCachedResources(keepVisible: false, keepSelection: true);
       } else {
@@ -668,7 +668,7 @@ class _PdfViewerState extends State<PdfViewer>
     _clearFontManagerAssociation();
     _textSelectionChangedDebounceTimer?.cancel();
     _interactionEndedTimer?.cancel();
-    _pageSnapTimer?.cancel();
+    _settleTimer?.cancel();
     _wheelBurstTimer?.cancel();
     _animationEndTimer?.cancel();
     _imageCache.cancelAllPendingRenderings();
@@ -690,7 +690,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onMatrixChanged() {
     _updateSelectionHandleAtPointer();
-    if (_pageSnapPending) _schedulePageSnap();
+    if (_settlePending) _scheduleSettle();
     if (widget.params.onAnimationEnd != null) _scheduleAnimationEndCheck();
     _invalidate();
   }
@@ -1292,8 +1292,8 @@ class _PdfViewerState extends State<PdfViewer>
     _interactionEndedTimer?.cancel();
     _interactionEndedTimer = null;
     _isInteractionGoingOn = true;
-    _pageSnapTimer?.cancel();
-    _pageSnapPending = _paging != null;
+    _settleTimer?.cancel();
+    _settlePending = _paging != null;
   }
 
   void _stopInteraction() {
@@ -1301,7 +1301,7 @@ class _PdfViewerState extends State<PdfViewer>
     if (!mounted) return;
     _interactionEndedTimer = Timer(const Duration(milliseconds: 300), () {
       _isInteractionGoingOn = false;
-      if (_pageSnapPending) _schedulePageSnap();
+      if (_settlePending) _scheduleSettle();
       _invalidate();
     });
   }
@@ -1312,24 +1312,24 @@ class _PdfViewerState extends State<PdfViewer>
   /// Whether the viewer shows one page (spread) at a time; see [PdfViewerParams.paging].
   bool get _isPaged => widget.params.paging != null;
 
-  /// (Re)starts the settle timer for page snapping. Called on every matrix change while a snap is
+  /// (Re)starts the settle timer (paged mode). Called on every matrix change while a snap is
   /// pending, so the snap runs only once the view has been still for [PdfPaging.settleDelay]
   /// (after drag, fling inertia, wheel scrolling or pinch).
-  void _schedulePageSnap() {
+  void _scheduleSettle() {
     final paging = _paging;
-    _pageSnapTimer?.cancel();
+    _settleTimer?.cancel();
     if (paging == null) {
-      _pageSnapPending = false;
+      _settlePending = false;
       _confinedSpread = null;
       return;
     }
-    _pageSnapTimer = Timer(paging.settleDelay, _snapToPage);
+    _settleTimer = Timer(paging.settleDelay, _settle);
   }
 
-  void _snapToPage() {
-    _pageSnapTimer = null;
+  void _settle() {
+    _settleTimer = null;
     final paging = _paging;
-    if (!mounted || !_pageSnapPending || paging == null || !widget.params.isVisible) return;
+    if (!mounted || !_settlePending || paging == null || !widget.params.isVisible) return;
     // Still moving; the next matrix change or interaction end reschedules.
     if (_isInteractionGoingOn ||
         _animController.isAnimating ||
@@ -1337,9 +1337,9 @@ class _PdfViewerState extends State<PdfViewer>
         _selPartMoving != _TextSelectionPart.none) {
       return;
     }
-    _pageSnapPending = false;
+    _settlePending = false;
     _confinedSpread = null;
-    final destination = _calcPageSnapMatrix();
+    final destination = _calcSettleMatrix();
     if (destination != null) unawaited(_goTo(destination, duration: paging.duration));
   }
 
@@ -1422,7 +1422,7 @@ class _PdfViewerState extends State<PdfViewer>
   /// (or spread) boundary, or null if no snap is needed. See [PdfPaging] for the rules.
   ///
   /// With [pageNumber], the spread of that page is snapped to instead of the most visible one.
-  Matrix4? _calcPageSnapMatrix({Matrix4? base, int? pageNumber}) {
+  Matrix4? _calcSettleMatrix({Matrix4? base, int? pageNumber}) {
     final layout = _layout;
     final viewSize = _viewSize;
     if (layout == null || viewSize == null || layout.pageLayouts.isEmpty || viewSize.isEmpty) return null;
@@ -1455,7 +1455,7 @@ class _PdfViewerState extends State<PdfViewer>
     if (destination == null || _paging == null || _selPartMoving != _TextSelectionPart.none) {
       return destination;
     }
-    return _calcPageSnapMatrix(base: destination, pageNumber: pageNumber) ?? destination;
+    return _calcSettleMatrix(base: destination, pageNumber: pageNumber) ?? destination;
   }
 
   /// View rect and zoom when the current gesture started; used by [_turnPageOnInteractionEnd].
@@ -1503,8 +1503,8 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _turnPageTo(PdfPageLayout layout, int target, PdfPaging paging, {bool fromEnd = false}) {
-    _pageSnapTimer?.cancel();
-    _pageSnapPending = false;
+    _settleTimer?.cancel();
+    _settlePending = false;
     _confinedSpread = null;
     final destination = _calcMatrixToShowSpread(layout, target, fromEnd: fromEnd);
     // The inner InteractiveViewer starts the fling inertia right after onInteractionEnd returns.

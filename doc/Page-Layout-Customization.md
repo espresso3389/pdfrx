@@ -4,7 +4,7 @@ Page layout is configured with [PdfViewerParams.layoutStrategy](https://pub.dev/
 
 Layout strategies are value types (they implement `==`/`hashCode`), so replacing the strategy with a different one, e.g. on `setState`, relayouts the viewer automatically. There is no need to call `controller.invalidate()`.
 
-> pdfrx 3.0 removed `PdfViewerParams.layoutPages` and `PdfViewerParams.margin`. Use `SequentialPagesLayout(margin: ..., spacing: ...)` or a custom `PdfPageLayoutStrategy` instead.
+> pdfrx 3.0 removed `PdfViewerParams.layoutPages` and `PdfViewerParams.margin`. See [Migrating to pdfrx 3.0](Migrating-to-pdfrx-3.0.md).
 
 ## Sequential Layout Options
 

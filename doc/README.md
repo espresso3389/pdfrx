@@ -5,6 +5,7 @@ Welcome to the pdfrx documentation! These guides describe the current repository
 ## Getting Started
 
 - [pdfrx Initialization](pdfrx-Initialization.md) - How to properly initialize pdfrx in your app
+- [Migrating to pdfrx 3.0](Migrating-to-pdfrx-3.0.md) - Replacing `layoutPages` and `margin` with layout strategies
 - [Progressive Loading](Progressive-Loading.md) - Understanding and using progressive page loading for large PDFs
 
 ## Core Features
@@ -18,7 +19,7 @@ Welcome to the pdfrx documentation! These guides describe the current repository
 
 - [Document Outline (Bookmarks)](Document-Outline-(a.k.a-Bookmarks).md) - Working with PDF bookmarks
 - [PDF Link Handling](PDF-Link-Handling.md) - Handling links within PDFs
-- [Page Layout Customization](Page-Layout-Customization.md) - Customizing page layouts
+- [Page Layout Customization](Page-Layout-Customization.md) - Layout strategies, fit modes, facing pages, and one page at a time
 - [Zoom Gestures](Double-tap-to-Zoom.md) - Double-tap zoom, pinch sensitivity, and inertia limits
 - [Visible Page Rendering State](Visible-Page-Rendering-State.md) - Knowing when the pages on screen are fully rendered
 

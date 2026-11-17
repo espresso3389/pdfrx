@@ -358,7 +358,7 @@ class PdfViewerParams {
   final GestureScaleEndCallback? onInteractionEnd;
 
   /// Called when the view stops moving: after a gesture, fling inertia, mouse wheel scrolling,
-  /// page snapping, or an animated move such as [PdfViewerController.goToPage] has finished.
+  /// page turning in paged mode, or an animated move such as [PdfViewerController.goToPage] has finished.
   ///
   /// Useful for updating UI that depends on the final position or zoom, without reacting to every
   /// intermediate frame.

@@ -37,6 +37,8 @@ viewerOverlayBuilder: (context, size, handleLinkTap) => [
 ],
 ```
 
+Without `thumbBuilder`, the thumb shows the current page number, or the current spread (e.g. `2-3`) when pages are shown side by side as with `FacingPagesLayout`. A custom thumb can show the same with `controller.currentPageRange?.label`.
+
 Basically, [PdfViewerParams.viewerOverlayBuilder](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/viewerOverlayBuilder.html) can be used to insert any widgets under viewer's internal [Stack](https://api.flutter.dev/flutter/widgets/Stack-class.html).
 
 But if you want to place many visual objects that does not interact with user, you'd better use [PdfViewerParams.pagePaintCallback](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/pagePaintCallbacks.html).
