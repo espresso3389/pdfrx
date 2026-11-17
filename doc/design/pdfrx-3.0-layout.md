@@ -75,6 +75,8 @@ Note: since strategies are value types, a strategy is resolved only when the lay
   warnings in every implementer) and the viewer always passes `layout.margin`.
 - Fit-mode min-scale policy from #657 is kept, but must keep master's `caf98839` cap
   (`min(..., maxScale)`) in both Legacy and Smart.
+- When `PdfPageLayout.fitMode` changes between layouts, both delegates go to the new layout's
+  `coverScale` (home zoom) instead of preserving the zoom (`shouldResetZoomForFitMode`).
 - Policy precedence to document: with `fitMode != none`, Legacy ignores
   `useAlternativeFitScaleAsMinScale`/`minScale`, and Smart's `fill`/`cover` ignores `maxPagesVisible`.
 
