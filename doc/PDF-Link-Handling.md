@@ -70,7 +70,7 @@ For PDF destinations, you can use [PdfViewerController.goToDest](https://pub.dev
 
 ## Link Appearance
 
-Use [linkColor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/linkColor.html) for the normal highlight and [linkHoverColor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/linkHoverColor.html) for a pointer hovering over a link. `linkHoverColor` is available from pdfrx 2.7.0; when null, the default painter uses `linkColor` for the hovered link too.
+Use [linkColor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/linkColor.html) for the normal highlight and [linkHoverColor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/linkHoverColor.html) for a pointer hovering over a link. When `linkHoverColor` is null, the default painter uses `linkColor` for the hovered link too.
 
 ```dart
 linkHandlerParams: PdfLinkHandlerParams(

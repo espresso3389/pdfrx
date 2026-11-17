@@ -36,13 +36,6 @@ class PdfViewerParams {
     this.layoutStrategy = const SequentialPagesLayout(),
     this.paging,
     this.normalizeMatrix,
-    @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(maxScale: ...) instead') this.maxScale,
-    @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(minScale: ...) instead') this.minScale,
-    @Deprecated(
-      'Prefer layoutStrategy: SequentialPagesLayout(fitMode: PdfFitMode.fit). For exact legacy behavior, '
-      'use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(useAlternativeFitScaleAsMinScale: ...).',
-    )
-    this.useAlternativeFitScaleAsMinScale,
     this.panAxis = PanAxis.free,
     this.boundaryMargin,
     this.annotationRenderingMode = PdfAnnotationRenderingMode.annotationAndForms,
@@ -50,10 +43,6 @@ class PdfViewerParams {
     this.pageAnchor = PdfPageAnchor.top,
     this.underflowAnchor,
     this.pageAnchorEnd = PdfPageAnchor.bottom,
-    @Deprecated(
-      'Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(onePassRenderingScaleThreshold: ...) instead',
-    )
-    this.onePassRenderingScaleThreshold,
     this.onePassRenderingSizeThreshold = 2000,
     this.textSelectionParams,
     this.forceEnableTextSemantics = false,
@@ -75,8 +64,6 @@ class PdfViewerParams {
     this.onDocumentChanged,
     this.onDocumentLoadFinished,
     this.calculateInitialPageNumber,
-    @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(calculateInitialZoom: ...) instead')
-    this.calculateInitialZoom,
     this.calculateCurrentPageNumber,
     this.onViewerReady,
     this.onViewSizeChanged,
@@ -113,18 +100,7 @@ class PdfViewerParams {
     this.zoomStepsDelegateProvider = const PdfViewerZoomStepsDelegateProviderDefault(),
   }) : assert(scaleGestureSensitivity > 0),
        assert(scaleGestureSensitivity != double.infinity),
-       assert(scaleInertiaMaxExcursion == null || (scaleInertiaMaxExcursion > 0 && scaleInertiaMaxExcursion < 1)),
-       assert(
-         sizeDelegateProvider == null ||
-             (maxScale == null &&
-                 minScale == null &&
-                 useAlternativeFitScaleAsMinScale == null &&
-                 onePassRenderingScaleThreshold == null &&
-                 calculateInitialZoom == null),
-         'sizeDelegateProvider cannot be used together with the deprecated parameters: '
-         'maxScale, minScale, useAlternativeFitScaleAsMinScale, onePassRenderingScaleThreshold, or calculateInitialZoom. '
-         'Please configure these values in the sizeDelegateProvider instead.',
-       );
+       assert(scaleInertiaMaxExcursion == null || (scaleInertiaMaxExcursion > 0 && scaleInertiaMaxExcursion < 1));
 
   /// Whether the viewer should load and render its pages.
   ///
@@ -177,42 +153,6 @@ class PdfViewerParams {
   /// ```
   final PdfMatrixNormalizeFunction? normalizeMatrix;
 
-  /// The maximum allowed scale.
-  ///
-  /// The default is 8.0.
-  @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(maxScale: ...) instead')
-  final double? maxScale;
-
-  /// The minimum allowed scale.
-  ///
-  /// The default is 0.1.
-  ///
-  /// Please note that the value is not used if [useAlternativeFitScaleAsMinScale] is true.
-  /// See [useAlternativeFitScaleAsMinScale] for the details.
-  @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(minScale: ...) instead')
-  final double? minScale;
-
-  /// If true, the minimum scale is floored at the "fit page" scale
-  /// ([PdfViewerController.alternativeFitScale]) so the user cannot zoom out past a whole page.
-  ///
-  /// **Prefer [PdfFitMode] on the [layoutStrategy].** This boolean is a *policy* that conflates
-  /// two things: computing the fit-page scalar and using it as the min scale. [PdfFitMode]
-  /// expresses that policy declaratively (and also fits per-page geometry for mixed page sizes):
-  /// - `useAlternativeFitScaleAsMinScale: true` is roughly `SequentialPagesLayout(fitMode: PdfFitMode.fit)`
-  /// - `useAlternativeFitScaleAsMinScale: false` is roughly `fitMode: PdfFitMode.none` (honors [minScale])
-  ///
-  /// Flooring the min scale at fit-page avoids zooming out so far that many pages render at once,
-  /// which can be slow or memory-heavy on large documents.
-  ///
-  /// For pixel-exact legacy behavior (including the quirk that an explicit [minScale] is ignored
-  /// while this is true), use
-  /// `sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(useAlternativeFitScaleAsMinScale: ...)`.
-  @Deprecated(
-    'Prefer layoutStrategy: SequentialPagesLayout(fitMode: PdfFitMode.fit). For exact legacy behavior, '
-    'use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(useAlternativeFitScaleAsMinScale: ...).',
-  )
-  final bool? useAlternativeFitScaleAsMinScale;
-
   /// See [InteractiveViewer.panAxis] for details.
   final PanAxis panAxis;
 
@@ -248,20 +188,6 @@ class PdfViewerParams {
 
   /// Anchor to position the page at the end of the page.
   final PdfPageAnchor pageAnchorEnd;
-
-  /// If a page is rendered over the scale threshold, the page is rendered with the threshold scale
-  /// and actual resolution image is rendered after some delay (progressive rendering).
-  ///
-  /// Basically, if the value is larger, the viewer renders each page in one-pass rendering; it is
-  /// faster and looks better to the user. However, larger value may consume more memory.
-  /// So you may want to set the smaller value to reduce memory consumption.
-  ///
-  /// The default is 200 / 72, which implies rendering at 200 dpi.
-  /// If you want more granular control for each page, use [getPageRenderingScale].
-  @Deprecated(
-    'Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(onePassRenderingScaleThreshold: ...) instead',
-  )
-  final double? onePassRenderingScaleThreshold;
 
   /// If a page is too large, the page is rendered with the size which fits within the threshold size (in pixels).
   ///
@@ -436,10 +362,6 @@ class PdfViewerParams {
   /// It is useful when you want to determine the initial page number based on the document content.
   final PdfViewerCalculateInitialPageNumberFunction? calculateInitialPageNumber;
 
-  /// Function to calculate the initial zoom level.
-  @Deprecated('Use sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(calculateInitialZoom: ...) instead')
-  final PdfViewerCalculateZoomFunction? calculateInitialZoom;
-
   /// Function to guess the current page number based on the visible rectangle and page layouts.
   ///
   /// The function is used to override the default behavior to calculate the current page number.
@@ -450,8 +372,7 @@ class PdfViewerParams {
 
   /// Function to customize the rendering scale of the page.
   ///
-  // ignore: deprecated_member_use_from_same_package
-  /// In some cases, if [maxScale]/[onePassRenderingScaleThreshold] is too large,
+  /// In some cases, if the max scale or the one-pass rendering scale threshold of the size delegate is too large,
   /// certain pages may not be rendered correctly due to memory limitation,
   /// or anyway they may take too long to render.
   /// In such cases, you can use this function to customize the rendering scales
@@ -758,28 +679,10 @@ class PdfViewerParams {
     }
   }
 
-  /// Get the size delegate provider.
-  ///
-  /// If [sizeDelegateProvider] is non-null, it is returned; otherwise, a
-  /// [PdfViewerSizeDelegateProviderLegacy] is created with the deprecated parameters.
-  PdfViewerSizeDelegateProvider getSizeDelegateProvider() {
-    final sizeDelegateProvider = this.sizeDelegateProvider;
-    if (sizeDelegateProvider != null) {
-      return sizeDelegateProvider;
-    }
-    return PdfViewerSizeDelegateProviderLegacy(
-      // ignore: deprecated_member_use_from_same_package
-      maxScale: maxScale,
-      // ignore: deprecated_member_use_from_same_package
-      minScale: minScale,
-      // ignore: deprecated_member_use_from_same_package
-      onePassRenderingScaleThreshold: onePassRenderingScaleThreshold,
-      // ignore: deprecated_member_use_from_same_package
-      useAlternativeFitScaleAsMinScale: useAlternativeFitScaleAsMinScale,
-      // ignore: deprecated_member_use_from_same_package
-      calculateInitialZoom: calculateInitialZoom,
-    );
-  }
+  /// Get the size delegate provider: [sizeDelegateProvider], or the default
+  /// [PdfViewerSizeDelegateProviderLegacy] if it is null.
+  PdfViewerSizeDelegateProvider getSizeDelegateProvider() =>
+      sizeDelegateProvider ?? const PdfViewerSizeDelegateProviderLegacy();
 
   /// Determine whether the viewer needs to be reloaded or not.
   ///
@@ -789,12 +692,6 @@ class PdfViewerParams {
         other.backgroundColor != backgroundColor ||
         other.layoutStrategy != layoutStrategy ||
         (other.paging == null) != (paging == null) || // relayout only when paged mode switches
-        // ignore: deprecated_member_use_from_same_package
-        other.maxScale != maxScale ||
-        // ignore: deprecated_member_use_from_same_package
-        other.minScale != minScale ||
-        // ignore: deprecated_member_use_from_same_package
-        other.useAlternativeFitScaleAsMinScale != useAlternativeFitScaleAsMinScale ||
         other.panAxis != panAxis ||
         other.boundaryMargin != boundaryMargin ||
         other.annotationRenderingMode != annotationRenderingMode ||
@@ -802,8 +699,6 @@ class PdfViewerParams {
         other.pageAnchor != pageAnchor ||
         other.underflowAnchor != underflowAnchor ||
         other.pageAnchorEnd != pageAnchorEnd ||
-        // ignore: deprecated_member_use_from_same_package
-        other.onePassRenderingScaleThreshold != onePassRenderingScaleThreshold ||
         other.onePassRenderingSizeThreshold != onePassRenderingSizeThreshold ||
         other.textSelectionParams != textSelectionParams ||
         other.forceEnableTextSemantics != forceEnableTextSemantics ||
@@ -840,12 +735,6 @@ class PdfViewerParams {
         other.backgroundColor == backgroundColor &&
         other.layoutStrategy == layoutStrategy &&
         other.paging == paging &&
-        // ignore: deprecated_member_use_from_same_package
-        other.maxScale == maxScale &&
-        // ignore: deprecated_member_use_from_same_package
-        other.minScale == minScale &&
-        // ignore: deprecated_member_use_from_same_package
-        other.useAlternativeFitScaleAsMinScale == useAlternativeFitScaleAsMinScale &&
         other.panAxis == panAxis &&
         other.boundaryMargin == boundaryMargin &&
         other.annotationRenderingMode == annotationRenderingMode &&
@@ -853,8 +742,6 @@ class PdfViewerParams {
         other.pageAnchor == pageAnchor &&
         other.underflowAnchor == underflowAnchor &&
         other.pageAnchorEnd == pageAnchorEnd &&
-        // ignore: deprecated_member_use_from_same_package
-        other.onePassRenderingScaleThreshold == onePassRenderingScaleThreshold &&
         other.onePassRenderingSizeThreshold == onePassRenderingSizeThreshold &&
         other.textSelectionParams == textSelectionParams &&
         other.forceEnableTextSemantics == forceEnableTextSemantics &&
@@ -876,8 +763,6 @@ class PdfViewerParams {
         other.onDocumentChanged == onDocumentChanged &&
         other.onDocumentLoadFinished == onDocumentLoadFinished &&
         other.calculateInitialPageNumber == calculateInitialPageNumber &&
-        // ignore: deprecated_member_use_from_same_package
-        other.calculateInitialZoom == calculateInitialZoom &&
         other.calculateCurrentPageNumber == calculateCurrentPageNumber &&
         other.onViewerReady == onViewerReady &&
         other.onViewSizeChanged == onViewSizeChanged &&
@@ -920,12 +805,6 @@ class PdfViewerParams {
         backgroundColor.hashCode ^
         layoutStrategy.hashCode ^
         paging.hashCode ^
-        // ignore: deprecated_member_use_from_same_package
-        maxScale.hashCode ^
-        // ignore: deprecated_member_use_from_same_package
-        minScale.hashCode ^
-        // ignore: deprecated_member_use_from_same_package
-        useAlternativeFitScaleAsMinScale.hashCode ^
         panAxis.hashCode ^
         boundaryMargin.hashCode ^
         annotationRenderingMode.hashCode ^
@@ -933,8 +812,6 @@ class PdfViewerParams {
         pageAnchor.hashCode ^
         underflowAnchor.hashCode ^
         pageAnchorEnd.hashCode ^
-        // ignore: deprecated_member_use_from_same_package
-        onePassRenderingScaleThreshold.hashCode ^
         onePassRenderingSizeThreshold.hashCode ^
         textSelectionParams.hashCode ^
         forceEnableTextSemantics.hashCode ^
@@ -956,8 +833,6 @@ class PdfViewerParams {
         onDocumentChanged.hashCode ^
         onDocumentLoadFinished.hashCode ^
         calculateInitialPageNumber.hashCode ^
-        // ignore: deprecated_member_use_from_same_package
-        calculateInitialZoom.hashCode ^
         calculateCurrentPageNumber.hashCode ^
         onViewerReady.hashCode ^
         onViewSizeChanged.hashCode ^

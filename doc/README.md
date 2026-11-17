@@ -1,11 +1,11 @@
 # pdfrx Documentation
 
-Welcome to the pdfrx documentation! These guides describe the current repository code. They can include changes not yet published on pub.dev. Feature-specific version notes indicate when an API became available; check the pub.dev API reference for the version you use.
+Welcome to the pdfrx documentation! These guides describe the current repository code. They can include changes not yet published on pub.dev. Check the pub.dev API reference for the version you use.
 
 ## Getting Started
 
 - [pdfrx Initialization](pdfrx-Initialization.md) - How to properly initialize pdfrx in your app
-- [Migrating to pdfrx 3.0](Migrating-to-pdfrx-3.0.md) - Replacing `layoutPages` and `margin` with layout strategies
+- [Migrating to pdfrx 3.0](Migrating-to-pdfrx-3.0.md) - Layout strategies replacing `layoutPages`/`margin`, and removed deprecated APIs
 - [Progressive Loading](Progressive-Loading.md) - Understanding and using progressive page loading for large PDFs
 
 ## Core Features

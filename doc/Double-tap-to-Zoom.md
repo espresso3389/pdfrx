@@ -23,7 +23,7 @@ If you want to use [PdfViewerScrollThumb](https://pub.dev/documentation/pdfrx/la
 
 ## Pinch and Trackpad Zoom
 
-From pdfrx 2.7.0, [scaleGestureSensitivity](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/scaleGestureSensitivity.html) controls live touch-pinch and trackpad pan/zoom gestures:
+[scaleGestureSensitivity](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/scaleGestureSensitivity.html) controls live touch-pinch and trackpad pan/zoom gestures:
 
 ```dart
 params: PdfViewerParams(

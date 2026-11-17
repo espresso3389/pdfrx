@@ -1,6 +1,8 @@
 # Migrating to pdfrx 3.0
 
-pdfrx 3.0 replaces the page layout callback with declarative layout strategies. Apps that use neither `PdfViewerParams.layoutPages` nor `PdfViewerParams.margin`, and do not implement a custom size delegate, need no changes: the default layout produces the same geometry as 2.x.
+pdfrx 3.0 replaces the page layout callback with declarative layout strategies and removes the APIs that were deprecated in 2.x. Apps that use neither `PdfViewerParams.layoutPages`, `PdfViewerParams.margin` nor any deprecated API, and do not implement a custom size delegate, need no changes: the default layout produces the same geometry as 2.x.
+
+Fix deprecation warnings while still on 2.x first; each warning names the replacement.
 
 | 2.x | 3.0 |
 |-----|-----|
@@ -9,6 +11,9 @@ pdfrx 3.0 replaces the page layout callback with declarative layout strategies. 
 | `PdfPageLayoutFunction` typedef | removed; subclass `PdfPageLayoutStrategy` |
 | custom layout's margin taken from `params.margin` | reported in `PdfPageLayout.margin` |
 | hand-written facing pages layout | built-in `FacingPagesLayout` |
+| `PdfViewerParams.maxScale`, `minScale`, `useAlternativeFitScaleAsMinScale`, `onePassRenderingScaleThreshold`, `calculateInitialZoom` | `sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(...)` |
+| `pdfrxFlutterInitialize(dismissPdfiumWasmWarnings: ...)` | removed (it did nothing) |
+| `PdfDocumentRef.sourceName` | `PdfDocumentRef.key.sourceName` |
 
 ## `PdfViewerParams.margin`
 
@@ -108,6 +113,37 @@ Points to watch:
 
 - `pageMargin` is now always `layout?.margin` (0 when there is no layout) rather than `PdfViewerParams.margin`.
 - The layout's fit mode is available as `layout?.fitMode`. The built-in delegates use it to floor the minimum zoom, and go to the home zoom when the fit mode changes ([shouldResetZoomForFitMode](https://pub.dev/documentation/pdfrx/latest/pdfrx/shouldResetZoomForFitMode.html)); a custom delegate can do the same in `onLayoutUpdate`.
+
+## Removed deprecated APIs
+
+### Zoom and rendering-scale parameters
+
+`PdfViewerParams.maxScale`, `minScale`, `useAlternativeFitScaleAsMinScale`, `onePassRenderingScaleThreshold` and `calculateInitialZoom` are removed. Pass the same values to the default size delegate:
+
+```dart
+// 2.x
+params: PdfViewerParams(
+  maxScale: 4,
+  minScale: 0.5,
+  useAlternativeFitScaleAsMinScale: false,
+),
+
+// 3.0
+params: PdfViewerParams(
+  sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(
+    maxScale: 4,
+    minScale: 0.5,
+    useAlternativeFitScaleAsMinScale: false,
+  ),
+),
+```
+
+`PdfViewerSizeDelegateProviderLegacy` has the same defaults as the removed parameters (max 8.0, min 0.1, `useAlternativeFitScaleAsMinScale: true`, one-pass rendering at 200 dpi). Instead of `useAlternativeFitScaleAsMinScale: true`, consider `SequentialPagesLayout(fitMode: PdfFitMode.fit)`, which also fits each page of a document with mixed page sizes.
+
+### Others
+
+- `pdfrxFlutterInitialize(dismissPdfiumWasmWarnings: ...)`: remove the argument; it had no effect.
+- `PdfDocumentRef.sourceName`: use `key.sourceName`, or compare `key` to identify a document source.
 
 ## Behavior changes
 

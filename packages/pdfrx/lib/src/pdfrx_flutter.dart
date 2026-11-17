@@ -24,9 +24,6 @@ const _renderForDisplayFlag = 0x40000000;
 ///
 /// For Dart (non-Flutter) programs, you should call [pdfrxInitialize] instead.
 Future<void> pdfrxFlutterInitialize({
-  @Deprecated('WASM modules are now only included in web builds. This flag now does nothing.')
-  bool dismissPdfiumWasmWarnings = false,
-
   /// See [Pdfrx.useProcessWidePdfiumGate].
   bool processWidePdfiumGate = false,
 }) async {

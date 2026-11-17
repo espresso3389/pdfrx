@@ -84,12 +84,6 @@ abstract class PdfDocumentRef {
   /// should use a key that distinguishes sources with different content or access credentials.
   final PdfDocumentRefKey key;
 
-  /// The name that identifies the source of the document.
-  ///
-  /// This is for compatibility. Use [key] instead. See [PdfDocumentRefKey] for more info.
-  @Deprecated('For compatibility. Use key for source identification')
-  String get sourceName => key.sourceName;
-
   static final _listenables = CanonicalizedMap<PdfDocumentRefKey, PdfDocumentRef, PdfDocumentListenable>(
     (ref) => ref.key,
   );

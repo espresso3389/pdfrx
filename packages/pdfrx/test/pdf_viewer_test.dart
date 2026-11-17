@@ -2810,8 +2810,7 @@ void main() {
           PdfDocumentRefDirect(document!),
           controller: controller,
           params: const PdfViewerParams(
-            minScale: 0.1,
-            useAlternativeFitScaleAsMinScale: false,
+            sizeDelegateProvider: PdfViewerSizeDelegateProviderLegacy(useAlternativeFitScaleAsMinScale: false),
             behaviorControlParams: PdfViewerBehaviorControlParams(trailingPageLoadingDelay: Duration.zero),
           ),
         ),

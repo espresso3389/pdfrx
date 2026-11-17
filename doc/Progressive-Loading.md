@@ -89,7 +89,7 @@ These streams follow a page number; editing can replace the page at that positio
 
 ## Broken Pages and Display Stability
 
-pdfrx 2.8.0 with pdfrx_engine 0.7.1 includes the following behavior:
+Broken pages and layout changes are handled as follows:
 
 - If native PDFium cannot load an individual page, the document can still open. The page remains in the list with `isLoaded: true`, rotation zero, and fallback dimensions from the preceding page, or US Letter (612 x 792 points) when there is no preceding page.
 - Such a page still cannot render (`render()` returns null), has empty text and links, and retains its page number. This is recovery for an unloadable page, not repair of the PDF or a guarantee that every malformed document opens.
