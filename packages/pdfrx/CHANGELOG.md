@@ -1,3 +1,9 @@
+# 2.13.1
+
+- Fixed `PdfViewerParams.isVisible` changes releasing and reloading page images twice.
+- Fixed changes to `PdfViewerParams.scrollPhysicsScale` alone not updating the viewer ([#657](https://github.com/espresso3389/pdfrx/pull/657)).
+- Clarified `PdfTextSearcher.hasMatches` (results can exist while no match is selected) and fixed search results in the example viewer.
+
 # 2.13.0
 
 - Added visible page rendering state and customizable navigation to search matches ([#815](https://github.com/espresso3389/pdfrx/pull/815), [#805](https://github.com/espresso3389/pdfrx/pull/805)).
