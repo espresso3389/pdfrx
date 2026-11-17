@@ -11,14 +11,17 @@ void main() {
         tester,
       ) async {
         await tester.pumpWidget(
-          flutter.MaterialApp(
+          WidgetsApp(
+            color: const Color(0xff000000),
             locale: locale,
             supportedLocales: [locale],
             localizationsDelegates: [
-              ...flutter_localizations.GlobalMaterialLocalizations.delegates,
+              flutter_localizations.GlobalWidgetsLocalizations.delegate,
               if (useMaterialUiLocalizations) GlobalMaterialLocalizations.delegate,
             ],
-            home: flutter.Scaffold(body: Builder(builder: (context) => pdfErrorWidget(context, 'Failed to load PDF'))),
+            builder: (context, _) => Overlay(
+              initialEntries: [OverlayEntry(builder: (context) => pdfErrorWidget(context, 'Failed to load PDF'))],
+            ),
           ),
         );
         await tester.pumpAndSettle();
@@ -30,7 +33,7 @@ void main() {
         expect(Directionality.of(context), locale.languageCode == 'ar' ? TextDirection.rtl : TextDirection.ltr);
         final localizations = MaterialLocalizations.of(context);
         if (useMaterialUiLocalizations) {
-          final hostContext = tester.element(find.byType(flutter.Scaffold));
+          final hostContext = tester.element(find.byType(Overlay));
           expect(localizations, same(MaterialLocalizations.of(hostContext)));
         } else {
           expect(localizations, isA<DefaultMaterialLocalizations>());
