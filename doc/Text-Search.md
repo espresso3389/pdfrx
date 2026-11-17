@@ -90,10 +90,13 @@ You can get the search result (even during the search running) in the list of [P
 
 ```dart
 for (final match in textSearcher.matches) {
-  print(match.pageNumber);
-  ...
+  print('${match.pageNumber}: ${match.text}');
 }
 ```
+
+Each `PdfPageTextRange` already contains its page text in `match.pageText.fullText`; use `match.start` and `match.end` to display surrounding text or highlight the match. No additional `loadText` call is needed for these results. Note that ranges retain the full page text and geometry; use lightweight results below if retaining those for a large document is a concern.
+
+To check whether any results exist, use `textSearcher.matches.isNotEmpty`. For compatibility, `hasMatches` also requires a selected match, so it can be false when results exist and `currentIndex` is null (for example, with `goToFirstMatch: false`).
 
 To stop a pending or running search while keeping the matches found so far and the current match:
 

@@ -111,7 +111,11 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   /// Get the current matches.
   List<T> get matches => _matches;
 
-  /// Whether there are any matches or not (so far).
+  /// Whether there are matches and a current match has been selected.
+  ///
+  /// This is false when results exist but [currentIndex] is null, for example
+  /// after searching with `goToFirstMatch: false`. To check only whether any
+  /// results exist, use `matches.isNotEmpty`.
   bool get hasMatches => _currentIndex != null && matches.isNotEmpty;
 
   /// Whether the search task is currently running or not
