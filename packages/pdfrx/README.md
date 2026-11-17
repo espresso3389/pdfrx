@@ -1,6 +1,6 @@
 # pdfrx
 
-Upgrading to 2.10.0: existing viewer usage and render calls remain compatible. Custom `PdfPage.render` implementations must accept the new optional `PdfPageRenderPriority? priority` parameter. See the [engine migration notes](https://github.com/espresso3389/pdfrx/tree/master/packages/pdfrx_engine#rendering-priority-and-migration-to-080). With pdfrx 2.11.0, CoreGraphics users should use `pdfrx_coregraphics` 0.5.1 or later.
+Upgrading from 2.x: see [Migrating to pdfrx 3.0](https://github.com/espresso3389/pdfrx/blob/master/doc/Migrating-to-pdfrx-3.0.md).
 
 [![Build Test](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml/badge.svg)](https://github.com/espresso3389/pdfrx/actions/workflows/build-test.yml)
 
@@ -67,7 +67,7 @@ Add this to your package's `pubspec.yaml` file and execute `flutter pub get`:
 
 ```yaml
 dependencies:
-  pdfrx: ^2.13.1
+  pdfrx: ^3.0.0
 ```
 
 **Note:** You only need to add `pdfrx` to your dependencies. The `pdfrx_engine` package is automatically included as a dependency of `pdfrx`.
@@ -109,9 +109,9 @@ The build process uses _symbolic links_ which requires Developer Mode to be enab
 
 Please follow Microsoft's official guide to enable Developer Mode as the exact steps may vary depending on your Windows version.
 
-### Breaking change: Material UI migration
+### Material UI
 
-Since pdfrx 2.5.0, its Material widgets use [material_ui](https://pub.dev/packages/material_ui) package.
+pdfrx's Material widgets use the [material_ui](https://pub.dev/packages/material_ui) package.
 To preserve localized PDF menu labels and theming, provide `material_ui` localizations
 and a `material_ui.Theme`; Flutter Material's equivalents are separate types.
 Without `material_ui` localizations, the default PDF menu labels fall back to English.

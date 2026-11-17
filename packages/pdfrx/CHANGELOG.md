@@ -1,3 +1,23 @@
+# 3.0.0
+
+See [Migrating to pdfrx 3.0](https://github.com/espresso3389/pdfrx/blob/master/doc/Migrating-to-pdfrx-3.0.md) for upgrade steps.
+
+## Breaking changes
+
+- Page layout is configured with `PdfViewerParams.layoutStrategy` (`PdfPageLayoutStrategy`), a value-type strategy resolved only when the layout changes. `PdfViewerParams.layoutPages`, `PdfViewerParams.margin` and the `PdfPageLayoutFunction` typedef are removed; use `SequentialPagesLayout(margin:, spacing:)` or a custom strategy ([#593](https://github.com/espresso3389/pdfrx/issues/593), [#657](https://github.com/espresso3389/pdfrx/pull/657)).
+- Custom layouts report their margin in `PdfPageLayout.margin`, which page navigation and fit-zoom use. `PdfPageLayout` gains `margin`, `fitMode`, `primaryAxis` and spread information; classes that `implements PdfPageLayout` must add them.
+- Removed the deprecated `PdfViewerParams.maxScale`, `minScale`, `useAlternativeFitScaleAsMinScale`, `onePassRenderingScaleThreshold` and `calculateInitialZoom`; pass them to `PdfViewerSizeDelegateProviderLegacy` instead.
+- Removed the deprecated `pdfrxFlutterInitialize(dismissPdfiumWasmWarnings:)` argument and `PdfDocumentRef.sourceName` (use `key.sourceName`).
+- Changing the layout's fit mode resets the zoom to the new layout's home zoom.
+
+## New features
+
+- `SequentialPagesLayout` with `scrollDirection`, `spacing`, `margin`, `crossAxisAlignment` and `PdfFitMode` (`none`, `fill`, `fit`, `cover`), which also fits documents with mixed page sizes.
+- `FacingPagesLayout` for book-style spreads, with cover page and right-to-left options.
+- One page (spread) at a time with page turning: `PdfViewerParams.paging` (`PdfPaging`). Swipes, mouse wheel notches and web trackpad swipes turn one page; when zoomed in, panning stops at the page edge; links and `goTo*` moves land on a page ([#505](https://github.com/espresso3389/pdfrx/pull/505)).
+- `PdfViewerController.currentPageRange` / `visiblePageRange` (`PdfPageRange`); the default scroll thumb shows the current spread (e.g. `2-3`).
+- `PdfViewerController.beginUserScroll` / `endUserScroll` for custom scroll widgets, and `PdfViewerParams.onAnimationEnd`.
+
 # 2.13.1
 
 - Fixed `PdfViewerParams.isVisible` changes releasing and reloading page images twice.
