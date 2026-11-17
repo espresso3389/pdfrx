@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart' as flutter;
 import 'package:flutter_localizations/flutter_localizations.dart' as flutter_localizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
