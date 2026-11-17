@@ -95665,12 +95665,14 @@ p.toString
 return k.F9(j,p,r)}if(j)o=k.bp
 else o=B.az
 n=A.aSq(o,q)
-m=k.gc2().a.a[0]
-j=k.aam(s,n)
-r=k.at
-l=Math.min(r.a/(j.c-j.a),r.b/(j.d-j.b))
+j=k.gc2()
+m=j.a.a[0]
+r=k.aam(s,n)
+p=k.at
+l=Math.min(p.a/(r.c-r.a),p.b/(r.d-r.b))
+if(!isFinite(l))l=j.a.a[0]
 m=l>m?m:l
-return k.F9(j.gaD(),r,m)},
+return k.F9(r.gaD(),p,m)},
 uq(a,b,c){return this.aeg(a,b,c)},
 Su(a,b){return this.uq(a,null,b)},
 aeg(a,b,c){var s=0,r=A.D(t.H),q,p=2,o=[],n=[],m=this,l,k,j
