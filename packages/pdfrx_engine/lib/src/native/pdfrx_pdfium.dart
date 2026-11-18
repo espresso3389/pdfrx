@@ -1111,8 +1111,7 @@ class _PdfDocumentPdfium extends PdfDocument {
       );
 
       if (useProgressiveLoading) {
-        final pages = await pdfDoc._loadPagesInLimitedTime(maxPageCountToLoadAdditionally: 1);
-        pdfDoc._pages = List.unmodifiable(pages.pages);
+        pdfDoc._pages = await pdfDoc._measureFirstPage();
       } else {
         pdfDoc._pages = List.unmodifiable(await pdfDoc._measureAllPagesInChunks());
         pdfDoc._notifyDocumentLoadComplete();
@@ -1142,52 +1141,84 @@ class _PdfDocumentPdfium extends PdfDocument {
     Duration loadUnitDuration = const Duration(milliseconds: 250),
     int? startPageNumber,
   }) async {
+    var pageSnapshot = _pages;
+    var pageOrder = _pageIndicesOrderedFrom(pageSnapshot.length, startPageNumber).iterator;
+    var nativePageCount = pageSnapshot.length;
+    final pending = <int>[];
+    final measured = <int, PdfPage>{};
+
+    void rebaseIfPagesChanged() {
+      final current = _pages;
+      if (identical(pageSnapshot, current)) return;
+      measured.removeWhere((index, _) => index >= current.length || !identical(current[index], pageSnapshot[index]));
+      pageSnapshot = current;
+      pageOrder = _pageIndicesOrderedFrom(current.length, startPageNumber).iterator;
+      nativePageCount = current.length;
+      pending.clear();
+    }
+
     for (;;) {
       if (isDisposed) return;
-
-      var pageIndicesToLoad = _unloadedPageIndicesOrderedFrom(_pages, startPageNumber);
-      if (pageIndicesToLoad.isEmpty) {
-        _notifyDocumentLoadComplete();
-        return;
-      }
+      rebaseIfPagesChanged();
 
       // Spend the loadUnitDuration budget as a series of short worker tasks rather than one long one. All PDFium
       // calls share a single worker, so a page render queued while pages are being measured would otherwise wait
       // for the whole slice; between chunks the worker drains its queue and renders get through. The measured pages
       // are accumulated locally and published once per budget, so the event cadence is the same as with one task.
       final budget = Stopwatch()..start();
-      final measured = <int, PdfPage>{};
-      for (;;) {
+      var dispatched = false;
+      do {
         final remaining = loadUnitDuration - budget.elapsed;
         final chunkTimeout = remaining < _measurementChunkDuration ? remaining : _measurementChunkDuration;
-        // Merge with the current page list rather than a snapshot so pages measured concurrently (e.g. by
-        // reloadPages) are neither overwritten nor measured again.
-        final pagesToPreserve = _withMeasuredPages(_pages, measured);
-        // A chunk always measures at least one page, so a budget that has already elapsed (Duration.zero or a
-        // shortfall left by the previous chunk) still makes progress.
-        final loaded = await _loadPagesInLimitedTime(
-          pageIndicesToLoad: pageIndicesToLoad,
-          pagesToPreserve: pagesToPreserve,
-          timeout: chunkTimeout.isNegative ? Duration.zero : chunkTimeout,
-        );
-        if (isDisposed) return;
-        for (var i = 0; i < loaded.pages.length; i++) {
-          final page = loaded.pages[i];
-          if (page.isLoaded && (i >= pagesToPreserve.length || !identical(page, pagesToPreserve[i]))) {
-            measured[i] = page;
+        // An elapsed budget still makes progress. Keep the worker message bounded even for very large documents.
+        final limit = chunkTimeout <= Duration.zero ? 1 : _measurementChunkPageLimit;
+        while (pending.length < limit && pageOrder.moveNext()) {
+          final index = pageOrder.current;
+          if (index < nativePageCount && !pageSnapshot[index].isLoaded && !measured.containsKey(index)) {
+            pending.add(index);
           }
         }
-        if (budget.elapsed >= loadUnitDuration) break;
-        pageIndicesToLoad = _unloadedPageIndicesOrderedFrom(_withMeasuredPages(_pages, measured), startPageNumber);
-        if (pageIndicesToLoad.isEmpty) break;
+        if (pending.isEmpty) break;
+        final measuringSnapshot = pageSnapshot;
+        final loaded = await _measurePages(
+          pageIndicesToLoad: pending.length <= limit ? pending : pending.sublist(0, limit),
+          timeout: chunkTimeout.isNegative ? Duration.zero : chunkTimeout,
+        );
+        dispatched = true;
+        if (isDisposed) return;
+        rebaseIfPagesChanged();
+        if (identical(measuringSnapshot, pageSnapshot)) nativePageCount = loaded.totalPageCount;
+        for (final data in loaded.pages) {
+          final index = data.pageIndex;
+          // A concurrent reload or page edit may already have replaced this placeholder.
+          if (index < pageSnapshot.length && identical(pageSnapshot[index], measuringSnapshot[index])) {
+            measured[index] = _measuredPage(data, measured[index - 1] ?? _sizeSourceFor(pageSnapshot, index));
+          }
+        }
+        pending.removeWhere((index) => index >= nativePageCount || measured.containsKey(index));
+      } while (budget.elapsed < loadUnitDuration);
+
+      if (!dispatched) {
+        if (pageSnapshot.every((page) => page.isLoaded)) _notifyDocumentLoadComplete();
+        return;
       }
 
-      final newPages = _withMeasuredPages(_pages, measured);
-      pages = newPages;
+      if (measured.isNotEmpty) {
+        final pages = [...pageSnapshot];
+        final changes = <int, PdfPageStatusChange>{};
+        for (final index in measured.keys.toList()..sort()) {
+          final page = measured[index]!;
+          pages[index] = page;
+          changes[index + 1] = PdfPageStatusChange.modified(page: page);
+        }
+        _publishPages(UnmodifiableListView(pages), changes);
+        pageSnapshot = _pages;
+        measured.clear();
+      }
 
       if (onPageLoadProgress != null) {
-        final loadedPageCount = newPages.where((page) => page.isLoaded).length;
-        final result = await onPageLoadProgress(loadedPageCount, newPages.length, data);
+        final loadedPageCount = pageSnapshot.where((page) => page.isLoaded).length;
+        final result = await onPageLoadProgress(loadedPageCount, pageSnapshot.length, data);
         if (result == false) {
           if (_pages.every((page) => page.isLoaded)) {
             _notifyDocumentLoadComplete();
@@ -1199,23 +1230,15 @@ class _PdfDocumentPdfium extends PdfDocument {
     }
   }
 
-  /// Returns [pages] with the entries of [measured] (page index to measured page) applied wherever [pages] still
-  /// holds an unloaded placeholder; pages loaded in the meantime by other means are kept.
-  static List<PdfPage> _withMeasuredPages(List<PdfPage> pages, Map<int, PdfPage> measured) {
-    if (measured.isEmpty) return pages;
-    final merged = [...pages];
-    for (final MapEntry(key: index, value: page) in measured.entries) {
-      if (index < merged.length && !merged[index].isLoaded) merged[index] = page;
-    }
-    return merged;
-  }
-
   /// Maximum duration of a single page-measurement task sent to the worker by [loadPagesProgressively] and by a
   /// non-progressive open.
   ///
   /// About two pages on a typical desktop: small enough that a render queued behind it waits roughly one page's
   /// worth of measurement, large enough that the per-task worker round-trip stays negligible.
   static const _measurementChunkDuration = Duration(milliseconds: 20);
+
+  /// Bounds the number of candidate indices copied to the isolate per progressive measurement task.
+  static const _measurementChunkPageLimit = 1024;
 
   void _notifyDocumentLoadComplete() {
     if (!isDisposed && !_documentLoadCompleteNotified) {
@@ -1224,24 +1247,18 @@ class _PdfDocumentPdfium extends PdfDocument {
     }
   }
 
-  /// Returns the indices of the unloaded pages in [pages], ordered by distance from [startPageNumber] (1-based).
+  /// Visits each page index in order of distance from [startPageNumber] (1-based).
   ///
   /// The order alternates after and before the start page (start, start+1, start-1, start+2, start-2, ...). When
-  /// [startPageNumber] is null (or out of range), the order starts from the first page, i.e. plain page order.
-  static List<int> _unloadedPageIndicesOrderedFrom(List<PdfPage> pages, int? startPageNumber) {
-    final pageCount = pages.length;
-    final startIndex = startPageNumber == null ? 0 : min(max(startPageNumber - 1, 0), max(pageCount - 1, 0));
-    final indices = <int>[];
-    void addIfUnloaded(int index) {
-      if (index >= 0 && index < pageCount && !pages[index].isLoaded) indices.add(index);
-    }
-
-    addIfUnloaded(startIndex);
+  /// [startPageNumber] is null, the order starts from the first page. Out-of-range values are clamped.
+  static Iterable<int> _pageIndicesOrderedFrom(int pageCount, int? startPageNumber) sync* {
+    if (pageCount == 0) return;
+    final startIndex = ((startPageNumber ?? 1) - 1).clamp(0, pageCount - 1);
+    yield startIndex;
     for (var distance = 1; startIndex + distance < pageCount || startIndex - distance >= 0; distance++) {
-      addIfUnloaded(startIndex + distance);
-      addIfUnloaded(startIndex - distance);
+      if (startIndex + distance < pageCount) yield startIndex + distance;
+      if (startIndex - distance >= 0) yield startIndex - distance;
     }
-    return indices;
   }
 
   /// Measures every page in page order, as a series of short worker tasks so that work for other documents (renders
@@ -1257,42 +1274,29 @@ class _PdfDocumentPdfium extends PdfDocument {
     }
   }
 
-  /// Loads pages in the document in a time-limited manner.
-  ///
-  /// [pageIndicesToLoad] lists the page indices to measure, in the order they should be measured. When null, all
-  /// pages of the document are measured in page order (used when the page count is not known yet). Indices outside
-  /// the document are ignored. The measurement stops early when [maxPageCountToLoadAdditionally] pages are measured
-  /// or when [timeout] elapses; at least one page is measured per call.
-  ///
-  /// The returned `loadedPageCount` is the number of loaded pages in the resulting page list.
-  Future<({List<PdfPage> pages, int loadedPageCount})> _loadPagesInLimitedTime({
-    List<int>? pageIndicesToLoad,
-    List<PdfPage> pagesToPreserve = const [],
-    int? maxPageCountToLoadAdditionally,
-    Duration? timeout,
-  }) async {
-    final results = await _measurePages(
-      pageIndicesToLoad: pageIndicesToLoad,
-      maxPageCountToLoadAdditionally: maxPageCountToLoadAdditionally,
-      timeout: timeout,
-    );
-
-    final pages = [...pagesToPreserve];
-    for (final pageData in results.pages) {
-      final page = _measuredPage(pageData, _sizeSourceFor(pages, pageData.pageIndex));
-      if (pageData.pageIndex < pages.length) {
-        pages[pageData.pageIndex] = page;
-      } else {
-        pages.add(page);
-      }
-    }
-    _resizePagesWithPlaceholders(pages, results.totalPageCount);
-    final loadedPageCount = pages.where((page) => page.isLoaded).length;
-    return (pages: pages, loadedPageCount: loadedPageCount);
+  /// Measures the first page and uses its dimensions as placeholders for a progressive open.
+  Future<List<PdfPage>> _measureFirstPage() async {
+    final results = await _measurePages(maxPageCountToLoadAdditionally: 1);
+    if (results.pages.isEmpty) return const [];
+    final first = _measuredPage(results.pages.single, null);
+    return List.unmodifiable([
+      first,
+      for (var pageNumber = 2; pageNumber <= results.totalPageCount; pageNumber++)
+        _PdfPagePdfium._(
+          document: this,
+          pageNumber: pageNumber,
+          width: first.width,
+          height: first.height,
+          rotation: first.rotation,
+          bbLeft: 0,
+          bbBottom: 0,
+          isLoaded: false,
+        ),
+    ]);
   }
 
-  /// Measures pages on the worker; see [_loadPagesInLimitedTime]. When [pageIndicesToLoad] is null, the pages from
-  /// [firstPageIndex] to the end are measured in page order.
+  /// Measures pages on the worker in [pageIndicesToLoad] order, skipping indices outside the document.
+  /// When that list is null, measures in document order from [firstPageIndex] onward.
   Future<({List<_PageMeasurement> pages, int totalPageCount})> _measurePages({
     List<int>? pageIndicesToLoad,
     int firstPageIndex = 0,
@@ -1374,31 +1378,6 @@ class _PdfDocumentPdfium extends PdfDocument {
     return pages[min(max(pageIndex - 1, 0), pages.length - 1)];
   }
 
-  /// Resizes [pages], using unloaded placeholders when the document grows.
-  void _resizePagesWithPlaceholders(List<PdfPage> pages, int pageCount) {
-    if (pages.length > pageCount) {
-      pages.removeRange(pageCount, pages.length);
-      return;
-    }
-    if (pages.isEmpty || pages.length == pageCount) return;
-
-    final templatePage = pages.lastWhere((page) => page.isLoaded, orElse: () => pages.last);
-    while (pages.length < pageCount) {
-      pages.add(
-        _PdfPagePdfium._(
-          document: this,
-          pageNumber: pages.length + 1,
-          width: templatePage.width,
-          height: templatePage.height,
-          rotation: templatePage.rotation,
-          bbLeft: 0,
-          bbBottom: 0,
-          isLoaded: false,
-        ),
-      );
-    }
-  }
-
   @override
   Future<void> reloadPages({List<int>? pageNumbersToReload}) async {
     _ensureNotDisposed();
@@ -1472,7 +1451,6 @@ class _PdfDocumentPdfium extends PdfDocument {
 
   @override
   set pages(Iterable<PdfPage> newPages) {
-    final previousPageCount = _pages.length;
     final pages = <PdfPage>[];
     final changes = <int, PdfPageStatusChange>{};
     final oldIndexByPage = HashMap<PdfPage, int>.identity();
@@ -1504,8 +1482,14 @@ class _PdfDocumentPdfium extends PdfDocument {
       }
     }
 
-    _pages = List.unmodifiable(pages);
-    if (!isDisposed && (changes.isNotEmpty || pages.length != previousPageCount)) {
+    _publishPages(List.unmodifiable(pages), changes);
+  }
+
+  /// Publishes an unmodifiable page snapshot and its changes.
+  void _publishPages(List<PdfPage> pages, Map<int, PdfPageStatusChange> changes) {
+    final pageCountChanged = _pages.length != pages.length;
+    _pages = pages;
+    if (!isDisposed && (changes.isNotEmpty || pageCountChanged)) {
       _documentLoadCompleteNotified = false;
       subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
     }
