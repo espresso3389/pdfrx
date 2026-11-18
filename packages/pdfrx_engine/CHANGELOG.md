@@ -1,3 +1,7 @@
+# 0.9.5
+
+- Reduced the overhead of progressive page loading in large PDFs, especially when using short load intervals. Pages replaced during loading retain their updated state. [#828](https://github.com/espresso3389/pdfrx/pull/828)
+
 # 0.9.4
 
 - Requires Dart 3.14 or later.

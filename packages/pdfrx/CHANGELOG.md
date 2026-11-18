@@ -1,3 +1,9 @@
+# 3.0.2
+
+- Reduced image cache bookkeeping during painting when cached images fit within the shared memory budget. [#826](https://github.com/espresso3389/pdfrx/pull/826)
+- Sped up text searches with many matches when the search wraps to earlier pages. A change in page count also preserves a newer queued search. [#827](https://github.com/espresso3389/pdfrx/pull/827)
+- Updated to `pdfrx_engine` 0.9.5 for more efficient progressive loading of large PDFs with PDFium. [#828](https://github.com/espresso3389/pdfrx/pull/828)
+
 # 3.0.1
 
 - Requires Flutter 3.50 / Dart 3.14 or later.
