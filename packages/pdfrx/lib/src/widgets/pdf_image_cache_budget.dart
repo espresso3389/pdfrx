@@ -13,6 +13,8 @@ class PdfImageCacheBudget extends ChangeNotifier {
 
   int _maximumBytes;
   int _retainedBytes = 0;
+  int _pinnedBytes = 0;
+  int _neededUnpinnedBytes = 0;
   int _pendingBytes = 0;
   int _speculativePendingBytes = 0;
   int _peakEstimatedBytes = 0;
@@ -72,14 +74,20 @@ class PdfImageCacheBudget extends ChangeNotifier {
   /// The largest reservation [tryReserve] could make room for by evicting what it may evict.
   /// A reservation larger than this fails without evicting anything.
   int reservableBytes({bool keepNeeded = false}) {
-    var bytes = maximumBytes - estimatedBytes;
-    for (final entry in _entries) {
-      if (!entry._isPinned && !(keepNeeded && entry._isNeeded)) bytes += entry.bytes;
+    final evictableBytes = _retainedBytes - _pinnedBytes - (keepNeeded ? _neededUnpinnedBytes : 0);
+    return max(0, maximumBytes - estimatedBytes + evictableBytes);
+  }
+
+  void _adjustProtectedBytes(PdfImageCacheEntry entry, int delta) {
+    if (entry._isPinned) {
+      _pinnedBytes += delta;
+    } else if (entry._isNeeded) {
+      _neededUnpinnedBytes += delta;
     }
-    return max(0, bytes);
   }
 
   void _evictToFit(int extraBytes, {bool keepNeeded = false}) {
+    if (estimatedBytes + extraBytes <= maximumBytes) return;
     final evicted = <PdfImageCacheEntry>[];
     // Entries nobody needs go first, so visible work takes a needed neighbor only as a last resort.
     final candidates = [
@@ -166,6 +174,7 @@ class PdfImageReservation {
     final entry = PdfImageCacheEntry._(budget, retainedBytes, onEvict, isPinned, isNeeded);
     budget._entries.add(entry);
     budget._retainedBytes += retainedBytes;
+    budget._adjustProtectedBytes(entry, retainedBytes);
     budget._recordPeak();
     return entry;
   }
@@ -201,8 +210,14 @@ class PdfImageCacheEntry {
   void touch({bool? isPinned, bool? isNeeded}) {
     final budget = _budget;
     if (budget == null) return;
-    if (isPinned != null) _isPinned = isPinned;
-    if (isNeeded != null) _isNeeded = isNeeded;
+    final pinned = isPinned ?? _isPinned;
+    final needed = isNeeded ?? _isNeeded;
+    if (pinned != _isPinned || needed != _isNeeded) {
+      budget._adjustProtectedBytes(this, -bytes);
+      _isPinned = pinned;
+      _isNeeded = needed;
+      budget._adjustProtectedBytes(this, bytes);
+    }
     budget._entries
       ..remove(this)
       ..add(this);
@@ -216,6 +231,7 @@ class PdfImageCacheEntry {
     _budget = null;
     budget._entries.remove(this);
     budget._retainedBytes -= bytes;
+    budget._adjustProtectedBytes(this, -bytes);
     budget._scheduleChanged();
   }
 }

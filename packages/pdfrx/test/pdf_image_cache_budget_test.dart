@@ -54,7 +54,7 @@ void main() {
     final evicted = <int>[];
     final first = budget.tryReserve(40)!.commit(retainedBytes: 40, onEvict: () => evicted.add(1))!;
     final second = budget.tryReserve(40)!.commit(retainedBytes: 40, onEvict: () => evicted.add(2))!;
-    first.touch();
+    first.touch(isPinned: false);
     final reservation = budget.tryReserve(50)!;
     expect(evicted, [2]);
     expect(second.isDisposed, isTrue);
@@ -100,6 +100,31 @@ void main() {
     expect(budget.reservableBytes(keepNeeded: true), 45);
     expect(budget.tryReserve(46, keepNeeded: true), isNull);
     expect(budget.retainedBytes, 60);
+    pending.dispose();
+  });
+
+  test('reservable bytes track changes in entry protection and removal', () {
+    final budget = PdfImageCacheBudget(maximumBytes: 100);
+    final pending = budget.tryReserve(10)!;
+    final entry = budget.tryReserve(20)!.commit(retainedBytes: 20, onEvict: () {}, isPinned: true, isNeeded: true)!;
+    expect(budget.reservableBytes(), 70);
+    expect(budget.reservableBytes(keepNeeded: true), 70);
+
+    entry.touch(isPinned: false);
+    expect(budget.reservableBytes(), 90);
+    expect(budget.reservableBytes(keepNeeded: true), 70);
+
+    entry.touch(isNeeded: false);
+    expect(budget.reservableBytes(), 90);
+    expect(budget.reservableBytes(keepNeeded: true), 90);
+
+    entry.touch(isPinned: true, isNeeded: true);
+    expect(budget.reservableBytes(), 70);
+    expect(budget.reservableBytes(keepNeeded: true), 70);
+
+    budget.clear(keepPinned: false);
+    expect(budget.reservableBytes(), 90);
+    expect(budget.reservableBytes(keepNeeded: true), 90);
     pending.dispose();
   });
 
