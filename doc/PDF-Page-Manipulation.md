@@ -149,11 +149,11 @@ await doc1.dispose();
 
 ### Document Lifetime
 
-Keep every source document open until `assemble()` or `encodePdf()` completes. Do not change the source or destination page lists while assembly is in progress. Assigning pages from another document does not immediately copy them; disposing that source before assembly starts makes the operation invalid.
+Keep every source document open until [`assemble()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/assemble.html) or [`encodePdf()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/encodePdf.html) completes. Do not change the source or destination page lists while assembly is in progress. Assigning pages from another document does not immediately copy them; disposing that source before assembly starts makes the operation invalid.
 
-On native PDFium, disposal waits for already-started operations, including queued work and source imports. New independent operations are rejected once disposal begins. Use `await document.dispose()` when cleanup must finish before continuing. After successful assembly, use the destination's updated `pages` list; previously retained source page objects still belong to their source documents.
+On native PDFium, disposal waits for already-started operations, including queued work and source imports. New independent operations are rejected once disposal begins. Use [`await document.dispose()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/dispose.html) when cleanup must finish before continuing. After successful assembly, use the destination's updated [`pages`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/pages.html) list; previously retained source page objects still belong to their source documents.
 
-Advanced callers using raw document handles with `PdfrxEntryFunctions.compute` must keep the documents alive themselves. Within `useNativeDocumentHandle`, do not await another worker operation or disposal of the same document, and do not retain the handle after the callback completes.
+Advanced callers using raw document handles with [`PdfrxEntryFunctions.compute`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/compute.html) must keep the documents alive themselves. Within [`useNativeDocumentHandle`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/useNativeDocumentHandle.html), do not await another worker operation or disposal of the same document, and do not retain the handle after the callback completes.
 
 ## Complete Working Examples
 

@@ -56,7 +56,7 @@ await File('output.pdf').writeAsBytes(pdfBytes);
 await imageDoc.dispose();
 ```
 
-**Important Note:** The `width` and `height` parameters only control the visible page size in the PDF document. They do NOT resize or compress the actual image data. The JPEG image is embedded in the PDF as-is. If you need to reduce the PDF file size, you must resize the image before converting it to JPEG.
+**Important Note:** The [`width`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/createFromJpegData.html#createFromJpegData-param-width) and [`height`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/createFromJpegData.html#createFromJpegData-param-height) parameters only control the visible page size in the PDF document. They do NOT resize or compress the actual image data. The JPEG image is embedded in the PDF as-is. If you need to reduce the PDF file size, you must resize the image before converting it to JPEG.
 
 ### Understanding Image Dimensions
 
@@ -108,7 +108,7 @@ final imageDoc = await PdfDocument.createFromJpegData(
 
 ## Inserting Images into Existing PDFs
 
-You can combine `PdfDocument.createFromJpegData` with [page manipulation](PDF-Page-Manipulation.md) to insert images into existing PDF documents:
+You can combine [`PdfDocument.createFromJpegData`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/createFromJpegData.html) with [page manipulation](PDF-Page-Manipulation.md) to insert images into existing PDF documents:
 
 ```dart
 import 'package:image/image.dart' as img;
@@ -208,7 +208,7 @@ try {
 
 ### Image Resolution and File Size
 
-The `width` and `height` parameters in `createFromJpegData()` **only control the page dimensions**, not the image resolution. The JPEG image data is embedded in the PDF file as-is.
+The [`width`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/createFromJpegData.html#createFromJpegData-param-width) and [`height`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/createFromJpegData.html#createFromJpegData-param-height) parameters in [`createFromJpegData()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/createFromJpegData.html) **only control the page dimensions**, not the image resolution. The JPEG image data is embedded in the PDF file as-is.
 
 **Example:**
 

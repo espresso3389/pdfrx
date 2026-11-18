@@ -58,7 +58,7 @@ Then, you can use [PdfTextSearcher.startTextSearch](https://pub.dev/documentatio
 textSearcher.startTextSearch('hello', caseInsensitive: true);
 ```
 
-The search starts asynchronously. Progress notifications are batched by `notificationInterval` (100 ms by default), with the first and final page notifications sent without waiting for the interval. The page selected with `startPageNumber` is also published immediately when scanned. Listeners should read the current results and progress rather than assume one notification per page. `matches` is a read-only snapshot.
+The search starts asynchronously. Progress notifications are batched by [`notificationInterval`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/notificationInterval.html) (100 ms by default), with the first and final page notifications sent without waiting for the interval. The page selected with [`startPageNumber`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/startTextSearch.html#startTextSearch-param-startPageNumber) is also published immediately when scanned. Listeners should read the current results and progress rather than assume one notification per page. [`matches`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/matches.html) is a read-only snapshot.
 
 When a document uses progressive page loading, search waits for an unmeasured page. The viewer must continue loading that page; pausing or stopping a search releases its wait.
 
@@ -70,15 +70,15 @@ For a large document, start scanning near the page the reader is viewing:
 textSearcher.startTextSearch('hello', startPageNumber: controller.pageNumber);
 ```
 
-`startPageNumber` is one-based. The search scans from that page through the end of the document and then wraps to page 1. A null or out-of-range value starts at page 1. With the default `goToFirstMatch: true`, navigation selects the first match in that scan order. This option controls text search, not progressive page measurement; the viewer still needs to load unmeasured pages.
+[`startPageNumber`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/startTextSearch.html#startTextSearch-param-startPageNumber) is one-based. The search scans from that page through the end of the document and then wraps to page 1. A null or out-of-range value starts at page 1. With the default [`goToFirstMatch: true`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/startTextSearch.html#startTextSearch-param-goToFirstMatch), navigation selects the first match in that scan order. This option controls text search, not progressive page measurement; the viewer still needs to load unmeasured pages.
 
-Matches remain sorted by page, so results from earlier pages can be inserted before existing results as the search wraps. Previously returned `matches` snapshots do not change, and `currentIndex` continues to identify the same current match when earlier results are inserted. `getMatchesRangeForPage()` returns null until that page has been scanned. `searchProgress` counts completed pages divided by the total; `searchingPageNumber` can wrap and should not be used as the progress count.
+Matches remain sorted by page, so results from earlier pages can be inserted before existing results as the search wraps. Previously returned [`matches`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/matches.html) snapshots do not change, and [`currentIndex`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/currentIndex.html) continues to identify the same current match when earlier results are inserted. [`getMatchesRangeForPage()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/getMatchesRangeForPage.html) returns null until that page has been scanned. [`searchProgress`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/searchProgress.html) counts completed pages divided by the total; [`searchingPageNumber`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/searchingPageNumber.html) can wrap and should not be used as the progress count.
 
-While the same search is running or paused, calling `startTextSearch` again with a new `startPageNumber` moves the scan to that page without discarding results. Reissuing an identical completed search does not rescan it; reset or stop the search first if a fresh scan is required.
+While the same search is running or paused, calling [`startTextSearch`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/startTextSearch.html) again with a new [`startPageNumber`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/startTextSearch.html#startTextSearch-param-startPageNumber) moves the scan to that page without discarding results. Reissuing an identical completed search does not rescan it; reset or stop the search first if a fresh scan is required.
 
 ## Search Patterns
 
-The pattern may be a `String`, `RegExp`, or another Dart `Pattern`. `caseInsensitive` applies to strings; configure a regular expression's flags directly. For other patterns, the searcher runs `Pattern.allMatches` on each page's full text and skips zero-width matches. Custom patterns are compared with `==` when determining whether a search is being reissued.
+The pattern may be a `String`, `RegExp`, or another Dart `Pattern`. [`caseInsensitive`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/startTextSearch.html#startTextSearch-param-caseInsensitive) applies to strings; configure a regular expression's flags directly. For other patterns, the searcher runs `Pattern.allMatches` on each page's full text and skips zero-width matches. Custom patterns are compared with `==` when determining whether a search is being reissued.
 
 There are several functions that helps you to navigate user to the search matches:
 
@@ -94,9 +94,9 @@ for (final match in textSearcher.matches) {
 }
 ```
 
-Each `PdfPageTextRange` already contains its page text in `match.pageText.fullText`; use `match.start` and `match.end` to display surrounding text or highlight the match. No additional `loadText` call is needed for these results. Note that ranges retain the full page text and geometry; use lightweight results below if retaining those for a large document is a concern.
+Each [`PdfPageTextRange`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageTextRange-class.html) already contains its page text in [`match.pageText.fullText`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageText/fullText.html); use [`match.start`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageTextRange/start.html) and [`match.end`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageTextRange/end.html) to display surrounding text or highlight the match. No additional [`loadText`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/loadText.html) call is needed for these results. Note that ranges retain the full page text and geometry; use lightweight results below if retaining those for a large document is a concern.
 
-To check whether any results exist, use `textSearcher.matches.isNotEmpty`. For compatibility, `hasMatches` also requires a selected match, so it can be false when results exist and `currentIndex` is null (for example, with `goToFirstMatch: false`).
+To check whether any results exist, use [`textSearcher.matches.isNotEmpty`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/matches.html). For compatibility, [`hasMatches`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/hasMatches.html) also requires a selected match, so it can be false when results exist and [`currentIndex`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/currentIndex.html) is null (for example, with [`goToFirstMatch: false`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/startTextSearch.html#startTextSearch-param-goToFirstMatch)).
 
 To stop a pending or running search while keeping the matches found so far and the current match:
 
@@ -112,11 +112,11 @@ To cancel the search and clear its results:
 textSearcher.resetTextSearch();
 ```
 
-`resetTextSearch()` cancels a pending or running search and clears its matches and current search-match position. Starting a different pattern or changing `caseInsensitive` replaces the previous search. Reissuing an identical pattern preserves the current search, subject to the `startPageNumber` behavior above.
+[`resetTextSearch()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/resetTextSearch.html) cancels a pending or running search and clears its matches and current search-match position. Starting a different pattern or changing [`caseInsensitive`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/startTextSearch.html#startTextSearch-param-caseInsensitive) replaces the previous search. Reissuing an identical pattern preserves the current search, subject to the [`startPageNumber`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/startTextSearch.html#startTextSearch-param-startPageNumber) behavior above.
 
 ## Lightweight Results
 
-For large documents, `PdfTextSearchSession` uses the same search and navigation methods but returns `PdfTextSearchResult` values instead of `PdfPageTextRange`. Results retain the match, bounded context and highlight rectangles without retaining full page text and character geometry for every match:
+For large documents, [`PdfTextSearchSession`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearchSession-class.html) uses the same search and navigation methods but returns [`PdfTextSearchResult`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearchResult-class.html) values instead of [`PdfPageTextRange`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageTextRange-class.html). Results retain the match, bounded context and highlight rectangles without retaining full page text and character geometry for every match:
 
 ```dart
 final searcher = PdfTextSearchSession(controller, contextLength: 80);
@@ -127,18 +127,18 @@ for (final match in searcher.matches) {
 }
 ```
 
-The viewer and search sessions share a bounded text cache per document. Active selections and other owners can pin pages beyond its target. Use `searcher.loadText(pageNumber: n)` when full structured page text is needed, and dispose the searcher when finished. `releaseCachedText()` clears unpinned entries in the shared document cache; other consumers' pinned pages are preserved.
+The viewer and search sessions share a bounded text cache per document. Active selections and other owners can pin pages beyond its target. Use [`searcher.loadText(pageNumber: n)`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearchSession/loadText.html) when full structured page text is needed, and dispose the searcher when finished. [`releaseCachedText()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/releaseCachedText.html) clears unpinned entries in the shared document cache; other consumers' pinned pages are preserved.
 
 ## Pausing a Search
 
-Both `PdfTextSearcher` and `PdfTextSearchSession` are active by default. For a kept-alive hidden tab, pause and resume the search separately from the viewer:
+Both [`PdfTextSearcher`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html) and [`PdfTextSearchSession`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearchSession-class.html) are active by default. For a kept-alive hidden tab, pause and resume the search separately from the viewer:
 
 ```dart
 searcher.isActive = false; // Pause when the tab is hidden.
 searcher.isActive = true;  // Resume when the tab is shown.
 ```
 
-Pausing retains completed-page progress, matches and the current match. Resuming continues without automatically navigating to the first match. While inactive, only the latest requested replacement search is retained. `stopTextSearch()` discards pending or paused work while keeping the matches; `resetTextSearch()` also clears them.
+Pausing retains completed-page progress, matches and the current match. Resuming continues without automatically navigating to the first match. While inactive, only the latest requested replacement search is retained. [`stopTextSearch()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/stopTextSearch.html) discards pending or paused work while keeping the matches; [`resetTextSearch()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/resetTextSearch.html) also clears them.
 
 ## Hebrew Text Order
 

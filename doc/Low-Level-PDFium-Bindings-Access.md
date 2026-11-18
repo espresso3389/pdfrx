@@ -181,7 +181,7 @@ import 'package:pdfrx_engine/pdfrx_engine.dart';
 await pdfrxInitialize();
 ```
 
-After that, direct PDFium calls should be wrapped with `PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction()`.
+After that, direct PDFium calls should be wrapped with [`PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/suspendPdfiumWorkerDuringAction.html).
 This temporarily pauses pdfrx's PDFium worker while your raw calls run:
 
 ```dart

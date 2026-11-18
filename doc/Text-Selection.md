@@ -44,7 +44,7 @@ PdfViewer.asset(
 
 ## Reading Cached Selection Text
 
-`selectedTextIfLoaded` reads the selection without starting text loading.
+[`selectedTextIfLoaded`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionCachedText/selectedTextIfLoaded.html) reads the selection without starting text loading.
 
 ```dart
 final selection = controller.textSelectionDelegate;
@@ -56,11 +56,11 @@ if (selection.isCopyAllowed) {
 }
 ```
 
-The built-in viewer returns an empty string when nothing is selected, or `null` when an intermediate page has not been cached. Use `await selection.getSelectedText()` to load the missing text. Both APIs support selections spanning several pages in either direction.
+The built-in viewer returns an empty string when nothing is selected, or `null` when an intermediate page has not been cached. Use [`await selection.getSelectedText()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelection/getSelectedText.html) to load the missing text. Both APIs support selections spanning several pages in either direction.
 
-The getter is exposed by the `PdfTextSelectionCachedText` extension exported by `pdfrx.dart`. Existing custom implementations of `PdfTextSelection` remain valid. They can implement `PdfTextSelectionWithCachedText` to supply synchronous text; otherwise the extension returns `null` for a nonempty selection.
+The getter is exposed by the [`PdfTextSelectionCachedText`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionCachedText.html) extension exported by `pdfrx.dart`. Existing custom implementations of [`PdfTextSelection`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelection-class.html) remain valid. They can implement [`PdfTextSelectionWithCachedText`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionWithCachedText-class.html) to supply synchronous text; otherwise the extension returns `null` for a nonempty selection.
 
-These APIs do not enforce copy permissions themselves. Check `isCopyAllowed` before exposing the extracted text to the user.
+These APIs do not enforce copy permissions themselves. Check [`isCopyAllowed`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelection/isCopyAllowed.html) before exposing the extracted text to the user.
 
 ## Programmatic Text Selection Control
 
@@ -111,7 +111,7 @@ final range = PdfTextSelectionRange.fromPoints(startPoint, endPoint);
 await controller.textSelectionDelegate.setTextSelectionPointRange(range);
 ```
 
-`ensureLoaded: true` waits for progressive page measurement; the viewer or another task must be loading the page. Without it, an unloaded placeholder returns empty structured text. See [Progressive Loading](Progressive-Loading.md#waiting-and-observing).
+[`ensureLoaded: true`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPageBaseExtensions/loadStructuredText.html) waits for progressive page measurement; the viewer or another task must be loading the page. Without it, an unloaded placeholder returns empty structured text. See [Progressive Loading](Progressive-Loading.md#waiting-and-observing).
 
 **Note:** Text selection can span across multiple pages. The start and end points can be on different pages:
 

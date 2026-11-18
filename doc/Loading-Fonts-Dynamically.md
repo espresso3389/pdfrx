@@ -40,17 +40,17 @@ PdfViewer.file(
 );
 ```
 
-`fontManager` is nullable. If it is omitted, pdfrx only uses fonts that are already available to the backend.
+[`fontManager`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/fontManager.html) is nullable. If it is omitted, pdfrx only uses fonts that are already available to the backend.
 
-When `fontManager` is passed to `PdfViewer`, the viewer prepares the manager before loading the document. This lets native PDFium scan the platform font directories and already cached fonts during the first load. When the viewer receives a missing-font event, it asks the manager to resolve the missing fonts. If new font data is loaded, the viewer reloads the document so the newly registered fonts can be used.
+When [`fontManager`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/fontManager.html) is passed to [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html), the viewer prepares the manager before loading the document. This lets native PDFium scan the platform font directories and already cached fonts during the first load. When the viewer receives a missing-font event, it asks the manager to resolve the missing fonts. If new font data is loaded, the viewer reloads the document so the newly registered fonts can be used.
 
 On desktop platforms, the platform resolver handles common PDF and system font names such as Helvetica, Arial, Times, Courier, MS Gothic, MS Mincho, Meiryo, Yu Gothic, SimSun, MingLiU, Malgun Gothic, Batang, and Gulim by registering existing local font files. If no platform font matches, application resolvers such as `CompositeGoogleFontsResolver` can download or otherwise provide substitute font bytes.
 
 ## Using PdfDocument Directly
 
-If you use [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) without `PdfViewer`, associate the manager with the document yourself.
+If you use [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) without [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html), associate the manager with the document yourself.
 
-Unlike `PdfViewer`, direct Dart/API usage does not automatically prepare the font manager before opening a document. Call `fontManager.prepare()` explicitly before `PdfDocument.open*()` if cached fonts or local `fontPaths` should participate in the first load.
+Unlike [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html), direct Dart/API usage does not automatically prepare the font manager before opening a document. Call [`fontManager.prepare()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/prepare.html) explicitly before `PdfDocument.open*()` if cached fonts or local [`fontPaths`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/prepare.html) should participate in the first load.
 
 When you only want to use platform or local font files as a font mapper:
 
@@ -66,7 +66,7 @@ final association = document.associateFontManager(fontManager);
 association.dispose();
 ```
 
-Use `onLoadComplete` when a resolver can add new font data after the document has already been opened, for example when downloading fonts from Google Fonts. `PdfDocument.associateFontManager` does not refresh the document instance by itself:
+Use [`onLoadComplete`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/associateFontManager.html) when a resolver can add new font data after the document has already been opened, for example when downloading fonts from Google Fonts. [`PdfDocument.associateFontManager`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/associateFontManager.html) does not refresh the document instance by itself:
 
 ```dart
 final fontManager = PdfFontManager.platform(
@@ -91,11 +91,11 @@ final association = document.associateFontManager(
 );
 ```
 
-`fontManager.prepare()` configures the backend font cache directory and local font paths. Calling it before opening the document lets already cached fonts and local files participate in the first load. If it is not called explicitly, `PdfFontManager.loadMissingFonts` prepares the backend with default settings before loading fonts. `PdfDocument.associateFontManager` only listens to missing-font events and registers newly resolved fonts. `PdfViewer` adds document reload behavior for viewer use cases.
+[`fontManager.prepare()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/prepare.html) configures the backend font cache directory and local font paths. Calling it before opening the document lets already cached fonts and local files participate in the first load. If it is not called explicitly, [`PdfFontManager.loadMissingFonts`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/loadMissingFonts.html) prepares the backend with default settings before loading fonts. [`PdfDocument.associateFontManager`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/associateFontManager.html) only listens to missing-font events and registers newly resolved fonts. [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) adds document reload behavior for viewer use cases.
 
-`fontCachePath` and `fontPaths` can only be configured on the first `prepare` call. Later `prepare()` calls without arguments are allowed and wait for the same preparation work, but passing `fontCachePath` or `fontPaths` after preparation has started throws `StateError`.
+[`fontCachePath`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/prepare.html) and [`fontPaths`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/prepare.html) can only be configured on the first [`prepare`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/prepare.html) call. Later [`prepare()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/prepare.html) calls without arguments are allowed and wait for the same preparation work, but passing `fontCachePath` or `fontPaths` after preparation has started throws `StateError`.
 
-You can also listen to [PdfDocument.events](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/events.html) and handle [PdfDocumentMissingFontsEvent](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentMissingFontsEvent-class.html) manually, but using `PdfFontManager` keeps resolver chaining, de-duplication, validation, progress, registration, and font reload behavior in one place.
+You can also listen to [PdfDocument.events](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/events.html) and handle [PdfDocumentMissingFontsEvent](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentMissingFontsEvent-class.html) manually, but using [`PdfFontManager`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager-class.html) keeps resolver chaining, de-duplication, validation, progress, registration, and font reload behavior in one place.
 
 ## Writing a Font Resolver
 
@@ -129,45 +129,45 @@ class MyFontResolver implements PdfFontResolver {
 }
 ```
 
-`PdfFontQuery` contains the font request seen by PDFium:
+[`PdfFontQuery`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontQuery-class.html) contains the font request seen by PDFium:
 
-- `face`: requested font face name
-- `weight`: requested font weight
-- `isItalic`: whether italic style is requested
-- `charset`: requested character set
-- `pitchFamily`: PDFium pitch/family flags
+- [`face`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontQuery/face.html): requested font face name
+- [`weight`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontQuery/weight.html): requested font weight
+- [`isItalic`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontQuery/isItalic.html): whether italic style is requested
+- [`charset`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontQuery/charset.html): requested character set
+- [`pitchFamily`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontQuery/pitchFamily.html): PDFium pitch/family flags
 
-`PdfFontResolution.targetFace` is usually left null. In that case, `PdfFontManager` registers the loaded font against the missing `query.face`, which is normally what PDFium expects for substitution. `resolvedFace` is only the human-readable face name of the actual font file.
+[`PdfFontResolution.targetFace`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontResolution/targetFace.html) is usually left null. In that case, [`PdfFontManager`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager-class.html) registers the loaded font against the missing [`query.face`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontQuery/face.html), which is normally what PDFium expects for substitution. [`resolvedFace`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontResolution/resolvedFace.html) is only the human-readable face name of the actual font file.
 
-`PdfFontResolution.loadData` can report byte progress through its `onProgress` callback. The manager exposes that as [PdfFontLoadProgress](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfFontLoadProgress-class.html).
+[`PdfFontResolution.loadData`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontResolution/loadData.html) can report byte progress through its [`onProgress`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontResolution/loadData.html) callback. The manager exposes that as [PdfFontLoadProgress](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfFontLoadProgress-class.html).
 
 ## Example Resolver
 
-The example viewer includes [google_fonts_resolver.dart](https://github.com/espresso3389/pdfrx/blob/master/packages/pdfrx/example/viewer/lib/google_fonts_resolver.dart). Use it as an application resolver after `PdfFontManager.platform` when platform fonts are not enough. It resolves:
+The example viewer includes [google_fonts_resolver.dart](https://github.com/espresso3389/pdfrx/blob/master/packages/pdfrx/example/viewer/lib/google_fonts_resolver.dart). Use it as an application resolver after [`PdfFontManager.platform`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/PdfFontManager.platform.html) when platform fonts are not enough. It resolves:
 
 - PDF standard/Core families such as Helvetica, Arial, Times, and Courier to metric-compatible Google Fonts families such as Arimo, Tinos, and Cousine.
 - Other broad script requests to Noto families.
-- CJK requests to large Noto CJK collections on native platforms when `PdfFontResolveContext.preferFontCollections` allows it.
+- CJK requests to large Noto CJK collections on native platforms when [`PdfFontResolveContext.preferFontCollections`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontResolveContext/preferFontCollections.html) allows it.
 
 This file is an example implementation, not a built-in resolver API. Applications should copy or adapt the strategy and font list to their licensing, network, and file size requirements.
 
 ## Backend Font Cache
 
-[PdfFontManager.prepare](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfFontManager/prepare.html) configures the backend font cache directory and local font paths. If `fontCachePath` is omitted, the manager uses `${Pdfrx.cacheDirectoryPath}/pdfrx.fonts` when [Pdfrx.cacheDirectoryPath](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/Pdfrx/cacheDirectoryPath.html) is available. `pdfrxFlutterInitialize()` and `pdfrxInitialize()` set `Pdfrx.cacheDirectoryPath` for normal Flutter and Dart entry points.
+[PdfFontManager.prepare](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfFontManager/prepare.html) configures the backend font cache directory and local font paths. If [`fontCachePath`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/prepare.html) is omitted, the manager uses `${Pdfrx.cacheDirectoryPath}/pdfrx.fonts` when [Pdfrx.cacheDirectoryPath](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/Pdfrx/cacheDirectoryPath.html) is available. [`pdfrxFlutterInitialize()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) and [`pdfrxInitialize()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html) set [`Pdfrx.cacheDirectoryPath`](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pdfrx/cacheDirectoryPath.html) for normal Flutter and Dart entry points.
 
-[PdfFontManager.loadMissingFonts](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfFontManager/loadMissingFonts.html) calls `prepare()` and then registers resolved fonts. Byte-backed resolutions use [PdfrxEntryFunctions.addFontData](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/addFontData.html); local-file resolutions use [PdfrxEntryFunctions.addFontFile](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/addFontFile.html). When new fonts were registered, the manager calls [PdfrxEntryFunctions.reloadFonts](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/reloadFonts.html).
+[PdfFontManager.loadMissingFonts](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfFontManager/loadMissingFonts.html) calls [`prepare()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/prepare.html) and then registers resolved fonts. Byte-backed resolutions use [PdfrxEntryFunctions.addFontData](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/addFontData.html); local-file resolutions use [PdfrxEntryFunctions.addFontFile](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/addFontFile.html). When new fonts were registered, the manager calls [PdfrxEntryFunctions.reloadFonts](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/reloadFonts.html).
 
 Backend cache behavior differs by platform:
 
-- Native PDFium: downloaded fonts are stored in the configured app-local font cache and registered with the internal font mapper. The mapper also scans the configured cache and `fontPaths` when the manager prepares the backend font environment. Fonts resolved from existing local files, such as platform font directories, are registered directly and are not copied into the app-local font cache.
+- Native PDFium: downloaded fonts are stored in the configured app-local font cache and registered with the internal font mapper. The mapper also scans the configured cache and [`fontPaths`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/prepare.html) when the manager prepares the backend font environment. Fonts resolved from existing local files, such as platform font directories, are registered directly and are not copied into the app-local font cache.
 - Web/WASM: downloaded fonts are persisted in IndexedDB and restored into the worker's in-memory font mapper during worker initialization. PDFium font callbacks are synchronous, so a font must already be in the worker memory cache before it can satisfy `GetFontData`.
 - CoreGraphics: font registration is handled by the CoreGraphics backend implementation.
 
-`clearAllFontData` clears fonts added through `addFontData`. It does not remove arbitrary files passed through `PdfFontManager.prepare(fontPaths: ...)`.
+[`clearAllFontData`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/clearAllFontData.html) clears fonts added through [`addFontData`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/addFontData.html). It does not remove arbitrary files passed through [`PdfFontManager.prepare(fontPaths: ...)`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/prepare.html).
 
 ## Additional Local Font Directories
 
-On native PDFium platforms, `PdfFontManager.platform` already adds the current platform's common font directories. Use `PdfFontManager.prepare(fontPaths: ...)` only when the application has additional directories or files containing fonts:
+On native PDFium platforms, [`PdfFontManager.platform`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/PdfFontManager.platform.html) already adds the current platform's common font directories. Use [`PdfFontManager.prepare(fontPaths: ...)`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/prepare.html) only when the application has additional directories or files containing fonts:
 
 ```dart
 import 'dart:io';
@@ -191,7 +191,7 @@ Future<void> main() async {
 }
 ```
 
-Pass the prepared manager to `PdfViewer` or associate it with `PdfDocument` before opening documents that should use these local fonts. Because `PdfViewer` also calls `prepare()`, applications that need application-specific `fontPaths` should call `prepare(fontPaths: ...)` before giving the manager to the viewer. If a plain `PdfFontManager` is prepared without arguments, it uses the default font cache path and no additional local font paths; `PdfFontManager.platform` still adds its platform font directories.
+Pass the prepared manager to [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) or associate it with [`PdfDocument`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) before opening documents that should use these local fonts. Because `PdfViewer` also calls [`prepare()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/prepare.html), applications that need application-specific [`fontPaths`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/prepare.html) should call [`prepare(fontPaths: ...)`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/prepare.html) before giving the manager to the viewer. If a plain [`PdfFontManager`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager-class.html) is prepared without arguments, it uses the default font cache path and no additional local font paths; [`PdfFontManager.platform`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager/PdfFontManager.platform.html) still adds its platform font directories.
 
 The platform resolver includes known-family aliases for common PDF and system font names such as Helvetica, Arial, Times, Courier, MS Gothic, MS Mincho, Meiryo, Yu Gothic, SimSun, MingLiU, Malgun Gothic, Batang, and Gulim. On Linux and macOS, those names are mapped to commonly available platform families such as Liberation, DejaVu, Noto CJK, Helvetica, Hiragino, Songti, and AppleGothic when their files exist.
 
@@ -216,9 +216,9 @@ await PdfrxEntryFunctions.instance.reloadFonts();
 await PdfrxEntryFunctions.instance.clearAllFontData();
 ```
 
-Use these directly only when you already know the exact PDF-facing `face` name to register. `addFontData` is for byte data that may be cached by the backend. `addFontFile` is for existing local font files that should be registered without copying them into the app-local font cache. In normal missing-font workflows, `PdfFontManager` is less error-prone because it uses `PdfFontQuery.face` as the registration target and keeps track of already registered faces.
+Use these directly only when you already know the exact PDF-facing [`face`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontQuery/face.html) name to register. [`addFontData`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/addFontData.html) is for byte data that may be cached by the backend. [`addFontFile`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/addFontFile.html) is for existing local font files that should be registered without copying them into the app-local font cache. In normal missing-font workflows, [`PdfFontManager`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager-class.html) is less error-prone because it uses [`PdfFontQuery.face`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontQuery/face.html) as the registration target and keeps track of already registered faces.
 
-`reloadFonts` refreshes the backend font mapper state, such as newly scanned local font files. It does not, by itself, re-render or reopen already loaded PDF documents. `PdfViewer` handles that when it owns the font-manager association; direct `PdfDocument` users must do it in their own document lifecycle.
+[`reloadFonts`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/reloadFonts.html) refreshes the backend font mapper state, such as newly scanned local font files. It does not, by itself, re-render or reopen already loaded PDF documents. [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) handles that when it owns the font-manager association; direct [`PdfDocument`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) users must do it in their own document lifecycle.
 
 ## See Also
 
@@ -232,4 +232,4 @@ Use these directly only when you already know the exact PDF-facing `face` name t
 - [PdfrxEntryFunctions.addFontData](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/addFontData.html) - Low-level font registration
 - [PdfrxEntryFunctions.addFontFile](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/addFontFile.html) - Low-level local font-file registration
 - [PdfrxEntryFunctions.reloadFonts](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/reloadFonts.html) - Refresh backend font mapper state
-- [PdfrxEntryFunctions.clearAllFontData](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/clearAllFontData.html) - Clear fonts registered through `addFontData`
+- [PdfrxEntryFunctions.clearAllFontData](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/clearAllFontData.html) - Clear fonts registered through [`addFontData`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/addFontData.html)

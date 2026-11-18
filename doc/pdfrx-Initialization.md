@@ -20,12 +20,12 @@ Basically, these initialization functions do the following things:
 - Set [Pdfrx.cacheDirectoryPath](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pdfrx/cacheDirectoryPath.html) if it is unset (native platforms)
 - Map PdfDocument [factory/interop functions](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions-class.html) to actual platform ones
 - Set [Pdfrx.loadAsset](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pdfrx/loadAsset.html) if it is unset (Flutter loads assets; Dart installs a function that throws)
-- Configure the PDFium module path from `PDFIUM_PATH` when using `pdfrxInitialize()` and the specified file exists
+- Configure the PDFium module path from `PDFIUM_PATH` when using [`pdfrxInitialize()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html) and the specified file exists
 - Call [PdfrxEntryFunctions.init](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfrxEntryFunctions/init.html) to initialize the PDFium library (internally calls `FPDF_InitLibraryWithConfig`)
 
 ## Multiple Flutter engines
 
-Apps that use [`desktop_multi_window`](https://pub.dev/packages/desktop_multi_window) (or any host that runs several Flutter engines in one OS process) must enable process-wide locking of PDFium access. This lock allows only one participating engine to use PDFium at a time. The API calls this protection a "gate", hence the option name `processWidePdfiumGate`. PDFium is a single native library in the process, but each engine has its own Dart isolates and pdfrx worker. Without this protection, a second engine re-inits PDFium, installs isolate-local font callbacks, or calls `FPDF_DestroyLibrary` while the first engine still needs it.
+Apps that use [`desktop_multi_window`](https://pub.dev/packages/desktop_multi_window) (or any host that runs several Flutter engines in one OS process) must enable process-wide locking of PDFium access. This lock allows only one participating engine to use PDFium at a time. The API calls this protection a "gate", hence the option name [`processWidePdfiumGate`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html). PDFium is a single native library in the process, but each engine has its own Dart isolates and pdfrx worker. Without this protection, a second engine re-inits PDFium, installs isolate-local font callbacks, or calls `FPDF_DestroyLibrary` while the first engine still needs it.
 
 Set the flag on **every** engine **before** initialization:
 
@@ -57,8 +57,8 @@ The mutex is not thread-owner-affine: Dart may resume an `await` on another OS t
 
 The configuration is fixed when the first worker starts in each isolate. Changing it afterwards throws `StateError`,
 even after stopping that worker. All engines must opt in before doing any PDFium work; mixing modes is unsupported.
-Worker `compute` callbacks hold the lock only for their synchronous portion and must not call PDFium after an `await`.
-For asynchronous access to native handles, use `suspendPdfiumWorkerDuringAction`; do not call worker APIs from inside
+Worker [`compute`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/compute.html) callbacks hold the lock only for their synchronous portion and must not call PDFium after an `await`.
+For asynchronous access to native handles, use [`suspendPdfiumWorkerDuringAction`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/suspendPdfiumWorkerDuringAction.html); do not call worker APIs from inside
 that action because the worker is suspended until the action completes.
 
 ## Cache Directory
@@ -67,10 +67,10 @@ The mechanism to set [Pdfrx.cacheDirectoryPath](https://pub.dev/documentation/pd
 
 Init. Func. | Underlying API | Notes
 ------------|----------------|-------------------
-[pdfrxInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html) | `tmpPath`, `PDFRX_CACHE_DIR`, an existing `pdfrx.cache` under the system temp directory, or the user data directory (in that order) | Does not overwrite an existing `Pdfrx.cacheDirectoryPath`.
+[pdfrxInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html) | `tmpPath`, `PDFRX_CACHE_DIR`, an existing `pdfrx.cache` under the system temp directory, or the user data directory (in that order) | Does not overwrite an existing [`Pdfrx.cacheDirectoryPath`](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pdfrx/cacheDirectoryPath.html).
 [pdfrxFlutterInitialize](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) | [path_provider.getTemporaryDirectory](https://pub.dev/documentation/path_provider/latest/path_provider/getTemporaryDirectory.html) | Always app local directory.
 
-`PdfFontManager` uses `${Pdfrx.cacheDirectoryPath}/pdfrx.fonts` as its default font cache directory. If you use [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) directly and want cached fonts to be available during the first document load, initialize pdfrx or set `Pdfrx.cacheDirectoryPath` before creating/preparing the font manager.
+[`PdfFontManager`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfFontManager-class.html) uses `${Pdfrx.cacheDirectoryPath}/pdfrx.fonts` as its default font cache directory. If you use [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) directly and want cached fonts to be available during the first document load, initialize pdfrx or set [`Pdfrx.cacheDirectoryPath`](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pdfrx/cacheDirectoryPath.html) before creating/preparing the font manager.
 
 ## PDFium Native Library
 
@@ -80,13 +80,13 @@ For Flutter apps, `pdfium_flutter` is the recommended PDFium integration package
 
 - PDFium binaries are downloaded from <https://github.com/bblanchon/pdfium-binaries/releases> during build
 - Linux Flutter builds resolve `libpdfium.so` from the app's shared library directory relative to the executable
-- For `pdfrxInitialize()`, set `PDFIUM_PATH` to an existing `libpdfium` shared library; for Flutter initialization, set `Pdfrx.pdfiumModulePath` before initialization
+- For [`pdfrxInitialize()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html), set `PDFIUM_PATH` to an existing `libpdfium` shared library; for Flutter initialization, set [`Pdfrx.pdfiumModulePath`](https://pub.dev/documentation/pdfrx/latest/pdfrx/Pdfrx/pdfiumModulePath.html) before initialization
 - Web builds use PDFium WASM instead of FFI
 
 
 ## Native Build Requirements
 
-`pdfium_dart` uses its Dart build hook to compile a small native library that prevents simultaneous PDFium access from multiple Flutter engines. It contains a lock shared within the application process. The library is named `pdfrx_pdfium_gate`; "gate" refers to this access control. A C toolchain is required for native builds even when `processWidePdfiumGate` is false or a custom `PDFIUM_PATH` is used:
+`pdfium_dart` uses its Dart build hook to compile a small native library that prevents simultaneous PDFium access from multiple Flutter engines. It contains a lock shared within the application process. The library is named `pdfrx_pdfium_gate`; "gate" refers to this access control. A C toolchain is required for native builds even when [`processWidePdfiumGate`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) is false or a custom `PDFIUM_PATH` is used:
 
 - Windows: Visual Studio C++ build tools and a Windows SDK for the target architecture.
 - macOS/iOS: Xcode and its command-line tools.

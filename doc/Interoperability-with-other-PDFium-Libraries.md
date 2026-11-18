@@ -4,9 +4,9 @@ Libraries sharing one PDFium instance must coordinate initialization, shutdown, 
 
 ## Initialization and Multiple Engines
 
-Initialize pdfrx with `pdfrxFlutterInitialize()` in Flutter or `pdfrxInitialize()` in Dart. Avoid a second library initializing or destroying the same PDFium instance independently.
+Initialize pdfrx with [`pdfrxFlutterInitialize()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) in Flutter or [`pdfrxInitialize()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxInitialize.html) in Dart. Avoid a second library initializing or destroying the same PDFium instance independently.
 
-For several Flutter engines in one OS process, enable process-wide locking with `processWidePdfiumGate: true` on every engine before its first PDFium operation. This lock allows only one participating engine to access PDFium at a time. Each engine has its own worker, so pausing one worker alone does not pause all engines. See [initialization and process-wide locking](pdfrx-Initialization.md#multiple-flutter-engines) for its configuration and font-mapper limitations.
+For several Flutter engines in one OS process, enable process-wide locking with [`processWidePdfiumGate: true`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) on every engine before its first PDFium operation. This lock allows only one participating engine to access PDFium at a time. Each engine has its own worker, so pausing one worker alone does not pause all engines. See [initialization and process-wide locking](pdfrx-Initialization.md#multiple-flutter-engines) for its configuration and font-mapper limitations.
 
 The lock coordinates participating pdfrx engines. It does not intercept calls made by another PDFium wrapper, and it does not coordinate separate copies of PDFium loaded by different packages.
 
@@ -29,7 +29,7 @@ On native platforms this method:
 3. Runs and awaits the action.
 4. Releases the lock and resumes the worker, including when the action throws.
 
-Do not call `PdfDocument.openFile`, `render`, `loadText`, or other worker-backed pdfrx APIs inside the action: the worker is suspended until the action returns. Awaiting its work inside the action can deadlock. Call those APIs before or after the suspension.
+Do not call [`PdfDocument.openFile`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/openFile.html), [`render`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPage/render.html), [`loadText`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPage/loadText.html), or other worker-backed pdfrx APIs inside the action: the worker is suspended until the action returns. Awaiting its work inside the action can deadlock. Call those APIs before or after the suspension.
 
 Nested suspension in the same asynchronous call chain is supported; unrelated suspension actions are serialized. The other library must still avoid concurrent calls from its own threads and must not independently destroy the shared PDFium instance. Work launched in the action must finish before the action returns.
 
@@ -51,7 +51,7 @@ Future<void> useNativePdfium() async {
 }
 ```
 
-The worker's `compute` callback holds the process-wide lock only during its synchronous portion. Calling native PDFium after an `await` in such a callback is not protected; use the suspension API for asynchronous native-handle work instead.
+The worker's [`compute`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/compute.html) callback holds the process-wide lock only during its synchronous portion. Calling native PDFium after an `await` in such a callback is not protected; use the suspension API for asynchronous native-handle work instead.
 
 See [Low-Level PDFium Bindings Access](Low-Level-PDFium-Bindings-Access.md) for handle and buffer ownership.
 

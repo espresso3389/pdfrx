@@ -19,7 +19,7 @@ PdfViewer.file(
 )
 ```
 
-The filter also affects photographs and other page artwork. Choose a different color matrix if simple inversion does not suit your documents. `backgroundColor` controls the area around pages separately.
+The filter also affects photographs and other page artwork. Choose a different color matrix if simple inversion does not suit your documents. [`backgroundColor`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/backgroundColor.html) controls the area around pages separately.
 
 ## Filtering the Whole Viewer
 

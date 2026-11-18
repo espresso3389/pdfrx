@@ -10,18 +10,18 @@ When you need to know that the visible pages are complete, for example before ca
 
 | State | Meaning |
 | --- | --- |
-| `detached` | The controller is not attached to a viewer showing a document (loading, failed to load, or disposed). |
-| `hidden` | [PdfViewerParams.isVisible](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/isVisible.html) is `false`. |
-| `noVisiblePages` | No page intersects the viewport. |
-| `pending` | A visible page is still being laid out, measured, or rendered, or its final image has not been painted yet. |
-| `failed` | No visible page is pending, but rendering at least one of them failed. The viewer may retry and become `ready`. |
+| [`detached`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfVisibleRenderState.html#detached) | The controller is not attached to a viewer showing a document (loading, failed to load, or disposed). |
+| [`hidden`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfVisibleRenderState.html#hidden) | [PdfViewerParams.isVisible](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/isVisible.html) is `false`. |
+| [`noVisiblePages`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfVisibleRenderState.html#noVisiblePages) | No page intersects the viewport. |
+| [`pending`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfVisibleRenderState.html#pending) | A visible page is still being laid out, measured, or rendered, or its final image has not been painted yet. |
+| [`failed`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfVisibleRenderState.html#failed) | No visible page is pending, but rendering at least one of them failed. The viewer may retry and become [`ready`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfVisibleRenderState.html#ready). |
 | `ready` | Every visible page has been painted with its final image for the current view. |
 
-`ready` refers to the current document, layout, viewport size, scroll position, and zoom. Scrolling, zooming, resizing, going to another page, replacing the document, or releasing the visible pages' images (`releaseCachedImages(keepVisible: false)`) makes the state leave `ready`, and images that finish rendering for an outdated view never make it `ready`.
+[`ready`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfVisibleRenderState.html#ready) refers to the current document, layout, viewport size, scroll position, and zoom. Scrolling, zooming, resizing, going to another page, replacing the document, or releasing the visible pages' images ([`releaseCachedImages(keepVisible: false)`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/releaseCachedImages.html)) makes the state leave `ready`, and images that finish rendering for an outdated view never make it `ready`.
 
-The "final image" is the page preview when [PdfViewerBehaviorControlParams.enableLowResolutionPagePreview](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerBehaviorControlParams/enableLowResolutionPagePreview.html) is enabled and the page is shown at or below its preview rendering scale; otherwise it is the high-resolution image of the visible part of the page. In other words, `ready` means the viewer has painted everything it will render for the current view: a page or strip too small to produce a single pixel needs no image, and a strip too thin for a high-resolution image keeps showing the preview.
+The "final image" is the page preview when [PdfViewerBehaviorControlParams.enableLowResolutionPagePreview](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerBehaviorControlParams/enableLowResolutionPagePreview.html) is enabled and the page is shown at or below its preview rendering scale; otherwise it is the high-resolution image of the visible part of the page. In other words, [`ready`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfVisibleRenderState.html#ready) means the viewer has painted everything it will render for the current view: a page or strip too small to produce a single pixel needs no image, and a strip too thin for a high-resolution image keeps showing the preview.
 
-`failed` is not final. The viewer retries failed pages when it repaints them, and a failure is remembered for the page and the requested image, so returning to a view whose rendering failed reports `failed` again until a retry succeeds.
+[`failed`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfVisibleRenderState.html#failed) is not final. The viewer retries failed pages when it repaints them, and a failure is remembered for the page and the requested image, so returning to a view whose rendering failed reports `failed` again until a retry succeeds.
 
 ## Waiting for the Visible Pages
 
@@ -51,7 +51,7 @@ Future<bool> waitForVisiblePages(
 }
 ```
 
-The state describes whatever is currently on screen, so an intermediate frame of an animated scroll or zoom can be `ready` if its pages happen to be rendered already. Wait for the navigation to finish before waiting for the state, for example:
+The state describes whatever is currently on screen, so an intermediate frame of an animated scroll or zoom can be [`ready`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfVisibleRenderState.html#ready) if its pages happen to be rendered already. Wait for the navigation to finish before waiting for the state, for example:
 
 ```dart
 await controller.goToPage(pageNumber: 5);

@@ -62,7 +62,7 @@ On [PdfViewerParams.pageOverlaysBuilder](https://pub.dev/documentation/pdfrx/lat
 
 ## Forwarding Pointer Events
 
-When a custom overlay must consume and forward a mouse wheel event to an attached controller, register the event with Flutter's `PointerSignalResolver` rather than calling `handlePointerSignalEvent` directly in the listener. This lets the overlay and viewer resolve the event once:
+When a custom overlay must consume and forward a mouse wheel event to an attached controller, register the event with Flutter's `PointerSignalResolver` rather than calling [`handlePointerSignalEvent`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/handlePointerSignalEvent.html) directly in the listener. This lets the overlay and viewer resolve the event once:
 
 ```dart
 Listener(
@@ -78,4 +78,4 @@ Listener(
 )
 ```
 
-Import `package:flutter/gestures.dart` for these event and binding types. For an overlay that owns a trackpad pan/zoom gesture, `controller.handlePointerPanZoomEvent(event)` accepts a start event, cumulative updates, and an end or cancel event with global positions. Do not also send the same gesture through another recognizer. An end does not add synthetic inertia.
+Import `package:flutter/gestures.dart` for these event and binding types. For an overlay that owns a trackpad pan/zoom gesture, [`controller.handlePointerPanZoomEvent(event)`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/handlePointerPanZoomEvent.html) accepts a start event, cumulative updates, and an end or cancel event with global positions. Do not also send the same gesture through another recognizer. An end does not add synthetic inertia.

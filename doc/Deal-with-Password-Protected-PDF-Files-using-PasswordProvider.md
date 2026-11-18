@@ -44,8 +44,8 @@ Future<String?> _showPasswordDialog() async {
 }
 ```
 
-When [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) tries to open a password protected document, it calls the function passed to `passwordProvider` (except the first attempt; see [below](#firstattemptbyemptypassword)) repeatedly to get a new password until the document is successfully opened. And if the function returns null, the viewer will give up the password trials and the function is no longer called.
+When [PdfViewer](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html) tries to open a password protected document, it calls the function passed to [`passwordProvider`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfPasswordProvider.html) (except the first attempt; see [below](#firstattemptbyemptypassword)) repeatedly to get a new password until the document is successfully opened. And if the function returns null, the viewer will give up the password trials and the function is no longer called.
 
-### `firstAttemptByEmptyPassword`
+### [`firstAttemptByEmptyPassword`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRef/firstAttemptByEmptyPassword.html)
 
-By default, the first password attempt uses empty password. This is because encrypted PDF files frequently use empty password for viewing purpose. It's _normally_ useful but if you want to use authoring password, it can be disabled by setting `firstAttemptByEmptyPassword` to false.
+By default, the first password attempt uses empty password. This is because encrypted PDF files frequently use empty password for viewing purpose. It's _normally_ useful but if you want to use authoring password, it can be disabled by setting [`firstAttemptByEmptyPassword`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocumentRef/firstAttemptByEmptyPassword.html) to false.

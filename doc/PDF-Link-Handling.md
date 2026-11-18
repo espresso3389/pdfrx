@@ -70,7 +70,7 @@ For PDF destinations, you can use [PdfViewerController.goToDest](https://pub.dev
 
 ## Link Appearance
 
-Use [linkColor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/linkColor.html) for the normal highlight and [linkHoverColor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/linkHoverColor.html) for a pointer hovering over a link. When `linkHoverColor` is null, the default painter uses `linkColor` for the hovered link too.
+Use [linkColor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/linkColor.html) for the normal highlight and [linkHoverColor](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/linkHoverColor.html) for a pointer hovering over a link. When [`linkHoverColor`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/linkHoverColor.html) is null, the default painter uses [`linkColor`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/linkColor.html) for the hovered link too.
 
 ```dart
 linkHandlerParams: PdfLinkHandlerParams(
@@ -80,4 +80,4 @@ linkHandlerParams: PdfLinkHandlerParams(
 ),
 ```
 
-A [customPainter](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/customPainter.html) replaces the default link painting and is responsible for its own colors. It receives `(canvas, pageRect, page, links)`; it does not receive a hovered-link argument. Convert each rectangle in `link.rects` with `toRectInDocument(page: page, pageRect: pageRect)` before painting.
+A [customPainter](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/customPainter.html) replaces the default link painting and is responsible for its own colors. It receives `(canvas, pageRect, page, links)`; it does not receive a hovered-link argument. Convert each rectangle in [`link.rects`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLink/rects.html) with [`toRectInDocument(page: page, pageRect: pageRect)`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfRectExt/toRectInDocument.html) before painting.
