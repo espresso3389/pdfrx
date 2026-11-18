@@ -459,6 +459,34 @@ void main() {
     expect(document.pages.every((page) => page.isLoaded), isTrue);
     expect(document.pages[2], same(prefetchedPage));
   });
+  test('progressive loading preserves an in-flight page replacement and older snapshots', () async {
+    final document = await PdfDocument.openFile(multiPageTestPdfFile.path, useProgressiveLoading: true);
+    addTearDown(document.dispose);
+    final originalPages = document.pages;
+    late final Future<void> loading;
+    late final PdfPage replacement;
+
+    await PdfrxEntryFunctions.instance.suspendPdfiumWorkerDuringAction(() {
+      loading = document.loadPagesProgressively(
+        startPageNumber: 20,
+        loadUnitDuration: Duration.zero,
+        onPageLoadProgress: (_, _, _) => false,
+      );
+      document.pages = [...originalPages.take(19), originalPages.first, ...originalPages.skip(20)];
+      replacement = document.pages[19];
+    });
+    await loading;
+    final pagesAfterReplacement = document.pages;
+    final stillUnloaded = pagesAfterReplacement.firstWhere((page) => !page.isLoaded);
+    await document.loadPagesProgressively(startPageNumber: 20);
+
+    expect(replacement.isLoaded, isTrue);
+    expect(document.pages[19], same(replacement));
+    expect(document.pages.every((page) => page.isLoaded), isTrue);
+    expect(originalPages[19].isLoaded, isFalse);
+    expect(pagesAfterReplacement[stillUnloaded.pageNumber - 1].isLoaded, isFalse);
+    expect(() => document.pages[19] = originalPages[19], throwsUnsupportedError);
+  });
   test('progressive loading resynchronizes after callback changes pages', () async {
     final document = await PdfDocument.openFile(testPdfFile.path, useProgressiveLoading: true);
     addTearDown(document.dispose);
