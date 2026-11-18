@@ -430,6 +430,58 @@ void main() {
     expect(searcher.matches.single.text, 'word');
   });
 
+  testWidgets('removing pages invalidates a paused search even without changed page keys', (tester) async {
+    final document = _FakeDocument(3);
+    final searcher = _GatedSearcher(_FakeController(document), {1: 'word', 2: 'word', 3: 'word'});
+    addTearDown(searcher.dispose);
+    addTearDown(document.eventsController.close);
+    final firstPageGate = searcher.gates[1] = Completer<void>();
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true, startPageNumber: 3);
+    await tester.pump();
+    final beforeEdit = searcher.matches;
+    expect(beforeEdit.single.pageNumber, 3);
+
+    searcher.isActive = false;
+    document.pages.removeLast();
+    document.eventsController.add(PdfDocumentPageStatusChangedEvent(document, changes: {}));
+    await tester.pump();
+    firstPageGate.complete();
+    searcher.isActive = true;
+    await tester.pump();
+
+    expect(searcher.matches.map((match) => match.pageNumber), [1, 2]);
+    expect(beforeEdit.single.pageNumber, 3);
+    expect(searcher.getMatchesRangeForPage(3), isNull);
+    expect(searcher.searchProgress, 1);
+  });
+
+  for (final hidden in [false, true]) {
+    testWidgets('a page count change preserves a ${hidden ? 'queued' : 'debounced'} replacement', (tester) async {
+      final document = _FakeDocument(1);
+      final searcher = _GatedSearcher(_FakeController(document), {1: 'alpha beta', 2: 'beta'});
+      addTearDown(searcher.dispose);
+      addTearDown(document.eventsController.close);
+      searcher.startTextSearch('alpha', goToFirstMatch: false, searchImmediately: true);
+      await tester.pump();
+      expect(searcher.matches.single.text, 'alpha');
+
+      if (hidden) searcher.isActive = false;
+      searcher.startTextSearch('beta', goToFirstMatch: false);
+      if (!hidden) await tester.pump(const Duration(milliseconds: 300));
+      final newPage = _FakePage(2);
+      document.pages.add(newPage);
+      document.eventsController.add(
+        PdfDocumentPageStatusChangedEvent(document, changes: {2: PdfPageStatusChange.modified(page: newPage)}),
+      );
+      await tester.pump();
+
+      if (hidden) searcher.isActive = true;
+      await tester.pump(hidden ? Duration.zero : const Duration(milliseconds: 200));
+      expect(searcher.pattern, 'beta');
+      expect(searcher.matches.map((match) => match.text), ['beta', 'beta']);
+    });
+  }
+
   test('reusing a search session with a new document does not retain previous results', () async {
     final controller = _FakeController(_FakeDocument(1, texts: {1: 'word word'}));
     final searcher = PdfTextSearchSession(controller);
@@ -515,6 +567,47 @@ void main() {
     expect(() => firstPage[1], throwsRangeError);
     expect(() => firstPage.clear(), throwsUnsupportedError);
     expect(() => searcher.matches[0] = searcher.matches[1], throwsUnsupportedError);
+  });
+
+  test('historical snapshots retain their results across prepends and resume', () async {
+    final searcher = _GatedSearcher(_FakeController(_FakeDocument(7)), {
+      1: 'word word',
+      2: 'word',
+      4: 'word word',
+      6: 'word',
+      7: 'word word',
+    });
+    addTearDown(searcher.dispose);
+    final firstPageGate = searcher.gates[1] = Completer<void>();
+    final secondPageGate = searcher.gates[2] = Completer<void>();
+
+    searcher.startTextSearch('word', goToFirstMatch: false, searchImmediately: true, startPageNumber: 4);
+    await pumpEventQueue();
+    final beforeWrap = searcher.matches;
+    final firstOnPageFour = beforeWrap[0];
+
+    firstPageGate.complete();
+    await pumpEventQueue();
+    final afterPrepend = searcher.matches;
+
+    searcher.isActive = false;
+    secondPageGate.complete();
+    await pumpEventQueue();
+    searcher.isActive = true;
+    await pumpEventQueue();
+    final completed = searcher.matches;
+    searcher.resetTextSearch();
+
+    expect([for (final match in beforeWrap) match.pageNumber], [4, 4, 6, 7, 7]);
+    expect([for (final match in afterPrepend) match.pageNumber], [1, 1, 4, 4, 6, 7, 7]);
+    expect(completed.toList(growable: false).map((match) => match.pageNumber), [1, 1, 2, 4, 4, 6, 7, 7]);
+    expect(afterPrepend[2], same(firstOnPageFour));
+    expect(completed[3], same(firstOnPageFour));
+    expect(completed.getRange(3, 5).map((match) => match.pageNumber), [4, 4]);
+    expect(completed.getRange(2, 6).map((match) => match.pageNumber), [2, 4, 4, 6]);
+    expect(() => beforeWrap[beforeWrap.length], throwsRangeError);
+    expect(() => afterPrepend[0] = firstOnPageFour, throwsUnsupportedError);
+    expect(searcher.matches, isEmpty);
   });
 
   test('progress is batched with first and final notifications guaranteed', () async {

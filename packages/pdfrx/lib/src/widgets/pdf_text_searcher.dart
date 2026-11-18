@@ -84,9 +84,8 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   Timer? _searchTextTimer; // timer to start search
   int _searchSession = 0; // current search session
-  List<T> _matches = const [];
-  _PageMatchIndex? _matchIndex;
-  List<int?> _pageMatchCounts = const []; // null for pages not scanned yet
+  _MatchSnapshot<T> _matches = _MatchSnapshot(0);
+  List<bool> _scannedPages = const [];
   _SearchCondition? _lastSearchCondition;
   _SearchCondition? _pendingSearchCondition;
   _SearchCondition? _pausedSearchCondition;
@@ -245,9 +244,8 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _lastSearchCondition = condition;
     _searchError = null;
     if (!resume) {
-      _matches = const [];
-      _matchIndex = null;
-      _pageMatchCounts = const [];
+      _matches = _MatchSnapshot(0);
+      _scannedPages = const [];
       _completedPageCount = 0;
       _nextPageNumber = condition.startPageNumber ?? 1;
       _searchedPages.clear();
@@ -293,11 +291,10 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _resetTextSearch(notify: false);
   }
 
-  void _resetTextSearch({bool notify = true}) {
-    _cancelTextSearch();
-    _matches = const [];
-    _matchIndex = null;
-    _pageMatchCounts = const [];
+  void _resetTextSearch({bool notify = true, bool keepPending = false}) {
+    _cancelTextSearch(cancelDebounce: !keepPending);
+    _matches = _MatchSnapshot(0);
+    _scannedPages = const [];
     _searchedPages.clear();
     _searchingPageNumber = null;
     _currentIndex = null;
@@ -305,7 +302,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _isSearching = false;
     _searchError = null;
     _lastSearchCondition = null;
-    _pendingSearchCondition = null;
+    if (!keepPending) _pendingSearchCondition = null;
     _pausedSearchCondition = null;
     _completedPageCount = 0;
     if (notify) {
@@ -313,8 +310,8 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     }
   }
 
-  void _cancelTextSearch() {
-    _searchTextTimer?.cancel();
+  void _cancelTextSearch({bool cancelDebounce = true}) {
+    if (cancelDebounce) _searchTextTimer?.cancel();
     _cancelLoading.complete();
     _cancelLoading = Completer<void>();
     ++_searchSession;
@@ -324,29 +321,22 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _isSearching = controller != null;
     await controller?.useDocument((document) async {
       if (searchSession != _searchSession) return;
-      var textMatches = resume ? List<T>.of(_matches) : <T>[];
       var first = !resume;
       final notificationClock = Stopwatch()..start();
       _isSearching = true;
-      // The previous pattern's position does not index into the new matches.
-      if (!resume) {
-        _currentIndex = null;
-        _currentMatch = null;
+      final pageCount = _totalPageCount = document.pages.length;
+      if (_scannedPages.length != pageCount) {
+        _matches = _MatchSnapshot(pageCount);
+        _scannedPages = List<bool>.filled(pageCount, false);
         _completedPageCount = 0;
         _searchedPages.clear();
+        _currentIndex = null;
+        _currentMatch = null;
       }
-      final pageCount = _totalPageCount = document.pages.length;
-      if (document.pages.isEmpty) {
-        _matches = const [];
-        _matchIndex = null;
-        _pageMatchCounts = const [];
+      if (pageCount == 0) {
         _isSearching = false;
         notifyListeners();
         return;
-      }
-      if (_pageMatchCounts.length != pageCount) {
-        _matchIndex = _PageMatchIndex(pageCount);
-        _pageMatchCounts = List<int?>.filled(pageCount, null);
       }
       for (var page = _nextPageToSearch(document.pages); page != null; page = _nextPageToSearch(document.pages)) {
         _searchingPageNumber = page.pageNumber;
@@ -369,20 +359,14 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
           }
         }
         final pageIndex = page.pageNumber - 1;
-        final insertAt = _matchIndex!.prefixSum(pageIndex);
+        var insertAt = 0;
         if (pageMatches.isNotEmpty) {
-          if (insertAt == textMatches.length) {
-            textMatches.addAll(pageMatches);
-          } else {
-            // Published snapshots share the buffer, so inserting before their end needs a new buffer.
-            textMatches = [...textMatches.take(insertAt), ...pageMatches, ...textMatches.skip(insertAt)];
-            final current = _currentIndex;
-            if (current != null && current >= insertAt) _currentIndex = current + pageMatches.length;
-          }
-          _matchIndex!.add(pageIndex, pageMatches.length);
+          insertAt = _matches._lookupPage(pageIndex).start;
+          final current = _currentIndex;
+          if (current != null && current >= insertAt) _currentIndex = current + pageMatches.length;
+          _matches = _matches._withPage(pageIndex, pageMatches);
         }
-        _pageMatchCounts[pageIndex] = pageMatches.length;
-        _matches = _MatchSnapshot(textMatches);
+        _scannedPages[pageIndex] = true;
         _completedPageCount++;
         _isSearching = _completedPageCount < pageCount;
         if (_completedPageCount == 1 ||
@@ -408,17 +392,21 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   /// Returns the first page not scanned yet, starting at [_nextPageNumber] and wrapping around.
   PdfPage? _nextPageToSearch(List<PdfPage> pages) {
+    if (pages.length != _scannedPages.length) {
+      _restartSearch();
+      return null;
+    }
     var start = _nextPageNumber - 1;
     if (start < 0 || start >= pages.length) start = 0;
     for (var i = 0; i < pages.length; i++) {
       final index = (start + i) % pages.length;
-      if (_pageMatchCounts[index] == null) return pages[index];
+      if (!_scannedPages[index]) return pages[index];
     }
     return null;
   }
 
   bool _isPageScanned(int pageNumber) =>
-      pageNumber >= 1 && pageNumber <= _pageMatchCounts.length && _pageMatchCounts[pageNumber - 1] != null;
+      pageNumber >= 1 && pageNumber <= _scannedPages.length && _scannedPages[pageNumber - 1];
 
   void _registerForDocumentChanges() {
     final document = controller?.document;
@@ -427,15 +415,18 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _documentEventSubscription?.cancel();
     _observedDocument = document;
     _documentEventSubscription = document?.events.listen((event) {
-      if (event is PdfDocumentPageStatusChangedEvent &&
-          _lastSearchCondition != null &&
-          event.changes.keys.any(_searchedPages.contains)) {
-        _restartSearch();
-      }
+      if (event is! PdfDocumentPageStatusChangedEvent || _lastSearchCondition == null) return;
+      final countChanged = _totalPageCount != null && event.document.pages.length != _totalPageCount;
+      if (countChanged || event.changes.keys.any(_searchedPages.contains)) _restartSearch();
     });
   }
 
   void _restartSearch() {
+    if (_pendingSearchCondition != null) {
+      // Clear obsolete progress without replacing or delaying a newer query.
+      _resetTextSearch(keepPending: true);
+      return;
+    }
     final condition = _lastSearchCondition;
     // Clearing the condition lets startTextSearch run the same pattern again.
     _resetTextSearch();
@@ -520,8 +511,8 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   /// Get the matches range for the given page number.
   ({int start, int end})? getMatchesRangeForPage(int pageNumber) {
     if (!_isPageScanned(pageNumber)) return null;
-    final start = _matchIndex!.prefixSum(pageNumber - 1);
-    return (start: start, end: start + _pageMatchCounts[pageNumber - 1]!);
+    final (start: start, values: values) = _matches._lookupPage(pageNumber - 1);
+    return (start: start, end: start + values.length);
   }
 
   /// Go to the match of the given index.
@@ -537,13 +528,12 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   /// Use this with [PdfViewerParams.pagePaintCallbacks] to highlight the matches.
   void pageTextMatchPaintCallback(ui.Canvas canvas, Rect pageRect, PdfPage page) {
     final range = getMatchesRangeForPage(page.pageNumber);
-    if (range == null) return;
+    if (range == null || range.start == range.end) return;
 
     final matchTextColor = controller?.params.matchTextColor ?? Colors.yellow.withAlpha(127);
     final activeMatchTextColor = controller?.params.activeMatchTextColor ?? Colors.orange.withAlpha(127);
 
-    for (var i = range.start; i < range.end; i++) {
-      final m = _matches[i];
+    for (final m in _matches.getRange(range.start, range.end)) {
       for (final bounds in _highlightsOf(m)) {
         final rect = bounds.toRect(page: page, scaledPageSize: pageRect.size).translate(pageRect.left, pageRect.top);
         canvas.drawRect(rect, Paint()..color = m == _currentMatch ? activeMatchTextColor : matchTextColor);
@@ -561,51 +551,135 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   void removeListener(VoidCallback listener) => _listeners.remove(listener);
 }
 
-/// Stores page match counts for efficient prefix sums as pages are scanned out of order.
-class _PageMatchIndex {
-  _PageMatchIndex(int pageCount) : _tree = List<int>.filled(pageCount + 1, 0);
-
-  final List<int> _tree;
-
-  void add(int pageIndex, int count) {
-    for (var i = pageIndex + 1; i < _tree.length; i += i & -i) {
-      _tree[i] += count;
-    }
-  }
-
-  int prefixSum(int pageCount) {
-    var sum = 0;
-    for (var i = pageCount; i > 0; i -= i & -i) {
-      sum += _tree[i];
-    }
-    return sum;
-  }
-}
-
-/// Captures a read-only prefix of a results buffer.
-///
-/// The search only appends to a buffer; inserting matches of an earlier page creates a new buffer, so a
-/// published snapshot never changes.
+/// Immutable, page-ordered results. Adding a page copies only the path to its leaf;
+/// published snapshots share the other branches and all previously collected match batches.
 class _MatchSnapshot<T> extends ListBase<T> {
-  _MatchSnapshot(this._values) : _length = _values.length;
+  _MatchSnapshot(this._pageCount, [this._root]);
 
-  final List<T> _values;
-  final int _length;
+  final int _pageCount;
+  final _MatchNode<T>? _root;
+
+  // The page-range lookup primes indexed reads of all the highlights on that page.
+  List<T> _cachedPageMatches = const [];
+  int _cachedPageStart = 0;
+
+  _MatchSnapshot<T> _withPage(int pageIndex, List<T> matches) {
+    assert(pageIndex >= 0 && pageIndex < _pageCount);
+    return _MatchSnapshot(_pageCount, _insertMatches(_root, 0, _pageCount, pageIndex, matches));
+  }
+
+  _MatchNode<T> _insertMatches(_MatchNode<T>? node, int lower, int upper, int pageIndex, List<T> matches) {
+    if (upper - lower == 1) return _MatchNode.leaf(matches);
+
+    final middle = (lower + upper) ~/ 2;
+    if (pageIndex < middle) {
+      return _MatchNode.branch(_insertMatches(node?.left, lower, middle, pageIndex, matches), node?.right);
+    }
+    return _MatchNode.branch(node?.left, _insertMatches(node?.right, middle, upper, pageIndex, matches));
+  }
+
+  /// Finds one page's matches and their offset in the full results in O(log page count).
+  ({int start, List<T> values}) _lookupPage(int pageIndex) {
+    assert(pageIndex >= 0 && pageIndex < _pageCount);
+    var node = _root;
+    var lower = 0;
+    var upper = _pageCount;
+    var start = 0;
+    while (node != null && upper - lower > 1) {
+      final middle = (lower + upper) ~/ 2;
+      if (pageIndex < middle) {
+        upper = middle;
+        node = node.left;
+      } else {
+        start += node.left?.count ?? 0;
+        lower = middle;
+        node = node.right;
+      }
+    }
+    final values = node?.values ?? const [];
+    if (values.isNotEmpty) {
+      _cachedPageMatches = values;
+      _cachedPageStart = start;
+    }
+    return (start: start, values: values);
+  }
 
   @override
-  int get length => _length;
+  int get length => _root?.count ?? 0;
 
   @override
   set length(int value) => throw UnsupportedError('Search results are read-only.');
 
   @override
   T operator [](int index) {
+    final cachedIndex = index - _cachedPageStart;
+    if (cachedIndex >= 0 && cachedIndex < _cachedPageMatches.length) return _cachedPageMatches[cachedIndex];
+
     RangeError.checkValidIndex(index, this);
-    return _values[index];
+    var node = _root!;
+    var offset = index;
+    while (node.values == null) {
+      final leftCount = node.left?.count ?? 0;
+      if (offset < leftCount) {
+        node = node.left!;
+      } else {
+        offset -= leftCount;
+        node = node.right!;
+      }
+    }
+    _cachedPageMatches = node.values!;
+    _cachedPageStart = index - offset;
+    return _cachedPageMatches[offset];
   }
 
   @override
+  Iterable<T> getRange(int start, int end) {
+    final firstOnPage = start - _cachedPageStart;
+    final endOnPage = end - _cachedPageStart;
+    if (firstOnPage >= 0 && endOnPage >= firstOnPage && endOnPage <= _cachedPageMatches.length) {
+      return _cachedPageMatches.getRange(firstOnPage, endOnPage);
+    }
+    return super.getRange(start, end);
+  }
+
+  @override
+  Iterator<T> get iterator => _iterateMatches().iterator;
+
+  Iterable<T> _iterateMatches() sync* {
+    final root = _root;
+    if (root == null) return;
+    final pending = [root];
+    while (pending.isNotEmpty) {
+      final node = pending.removeLast();
+      final values = node.values;
+      if (values != null) {
+        yield* values;
+      } else {
+        final right = node.right;
+        if (right != null) pending.add(right);
+        final left = node.left;
+        if (left != null) pending.add(left);
+      }
+    }
+  }
+
+  @override
+  List<T> toList({bool growable = true}) => _iterateMatches().toList(growable: growable);
+
+  @override
   void operator []=(int index, T value) => throw UnsupportedError('Search results are read-only.');
+}
+
+/// A sparse segment tree node. Only leaves hold matches, in lists owned by the snapshot.
+class _MatchNode<T> {
+  _MatchNode.leaf(List<T> matches) : values = matches, count = matches.length, left = null, right = null;
+
+  _MatchNode.branch(this.left, this.right) : values = null, count = (left?.count ?? 0) + (right?.count ?? 0);
+
+  final List<T>? values;
+  final int count;
+  final _MatchNode<T>? left;
+  final _MatchNode<T>? right;
 }
 
 extension _PatternExts on Pattern {
