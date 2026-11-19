@@ -146,6 +146,10 @@ class PdfDocumentViewBuilder extends StatefulWidget {
        );
 
   /// The reference to the PDF document.
+  ///
+  /// References with equal [PdfDocumentRef.key] values keep the current load and document across rebuilds.
+  /// To reload the same source explicitly, call `documentRef.resolveListenable().load(forceReload: true)`,
+  /// or use a different resource key.
   final PdfDocumentRef documentRef;
 
   /// The builder that builds the widget tree with the PDF document.
@@ -173,6 +177,7 @@ typedef PdfDocumentViewBuilderErrorBuilder = Widget Function(
 );
 
 class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
+  late PdfDocumentListenable _listenable;
   StreamSubscription<PdfDocumentEvent>? _updateSubscription;
   PdfDocument? _document;
 
@@ -180,7 +185,8 @@ class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
   void initState() {
     super.initState();
     pdfrxFlutterInitialize();
-    widget.documentRef.resolveListenable()
+    _listenable = widget.documentRef.resolveListenable();
+    _listenable
       ..addListener(_onDocumentChanged)
       ..load();
     _onDocumentChanged();
@@ -189,9 +195,10 @@ class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
   @override
   void didUpdateWidget(covariant PdfDocumentViewBuilder oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.documentRef != oldWidget.documentRef) {
-      oldWidget.documentRef.resolveListenable().removeListener(_onDocumentChanged);
-      widget.documentRef.resolveListenable()
+    if (widget.documentRef.key != oldWidget.documentRef.key) {
+      _listenable.removeListener(_onDocumentChanged);
+      _listenable = widget.documentRef.resolveListenable();
+      _listenable
         ..addListener(_onDocumentChanged)
         ..load();
       _onDocumentChanged();
@@ -201,13 +208,13 @@ class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
   @override
   void dispose() {
     _updateSubscription?.cancel();
-    widget.documentRef.resolveListenable().removeListener(_onDocumentChanged);
+    _listenable.removeListener(_onDocumentChanged);
     super.dispose();
   }
 
   void _onDocumentChanged() {
     if (mounted) {
-      final document = widget.documentRef.resolveListenable().document;
+      final document = _listenable.document;
       if (!identical(document, _document)) {
         _updateSubscription?.cancel();
         _document = document;
@@ -224,7 +231,7 @@ class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
 
   @override
   Widget build(BuildContext context) {
-    final listenable = widget.documentRef.resolveListenable();
+    final listenable = _listenable;
 
     // Handle error
     if (listenable.error != null && widget.errorBuilder != null) {

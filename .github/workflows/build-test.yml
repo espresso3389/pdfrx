@@ -210,9 +210,12 @@ jobs:
         working-directory: packages/pdfrx_engine
         run: dart test test/pdf_document_test.dart
 
-      - name: Test document builder progress updates
+      - name: Test document builder identity and progress updates
         working-directory: packages/pdfrx
-        run: flutter test test/pdf_document_view_builder_progress_test.dart
+        run: >-
+          flutter test
+          test/pdf_document_view_builder_progress_test.dart
+          test/pdf_document_view_builder_identity_test.dart
 
       - name: Test process-wide PDFium gate
         timeout-minutes: 5
