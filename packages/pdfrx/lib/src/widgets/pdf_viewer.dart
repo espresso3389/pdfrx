@@ -883,7 +883,7 @@ class _PdfViewerState extends State<PdfViewer>
                             scaleGestureSensitivity: widget.params.scaleGestureSensitivity,
                             onInteractionEnd: _onInteractionEnd,
                             onInteractionStart: _onInteractionStart,
-                            onInteractionUpdate: widget.params.onInteractionUpdate,
+                            onInteractionUpdate: _onInteractionUpdate,
                             interactionEndFrictionCoefficient: widget.params.interactionEndFrictionCoefficient,
                             scaleInertiaMaxExcursion: widget.params.scaleInertiaMaxExcursion,
                             onWheelDelta: widget.params.scrollByMouseWheel != null ? _onWheelDelta : null,
@@ -1183,7 +1183,7 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   /// In paged mode ([PdfViewerParams.paging]), adjusts [m] along the primary axis so that the spread of
-  /// [pageNumber] is centered if it fits in the view, or its start is aligned with the view start.
+  /// [pageNumber] is centered if it fits in the view, or otherwise the view is kept inside it.
   /// Returns null for other layouts or if no adjustment is needed.
   Matrix4? _calcMatrixForPagedSpread(Matrix4 m, int pageNumber) {
     final layout = _layout;
@@ -1200,8 +1200,14 @@ class _PdfViewerState extends State<PdfViewer>
       delta =
           (_startOf(area, vertical) + _endOf(area, vertical)) / 2 -
           (_startOf(view, vertical) + _endOf(view, vertical)) / 2;
-    } else {
+    } else if (_startOf(view, vertical) < _startOf(area, vertical)) {
       delta = _startOf(area, vertical) - _startOf(view, vertical);
+    } else if (_endOf(view, vertical) > _endOf(area, vertical)) {
+      delta = _endOf(area, vertical) - _endOf(view, vertical);
+    } else {
+      // Zoomed in and inside the spread: keep the position the size delegate restored (e.g. the
+      // content at the top left of the view after a rotation) instead of going back to its start.
+      delta = 0;
     }
     if (delta.abs() <= 0.5 / zoom) return null;
     final center = view.center;
@@ -1354,7 +1360,15 @@ class _PdfViewerState extends State<PdfViewer>
     }
     _settlePending = false;
     _confinedSpread = null;
-    final destination = _calcSettleMatrix();
+    final layout = _layout;
+    final pinchedSpread = _pinchedSpread;
+    _pinchedSpread = null;
+    _pinchContinues = false;
+    final destination = _calcSettleMatrix(
+      pageNumber: layout != null && pinchedSpread != null && pinchedSpread < layout.spreads.length
+          ? layout.spreads[pinchedSpread].firstPageNumber
+          : null,
+    );
     if (destination != null) unawaited(_goTo(destination, duration: paging.duration));
   }
 
@@ -1507,6 +1521,37 @@ class _PdfViewerState extends State<PdfViewer>
   Rect? _scrollPhysicsBoundaryRect() {
     final confined = _confinedSpread;
     final layout = _layout;
+    // A pinch has ended below the min scale: the snap-back lands on the spread it started on.
+    final pinchedSpread = _pinchedSpread;
+    final viewSize = _viewSize;
+    if (pinchedSpread != null &&
+        _interactionStartRect == null &&
+        _isScaleOverscrolled &&
+        layout != null &&
+        viewSize != null &&
+        pinchedSpread < layout.spreads.length) {
+      // What the view shows of this spread once the zoom is back at the min scale: the spread
+      // centered, or all of it if it is longer than the view, as the settle snap would leave it.
+      // ([PdfPageLayout.spreadSlots] is not used: it is derived from the gaps between the spreads and
+      // is off-center when neighboring spreads differ in length.)
+      final vertical = layout.effectivePrimaryAxis == Axis.vertical;
+      final area = _spreadArea(layout, pinchedSpread, vertical);
+      final viewLength = _lengthOf(Offset.zero & viewSize, vertical) / _layoutMetrics.minScale;
+      final length = max(_lengthOf(area, vertical), viewLength);
+      final center = (_startOf(area, vertical) + _endOf(area, vertical)) / 2;
+      // Across the scroll axis, the usual bounds: the document with the boundary margin.
+      final margin = widget.params.boundaryMargin ?? EdgeInsets.zero;
+      final documentRect = Offset.zero & layout.documentSize;
+      final bounds = margin.containsInfinite ? documentRect : margin.inflateRect(documentRect);
+      // Along the scroll axis, keep that range inside the bounds too (the first and last spreads).
+      var start = center - length / 2;
+      final boundsStart = _startOf(bounds, vertical);
+      final boundsEnd = _endOf(bounds, vertical);
+      if (length <= boundsEnd - boundsStart) start = start.clamp(boundsStart, boundsEnd - length);
+      return vertical
+          ? Rect.fromLTRB(bounds.left, start, bounds.right, start + length)
+          : Rect.fromLTRB(start, bounds.top, start + length, bounds.bottom);
+    }
     if (confined == null || layout == null || !_isPaged || confined >= layout.spreads.length) return null;
     final vertical = layout.effectivePrimaryAxis == Axis.vertical;
     final boundaryMargin = widget.params.boundaryMargin ?? EdgeInsets.zero;
@@ -1518,6 +1563,19 @@ class _PdfViewerState extends State<PdfViewer>
         : Rect.fromLTRB(max(base.left, area.left), base.top, min(base.right, area.right), base.bottom);
   }
 
+  /// Whether a pinch has the zoom below the min scale (the scale overscroll of bouncing physics).
+  bool get _isScaleOverscrolled => _currentZoom < _layoutMetrics.minScale * 0.999;
+
+  /// In paged mode ([PdfViewerParams.paging]), the only spread to show, or null to show every
+  /// visible page.
+  ///
+  /// The spread slots hide the neighbor spreads only down to the home zoom. While a pinch has the
+  /// zoom below the min scale, the view is longer than a slot and the neighbors would show; they are
+  /// hidden then (neither painted, nor given link or overlay widgets), so zooming out shows the
+  /// pinched spread alone. At any other time every visible page is shown, so that a drag or a page
+  /// turn shows the neighbor sliding in.
+  int? get _soleSpreadToShow => _isPaged && _isScaleOverscrolled ? _pinchedSpread : null;
+
   /// Sets [_confinedSpread] for the current view of a paged layout, if it is zoomed in.
   void _updateConfinedSpread() {
     final layout = _layout;
@@ -1525,6 +1583,36 @@ class _PdfViewerState extends State<PdfViewer>
     if (layout == null || !_isPaged || _viewSize == null || layout.pageLayouts.isEmpty) return;
     final index = _mostVisibleSpread(layout, _visibleRect);
     if (index >= 0 && !_spreadFits(layout, index, _visibleRect)) _confinedSpread = index;
+  }
+
+  /// In paged mode ([PdfViewerParams.paging]), the spread a pinch-zoom started on, from the moment
+  /// the gesture changes the zoom until the view has settled. The pinch belongs to this spread:
+  ///
+  /// * while the zoom is below the min scale, it is the only spread shown ([_soleSpreadToShow]);
+  /// * the snap-back from below the min scale lands on it ([_scrollPhysicsBoundaryRect]);
+  /// * the pinch does not turn the page ([_turnPageOnInteractionEnd]), and the settle snap stays on
+  ///   it even if the pinch has dragged a neighbor further into view ([_settle]).
+  int? _pinchedSpread;
+
+  /// Whether a finger of the pinch is still down, so that the next gesture is the rest of it.
+  ///
+  /// A pinch never ends in one piece: one finger lifts first, which ends the two-finger gesture with
+  /// [ScaleEndDetails.pointerCount] 1, and the finger still down starts a new one-finger gesture. That
+  /// lone finger usually moves a little while lifting, which looks like a drag, or with some speed
+  /// like a flick.
+  bool _pinchContinues = false;
+
+  void _onInteractionUpdate(ScaleUpdateDetails details) {
+    final layout = _layout;
+    final startView = _interactionStartRect;
+    final startZoom = _interactionStartZoom;
+    if (_isPaged && _pinchedSpread == null && layout != null && startView != null && startZoom != null) {
+      if ((_currentZoom - startZoom).abs() > startZoom * 0.01) {
+        final index = _mostVisibleSpread(layout, startView);
+        if (index >= 0) _pinchedSpread = index;
+      }
+    }
+    widget.params.onInteractionUpdate?.call(details);
   }
 
   /// Turns to the adjacent spread in paged mode ([PdfViewerParams.paging]) ([direction] is 1 or -1) and
@@ -1540,6 +1628,8 @@ class _PdfViewerState extends State<PdfViewer>
     _settleTimer?.cancel();
     _settlePending = false;
     _confinedSpread = null;
+    _pinchedSpread = null;
+    _pinchContinues = false;
     final destination = _calcMatrixToShowSpread(layout, target, fromEnd: fromEnd);
     // The inner InteractiveViewer starts the fling inertia right after onInteractionEnd returns.
     scheduleMicrotask(() {
@@ -1571,6 +1661,10 @@ class _PdfViewerState extends State<PdfViewer>
     }
     final zoom = _currentZoom;
     if ((zoom - startZoom).abs() > startZoom * 0.01) return false; // pinch-zoom; snapped on settle
+    // A pinch that has not settled yet (see [_pinchedSpread]): the finger still down after the other
+    // has lifted is not a drag or a flick, however it moves while lifting; and a page turn would
+    // cancel the snap-back of the scale.
+    if (_pinchedSpread != null) return false;
 
     final vertical = layout.effectivePrimaryAxis == Axis.vertical;
     final startIndex = _mostVisibleSpread(layout, startView);
@@ -1721,6 +1815,7 @@ class _PdfViewerState extends State<PdfViewer>
   void _onInteractionEnd(ScaleEndDetails details) {
     widget.params.onInteractionEnd?.call(details);
     _turnPageOnInteractionEnd(details);
+    _pinchContinues = _pinchedSpread != null && details.pointerCount > 0;
     _stopInteraction();
     if (widget.params.onAnimationEnd != null) _scheduleAnimationEndCheck();
   }
@@ -1728,6 +1823,8 @@ class _PdfViewerState extends State<PdfViewer>
   void _onInteractionStart(ScaleStartDetails details) {
     _interactionDelegate?.stop(); // Stop physics when user touches
     _startInteraction();
+    // A new gesture, unless it is the rest of a pinch or interrupts its snap-back.
+    if (!_pinchContinues && !_isScaleOverscrolled) _pinchedSpread = null;
     if (_viewSize != null) {
       _interactionStartRect = _visibleRect;
       _interactionStartZoom = _currentZoom;
@@ -1970,6 +2067,9 @@ class _PdfViewerState extends State<PdfViewer>
 
     _layout = newLayout;
     _pageLayoutIndex = PageLayoutIndex(newLayout.pageLayouts);
+    // Spread indices of the previous layout are meaningless now.
+    _pinchedSpread = null;
+    _pinchContinues = false;
     _isSimplePageLayout = _isSimpleLayout(
       newLayout.pageLayouts,
       newLayout.documentSize.width > newLayout.documentSize.height,
@@ -2070,8 +2170,11 @@ class _PdfViewerState extends State<PdfViewer>
     final linkWidgets = <Widget>[];
     final overlayWidgets = <Widget>[];
     final targetRect = _getCacheExtentRect();
+    final soleSpread = _soleSpreadToShow;
 
     for (final i in _pageLayoutIndex!.intersecting(targetRect)) {
+      // The widgets of a hidden page are hidden with it.
+      if (soleSpread != null && _layout!.spreadIndexOf(i + 1) != soleSpread) continue;
       final rect = _layout!.pageLayouts[i];
 
       final page = _document!.pages[i];
@@ -2415,7 +2518,9 @@ class _PdfViewerState extends State<PdfViewer>
       if (!retainedPages.contains(pageNumber)) cache.cancelPendingRenderings(pageNumber);
     }
     unusedPageList.addAll(cache.pageImages.keys.where((pageNumber) => !retainedPages.contains(pageNumber)));
+    final soleSpread = _soleSpreadToShow;
     for (final i in pageIndices) {
+      if (soleSpread != null && _layout!.spreadIndexOf(i + 1) != soleSpread) continue;
       final rect = _layout!.pageLayouts[i];
       final page = _document!.pages[i];
       firstInExtent ??= page.pageNumber;
@@ -6072,10 +6177,12 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// The view port size (The widget's client area's size)
   Size get viewSize => _state._viewSize!;
 
-  /// The zoom ratio that fits the page's smaller side (either horizontal or vertical) to the view port.
+  /// The home zoom: the zoom ratio that fits the page's smaller side (either horizontal or vertical)
+  /// to the view port or, for [PdfFitMode.fill] and [PdfFitMode.fit] layouts, the one that fits the
+  /// document across the scroll axis (about 1.0).
   double get coverScale => _state._layoutMetrics.coverScale;
 
-  /// The zoom ratio that fits whole the page to the view port.
+  /// The zoom ratio that fits whole the page to the view port; for facing pages, the whole spread.
   double? get alternativeFitScale => _state._layoutMetrics.alternativeFitScale;
 
   /// The minimum zoom ratio allowed.
