@@ -263,10 +263,10 @@ class PdfFontManager {
   }) async {
     final initialGeneration = _generation;
     final initialRevision = initialGeneration?.registrationRevision ?? 0;
+    final backend = PdfrxEntryFunctions.instance;
     await prepare();
     await waitForFontEnvironmentChanges();
-    final backend = PdfrxEntryFunctions.instance;
-    if (!identical(_preparedBackend, backend)) {
+    if (!identical(backend, PdfrxEntryFunctions.instance)) {
       throw StateError('The PDF backend changed while preparing fonts. Retry the font load.');
     }
     var generation = _generation;
