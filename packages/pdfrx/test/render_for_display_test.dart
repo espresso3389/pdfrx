@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -60,4 +61,49 @@ void main() {
     await expectLater(TestPage(source).renderForDisplay(), throwsA(isA<Object>()));
     expect(source.disposed, isTrue);
   });
+  test('cancellation before decoding releases the intermediate without creating an image', () async {
+    final source = TestImage();
+    final token = _Token()..cancel();
+    expect(await TestPage(source).renderForDisplay(cancellationToken: token), isNull);
+    expect(source.disposed, isTrue);
+  });
+  for (final threshold in <int?>[null, 1]) {
+    test(
+      'cancellation during ${threshold == null ? 'normal' : 'downscaled'} decode releases the decoded image',
+      () async {
+        final previousCreate = ui.Image.onCreate;
+        final previousDispose = ui.Image.onDispose;
+        addTearDown(() {
+          ui.Image.onCreate = previousCreate;
+          ui.Image.onDispose = previousDispose;
+        });
+        final token = _Token();
+        ui.Image? decoded;
+        var disposeCount = 0;
+        ui.Image.onCreate = (image) {
+          previousCreate?.call(image);
+          decoded = image;
+          token.cancel();
+        };
+        ui.Image.onDispose = (image) {
+          previousDispose?.call(image);
+          if (identical(decoded, image)) disposeCount++;
+        };
+        final source = TestImage();
+        final result = await TestPage(source).renderForDisplay(cancellationToken: token, pixelSizeThreshold: threshold);
+        if (result != null) addTearDown(result.dispose);
+        expect(decoded, isNotNull);
+        expect(source.disposed, isTrue);
+        expect(result, isNull);
+        expect(disposeCount, 1);
+      },
+    );
+  }
+}
+
+class _Token implements PdfPageRenderCancellationToken {
+  @override
+  bool isCanceled = false;
+  @override
+  void cancel() => isCanceled = true;
 }
