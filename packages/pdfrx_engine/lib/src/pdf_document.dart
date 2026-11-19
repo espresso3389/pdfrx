@@ -226,6 +226,7 @@ abstract class PdfDocument {
   /// is cancelled.
   /// When [onPageLoadProgress] is called, it should return true to continue loading process or false to stop loading.
   /// [data] is an optional data that can be used to pass additional information to the callback.
+  /// Concurrent calls keep independent callbacks and cancellation; stopping one does not stop other consumers.
   ///
   /// [startPageNumber] is the 1-based page number to start measuring from. Pages are measured in order of their
   /// distance from [startPageNumber], alternating after and before it (start, start+1, start-1, start+2, start-2, ...),

@@ -174,6 +174,7 @@ typedef PdfDocumentViewBuilderErrorBuilder = Widget Function(
 
 class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
   StreamSubscription<PdfDocumentEvent>? _updateSubscription;
+  PdfDocument? _document;
 
   @override
   void initState() {
@@ -206,14 +207,17 @@ class _PdfDocumentViewBuilderState extends State<PdfDocumentViewBuilder> {
 
   void _onDocumentChanged() {
     if (mounted) {
-      _updateSubscription?.cancel();
       final document = widget.documentRef.resolveListenable().document;
-      _updateSubscription = document?.events.listen((event) {
-        if (mounted && event.type == PdfDocumentEventType.pageStatusChanged) {
-          setState(() {});
-        }
-      });
-      document?.loadPagesProgressively();
+      if (!identical(document, _document)) {
+        _updateSubscription?.cancel();
+        _document = document;
+        _updateSubscription = document?.events.listen((event) {
+          if (mounted && identical(_document, document) && event.type == PdfDocumentEventType.pageStatusChanged) {
+            setState(() {});
+          }
+        });
+        document?.loadPagesProgressively();
+      }
       if (mounted) setState(() {});
     }
   }

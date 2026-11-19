@@ -1032,6 +1032,7 @@ extension _FpdfUtf8StringExt on String {
 }
 
 typedef _PageMeasurement = ({int pageIndex, double width, double height, int rotation, double bbLeft, double bbBottom});
+typedef _PageMeasurements = ({List<_PageMeasurement> pages, int totalPageCount});
 
 class _PdfDocumentPdfium extends PdfDocument {
   final pdfium_bindings.FPDF_DOCUMENT document;
@@ -1141,6 +1142,29 @@ class _PdfDocumentPdfium extends PdfDocument {
     Duration loadUnitDuration = const Duration(milliseconds: 250),
     int? startPageNumber,
   }) async {
+    _progressiveLoadCount++;
+    try {
+      await _loadPagesProgressively(
+        onPageLoadProgress: onPageLoadProgress,
+        data: data,
+        loadUnitDuration: loadUnitDuration,
+        startPageNumber: startPageNumber,
+      );
+    } finally {
+      if (--_progressiveLoadCount == 0) {
+        _progressiveMeasurements.clear();
+        _progressiveNativePageCount = null;
+      }
+    }
+  }
+
+  /// Keeps each caller's progress callbacks, ordering, and cancellation independent of other consumers.
+  Future<void> _loadPagesProgressively<T>({
+    required Duration loadUnitDuration,
+    PdfPageLoadingCallback<T>? onPageLoadProgress,
+    T? data,
+    int? startPageNumber,
+  }) async {
     var pageSnapshot = _pages;
     var pageOrder = _pageIndicesOrderedFrom(pageSnapshot.length, startPageNumber).iterator;
     var nativePageCount = pageSnapshot.length;
@@ -1180,7 +1204,8 @@ class _PdfDocumentPdfium extends PdfDocument {
         }
         if (pending.isEmpty) break;
         final measuringSnapshot = pageSnapshot;
-        final loaded = await _measurePages(
+        final loaded = await _measurePagesProgressively(
+          pageSnapshot: measuringSnapshot,
           pageIndicesToLoad: pending.length <= limit ? pending : pending.sublist(0, limit),
           timeout: chunkTimeout.isNegative ? Duration.zero : chunkTimeout,
         );
@@ -1227,6 +1252,68 @@ class _PdfDocumentPdfium extends PdfDocument {
           return;
         }
       }
+    }
+  }
+
+  int _progressiveLoadCount = 0;
+  int? _progressiveNativePageCount;
+  Future<_PageMeasurements>? _progressiveMeasurement;
+  final _progressiveMeasurements = Map<PdfPage, _PageMeasurement>.identity();
+
+  /// Shares in-flight and not-yet-published measurements of the same immutable page placeholder.
+  ///
+  /// Measurement is serialized, but callers do not await each other's progress callbacks. Completed measurements
+  /// remain available until published, so a second caller cannot remeasure a page hidden by a longer load budget.
+  Future<_PageMeasurements> _measurePagesProgressively({
+    required List<PdfPage> pageSnapshot,
+    required List<int> pageIndicesToLoad,
+    required Duration timeout,
+  }) async {
+    final timer = Stopwatch()..start();
+    for (;;) {
+      if (isDisposed) return (pages: const <_PageMeasurement>[], totalPageCount: _pages.length);
+      final cached = <_PageMeasurement>[];
+      final remaining = <int>[];
+      for (final index in pageIndicesToLoad) {
+        if (index >= _pages.length || !identical(_pages[index], pageSnapshot[index])) continue;
+        final measurement = _progressiveMeasurements[pageSnapshot[index]];
+        if (measurement != null) {
+          cached.add(measurement);
+        } else if (index < (_progressiveNativePageCount ?? pageSnapshot.length)) {
+          remaining.add(index);
+        }
+      }
+      if (cached.isNotEmpty || remaining.isEmpty) {
+        return (pages: cached, totalPageCount: _progressiveNativePageCount ?? _pages.length);
+      }
+
+      final active = _progressiveMeasurement;
+      if (active != null) {
+        await active;
+        continue;
+      }
+
+      final remainingTime = timeout - timer.elapsed;
+      late final Future<_PageMeasurements> measurement;
+      measurement =
+          _measurePages(pageIndicesToLoad: remaining, timeout: remainingTime.isNegative ? Duration.zero : remainingTime)
+              .then((loaded) {
+                if (!isDisposed) {
+                  _progressiveNativePageCount = loaded.totalPageCount;
+                  for (final result in loaded.pages) {
+                    final index = result.pageIndex;
+                    if (index < _pages.length && identical(_pages[index], pageSnapshot[index])) {
+                      _progressiveMeasurements[pageSnapshot[index]] = result;
+                    }
+                  }
+                }
+                return loaded;
+              })
+              .whenComplete(() {
+                if (identical(_progressiveMeasurement, measurement)) _progressiveMeasurement = null;
+              });
+      _progressiveMeasurement = measurement;
+      return await measurement;
     }
   }
 
@@ -1297,7 +1384,7 @@ class _PdfDocumentPdfium extends PdfDocument {
 
   /// Measures pages on the worker in [pageIndicesToLoad] order, skipping indices outside the document.
   /// When that list is null, measures in document order from [firstPageIndex] onward.
-  Future<({List<_PageMeasurement> pages, int totalPageCount})> _measurePages({
+  Future<_PageMeasurements> _measurePages({
     List<int>? pageIndicesToLoad,
     int firstPageIndex = 0,
     int? maxPageCountToLoadAdditionally,
@@ -1489,6 +1576,10 @@ class _PdfDocumentPdfium extends PdfDocument {
   void _publishPages(List<PdfPage> pages, Map<int, PdfPageStatusChange> changes) {
     final pageCountChanged = _pages.length != pages.length;
     _pages = pages;
+    _progressiveMeasurements.removeWhere(
+      (page, _) => page.pageNumber > pages.length || !identical(pages[page.pageNumber - 1], page),
+    );
+    if (pageCountChanged) _progressiveNativePageCount = null;
     if (!isDisposed && (changes.isNotEmpty || pageCountChanged)) {
       _documentLoadCompleteNotified = false;
       subject.add(PdfDocumentPageStatusChangedEvent(this, changes: changes));
@@ -1527,6 +1618,7 @@ class _PdfDocumentPdfium extends PdfDocument {
   @override
   Future<void> dispose() {
     if (!isDisposed) subject.close();
+    _progressiveMeasurements.clear();
     return _lifetime.close(() async {
       await BackgroundWorker.compute((params) {
         final formHandle = pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle);
