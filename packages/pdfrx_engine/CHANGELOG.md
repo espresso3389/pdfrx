@@ -1,3 +1,12 @@
+# 0.9.6
+
+- Share progressive page measurements across concurrent PDFium consumers, and reload native pages in chunks so other work can run between them. [#833](https://github.com/espresso3389/pdfrx/pull/833), [#841](https://github.com/espresso3389/pdfrx/pull/841)
+- Honor HTTP freshness, validation and `no-store` directives. Complete cached PDFs reopen from the payload offset even with large cache headers. [#837](https://github.com/espresso3389/pdfrx/pull/837), [#844](https://github.com/espresso3389/pdfrx/pull/844)
+- Close native document and form handles before releasing their backing data when opening a PDF fails. [#836](https://github.com/espresso3389/pdfrx/pull/836), [#844](https://github.com/espresso3389/pdfrx/pull/844)
+- Share concurrent missing-font loads and coordinate registrations with font cache resets. [#838](https://github.com/espresso3389/pdfrx/pull/838)
+- Bound cached page-link metadata and reduce text-cache bookkeeping for large selections. [#839](https://github.com/espresso3389/pdfrx/pull/839), [#834](https://github.com/espresso3389/pdfrx/pull/834)
+- Reduce repeated character geometry scans when normalizing Hebrew text. [#832](https://github.com/espresso3389/pdfrx/pull/832)
+
 # 0.9.5
 
 - Reduced the overhead of progressive page loading in large PDFs, especially when using short load intervals. Pages replaced during loading retain their updated state. [#828](https://github.com/espresso3389/pdfrx/pull/828)

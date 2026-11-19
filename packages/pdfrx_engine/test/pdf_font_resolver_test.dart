@@ -440,6 +440,23 @@ void main() {
     expect(backend.reloads, 1);
   });
 
+  test('overlapping preparation on a replacement backend rejects the original load', () async {
+    final preparing = Completer<void>();
+    backend.onConfigure = () => preparing.future;
+    final manager = PdfFontManager(resolvers: [_Resolver((query, context) => _dataResolution())]);
+    final originalLoad = manager.loadMissingFonts([_query()]);
+    await _flush();
+    final replacement = _Backend();
+    PdfrxEntryFunctions.instance = replacement;
+    final replacementLoad = manager.loadMissingFonts([_query()]);
+    final rejected = expectLater(originalLoad, throwsStateError);
+    preparing.complete();
+    await rejected;
+    expect((await replacementLoad).loaded, hasLength(1));
+    expect(backend.dataRegistrations, 0);
+    expect(replacement.dataRegistrations, 1);
+  });
+
   test('backend replacement prepares and registers on the new backend', () async {
     final resolver = _Resolver((query, context) => _dataResolution());
     final manager = PdfFontManager(resolvers: [resolver]);
