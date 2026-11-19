@@ -213,10 +213,13 @@ class PdfImageCacheEntry {
     final pinned = isPinned ?? _isPinned;
     final needed = isNeeded ?? _isNeeded;
     if (pinned != _isPinned || needed != _isNeeded) {
+      final releasesCapacity = (_isPinned && !pinned) || (_isNeeded && !needed && !pinned);
       budget._adjustProtectedBytes(this, -bytes);
       _isPinned = pinned;
       _isNeeded = needed;
       budget._adjustProtectedBytes(this, bytes);
+      // A waiting owner may now evict this entry even when no image or reservation was released.
+      if (releasesCapacity) budget._scheduleChanged();
     }
     budget._entries
       ..remove(this)

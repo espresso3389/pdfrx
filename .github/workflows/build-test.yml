@@ -257,6 +257,11 @@ jobs:
         working-directory: packages/pdfrx
         run: flutter test test/pdf_viewer_content_cache_test.dart test/pdf_viewer_visible_render_state_test.dart
 
+      - name: Test shared image budget notifications
+        timeout-minutes: 5
+        working-directory: packages/pdfrx
+        run: flutter test test/pdf_image_cache_budget_test.dart test/pdf_viewer_budget_notifications_test.dart
+
       - name: Test process-wide PDFium gate
         timeout-minutes: 5
         working-directory: packages/pdfrx_engine
