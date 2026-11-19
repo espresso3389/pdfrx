@@ -57,6 +57,7 @@ class PdfFileCache {
   HttpCacheControlState _cacheControlState = HttpCacheControlState.empty;
   bool _initialized = false;
   RandomAccessFile? _raf;
+  Map<int, Uint8List>? _memoryBlocks;
 
   int get blockSize => _cacheBlockSize!;
 
@@ -98,6 +99,15 @@ class PdfFileCache {
   bool get isInitialized => _initialized;
 
   Future<void> close() async {
+    if (_memoryBlocks != null) {
+      _memoryBlocks!.clear();
+      _cacheControlState = HttpCacheControlState.empty;
+      _initialized = false;
+    }
+    await _closeFile();
+  }
+
+  Future<void> _closeFile() async {
     final raf = _raf;
     if (raf != null) {
       _rafFinalizer.detach(this); // Detach from finalizer since we are closing explicitly
@@ -124,10 +134,12 @@ class PdfFileCache {
   Future<void> _read(List<int> buffer, int bufferPosition, int position, int size) async {
     await _ensureFileOpen();
     await _raf!.setPosition(position);
-    await _raf!.readInto(buffer, bufferPosition, bufferPosition + size);
+    final bytesRead = await _raf!.readInto(buffer, bufferPosition, bufferPosition + size);
+    if (bytesRead != size) throw const PdfException('Truncated cache file');
   }
 
   Future<void> _write(int position, List<int> bytes) async {
+    if (_memoryBlocks != null) return;
     await _ensureFileOpen();
     await _raf!.setPosition(position);
     await _raf!.writeFrom(bytes, 0);
@@ -138,10 +150,61 @@ class PdfFileCache {
     return await _raf!.length();
   }
 
-  Future<void> read(List<int> buffer, int bufferPosition, int position, int size) =>
-      _read(buffer, bufferPosition, _headerSize! + position, size);
+  Future<void> read(List<int> buffer, int bufferPosition, int position, int size) async {
+    final memory = _memoryBlocks;
+    if (memory == null) {
+      await _read(buffer, bufferPosition, _headerSize! + position, size);
+      return;
+    }
+    while (size > 0) {
+      final block = position ~/ blockSize;
+      final offset = position % blockSize;
+      final count = min(size, blockSize - offset);
+      final bytes = memory[block];
+      if (bytes == null) throw const PdfException('Missing volatile cache block');
+      buffer.setRange(bufferPosition, bufferPosition + count, bytes, offset);
+      position += count;
+      bufferPosition += count;
+      size -= count;
+    }
+  }
 
-  Future<void> write(int position, List<int> bytes) => _write(_headerSize! + position, bytes);
+  Future<void> write(int position, List<int> bytes) async {
+    final memory = _memoryBlocks;
+    if (memory == null) {
+      await _write(_headerSize! + position, bytes);
+      return;
+    }
+    for (var source = 0; source < bytes.length;) {
+      final block = position ~/ blockSize;
+      final offset = position % blockSize;
+      final count = min(bytes.length - source, blockSize - offset);
+      final target = memory.putIfAbsent(
+        block,
+        () => Uint8List(fileSize > 0 ? min(blockSize, fileSize - block * blockSize) : blockSize),
+      );
+      target.setRange(offset, offset + count, bytes, source);
+      source += count;
+      position += count;
+    }
+  }
+
+  /// Keep no-store responses only in memory for the current document's lifetime.
+  Future<void> _useMemoryOnly({bool preserveContents = true}) async {
+    if (_memoryBlocks != null) return;
+    final blocks = <int, Uint8List>{};
+    if (preserveContents && isInitialized) {
+      for (var block = 0; block < totalBlocks; block++) {
+        if (!isCached(block)) continue;
+        final bytes = Uint8List(min(blockSize, fileSize - block * blockSize));
+        await read(bytes, 0, block * blockSize, bytes.length);
+        blocks[block] = bytes;
+      }
+    }
+    await _closeFile();
+    if (await file.exists()) await file.delete();
+    _memoryBlocks = blocks;
+  }
 
   bool isCached(int block) => _cacheState[block >> 3] & (1 << (block & 7)) != 0;
 
@@ -175,13 +238,11 @@ class PdfFileCache {
       }
       _fileSize = headerInt[1];
       _cacheBlockSize = headerInt[2];
-      if (_fileSize != 0) {
-        _cacheBlockCount = (_fileSize! + blockSize - 1) ~/ blockSize;
-      } else {
-        _cacheBlockCount = 1;
-      }
+      // A zero size is an unfinished unknown-length download, not a reusable PDF.
+      if (_fileSize! <= 0 || _cacheBlockSize! <= 0) throw const PdfException('Invalid cache file');
+      _cacheBlockCount = (_fileSize! + blockSize - 1) ~/ blockSize;
       final dataStrSize = headerInt[3];
-      if (dataStrSize > dataStrSizeMax) {
+      if (dataStrSize < 0 || dataStrSize > dataStrSizeMax) {
         throw const PdfException('Invalid cache file');
       }
       _cacheStatePosition = header1Size + dataStrSizeMax;
@@ -194,22 +255,35 @@ class PdfFileCache {
         _cacheControlState = HttpCacheControlState.empty;
       }
 
-      final data = _cacheState = Uint8List((_cacheBlockCount! + 7) >> 3);
+      final stateSize = (_cacheBlockCount! + 7) >> 3;
+      final physicalSize = await _getSize();
+      if (_cacheStatePosition! + stateSize > physicalSize) throw const PdfException('Truncated cache file');
+      final data = _cacheState = Uint8List(stateSize);
       _headerSize = _cacheStatePosition! + data.length;
       await _read(data, 0, _cacheStatePosition!, data.length);
 
-      if (_fileSize == 0) {
-        _fileSize = await _getSize() - _headerSize!;
+      for (var block = totalBlocks - 1; block >= 0; block--) {
+        if (!isCached(block)) continue;
+        if (_headerSize! + min((block + 1) * blockSize, fileSize) > physicalSize) {
+          throw const PdfException('Truncated cache file');
+        }
+        break;
       }
       _initialized = true;
     } catch (_) {
+      if ((_cacheBlockSize ?? 0) <= 0) _cacheBlockSize = null;
+      _cacheControlState = HttpCacheControlState.empty;
       _initialized = false;
     }
   }
 
   Future<void> invalidateCache() async {
-    await _ensureFileOpen();
-    await _raf!.truncate(0);
+    if (_memoryBlocks != null) {
+      _memoryBlocks!.clear();
+    } else {
+      await _ensureFileOpen();
+      await _raf!.truncate(0);
+    }
     _fileSize = 0;
     _cacheControlState = HttpCacheControlState.empty;
     _cacheBlockCount = 0;
@@ -238,7 +312,7 @@ class PdfFileCache {
     final blockCount = max(1, (fileSize + blockSize - 1) ~/ blockSize);
     final newHeaderSize = header1Size + dataStrSizeMax + ((blockCount + 7) >> 3);
     final oldHeaderSize = _headerSize;
-    if (!truncateExistingContent && oldHeaderSize != null && newHeaderSize > oldHeaderSize) {
+    if (_memoryBlocks == null && !truncateExistingContent && oldHeaderSize != null && newHeaderSize > oldHeaderSize) {
       await _ensureFileOpen();
       final raf = _raf!;
       var remaining = max(0, await raf.length() - oldHeaderSize);
@@ -272,9 +346,15 @@ class PdfFileCache {
   }
 
   Future<void> _saveCacheControlState() async {
-    final dataStrEncoded = utf8.encode(_cacheControlState.dataStr);
+    if (_memoryBlocks != null) return;
+    var dataStrEncoded = utf8.encode(_cacheControlState.dataStr);
     if (dataStrEncoded.length > dataStrSizeMax) {
-      throw const PdfException('HTTP headers too large');
+      // A validator is optional. Dropping an oversized ETag requires a full
+      // response (or Last-Modified validation) once this entry becomes stale.
+      dataStrEncoded = utf8.encode(_cacheControlState.dataStrWithoutEtag);
+    }
+    if (dataStrEncoded.length > dataStrSizeMax) {
+      dataStrEncoded = utf8.encode(HttpCacheControlState.empty.dataStr);
     }
     final sizeBuf = Int32List(1);
     sizeBuf[0] = dataStrEncoded.length;
@@ -298,11 +378,7 @@ class PdfFileCache {
     final names = normalizedHeaders.keys.toList()..sort();
     // HTTP header lines cannot contain CR/LF, so the joined identity is unambiguous.
     final identity = [uri.toString(), for (final name in names) '$name: ${normalizedHeaders[name]}'].join('\n');
-    final fnHash = sha1
-        .convert(utf8.encode(identity))
-        .bytes
-        .map((b) => b.toRadixString(16).padLeft(2, '0'))
-        .join();
+    final fnHash = sha1.convert(utf8.encode(identity)).bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     final dir1 = fnHash.substring(0, 2);
     final dir2 = fnHash.substring(2, 4);
     final body = fnHash.substring(4);
@@ -330,7 +406,9 @@ class _HttpClientWrapper {
 
 /// Open PDF file from [uri].
 ///
-/// On web, unlike [PdfDocument.openUri], this function uses HTTP's range request to download the file and uses [PdfFileCache].
+/// Uses HTTP range requests and [PdfFileCache] for demand loading.
+/// Responses with `no-store` use volatile blocks until the document is disposed;
+/// a server that sends the entire document therefore requires that payload in memory.
 Future<PdfDocument> pdfDocumentFromUri(
   Uri uri, {
   PdfPasswordProvider? passwordProvider,
@@ -352,9 +430,14 @@ Future<PdfDocument> pdfDocumentFromUri(
   final httpClientWrapper = _HttpClientWrapper(Pdfrx.createHttpClient ?? () => http.Client());
 
   try {
+    final requestPolicy = HttpCacheControlState.fromHeaders(headers ?? {}).cacheControl;
+    if (requestPolicy.noStore || resolvedCache.cacheControlState.cacheControl.noStore) {
+      await resolvedCache._useMemoryOnly(preserveContents: false);
+      await resolvedCache.invalidateCache();
+    }
     if (!resolvedCache.isInitialized) {
       resolvedCache.setBlockSize(blockSize ?? PdfFileCache.defaultBlockSize);
-      final result = await _downloadBlock(
+      await _downloadBlock(
         httpClientWrapper,
         uri,
         resolvedCache,
@@ -364,68 +447,29 @@ Future<PdfDocument> pdfDocumentFromUri(
         headers: headers,
         timeout: timeout,
       );
-      if (result.isFullDownload) {
-        await resolvedCache.close();
-        httpClientWrapper.reset();
-        return await entryFunctions.openFile(
-          resolvedCache.filePath,
-          passwordProvider: passwordProvider,
-          firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-          useProgressiveLoading: useProgressiveLoading,
-        );
-      }
-    } else {
-      // Check if the file is fresh (no-need-to-reload).
-      if (resolvedCache.cacheControlState.cacheControl.mustRevalidate &&
-          resolvedCache.cacheControlState.isFresh(now: DateTime.now())) {
-        // cache is valid; no need to download.
-      } else {
-        final result = await _downloadBlock(
-          httpClientWrapper,
-          uri,
-          resolvedCache,
-          progressCallback,
-          0,
-          addCacheControlHeaders: true,
-          useRangeAccess: useRangeAccess,
-          headers: headers,
-          timeout: timeout,
-        );
-        // cached file has expired
-        // if the file has fully downloaded again or has not been modified
-        //
-        // Only take this shortcut when the cache file really is the whole
-        // document. A 304 says the blocks we hold are still valid -- it says
-        // nothing about how many we hold. Opening a sparse cache file as a plain
-        // PDF hands pdfium a full-length file whose unfetched blocks are zeroes:
-        // it finds the header, rebuilds the xref from whatever objects happen to
-        // be present, and opens successfully. Every page backed by a block that
-        // was never fetched then renders blank, permanently and without an
-        // error, because this path has no way to fetch anything else. Falling
-        // through to the demand-paging reader below is both correct and what the
-        // 304 actually licenses.
-        if (result.isFullDownload || (result.notModified && resolvedCache.isFullyCached)) {
-          resolvedCache.close(); // close the cache file before opening it.
-          httpClientWrapper.reset();
-          return await entryFunctions.openFile(
-            resolvedCache.filePath,
-            passwordProvider: passwordProvider,
-            firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-            useProgressiveLoading: useProgressiveLoading,
-          );
-        }
-        if (result.notModified && Pdfrx.debugLazyLoading) {
-          pdfrxLazyLog(
-            'REVALIDATE 304 for $uri -- cache holds ${_fmtBytes(resolvedCache.cachedBytes)} of '
-            '${_fmtBytes(resolvedCache.fileSize)}, so continuing with demand paging instead of '
-            'opening the sparse cache file directly',
-          );
-        }
-      }
+    } else if (requestPolicy.noCache ||
+        !resolvedCache.cacheControlState.canReuse(now: DateTime.now(), maxAge: requestPolicy.maxAge)) {
+      await _downloadBlock(
+        httpClientWrapper,
+        uri,
+        resolvedCache,
+        progressCallback,
+        0,
+        addCacheControlHeaders: true,
+        useRangeAccess: useRangeAccess,
+        headers: headers,
+        timeout: timeout,
+      );
     }
 
+    // Even complete disk caches have a header and bitmap before the PDF payload.
+    final fullyCached = resolvedCache.isFullyCached;
     return await entryFunctions.openCustom(
       read: (buffer, position, size) async {
+        if (fullyCached) {
+          await resolvedCache.read(buffer, 0, position, size);
+          return size;
+        }
         final totalSize = size;
         final end = position + size;
         var bufferPosition = 0;
@@ -468,7 +512,7 @@ Future<PdfDocument> pdfDocumentFromUri(
       // NOTE: the trick does not work on Windows :(
       await resolvedCache.deleteCacheFile();
     }
-    resolvedCache.close();
+    await resolvedCache.close();
     httpClientWrapper.reset();
     rethrow;
   }
@@ -484,15 +528,8 @@ extension MapExtension<K, V> on Map<K, V> {
   }
 }
 
-class _DownloadResult {
-  _DownloadResult(this.fileSize, this.isFullDownload, this.notModified);
-  final int fileSize;
-  final bool isFullDownload;
-  final bool notModified;
-}
-
 // Download blocks of the file and cache the data to file.
-Future<_DownloadResult> _downloadBlock(
+Future<void> _downloadBlock(
   _HttpClientWrapper httpClientWrapper,
   Uri uri,
   PdfFileCache cache,
@@ -513,6 +550,7 @@ Future<_DownloadResult> _downloadBlock(
       if (addCacheControlHeaders) ...cache.cacheControlState.getHeadersForFetch(),
       ...?headers,
     });
+  final requestTime = DateTime.now();
   late final http.StreamedResponse response;
   try {
     response = await httpClientWrapper.client.send(request).timeout(timeout ?? const Duration(seconds: 5));
@@ -523,8 +561,45 @@ Future<_DownloadResult> _downloadBlock(
     httpClientWrapper.reset();
     throw PdfException('Failed to download PDF file: $e');
   }
+  final responseTime = DateTime.now();
   if (response.statusCode == 304) {
-    return _DownloadResult(cache.fileSize, false, true);
+    await response.stream.drain<void>();
+    final validators = cache.cacheControlState.getHeadersForFetch();
+    if (!addCacheControlHeaders ||
+        !cache.isInitialized ||
+        validators.isEmpty ||
+        !validators.entries.every((entry) => request.headers[entry.key] == entry.value) ||
+        (cache.cacheControlState.etag == null && request.headers.containsKey('if-none-match'))) {
+      throw const PdfException('Unexpected 304 response without a cached representation to validate');
+    }
+    final responseHeaders = {for (final entry in response.headers.entries) entry.key.toLowerCase(): entry.value};
+    final receivedEtag = responseHeaders['etag']?.trim();
+    final storedEtag = cache.cacheControlState.etag?.trim();
+    if (receivedEtag != null) {
+      // RFC 9111 section 4.3.4: a returned strong validator must identify the
+      // stored representation. Only a weak returned tag permits weak comparison.
+      final matches = receivedEtag.startsWith('W/')
+          ? storedEtag != null &&
+                receivedEtag.substring(2) == (storedEtag.startsWith('W/') ? storedEtag.substring(2) : storedEtag)
+          : receivedEtag == storedEtag;
+      if (!matches) throw const PdfException('304 ETag does not match the cached representation');
+    }
+    final state = cache.cacheControlState.revalidated(
+      responseHeaders,
+      requestTime: requestTime,
+      responseTime: responseTime,
+    );
+    if (receivedEtag == null &&
+        responseHeaders.containsKey('last-modified') &&
+        cache.cacheControlState.etag == null &&
+        state.lastModified != cache.cacheControlState.lastModified) {
+      throw const PdfException('304 Last-Modified does not match the cached representation');
+    }
+    // Retain compatibility with servers omitting validators on 304, but only
+    // after the exact stored conditional above, never a caller's different condition.
+    if (state.cacheControl.noStore) await cache._useMemoryOnly();
+    await cache.setCacheControlState(state);
+    return;
   }
 
   if (response.statusCode != 200 && response.statusCode != 206) {
@@ -558,10 +633,16 @@ Future<_DownloadResult> _downloadBlock(
       throw PdfException('Content-Range $contentRange does not match the requested bytes $blockOffset-${end - 1}');
     }
   }
+  final state = HttpCacheControlState.fromHeaders(
+    response.headers,
+    requestTime: requestTime,
+    responseTime: responseTime,
+  );
+  if (state.cacheControl.noStore) await cache._useMemoryOnly();
   if (!cache.isInitialized) {
     await cache.initializeWithFileSize(fileSize ?? 0, truncateExistingContent: true);
   }
-  await cache.setCacheControlState(HttpCacheControlState.fromHeaders(response.headers));
+  await cache.setCacheControlState(state);
 
   var offset = blockOffset;
   var cachedBytesSoFar = cache.cachedBytes;
@@ -628,6 +709,4 @@ Future<_DownloadResult> _downloadBlock(
       );
     }
   }
-
-  return _DownloadResult(fileSize!, isFullDownload, false);
 });
