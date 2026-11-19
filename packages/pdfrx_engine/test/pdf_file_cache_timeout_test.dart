@@ -185,6 +185,29 @@ void main() {
     });
   }
 
+  test('a pending cancellation cannot hold the lock for a queued range', () async {
+    final cleanup = Completer<void>();
+    final bodyStarted = Completer<void>();
+    final stalled = StreamController<List<int>>(onListen: bodyStarted.complete, onCancel: () => cleanup.future);
+    respond = (request) => request.headers['range'] == 'bytes=4-7'
+        ? http.StreamedResponse(stalled.stream, 206, headers: {'content-range': 'bytes 4-7/12'})
+        : range(request.headers['range'] == 'bytes=0-3' ? 0 : 8);
+    final document = await open();
+    addTearDown(document.dispose);
+    try {
+      final failed = timesOut(document.readBytes(4, 4));
+      await bodyStarted.future;
+      final queued = document.readBytes(8, 4);
+      await failed;
+      expect(await queued.timeout(const Duration(seconds: 2)), bytes.sublist(8));
+      expect(cache.isCached(1), isFalse);
+      expect(clients.first.closes, 1);
+    } finally {
+      cleanup.complete();
+      await stalled.close();
+    }
+  });
+
   test('a timed-out range releases the lock for a queued read and can be retried', () async {
     final stalled = body();
     var failMiddle = true;

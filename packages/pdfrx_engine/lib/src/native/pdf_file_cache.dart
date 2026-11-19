@@ -783,6 +783,11 @@ Future<void> _downloadBlock(
     download.cancel();
     rethrow;
   } finally {
-    await download.close();
+    if (download._cancelled) {
+      // The old client is detached. A custom stream may never finish cancelling.
+      download.close().ignore();
+    } else {
+      await download.close();
+    }
   }
 });
