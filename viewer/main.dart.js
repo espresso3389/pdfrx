@@ -28637,8 +28637,10 @@ _.d=d},
 Ci:function Ci(a,b,c){this.c=a
 this.d=b
 this.a=c},
-Hj:function Hj(){this.c=this.a=this.d=null},
-auw:function auw(a){this.a=a},
+Hj:function Hj(){var _=this
+_.c=_.a=_.e=_.d=null},
+auw:function auw(a,b){this.a=a
+this.b=b},
 auv:function auv(){},
 aux:function aux(){},
 Cw:function Cw(a,b,c,d){var _=this
@@ -100385,15 +100387,15 @@ r.b.C(0,s.gJ3())
 r.pf()
 s.aG()},
 J4(){var s,r,q,p=this
-if(p.c!=null){s=p.d
-if(s!=null)s.ad()
-r=p.a.c.iq().c
-s=r==null
-if(s)q=null
-else{q=r.f
-q=new A.eg(q,q.$ti.i("eg<1>")).hK(new A.auw(p))}p.d=q
-if(!s)r.aAD()
-if(p.c!=null)p.ai(new A.aux())}},
+if(p.c!=null){s=p.a.c.iq().c
+if(s!=p.e){r=p.d
+if(r!=null)r.ad()
+p.e=s
+r=s==null
+if(r)q=null
+else{q=s.f
+q=new A.eg(q,q.$ti.i("eg<1>")).hK(new A.auw(p,s))}p.d=q
+if(!r)s.aAD()}if(p.c!=null)p.ai(new A.aux())}},
 L(a){var s,r=this,q=r.a.c.iq()
 if(q.d!=null)r.a.toString
 s=q.c
@@ -100401,7 +100403,7 @@ if(s==null)r.a.toString
 return r.a.jl(a,s)}}
 A.auw.prototype={
 $1(a){var s=this.a
-if(s.c!=null&&a.giu()===B.wN)s.ai(new A.auv())},
+if(s.c!=null&&s.e===this.b&&a.giu()===B.wN)s.ai(new A.auv())},
 $S:52}
 A.auv.prototype={
 $0(){},
