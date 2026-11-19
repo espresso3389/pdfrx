@@ -606,7 +606,7 @@ class _PdfViewerState extends State<PdfViewer>
           .toList();
       if (unloadedPageNumbers.isNotEmpty) {
         try {
-          await document.reloadPages(pageNumbersToReload: unloadedPageNumbers);
+          await document.loadPageMetadata(pageNumbers: unloadedPageNumbers);
         } catch (error) {
           debugPrint('PdfViewer: Priority page loading failed: $error');
         }
@@ -750,13 +750,20 @@ class _PdfViewerState extends State<PdfViewer>
       for (final invalidateCopy in _textCopyInvalidators) {
         invalidateCopy(event);
       }
+      final pageCount = event.document.pages.length;
+      if (_layout != null && pageCount < _layout!.pageLayouts.length) {
+        _imageCache.releaseImagesAfter(pageCount);
+        _magnifierImageCache.releaseImagesAfter(pageCount);
+      }
       _layoutDirty = true;
       // FIXME: We can handle the event more efficiently by only updating the affected pages.
       for (final change in event.changes.entries) {
         _imageCache.cancelPendingRenderings(change.key);
         _magnifierImageCache.cancelPendingRenderings(change.key);
-        _imageCache.makeCacheImageForPageDirty(change.key, page: change.value.page);
-        _magnifierImageCache.makeCacheImageForPageDirty(change.key, page: change.value.page);
+        final status = change.value;
+        final metadataOnly = status is PdfPageStatusModified && !status.isContentChanged;
+        _imageCache.makeCacheImageForPageDirty(change.key, page: metadataOnly ? status.page : null);
+        _magnifierImageCache.makeCacheImageForPageDirty(change.key, page: metadataOnly ? status.page : null);
         _canvasLinkPainter.releaseLinksForPage(change.key);
         _textCache?.invalidate(change.key);
       }
@@ -2908,9 +2915,9 @@ class _PdfViewerState extends State<PdfViewer>
     }
     if (toMeasure.isEmpty) return;
 
-    // Deliberately not serialised. reloadPages reads the page list *after* its
-    // await and writes it back synchronously, so concurrent calls cannot clobber
-    // one another. Queueing them would mean one slow page -- a measurement that
+    // Deliberately not serialised here. Metadata loaders apply their results to
+    // the current page snapshot without overwriting concurrent edits. Queueing
+    // them here would mean one slow page -- a measurement that
     // faults a block and waits on the network -- holding up every other visible
     // page behind it, which shows up as a screen of blank pages instead of one.
     Future.microtask(() async {
@@ -2932,7 +2939,7 @@ class _PdfViewerState extends State<PdfViewer>
         final before = Pdfrx.debugLazyLoading
             ? {for (final n in pending) n: _fmtPageSize(document.pages[n - 1])}
             : null;
-        await document.reloadPages(pageNumbersToReload: pending);
+        await document.loadPageMetadata(pageNumbers: pending);
         if (Pdfrx.debugLazyLoading && mounted && _document == document) {
           final changed = <String>[];
           for (final n in pending) {
@@ -5602,7 +5609,12 @@ class _PdfPageImageCache {
 
   /// Disposes every image except those of [keep], cancelling their pending renders; see
   /// [PdfViewerController.releaseCachedImages].
-  void releaseImagesExcept(Set<int> keep) {
+  void releaseImagesExcept(Set<int> keep) => _releaseImagesWhere((pageNumber) => !keep.contains(pageNumber));
+
+  /// Releases removed page slots before cache entries are compared with the new layout.
+  void releaseImagesAfter(int lastPageNumber) => _releaseImagesWhere((pageNumber) => pageNumber > lastPageNumber);
+
+  void _releaseImagesWhere(bool Function(int pageNumber) shouldRelease) {
     final pageNumbers = {
       ...pageImages.keys,
       ...pageImagesPartial.keys,
@@ -5613,7 +5625,7 @@ class _PdfPageImageCache {
       ...partialRenderFailures.keys,
     };
     for (final pageNumber in pageNumbers) {
-      if (keep.contains(pageNumber)) continue;
+      if (!shouldRelease(pageNumber)) continue;
       cancelPendingRenderings(pageNumber);
       pageImages.remove(pageNumber)?.dispose();
       pageImagesPartial.remove(pageNumber)?.dispose();
@@ -5650,11 +5662,9 @@ class _PdfPageImageCache {
 
   /// Marks the cached bitmaps for [pageNumber] as needing a re-render.
   ///
-  /// When [page] is given, bitmaps already rendered from that same geometry are
-  /// left alone: re-rendering them would burn a full page render on the worker
-  /// isolate to produce a pixel-identical image. This matters under on-demand
-  /// measurement, where every page raises a status change as its estimated size
-  /// is replaced -- usually by the very same size.
+  /// [page] must only be supplied for a metadata-only update. Bitmaps rendered
+  /// from that same geometry can then be retained after progressive measurement.
+  /// Content reloads and page moves invalidate images regardless of geometry.
   void makeCacheImageForPageDirty(int pageNumber, {PdfPage? page}) {
     final geometry = page == null ? null : _pageGeometryOf(page);
     bool stillValid(_PdfImageWithScale image) => geometry != null && image.pageGeometry == geometry;

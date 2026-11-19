@@ -1052,7 +1052,7 @@ extension _FpdfUtf8StringExt on String {
 typedef _PageMeasurement = ({int pageIndex, double width, double height, int rotation, double bbLeft, double bbBottom});
 typedef _PageMeasurements = ({List<_PageMeasurement> pages, int totalPageCount});
 
-class _PdfDocumentPdfium extends PdfDocument {
+class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
   final pdfium_bindings.FPDF_DOCUMENT document;
   final void Function()? disposeCallback;
   final int securityHandlerRevision;
@@ -1279,7 +1279,10 @@ class _PdfDocumentPdfium extends PdfDocument {
         for (final index in measured.keys.toList()..sort()) {
           final page = measured[index]!;
           pages[index] = page;
-          changes[index + 1] = PdfPageStatusChange.modified(page: page);
+          changes[index + 1] = PdfPageStatusChange.modified(
+            page: page,
+            isContentChanged: !_samePageSource(pageSnapshot[index], page),
+          );
         }
         _publishPages(UnmodifiableListView(pages), changes);
         pageSnapshot = _pages;
@@ -1516,9 +1519,14 @@ class _PdfDocumentPdfium extends PdfDocument {
   var _pageListRevision = 0;
 
   @override
-  Future<void> reloadPages({List<int>? pageNumbersToReload}) {
+  Future<void> reloadPages({List<int>? pageNumbersToReload}) => _reloadPages(pageNumbersToReload);
+
+  @override
+  Future<void> loadPageMetadata({required List<int> pageNumbers}) => _reloadPages(pageNumbers, metadataOnly: true);
+
+  Future<void> _reloadPages(List<int>? pageNumbers, {bool metadataOnly = false}) {
     // Copy before the first await so later caller mutations cannot change this request.
-    final requested = pageNumbersToReload?.toList(growable: false);
+    final requested = pageNumbers?.toList(growable: false);
     return _lifetime.use(
       () => _reloadSync.synchronized(() async {
         final revision = _pageListRevision;
@@ -1530,14 +1538,22 @@ class _PdfDocumentPdfium extends PdfDocument {
         if (requested != null) {
           for (final pageNumber in requested) {
             if (pageNumber < 1 || pageNumber > pageCount) {
-              throw ArgumentError.value(pageNumber, 'pageNumbersToReload', 'Page number is outside the document');
+              throw ArgumentError.value(
+                pageNumber,
+                metadataOnly ? 'pageNumbers' : 'pageNumbersToReload',
+                'Page number is outside the document',
+              );
             }
           }
         }
 
         // A native insertion/removal may shift every slot, including unrequested pages.
         final reloadAll = requested == null || pageCount != _pages.length;
-        final indices = reloadAll ? null : (SplayTreeSet<int>.of(requested.map((number) => number - 1))).toList();
+        final indices = reloadAll
+            ? null
+            : (SplayTreeSet<int>.of(
+                requested.where((number) => !metadataOnly || !_pages[number - 1].isLoaded).map((number) => number - 1),
+              )).toList();
         if (indices != null && indices.isEmpty) return;
 
         final measured = <_PageMeasurement>[];
@@ -1578,7 +1594,7 @@ class _PdfDocumentPdfium extends PdfDocument {
             newPages.add(page);
           }
         }
-        pages = newPages;
+        _setPages(newPages, isContentChanged: !metadataOnly || reloadAll);
       }),
     );
   }
@@ -1587,7 +1603,18 @@ class _PdfDocumentPdfium extends PdfDocument {
   List<PdfPage> get pages => _pages;
 
   @override
-  set pages(Iterable<PdfPage> newPages) {
+  set pages(Iterable<PdfPage> newPages) => _setPages(newPages);
+
+  static bool _samePageSource(PdfPage previous, PdfPage next) {
+    final oldSource = previous.unwrap<_PdfPagePdfium>();
+    final newSource = next.unwrap<_PdfPagePdfium>();
+    return oldSource != null &&
+        newSource != null &&
+        identical(oldSource.document, newSource.document) &&
+        oldSource.pageNumber == newSource.pageNumber;
+  }
+
+  void _setPages(Iterable<PdfPage> newPages, {bool isContentChanged = true}) {
     final pages = <PdfPage>[];
     final changes = <int, PdfPageStatusChange>{};
     final oldIndexByPage = HashMap<PdfPage, int>.identity();
@@ -1615,7 +1642,11 @@ class _PdfDocumentPdfium extends PdfDocument {
       if (oldPageIndex != -1) {
         changes[newPageNumber] = PdfPageStatusChange.moved(page: updated, oldPageNumber: oldPageIndex + 1);
       } else {
-        changes[newPageNumber] = PdfPageStatusChange.modified(page: updated);
+        changes[newPageNumber] = PdfPageStatusChange.modified(
+          page: updated,
+          isContentChanged:
+              isContentChanged || newPageNumber > _pages.length || !_samePageSource(_pages[newPageNumber - 1], updated),
+        );
       }
     }
 

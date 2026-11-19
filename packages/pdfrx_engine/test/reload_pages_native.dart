@@ -111,6 +111,24 @@ void registerReloadPagesNativeTests() {
       expect(document.pages.map((page) => page.pageNumber), [1, 2, 3, 4]);
     });
 
+    test('metadata loading conservatively reports content changes after native page-count changes', () async {
+      final document = await open();
+      final event = document.events
+          .where((event) => event is PdfDocumentPageStatusChangedEvent)
+          .cast<PdfDocumentPageStatusChangedEvent>()
+          .first;
+      await document.useNativeDocumentHandle((address) {
+        native.pdfium.FPDFPage_Delete(bindings.FPDF_DOCUMENT.fromAddress(address), 0);
+      });
+
+      await document.loadPageMetadata(pageNumbers: const []);
+      final changes = (await event).changes;
+
+      expect(document.pages.map((page) => page.width), [201, 202]);
+      expect(changes.keys, [1, 2]);
+      expect(changes.values.cast<PdfPageStatusModified>().every((change) => change.isContentChanged), isTrue);
+    });
+
     test('an empty request does not measure or replace an unchanged page list', () async {
       final document = await open();
       final previous = document.pages;
