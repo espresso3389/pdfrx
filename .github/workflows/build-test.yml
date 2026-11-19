@@ -370,6 +370,15 @@ jobs:
         working-directory: packages/pdfrx
         run: node --test test/pdfium_worker_metadata_test.cjs test/pdfium_worker_range_response_test.cjs test/pdfium_worker_font_cache_test.cjs
 
+      - name: Test PDFium worker communication failures
+        working-directory: packages/pdfrx
+        run: node --test test/pdfium_client_failure_test.cjs
+
+      - name: Test Web worker failure propagation
+        timeout-minutes: 5
+        working-directory: packages/pdfrx
+        run: flutter test --platform chrome test/wasm_worker_failure_test.dart
+
       - name: Test Web page metadata and lifetime events
         timeout-minutes: 5
         working-directory: packages/pdfrx

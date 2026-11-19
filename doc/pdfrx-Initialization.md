@@ -84,6 +84,24 @@ For Flutter apps, `pdfium_flutter` is the recommended PDFium integration package
 - Web builds use PDFium WASM instead of FFI
 
 
+## Web worker failures
+
+The Web backend loads PDFium in a shared Web Worker. An uncaught worker error, a message-deserialization failure,
+or failed WASM initialization rejects every pending operation and releases registered progress callbacks. Later
+operations also fail promptly. A synchronous message-cloning error rejects only that command, so other documents
+can continue using a healthy worker.
+
+Worker initialization has a two-minute deadline, starting when the `init` command is sent. It includes downloading
+and compiling WASM and restoring cached fonts; it ends when the initialization command succeeds. Runtime rendering,
+downloads, and document mutations have no blanket worker timeout. A timeout that merely abandoned a save or edit
+would leave its outcome unknown.
+
+A fatal failure terminates the worker and invalidates all of its document handles. pdfrx does not automatically
+restart the worker or replay commands: callers must report the failure and reload the page before opening documents
+again. Pending commands reject once, and late replies or progress events from the failed worker are ignored. The
+initialization deadline does not apply to loading the client JavaScript module itself, and cannot preempt a blocked
+browser main thread.
+
 ## Native Build Requirements
 
 `pdfium_dart` uses its Dart build hook to compile a small native library that prevents simultaneous PDFium access from multiple Flutter engines. It contains a lock shared within the application process. The library is named `pdfrx_pdfium_gate`; "gate" refers to this access control. A C toolchain is required for native builds even when [`processWidePdfiumGate`](https://pub.dev/documentation/pdfrx/latest/pdfrx/pdfrxFlutterInitialize.html) is false or a custom `PDFIUM_PATH` is used:
