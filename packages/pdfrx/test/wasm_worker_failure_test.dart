@@ -27,7 +27,13 @@ void main() {
 
     // The server appends a fault-injection shim to the actual worker source.
     // loadText is held until an uncaught error exits the worker's event handler.
-    final failed = throwsA(predicate<Object>((error) => error.toString().contains('injected worker crash')));
+    // Browsers may redact error text from the separate hybrid-server origin.
+    final failed = throwsA(
+      predicate<Object>(
+        (error) =>
+            ['injected worker crash', 'Script error.', 'PDFium WASM worker failed'].any(error.toString().contains),
+      ),
+    );
     final pendingText = expectLater(doc.pages.first.loadText(), failed);
     final pendingCommand = expectLater(_command('testHold'), failed);
     final crash = expectLater(_command('testCrash'), failed);
