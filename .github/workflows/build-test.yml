@@ -219,10 +219,10 @@ jobs:
         working-directory: packages/pdfrx/example/viewer
         run: flutter build linux --debug --verbose
 
-      - name: Test progressive page loading
+      - name: Test page loading and text caching
         timeout-minutes: 5
         working-directory: packages/pdfrx_engine
-        run: dart test test/pdf_document_test.dart
+        run: dart test test/pdf_document_test.dart test/pdf_page_text_cache_test.dart
 
       - name: Test document builder identity and progress updates
         working-directory: packages/pdfrx

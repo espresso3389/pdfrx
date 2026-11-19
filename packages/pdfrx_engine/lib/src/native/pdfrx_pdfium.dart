@@ -1319,8 +1319,8 @@ class _PdfDocumentPdfium extends PdfDocument {
     }
   }
 
-  /// Maximum duration of a single page-measurement task sent to the worker by [loadPagesProgressively] and by a
-  /// non-progressive open.
+  /// Maximum duration of a single page-measurement task sent to the worker by [loadPagesProgressively],
+  /// [reloadPages], and a non-progressive open.
   ///
   /// About two pages on a typical desktop: small enough that a render queued behind it waits roughly one page's
   /// worth of measurement, large enough that the per-task worker round-trip stays negligible.
@@ -1391,6 +1391,7 @@ class _PdfDocumentPdfium extends PdfDocument {
     int firstPageIndex = 0,
     int? maxPageCountToLoadAdditionally,
     Duration? timeout,
+    BackgroundWorkerPriority? priority,
   }) {
     return _computeWithArena(
       (arena, params) {
@@ -1437,6 +1438,7 @@ class _PdfDocumentPdfium extends PdfDocument {
         maxPageCountToLoadAdditionally: maxPageCountToLoadAdditionally,
         timeoutUs: timeout?.inMicroseconds,
       ),
+      priority: priority,
     );
   }
 
@@ -1467,72 +1469,75 @@ class _PdfDocumentPdfium extends PdfDocument {
     return pages[min(max(pageIndex - 1, 0), pages.length - 1)];
   }
 
+  final _reloadSync = Object();
+  var _pageListRevision = 0;
+
   @override
-  Future<void> reloadPages({List<int>? pageNumbersToReload}) async {
-    _ensureNotDisposed();
-    final results = await _computeWithArena(
-      (arena, params) {
-        final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docAddress);
-        final pageCount = pdfium.FPDF_GetPageCount(doc);
-        int? invalidPageNumber;
-        if (params.pageNumbersToReload != null) {
-          for (final pageNumber in params.pageNumbersToReload!) {
-            if (pageNumber < 1 || pageNumber > pageCount) {
-              invalidPageNumber = pageNumber;
-              break;
-            }
-          }
-        }
-
-        final pageNumbersToLoad = SplayTreeSet.from(params.pageNumbersToReload ?? []);
-        pageNumbersToLoad.addAll(
-          Iterable.generate(pageCount - params.currentPageCount, (index) => params.currentPageCount + index + 1),
+  Future<void> reloadPages({List<int>? pageNumbersToReload}) {
+    // Copy before the first await so later caller mutations cannot change this request.
+    final requested = pageNumbersToReload?.toList(growable: false);
+    return _lifetime.use(
+      () => _reloadSync.synchronized(() async {
+        final revision = _pageListRevision;
+        final pageCount = await _computeWithArena(
+          (arena, address) => pdfium.FPDF_GetPageCount(pdfium_bindings.FPDF_DOCUMENT.fromAddress(address)),
+          document.address,
+          priority: BackgroundWorkerPriority.high,
         );
-
-        final pages = <({int pageIndex, double width, double height, int rotation, double bbLeft, double bbBottom})>[];
-        if (invalidPageNumber == null) {
-          for (final pageNumber in pageNumbersToLoad) {
-            final page = pdfium.FPDF_LoadPage(doc, pageNumber - 1);
-            try {
-              final rect = arena<pdfium_bindings.FS_RECTF>();
-              pdfium.FPDF_GetPageBoundingBox(page, rect);
-              pages.add((
-                pageIndex: pageNumber - 1,
-                width: pdfium.FPDF_GetPageWidthF(page),
-                height: pdfium.FPDF_GetPageHeightF(page),
-                rotation: page == nullptr ? 0 : pdfium.FPDFPage_GetRotation(page),
-                bbLeft: rect.ref.left.toDouble(),
-                bbBottom: rect.ref.bottom.toDouble(),
-              ));
-            } finally {
-              pdfium.FPDF_ClosePage(page);
+        if (requested != null) {
+          for (final pageNumber in requested) {
+            if (pageNumber < 1 || pageNumber > pageCount) {
+              throw ArgumentError.value(pageNumber, 'pageNumbersToReload', 'Page number is outside the document');
             }
           }
         }
-        return (pages: pages, invalidPageNumber: invalidPageNumber);
-      },
-      (docAddress: document.address, pageNumbersToReload: pageNumbersToReload, currentPageCount: _pages.length),
-      priority: BackgroundWorkerPriority.high,
-    );
-    if (results.invalidPageNumber != null) {
-      throw ArgumentError.value(
-        results.invalidPageNumber,
-        'pageNumbersToReload',
-        'Page number is outside the document',
-      );
-    }
 
-    final newPages = [..._pages];
-    for (var i = 0; i < results.pages.length; i++) {
-      final pageData = results.pages[i];
-      final newPage = _measuredPage(pageData, _sizeSourceFor(newPages, pageData.pageIndex));
-      if (pageData.pageIndex < newPages.length) {
-        newPages[pageData.pageIndex] = newPage;
-      } else {
-        newPages.add(newPage);
-      }
-    }
-    pages = newPages;
+        // A native insertion/removal may shift every slot, including unrequested pages.
+        final reloadAll = requested == null || pageCount != _pages.length;
+        final indices = reloadAll ? null : (SplayTreeSet<int>.of(requested.map((number) => number - 1))).toList();
+        if (indices != null && indices.isEmpty) return;
+
+        final measured = <_PageMeasurement>[];
+        final count = indices?.length ?? pageCount;
+        for (var cursor = 0; cursor < count;) {
+          final results = await _measurePages(
+            pageIndicesToLoad: indices?.sublist(cursor, min(cursor + _measurementChunkPageLimit, count)),
+            firstPageIndex: cursor,
+            maxPageCountToLoadAdditionally: _measurementChunkPageLimit,
+            timeout: _measurementChunkDuration,
+            priority: BackgroundWorkerPriority.high,
+          );
+          if (results.totalPageCount != pageCount) {
+            throw StateError('Native page count changed while reloading pages; retry the reload.');
+          }
+          measured.addAll(results.pages);
+          cursor += results.pages.length;
+        }
+        final finalPageCount = await _computeWithArena(
+          (arena, address) => pdfium.FPDF_GetPageCount(pdfium_bindings.FPDF_DOCUMENT.fromAddress(address)),
+          document.address,
+          priority: BackgroundWorkerPriority.high,
+        );
+        if (finalPageCount != pageCount) {
+          throw StateError('Native page count changed while reloading pages; retry the reload.');
+        }
+        if (_pageListRevision != revision) {
+          throw StateError('Page list changed while reloading pages; retry the reload.');
+        }
+
+        // Preserve unrelated progressive measurements, and publish only once all chunks succeeded.
+        final newPages = _pages.take(pageCount).toList();
+        for (final data in measured) {
+          final page = _measuredPage(data, _sizeSourceFor(newPages, data.pageIndex));
+          if (data.pageIndex < newPages.length) {
+            newPages[data.pageIndex] = page;
+          } else {
+            newPages.add(page);
+          }
+        }
+        pages = newPages;
+      }),
+    );
   }
 
   @override
@@ -1571,6 +1576,7 @@ class _PdfDocumentPdfium extends PdfDocument {
       }
     }
 
+    _pageListRevision++;
     _publishPages(List.unmodifiable(pages), changes);
   }
 

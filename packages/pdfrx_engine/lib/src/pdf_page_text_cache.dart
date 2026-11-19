@@ -150,8 +150,17 @@ class PdfPageTextCache {
   }
 
   void _observe(PdfDocument document) {
+    var pageCount = document.pages.length;
     document.events.listen((event) {
       if (event is PdfDocumentPageStatusChangedEvent) {
+        final newPageCount = event.document.pages.length;
+        if (newPageCount < pageCount) {
+          // Removed tail pages do not appear in the event's change map.
+          for (final pageNumber in {..._entries.keys, ..._pending.keys}) {
+            if (pageNumber > newPageCount) invalidate(pageNumber);
+          }
+        }
+        pageCount = newPageCount;
         for (final pageNumber in event.changes.keys) {
           invalidate(pageNumber);
         }

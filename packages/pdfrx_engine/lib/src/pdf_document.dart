@@ -306,6 +306,10 @@ abstract class PdfDocument {
   /// Reload specified pages.
   ///
   /// [pageNumbersToReload] is the list of page numbers (1-based) to reload. If null, all pages are reloaded.
+  /// An empty list leaves existing pages unchanged when the native page count is unchanged.
+  /// The native PDFium backend reloads all current pages if their count changed, because insertions and removals
+  /// may shift the remaining page indices. Invalid page numbers are rejected before publishing any changes.
+  /// Complete native edits before calling this method, and avoid editing the native document while it reloads.
   Future<void> reloadPages({List<int>? pageNumbersToReload});
 
   /// Associate a [PdfFontManager] to the document to handle font loading/substitution for missing fonts.

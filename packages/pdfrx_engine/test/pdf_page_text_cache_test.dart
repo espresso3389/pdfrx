@@ -205,6 +205,27 @@ void main() {
     await document.eventsController.close();
     expect(cache.length, 0);
   });
+
+  test('page removal invalidates cached and pending tail pages without change entries', () async {
+    final document = _Document();
+    final cache = PdfPageTextCache.forDocument(document);
+    await cache.load(document.pages.first);
+    await cache.load(document.pages.last);
+    final removedPage = _Page(2)..gate = Completer<void>();
+    final pending = cache.load(removedPage);
+    document.pages = [document.pages.first];
+    document.eventsController.add(PdfDocumentPageStatusChangedEvent(document, changes: const {}));
+    await Future<void>.delayed(Duration.zero);
+
+    removedPage.gate!.complete();
+    await pending;
+
+    expect(cache.length, 1);
+    expect(cache.get(1), isNotNull);
+    expect(cache.get(2), isNull);
+    expect(cache.get(3), isNull);
+    await document.eventsController.close();
+  });
 }
 
 class _Page implements PdfPage {
@@ -234,6 +255,9 @@ class _Page implements PdfPage {
 
 class _Document implements PdfDocument {
   final eventsController = StreamController<PdfDocumentEvent>();
+
+  @override
+  List<PdfPage> pages = List.generate(3, (index) => _Page(index + 1));
 
   @override
   Stream<PdfDocumentEvent> get events => eventsController.stream;
