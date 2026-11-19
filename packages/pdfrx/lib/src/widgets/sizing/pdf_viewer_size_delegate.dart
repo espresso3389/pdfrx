@@ -167,10 +167,15 @@ class PdfViewerLayoutSnapshot {
   /// the delegate's calculation in [PdfViewerSizeDelegate.calculateMetrics].
   final double minScale;
 
-  /// The scale required to fit the document's bounding box within the viewport.
+  /// The home zoom of the document.
+  ///
+  /// For [PdfFitMode.fill] and [PdfFitMode.fit] layouts, whose geometry is already sized to the
+  /// viewport, it fits the document across the scroll axis (about 1.0). Otherwise it is the scale
+  /// at which the document covers the viewport (the larger of the fit-width and fit-height scales).
   final double coverScale;
 
-  /// The scale required to fit the content (usually the current page) entirely within the viewport.
+  /// The scale required to fit the content (the spread of the current page: the page itself, or
+  /// e.g. both facing pages) entirely within the viewport.
   ///
   /// Conventionally, delegates calculate this as the "Fit Page" scale.
   ///

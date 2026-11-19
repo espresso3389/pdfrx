@@ -173,9 +173,17 @@ class PdfViewerSizeDelegateLegacy implements PdfViewerSizeDelegate {
       final s1 = viewSize.width / (layout.documentSize.width + bmh);
       final s2 = viewSize.height / (layout.documentSize.height + bmv);
       coverScale = math.max(s1, s2);
+      // `fill`/`fit` geometry is already sized to the viewport across the scroll axis, so its home
+      // zoom is the cross-axis fit. Covering the viewport would zoom in on a document that is shorter
+      // than the view along the scroll axis (a few pages, or a single one).
+      if (layout.fitMode == PdfFitMode.fill || layout.fitMode == PdfFitMode.fit) {
+        coverScale = layout.effectivePrimaryAxis == Axis.vertical ? s1 : s2;
+      }
     }
     if (pageNumber != null && pageNumber >= 1 && pageNumber <= layout!.pageLayouts.length) {
-      final rect = layout.pageLayouts[pageNumber - 1];
+      // Fit the whole spread (e.g. both facing pages), not one of its pages.
+      final spreadIndex = layout.spreadIndexOf(pageNumber);
+      final rect = spreadIndex >= 0 ? layout.spreadBounds[spreadIndex] : layout.pageLayouts[pageNumber - 1];
       final m2 = pageMargin * 2;
       alternativeFitScale = math.min(
         (viewSize.width) / (rect.width + bmh + m2),
@@ -197,8 +205,9 @@ class PdfViewerSizeDelegateLegacy implements PdfViewerSizeDelegate {
         // Floor at fit-width (for `fill` geometry this is about 1.0).
         effectiveMinScale = coverScale;
       case PdfFitMode.fit:
-        // Floor at fit-page.
-        effectiveMinScale = alternativeFitScale ?? coverScale;
+        // Floor at fit-page (fit-spread), but never above the home zoom (coverScale): a spread
+        // narrower than the view, such as a cover page, must not force the view to zoom in.
+        effectiveMinScale = math.min(alternativeFitScale ?? coverScale, coverScale);
       case PdfFitMode.none:
         // Previous behavior, unchanged.
         effectiveMinScale = !_useAlternativeFitScaleAsMinScale
