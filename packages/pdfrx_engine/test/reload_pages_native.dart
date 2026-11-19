@@ -98,6 +98,29 @@ void registerReloadPagesNativeTests() {
       expect(cache.get(3), isNull);
     });
 
+    test('metadata preserves removed pages and loaded page identities', () async {
+      final document = await open();
+      document.pages = document.pages.skip(1).toList();
+      final edited = document.pages;
+      await document.loadPageMetadata(pageNumbers: [1, 2]);
+      expect(document.pages, same(edited));
+      expect(document.pages.map((page) => page.width), [201, 202]);
+    });
+
+    test('metadata measures moved and imported placeholders at their source slots', () async {
+      final document = await PdfDocument.openData(buildBlankPdf(4), useProgressiveLoading: true);
+      addTearDown(document.dispose);
+      final other = await PdfDocument.openData(buildBlankPdf(5), useProgressiveLoading: true);
+      addTearDown(other.dispose);
+      document.pages = [document.pages[2], other.pages[4].rotatedCW90()];
+      expect(document.pages.every((page) => !page.isLoaded), isTrue);
+      await document.loadPageMetadata(pageNumbers: [2, 1]);
+      expect(document.pages.map((page) => page.width), [202, 304]);
+      expect(document.pages.map((page) => page.pageNumber), [1, 2]);
+      expect(document.pages.last.document, same(other));
+      expect(document.pages.every((page) => page.isLoaded), isTrue);
+    });
+
     test('an empty request synchronizes native insertion and shifted pages', () async {
       final document = await open();
       await document.useNativeDocumentHandle((address) {
@@ -109,6 +132,24 @@ void registerReloadPagesNativeTests() {
 
       expect(document.pages.map((page) => page.width), [200, 900, 201, 202]);
       expect(document.pages.map((page) => page.pageNumber), [1, 2, 3, 4]);
+    });
+
+    test('metadata loading conservatively reports content changes after native page-count changes', () async {
+      final document = await open();
+      final event = document.events
+          .where((event) => event is PdfDocumentPageStatusChangedEvent)
+          .cast<PdfDocumentPageStatusChangedEvent>()
+          .first;
+      await document.useNativeDocumentHandle((address) {
+        native.pdfium.FPDFPage_Delete(bindings.FPDF_DOCUMENT.fromAddress(address), 0);
+      });
+
+      await document.loadPageMetadata(pageNumbers: const []);
+      final changes = (await event).changes;
+
+      expect(document.pages.map((page) => page.width), [201, 202]);
+      expect(changes.keys, [1, 2]);
+      expect(changes.values.cast<PdfPageStatusModified>().every((change) => change.isContentChanged), isTrue);
     });
 
     test('an empty request does not measure or replace an unchanged page list', () async {

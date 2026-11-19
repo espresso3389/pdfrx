@@ -26,7 +26,11 @@ abstract class PdfPageStatusChange {
       PdfPageStatusMoved(page: page, oldPageNumber: oldPageNumber);
 
   /// Return [PdfPageStatusModified].
-  static PdfPageStatusChange modified({required PdfPage page}) => PdfPageStatusModified(page: page);
+  ///
+  /// Set [isContentChanged] to false only when measuring existing page metadata
+  /// without changing the page's rendered content.
+  static PdfPageStatusChange modified({required PdfPage page, bool isContentChanged = true}) =>
+      PdfPageStatusModified(page: page, isContentChanged: isContentChanged);
 }
 
 /// Event that is triggered when a PDF page is moved inside the same document.
@@ -56,23 +60,30 @@ class PdfPageStatusMoved extends PdfPageStatusChange {
 
 /// Event that is triggered when a PDF page is modified or newly added.
 class PdfPageStatusModified extends PdfPageStatusChange {
-  const PdfPageStatusModified({required this.page});
+  const PdfPageStatusModified({required this.page, this.isContentChanged = true});
 
   @override
   final PdfPage page;
+
+  /// Whether the page's content may have changed, even when its size and rotation
+  /// are unchanged. Reloads and replacements default to true.
+  ///
+  /// False identifies a metadata-only update, such as progressive measurement.
+  /// Rendered images may be reused only if their geometry also remains valid.
+  final bool isContentChanged;
 
   @override
   PdfPageStatusChangeType get type => PdfPageStatusChangeType.modified;
 
   @override
-  int get hashCode => 0;
+  int get hashCode => isContentChanged.hashCode;
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is PdfPageStatusModified;
+    return other is PdfPageStatusModified && other.isContentChanged == isContentChanged;
   }
 
   @override
-  String toString() => 'PdfPageStatusModified()';
+  String toString() => 'PdfPageStatusModified(isContentChanged: $isContentChanged)';
 }

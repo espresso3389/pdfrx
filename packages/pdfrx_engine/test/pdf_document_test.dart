@@ -15,6 +15,7 @@ import 'progressive_text_native.dart';
 import 'progressive_loading_native.dart';
 import 'reload_pages_native.dart';
 import 'native_open_cleanup.dart';
+import 'font_mapper_native.dart';
 
 final testPdfFile = File('../pdfrx/example/viewer/assets/hello.pdf');
 final multiPageTestPdfFile = File('../pdfrx/test/assets/multipage40.pdf');
@@ -110,6 +111,7 @@ void main() {
   registerProgressiveLoadingNativeTests();
   registerReloadPagesNativeTests();
   registerNativeOpenCleanupTests();
+  registerFontMapperNativeTests();
   setUp(() => pdfrxInitialize(tmpPath: tmpRoot.path));
 
   test('PdfDocument.openFile', () async => await testDocument(await PdfDocument.openFile(testPdfFile.path)));
@@ -291,7 +293,41 @@ void main() {
     expect(document.pages.map((page) => page.isLoaded), [true, false, true]);
     expect(event.changes.keys, [3]);
     expect(event.changes[3]!.page, same(document.pages[2]));
+    expect((event.changes[3]! as PdfPageStatusModified).isContentChanged, isTrue);
   });
+  test('on-demand metadata skips loaded pages and marks measurements without content changes', () async {
+    final document = await PdfDocument.openFile(testPdfFile.path, useProgressiveLoading: true);
+    addTearDown(document.dispose);
+    final original = document.pages;
+    final events = <PdfDocumentPageStatusChangedEvent>[];
+    final subscription = document.events
+        .where((event) => event is PdfDocumentPageStatusChangedEvent)
+        .cast<PdfDocumentPageStatusChangedEvent>()
+        .listen(events.add);
+    addTearDown(subscription.cancel);
+
+    await document.loadPageMetadata(pageNumbers: [3, 1, 3]);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(document.pages[0], same(original[0]));
+    expect(document.pages[1], same(original[1]));
+    expect(document.pages[2].isLoaded, isTrue);
+    expect(events, hasLength(1));
+    expect(events.single.changes.keys, [3]);
+    expect((events.single.changes[3]! as PdfPageStatusModified).isContentChanged, isFalse);
+    final measured = document.pages;
+
+    await document.loadPageMetadata(pageNumbers: [1, 3]);
+    await document.loadPageMetadata(pageNumbers: []);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(document.pages, same(measured));
+    expect(events, hasLength(1));
+    await expectLater(document.loadPageMetadata(pageNumbers: [0]), throwsArgumentError);
+    await expectLater(document.loadPageMetadata(pageNumbers: [4]), throwsArgumentError);
+    expect(document.pages, same(measured));
+  });
+
   test('reloadPages deduplicates and orders sparse page requests', () async {
     final document = await PdfDocument.openFile(testPdfFile.path, useProgressiveLoading: true);
     addTearDown(document.dispose);
@@ -453,6 +489,7 @@ void main() {
 
     expect(document.pages.map((page) => page.isLoaded), [true, true, true]);
     expect(event.changes.keys, [2]);
+    expect((event.changes[2]! as PdfPageStatusModified).isContentChanged, isFalse);
   });
   test('progressive loading skips pages loaded out of order', () async {
     final document = await PdfDocument.openFile(testPdfFile.path, useProgressiveLoading: true);

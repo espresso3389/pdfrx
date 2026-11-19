@@ -206,6 +206,7 @@ jobs:
           test/pdf_text_formatter_test.dart
           test/pdf_text_search_result_test.dart
           test/pdf_font_resolver_test.dart
+          test/pdf_font_source_test.dart
 
       - name: Test link metadata cache
         working-directory: packages/pdfrx_engine
@@ -224,6 +225,8 @@ jobs:
           test/pdf_file_cache_policy_test.dart
           test/pdf_file_cache_policy_native_test.dart
           test/pdf_file_cache_range_test.dart
+          test/pdf_file_cache_timeout_test.dart
+          test/pdf_file_cache_timeout_native_test.dart
           test/pdf_file_cache_auth_identity_test.dart
 
       - name: Build Linux
@@ -233,7 +236,7 @@ jobs:
       - name: Test page loading and text caching
         timeout-minutes: 5
         working-directory: packages/pdfrx_engine
-        run: dart test test/pdf_document_test.dart test/pdf_page_text_cache_test.dart
+        run: dart test test/pdf_document_test.dart test/pdf_page_text_cache_test.dart test/pdf_page_metadata_loading_test.dart
 
       - name: Test document builder identity and progress updates
         working-directory: packages/pdfrx
@@ -249,6 +252,10 @@ jobs:
       - name: Test magnifier rendering lifecycle
         working-directory: packages/pdfrx
         run: flutter test test/pdf_viewer_magnifier_lifecycle_test.dart
+
+      - name: Test page content cache invalidation
+        working-directory: packages/pdfrx
+        run: flutter test test/pdf_viewer_content_cache_test.dart test/pdf_viewer_visible_render_state_test.dart
 
       - name: Test process-wide PDFium gate
         timeout-minutes: 5
@@ -307,6 +314,10 @@ jobs:
         working-directory: packages/pdfrx/example/viewer
         run: C:\flutter\bin\flutter.bat build windows --debug --verbose
 
+      - name: Test font source cache on Windows
+        working-directory: packages/pdfrx_engine
+        run: dart test test/pdf_font_source_test.dart
+
       - name: Test process-wide PDFium gate
         timeout-minutes: 5
         working-directory: packages/pdfrx_engine
@@ -357,7 +368,12 @@ jobs:
 
       - name: Test PDFium worker metadata and range responses
         working-directory: packages/pdfrx
-        run: node --test test/pdfium_worker_metadata_test.cjs test/pdfium_worker_range_response_test.cjs
+        run: node --test test/pdfium_worker_metadata_test.cjs test/pdfium_worker_range_response_test.cjs test/pdfium_worker_font_cache_test.cjs
+
+      - name: Test Web page metadata and lifetime events
+        timeout-minutes: 5
+        working-directory: packages/pdfrx
+        run: flutter test --platform chrome test/wasm_document_dispose_test.dart
 
       - name: Build Web
         working-directory: packages/pdfrx/example/viewer
