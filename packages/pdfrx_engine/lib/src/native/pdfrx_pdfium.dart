@@ -500,7 +500,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     }
     final asset = await Pdfrx.loadAsset!(name);
     return await _openData(
-      asset.buffer.asUint8List(),
+      asset.buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes),
       'asset:$name',
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -574,9 +574,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
           size = data.length - position;
           if (size < 0) return -1;
         }
-        for (var i = 0; i < size; i++) {
-          buffer[i] = data[position + i];
-        }
+        buffer.setRange(0, size, data, position);
         return size;
       },
       fileSize: data.length,

@@ -179,7 +179,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     }
     final asset = await Pdfrx.loadAsset!(name);
     return await openData(
-      asset.buffer.asUint8List(),
+      asset.buffer.asUint8List(asset.offsetInBytes, asset.lengthInBytes),
       passwordProvider: passwordProvider,
       firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
       useProgressiveLoading: useProgressiveLoading,
@@ -212,23 +212,70 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
     bool allowDataOwnershipTransfer = false,
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
-  }) => _openByFunc(
-    (password) => _sendCommand(
-      'loadDocumentFromData',
-      parameters: {'data': data, 'password': password, 'useProgressiveLoading': useProgressiveLoading},
-    ),
-    sourceName: sourceName ?? _sourceNameFromData(data),
-    passwordProvider: passwordProvider,
-    firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-    useProgressiveLoading: useProgressiveLoading,
-    onDispose: onDispose,
-  );
+  }) async {
+    int? sourceId;
+    var callbackCalled = false;
+    void disposeCallback() {
+      if (callbackCalled) return;
+      callbackCalled = true;
+      onDispose?.call();
+    }
+
+    try {
+      await init();
+      final resolvedSourceName = sourceName ?? await _sourceNameFromData(data);
+      // A subview does not own the surrounding bytes. Copy only that view before
+      // cloning/transferring, so unrelated data is neither sent nor detached.
+      final input = data.offsetInBytes == 0 && data.lengthInBytes == data.buffer.lengthInBytes
+          ? data
+          : Uint8List.fromList(data);
+      final jsData = input.buffer.toJS;
+      final registered = await _sendCommand(
+        'registerDocumentData',
+        parameters: {'data': jsData},
+        transfer: allowDataOwnershipTransfer ? [jsData].toJS : null,
+      );
+      sourceId = (registered['sourceId'] as num).toInt();
+      return await _openByFunc(
+        (password) => _sendCommand(
+          'loadDocumentFromRegisteredData',
+          parameters: {'sourceId': sourceId, 'password': password, 'useProgressiveLoading': useProgressiveLoading},
+        ),
+        sourceName: resolvedSourceName,
+        passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+        useProgressiveLoading: useProgressiveLoading,
+        onDispose: disposeCallback,
+      );
+    } catch (_) {
+      try {
+        if (sourceId != null) {
+          await _sendCommand('releaseDocumentData', parameters: {'sourceId': sourceId});
+        }
+      } catch (_) {
+        // Preserve the opening error if the worker itself has failed.
+      }
+      try {
+        disposeCallback();
+      } catch (_) {
+        // Preserve the opening error if the caller's cleanup also fails.
+      }
+      rethrow;
+    }
+  }
 
   /// Generates a pseudo-unique source name for the given data using its SHA-256 hash.
   ///
-  /// This may be sometimes slow for large data, so it's better to provide a meaningful source name when possible.
-  static String _sourceNameFromData(Uint8List data) {
-    return 'data%${sha256.convert(data)}';
+  /// Web Crypto avoids synchronously hashing a large source on the UI thread.
+  /// A supplied source name skips hashing altogether; insecure contexts retain the legacy fallback.
+  static Future<String> _sourceNameFromData(Uint8List data) async {
+    try {
+      final digest = await web.window.crypto.subtle.digest('SHA-256'.toJS, data.toJS).toDart;
+      final bytes = (digest! as JSArrayBuffer).toDart.asUint8List();
+      return 'data%${bytes.map((value) => value.toRadixString(16).padLeft(2, '0')).join()}';
+    } catch (_) {
+      return 'data%${sha256.convert(data)}';
+    }
   }
 
   @override
