@@ -270,7 +270,7 @@ class _PdfViewerState extends State<PdfViewer>
   int _documentGeneration = 0;
   int _resourceGeneration = 0;
 
-  /// Pending wait of [_notifyDocumentLoadFinished] for the initial page's preview image.
+  /// Pending wait of [_notifyDocumentLoadFinished] for the initial page's image.
   ///
   /// Completed by [_completeInitialPageImageWaiterIfReady] once the image is in [_imageCache], or by
   /// [_onDocumentChanged]/[dispose] so the waiting future can observe that it was abandoned.
@@ -767,7 +767,7 @@ class _PdfViewerState extends State<PdfViewer>
     final document = _document;
     final documentRef = widget.documentRef;
     if (succeeded && document != null && document.pages.isNotEmpty) {
-      // Hold the callback until the initial page's preview image is in the cache, so that the document is
+      // Hold the callback until the initial page's image is in the cache, so that the document is
       // visibly rendered when onDocumentLoadFinished fires. The initial page is re-resolved every time an
       // image lands because calculateInitialPageNumber runs at the first layout, which can be after a replayed
       // PdfDocumentLoadCompleteEvent gets here. If that page never renders, this keeps waiting indefinitely.
@@ -788,15 +788,17 @@ class _PdfViewerState extends State<PdfViewer>
     });
   }
 
-  /// Whether [_imageCache] holds a preview image for the currently resolved initial page.
+  /// Whether [_imageCache] holds an image for the currently resolved initial page.
   bool _isInitialPageImageCached() {
     final document = _document;
     if (document == null) return false;
     final initialPageNumber = _clampInitialPageNumber(document, _initialPageNumber ?? widget.initialPageNumber);
-    return _imageCache.pageImages.containsKey(initialPageNumber);
+    return _imageCache.pageImages.containsKey(initialPageNumber) ||
+        (!widget.params.behaviorControlParams.enableLowResolutionPagePreview &&
+            _imageCache.pageImagesPartial.containsKey(initialPageNumber));
   }
 
-  /// Wakes [_notifyDocumentLoadFinished] if the initial page's preview image has just landed in [_imageCache].
+  /// Wakes [_notifyDocumentLoadFinished] if the initial page's image has just landed in [_imageCache].
   void _completeInitialPageImageWaiterIfReady() {
     if (_initialPageImageWaiter == null || !_isInitialPageImageCached()) return;
     _completeInitialPageImageWaiter();
@@ -2517,7 +2519,13 @@ class _PdfViewerState extends State<PdfViewer>
     for (final pageNumber in cache.pendingPageNumbers.toList()) {
       if (!retainedPages.contains(pageNumber)) cache.cancelPendingRenderings(pageNumber);
     }
-    unusedPageList.addAll(cache.pageImages.keys.where((pageNumber) => !retainedPages.contains(pageNumber)));
+    // Partials can exist without previews, including when low-resolution previews are disabled.
+    unusedPageList.addAll(
+      {
+        ...cache.pageImages.keys,
+        ...cache.pageImagesPartial.keys,
+      }.where((pageNumber) => !retainedPages.contains(pageNumber)),
+    );
     final soleSpread = _soleSpreadToShow;
     for (final i in pageIndices) {
       if (soleSpread != null && _layout!.spreadIndexOf(i + 1) != soleSpread) continue;
@@ -3304,6 +3312,7 @@ class _PdfViewerState extends State<PdfViewer>
             cache.pageImagesPartial.remove(page.pageNumber)?.dispose();
             cache.pageImagesPartial[page.pageNumber] = newImage;
             cache.partialRenderFailures.remove(page.pageNumber);
+            if (identical(cache, _imageCache)) _completeInitialPageImageWaiterIfReady();
             _invalidate();
           } else {
             newImage?.dispose();
