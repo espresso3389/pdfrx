@@ -8,6 +8,8 @@ import 'dart:ui_web' as ui_web;
 import 'package:crypto/crypto.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 // ignore: implementation_imports
+import 'package:pdfrx_engine/src/font_environment.dart';
+// ignore: implementation_imports
 import 'package:pdfrx_engine/src/pdf_page_proxies.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
@@ -396,10 +398,10 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
   }
 
   @override
-  Future<void> clearAllFontData() async {
+  Future<void> clearAllFontData() => changeFontEnvironment(() async {
     await init();
     await _sendCommand('clearAllFontData', parameters: {'dummy': true});
-  }
+  });
 
   @override
   PdfrxBackendType get backendType => PdfrxBackendType.pdfiumWasm;

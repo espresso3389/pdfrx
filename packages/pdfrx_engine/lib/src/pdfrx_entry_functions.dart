@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import './mock/pdfrx_mock.dart' if (dart.library.io) './native/pdfrx_pdfium.dart';
+import 'font_environment.dart';
 import 'pdf_document.dart';
 
 /// The class is used to implement Pdfrx's backend functions.
@@ -20,6 +21,7 @@ abstract class PdfrxEntryFunctions {
 
   static set instance(PdfrxEntryFunctions entryFunctions) {
     print('Setting PdfrxEntryFunctions instance: $entryFunctions');
+    if (!identical(_instance, entryFunctions)) invalidateFontEnvironment();
     _instance = entryFunctions;
   }
 

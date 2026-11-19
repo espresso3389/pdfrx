@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:path/path.dart' as path;
 
+import 'font_environment.dart';
 import 'pdf_document_event.dart';
 import 'pdf_font_query.dart';
 import 'pdf_font_resolver_platform_stub.dart'
@@ -196,8 +197,11 @@ class PdfFontManager {
   }
 
   final PdfFontResolver _resolver;
-  final _registeredFaces = <String>{};
   Future<void>? _prepareFuture;
+  PdfrxEntryFunctions? _preparedBackend;
+  _FontLoadGeneration? _generation;
+  String? _fontCachePath;
+  List<String>? _fontPaths;
 
   /// Prepares the backend font environment.
   ///
@@ -212,108 +216,114 @@ class PdfFontManager {
   /// Multiple calls to this method will wait for the same preparation process to complete. Once preparation has
   /// started, calling this method again with [fontCachePath] or [fontPaths] throws [StateError].
   Future<void> prepare({String? fontCachePath, List<String>? fontPaths}) {
+    final backend = PdfrxEntryFunctions.instance;
     final prepareFuture = _prepareFuture;
-    if (prepareFuture != null) {
-      if (fontCachePath != null || fontPaths != null) {
-        throw StateError(
-          'PdfFontManager.prepare has already been called. Configure fontCachePath and fontPaths before the first prepare call.',
-        );
-      }
+    if (prepareFuture != null && (fontCachePath != null || fontPaths != null)) {
+      throw StateError(
+        'PdfFontManager.prepare has already been called. Configure fontCachePath and fontPaths before the first prepare call.',
+      );
+    }
+    if (prepareFuture != null && identical(_preparedBackend, backend)) {
       return prepareFuture;
     }
-    return _prepareFuture = () async {
-      await PdfrxEntryFunctions.instance.configureFontEnvironment(
-        fontCachePath: fontCachePath ?? _getDefaultFontCachePath(),
-        fontPaths: List.unmodifiable(fontPaths ?? const <String>[]),
-      );
-    }();
+    _fontCachePath = fontCachePath ?? _fontCachePath ?? _getDefaultFontCachePath();
+    _fontPaths = List.unmodifiable(fontPaths ?? _fontPaths ?? const <String>[]);
+    _preparedBackend = backend;
+    late final Future<void> preparing;
+    preparing =
+        Future<void>.sync(() => backend.configureFontEnvironment(fontCachePath: _fontCachePath, fontPaths: _fontPaths!))
+            .catchError((Object error, StackTrace stackTrace) {
+              if (identical(_prepareFuture, preparing)) _prepareFuture = null;
+              Error.throwWithStackTrace(error, stackTrace);
+            });
+    return _prepareFuture = preparing;
   }
 
   /// Resolves and registers [queries].
   ///
-  /// If [reloadFonts] is true and at least one font is registered, this calls
-  /// [PdfrxEntryFunctions.reloadFonts] after registration. That refreshes the backend font mapper state, but it does
-  /// not reload already opened
-  /// documents; callers still need to reopen or reload those documents.
+  /// Concurrent requests with the same query parameters and context share font
+  /// resolution and loading. Every waiting call reports the newly available font
+  /// in its result so each caller can refresh its own document.
   ///
-  /// [onProgress] is called when a resolver reports byte progress while loading
-  /// font data.
+  /// If [reloadFonts] is true and fonts become available, refreshes the backend
+  /// font mapper. Concurrent calls share a refresh that covers their registered
+  /// fonts. Callers still need to reopen or reload already opened documents.
+  ///
+  /// The backend registers one font per target face. Resolvers that return
+  /// different fonts must use different target faces; conflicting registrations
+  /// are reported in [PdfFontLoadResult.failed].
+  ///
+  /// [onProgress] receives progress for this call, including shared loads.
+  /// An error in its callback fails only this call, not other waiting callers.
   Future<PdfFontLoadResult> loadMissingFonts(
     Iterable<PdfFontQuery> queries, {
     PdfFontResolveContext context = const PdfFontResolveContext(),
     bool reloadFonts = true,
     PdfFontLoadProgressCallback? onProgress,
   }) async {
+    final initialGeneration = _generation;
+    final initialRevision = initialGeneration?.registrationRevision ?? 0;
     await prepare();
+    await waitForFontEnvironmentChanges();
+    final backend = PdfrxEntryFunctions.instance;
+    if (!identical(_preparedBackend, backend)) {
+      throw StateError('The PDF backend changed while preparing fonts. Retry the font load.');
+    }
+    var generation = _generation;
+    if (generation == null || !generation.isCurrent) {
+      final revision = fontEnvironmentRevision;
+      await withFontEnvironmentAccess(backend.init);
+      final current = _generation;
+      generation = current != null && current.isCurrent
+          ? current
+          : _generation = (_FontLoadGeneration(backend, revision)..checkCurrent());
+    }
+    final revisionAtStart = identical(initialGeneration, generation) ? initialRevision : 0;
     final loaded = <PdfLoadedFont>[];
+    final loadedTargets = <String>{};
     final unresolved = <PdfFontQuery>[];
     final failed = <PdfFontLoadFailure>[];
-
-    for (final query in _deduplicate(queries)) {
+    var registrationRevision = 0;
+    final seen = <_FontQueryKey>{};
+    for (final query in queries) {
+      final key = _queryKey(query, context);
+      if (!seen.add(key)) continue;
       try {
-        final resolution = await _resolver.resolve(query, context);
-        if (resolution == null) {
+        generation.checkCurrent();
+        final existing = generation.completedQueries[key];
+        if (existing != null &&
+            existing.revision <= revisionAtStart &&
+            existing.revision <= generation.reloadedRevision) {
+          continue;
+        }
+        final observer = _FontProgressObserver(query, onProgress);
+        var pending = generation.pendingQueries[key];
+        if (pending == null) {
+          pending = _PendingFontLoad();
+          generation.pendingQueries[key] = pending;
+          pending.future = _resolveAndRegister(generation, query, context, key, pending);
+        }
+        pending.observers.add(observer);
+        final _RegisteredFont? font;
+        try {
+          font = await pending.future;
+        } finally {
+          pending.observers.remove(observer);
+        }
+        observer.rethrowError();
+        generation.checkCurrent();
+        if (font == null) {
           unresolved.add(query);
-          continue;
+        } else {
+          if (loadedTargets.add(font.targetFace)) loaded.add(font.forQuery(query));
+          if (registrationRevision < font.revision) registrationRevision = font.revision;
         }
-        final targetFace = resolution.targetFace ?? query.face;
-        if (_registeredFaces.contains(targetFace)) {
-          continue;
-        }
-        final fontFilePath = resolution.fontFilePath;
-        if (fontFilePath != null) {
-          await PdfrxEntryFunctions.instance.addFontFile(
-            face: targetFace,
-            filePath: fontFilePath,
-            resolvedFace: resolution.resolvedFace,
-          );
-          final loadedFont = PdfLoadedFont(
-            query: query,
-            targetFace: targetFace,
-            resolvedFace: resolution.resolvedFace,
-            source: resolution.source,
-            length: 0,
-          );
-          _registeredFaces.add(targetFace);
-          loaded.add(loadedFont);
-          continue;
-        }
-        final data = await resolution._loadValidatedData(
-          onProgress: onProgress == null
-              ? null
-              : ({required loaded, total}) => onProgress(
-                  PdfFontLoadProgress(
-                    query: query,
-                    targetFace: targetFace,
-                    resolvedFace: resolution.resolvedFace,
-                    source: resolution.source,
-                    loaded: loaded,
-                    total: total,
-                  ),
-                ),
-        );
-        await PdfrxEntryFunctions.instance.addFontData(
-          face: targetFace,
-          data: data,
-          resolvedFace: resolution.resolvedFace,
-        );
-        final loadedFont = PdfLoadedFont(
-          query: query,
-          targetFace: targetFace,
-          resolvedFace: resolution.resolvedFace,
-          source: resolution.source,
-          length: data.length,
-        );
-        _registeredFaces.add(targetFace);
-        loaded.add(loadedFont);
       } catch (error, stackTrace) {
         failed.add(PdfFontLoadFailure(query: query, error: error, stackTrace: stackTrace));
       }
     }
-
-    if (reloadFonts && loaded.isNotEmpty) {
-      await PdfrxEntryFunctions.instance.reloadFonts();
-    }
+    if (reloadFonts && loaded.isNotEmpty) await generation.reloadThrough(registrationRevision);
+    if (loaded.isNotEmpty) generation.checkCurrent();
     return PdfFontLoadResult(
       loaded: loaded,
       unresolved: unresolved,
@@ -322,18 +332,109 @@ class PdfFontManager {
     );
   }
 
-  Iterable<PdfFontQuery> _deduplicate(Iterable<PdfFontQuery> queries) sync* {
-    final keys = <String>{};
-    for (final query in queries) {
-      final key = _cacheKeyFor(query);
-      if (keys.add(key)) {
-        yield query;
+  Future<_RegisteredFont?> _resolveAndRegister(
+    _FontLoadGeneration generation,
+    PdfFontQuery query,
+    PdfFontResolveContext context,
+    _FontQueryKey key,
+    _PendingFontLoad load,
+  ) async {
+    try {
+      final existing = generation.completedQueries[key];
+      if (existing != null) return existing;
+      final resolution = await _resolver.resolve(query, context);
+      generation.checkCurrent();
+      if (resolution == null) return null;
+      final targetFace = resolution.targetFace ?? query.face;
+      var registration = generation.registrations[targetFace];
+      final identity = _resolutionIdentity(resolution);
+      if (registration != null && (identity == null || registration.identity != identity)) {
+        // A different or anonymous source must prove payload equivalence before
+        // it can share a target. Local files are only shared by source identity.
+        if (resolution.fontFilePath != null) {
+          throw StateError('Different font resolutions target "$targetFace". Use distinct targetFace values.');
+        }
+        final data = await resolution._loadValidatedData(
+          onProgress: ({required loaded, total}) =>
+              load.report((targetFace: targetFace, resolution: resolution, loaded: loaded, total: total)),
+        );
+        final font = await registration.future;
+        generation.checkCurrent();
+        if (font.sha256 != crypto.sha256.convert(data).toString() || font.resolvedFace != resolution.resolvedFace) {
+          throw StateError('Different font resolutions target "$targetFace". Use distinct targetFace values.');
+        }
+        generation.completedQueries[key] = font;
+        return font;
       }
+      if (registration == null) {
+        registration = _PendingFontRegistration(identity);
+        generation.registrations[targetFace] = registration;
+        registration.listeners.add(load.report);
+        registration.future = _register(generation, targetFace, resolution, registration);
+      } else {
+        registration.listeners.add(load.report);
+      }
+      final _RegisteredFont font;
+      try {
+        font = await registration.future;
+      } finally {
+        registration.listeners.remove(load.report);
+      }
+      generation.checkCurrent();
+      generation.completedQueries[key] = font;
+      return font;
+    } finally {
+      generation.pendingQueries.remove(key);
     }
   }
 
-  String _cacheKeyFor(PdfFontQuery query) =>
-      '${query.face}\x1f${query.weight}\x1f${query.isItalic}\x1f${query.charset.pdfiumCharsetId}\x1f${query.pitchFamily}';
+  Future<_RegisteredFont> _register(
+    _FontLoadGeneration generation,
+    String targetFace,
+    PdfFontResolution resolution,
+    _PendingFontRegistration registration,
+  ) async {
+    try {
+      var length = 0;
+      String? sha256;
+      final filePath = resolution.fontFilePath;
+      if (filePath != null) {
+        await withFontEnvironmentAccess(() async {
+          generation.checkCurrent();
+          await generation.backend.addFontFile(
+            face: targetFace,
+            filePath: filePath,
+            resolvedFace: resolution.resolvedFace,
+          );
+        });
+      } else {
+        final data = await resolution._loadValidatedData(
+          onProgress: ({required loaded, total}) =>
+              registration.report((targetFace: targetFace, resolution: resolution, loaded: loaded, total: total)),
+        );
+        length = data.length;
+        sha256 = resolution.expectedSha256?.toLowerCase() ?? crypto.sha256.convert(data).toString();
+        await withFontEnvironmentAccess(() async {
+          generation.checkCurrent();
+          await generation.backend.addFontData(face: targetFace, data: data, resolvedFace: resolution.resolvedFace);
+        });
+      }
+      generation.checkCurrent();
+      return _RegisteredFont(targetFace, resolution, length, sha256, ++generation.registrationRevision);
+    } catch (_) {
+      generation.registrations.remove(targetFace);
+      rethrow;
+    }
+  }
+
+  _FontQueryKey _queryKey(PdfFontQuery query, PdfFontResolveContext context) =>
+      (query.face, query.weight, query.isItalic, query.charset, query.pitchFamily, context.preferFontCollections);
+
+  Object? _resolutionIdentity(PdfFontResolution resolution) {
+    final source = resolution.fontFilePath ?? resolution.expectedSha256?.toLowerCase() ?? resolution.source;
+    if (source == null) return null;
+    return (source, resolution.resolvedFace, resolution.expectedLength, resolution.expectedSha256?.toLowerCase());
+  }
 
   static String? _getDefaultFontCachePath() {
     final cacheDirectoryPath = Pdfrx.cacheDirectoryPath;
@@ -345,6 +446,133 @@ class PdfFontManager {
     } on UnimplementedError {
       return null;
     }
+  }
+}
+
+typedef _FontQueryKey = (String, int, bool, PdfFontCharset, int, bool);
+typedef _FontProgress = ({String targetFace, PdfFontResolution resolution, int loaded, int? total});
+
+class _FontLoadGeneration {
+  _FontLoadGeneration(this.backend, this.environmentRevision);
+
+  final PdfrxEntryFunctions backend;
+  final int environmentRevision;
+  final pendingQueries = <_FontQueryKey, _PendingFontLoad>{};
+  final completedQueries = <_FontQueryKey, _RegisteredFont>{};
+  final registrations = <String, _PendingFontRegistration>{};
+  int registrationRevision = 0;
+  int reloadedRevision = 0;
+  Future<void>? _reloadFuture;
+
+  bool get isCurrent =>
+      identical(backend, PdfrxEntryFunctions.instance) && environmentRevision == fontEnvironmentRevision;
+
+  void checkCurrent() {
+    if (!isCurrent) throw StateError('The font environment changed during loading. Retry the font load.');
+  }
+
+  Future<void> reloadThrough(int revision) async {
+    checkCurrent();
+    while (reloadedRevision < revision) {
+      final pending = _reloadFuture;
+      if (pending != null) {
+        await pending;
+        continue;
+      }
+      final future = _reload();
+      _reloadFuture = future;
+      try {
+        await future;
+      } finally {
+        _reloadFuture = null;
+      }
+    }
+    checkCurrent();
+  }
+
+  Future<void> _reload() async {
+    // Let concurrent registrations finish before taking the refresh snapshot.
+    await Future<void>.value();
+    checkCurrent();
+    await withFontEnvironmentAccess(() async {
+      checkCurrent();
+      final revision = registrationRevision;
+      await backend.reloadFonts();
+      checkCurrent();
+      reloadedRevision = revision;
+    });
+  }
+}
+
+class _RegisteredFont {
+  _RegisteredFont(this.targetFace, PdfFontResolution resolution, this.length, this.sha256, this.revision)
+    : resolvedFace = resolution.resolvedFace,
+      source = resolution.source;
+
+  final String targetFace;
+  final String? resolvedFace;
+  final Uri? source;
+  final int length;
+  final String? sha256;
+  final int revision;
+
+  PdfLoadedFont forQuery(PdfFontQuery query) =>
+      PdfLoadedFont(query: query, targetFace: targetFace, resolvedFace: resolvedFace, source: source, length: length);
+}
+
+class _PendingFontRegistration {
+  _PendingFontRegistration(this.identity);
+
+  final Object? identity;
+  late final Future<_RegisteredFont> future;
+  final listeners = <void Function(_FontProgress)>{};
+
+  void report(_FontProgress progress) {
+    for (final listener in listeners.toList()) {
+      listener(progress);
+    }
+  }
+}
+
+class _PendingFontLoad {
+  late final Future<_RegisteredFont?> future;
+  final observers = <_FontProgressObserver>{};
+
+  void report(_FontProgress progress) {
+    for (final observer in observers.toList()) {
+      observer.report(progress);
+    }
+  }
+}
+
+class _FontProgressObserver {
+  _FontProgressObserver(this.query, this.callback);
+
+  final PdfFontQuery query;
+  final PdfFontLoadProgressCallback? callback;
+  (Object, StackTrace)? _error;
+
+  void report(_FontProgress progress) {
+    if (_error != null) return;
+    try {
+      callback?.call(
+        PdfFontLoadProgress(
+          query: query,
+          targetFace: progress.targetFace,
+          resolvedFace: progress.resolution.resolvedFace,
+          source: progress.resolution.source,
+          loaded: progress.loaded,
+          total: progress.total,
+        ),
+      );
+    } catch (error, stackTrace) {
+      _error = (error, stackTrace);
+    }
+  }
+
+  void rethrowError() {
+    final error = _error;
+    if (error != null) Error.throwWithStackTrace(error.$1, error.$2);
   }
 }
 
@@ -387,7 +615,8 @@ class PdfFontLoadResult {
     required this.fontsReloaded,
   });
 
-  /// List of fonts newly loaded and registered by this call.
+  /// Fonts made available to this call, including registrations shared with
+  /// concurrent callers and registrations whose backend refresh is being retried.
   final List<PdfLoadedFont> loaded;
 
   /// List of queries that could not be resolved by any resolver.
@@ -396,7 +625,8 @@ class PdfFontLoadResult {
   /// List of queries that threw errors during resolution or loading.
   final List<PdfFontLoadFailure> failed;
 
-  /// Whether [PdfrxEntryFunctions.reloadFonts] was called after registering fonts.
+  /// Whether the backend was refreshed to include the loaded fonts.
+  /// Concurrent callers can share the same [PdfrxEntryFunctions.reloadFonts] call.
   ///
   /// This does not mean already opened PDF documents were reloaded.
   final bool fontsReloaded;
