@@ -2176,10 +2176,33 @@ async function _installFontMapper() {
   await _reloadFontCache();
 }
 
-async function _reloadFontCache() {
-  for (const font of await PdfFontPersistentCache.instance.loadAll()) {
-    pdfFontMapper?.addFontData(font);
-  }
+let fontCacheQueue = Promise.resolve();
+
+function _withFontCache(operation) {
+  const result = fontCacheQueue.then(operation);
+  fontCacheQueue = result.catch(() => {});
+  return result;
+}
+
+function _reloadFontCache() {
+  return _withFontCache(async () => {
+    const mapper = pdfFontMapper;
+    if (!mapper) return;
+    const changes = await PdfFontPersistentCache.instance.loadChanges(mapper.persistedRevisions, mapper.persistedGeneration);
+    if (!changes) return;
+    const revisions = new Map(changes.revisions.map(({ face, revision }) => [face, revision]));
+    let aliasesChanged = changes.fonts.length !== 0;
+    for (const face of mapper.persistedRevisions.keys()) {
+      if (!revisions.has(face)) {
+        mapper.removeFontData(face);
+        aliasesChanged = true;
+      }
+    }
+    for (const font of changes.fonts) mapper.addFontData(font);
+    if (aliasesChanged) mapper.rebuildAliases();
+    mapper.persistedRevisions = revisions;
+    mapper.persistedGeneration = changes.generation;
+  });
 }
 
 /**
@@ -2203,7 +2226,10 @@ class PdfFontPersistentCache {
   constructor() {
     this.dbName = 'pdfrx.fonts';
     this.storeName = 'fonts';
+    this.revisionsStoreName = 'font-revisions';
+    this.metadataStoreName = 'font-metadata';
     this.dbPromise = null;
+    this.connectionGeneration = 0;
   }
 
   async open() {
@@ -2212,51 +2238,111 @@ class PdfFontPersistentCache {
       this.dbPromise = Promise.resolve(null);
       return this.dbPromise;
     }
+    let blocked = false;
     this.dbPromise = new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, 1);
+      const request = indexedDB.open(this.dbName, 2);
       request.onupgradeneeded = () => {
         const db = request.result;
         if (!db.objectStoreNames.contains(this.storeName)) {
           db.createObjectStore(this.storeName, { keyPath: 'face' });
         }
+        if (!db.objectStoreNames.contains(this.metadataStoreName)) {
+          db.createObjectStore(this.metadataStoreName, { keyPath: 'key' }).put({ key: 'revision', value: 1 });
+        }
+        if (!db.objectStoreNames.contains(this.revisionsStoreName)) {
+          const revisions = db.createObjectStore(this.revisionsStoreName, { keyPath: 'face' });
+          const cursorRequest = request.transaction.objectStore(this.storeName).openKeyCursor();
+          cursorRequest.onsuccess = () => {
+            const cursor = cursorRequest.result;
+            if (!cursor) return;
+            revisions.put({ face: cursor.key, revision: 1 });
+            cursor.continue();
+          };
+        }
       };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-      request.onblocked = () => reject(new Error(`Opening IndexedDB ${this.dbName} was blocked.`));
+      request.onsuccess = () => {
+        const db = request.result;
+        if (blocked) {
+          db.close();
+          this.dbPromise = null;
+          return;
+        }
+        this.connectionGeneration++;
+        db.onversionchange = () => {
+          db.close();
+          this.dbPromise = null;
+        };
+        resolve(db);
+      };
+      request.onerror = () => {
+        this.dbPromise = null;
+        reject(request.error);
+      };
+      request.onblocked = () => {
+        blocked = true;
+        console.warn(`Opening IndexedDB ${this.dbName} was blocked; keeping fonts in memory.`);
+        resolve(null);
+      };
     }).catch((error) => {
+      this.dbPromise = null;
       console.warn('Failed to open font cache database:', error);
       return null;
     });
     return this.dbPromise;
   }
 
-  async loadAll() {
+  async loadChanges(knownRevisions, knownGeneration) {
     const db = await this.open();
-    if (!db) return [];
+    if (!db) return null;
+    const generation = this.connectionGeneration;
+    const previous = knownGeneration === generation ? knownRevisions : new Map();
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(this.storeName, 'readonly');
-      const request = transaction.objectStore(this.storeName).getAll();
-      request.onsuccess = () => resolve(request.result ?? []);
-      request.onerror = () => reject(request.error);
+      const transaction = db.transaction([this.storeName, this.revisionsStoreName], 'readonly');
+      const fonts = [];
+      let revisions = [];
+      const request = transaction.objectStore(this.revisionsStoreName).getAll();
+      request.onsuccess = () => {
+        revisions = request.result ?? [];
+        for (const { face, revision } of revisions) {
+          if (previous.get(face) === revision) continue;
+          const fontRequest = transaction.objectStore(this.storeName).get(face);
+          fontRequest.onsuccess = () => {
+            if (fontRequest.result) fonts.push(fontRequest.result);
+          };
+        }
+      };
+      transaction.oncomplete = () => resolve({ fonts, revisions, generation });
       transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
     }).catch((error) => {
       console.warn('Failed to load cached fonts:', error);
-      return [];
+      return null;
     });
   }
 
   async put({ face, data, resolvedFace }) {
     const db = await this.open();
-    if (!db) return;
-    const storedData = data instanceof ArrayBuffer ? data.slice(0) : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    if (!db) return null;
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(this.storeName, 'readwrite');
-      transaction.objectStore(this.storeName).put({ face, resolvedFace, data: storedData });
-      transaction.oncomplete = () => resolve();
+      const transaction = db.transaction(
+        [this.storeName, this.revisionsStoreName, this.metadataStoreName], 'readwrite');
+      const revisions = transaction.objectStore(this.revisionsStoreName);
+      const metadata = transaction.objectStore(this.metadataStoreName);
+      const request = metadata.get('revision');
+      let revision;
+      request.onsuccess = () => {
+        revision = (request.result?.value ?? 1) + 1;
+        metadata.put({ key: 'revision', value: revision });
+        // IndexedDB snapshots the bytes; avoid an additional whole-font copy here.
+        transaction.objectStore(this.storeName).put({ face, resolvedFace, data });
+        revisions.put({ face, revision });
+      };
+      transaction.oncomplete = () => resolve(revision);
       transaction.onerror = () => reject(transaction.error);
       transaction.onabort = () => reject(transaction.error);
     }).catch((error) => {
       console.warn(`Failed to store cached font "${face}":`, error);
+      return null;
     });
   }
 
@@ -2264,8 +2350,9 @@ class PdfFontPersistentCache {
     const db = await this.open();
     if (!db) return;
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(this.storeName, 'readwrite');
+      const transaction = db.transaction([this.storeName, this.revisionsStoreName], 'readwrite');
       transaction.objectStore(this.storeName).clear();
+      transaction.objectStore(this.revisionsStoreName).clear();
       transaction.oncomplete = () => resolve();
       transaction.onerror = () => reject(transaction.error);
       transaction.onabort = () => reject(transaction.error);
@@ -2275,15 +2362,53 @@ class PdfFontPersistentCache {
   }
 }
 
+// Only alias entries and live PDFium handles own a payload.
+class PdfFontPayloadPool {
+  constructor() {
+    this.buckets = new Map();
+  }
+
+  intern(data) {
+    const bytes = data instanceof ArrayBuffer
+      ? new Uint8Array(data)
+      : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+    let hash = 2166136261;
+    for (const byte of bytes) hash = Math.imul(hash ^ byte, 16777619) >>> 0;
+    const key = `${bytes.byteLength}:${hash}`;
+    const bucket = this.buckets.get(key) ?? new Set();
+    for (const source of bucket) {
+      if (source.data.every((byte, index) => byte === bytes[index])) return source;
+    }
+    const source = { data: new Uint8Array(bytes), references: 0, key };
+    bucket.add(source);
+    this.buckets.set(key, bucket);
+    return source;
+  }
+
+  retain(source) {
+    source.references++;
+  }
+
+  release(source) {
+    if (--source.references !== 0) return;
+    const bucket = this.buckets.get(source.key);
+    bucket.delete(source);
+    if (bucket.size === 0) this.buckets.delete(source.key);
+  }
+}
+
 class PdfFontMapper {
   constructor() {
     this.sysFontInfo = Pdfium.wasmExports.malloc(9 * 4);
     new Int32Array(Pdfium.memory.buffer, this.sysFontInfo, 9).fill(0);
     new Int32Array(Pdfium.memory.buffer, this.sysFontInfo, 1)[0] = 2;
-    this.missingFonts = {};
-    this.cachedFontsByFace = {};
-    this.mappedFonts = {};
-    this.aliases = {};
+    this.missingFonts = Object.create(null);
+    this.cachedFontsByFace = Object.create(null);
+    this.mappedFonts = Object.create(null);
+    this.aliases = Object.create(null);
+    this.payloads = new PdfFontPayloadPool();
+    this.persistedRevisions = new Map();
+    this.persistedGeneration = null;
     this.functionPointers = [];
     this.nextMappedFontHandle = 1;
   }
@@ -2305,7 +2430,8 @@ class PdfFontMapper {
   }
 
   dispose() {
-    this.mappedFonts = {};
+    this.clear();
+    for (const handle of Object.keys(this.mappedFonts)) this.deleteFont(0, handle);
     for (const pointer of this.functionPointers) {
       Pdfium.removeFunction(pointer);
     }
@@ -2320,31 +2446,73 @@ class PdfFontMapper {
   }
 
   addFontData({ face, data, resolvedFace }) {
-    const font = { face, resolvedFace, data: new Uint8Array(data), charset: null };
-    this.cachedFontsByFace[face] = font;
-    if (resolvedFace && resolvedFace !== face) {
-      this.aliases[face] = resolvedFace;
-      this.cachedFontsByFace[resolvedFace] = font;
+    const source = this.payloads.intern(data);
+    const previous = this.cachedFontsByFace[face];
+    const font = previous?.face === face && previous.source === source && previous.resolvedFace === resolvedFace
+      ? previous
+      : { face, resolvedFace, source, data: source.data, charset: null };
+    if (previous !== font) {
+      this.payloads.retain(source);
+      if (previous) this._removeAlias(previous);
+      this.cachedFontsByFace[face] = font;
+      if (previous) this.payloads.release(previous.source);
     }
+    this._addAlias(font);
     delete this.missingFonts[face];
     delete lastMissingFonts[face];
   }
 
+  _addAlias(font) {
+    if (!font.resolvedFace || font.resolvedFace === font.face) return;
+    const aliases = this.aliases[font.resolvedFace] ?? { owners: new Map(), font };
+    aliases.owners.delete(font.face);
+    aliases.owners.set(font.face, font);
+    aliases.font = font;
+    this.aliases[font.resolvedFace] = aliases;
+  }
+
+  _removeAlias(font) {
+    const aliases = this.aliases[font.resolvedFace];
+    if (!aliases || aliases.owners.get(font.face) !== font) return;
+    aliases.owners.delete(font.face);
+    if (aliases.owners.size === 0) delete this.aliases[font.resolvedFace];
+    else if (aliases.font === font) {
+      for (const remaining of aliases.owners.values()) aliases.font = remaining;
+    }
+  }
+
+  rebuildAliases() {
+    this.aliases = Object.create(null);
+    // Match IndexedDB's face ordering without rereading unchanged payloads.
+    for (const face of Object.keys(this.cachedFontsByFace).sort()) this._addAlias(this.cachedFontsByFace[face]);
+  }
+
+  removeFontData(face) {
+    const font = this.cachedFontsByFace[face];
+    if (!font) return;
+    this._removeAlias(font);
+    delete this.cachedFontsByFace[face];
+    this.payloads.release(font.source);
+  }
+
   clear() {
-    this.cachedFontsByFace = {};
-    this.aliases = {};
-    this.missingFonts = {};
+    for (const font of Object.values(this.cachedFontsByFace)) this.payloads.release(font.source);
+    this.cachedFontsByFace = Object.create(null);
+    this.aliases = Object.create(null);
+    this.missingFonts = Object.create(null);
+    this.persistedRevisions.clear();
+    this.persistedGeneration = null;
   }
 
   getAndClearMissingFonts() {
     const result = this.missingFonts;
-    this.missingFonts = {};
+    this.missingFonts = Object.create(null);
     return result;
   }
 
   mapFont(_pThis, weight, bItalic, charset, pitchFamily, face, bExact) {
     const faceName = StringUtils.utf8BytesToString(new Uint8Array(Pdfium.memory.buffer, face));
-    const cachedFont = this.cachedFontsByFace[faceName] ?? this.cachedFontsByFace[this.aliases[faceName]];
+    const cachedFont = this.cachedFontsByFace[faceName] ?? this.aliases[faceName]?.font;
     if (cachedFont) {
       cachedFont.charset ??= charset;
       if (bExact) new Int32Array(Pdfium.memory.buffer, bExact, 1)[0] = 1;
@@ -2389,13 +2557,16 @@ class PdfFontMapper {
   }
 
   deleteFont(_pThis, hFont) {
-    if (!this.mappedFonts[hFont]) return;
+    const font = this.mappedFonts[hFont];
+    if (!font) return;
     delete this.mappedFonts[hFont];
+    this.payloads.release(font.source);
   }
 
   _createMappedFontHandle(font) {
     const handle = this.nextMappedFontHandle++;
     this.mappedFonts[handle] = font;
+    this.payloads.retain(font.source);
     return handle;
   }
 }
@@ -2442,19 +2613,28 @@ function readUint32(data, offset) {
  * Add font data to the font cache.
  * @param {{face: string, data: ArrayBuffer, resolvedFace: string|undefined}} params
  */
-async function addFontData(params) {
-  console.log(`Adding font data for face: ${params.face}`);
-  const { face, data, resolvedFace } = params;
-  pdfFontMapper?.addFontData({ face, data, resolvedFace });
-  await PdfFontPersistentCache.instance.put({ face, data, resolvedFace });
-  return { message: `Font ${face} added`, face: face };
+function addFontData(params) {
+  return _withFontCache(async () => {
+    const { face, data, resolvedFace } = params;
+    pdfFontMapper?.addFontData({ face, data, resolvedFace });
+    const storedData = pdfFontMapper?.cachedFontsByFace[face].data ?? data;
+    const revision = await PdfFontPersistentCache.instance.put({ face, data: storedData, resolvedFace });
+    if (revision != null && pdfFontMapper) {
+      const generation = PdfFontPersistentCache.instance.connectionGeneration;
+      if (pdfFontMapper.persistedRevisions.size === 0) pdfFontMapper.persistedGeneration = generation;
+      else if (pdfFontMapper.persistedGeneration !== generation) pdfFontMapper.persistedGeneration = null;
+      pdfFontMapper.persistedRevisions.set(face, revision);
+    }
+    return { message: `Font ${face} added`, face };
+  });
 }
 
-async function clearAllFontData() {
-  console.log(`Clearing all font data`);
-  pdfFontMapper?.clear();
-  await PdfFontPersistentCache.instance.clear();
-  return { message: 'All font data cleared' };
+function clearAllFontData() {
+  return _withFontCache(async () => {
+    pdfFontMapper?.clear();
+    await PdfFontPersistentCache.instance.clear();
+    return { message: 'All font data cleared' };
+  });
 }
 
 /**

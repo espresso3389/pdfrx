@@ -206,6 +206,7 @@ jobs:
           test/pdf_text_formatter_test.dart
           test/pdf_text_search_result_test.dart
           test/pdf_font_resolver_test.dart
+          test/pdf_font_source_test.dart
 
       - name: Test link metadata cache
         working-directory: packages/pdfrx_engine
@@ -353,7 +354,7 @@ jobs:
 
       - name: Test PDFium worker metadata and range responses
         working-directory: packages/pdfrx
-        run: node --test test/pdfium_worker_metadata_test.cjs test/pdfium_worker_range_response_test.cjs
+        run: node --test test/pdfium_worker_metadata_test.cjs test/pdfium_worker_range_response_test.cjs test/pdfium_worker_font_cache_test.cjs
 
       - name: Build Web
         working-directory: packages/pdfrx/example/viewer
