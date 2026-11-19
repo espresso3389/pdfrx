@@ -209,7 +209,7 @@ void main() {
 
   for (final outcome in [_Outcome.noImage, _Outcome.error]) {
     for (final partial in [false, true]) {
-      _testWidgets('a ${partial ? 'partial' : 'preview'} render with ${outcome.name} fails and retries on repaint', (
+      _testWidgets('a ${partial ? 'partial' : 'preview'} render with ${outcome.name} stops after bounded retries', (
         tester,
       ) async {
         final document = _FakeDocument([const Size(600, 800)]);
@@ -228,21 +228,189 @@ void main() {
         final recorder = _StateRecorder(controller);
         addTearDown(recorder.dispose);
         await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.failed);
-        // The viewer keeps retrying; the state stays failed instead of alternating with pending.
+        // Reservation releases and unrelated repaints must not bypass the retry delays.
         recorder.states.clear();
-        await _pumpPaintWork(tester);
+        final firstAttempt = renderer.calls.where((call) => call.isPartial == partial).length;
+        expect(firstAttempt, 1);
+        for (var i = 0; i < 5; i++) {
+          controller.invalidate();
+          await tester.pump(const Duration(milliseconds: 20));
+        }
+        expect(renderer.calls.where((call) => call.isPartial == partial).length, firstAttempt);
+        await _pumpUntil(tester, () => renderer.calls.where((call) => call.isPartial == partial).length == 3);
+        for (var i = 0; i < 20; i++) {
+          controller.invalidate();
+          await tester.pump(const Duration(seconds: 1));
+        }
+        expect(renderer.calls.where((call) => call.isPartial == partial).length, 3);
         expect(recorder.states, isEmpty);
         expect(controller.visibleRenderState.value, PdfVisibleRenderState.failed);
 
-        // A retry that succeeds makes the page ready.
+        // Explicit retry recovers without replacing the document or successful images.
         renderer.outcome = null;
-        controller.invalidate();
+        controller.retryFailedRenderings();
         await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+        expect(renderer.calls.where((call) => call.isPartial == partial).length, 4);
         expect(recorder.notifiedDuringFrame, isFalse);
         await _unmount(tester);
       });
     }
   }
+
+  for (final partial in [false, true]) {
+    _testWidgets('a transient ${partial ? 'partial' : 'preview'} failure recovers automatically', (tester) async {
+      final document = _FakeDocument([const Size(600, 800)]);
+      addTearDown(document.dispose);
+      final renderer = document.renderer;
+      final controller = PdfViewerController();
+      if (partial) {
+        await tester.pumpWidget(_viewer(document, controller));
+        await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+      }
+      var failures = 0;
+      renderer.outcome = (call) => call.isPartial == partial && failures++ < 1 ? _Outcome.noImage : _Outcome.image;
+      if (partial) {
+        await controller.setZoom(const Offset(400, 300), 3, duration: Duration.zero);
+      } else {
+        await tester.pumpWidget(_viewer(document, controller));
+      }
+      await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.failed);
+      await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+      expect(renderer.calls.where((call) => call.isPartial == partial).length, 2);
+      await _unmount(tester);
+    });
+  }
+
+  _testWidgets('a changed partial target gets a fresh retry budget', (tester) async {
+    final document = _FakeDocument([const Size(600, 800)]);
+    addTearDown(document.dispose);
+    final renderer = document.renderer;
+    final controller = PdfViewerController();
+    await tester.pumpWidget(_viewer(document, controller));
+    await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+    renderer.outcome = (call) => call.isPartial ? _Outcome.noImage : _Outcome.image;
+    await controller.setZoom(const Offset(400, 300), 3, duration: Duration.zero);
+    await _pumpUntil(tester, () => renderer.calls.where((call) => call.isPartial).length == 3);
+    renderer.outcome = null;
+    await controller.setZoom(const Offset(400, 300), 5, duration: Duration.zero);
+    await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+    expect(renderer.calls.where((call) => call.isPartial).length, 4);
+    await _unmount(tester);
+  });
+
+  _testWidgets('visible failures do not bypass the retry delay of an offscreen prefetch', (tester) async {
+    final document = _FakeDocument([const Size(600, 800), const Size(600, 800)]);
+    addTearDown(document.dispose);
+    final renderer = document.renderer..outcome = (_) => _Outcome.noImage;
+    final controller = PdfViewerController();
+    await tester.pumpWidget(_viewer(document, controller, verticalCacheExtent: 2));
+    await _pumpUntil(tester, () => renderer.calls.any((call) => call.pageNumber == 2));
+    expect(controller.layout.pageLayouts[1].overlaps(controller.visibleRect), isFalse);
+    final attempts = renderer.calls.where((call) => call.pageNumber == 2).length;
+    for (var i = 0; i < 5; i++) {
+      controller.invalidate();
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(renderer.calls.where((call) => call.pageNumber == 2).length, attempts);
+    await _unmount(tester);
+  });
+
+  _testWidgets('changed page content resets an exhausted render retry budget', (tester) async {
+    final document = _FakeDocument([const Size(600, 800)]);
+    addTearDown(document.dispose);
+    final renderer = document.renderer..outcome = (_) => _Outcome.error;
+    final controller = PdfViewerController();
+    await tester.pumpWidget(_viewer(document, controller));
+    await _pumpUntil(tester, () => renderer.calls.length == 3);
+    renderer.outcome = null;
+    document.replacePage(1, rotation: PdfPageRotation.none);
+    await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+    expect(renderer.calls.length, 4);
+    await _unmount(tester);
+  });
+
+  _testWidgets('hiding cancels scheduled retries and showing starts a fresh request', (tester) async {
+    final document = _FakeDocument([const Size(600, 800)]);
+    addTearDown(document.dispose);
+    final renderer = document.renderer..outcome = (_) => _Outcome.noImage;
+    final budget = PdfImageCacheBudget(maximumBytes: 4 << 20);
+    addTearDown(budget.dispose);
+    final controller = PdfViewerController();
+    await tester.pumpWidget(_viewer(document, controller, imageCacheBudget: budget, behavior: _noPreview));
+    await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.failed);
+    final rendersBeforeHide = renderer.calls.length;
+    await tester.pumpWidget(
+      _viewer(document, controller, imageCacheBudget: budget, isVisible: false, behavior: _noPreview),
+    );
+    await tester.pump(const Duration(seconds: 5));
+    expect(renderer.calls.length, rendersBeforeHide);
+    expect(budget.pendingBytes, 0);
+    renderer.outcome = null;
+    await tester.pumpWidget(_viewer(document, controller, imageCacheBudget: budget, behavior: _noPreview));
+    await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+    expect(renderer.calls.length, rendersBeforeHide + 1);
+    await _unmount(tester);
+  });
+
+  _testWidgets('unmounting cancels the retry timer and releases its image reservation', (tester) async {
+    final document = _FakeDocument([const Size(600, 800)]);
+    addTearDown(document.dispose);
+    final renderer = document.renderer..outcome = (_) => _Outcome.noImage;
+    final budget = PdfImageCacheBudget(maximumBytes: 4 << 20);
+    addTearDown(budget.dispose);
+    final controller = PdfViewerController();
+    await tester.pumpWidget(_viewer(document, controller, imageCacheBudget: budget, behavior: _noPreview));
+    await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.failed);
+    final rendersBeforeDispose = renderer.calls.length;
+    await _unmount(tester);
+    await tester.pump(const Duration(seconds: 5));
+    expect(renderer.calls.length, rendersBeforeDispose);
+    expect(budget.pendingBytes, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  _testWidgets('waiting for shared image budget is pending and does not consume render attempts', (tester) async {
+    final document = _FakeDocument([const Size(600, 800)]);
+    addTearDown(document.dispose);
+    final budget = PdfImageCacheBudget(maximumBytes: 4 << 20);
+    addTearDown(budget.dispose);
+    final reservation = budget.tryReserve(budget.maximumBytes)!;
+    final controller = PdfViewerController();
+    await tester.pumpWidget(_viewer(document, controller, imageCacheBudget: budget, behavior: _noPreview));
+    await _pumpUntil(tester, () => controller.isReady);
+    for (var i = 0; i < 10; i++) {
+      controller.invalidate();
+      await tester.pump(const Duration(seconds: 1));
+    }
+    expect(document.renderer.calls, isEmpty);
+    expect(controller.visibleRenderState.value, PdfVisibleRenderState.pending);
+    reservation.dispose();
+    await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+    expect(document.renderer.calls.length, 1);
+    expect(budget.pendingBytes, 0);
+    await _unmount(tester);
+  });
+
+  _testWidgets('repeated canceled renders do not exhaust the failure retry budget', (tester) async {
+    final document = _FakeDocument([const Size(600, 800)]);
+    addTearDown(document.dispose);
+    final renderer = document.renderer..hold = (_) => true;
+    final controller = PdfViewerController();
+    await tester.pumpWidget(_viewer(document, controller));
+    for (var attempt = 0; attempt < 4; attempt++) {
+      await _pumpUntil(tester, () => renderer.heldCalls.isNotEmpty);
+      final canceled = renderer.heldCalls.single;
+      controller.releaseCachedImages(keepVisible: false);
+      expect(canceled.token.isCanceled, isTrue);
+      canceled.complete();
+      await _pumpPaintWork(tester);
+    }
+    renderer.hold = null;
+    renderer.completeAll();
+    await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+    expect(renderer.calls.length, 5);
+    await _unmount(tester);
+  });
 
   _testWidgets('a failure on one page does not hide a page that is still pending', (tester) async {
     final document = _FakeDocument([const Size(600, 200), const Size(600, 200), const Size(600, 200)]);
