@@ -103,7 +103,9 @@ Future<PdfDocument?> _pumpViewer(
   for (var i = 0; i < 100; i++) {
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await tester.pump(const Duration(milliseconds: 50));
-    if (captured != null && ++pumpsAfterDocumentLoaded >= 5) {
+    final doc = captured;
+    if (doc == null) continue;
+    if (onDemand ? ++pumpsAfterDocumentLoaded >= 5 : _measuredCount(doc) == doc.pages.length) {
       break;
     }
   }
@@ -159,7 +161,7 @@ void main() {
 
       expect(doc, isNotNull, reason: 'onDocumentChanged should have fired');
       expect(doc!.pages.length, 40);
-      expect(_measuredCount(doc), 40, reason: 'the stock path walks the whole document before painting');
+      expect(_measuredCount(doc), 40, reason: 'eager loading must measure every page without scrolling');
     }, skip: _pdfiumPath == null);
 
     testWidgets('on: only pages near the viewport are measured', (tester) async {

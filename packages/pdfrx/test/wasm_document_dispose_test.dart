@@ -16,7 +16,7 @@ void main() {
   setUpAll(() async {
     // The browser test server does not serve package assets, so serve the PDFium WASM modules from the VM.
     final server = spawnHybridCode(_assetServer);
-    Pdfrx.pdfiumWasmModulesUrl = 'http://localhost:${await server.stream.first}/';
+    Pdfrx.pdfiumWasmModulesUrl = await server.stream.first as String;
     pdfrxFlutterInitialize();
   });
 
@@ -81,7 +81,7 @@ Future<void> hybridMain(StreamChannel<Object?> channel) async {
     }
     await request.response.close();
   });
-  channel.sink.add(server.port);
+  channel.sink.add(Uri(scheme: 'http', host: 'localhost', port: server.port, path: '/').toString());
 }
 ''';
 
