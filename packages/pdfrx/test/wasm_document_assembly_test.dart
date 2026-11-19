@@ -51,10 +51,16 @@ void main() {
     final source = await _open();
     final doc = await PdfDocument.createNew(sourceName: 'assembled');
     addTearDown(doc.dispose);
-    doc.pages = [source.pages[2].rotatedCW90(), source.pages[0], source.pages[2].rotated180()];
+    doc.pages = [
+      source.pages[2].rotatedCW90(),
+      source.pages[0],
+      source.pages[2].rotated180(),
+      source.pages[1].rotatedCCW90(),
+    ];
+    final labels = ['PageC', 'PageA', 'PageC', 'PageB'];
     final expectedPixels = <Uint8List>[];
     for (final page in doc.pages) {
-      final image = (await page.render())!;
+      final image = await _renderAtPageSize(page);
       expectedPixels.add(Uint8List.fromList(image.pixels));
       image.dispose();
     }
@@ -62,20 +68,20 @@ void main() {
     expect(await doc.assemble(), isTrue);
     await source.dispose();
     expect(doc.pages.every((page) => identical(page.document, doc)), isTrue);
-    expect(await _labels(doc), ['PageC', 'PageA', 'PageC']);
-    expect(doc.pages.map((page) => page.rotation.index), [1, 0, 2]);
+    expect(await _labels(doc), labels);
+    expect(doc.pages.map((page) => page.rotation.index), [1, 0, 2, 3]);
     for (var i = 0; i < doc.pages.length; i++) {
       final page = doc.pages[i];
-      final image = (await page.render())!;
+      final image = await _renderAtPageSize(page);
       expect(image.pixels, orderedEquals(expectedPixels[i]));
       image.dispose();
       expect(
         (await page.loadLinks(enableAutoLinkDetection: false)).single.url.toString(),
-        'https://example.test/${i == 1 ? 'PageA' : 'PageC'}',
+        'https://example.test/${labels[i]}',
       );
     }
-    await _expectEncoded(doc, ['PageC', 'PageA', 'PageC']);
-    await _expectEncoded(doc, ['PageC', 'PageA', 'PageC']);
+    await _expectEncoded(doc, labels);
+    await _expectEncoded(doc, labels);
     expect(await doc.assemble(), isFalse);
   });
 
@@ -246,6 +252,17 @@ Future<PdfDocument> _open({bool cropped = false, bool progressive = false}) asyn
 
 Future<List<String>> _labels(PdfDocument doc) =>
     Future.wait(doc.pages.map((page) async => (await page.loadText())!.fullText.trim()));
+
+Future<PdfImage> _renderAtPageSize(PdfPage page) async {
+  // Rotation proxies delegate unspecified dimensions to their unrotated source.
+  // Compare the same raster dimensions before and after committing the rotation.
+  final width = page.width.round();
+  final height = page.height.round();
+  final image = (await page.render(width: width, height: height, fullWidth: page.width, fullHeight: page.height))!;
+  expect(image.width, width);
+  expect(image.height, height);
+  return image;
+}
 
 List<List<num>> _geometry(PdfDocument doc) => [
   for (final page in doc.pages) [page.width, page.height, page.rotation.index],
