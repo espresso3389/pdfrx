@@ -14,6 +14,7 @@ import 'hebrew_native.dart';
 import 'progressive_text_native.dart';
 import 'progressive_loading_native.dart';
 import 'reload_pages_native.dart';
+import 'native_open_cleanup.dart';
 
 final testPdfFile = File('../pdfrx/example/viewer/assets/hello.pdf');
 final multiPageTestPdfFile = File('../pdfrx/test/assets/multipage40.pdf');
@@ -108,6 +109,7 @@ void main() {
   registerProgressiveTextNativeTests();
   registerProgressiveLoadingNativeTests();
   registerReloadPagesNativeTests();
+  registerNativeOpenCleanupTests();
   setUp(() => pdfrxInitialize(tmpPath: tmpRoot.path));
 
   test('PdfDocument.openFile', () async => await testDocument(await PdfDocument.openFile(testPdfFile.path)));

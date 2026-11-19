@@ -26,19 +26,30 @@ class PdfiumFileAccess {
     }
 
     fa._nativeCallable = _NativeFileReadCallable.listener(readAndSignal);
-    fa.fileAccess = await PdfiumFileAccessHelper.instance.create(fileSize, fa._nativeCallable.nativeFunction.address);
-    return fa;
+    try {
+      fa.fileAccess = await PdfiumFileAccessHelper.instance.create(fileSize, fa._nativeCallable.nativeFunction.address);
+      return fa;
+    } catch (_) {
+      fa._nativeCallable.close();
+      rethrow;
+    }
   }
 
   /// Disposes the file access structure and associated resources.
   void dispose() {
-    PdfiumFileAccessHelper.instance.destroy(fileAccess);
-    _nativeCallable.close();
+    if (_disposed) return;
+    _disposed = true;
+    try {
+      PdfiumFileAccessHelper.instance.destroy(fileAccess);
+    } finally {
+      _nativeCallable.close();
+    }
   }
 
   /// Address of `FPDF_FILEACCESS` structure.
   late final int fileAccess;
   late final _NativeFileReadCallable _nativeCallable;
+  bool _disposed = false;
 }
 
 typedef _NativeFileReadCallable = NativeCallable<Void Function(IntPtr, Pointer<Uint8>, IntPtr)>;
