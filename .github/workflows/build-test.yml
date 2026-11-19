@@ -162,12 +162,17 @@ jobs:
 
       - name: Test pdfrx on macOS - ${{ matrix.package_manager }}
         working-directory: packages/pdfrx
-        run: flutter test test/pdfium_loading_test.dart test/pdf_viewer_visible_render_state_test.dart
+        run: >-
+          flutter test
+          test/pdfium_loading_test.dart
+          test/pdf_viewer_visible_render_state_test.dart
+          test/pdf_viewer_selection_drag_test.dart
+          test/pdf_viewer_selection_memory_test.dart
 
-      - name: Test process-wide PDFium gate
+      - name: Test process-wide PDFium gate and text cache
         timeout-minutes: 5
         working-directory: packages/pdfrx_engine
-        run: dart test test/process_gate_smoke.dart
+        run: dart test test/process_gate_smoke.dart test/pdf_page_text_cache_test.dart
 
   # Linux build
   linux:

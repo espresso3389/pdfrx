@@ -304,6 +304,10 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// The starting/ending point of the text selection.
   PdfTextSelectionPoint? _selA, _selB;
+
+  /// Cached output text for the active selection, without intermediate page geometry.
+  ({PdfTextSelectionPoint a, PdfTextSelectionPoint b, String text})? _selectedTextSnapshot;
+  final _textCopyInvalidators = <void Function(PdfDocumentPageStatusChangedEvent)>{};
   Offset? _textSelectAnchor;
   Offset? _selectionHandleGlobalPosition;
   Ticker? _selectionHandleTicker;
@@ -658,6 +662,8 @@ class _PdfViewerState extends State<PdfViewer>
     _imageBudget.removeListener(_onImageBudgetChanged);
     _localImageBudget.dispose();
     _textCacheLease?.dispose();
+    _selectedTextSnapshot = null;
+    _textCopyInvalidators.clear();
     _selectionHandleTicker?.dispose();
     SemanticsBinding.instance.removeSemanticsEnabledListener(_onSemanticsEnabledChanged);
     _interactionDelegate?.dispose();
@@ -736,6 +742,9 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _onDocumentEvent(PdfDocumentEvent event) {
     if (event is PdfDocumentPageStatusChangedEvent) {
+      for (final invalidateCopy in _textCopyInvalidators) {
+        invalidateCopy(event);
+      }
       _layoutDirty = true;
       // FIXME: We can handle the event more efficiently by only updating the affected pages.
       for (final change in event.changes.entries) {
@@ -751,7 +760,8 @@ class _PdfViewerState extends State<PdfViewer>
       if (hasSelectedText) {
         final pageFrom = min(_selA!.text.pageNumber, _selB!.text.pageNumber);
         final pageTo = max(_selA!.text.pageNumber, _selB!.text.pageNumber);
-        if (event.changes.keys.any((page) => page >= pageFrom && page <= pageTo)) {
+        if (pageTo > event.document.pages.length ||
+            event.changes.keys.any((page) => page >= pageFrom && page <= pageTo)) {
           _clearTextSelections(invalidate: false);
         }
       }
@@ -2424,11 +2434,7 @@ class _PdfViewerState extends State<PdfViewer>
     final previous = _textCachePins;
     if (previous?.first == first && previous?.last == last && listEquals(previous?.visible, visible)) return;
     _textCachePins = (first: first, last: last, visible: visible);
-    final pinned = {
-      for (final i in visible) i + 1,
-      if (first != null && last != null)
-        for (var n = first; n <= last; n++) n,
-    };
+    final pinned = {for (final i in visible) i + 1, ?first, ?last};
     _textCacheLease?.updatePinnedPages(pinned);
   }
 
@@ -2993,7 +2999,9 @@ class _PdfViewerState extends State<PdfViewer>
           final sw = Pdfrx.debugLazyLoading ? (Stopwatch()..start()) : null;
           final bytesAtStart = Pdfrx.debugBytesFetched;
           final text = await cache.load(page);
-          if (!isActive() || !identical(page, document.pages[pageNumber - 1])) return null;
+          if (!isActive() || pageNumber > document.pages.length || !identical(page, document.pages[pageNumber - 1])) {
+            return null;
+          }
           if (sw != null) {
             final fetched = Pdfrx.debugBytesFetched - bytesAtStart;
             pdfrxLazyLog(
@@ -4092,6 +4100,8 @@ class _PdfViewerState extends State<PdfViewer>
       _isSelectingAllText = false;
     }
 
+    final snapshot = _selectedTextSnapshot;
+    if (snapshot != null && (snapshot.a != _selA || snapshot.b != _selB)) _selectedTextSnapshot = null;
     if (invalidate) {
       _notifyTextSelectionChange();
     }
@@ -5113,21 +5123,61 @@ class _PdfViewerState extends State<PdfViewer>
     if (a == null || b == null) {
       return [];
     }
+    final selections = <PdfPageTextRange>[];
+    final result = await _visitSelectedTextRanges(a, b, selections.add);
+    return result == _SelectedTextVisitResult.invalid ? [] : selections;
+  }
+
+  /// Reads the captured selection one page at a time, without retaining intermediate geometry.
+  Future<_SelectedTextVisitResult> _visitSelectedTextRanges(
+    PdfTextSelectionPoint a,
+    PdfTextSelectionPoint b,
+    void Function(PdfPageTextRange range) visit,
+  ) async {
+    final document = _document;
+    final generation = _documentGeneration;
+    if (document == null) return _SelectedTextVisitResult.invalid;
     final first = a.text.pageNumber < b.text.pageNumber ? a : b;
     final second = a.text.pageNumber < b.text.pageNumber ? b : a;
-    if (first.text.pageNumber == second.text.pageNumber) {
-      return [a.text.getRangeFromAB(a.index, b.index)];
-    }
-    final selections = <PdfPageTextRange>[first.text.getRangeFromAB(first.index, first.text.charRects.length - 1)];
-
-    for (var i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
-      final text = await _loadTextAsync(i, allowHidden: true);
-      if (text == null || text.fullText.isEmpty) continue;
-      selections.add(text.getRangeFromAB(0, text.charRects.length - 1));
+    var contentChanged = false;
+    var isComplete = true;
+    void invalidateCopy(PdfDocumentPageStatusChangedEvent event) {
+      if (second.text.pageNumber > document.pages.length ||
+          event.changes.keys.any((page) => page >= first.text.pageNumber && page <= second.text.pageNumber)) {
+        contentChanged = true;
+      }
     }
 
-    selections.add(second.text.getRangeFromAB(0, second.index));
-    return selections;
+    // Use the existing event subscription: a new subscription can replay older page changes.
+    _textCopyInvalidators.add(invalidateCopy);
+    bool isCurrentDocument() =>
+        mounted &&
+        generation == _documentGeneration &&
+        !contentChanged &&
+        second.text.pageNumber <= document.pages.length;
+    try {
+      if (first.text.pageNumber == second.text.pageNumber) {
+        visit(a.text.getRangeFromAB(a.index, b.index));
+      } else {
+        visit(first.text.getRangeFromAB(first.index, first.text.charRects.length - 1));
+        for (var i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
+          if (!isCurrentDocument()) return _SelectedTextVisitResult.invalid;
+          final text = await _loadTextAsync(i, allowHidden: true);
+          if (!isCurrentDocument()) return _SelectedTextVisitResult.invalid;
+          if (text == null) {
+            isComplete = false;
+            continue;
+          }
+          if (text.fullText.isEmpty) continue;
+          visit(text.getRangeFromAB(0, text.charRects.length - 1));
+        }
+        visit(second.text.getRangeFromAB(0, second.index));
+      }
+      if (!isCurrentDocument()) return _SelectedTextVisitResult.invalid;
+      return isComplete ? _SelectedTextVisitResult.complete : _SelectedTextVisitResult.incomplete;
+    } finally {
+      _textCopyInvalidators.remove(invalidateCopy);
+    }
   }
 
   /// The selected ranges from the text cache, or null if the text of a page between the ends is not cached.
@@ -5156,12 +5206,36 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   @override
-  Future<String> getSelectedText() async => _joinSelectedText(await getSelectedTextRanges());
+  Future<String> getSelectedText() async {
+    _updateTextCachePins();
+    final a = _selA;
+    final b = _selB;
+    if (a == null || b == null) return '';
+    final snapshot = _selectedTextSnapshot;
+    if (snapshot != null && snapshot.a == a && snapshot.b == b) return snapshot.text;
+    final generation = _documentGeneration;
+    final chunks = <String>[];
+    final result = await _visitSelectedTextRanges(a, b, (range) => chunks.add(range.text));
+    if (result == _SelectedTextVisitResult.invalid) return '';
+    final text = chunks.join();
+    // A pending copy still returns its captured selection, but must not replace a newer selection's text.
+    if (result == _SelectedTextVisitResult.complete && generation == _documentGeneration && a == _selA && b == _selB) {
+      _selectedTextSnapshot = (a: a, b: b, text: text);
+    }
+    return text;
+  }
 
   @override
   String? get selectedTextIfLoaded {
+    final snapshot = _selectedTextSnapshot;
+    if (snapshot != null && snapshot.a == _selA && snapshot.b == _selB) return snapshot.text;
     final selections = _selectedTextRangesIfLoaded();
-    return selections == null ? null : _joinSelectedText(selections);
+    if (selections == null) return null;
+    final text = _joinSelectedText(selections);
+    final a = _selA;
+    final b = _selB;
+    if (a != null && b != null) _selectedTextSnapshot = (a: a, b: b, text: text);
+    return text;
   }
 
   static String _joinSelectedText(List<PdfPageTextRange> selections) => selections.map((e) => e.text).join();
@@ -5262,15 +5336,20 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   Future<bool> _copyTextSelection() async {
-    if (_document!.permissions?.allowsCopying == false) return false;
-    setClipboardData(await getSelectedText());
+    final document = _document;
+    if (document == null || document.permissions?.allowsCopying == false) return false;
+    final text = await getSelectedText();
+    if (!mounted || document != _document || text.isEmpty) return false;
+    setClipboardData(text);
     return true;
   }
 
   @override
   Future<bool> copyTextSelection() async {
+    final a = _selA;
+    final b = _selB;
     final result = await _copyTextSelection();
-    _clearTextSelections();
+    if (result && mounted && a == _selA && b == _selB) _clearTextSelections();
     return result;
   }
 
@@ -5679,6 +5758,9 @@ class _PdfViewerTransformationController extends TransformationController {
 
 /// What selection part is moving by mouse-dragging/finger-panning.
 enum _TextSelectionPart { none, free, a, b }
+
+/// Whether a selection read was invalidated, skipped unavailable text, or read every selected page.
+enum _SelectedTextVisitResult { invalid, incomplete, complete }
 
 /// Represents a point (combination of page and character index) in the text selection.
 /// It contains the [PdfPageText] and the index of the character in that text.
@@ -6500,6 +6582,7 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   ///
   /// Visible pages and the current selection are kept by default. Set [keepVisible] false under memory pressure,
   /// or [keepSelection] false to also clear the current selection. Visible resources reload on the next paint.
+  /// A kept selection retains its endpoints and previously copied text; other geometry reloads when needed.
   void releaseCachedResources({bool keepVisible = true, bool keepSelection = true}) =>
       _state._releaseCachedResources(keepVisible: keepVisible, keepSelection: keepSelection);
 

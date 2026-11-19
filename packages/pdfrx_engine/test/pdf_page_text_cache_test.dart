@@ -48,6 +48,87 @@ void main() {
     second.dispose();
   });
 
+  test('overlapping owners can replace their pins without unpinning another owner', () async {
+    final cache = PdfPageTextCache(maximumPages: 0);
+    final first = cache.createLease()..updatePinnedPages([1, 2, 2]);
+    final second = cache.createLease()..updatePinnedPages([2, 3]);
+    for (var page = 1; page <= 3; page++) {
+      await cache.load(_Page(page));
+    }
+    first.updatePinnedPages([3]);
+    expect(cache.get(1), isNull);
+    expect(cache.get(2), isNotNull);
+    expect(cache.get(3), isNotNull);
+    second.dispose();
+    expect(cache.get(2), isNull);
+    expect(cache.get(3), isNotNull);
+    first.dispose();
+    first.dispose();
+    first.updatePinnedPages([4]);
+    await cache.load(_Page(4));
+    expect(cache.length, 0);
+    expect(cache.estimatedBytes, 0);
+  });
+
+  test('releasing a pin preserves recency relative to pages that were never pinned', () async {
+    final cache = PdfPageTextCache(maximumPages: 2);
+    final lease = cache.createLease()..updatePinnedPages([1]);
+    await cache.load(_Page(1));
+    await cache.load(_Page(2));
+    lease.dispose();
+    await cache.load(_Page(3));
+    expect(cache.get(1), isNull);
+    expect(cache.get(2), isNotNull);
+    expect(cache.get(3), isNotNull);
+
+    lease.updatePinnedPages([2]); // A disposed lease cannot resurrect its pins.
+    await cache.load(_Page(4));
+    expect(cache.get(2), isNull);
+  });
+
+  test('touching a pinned page preserves its newer recency when unpinned', () async {
+    final cache = PdfPageTextCache(maximumPages: 2);
+    final lease = cache.createLease()..updatePinnedPages([1]);
+    await cache.load(_Page(1));
+    await cache.load(_Page(2));
+    cache.get(1);
+    lease.dispose();
+    await cache.load(_Page(3));
+    expect(cache.get(1), isNotNull);
+    expect(cache.get(2), isNull);
+  });
+
+  test('a long sequential copy retains only bounded text and its endpoints', () async {
+    final cache = PdfPageTextCache(maximumPages: 16);
+    final lease = cache.createLease()..updatePinnedPages([1, 1000]);
+    final expectedPageBytes = PdfPageTextCache.estimateBytes(await cache.load(_Page(1)));
+    await cache.load(_Page(1000));
+    for (var page = 2; page < 1000; page++) {
+      await cache.load(_Page(page));
+      expect(cache.length, lessThanOrEqualTo(16));
+      expect(cache.estimatedBytes, lessThanOrEqualTo(16 * expectedPageBytes));
+    }
+    expect(cache.get(1), isNotNull);
+    expect(cache.get(1000), isNotNull);
+    expect(cache.get(500), isNull);
+    lease.dispose();
+  });
+
+  test('clear keeps active pin ownership but removes stale eviction entries', () async {
+    final cache = PdfPageTextCache(maximumPages: 1);
+    final lease = cache.createLease()..updatePinnedPages([1]);
+    await cache.load(_Page(1));
+    cache.clear();
+    await cache.load(_Page(2));
+    await cache.load(_Page(1));
+    expect(cache.get(1), isNotNull);
+    expect(cache.get(2), isNull);
+    lease.dispose();
+    await cache.load(_Page(3));
+    expect(cache.get(1), isNull);
+    expect(cache.get(3), isNotNull);
+  });
+
   test('clear prevents pending loads from repopulating the cache', () async {
     final cache = PdfPageTextCache();
     final page = _Page(1)..gate = Completer<void>();

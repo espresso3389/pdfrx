@@ -27,7 +27,8 @@ class PdfPageTextCache {
 
   final _entries = <int, PdfPageText>{};
   final _pending = <int, Future<PdfPageText>>{};
-  final _leases = <PdfPageTextCacheLease>{};
+  final _pinCounts = <int, int>{};
+  final _evictablePages = <int>{};
   int _estimatedBytes = 0;
 
   /// Number of cached pages, including pinned pages.
@@ -39,7 +40,10 @@ class PdfPageTextCache {
   /// Returns cached text, updating its least-recently-used position.
   PdfPageText? get(int pageNumber) {
     final text = _entries.remove(pageNumber);
-    if (text != null) _entries[pageNumber] = text;
+    if (text != null) {
+      _entries[pageNumber] = text;
+      if (_evictablePages.remove(pageNumber)) _evictablePages.add(pageNumber);
+    }
     return text;
   }
 
@@ -57,6 +61,7 @@ class PdfPageTextCache {
           _pending.remove(page.pageNumber);
           if (page.isLoaded) {
             _entries[page.pageNumber] = text;
+            if (!_pinCounts.containsKey(page.pageNumber)) _evictablePages.add(page.pageNumber);
             _estimatedBytes += estimateBytes(text);
             trim();
           }
@@ -74,25 +79,49 @@ class PdfPageTextCache {
   /// Creates an owner for pages that must remain available, such as a selection.
   /// Pinned pages may exceed the cache limits until the lease is released.
   PdfPageTextCacheLease createLease() {
-    final lease = PdfPageTextCacheLease._(this);
-    _leases.add(lease);
-    return lease;
+    return PdfPageTextCacheLease._(this);
   }
 
   /// Invalidates a changed page, including a pending insertion.
   void invalidate(int pageNumber) {
     final removed = _entries.remove(pageNumber);
+    _evictablePages.remove(pageNumber);
     if (removed != null) _estimatedBytes -= estimateBytes(removed);
     _pending.remove(pageNumber);
   }
 
   /// Evicts least-recently-used unpinned pages until both limits are met.
   void trim() {
-    final pinned = {for (final lease in _leases) ...lease._pages};
-    for (final pageNumber in _entries.keys.toList()) {
-      if (_entries.length <= maximumPages && _estimatedBytes <= maximumBytes) break;
-      if (!pinned.contains(pageNumber)) invalidate(pageNumber);
+    while ((_entries.length > maximumPages || _estimatedBytes > maximumBytes) && _evictablePages.isNotEmpty) {
+      invalidate(_evictablePages.first);
     }
+  }
+
+  /// Updates shared pin ownership without rebuilding it on each cache insertion.
+  void _replacePins(Set<int> previous, Set<int> next) {
+    var changed = false;
+    for (final page in previous) {
+      if (next.contains(page)) continue;
+      final count = _pinCounts[page]!;
+      if (count == 1) {
+        _pinCounts.remove(page);
+        changed = true;
+      } else {
+        _pinCounts[page] = count - 1;
+      }
+    }
+    for (final page in next) {
+      if (previous.contains(page)) continue;
+      final count = _pinCounts[page] ?? 0;
+      _pinCounts[page] = count + 1;
+      if (count == 0) changed = true;
+    }
+    if (!changed) return;
+    // Restoring eligibility must retain the pages' original recency order.
+    _evictablePages
+      ..clear()
+      ..addAll(_entries.keys.where((page) => !_pinCounts.containsKey(page)));
+    trim();
   }
 
   /// Releases cached text and prevents pending loads from repopulating it.
@@ -100,14 +129,14 @@ class PdfPageTextCache {
   /// Set [keepPinned] to preserve all consumers' active leases.
   void clear({bool keepPinned = false}) {
     if (keepPinned) {
-      final pinned = {for (final lease in _leases) ...lease._pages};
-      for (final pageNumber in _entries.keys.where((page) => !pinned.contains(page)).toList()) {
+      for (final pageNumber in _evictablePages.toList()) {
         invalidate(pageNumber);
       }
-      _pending.removeWhere((page, _) => !pinned.contains(page));
+      _pending.removeWhere((page, _) => !_pinCounts.containsKey(page));
       return;
     }
     _entries.clear();
+    _evictablePages.clear();
     _pending.clear();
     _estimatedBytes = 0;
   }
@@ -140,16 +169,18 @@ class PdfPageTextCacheLease {
 
   /// Replaces the pinned pages and trims pages no longer needed by any owner.
   void updatePinnedPages(Iterable<int> pageNumbers) {
-    _pages = pageNumbers.toSet();
-    _cache?.trim();
+    final cache = _cache;
+    if (cache == null) return;
+    final pages = pageNumbers.toSet();
+    cache._replacePins(_pages, pages);
+    _pages = pages;
   }
 
   /// Releases this owner's pins.
   void dispose() {
     final cache = _cache;
     _cache = null;
+    cache?._replacePins(_pages, const {});
     _pages = {};
-    cache?._leases.remove(this);
-    cache?.trim();
   }
 }
