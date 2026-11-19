@@ -2520,8 +2520,16 @@ class _PdfViewerState extends State<PdfViewer>
       final isVisible = cache.visiblePageNumbers.contains(entry.key);
       entry.value.budgetEntry?.touch(isPinned: isVisible, isNeeded: isVisible);
     }
-    for (final pageNumber in cache.pendingPageNumbers.toList()) {
-      if (!retainedPages.contains(pageNumber)) cache.cancelPendingRenderings(pageNumber);
+    // Exhausted failures have no pending timer, but their retry budget also ends when the page leaves the extent.
+    for (final pageNumber in {
+      ...cache.pendingPageNumbers,
+      ...cache.previewRenderFailures.keys,
+      ...cache.partialRenderFailures.keys,
+    }) {
+      if (!retainedPages.contains(pageNumber)) {
+        cache.cancelPendingRenderings(pageNumber);
+        cache.clearRenderFailures(pageNumber);
+      }
     }
     unusedPageList.addAll(cache.pageImages.keys.where((pageNumber) => !retainedPages.contains(pageNumber)));
     final soleSpread = _soleSpreadToShow;
@@ -2680,7 +2688,10 @@ class _PdfViewerState extends State<PdfViewer>
     previewRequests.sort((a, b) => byPriority(a.rect, b.rect));
     if (previewRequests.any((request) => cache.visiblePageNumbers.contains(request.page.pageNumber))) {
       for (final pageNumber in cache.pendingPageNumbers.toList()) {
-        if (!cache.visiblePageNumbers.contains(pageNumber)) cache.cancelPendingRenderings(pageNumber);
+        if (!cache.visiblePageNumbers.contains(pageNumber)) {
+          // Deprioritizing a prefetch must not make a failed request eligible before its backoff expires.
+          cache.cancelPendingRenderings(pageNumber, cancelRetryTimers: false);
+        }
       }
     }
     // Once a request waits for pageImageCachingDelay, later offscreen ones wait too, so they keep their order.
@@ -2813,8 +2824,7 @@ class _PdfViewerState extends State<PdfViewer>
       switch (entry.kind) {
         case _VisiblePageImageKind.none:
           continue;
-        // A failure is reported even while the viewer retries (it may retry on every repaint); the failure record is
-        // only cleared when an image is produced or the page or cache changes.
+        // A failure stays visible during the bounded retries, until an image is produced or the request changes.
         case _VisiblePageImageKind.unmeasured:
           if (!document.pages[index].isLoaded && (_measurementFailures[pageNumber] ?? 0) > 0) {
             failed = true;
@@ -2824,7 +2834,7 @@ class _PdfViewerState extends State<PdfViewer>
         case _VisiblePageImageKind.preview:
           final image = entry.image;
           if (image != null && identical(cache.pageImages[pageNumber], image) && !image.isDirty) continue;
-          if (cache.previewRenderFailures[pageNumber] == entry.scale) {
+          if (cache.previewRenderFailures[pageNumber]?.key == entry.scale) {
             failed = true;
             continue;
           }
@@ -2833,7 +2843,7 @@ class _PdfViewerState extends State<PdfViewer>
           final image = entry.image;
           if (image != null && identical(cache.pageImagesPartial[pageNumber], image) && !image.isDirty) continue;
           final failure = cache.partialRenderFailures[pageNumber];
-          if (failure != null && failure.rect == entry.partialRect && failure.scale == entry.scale) {
+          if (failure != null && failure.key.rect == entry.partialRect && failure.key.scale == entry.scale) {
             failed = true;
             continue;
           }
@@ -3120,6 +3130,7 @@ class _PdfViewerState extends State<PdfViewer>
     final width = page.width * scale;
     final height = page.height * scale;
     if (width < 1 || height < 1) return false;
+    if (!_canRetryRender(cache.previewRenderFailures, page.pageNumber, scale)) return false;
 
     // if this is the first time to render the page, render it immediately
     if (!cache.pageImages.containsKey(page.pageNumber) &&
@@ -3145,6 +3156,8 @@ class _PdfViewerState extends State<PdfViewer>
     double scale,
   ) async {
     if (!mounted || !widget.params.isVisible) return;
+    if (!_canRetryRender(cache.previewRenderFailures, page.pageNumber, scale)) return;
+    final requestedScale = scale;
     final prev = cache.pageImages[page.pageNumber];
     if (prev != null && !prev.isDirty && prev.scale == scale) return;
     final cancellationToken = page.createCancellationToken();
@@ -3208,7 +3221,9 @@ class _PdfViewerState extends State<PdfViewer>
             priority: priority,
           );
           if (rendered == null || !mounted || !widget.params.isVisible || cancellationToken.isCanceled) {
-            if (rendered == null && !cancellationToken.isCanceled) cache.previewRenderFailures[page.pageNumber] = scale;
+            if (rendered == null && mounted && widget.params.isVisible && !cancellationToken.isCanceled) {
+              _recordRenderFailure(cache.previewRenderFailures, page.pageNumber, requestedScale);
+            }
             if (sw != null) {
               // A null here is a silent failure that leaves the page white --
               // pdfium declined to produce a bitmap and nothing upstream records
@@ -3234,7 +3249,7 @@ class _PdfViewerState extends State<PdfViewer>
           if (!_retainImage(cache, page.pageNumber, newImage, reservation)) return;
           cache.pageImages[page.pageNumber]?.dispose();
           cache.pageImages[page.pageNumber] = newImage;
-          cache.previewRenderFailures.remove(page.pageNumber);
+          cache.previewRenderFailures.remove(page.pageNumber)?.dispose();
           if (identical(cache, _imageCache)) _completeInitialPageImageWaiterIfReady();
           if (sw != null) {
             final fetched = Pdfrx.debugBytesFetched - bytesAtRequest;
@@ -3246,7 +3261,9 @@ class _PdfViewerState extends State<PdfViewer>
           }
           _invalidate();
         } catch (e) {
-          if (!cancellationToken.isCanceled) cache.previewRenderFailures[page.pageNumber] = scale;
+          if (mounted && widget.params.isVisible && !cancellationToken.isCanceled) {
+            _recordRenderFailure(cache.previewRenderFailures, page.pageNumber, requestedScale);
+          }
           if (sw != null) {
             pdfrxLazyLog('#$_viewerInstanceId RENDER p${page.pageNumber} THREW after ${sw.elapsedMilliseconds}ms: $e');
           }
@@ -3293,6 +3310,7 @@ class _PdfViewerState extends State<PdfViewer>
     final status = pixels != null && (pixels.width < 1 || pixels.height < 1)
         ? null
         : (rect: rect, scale: scale, isCurrent: false);
+    if (!_canRetryRender(cache.partialRenderFailures, page.pageNumber, (rect: rect, scale: scale))) return status;
     final pending = cache.pageImagePartialRenderingRequests[page.pageNumber];
     if (pending != null && pending.rect == rect && pending.scale == scale && !pending.cancellationToken.isCanceled) {
       return status;
@@ -3311,7 +3329,7 @@ class _PdfViewerState extends State<PdfViewer>
           if (newImage != null && cache.pageImagePartialRenderingRequests[page.pageNumber] == request) {
             cache.pageImagesPartial.remove(page.pageNumber)?.dispose();
             cache.pageImagesPartial[page.pageNumber] = newImage;
-            cache.partialRenderFailures.remove(page.pageNumber);
+            cache.partialRenderFailures.remove(page.pageNumber)?.dispose();
             _invalidate();
           } else {
             newImage?.dispose();
@@ -3341,7 +3359,12 @@ class _PdfViewerState extends State<PdfViewer>
   ) async {
     if (!mounted || cancellationToken.isCanceled) return null;
     // Recorded for PdfViewerController.visibleRenderState when no image can be produced for this request.
-    void recordFailure() => cache.partialRenderFailures[page.pageNumber] = (rect: rect, scale: scale);
+    void recordFailure() {
+      if (mounted && widget.params.isVisible && !cancellationToken.isCanceled) {
+        _recordRenderFailure(cache.partialRenderFailures, page.pageNumber, (rect: rect, scale: scale));
+      }
+    }
+
     final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
     final inPageRect = rect.translate(-pageRect.left, -pageRect.top);
     final scaledRect = scaleRectForRendering(inPageRect, scale);
@@ -3397,6 +3420,33 @@ class _PdfViewerState extends State<PdfViewer>
       rendered?.dispose();
       reservation.dispose();
     }
+  }
+
+  /// A changed render target gets a fresh retry budget; ordinary repaints do not.
+  bool _canRetryRender<K>(Map<int, _PdfImageRenderFailure<K>> failures, int pageNumber, K key) {
+    final failure = failures[pageNumber];
+    if (failure == null) return true;
+    if (failure.key == key) return failure.canRetry;
+    failures.remove(pageNumber)?.dispose();
+    return true;
+  }
+
+  void _recordRenderFailure<K>(Map<int, _PdfImageRenderFailure<K>> failures, int pageNumber, K key) {
+    var failure = failures[pageNumber];
+    if (failure == null || failure.key != key) {
+      failure?.dispose();
+      failure = failures[pageNumber] = _PdfImageRenderFailure(key);
+    }
+    failure.record(() {
+      if (mounted && widget.params.isVisible) _invalidate();
+    });
+  }
+
+  void _retryFailedRenderings() {
+    _imageCache.clearAllRenderFailures();
+    _magnifierImageCache.clearAllRenderFailures();
+    _measurementFailures.clear();
+    _invalidate();
   }
 
   bool _ignoresWheelDelta(PointerScrollEvent event) =>
@@ -5417,22 +5467,35 @@ class _PdfPageImageCache {
   final pagePreviewRenderings = <int, ({PdfPageRenderCancellationToken token, PdfPageRenderPriority priority})>{};
   final pageImagePartialRenderingRequests = <int, _PdfPartialImageRenderingRequest>{};
 
-  /// Scale of the latest preview render that produced no image, by page number; see
+  /// Failed preview requests and their bounded retries, by page number; see
   /// [_PdfViewerState._evaluateVisibleRenderState].
-  final previewRenderFailures = <int, double>{};
+  final previewRenderFailures = <int, _PdfImageRenderFailure<double>>{};
 
-  /// Rectangle and scale of the latest partial render that produced no image, by page number.
-  final partialRenderFailures = <int, ({Rect rect, double scale})>{};
+  /// Failed partial requests and their bounded retries, by page number.
+  final partialRenderFailures = <int, _PdfImageRenderFailure<({Rect rect, double scale})>>{};
 
   void clearRenderFailures(int pageNumber) {
-    previewRenderFailures.remove(pageNumber);
-    partialRenderFailures.remove(pageNumber);
+    previewRenderFailures.remove(pageNumber)?.dispose();
+    partialRenderFailures.remove(pageNumber)?.dispose();
+  }
+
+  void clearAllRenderFailures() {
+    for (final failure in previewRenderFailures.values) {
+      failure.dispose();
+    }
+    for (final failure in partialRenderFailures.values) {
+      failure.dispose();
+    }
+    previewRenderFailures.clear();
+    partialRenderFailures.clear();
   }
 
   Iterable<int> get pendingPageNumbers => {
     ...pageImageRenderingTimers.keys,
     ...cancellationTokens.keys,
     ...pageImagePartialRenderingRequests.keys,
+    ...previewRenderFailures.entries.where((entry) => entry.value.hasPendingRetry).map((entry) => entry.key),
+    ...partialRenderFailures.entries.where((entry) => entry.value.hasPendingRetry).map((entry) => entry.key),
   };
 
   void addCancellationToken(int pageNumber, PdfPageRenderCancellationToken token) {
@@ -5462,6 +5525,10 @@ class _PdfPageImageCache {
       image.dispose();
     }
     pageImagesPartial.clear();
+    for (final failure in partialRenderFailures.values) {
+      failure.dispose();
+    }
+    partialRenderFailures.clear();
   }
 
   void releaseAllImages() {
@@ -5482,8 +5549,7 @@ class _PdfPageImageCache {
       image.dispose();
     }
     pageImagesPartial.clear();
-    previewRenderFailures.clear();
-    partialRenderFailures.clear();
+    clearAllRenderFailures();
   }
 
   /// Disposes every image except those of [keep], cancelling their pending renders; see
@@ -5495,23 +5561,28 @@ class _PdfPageImageCache {
       ...pageImageRenderingTimers.keys,
       ...cancellationTokens.keys,
       ...pageImagePartialRenderingRequests.keys,
+      ...previewRenderFailures.keys,
+      ...partialRenderFailures.keys,
     };
     for (final pageNumber in pageNumbers) {
       if (keep.contains(pageNumber)) continue;
       cancelPendingRenderings(pageNumber);
       pageImages.remove(pageNumber)?.dispose();
       pageImagesPartial.remove(pageNumber)?.dispose();
+      clearRenderFailures(pageNumber);
     }
-    previewRenderFailures.removeWhere((pageNumber, _) => !keep.contains(pageNumber));
-    partialRenderFailures.removeWhere((pageNumber, _) => !keep.contains(pageNumber));
   }
 
   void cancelPendingPartialRendering(int pageNumber) {
     pageImagePartialRenderingRequests.remove(pageNumber)?.cancel();
   }
 
-  void cancelPendingRenderings(int pageNumber) {
+  void cancelPendingRenderings(int pageNumber, {bool cancelRetryTimers = true}) {
     pageImageRenderingTimers.remove(pageNumber)?.cancel();
+    if (cancelRetryTimers) {
+      previewRenderFailures[pageNumber]?.dispose();
+      partialRenderFailures[pageNumber]?.dispose();
+    }
     cancelPendingPartialRendering(pageNumber);
     final tokens = cancellationTokens.remove(pageNumber);
     if (tokens != null) {
@@ -5587,6 +5658,31 @@ class _PdfPageImageCache {
       }
     }
   }
+}
+
+/// Stops a failing request after three attempts, with 250 ms and 1 s between retries.
+///
+/// The timer only requests a repaint. Visibility, cancellation, in-flight work and image reservations are still
+/// checked by the normal rendering path. Waiting for a reservation or canceling a render does not count as a failure.
+class _PdfImageRenderFailure<K> {
+  _PdfImageRenderFailure(this.key);
+
+  final K key;
+  int _attempts = 0;
+  Timer? _retryTimer;
+
+  bool get hasPendingRetry => _retryTimer?.isActive ?? false;
+  bool get canRetry => _attempts < 3 && !hasPendingRetry;
+
+  void record(VoidCallback onRetry) {
+    _retryTimer?.cancel();
+    _attempts++;
+    if (_attempts < 3) {
+      _retryTimer = Timer(Duration(milliseconds: _attempts == 1 ? 250 : 1000), onRetry);
+    }
+  }
+
+  void dispose() => _retryTimer?.cancel();
 }
 
 class _PdfPartialImageRenderingRequest {
@@ -6110,8 +6206,9 @@ enum PdfVisibleRenderState {
   /// No visible page is pending, but the latest attempt to render at least one of them failed.
   ///
   /// This happens when rendering a visible page for the current view returns no image or throws, or when the size of
-  /// a page cannot be loaded. The state is not final: the viewer retries when it repaints the page, and the state
-  /// becomes [ready] if a retry succeeds.
+  /// a page cannot be loaded. Failed image requests are retried twice, after 250 ms and 1 s, and then stop until
+  /// their render target or page changes, the page leaves the cache extent, or
+  /// [PdfViewerController.retryFailedRenderings] is called. A successful retry changes the state to [ready].
   failed,
 
   /// Every page intersecting the viewport has been painted with its final image for the current view.
@@ -6195,9 +6292,10 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// Any change that alters what should be painted, such as scrolling, zooming, resizing, going to another page,
   /// replacing the document, or releasing the visible pages' images (`releaseCachedImages(keepVisible: false)`),
   /// makes the state leave [PdfVisibleRenderState.ready]. Images that finish rendering for a view that is no longer
-  /// current never make the state ready. A failure is remembered for the page and requested image, so returning to a
-  /// view whose rendering failed reports [PdfVisibleRenderState.failed] again until a retry succeeds. The state always
-  /// describes the current view, so an intermediate frame of an animated scroll or zoom can be ready; wait for
+  /// current never make the state ready. An image failure is remembered for the page and requested image while the
+  /// page stays in the cache extent. Returning to that view reports [PdfVisibleRenderState.failed] until a retry
+  /// succeeds; returning after the page has left the cache extent starts a fresh request. The state always describes
+  /// the current view, so an intermediate frame of an animated scroll or zoom can be ready; wait for
   /// navigation methods such as [goToPage] to complete before waiting for the state.
   ///
   /// The state covers only the page images. It does not cover [PdfViewerParams.pageOverlaysBuilder],
@@ -6585,6 +6683,14 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// A kept selection retains its endpoints and previously copied text; other geometry reloads when needed.
   void releaseCachedResources({bool keepVisible = true, bool keepSelection = true}) =>
       _state._releaseCachedResources(keepVisible: keepVisible, keepSelection: keepSelection);
+
+  /// Retries failed page images and measurements, preserving images that rendered successfully.
+  ///
+  /// Each image request gets at most three attempts: the initial render and two retries after 250 ms and 1 s.
+  /// Ordinary repaints, including [invalidate], do not reset that limit. A changed render target, page content,
+  /// leaving the cache extent, or this explicit retry starts a fresh set of attempts. Canceled renders and
+  /// unavailable image budget do not consume attempts. Only pages needed by the current view are requested again.
+  void retryFailedRenderings() => _state._retryFailedRenderings();
 
   /// The current zoom ratio.
   double get currentZoom => value.zoom;
