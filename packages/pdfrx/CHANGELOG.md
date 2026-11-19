@@ -1,3 +1,12 @@
+# 3.1.0
+
+- Add `PdfViewerController.retryFailedRenderings()` to retry failed page images and measurements. An unchanged image request now stops after three failed attempts. Returning to a page after it leaves the cache extent starts a new request. [#835](https://github.com/espresso3389/pdfrx/pull/835)
+- Copy long text selections without retaining every selected page's geometry. A later copy includes intermediate pages that have since loaded. [#834](https://github.com/espresso3389/pdfrx/pull/834)
+- Keep progressive loading and page-event subscriptions across progress updates and rebuilds with the same document key. [#833](https://github.com/espresso3389/pdfrx/pull/833), [#840](https://github.com/espresso3389/pdfrx/pull/840)
+- Limit cached page links to the viewer's cache extent and discard obsolete link requests when navigating. [#839](https://github.com/espresso3389/pdfrx/pull/839)
+- Evict partial images when previews are disabled and notify `onDocumentLoadFinished` once the initial page's partial image is available. [#842](https://github.com/espresso3389/pdfrx/pull/842)
+- Reuse a complete HTTP response when a Web server ignores a byte-range request, avoiding a second download. [#843](https://github.com/espresso3389/pdfrx/pull/843)
+
 # 3.0.3
 
 - Fit zoom now accounts for the whole facing-page spread. Short documents open at the intended zoom in `fill` and `fit` modes. [#829](https://github.com/espresso3389/pdfrx/pull/829)
