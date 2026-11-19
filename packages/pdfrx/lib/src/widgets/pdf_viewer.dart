@@ -892,6 +892,7 @@ class _PdfViewerState extends State<PdfViewer>
                             scrollPhysics: widget.params.scrollPhysics,
                             scrollPhysicsScale: widget.params.scrollPhysicsScale,
                             scrollPhysicsAutoAdjustBoundaries: true,
+                            constrainPinch: _constrainPinchToBounds,
                             underflowAlignment: Alignment(
                               _splitHorizontalBoundaryExtra(2, widget.params.underflowAnchor).$1 - 1,
                               _splitVerticalBoundaryExtra(2, widget.params.underflowAnchor).$1 - 1,
@@ -966,6 +967,20 @@ class _PdfViewerState extends State<PdfViewer>
       ),
     );
   }
+
+  /// Whether the platform is a desktop one, where pinching is done on a trackpad. On the web,
+  /// [defaultTargetPlatform] is the platform the browser runs on, so a phone browser is not one.
+  bool get _isDesktopPlatform =>
+      defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.linux;
+
+  /// On desktop platforms, the content is kept inside the boundaries (centered if it fits in the
+  /// view) while pinching, instead of drifting towards the pinch and snapping back; see
+  /// [iv.InteractiveViewer.constrainPinch]. Touch platforms keep the free pinch.
+  ///
+  /// Only with [PdfViewerParams.scrollPhysics]; without it the pinch does not overscroll.
+  bool get _constrainPinchToBounds => _isDesktopPlatform && widget.params.scrollPhysics != null;
 
   Offset _calcOverscroll(Matrix4 m, {required Size viewSize}) {
     final boundaryMargin = _adjustedBoundaryMargins;

@@ -90,6 +90,7 @@ class InteractiveViewer extends StatefulWidget {
     this.scrollPhysics,
     this.scrollPhysicsScale,
     this.scrollPhysicsAutoAdjustBoundaries = true,
+    this.constrainPinch = false,
     this.boundaryRectProvider,
     this.onTrackpadScroll,
     this.underflowAlignment = Alignment.center,
@@ -148,6 +149,7 @@ class InteractiveViewer extends StatefulWidget {
     this.scrollPhysics,
     this.scrollPhysicsScale,
     this.scrollPhysicsAutoAdjustBoundaries = true,
+    this.constrainPinch = false,
     this.boundaryRectProvider,
     this.onTrackpadScroll,
     this.underflowAlignment = Alignment.center,
@@ -495,6 +497,16 @@ class InteractiveViewer extends StatefulWidget {
   /// child size is smaller than the viewport size.
   final bool scrollPhysicsAutoAdjustBoundaries;
 
+  /// Whether the view is kept inside the boundaries while pinching, instead of following the focal
+  /// point of the pinch wherever it leads and being brought back when the pinch ends.
+  ///
+  /// Only with [scrollPhysics]. The position is clamped with the same boundaries as the snap-back
+  /// at the end of the pinch, so content that fits in the view stays centered while it is zoomed
+  /// out instead of drifting towards the pinch. The scale still overscrolls [minScale]/[maxScale]
+  /// and snaps back. This suits pointer devices (a trackpad pinch); the default (false) keeps the
+  /// free pinch that touch screens expect.
+  final bool constrainPinch;
+
   /// Alignment of content smaller than the viewport when using scroll physics.
   final Alignment underflowAlignment;
 
@@ -707,7 +719,9 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
       // Scale translations keep the gesture focal point stable and are expressed in scene units.
       // ScrollPhysics operates on viewport pixels, so applying it here mixes coordinate systems and
       // can produce page-sized jumps near a boundary in long documents.
-      if (_gestureType == _GestureType.scale) return nextMatrix;
+      // With [InteractiveViewer.constrainPinch], the pinch is kept inside the boundaries with the
+      // clamp that the snap-back uses, so the two agree on where the content belongs.
+      if (_gestureType == _GestureType.scale) return widget.constrainPinch ? _matrixClamp(nextMatrix) : nextMatrix;
 
       final physics = widget.scrollPhysics!;
       // current translation in scene coordinates (negative because controller stores inverse)
@@ -1253,7 +1267,7 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
           // even if the the scale doesn't change, we may be out of bounds, and
           // want to animate the snap back to bounds
           _snapStartMatrix = _transformer.value.clone();
-          final pivotScene = _toScene(_snapFocalPoint);
+          final pivotScene = _toScene(widget.constrainPinch ? _constrainedSnapPivot(endScale) : _snapFocalPoint);
           final endMatrix = _snapStartMatrix.clone()
             ..translateByDouble(pivotScene.dx, pivotScene.dy, 0, 1)
             ..scaleByDouble(clampedScale / endScale, clampedScale / endScale, clampedScale / endScale, 1)
@@ -1603,6 +1617,43 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
     final clampedY = totalTranslation.dy.clamp(minY, maxY);
 
     return matrix.clone()..setTranslation(Vector3(clampedX, clampedY, 0.0));
+  }
+
+  /// The point of the view that the snap-back of a constrained pinch scales about (see
+  /// [InteractiveViewer.constrainPinch]).
+  ///
+  /// The view was clamped during the pinch, not tracking the focal point, so scaling about the focal
+  /// point would add a scroll that the boundaries allow: content pinned to an edge would drift off
+  /// it. Each axis is anchored on its own instead:
+  /// * the content fits in the view on that axis (it is centered): the view center, as there is no
+  ///   edge to pin to;
+  /// * the view is at the start or end boundary: that edge of the view, so that it stays there;
+  /// * the view is in between: the focal point.
+  Offset _constrainedSnapPivot(double scale) {
+    final boundaries = _computePanBoundaries(
+      viewportSize: _viewport.size,
+      scale: scale,
+      boundaryMargin: widget.boundaryMargin,
+    );
+    final translation = _getMatrixTranslation(_snapStartMatrix);
+    final minX = math.min(-boundaries.left, -boundaries.right);
+    final maxX = math.max(-boundaries.left, -boundaries.right);
+    final minY = math.min(-boundaries.top, -boundaries.bottom);
+    final maxY = math.max(-boundaries.top, -boundaries.bottom);
+
+    // [low]/[high] are the smallest and largest translations allowed on the axis; the largest
+    // translation shows the start (left/top) of the content, the smallest its end.
+    double pivot(double low, double high, double value, double center, double start, double end, double focal) {
+      if ((high - low).abs() < 1.0) return center;
+      if ((value - high).abs() < 1.0) return start;
+      if ((value - low).abs() < 1.0) return end;
+      return focal;
+    }
+
+    return Offset(
+      pivot(minX, maxX, translation.dx, _viewport.center.dx, _viewport.left, _viewport.right, _snapFocalPoint.dx),
+      pivot(minY, maxY, translation.dy, _viewport.center.dy, _viewport.top, _viewport.bottom, _snapFocalPoint.dy),
+    );
   }
 
   /// Animate snap-back by interpolating scale and translation in scene-space.
