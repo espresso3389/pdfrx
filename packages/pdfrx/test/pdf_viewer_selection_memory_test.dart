@@ -111,6 +111,106 @@ void main() {
     await _unmount(tester);
   });
 
+  testWidgets('an unloaded intermediate page keeps copied text incomplete until a later copy can load it', (
+    tester,
+  ) async {
+    final document = _Document(5)..unloadedPages.add(3);
+    addTearDown(document.dispose);
+    final controller = await _mount(tester, document);
+    final selection = controller.textSelectionDelegate;
+    await selection.selectAllText();
+    expect(selection.textSelectionPointRange!.start.text.pageNumber, 1);
+    expect(selection.textSelectionPointRange!.end.text.pageNumber, 5);
+    expect(selection.selectedTextIfLoaded, isNull);
+
+    final partialText = await selection.getSelectedText();
+    expect(
+      partialText,
+      [
+        for (final page in [1, 2, 4, 5]) document.textForPage(page),
+      ].join(),
+    );
+    expect(selection.selectedTextIfLoaded, isNull);
+    expect(PdfPageTextCache.forDocument(document).get(3), isNull);
+    expect(await selection.getSelectedText(), partialText);
+    expect(selection.selectedTextIfLoaded, isNull);
+    expect((await selection.getSelectedTextRanges()).map((range) => range.pageNumber), [1, 2, 4, 5]);
+    expect(selection.selectedTextIfLoaded, isNull);
+
+    document.unloadedPages.remove(3);
+    final completeText = await selection.getSelectedText();
+    expect(completeText, [for (var page = 1; page <= 5; page++) document.textForPage(page)].join());
+    expect(selection.selectedTextIfLoaded, completeText);
+    await _unmount(tester);
+  });
+
+  testWidgets('a successfully loaded empty page does not prevent caching the complete selection', (tester) async {
+    final document = _Document(5, textOverrides: {3: ''});
+    addTearDown(document.dispose);
+    final controller = await _mount(tester, document);
+    final selection = controller.textSelectionDelegate;
+    await selection.selectAllText();
+    final text = await selection.getSelectedText();
+    expect(
+      text,
+      [
+        for (final page in [1, 2, 4, 5]) document.textForPage(page),
+      ].join(),
+    );
+    expect(PdfPageTextCache.forDocument(document).get(3)!.fullText, isEmpty);
+
+    controller.releaseCachedResources(keepVisible: false);
+    expect(PdfPageTextCache.forDocument(document).length, 2);
+    final loads = document.loads;
+    expect(selection.selectedTextIfLoaded, text);
+    expect(await selection.getSelectedText(), text);
+    expect(document.loads, loads);
+    await _unmount(tester);
+  });
+
+  testWidgets('a page becoming available after it was skipped does not make the earlier copy complete', (tester) async {
+    final document = _Document(5)..unloadedPages.add(3);
+    addTearDown(document.dispose);
+    final controller = await _mount(tester, document);
+    final selection = controller.textSelectionDelegate;
+    await selection.selectAllText();
+    final gate = document.block(4);
+    final copying = selection.getSelectedText();
+    await gate.started.future;
+    document.unloadedPages.remove(3);
+    gate.release.complete();
+
+    expect(
+      await copying,
+      [
+        for (final page in [1, 2, 4, 5]) document.textForPage(page),
+      ].join(),
+    );
+    expect(selection.selectedTextIfLoaded, isNull);
+    final completeText = await selection.getSelectedText();
+    expect(completeText, [for (var page = 1; page <= 5; page++) document.textForPage(page)].join());
+    expect(selection.selectedTextIfLoaded, completeText);
+    await _unmount(tester);
+  });
+
+  testWidgets('a selected content change still discards an incomplete copy', (tester) async {
+    final document = _Document(5)..unloadedPages.add(3);
+    addTearDown(document.dispose);
+    final controller = await _mount(tester, document);
+    final selection = controller.textSelectionDelegate;
+    await selection.selectAllText();
+    final gate = document.block(4);
+    final copying = selection.getSelectedText();
+    await gate.started.future;
+    document.changePage(4, 'changed');
+    gate.release.complete();
+
+    expect(await copying, '');
+    expect(selection.hasSelectedText, isFalse);
+    expect(selection.selectedTextIfLoaded, '');
+    await _unmount(tester);
+  });
+
   for (final clear in [true, false]) {
     testWidgets('an old copy cannot overwrite a ${clear ? 'cleared' : 'newer'} text snapshot', (tester) async {
       final document = _Document(4);
@@ -364,6 +464,7 @@ class _Document extends PdfDocument {
   static int _nextId = 0;
   final gates = <int, _TextGate>{};
   final failures = <int>{};
+  final unloadedPages = <int>{};
   final _events = StreamController<PdfDocumentEvent>.broadcast(sync: true);
   late List<PdfPage> _pages;
   int loads = 0;
@@ -453,7 +554,7 @@ class _Page implements PdfPage {
   PdfPageRotation get rotation => PdfPageRotation.none;
 
   @override
-  bool get isLoaded => true;
+  bool get isLoaded => !document.unloadedPages.contains(pageNumber);
 
   @override
   Future<PdfPageRawText?> loadText() async {

@@ -1140,6 +1140,8 @@ abstract class PdfTextSelection {
   ///
   /// The built-in viewer reads intermediate pages one at a time, retaining the copied text without pinning
   /// the geometry of the entire selection. Changes to the selection while loading do not change the captured text.
+  /// Unavailable intermediate pages are omitted from the returned text. Such partial results are not cached,
+  /// so a later call can include those pages once they become available.
   /// Replacing the document or changing selected page content while loading returns an empty string.
   ///
   /// Although the use of this property is not restricted by [isCopyAllowed]
@@ -1165,7 +1167,8 @@ abstract interface class PdfTextSelectionWithCachedText implements PdfTextSelect
 extension PdfTextSelectionCachedText on PdfTextSelection {
   /// Get the selected text without waiting, or null if it is not available synchronously.
   ///
-  /// The built-in viewer returns text saved by [getSelectedText] for the current selection, or joins cached page text.
+  /// The built-in viewer returns a complete copy saved by [getSelectedText] for the current selection,
+  /// or joins cached page text when every selected page is available.
   /// It returns null when neither is available; [getSelectedText] loads the missing text without retaining all geometry.
   /// Custom implementations can implement
   /// [PdfTextSelectionWithCachedText] to provide cached text. An empty selection returns ''.

@@ -5124,21 +5124,23 @@ class _PdfViewerState extends State<PdfViewer>
       return [];
     }
     final selections = <PdfPageTextRange>[];
-    return await _visitSelectedTextRanges(a, b, selections.add) ? selections : [];
+    final result = await _visitSelectedTextRanges(a, b, selections.add);
+    return result == _SelectedTextVisitResult.invalid ? [] : selections;
   }
 
   /// Reads the captured selection one page at a time, without retaining intermediate geometry.
-  Future<bool> _visitSelectedTextRanges(
+  Future<_SelectedTextVisitResult> _visitSelectedTextRanges(
     PdfTextSelectionPoint a,
     PdfTextSelectionPoint b,
     void Function(PdfPageTextRange range) visit,
   ) async {
     final document = _document;
     final generation = _documentGeneration;
-    if (document == null) return false;
+    if (document == null) return _SelectedTextVisitResult.invalid;
     final first = a.text.pageNumber < b.text.pageNumber ? a : b;
     final second = a.text.pageNumber < b.text.pageNumber ? b : a;
     var contentChanged = false;
+    var isComplete = true;
     void invalidateCopy(PdfDocumentPageStatusChangedEvent event) {
       if (second.text.pageNumber > document.pages.length ||
           event.changes.keys.any((page) => page >= first.text.pageNumber && page <= second.text.pageNumber)) {
@@ -5159,15 +5161,20 @@ class _PdfViewerState extends State<PdfViewer>
       } else {
         visit(first.text.getRangeFromAB(first.index, first.text.charRects.length - 1));
         for (var i = first.text.pageNumber + 1; i < second.text.pageNumber; i++) {
-          if (!isCurrentDocument()) return false;
+          if (!isCurrentDocument()) return _SelectedTextVisitResult.invalid;
           final text = await _loadTextAsync(i, allowHidden: true);
-          if (!isCurrentDocument()) return false;
-          if (text == null || text.fullText.isEmpty) continue;
+          if (!isCurrentDocument()) return _SelectedTextVisitResult.invalid;
+          if (text == null) {
+            isComplete = false;
+            continue;
+          }
+          if (text.fullText.isEmpty) continue;
           visit(text.getRangeFromAB(0, text.charRects.length - 1));
         }
         visit(second.text.getRangeFromAB(0, second.index));
       }
-      return isCurrentDocument();
+      if (!isCurrentDocument()) return _SelectedTextVisitResult.invalid;
+      return isComplete ? _SelectedTextVisitResult.complete : _SelectedTextVisitResult.incomplete;
     } finally {
       _textCopyInvalidators.remove(invalidateCopy);
     }
@@ -5208,10 +5215,11 @@ class _PdfViewerState extends State<PdfViewer>
     if (snapshot != null && snapshot.a == a && snapshot.b == b) return snapshot.text;
     final generation = _documentGeneration;
     final chunks = <String>[];
-    if (!await _visitSelectedTextRanges(a, b, (range) => chunks.add(range.text))) return '';
+    final result = await _visitSelectedTextRanges(a, b, (range) => chunks.add(range.text));
+    if (result == _SelectedTextVisitResult.invalid) return '';
     final text = chunks.join();
     // A pending copy still returns its captured selection, but must not replace a newer selection's text.
-    if (generation == _documentGeneration && a == _selA && b == _selB) {
+    if (result == _SelectedTextVisitResult.complete && generation == _documentGeneration && a == _selA && b == _selB) {
       _selectedTextSnapshot = (a: a, b: b, text: text);
     }
     return text;
@@ -5750,6 +5758,9 @@ class _PdfViewerTransformationController extends TransformationController {
 
 /// What selection part is moving by mouse-dragging/finger-panning.
 enum _TextSelectionPart { none, free, a, b }
+
+/// Whether a selection read was invalidated, skipped unavailable text, or read every selected page.
+enum _SelectedTextVisitResult { invalid, incomplete, complete }
 
 /// Represents a point (combination of page and character index) in the text selection.
 /// It contains the [PdfPageText] and the index of the character in that text.
