@@ -401,10 +401,10 @@ class _PdfViewerState extends State<PdfViewer>
     if (widget.params.isVisible != oldWidget.params.isVisible) {
       _visibilityGeneration++;
       if (!widget.params.isVisible) {
+        _stopSelectionHandleDrag();
+        _setMagnifierVisible(false);
         _interactionDelegate?.stop();
         _animController.stop();
-        _selectionHandleTicker?.stop();
-        _selectionHandleGlobalPosition = null;
         _interactionEndedTimer?.cancel();
         _isInteractionGoingOn = false;
         _settleTimer?.cancel();
@@ -2393,14 +2393,6 @@ class _PdfViewerState extends State<PdfViewer>
   /// [_CustomPainter] calls the function to paint PDF pages.
   void _paintPages(ui.Canvas canvas, ui.Size size) {
     if (!_initialized || !widget.params.isVisible) return;
-    if (_selPartMoving == _TextSelectionPart.none || _magnifierRect == null) {
-      for (final image in [
-        ..._magnifierImageCache.pageImages.values,
-        ..._magnifierImageCache.pageImagesPartial.values,
-      ]) {
-        image.budgetEntry?.touch(isPinned: false, isNeeded: false);
-      }
-    }
     _updateTextCachePins();
     final visibleRect = _visibleRect;
     // Only scrolling sets the direction: a zoom restarts the measure, and small corrections are ignored.
@@ -2455,7 +2447,7 @@ class _PdfViewerState extends State<PdfViewer>
     bool enableLowResolutionPagePreview = true,
     FilterQuality filterQuality = FilterQuality.high,
   }) {
-    if (!widget.params.isVisible) return;
+    if (!_canRenderCache(cache)) return;
     final unusedPageList = <int>[];
     final previewRequests = <({PdfPage page, double scale, Rect rect})>[];
     final unmeasuredPageList = <int>[];
@@ -3123,6 +3115,10 @@ class _PdfViewerState extends State<PdfViewer>
     PdfImageReservation reservation, {
     bool partial = false,
   }) {
+    if (!_canRenderCache(cache)) {
+      image.dispose();
+      return false;
+    }
     final entry = reservation.commit(
       retainedBytes: image.width * image.height * 8,
       isPinned: cache.visiblePageNumbers.contains(pageNumber),
@@ -3146,7 +3142,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   /// Returns whether the request waits for pageImageCachingDelay.
   bool _requestPagePreviewImageCached(_PdfPageImageCache cache, PdfPage page, double scale, {bool defer = false}) {
-    if (!widget.params.isVisible) return false;
+    if (!_canRenderCache(cache)) return false;
     final width = page.width * scale;
     final height = page.height * scale;
     if (width < 1 || height < 1) return false;
@@ -3175,7 +3171,7 @@ class _PdfViewerState extends State<PdfViewer>
     double height,
     double scale,
   ) async {
-    if (!mounted || !widget.params.isVisible) return;
+    if (!_canRenderCache(cache)) return;
     if (!_canRetryRender(cache.previewRenderFailures, page.pageNumber, scale)) return;
     final requestedScale = scale;
     final prev = cache.pageImages[page.pageNumber];
@@ -3315,7 +3311,7 @@ class _PdfViewerState extends State<PdfViewer>
     Rect targetRect,
     double visibleArea,
   ) {
-    if (!mounted || !widget.params.isVisible) return null;
+    if (!_canRenderCache(cache)) return null;
     final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
     final rect = pageRect.intersect(targetRect);
     scale = _boundedRenderingScale(scale, rect.width, rect.height, sharedArea: visibleArea);
@@ -3344,7 +3340,7 @@ class _PdfViewerState extends State<PdfViewer>
       Timer(widget.params.behaviorControlParams.partialImageLoadingDelay, () async {
         if (cache.pageImagePartialRenderingRequests[page.pageNumber] != request) return;
         try {
-          if (!mounted || !widget.params.isVisible || cancellationToken.isCanceled) return;
+          if (!_canRenderCache(cache) || cancellationToken.isCanceled) return;
           final newImage = await _createRealSizePartialImage(cache, page, scale, rect, cancellationToken);
           if (newImage != null && cache.pageImagePartialRenderingRequests[page.pageNumber] == request) {
             cache.pageImagesPartial.remove(page.pageNumber)?.dispose();
@@ -3378,7 +3374,7 @@ class _PdfViewerState extends State<PdfViewer>
     Rect rect,
     PdfPageRenderCancellationToken cancellationToken,
   ) async {
-    if (!mounted || cancellationToken.isCanceled) return null;
+    if (!_canRenderCache(cache) || cancellationToken.isCanceled) return null;
     // Recorded for PdfViewerController.visibleRenderState when no image can be produced for this request.
     void recordFailure() {
       if (mounted && widget.params.isVisible && !cancellationToken.isCanceled) {
@@ -3422,13 +3418,13 @@ class _PdfViewerState extends State<PdfViewer>
         cancellationToken: cancellationToken,
         priority: PdfPageRenderPriority.high,
       );
-      if (rendered == null || !mounted || cancellationToken.isCanceled) {
+      if (rendered == null || !_canRenderCache(cache) || cancellationToken.isCanceled) {
         if (rendered == null && !cancellationToken.isCanceled) recordFailure();
         return null;
       }
       final image = _PdfImageWithScaleAndRect(rendered, scale, rect, x, y, pageGeometry: _pageGeometryOf(page));
       rendered = null;
-      if (!mounted || cancellationToken.isCanceled) {
+      if (!_canRenderCache(cache) || cancellationToken.isCanceled) {
         image.dispose();
         return null;
       }
@@ -4219,11 +4215,30 @@ class _PdfViewerState extends State<PdfViewer>
   Rect? _anchorBRect;
   Rect? _magnifierRect;
   Rect? _previousMagnifierRect;
+  bool _isMagnifierVisible = false;
   Rect? _contextMenuRect;
   _TextSelectionPart _hoverOn = _TextSelectionPart.none;
 
   bool get enableSelectionHandles =>
       widget.params.textSelectionParams?.enableSelectionHandles ?? _pointerDeviceKind == PointerDeviceKind.touch;
+
+  bool _canRenderCache(_PdfPageImageCache cache) =>
+      mounted && widget.params.isVisible && (identical(cache, _imageCache) || _isMagnifierVisible);
+
+  /// Hiding the overlay ends its work, even while the main viewer remains visible.
+  void _setMagnifierVisible(bool visible) {
+    if (_isMagnifierVisible == visible) return;
+    _isMagnifierVisible = visible;
+    if (visible) return;
+    _magnifierImageCache.cancelAllPendingRenderings();
+    _magnifierImageCache.clearAllRenderFailures();
+    _magnifierImageCache.visiblePageNumbers.clear();
+    _magnifierRect = _previousMagnifierRect = null;
+    // Active requests retain their reservations until their render/decode finally blocks finish.
+    for (final image in [..._magnifierImageCache.pageImages.values, ..._magnifierImageCache.pageImagesPartial.values]) {
+      image.budgetEntry?.touch(isPinned: false, isNeeded: false);
+    }
+  }
 
   List<Widget> _placeTextSelectionWidgets(BuildContext context, Size viewSize, bool isCopyTextEnabled) {
     Widget? createContextMenu(Offset? a, Offset? b, PdfViewerPart contextMenuFor) {
@@ -4257,13 +4272,19 @@ class _PdfViewerState extends State<PdfViewer>
     }
 
     final renderBox = _renderBox;
-    if (!isTextSelectionEnabled || renderBox == null || _textSelA == null || _textSelB == null) {
+    if (!widget.params.isVisible ||
+        !isTextSelectionEnabled ||
+        renderBox == null ||
+        _textSelA == null ||
+        _textSelB == null) {
+      _setMagnifierVisible(false);
       return contextMenuIfNeeded();
     }
 
     final rectA = _documentToRenderBox(_textSelA!.rect, renderBox);
     final rectB = _documentToRenderBox(_textSelB!.rect, renderBox);
     if (rectA == null || rectB == null) {
+      _setMagnifierVisible(false);
       return contextMenuIfNeeded();
     }
 
@@ -4503,6 +4524,8 @@ class _PdfViewerState extends State<PdfViewer>
         _magnifierRect = _previousMagnifierRect = null;
       }
     }
+
+    _setMagnifierVisible(magnifier != null);
 
     final showContextMenuAutomatically =
         widget.params.textSelectionParams?.showContextMenuAutomatically ??
@@ -4946,6 +4969,9 @@ class _PdfViewerState extends State<PdfViewer>
     _selectionHandleTicker?.stop();
     _selectionHandleGlobalPosition = null;
     _selPartMoving = _TextSelectionPart.none;
+    if (widget.params.textSelectionParams?.magnifier?.shouldShowMagnifier?.call() != true) {
+      _setMagnifierVisible(false);
+    }
   }
 
   void _cancelSelectionHandleDrag() {
@@ -5120,6 +5146,7 @@ class _PdfViewerState extends State<PdfViewer>
 
   void _clearTextSelections({bool invalidate = true}) {
     _stopSelectionHandleDrag();
+    _setMagnifierVisible(false);
     _selA = _selB = null;
     _textSelA = _textSelB = null;
     _contextMenuDocumentPosition = null;
