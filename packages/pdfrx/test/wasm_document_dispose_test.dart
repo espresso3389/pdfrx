@@ -29,12 +29,95 @@ void main() {
     await expectLater(loading, completes);
   });
 
+  for (final command in [
+    'renderPage',
+    'loadText',
+    'loadLinks',
+    'reloadPages',
+    'loadPageMetadata',
+    'loadPagesProgressively',
+  ]) {
+    test('disposal cancels a pending $command without publishing a late error', () async {
+      final doc = await PdfDocument.openData(_pdf(pageCount: 2), useProgressiveLoading: true);
+      final pending = _PendingWorkerCommand(command == 'loadPageMetadata' ? 'reloadPages' : command);
+      try {
+        final operation = switch (command) {
+          'renderPage' => doc.pages.first.render(width: 1, height: 1),
+          'loadText' => doc.pages.first.loadText(),
+          'loadLinks' => doc.pages.first.loadLinks(),
+          'reloadPages' => doc.reloadPages().then<Object?>((_) => null),
+          'loadPageMetadata' => doc.loadPageMetadata(pageNumbers: [2]).then<Object?>((_) => null),
+          _ => doc.loadPagesProgressively().then<Object?>((_) => null),
+        };
+        await pending.entered.future;
+        expect(pending.parameters?.getProperty<JSNumber>('documentId'.toJS).toDartInt, isPositive);
+        await doc.dispose();
+        pending.response.completeError(StateError('document closed while waiting for range data'));
+        final result = await operation;
+        expect(result, command == 'loadLinks' ? isEmpty : isNull);
+      } finally {
+        pending.restore();
+        await doc.dispose();
+      }
+    });
+  }
+
+  test('a bitmap delivered after disposal is closed instead of returned to the caller', () async {
+    final doc = await PdfDocument.openData(_pdf(pageCount: 1));
+    final pending = _PendingWorkerCommand('renderPage');
+    var bitmapCloses = 0;
+    try {
+      final rendering = doc.pages.first.render(width: 1, height: 1);
+      await pending.entered.future;
+      await doc.dispose();
+      final bitmap = JSObject()..setProperty('close'.toJS, (() => bitmapCloses++).toJS);
+      final result = {'imageData': Uint8List(4).buffer, 'missingFonts': <String, dynamic>{}}.jsify()! as JSObject;
+      result.setProperty('imageBitmap'.toJS, bitmap);
+      pending.response.complete(result);
+      expect(await rendering, isNull);
+      expect(bitmapCloses, 1);
+    } finally {
+      pending.restore();
+      await doc.dispose();
+    }
+  });
+
+  test('range failures remain visible while the document is open', () async {
+    final doc = await PdfDocument.openData(_pdf(pageCount: 1));
+    final pending = _PendingWorkerCommand('loadText');
+    try {
+      final loading = doc.pages.first.loadText();
+      final failed = expectLater(loading, throwsA(anything));
+      await pending.entered.future;
+      pending.response.completeError(StateError('network failed before disposal'));
+      await failed;
+    } finally {
+      pending.restore();
+      await doc.dispose();
+    }
+  });
+
+  test('concurrent dispose calls wait for the same worker close', () async {
+    final doc = await PdfDocument.openData(_pdf(pageCount: 1));
+    final pending = _PendingWorkerCommand('closeDocument');
+    try {
+      final first = doc.dispose();
+      await pending.entered.future;
+      final second = doc.dispose();
+      expect(identical(first, second), isTrue);
+      pending.response.complete(await pending.forward());
+      await Future.wait([first, second]);
+    } finally {
+      pending.restore();
+    }
+  });
+
   test('a reload queued before disposal does not reach the worker', () async {
     final doc = await PdfDocument.openData(_pdf(pageCount: 2));
     final communicator = globalContext.getProperty<JSObject>('PdfiumWasmCommunicator'.toJS);
     final original = communicator.getProperty<JSFunction>('sendCommand'.toJS);
     var reloads = 0;
-    JSAny? sendCommand(JSString command, JSAny? parameters, JSAny? transfer) {
+    JSAny? sendCommand(JSString command, JSAny? parameters, [JSAny? transfer]) {
       if (command.toDart == 'reloadPages') reloads++;
       return original.callAsFunction(communicator, command, parameters, transfer);
     }
@@ -137,7 +220,7 @@ void main() {
         .cast<PdfDocumentPageStatusChangedEvent>()
         .listen(events.add);
     addTearDown(subscription.cancel);
-    JSAny? sendCommand(JSString command, JSAny? parameters, JSAny? transfer) {
+    JSAny? sendCommand(JSString command, JSAny? parameters, [JSAny? transfer]) {
       final result = original.callAsFunction(communicator, command, parameters, transfer);
       if (command.toDart != 'loadPagesProgressively') return result;
       entered.complete();
@@ -171,6 +254,40 @@ void main() {
       communicator.setProperty('sendCommand'.toJS, original);
     }
   });
+}
+
+class _PendingWorkerCommand {
+  _PendingWorkerCommand(this.command) {
+    original = communicator.getProperty<JSFunction>('sendCommand'.toJS);
+    communicator.setProperty('sendCommand'.toJS, _send.toJS);
+  }
+
+  final String command;
+  final entered = Completer<void>();
+  final response = Completer<JSAny?>();
+  final JSObject communicator = globalContext.getProperty<JSObject>('PdfiumWasmCommunicator'.toJS);
+  late final JSFunction original;
+  JSObject? parameters;
+  JSAny? transfer;
+
+  JSAny? _send(JSString name, JSAny? args, [JSAny? transferList]) {
+    if (name.toDart == command) {
+      parameters = args as JSObject?;
+      transfer = transferList;
+      entered.complete();
+      return response.future.toJS;
+    }
+    return original.callAsFunction(communicator, name, args, transferList);
+  }
+
+  Future<JSAny?> forward() async {
+    return await (original.callAsFunction(communicator, command.toJS, parameters, transfer)! as JSPromise<JSAny?>)
+        .toDart;
+  }
+
+  void restore() {
+    communicator.setProperty('sendCommand'.toJS, original);
+  }
 }
 
 const _assetServer = '''

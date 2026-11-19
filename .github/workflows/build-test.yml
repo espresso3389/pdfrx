@@ -366,11 +366,16 @@ jobs:
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
 
-      - name: Test PDFium worker metadata and range responses
+      - name: Test PDFium worker metadata, range responses, and document lifetimes
         working-directory: packages/pdfrx
-        run: node --test test/pdfium_worker_metadata_test.cjs test/pdfium_worker_range_response_test.cjs test/pdfium_worker_font_cache_test.cjs
+        run: >-
+          node --test
+          test/pdfium_worker_metadata_test.cjs
+          test/pdfium_worker_range_response_test.cjs
+          test/pdfium_worker_font_cache_test.cjs
+          test/pdfium_worker_lifetime_test.cjs
 
-      - name: Test Web page metadata and lifetime events
+      - name: Test Web page metadata and document disposal
         timeout-minutes: 5
         working-directory: packages/pdfrx
         run: flutter test --platform chrome test/wasm_document_dispose_test.dart

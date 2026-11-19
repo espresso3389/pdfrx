@@ -828,6 +828,38 @@ class PdfRangeCache {
     this.fullData = null;
     this.bytesCached = 0;
     this.nextUnhintedBlockOffset = 0;
+    this.abortController = new AbortController();
+  }
+
+  throwIfCancelled() {
+    if (this.abortController.signal.aborted) throw new Error('PDF range loading was cancelled');
+  }
+
+  cancel() {
+    this.abortController.abort();
+  }
+
+  dispose() {
+    this.cancel();
+    this.chunks = [];
+    this.ranges = [];
+    this.fullData = null;
+    this.bytesCached = 0;
+    this.progressCallbackId = undefined;
+  }
+
+  // Settle locally even when a custom fetch implementation ignores AbortSignal.
+  _wait(promise) {
+    const signal = this.abortController.signal;
+    return new Promise((resolve, reject) => {
+      const cancelled = () => reject(new Error('PDF range loading was cancelled'));
+      if (signal.aborted) cancelled();
+      else signal.addEventListener('abort', cancelled, { once: true });
+      Promise.resolve(promise).then(
+        (value) => { signal.removeEventListener('abort', cancelled); resolve(value); },
+        (error) => { signal.removeEventListener('abort', cancelled); reject(error); },
+      );
+    });
   }
 
   /**
@@ -855,14 +887,17 @@ class PdfRangeCache {
   }
 
   async ensureFileSize() {
+    this.throwIfCancelled();
     if (this.fileSize > 0) return this.fileSize;
-    const response = await fetch(this.url, {
+    const response = await this._wait(fetch(this.url, {
+      signal: this.abortController.signal,
       method: 'HEAD',
       headers: this.headers,
       mode: 'cors',
       credentials: this.fetchCredentials,
       redirect: 'follow',
-    });
+    }));
+    this.throwIfCancelled();
     if (!response.ok) {
       throw new Error(`Failed to get PDF file size: ${response.status} ${response.statusText}`);
     }
@@ -922,6 +957,7 @@ class PdfRangeCache {
    */
   async nextUnhintedBlock() {
     await this.ensureFileSize();
+    this.throwIfCancelled();
 
     const tailOffset = Math.floor((this.fileSize - 1) / PDF_RANGE_DOWNLOAD_BLOCK_SIZE) * PDF_RANGE_DOWNLOAD_BLOCK_SIZE;
     if (!this.isDataAvailable(tailOffset, this.fileSize - tailOffset)) {
@@ -1017,11 +1053,13 @@ class PdfRangeCache {
    * @returns {Promise<boolean>} true if range access is usable; false if a complete HTTP 200 body is cached.
    */
   async download(offset, size) {
+    this.throwIfCancelled();
     if (this.fullData !== null) return false;
     const range = this.blockAlignedRange(offset, size);
     if (!range || this.isDataAvailable(range.offset, range.end - range.offset)) return true;
 
-    const response = await fetch(this.url, {
+    const response = await this._wait(fetch(this.url, {
+      signal: this.abortController.signal,
       headers: {
         ...this.headers,
         Range: `bytes=${range.offset}-${range.end - 1}`,
@@ -1029,9 +1067,11 @@ class PdfRangeCache {
       mode: 'cors',
       credentials: this.fetchCredentials,
       redirect: 'follow',
-    });
+    }));
+    this.throwIfCancelled();
     if (response.status === 200) {
-      const data = new Uint8Array(await response.arrayBuffer());
+      const data = new Uint8Array(await this._wait(response.arrayBuffer()));
+      this.throwIfCancelled();
       this.fileSize = data.length;
       // The complete response replaces any earlier partial payloads.
       this.chunks = [];
@@ -1057,7 +1097,8 @@ class PdfRangeCache {
       total = await this.ensureFileSize();
     }
 
-    const data = new Uint8Array(await response.arrayBuffer());
+    const data = new Uint8Array(await this._wait(response.arrayBuffer()));
+    this.throwIfCancelled();
     // A concurrently completed full response already owns all of these bytes.
     if (this.fullData !== null) return false;
     this.fileSize = total;
@@ -1136,6 +1177,7 @@ async function loadDocumentFromUrlWithRangeAccess(params) {
     if (fileAvailPtr) Pdfium.wasmExports.free(fileAvailPtr);
     if (downloadHintsPtr) Pdfium.wasmExports.free(downloadHintsPtr);
     if (fileAccessPtr) Pdfium.wasmExports.free(fileAccessPtr);
+    cache.dispose();
   };
 
   try {
@@ -1245,16 +1287,22 @@ async function loadDocumentFromUrlWithRangeAccess(params) {
 /**
  * @param {number} docHandle
  * @param {number} pageIndex
+ * @param {PdfDocumentLifetime|undefined} lifetime
  */
-async function _ensurePageAvailable(docHandle, pageIndex) {
+async function _ensurePageAvailable(docHandle, pageIndex, lifetime) {
+  lifetime?.assertOpen();
   const availability = rangeDocumentAvailabilities[docHandle];
   if (!availability) return;
 
   const result = await _waitForPdfAvailability(
     availability.cache,
     () => Pdfium.wasmExports.FPDFAvail_IsPageAvail(availability.avail, pageIndex, availability.downloadHintsPtr),
-    availability.takeSegments
+    availability.takeSegments,
+    [PDF_DATA_AVAIL],
+    PDF_DATA_ERROR,
+    () => lifetime?.assertOpen(),
   );
+  lifetime?.assertOpen();
   if (result === PDF_DATA_ERROR) {
     throw new Error(`Failed to make PDF page ${pageIndex} data available`);
   }
@@ -1266,6 +1314,7 @@ async function _ensurePageAvailable(docHandle, pageIndex) {
  * @param {function():ByteRange[]} takeSegments
  * @param {number[]} availableResults
  * @param {number} errorResult
+ * @param {function():void} assertOpen
  * @returns {Promise<number>}
  */
 async function _waitForPdfAvailability(
@@ -1273,9 +1322,12 @@ async function _waitForPdfAvailability(
   check,
   takeSegments,
   availableResults = [PDF_DATA_AVAIL],
-  errorResult = PDF_DATA_ERROR
+  errorResult = PDF_DATA_ERROR,
+  assertOpen = () => {},
 ) {
   for (let i = 0; i < 1000; i++) {
+    assertOpen();
+    cache.throwIfCancelled();
     const result = check();
     const segments = takeSegments();
     if (availableResults.includes(result)) return result;
@@ -1283,11 +1335,15 @@ async function _waitForPdfAvailability(
     if (result !== PDF_DATA_NOTAVAIL && result !== PDF_FORM_NOTAVAIL) return result;
     if (segments.length === 0) {
       const segment = await cache.nextUnhintedBlock();
+      assertOpen();
+      cache.throwIfCancelled();
       if (!segment) {
         return availableResults[0];
       }
       const size = segment.end - segment.offset;
       const rangeUsable = await cache.download(segment.offset, size);
+      assertOpen();
+      cache.throwIfCancelled();
       if (!rangeUsable && !cache.isDataAvailable(0, cache.fileSize)) {
         throw new Error('PDF range response did not expose usable Content-Range metadata');
       }
@@ -1297,6 +1353,8 @@ async function _waitForPdfAvailability(
       for (const missing of cache.missingRanges(segment.offset, segment.end - segment.offset)) {
         const size = missing.end - missing.offset;
         const rangeUsable = await cache.download(missing.offset, size);
+        assertOpen();
+        cache.throwIfCancelled();
         // PDFium's hints can extend past EOF; a complete response is sufficient.
         if (!rangeUsable && !cache.isDataAvailable(0, cache.fileSize)) {
           throw new Error('PDF range response did not expose usable Content-Range metadata');
@@ -1367,6 +1425,97 @@ function loadDocumentFromData(params) {
 /** @type {Object<number, function():void>} */
 const disposers = {};
 
+/** @type {Map<number, PdfDocumentLifetime>} */
+const documentLifetimes = new Map();
+/** @type {Map<number, PdfDocumentLifetime>} */
+const pageLifetimes = new Map();
+let nextDocumentId = 0;
+
+/** Owns a native document until every operation that borrowed it has unwound. */
+class PdfDocumentLifetime {
+  constructor(docHandle, formHandle, formInfo) {
+    this.docHandle = docHandle;
+    this.formHandle = formHandle;
+    this.formInfo = formInfo;
+    this.documentId = ++nextDocumentId;
+    this.activeOperations = 0;
+    this.closing = false;
+    this.pages = new Set();
+    this.closePromise = null;
+    documentLifetimes.set(docHandle, this);
+  }
+
+  assertOpen() {
+    if (this.closing || documentLifetimes.get(this.docHandle) !== this) {
+      throw new Error('PDF document is closed');
+    }
+  }
+
+  close() {
+    if (this.closePromise) return this.closePromise;
+    this.closing = true;
+    this.closePromise = new Promise((resolve, reject) => {
+      this.resolveClose = resolve;
+      this.rejectClose = reject;
+    });
+    rangeDocumentAvailabilities[this.docHandle]?.cache.cancel();
+    if (this.activeOperations === 0) this._finishClose();
+    return this.closePromise;
+  }
+
+  _finishClose() {
+    const { docHandle } = this;
+    try {
+      for (const pageHandle of this.pages) {
+        pageLifetimes.delete(pageHandle);
+        Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+      }
+      this.pages.clear();
+      if (this.formHandle) {
+        try { Pdfium.wasmExports.FPDFDOC_ExitFormFillEnvironment(this.formHandle); } catch (_) {}
+      }
+      Pdfium.wasmExports.free(this.formInfo);
+      try {
+        Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+      } finally {
+        disposers[docHandle]?.();
+      }
+      this.resolveClose({ message: 'Document closed' });
+    } catch (error) {
+      this.rejectClose(error);
+    } finally {
+      documentLifetimes.delete(docHandle);
+      delete disposers[docHandle];
+      delete missingFonts[docHandle];
+    }
+  }
+}
+
+function _getDocumentLifetime(params) {
+  const lifetime = documentLifetimes.get(params.docHandle);
+  if (!lifetime || (params.documentId != null && params.documentId !== lifetime.documentId)) {
+    throw new Error('PDF document is closed');
+  }
+  lifetime.assertOpen();
+  return lifetime;
+}
+
+async function _withDocumentOperation(params, operation) {
+  const lifetime = _getDocumentLifetime(params);
+  lifetime.activeOperations++;
+  try {
+    const result = await operation(lifetime);
+    if (lifetime.closing) {
+      result?.result?.imageBitmap?.close();
+    }
+    lifetime.assertOpen();
+    return result;
+  } finally {
+    lifetime.activeOperations--;
+    if (lifetime.closing && lifetime.activeOperations === 0) lifetime._finishClose();
+  }
+}
+
 /** @typedef {{face: string, weight: number, italic: boolean, charset: number, pitch_family: number}} FontQuery
  * @typedef {Object<string, FontQuery>} FontQueries
  */
@@ -1396,7 +1545,7 @@ function _resetMissingFonts() {
 }
 
 /**
- * @typedef {{docHandle: number,permissions: number, securityHandlerRevision: number, pages: PdfPage[], formHandle: number, formInfo: number, missingFonts: FontQueries}} PdfDocument
+ * @typedef {{docHandle: number, documentId: number, permissions: number, securityHandlerRevision: number, pages: PdfPage[], formHandle: number, formInfo: number, missingFonts: FontQueries}} PdfDocument
  * @typedef {{pageIndex: number, width: number, height: number, rotation: number, isLoaded: boolean, bbLeft: number, bbBottom: number}} PdfPage
  * @typedef {{errorCode: number, errorCodeStr: string|undefined, message: string}} PdfError
  */
@@ -1450,10 +1599,12 @@ function _loadDocument(docHandle, useProgressiveLoading, onDispose) {
       }
     }
     disposers[docHandle] = onDispose;
+    const lifetime = new PdfDocumentLifetime(docHandle, formHandle, formInfo);
     _updateMissingFonts(docHandle);
 
     return {
       docHandle: docHandle,
+      documentId: lifetime.documentId,
       permissions: permissions,
       securityHandlerRevision: securityHandlerRevision,
       pages: pages,
@@ -1467,6 +1618,7 @@ function _loadDocument(docHandle, useProgressiveLoading, onDispose) {
     } catch (e) {}
     Pdfium.wasmExports.free(formInfo);
     delete disposers[docHandle];
+    documentLifetimes.delete(docHandle);
     onDispose();
     throw e;
   }
@@ -1512,6 +1664,7 @@ async function _loadPagesInLimitedTimeAsync(
   loadedPageIndices,
   maxPageCountToLoadAdditionally,
   timeoutMs,
+  lifetime,
 ) {
   const pageCount = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
   const loadedPages = new Set(loadedPageIndices);
@@ -1523,7 +1676,8 @@ async function _loadPagesInLimitedTimeAsync(
     if (loadedPages.has(i)) {
       continue;
     }
-    await _ensurePageAvailable(docHandle, i);
+    await _ensurePageAvailable(docHandle, i, lifetime);
+    lifetime.assertOpen();
     pages.push(_loadPageMetadata(docHandle, i));
     if (maxPageCountToLoadAdditionally != null && pages.length >= maxPageCountToLoadAdditionally) {
       break;
@@ -1544,7 +1698,7 @@ async function _loadPagesInLimitedTimeAsync(
  * @param {number} timeoutMs
  * @returns {Promise<PdfPage[]>}
  */
-async function _loadPageIndicesInLimitedTimeAsync(docHandle, pageIndices, timeoutMs) {
+async function _loadPageIndicesInLimitedTimeAsync(docHandle, pageIndices, timeoutMs, lifetime) {
   const pageCount = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
   const t = Date.now() + timeoutMs;
   /** @type {PdfPage[]} */
@@ -1554,7 +1708,8 @@ async function _loadPageIndicesInLimitedTimeAsync(docHandle, pageIndices, timeou
     if (i < 0 || i >= pageCount) {
       continue;
     }
-    await _ensurePageAvailable(docHandle, i);
+    await _ensurePageAvailable(docHandle, i, lifetime);
+    lifetime.assertOpen();
     pages.push(_loadPageMetadata(docHandle, i));
     if (Date.now() > t) {
       break;
@@ -1571,11 +1726,15 @@ async function _loadPageIndicesInLimitedTimeAsync(docHandle, pageIndices, timeou
  * @param {{docHandle: number, firstPageIndex: number, loadedPageIndices: number[], pageIndices?: number[], loadUnitDuration: number}} params
  * @returns {{pages: PdfPage[], missingFonts: FontQueries}}
  */
-async function loadPagesProgressively(params) {
+function loadPagesProgressively(params) {
+  return _withDocumentOperation(params, (lifetime) => _loadPagesProgressively(params, lifetime));
+}
+
+async function _loadPagesProgressively(params, lifetime) {
   const { docHandle, firstPageIndex, loadedPageIndices, pageIndices, loadUnitDuration } = params;
   const pages = pageIndices
-    ? await _loadPageIndicesInLimitedTimeAsync(docHandle, pageIndices, loadUnitDuration)
-    : await _loadPagesInLimitedTimeAsync(docHandle, firstPageIndex, loadedPageIndices, null, loadUnitDuration);
+    ? await _loadPageIndicesInLimitedTimeAsync(docHandle, pageIndices, loadUnitDuration, lifetime)
+    : await _loadPagesInLimitedTimeAsync(docHandle, firstPageIndex, loadedPageIndices, null, loadUnitDuration, lifetime);
   return { pages, missingFonts: missingFonts[docHandle] };
 }
 
@@ -1584,7 +1743,11 @@ async function loadPagesProgressively(params) {
  * @param {{docHandle: number, pageIndices: number[]|undefined, currentPagesCount: number}} params
  * @returns {{pages: PdfPage[], missingFonts: FontQueries}}
  */
-async function reloadPages(params) {
+function reloadPages(params) {
+  return _withDocumentOperation(params, (lifetime) => _reloadPages(params, lifetime));
+}
+
+async function _reloadPages(params, lifetime) {
   const { docHandle, pageIndices, currentPagesCount } = params;
   /** @type {PdfPage[]} */
   const pages = [];
@@ -1612,7 +1775,8 @@ async function reloadPages(params) {
 
   _resetMissingFonts();
   for (const pageIndex of indicesToLoad) {
-    await _ensurePageAvailable(docHandle, pageIndex);
+    await _ensurePageAvailable(docHandle, pageIndex, lifetime);
+    lifetime.assertOpen();
     pages.push(_loadPageMetadata(docHandle, pageIndex));
   }
   return { pages, missingFonts: missingFonts[docHandle] };
@@ -1651,20 +1815,14 @@ function _loadPageMetadata(docHandle, pageIndex) {
 }
 
 /**
- * @param {{formHandle: number, formInfo: number, docHandle: number}} params
+ * @param {{docHandle: number, documentId?: number}} params
  */
 function closeDocument(params) {
-  if (params.formHandle) {
-    try {
-      Pdfium.wasmExports.FPDFDOC_ExitFormFillEnvironment(params.formHandle);
-    } catch (e) {}
+  const lifetime = documentLifetimes.get(params.docHandle);
+  if (!lifetime || (params.documentId != null && params.documentId !== lifetime.documentId)) {
+    return { message: 'Document closed' };
   }
-  Pdfium.wasmExports.free(params.formInfo);
-  Pdfium.wasmExports.FPDF_CloseDocument(params.docHandle);
-  disposers[params.docHandle]();
-  delete disposers[params.docHandle];
-  delete missingFonts[params.docHandle];
-  return { message: 'Document closed' };
+  return lifetime.close();
 }
 
 /**
@@ -1677,6 +1835,7 @@ function closeDocument(params) {
  * @return {OutlineNode[]}
  */
 function loadOutline(params) {
+  _getDocumentLifetime(params);
   return {
     outline: _getOutlineNodeSiblings(
       Pdfium.wasmExports.FPDFBookmark_GetFirstChild(params.docHandle, null),
@@ -1713,20 +1872,32 @@ function _getOutlineNodeSiblings(bookmark, docHandle) {
  * @param {{docHandle: number, pageIndex: number}} params
  * @return {number} Page handle
  */
-async function loadPage(params) {
-  await _ensurePageAvailable(params.docHandle, params.pageIndex);
+function loadPage(params) {
+  return _withDocumentOperation(params, (lifetime) => _loadPage(params, lifetime));
+}
+
+async function _loadPage(params, lifetime) {
+  await _ensurePageAvailable(params.docHandle, params.pageIndex, lifetime);
+  lifetime.assertOpen();
   const pageHandle = Pdfium.wasmExports.FPDF_LoadPage(params.docHandle, params.pageIndex);
   if (!pageHandle) {
     throw new Error(`Failed to load page ${params.pageIndex} from document ${params.docHandle}`);
   }
-  return { pageHandle: pageHandle };
+  lifetime.pages.add(pageHandle);
+  pageLifetimes.set(pageHandle, lifetime);
+  return { pageHandle: pageHandle, documentId: lifetime.documentId };
 }
 
 /**
- * @param {{pageHandle: number}} params
+ * @param {{pageHandle: number, documentId?: number}} params
  */
 function closePage(params) {
-  Pdfium.wasmExports.FPDF_ClosePage(params.pageHandle);
+  const lifetime = pageLifetimes.get(params.pageHandle);
+  if (lifetime && (params.documentId == null || params.documentId === lifetime.documentId)) {
+    lifetime.pages.delete(params.pageHandle);
+    pageLifetimes.delete(params.pageHandle);
+    Pdfium.wasmExports.FPDF_ClosePage(params.pageHandle);
+  }
   return { message: 'Page closed' };
 }
 
@@ -1754,7 +1925,11 @@ function closePage(params) {
  * missingFonts: FontQueries
  * }}
  */
-async function renderPage(params) {
+function renderPage(params) {
+  return _withDocumentOperation(params, (lifetime) => _renderPage(params, lifetime));
+}
+
+async function _renderPage(params, lifetime) {
   const {
     docHandle,
     pageIndex,
@@ -1777,7 +1952,8 @@ async function renderPage(params) {
 
   try {
     _resetMissingFonts();
-    await _ensurePageAvailable(docHandle, pageIndex);
+    await _ensurePageAvailable(docHandle, pageIndex, lifetime);
+    lifetime.assertOpen();
     pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
     if (!pageHandle) {
       throw new Error(`Failed to load page ${pageIndex} from document ${docHandle}`);
@@ -1850,9 +2026,9 @@ async function renderPage(params) {
       transfer: imageBitmap ? [copiedBuffer, imageBitmap] : [copiedBuffer],
     };
   } finally {
-    Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
-    Pdfium.wasmExports.FPDFBitmap_Destroy(bitmap);
-    Pdfium.wasmExports.free(bufferPtr);
+    if (pageHandle) Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
+    if (bitmap) Pdfium.wasmExports.FPDFBitmap_Destroy(bitmap);
+    if (bufferPtr) Pdfium.wasmExports.free(bufferPtr);
   }
 }
 
@@ -1897,10 +2073,15 @@ function _memset(ptr, value, num) {
  * @param {{pageIndex: number, docHandle: number}} params
  * @returns {{fullText: string, charRects: number[][], missingFonts: FontQueries}}
  */
-async function loadText(params) {
+function loadText(params) {
+  return _withDocumentOperation(params, (lifetime) => _loadText(params, lifetime));
+}
+
+async function _loadText(params, lifetime) {
   _resetMissingFonts();
   const { pageIndex, docHandle } = params;
-  await _ensurePageAvailable(docHandle, pageIndex);
+  await _ensurePageAvailable(docHandle, pageIndex, lifetime);
+  lifetime.assertOpen();
   const pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
   const textPage = Pdfium.wasmExports.FPDFText_LoadPage(pageHandle);
   if (textPage == null) return { fullText: '' };
@@ -1941,8 +2122,13 @@ async function loadText(params) {
  * @param {{docHandle: number, pageIndex: number, enableAutoLinkDetection: boolean}} params
  * @returns {{links: Array<PdfUrlLink|PdfDestLink>}}
  */
-async function loadLinks(params) {
-  await _ensurePageAvailable(params.docHandle, params.pageIndex);
+function loadLinks(params) {
+  return _withDocumentOperation(params, (lifetime) => _loadLinks(params, lifetime));
+}
+
+async function _loadLinks(params, lifetime) {
+  await _ensurePageAvailable(params.docHandle, params.pageIndex, lifetime);
+  lifetime.assertOpen();
   const links = [..._loadAnnotLinks(params), ...(params.enableAutoLinkDetection ? _loadWebLinks(params) : [])];
   return {
     links: links,
@@ -2643,6 +2829,8 @@ function clearAllFontData() {
  * @returns {{modified: boolean}}
  */
 function assemble(params) {
+  _getDocumentLifetime(params);
+  for (const imported of Object.values(params.importedPages ?? {})) _getDocumentLifetime(imported);
   const { docHandle, pageIndices, importedPages, rotations } = params;
 
   // If no page indices specified, no modifications needed
@@ -2923,6 +3111,7 @@ function _insertImportedPage(destDocHandle, srcDocHandle, srcPageIndex, destInde
  * @returns {{data: ArrayBuffer}}
  */
 function encodePdf(params) {
+  _getDocumentLifetime(params);
   const { docHandle, incremental = false, removeSecurity = false } = params;
 
   let buffer = new Uint8Array(1024 * 1024); // Start with 1MB buffer
