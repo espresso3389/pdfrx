@@ -1,3 +1,11 @@
+# 3.0.3
+
+- Fit zoom now accounts for the whole facing-page spread. Short documents open at the intended zoom in `fill` and `fit` modes. [#829](https://github.com/espresso3389/pdfrx/pull/829)
+- In paged mode, pinching below minimum zoom keeps neighboring pages and their overlays hidden. Releasing the pinch returns to the starting spread, and resizing the viewer preserves the reading position when zoomed in. [#829](https://github.com/espresso3389/pdfrx/pull/829)
+- `FacingPagesLayout` now scales each page independently in `fill` and `fit` modes. Set `singlePagesFillAvailableWidth: true` to center an unpaired page and give it the full available width. [#830](https://github.com/espresso3389/pdfrx/pull/830)
+- In paged mode, a negative `boundaryMargin` now trims the margin at both ends of each spread along the scroll axis, including interior spreads. [#830](https://github.com/espresso3389/pdfrx/pull/830)
+- Pinch zoom now holds at the overscroll limit until release. On macOS, Windows, and Linux, pinching with scroll physics enabled keeps content within its pan bounds. [#831](https://github.com/espresso3389/pdfrx/pull/831)
+
 # 3.0.2
 
 - Reduced image cache bookkeeping during painting when cached images fit within the shared memory budget. [#826](https://github.com/espresso3389/pdfrx/pull/826)
