@@ -404,11 +404,80 @@ class _HttpClientWrapper {
   }
 }
 
+/// Owns one response, its deadline, and the transport cancellation signal.
+class _HttpDownload {
+  _HttpDownload(this.client, Duration? timeout)
+    : idleTimeout = timeout ?? const Duration(seconds: 5),
+      totalTimeout = timeout ?? const Duration(minutes: 5);
+
+  final _HttpClientWrapper client;
+  final Duration idleTimeout;
+  final Duration totalTimeout;
+  final _elapsed = Stopwatch()..start();
+  final _abort = Completer<void>();
+  Stream<List<int>>? _stream;
+  StreamIterator<List<int>>? _body;
+  bool _cancelled = false;
+
+  Future<void> get abortTrigger => _abort.future;
+  List<int> get current => _body!.current;
+
+  Future<T> _wait<T>(Future<T> Function() operation) {
+    final remaining = totalTimeout - _elapsed.elapsed;
+    if (remaining <= Duration.zero) {
+      cancel();
+      return Future.error(TimeoutException('PDF HTTP request exceeded its total timeout', totalTimeout));
+    }
+    final limit = remaining < idleTimeout ? remaining : idleTimeout;
+    return operation().timeout(
+      limit,
+      onTimeout: () {
+        cancel();
+        throw TimeoutException(
+          'PDF HTTP request exceeded its ${remaining < idleTimeout ? 'total' : 'idle'} timeout',
+          limit,
+        );
+      },
+    );
+  }
+
+  Future<http.StreamedResponse> send(http.BaseRequest request) => _wait(() async {
+    final response = await client.client.send(request);
+    if (_cancelled) {
+      // A custom client may ignore abort/close and return headers after the deadline.
+      await response.stream.listen(null, onError: (Object _, StackTrace _) {}).cancel();
+    } else {
+      _stream = response.stream;
+    }
+    return response;
+  });
+
+  Future<bool> moveNext() => _wait(() => (_body ??= StreamIterator(_stream!)).moveNext());
+
+  void cancel() {
+    if (_cancelled) return;
+    _cancelled = true;
+    _abort.complete();
+    client.reset();
+  }
+
+  Future<void> close() async {
+    if (_body case final body?) {
+      await body.cancel();
+    } else {
+      await _stream?.listen(null, onError: (Object _, StackTrace _) {}).cancel();
+    }
+  }
+}
+
 /// Open PDF file from [uri].
 ///
 /// Uses HTTP range requests and [PdfFileCache] for demand loading.
 /// Responses with `no-store` use volatile blocks until the document is disposed;
 /// a server that sends the entire document therefore requires that payload in memory.
+/// [timeout] bounds each complete HTTP request, including its response body.
+/// When omitted, headers and body inactivity are limited to five seconds, with
+/// a five-minute total limit. Expiration aborts the request and discards incomplete blocks.
 Future<PdfDocument> pdfDocumentFromUri(
   Uri uri, {
   PdfPasswordProvider? passwordProvider,
@@ -544,169 +613,176 @@ Future<void> _downloadBlock(
   int? fileSize;
   final blockOffset = blockId * cache.blockSize;
   final end = blockOffset + cache.blockSize * blockCount;
-  final request = http.Request('GET', uri)
+  final download = _HttpDownload(httpClientWrapper, timeout);
+  final request = http.AbortableRequest('GET', uri, abortTrigger: download.abortTrigger)
     ..headers.addAll({
       if (useRangeAccess) 'Range': 'bytes=$blockOffset-${end - 1}',
       if (addCacheControlHeaders) ...cache.cacheControlState.getHeadersForFetch(),
       ...?headers,
     });
-  final requestTime = DateTime.now();
-  late final http.StreamedResponse response;
   try {
-    response = await httpClientWrapper.client.send(request).timeout(timeout ?? const Duration(seconds: 5));
-  } on TimeoutException {
-    httpClientWrapper.reset();
-    rethrow;
-  } catch (e) {
-    httpClientWrapper.reset();
-    throw PdfException('Failed to download PDF file: $e');
-  }
-  final responseTime = DateTime.now();
-  if (response.statusCode == 304) {
-    await response.stream.drain<void>();
-    final validators = cache.cacheControlState.getHeadersForFetch();
-    if (!addCacheControlHeaders ||
-        !cache.isInitialized ||
-        validators.isEmpty ||
-        !validators.entries.every((entry) => request.headers[entry.key] == entry.value) ||
-        (cache.cacheControlState.etag == null && request.headers.containsKey('if-none-match'))) {
-      throw const PdfException('Unexpected 304 response without a cached representation to validate');
+    final requestTime = DateTime.now();
+    late final http.StreamedResponse response;
+    try {
+      response = await download.send(request);
+    } on TimeoutException {
+      rethrow;
+    } catch (e) {
+      throw PdfException('Failed to download PDF file: $e');
     }
-    final responseHeaders = {for (final entry in response.headers.entries) entry.key.toLowerCase(): entry.value};
-    final receivedEtag = responseHeaders['etag']?.trim();
-    final storedEtag = cache.cacheControlState.etag?.trim();
-    if (receivedEtag != null) {
-      // RFC 9111 section 4.3.4: a returned strong validator must identify the
-      // stored representation. Only a weak returned tag permits weak comparison.
-      final matches = receivedEtag.startsWith('W/')
-          ? storedEtag != null &&
-                receivedEtag.substring(2) == (storedEtag.startsWith('W/') ? storedEtag.substring(2) : storedEtag)
-          : receivedEtag == storedEtag;
-      if (!matches) throw const PdfException('304 ETag does not match the cached representation');
+    final responseTime = DateTime.now();
+    if (response.statusCode == 304) {
+      while (await download.moveNext()) {}
+      final validators = cache.cacheControlState.getHeadersForFetch();
+      if (!addCacheControlHeaders ||
+          !cache.isInitialized ||
+          validators.isEmpty ||
+          !validators.entries.every((entry) => request.headers[entry.key] == entry.value) ||
+          (cache.cacheControlState.etag == null && request.headers.containsKey('if-none-match'))) {
+        throw const PdfException('Unexpected 304 response without a cached representation to validate');
+      }
+      final responseHeaders = {for (final entry in response.headers.entries) entry.key.toLowerCase(): entry.value};
+      final receivedEtag = responseHeaders['etag']?.trim();
+      final storedEtag = cache.cacheControlState.etag?.trim();
+      if (receivedEtag != null) {
+        // RFC 9111 section 4.3.4: a returned strong validator must identify the
+        // stored representation. Only a weak returned tag permits weak comparison.
+        final matches = receivedEtag.startsWith('W/')
+            ? storedEtag != null &&
+                  receivedEtag.substring(2) == (storedEtag.startsWith('W/') ? storedEtag.substring(2) : storedEtag)
+            : receivedEtag == storedEtag;
+        if (!matches) throw const PdfException('304 ETag does not match the cached representation');
+      }
+      final state = cache.cacheControlState.revalidated(
+        responseHeaders,
+        requestTime: requestTime,
+        responseTime: responseTime,
+      );
+      if (receivedEtag == null &&
+          responseHeaders.containsKey('last-modified') &&
+          cache.cacheControlState.etag == null &&
+          state.lastModified != cache.cacheControlState.lastModified) {
+        throw const PdfException('304 Last-Modified does not match the cached representation');
+      }
+      // Retain compatibility with servers omitting validators on 304, but only
+      // after the exact stored conditional above, never a caller's different condition.
+      if (state.cacheControl.noStore) await cache._useMemoryOnly();
+      await cache.setCacheControlState(state);
+      return;
     }
-    final state = cache.cacheControlState.revalidated(
-      responseHeaders,
+
+    if (response.statusCode != 200 && response.statusCode != 206) {
+      throw PdfException('Failed to download PDF file: ${response.statusCode} ${response.reasonPhrase}');
+    }
+
+    if (addCacheControlHeaders) {
+      await cache.invalidateCache();
+    }
+
+    final isFullDownload = response.statusCode == 200;
+    if (isFullDownload) {
+      // The server does not support range request and returns the whole file, which starts at byte 0.
+      if (blockOffset != 0) {
+        throw const PdfException('Server ignored the byte-range request for a later block');
+      }
+      // IOClient decodes gzip but keeps the compressed Content-Length header.
+      // Derive the decoded size from the completed stream instead.
+      fileSize = response.headers['content-encoding']?.trim().toLowerCase() == 'gzip' ? null : response.contentLength;
+    } else {
+      final contentRange = response.headers['content-range'];
+      final m = contentRange == null ? null : RegExp(r'^bytes (\d+)-(\d+)/(\d+)$').firstMatch(contentRange.trim());
+      if (m == null) {
+        throw PdfException('Invalid Content-Range: $contentRange');
+      }
+      fileSize = int.parse(m.group(3)!);
+      // Bytes written at the wrong offset would be served from the cache as if they were valid.
+      if (int.parse(m.group(1)!) != blockOffset ||
+          int.parse(m.group(2)!) != min(end, fileSize) - 1 ||
+          (cache.isInitialized && cache.fileSize != fileSize)) {
+        throw PdfException('Content-Range $contentRange does not match the requested bytes $blockOffset-${end - 1}');
+      }
+    }
+    final state = HttpCacheControlState.fromHeaders(
+      response.headers,
       requestTime: requestTime,
       responseTime: responseTime,
     );
-    if (receivedEtag == null &&
-        responseHeaders.containsKey('last-modified') &&
-        cache.cacheControlState.etag == null &&
-        state.lastModified != cache.cacheControlState.lastModified) {
-      throw const PdfException('304 Last-Modified does not match the cached representation');
-    }
-    // Retain compatibility with servers omitting validators on 304, but only
-    // after the exact stored conditional above, never a caller's different condition.
     if (state.cacheControl.noStore) await cache._useMemoryOnly();
+    if (!cache.isInitialized) {
+      await cache.initializeWithFileSize(fileSize ?? 0, truncateExistingContent: true);
+    }
     await cache.setCacheControlState(state);
-    return;
-  }
 
-  if (response.statusCode != 200 && response.statusCode != 206) {
-    throw PdfException('Failed to download PDF file: ${response.statusCode} ${response.reasonPhrase}');
-  }
-
-  if (addCacheControlHeaders) {
-    await cache.invalidateCache();
-  }
-
-  final isFullDownload = response.statusCode == 200;
-  if (isFullDownload) {
-    // The server does not support range request and returns the whole file, which starts at byte 0.
-    if (blockOffset != 0) {
-      throw const PdfException('Server ignored the byte-range request for a later block');
+    var offset = blockOffset;
+    var cachedBytesSoFar = cache.cachedBytes;
+    var bytesThisRequest = 0;
+    while (await download.moveNext()) {
+      final bytes = download.current;
+      await cache.write(offset, bytes);
+      offset += bytes.length;
+      cachedBytesSoFar += bytes.length;
+      bytesThisRequest += bytes.length;
+      Pdfrx.debugBytesFetched += bytes.length;
+      progressCallback?.call(cachedBytesSoFar, fileSize);
     }
-    // IOClient decodes gzip but keeps the compressed Content-Length header.
-    // Derive the decoded size from the completed stream instead.
-    fileSize = response.headers['content-encoding']?.trim().toLowerCase() == 'gzip' ? null : response.contentLength;
-  } else {
-    final contentRange = response.headers['content-range'];
-    final m = contentRange == null ? null : RegExp(r'^bytes (\d+)-(\d+)/(\d+)$').firstMatch(contentRange.trim());
-    if (m == null) {
-      throw PdfException('Invalid Content-Range: $contentRange');
-    }
-    fileSize = int.parse(m.group(3)!);
-    // Bytes written at the wrong offset would be served from the cache as if they were valid.
-    if (int.parse(m.group(1)!) != blockOffset ||
-        int.parse(m.group(2)!) != min(end, fileSize) - 1 ||
-        (cache.isInitialized && cache.fileSize != fileSize)) {
-      throw PdfException('Content-Range $contentRange does not match the requested bytes $blockOffset-${end - 1}');
-    }
-  }
-  final state = HttpCacheControlState.fromHeaders(
-    response.headers,
-    requestTime: requestTime,
-    responseTime: responseTime,
-  );
-  if (state.cacheControl.noStore) await cache._useMemoryOnly();
-  if (!cache.isInitialized) {
-    await cache.initializeWithFileSize(fileSize ?? 0, truncateExistingContent: true);
-  }
-  await cache.setCacheControlState(state);
 
-  var offset = blockOffset;
-  var cachedBytesSoFar = cache.cachedBytes;
-  var bytesThisRequest = 0;
-  await for (final bytes in response.stream) {
-    await cache.write(offset, bytes);
-    offset += bytes.length;
-    cachedBytesSoFar += bytes.length;
-    bytesThisRequest += bytes.length;
-    Pdfrx.debugBytesFetched += bytes.length;
-    progressCallback?.call(cachedBytesSoFar, fileSize);
-  }
-
-  if (isFullDownload) {
-    if (fileSize != null) {
-      if (fileSize != bytesThisRequest) {
-        throw PdfException('File size mismatch after full download: expected $fileSize, got $bytesThisRequest');
+    if (isFullDownload) {
+      if (fileSize != null) {
+        if (fileSize != bytesThisRequest) {
+          throw PdfException('File size mismatch after full download: expected $fileSize, got $bytesThisRequest');
+        }
+      } else {
+        fileSize = cachedBytesSoFar;
       }
+      await cache.initializeWithFileSize(fileSize, truncateExistingContent: false);
+      await cache.setCached(0, lastBlock: cache.totalBlocks - 1);
     } else {
-      fileSize = cachedBytesSoFar;
+      // Mark only what actually arrived. A block marked resident on bytes that
+      // never landed is unrecoverable: every later read is served from the cache
+      // file, returns the zeroes sitting in the hole, and the page renders blank
+      // with no error and no retry. Short responses should not happen against a
+      // well-behaved server, which is exactly why this needs to be loud.
+      final bytesExpected = min(cache.blockSize * blockCount, cache.fileSize - blockOffset);
+      if (bytesThisRequest < bytesExpected) {
+        final blocksFilled = bytesThisRequest ~/ cache.blockSize;
+        if (Pdfrx.debugLazyLoading) {
+          pdfrxLazyLog(
+            'FETCH block $blockId SHORT -- asked for ${_fmtBytes(bytesExpected)}, got '
+            '${_fmtBytes(bytesThisRequest)}; marking $blocksFilled of $blockCount block(s) resident '
+            'so the rest is re-fetched rather than read back as zeroes',
+          );
+        }
+        if (blocksFilled > 0) {
+          await cache.setCached(blockId, lastBlock: blockId + blocksFilled - 1);
+        }
+        // The pending read must not consume the hole either.
+        throw PdfException(
+          'Short range response for block $blockId: expected $bytesExpected bytes, got $bytesThisRequest',
+        );
+      } else {
+        await cache.setCached(blockId, lastBlock: blockId + blockCount - 1);
+      }
     }
-    await cache.initializeWithFileSize(fileSize, truncateExistingContent: false);
-    await cache.setCached(0, lastBlock: cache.totalBlocks - 1);
-  } else {
-    // Mark only what actually arrived. A block marked resident on bytes that
-    // never landed is unrecoverable: every later read is served from the cache
-    // file, returns the zeroes sitting in the hole, and the page renders blank
-    // with no error and no retry. Short responses should not happen against a
-    // well-behaved server, which is exactly why this needs to be loud.
-    final bytesExpected = min(cache.blockSize * blockCount, cache.fileSize - blockOffset);
-    if (bytesThisRequest < bytesExpected) {
-      final blocksFilled = bytesThisRequest ~/ cache.blockSize;
-      if (Pdfrx.debugLazyLoading) {
+
+    if (Pdfrx.debugLazyLoading) {
+      if (isFullDownload) {
         pdfrxLazyLog(
-          'FETCH block $blockId SHORT -- asked for ${_fmtBytes(bytesExpected)}, got '
-          '${_fmtBytes(bytesThisRequest)}; marking $blocksFilled of $blockCount block(s) resident '
-          'so the rest is re-fetched rather than read back as zeroes',
+          'FETCH whole file ${_fmtBytes(bytesThisRequest)} -- the server ignored '
+          'the Range header, so demand paging is NOT in effect',
+        );
+      } else {
+        final resident = cache.fileSize > 0 ? cache.cachedBytes * 100 ~/ cache.fileSize : 0;
+        pdfrxLazyLog(
+          'FETCH block $blockId  bytes=$blockOffset-${end - 1}  HTTP ${response.statusCode}  '
+          'got ${_fmtBytes(bytesThisRequest)}  '
+          'resident ${_fmtBytes(cache.cachedBytes)}/${_fmtBytes(cache.fileSize)} ($resident%)',
         );
       }
-      if (blocksFilled > 0) {
-        await cache.setCached(blockId, lastBlock: blockId + blocksFilled - 1);
-      }
-      // The pending read must not consume the hole either.
-      throw PdfException(
-        'Short range response for block $blockId: expected $bytesExpected bytes, got $bytesThisRequest',
-      );
-    } else {
-      await cache.setCached(blockId, lastBlock: blockId + blockCount - 1);
     }
-  }
-
-  if (Pdfrx.debugLazyLoading) {
-    if (isFullDownload) {
-      pdfrxLazyLog(
-        'FETCH whole file ${_fmtBytes(bytesThisRequest)} -- the server ignored '
-        'the Range header, so demand paging is NOT in effect',
-      );
-    } else {
-      final resident = cache.fileSize > 0 ? cache.cachedBytes * 100 ~/ cache.fileSize : 0;
-      pdfrxLazyLog(
-        'FETCH block $blockId  bytes=$blockOffset-${end - 1}  HTTP ${response.statusCode}  '
-        'got ${_fmtBytes(bytesThisRequest)}  '
-        'resident ${_fmtBytes(cache.cachedBytes)}/${_fmtBytes(cache.fileSize)} ($resident%)',
-      );
-    }
+  } catch (_) {
+    download.cancel();
+    rethrow;
+  } finally {
+    await download.close();
   }
 });
