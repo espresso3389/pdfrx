@@ -862,13 +862,16 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
       }
 
       final allowedScale = _getAllowedScale(desiredScale);
-      // Early return if not allowed to zoom outside bounds
+      // The physics does not allow the whole change (e.g. ClampingScrollPhysics at minScale/maxScale,
+      // or a physics with a limited overscroll at the end of it): go as far as it allows. That can
+      // be outside minScale..maxScale, so it is not clamped to them; doing so would throw the scale
+      // back to minScale/maxScale the moment the overscroll limit is reached.
       if (allowedScale != desiredScale) {
-        final clampedScale = clampDouble(allowedScale, widget.minScale, widget.maxScale) / currentScale;
-        if (clampedScale <= 0.0 || !clampedScale.isFinite) {
+        final allowedChange = allowedScale / currentScale;
+        if (allowedChange <= 0.0 || !allowedChange.isFinite) {
           return matrix.clone();
         }
-        return matrix.clone()..scaleByDouble(clampedScale, clampedScale, clampedScale, 1);
+        return matrix.clone()..scaleByDouble(allowedChange, allowedChange, allowedChange, 1);
       }
 
       // Compute ratio of this update's scale to the previous update
