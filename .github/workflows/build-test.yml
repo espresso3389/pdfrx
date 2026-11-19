@@ -319,9 +319,9 @@ jobs:
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
 
-      - name: Test PDFium worker metadata
+      - name: Test PDFium worker metadata and range responses
         working-directory: packages/pdfrx
-        run: node --test test/pdfium_worker_metadata_test.cjs
+        run: node --test test/pdfium_worker_metadata_test.cjs test/pdfium_worker_range_response_test.cjs
 
       - name: Build Web
         working-directory: packages/pdfrx/example/viewer
