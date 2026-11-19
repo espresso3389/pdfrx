@@ -2514,8 +2514,16 @@ class _PdfViewerState extends State<PdfViewer>
       final isVisible = cache.visiblePageNumbers.contains(entry.key);
       entry.value.budgetEntry?.touch(isPinned: isVisible, isNeeded: isVisible);
     }
-    for (final pageNumber in cache.pendingPageNumbers.toList()) {
-      if (!retainedPages.contains(pageNumber)) cache.cancelPendingRenderings(pageNumber);
+    // Exhausted failures have no pending timer, but their retry budget also ends when the page leaves the extent.
+    for (final pageNumber in {
+      ...cache.pendingPageNumbers,
+      ...cache.previewRenderFailures.keys,
+      ...cache.partialRenderFailures.keys,
+    }) {
+      if (!retainedPages.contains(pageNumber)) {
+        cache.cancelPendingRenderings(pageNumber);
+        cache.clearRenderFailures(pageNumber);
+      }
     }
     unusedPageList.addAll(cache.pageImages.keys.where((pageNumber) => !retainedPages.contains(pageNumber)));
     final soleSpread = _soleSpreadToShow;
@@ -6117,8 +6125,8 @@ enum PdfVisibleRenderState {
   ///
   /// This happens when rendering a visible page for the current view returns no image or throws, or when the size of
   /// a page cannot be loaded. Failed image requests are retried twice, after 250 ms and 1 s, and then stop until
-  /// their render target or page changes, or [PdfViewerController.retryFailedRenderings] is called. A successful
-  /// retry changes the state to [ready].
+  /// their render target or page changes, the page leaves the cache extent, or
+  /// [PdfViewerController.retryFailedRenderings] is called. A successful retry changes the state to [ready].
   failed,
 
   /// Every page intersecting the viewport has been painted with its final image for the current view.
@@ -6202,9 +6210,10 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   /// Any change that alters what should be painted, such as scrolling, zooming, resizing, going to another page,
   /// replacing the document, or releasing the visible pages' images (`releaseCachedImages(keepVisible: false)`),
   /// makes the state leave [PdfVisibleRenderState.ready]. Images that finish rendering for a view that is no longer
-  /// current never make the state ready. A failure is remembered for the page and requested image, so returning to a
-  /// view whose rendering failed reports [PdfVisibleRenderState.failed] again until a retry succeeds. The state always
-  /// describes the current view, so an intermediate frame of an animated scroll or zoom can be ready; wait for
+  /// current never make the state ready. An image failure is remembered for the page and requested image while the
+  /// page stays in the cache extent. Returning to that view reports [PdfVisibleRenderState.failed] until a retry
+  /// succeeds; returning after the page has left the cache extent starts a fresh request. The state always describes
+  /// the current view, so an intermediate frame of an animated scroll or zoom can be ready; wait for
   /// navigation methods such as [goToPage] to complete before waiting for the state.
   ///
   /// The state covers only the page images. It does not cover [PdfViewerParams.pageOverlaysBuilder],
@@ -6596,8 +6605,8 @@ class PdfViewerController extends ValueListenable<Matrix4> {
   ///
   /// Each image request gets at most three attempts: the initial render and two retries after 250 ms and 1 s.
   /// Ordinary repaints, including [invalidate], do not reset that limit. A changed render target, page content,
-  /// or this explicit retry starts a fresh set of attempts. Canceled renders and unavailable image budget do not
-  /// consume attempts. Only pages needed by the current view are requested again.
+  /// leaving the cache extent, or this explicit retry starts a fresh set of attempts. Canceled renders and
+  /// unavailable image budget do not consume attempts. Only pages needed by the current view are requested again.
   void retryFailedRenderings() => _state._retryFailedRenderings();
 
   /// The current zoom ratio.

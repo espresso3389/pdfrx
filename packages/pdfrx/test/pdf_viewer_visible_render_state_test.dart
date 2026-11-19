@@ -258,6 +258,109 @@ void main() {
   }
 
   for (final partial in [false, true]) {
+    for (final leaveCacheExtent in [false, true]) {
+      _testWidgets('an exhausted ${partial ? 'partial' : 'preview'} retry budget '
+          '${leaveCacheExtent ? 'resets after leaving' : 'survives scrolling inside'} the cache extent', (
+        tester,
+      ) async {
+        final document = _FakeDocument(List.filled(8, const Size(600, 800)));
+        addTearDown(document.dispose);
+        final renderer = document.renderer;
+        _Outcome failFirstPage(_RenderCall call) =>
+            call.pageNumber == 1 && call.isPartial == partial ? _Outcome.noImage : _Outcome.image;
+        if (!partial) renderer.outcome = failFirstPage;
+        final controller = PdfViewerController();
+        final cacheExtent = leaveCacheExtent ? 0.0 : 10.0;
+        await tester.pumpWidget(_viewer(document, controller, verticalCacheExtent: cacheExtent));
+        if (partial) {
+          await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+          renderer.outcome = failFirstPage;
+          await controller.setZoom(const Offset(400, 300), 3, duration: Duration.zero);
+        }
+        int attempts() => renderer.calls.where((call) => call.pageNumber == 1 && call.isPartial == partial).length;
+        await _pumpUntil(tester, () => attempts() == 3);
+        await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.failed);
+        final originalView = controller.value.clone();
+
+        // Even if rendering would now succeed, ordinary repaints must respect the exhausted budget.
+        renderer.outcome = null;
+        for (var i = 0; i < 5; i++) {
+          controller.invalidate();
+          await tester.pump(const Duration(seconds: 1));
+        }
+        expect(attempts(), 3);
+        expect(controller.visibleRenderState.value, PdfVisibleRenderState.failed);
+
+        final destinationPage = leaveCacheExtent ? 8 : 2;
+        await controller.goTo(
+          controller.calcMatrixFor(controller.layout.pageLayouts[destinationPage - 1].center),
+          duration: Duration.zero,
+        );
+        await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+        final firstPage = controller.layout.pageLayouts.first;
+        expect(firstPage.overlaps(controller.visibleRect), isFalse);
+        expect(
+          firstPage.overlaps(controller.visibleRect.inflate(controller.visibleRect.height * cacheExtent)),
+          !leaveCacheExtent,
+        );
+        expect(attempts(), 3);
+
+        // Restore the exact matrix so the scale and partial-image target have not changed.
+        await controller.goTo(originalView, duration: Duration.zero);
+        if (leaveCacheExtent) {
+          await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+          expect(attempts(), 4);
+        } else {
+          await _pumpPaintWork(tester);
+          expect(attempts(), 3);
+          expect(controller.visibleRenderState.value, PdfVisibleRenderState.failed);
+        }
+        await _unmount(tester);
+      });
+    }
+
+    _testWidgets('leaving the cache extent cancels ${partial ? 'partial' : 'preview'} backoff and resets attempts', (
+      tester,
+    ) async {
+      final document = _FakeDocument(List.filled(8, const Size(600, 800)));
+      addTearDown(document.dispose);
+      final renderer = document.renderer;
+      _Outcome failFirstPage(_RenderCall call) =>
+          call.pageNumber == 1 && call.isPartial == partial ? _Outcome.noImage : _Outcome.image;
+      if (!partial) renderer.outcome = failFirstPage;
+      final controller = PdfViewerController();
+      await tester.pumpWidget(_viewer(document, controller, verticalCacheExtent: 0));
+      if (partial) {
+        await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+        renderer.outcome = failFirstPage;
+        await controller.setZoom(const Offset(400, 300), 3, duration: Duration.zero);
+      }
+      int attempts() => renderer.calls.where((call) => call.pageNumber == 1 && call.isPartial == partial).length;
+      await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.failed);
+      expect(attempts(), 1);
+      final originalView = controller.value.clone();
+
+      await controller.goTo(
+        controller.calcMatrixFor(controller.layout.pageLayouts.last.center),
+        duration: Duration.zero,
+      );
+      await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+      expect(controller.layout.pageLayouts.first.overlaps(controller.visibleRect), isFalse);
+      await tester.pump(const Duration(seconds: 5));
+      expect(attempts(), 1);
+
+      // The still-failing target gets three new attempts on return, independent of the discarded attempt.
+      await controller.goTo(originalView, duration: Duration.zero);
+      await _pumpUntil(tester, () => attempts() == 4);
+      for (var i = 0; i < 5; i++) {
+        controller.invalidate();
+        await tester.pump(const Duration(seconds: 1));
+      }
+      expect(attempts(), 4);
+      expect(controller.visibleRenderState.value, PdfVisibleRenderState.failed);
+      await _unmount(tester);
+    });
+
     _testWidgets('a transient ${partial ? 'partial' : 'preview'} failure recovers automatically', (tester) async {
       final document = _FakeDocument([const Size(600, 800)]);
       addTearDown(document.dispose);
