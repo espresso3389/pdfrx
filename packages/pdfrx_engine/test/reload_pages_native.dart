@@ -98,6 +98,29 @@ void registerReloadPagesNativeTests() {
       expect(cache.get(3), isNull);
     });
 
+    test('metadata preserves removed pages and loaded page identities', () async {
+      final document = await open();
+      document.pages = document.pages.skip(1).toList();
+      final edited = document.pages;
+      await document.loadPageMetadata(pageNumbers: [1, 2]);
+      expect(document.pages, same(edited));
+      expect(document.pages.map((page) => page.width), [201, 202]);
+    });
+
+    test('metadata measures moved and imported placeholders at their source slots', () async {
+      final document = await PdfDocument.openData(buildBlankPdf(4), useProgressiveLoading: true);
+      addTearDown(document.dispose);
+      final other = await PdfDocument.openData(buildBlankPdf(5), useProgressiveLoading: true);
+      addTearDown(other.dispose);
+      document.pages = [document.pages[2], other.pages[4].rotatedCW90()];
+      expect(document.pages.every((page) => !page.isLoaded), isTrue);
+      await document.loadPageMetadata(pageNumbers: [2, 1]);
+      expect(document.pages.map((page) => page.width), [202, 304]);
+      expect(document.pages.map((page) => page.pageNumber), [1, 2]);
+      expect(document.pages.last.document, same(other));
+      expect(document.pages.every((page) => page.isLoaded), isTrue);
+    });
+
     test('an empty request synchronizes native insertion and shifted pages', () async {
       final document = await open();
       await document.useNativeDocumentHandle((address) {

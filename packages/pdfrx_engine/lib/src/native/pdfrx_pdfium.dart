@@ -986,6 +986,7 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
         pdfDoc._pages = List.unmodifiable(await pdfDoc._measureAllPagesInChunks());
         pdfDoc._notifyDocumentLoadComplete();
       }
+      pdfDoc._nativePageCount = pdfDoc._pages.length;
       // Complete the initial missing-font query before exposing the document. The replaying event stream ensures that
       // a font manager associated immediately after open receives this event instead of racing it.
       await pdfDoc._notifyMissingFonts();
@@ -1361,6 +1362,49 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
 
   final _reloadSync = Object();
   var _pageListRevision = 0;
+  var _nativePageCount = 0;
+  var _hasPageEdits = false;
+
+  /// Measures logical slots against their original PDFium document and page number.
+  Future<void> _measureEditedPages(List<int> requested) async {
+    final snapshot = _pages;
+    final revision = _pageListRevision;
+    final replacements = <int, PdfPage>{};
+    final measured = Map<_PdfPagePdfium, PdfPage>.identity();
+    for (final number in requested.toSet()) {
+      if (number < 1 || number > snapshot.length) {
+        throw ArgumentError.value(number, 'pageNumbers', 'Page number is outside the document');
+      }
+      final page = snapshot[number - 1];
+      if (page.isLoaded) continue;
+      final source = page.unwrap<_PdfPagePdfium>()!;
+      var replacement = measured[source];
+      if (replacement == null) {
+        final result = await source.document._measurePages(
+          pageIndicesToLoad: [source.pageNumber - 1],
+          priority: BackgroundWorkerPriority.high,
+        );
+        if (result.pages.isEmpty) throw StateError('Source page was removed while measuring metadata.');
+        replacement = source.document._measuredPage(result.pages.single, source);
+        measured[source] = replacement;
+      }
+      replacements[number - 1] = _replaceMeasuredSource(page, replacement);
+    }
+    if (replacements.isEmpty) return;
+    if (revision != _pageListRevision) throw StateError('Page list changed while measuring metadata; retry.');
+    final pages = _pages.toList();
+    for (final entry in replacements.entries) {
+      if (identical(pages[entry.key], snapshot[entry.key])) pages[entry.key] = entry.value;
+    }
+    _setPages(pages, isContentChanged: false);
+  }
+
+  static PdfPage _replaceMeasuredSource(PdfPage page, PdfPage measured) => switch (page) {
+    PdfPageRenumbered() => _replaceMeasuredSource(page.basePage, measured).withPageNumber(page.pageNumber),
+    PdfPageRotated() => PdfPageRotated(_replaceMeasuredSource(page.basePage, measured), page.rotation),
+    _PdfPagePdfium() => measured,
+    _ => throw UnsupportedError('Cannot replace the base page of a custom page proxy.'),
+  };
 
   @override
   Future<void> reloadPages({List<int>? pageNumbersToReload}) => _reloadPages(pageNumbersToReload);
@@ -1373,6 +1417,10 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
     final requested = pageNumbers?.toList(growable: false);
     return _lifetime.use(
       () => _reloadSync.synchronized(() async {
+        if (metadataOnly && _hasPageEdits) {
+          await _measureEditedPages(requested!);
+          return;
+        }
         final revision = _pageListRevision;
         final pageCount = await _computeWithArena(
           (arena, address) => pdfium.FPDF_GetPageCount(pdfium_bindings.FPDF_DOCUMENT.fromAddress(address)),
@@ -1439,6 +1487,8 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
           }
         }
         _setPages(newPages, isContentChanged: !metadataOnly || reloadAll);
+        _nativePageCount = pageCount;
+        if (reloadAll) _hasPageEdits = false;
       }),
     );
   }
@@ -1447,7 +1497,12 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
   List<PdfPage> get pages => _pages;
 
   @override
-  set pages(Iterable<PdfPage> newPages) => _setPages(newPages);
+  set pages(Iterable<PdfPage> newPages) {
+    _setPages(newPages);
+    _hasPageEdits =
+        _pages.length != _nativePageCount ||
+        _pages.any((page) => page is! _PdfPagePdfium || !identical(page.document, this));
+  }
 
   static bool _samePageSource(PdfPage previous, PdfPage next) {
     final oldSource = previous.unwrap<_PdfPagePdfium>();
@@ -1722,7 +1777,9 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
       ),
     );
     // Replace source-backed pages with pages of the assembled document before releasing its lifetime protection.
-    document.pages = await document._measureAllPagesInChunks();
+    final assembled = await document._measureAllPagesInChunks();
+    document._nativePageCount = assembled.length;
+    document.pages = assembled;
     return true;
   }
 
