@@ -88,10 +88,14 @@ class FacingPagesLayout extends PdfPageLayoutStrategy {
     final halfWidth = (availWidth - margin) / 2;
     final scales = List<double>.filled(pages.length, 1.0);
     final fillsWidth = List<bool>.filled(pages.length, false);
-    if (hasViewport && halfWidth > 0 && (fitMode == PdfFitMode.fill || fitMode == PdfFitMode.fit)) {
+    if (hasViewport && (fitMode == PdfFitMode.fill || fitMode == PdfFitMode.fit)) {
       for (final spread in spreads) {
         final wholeWidth = singlePagesFillAvailableWidth && spread.firstPageNumber == spread.lastPageNumber;
         final targetWidth = wholeWidth ? availWidth : halfWidth;
+        // The width is judged for each spread: when the margins leave no room for a half (the spine
+        // gap takes it), a page over the whole width can still be fitted. Without any room, the
+        // pages keep their native sizes.
+        if (targetWidth <= 0) continue;
         for (final n in spread.pageNumbers) {
           final page = pages[n - 1];
           scales[n - 1] = fitMode == PdfFitMode.fill

@@ -173,6 +173,29 @@ void main() {
       expect(last.center.dx, moreOrLessEquals(_viewport.width / 2));
     });
 
+    test('a single page is fitted to the whole width even when the margins leave no room for a half', () {
+      // 270 wide with margins of 100: 70 is left for a page over the whole width, but a half of the
+      // view, (70 - 100) / 2, has no room at all.
+      const viewport = Size(270, 600);
+      const layout = FacingPagesLayout(margin: 100, fitMode: PdfFitMode.fit, singlePagesFillAvailableWidth: true);
+      final cover = [_FakePage(100, 200)];
+
+      final paged = layout.resolve(PdfPageLayoutContext(pages: cover, viewport: viewport, paged: true));
+      // Scaled by 70 / 100, centered in the view and in its view-sized slot.
+      expect(paged.pageLayouts.single, const Rect.fromLTWH(100, 230, 70, 140));
+
+      final continuous = layout.resolve(PdfPageLayoutContext(pages: cover, viewport: viewport));
+      expect(continuous.pageLayouts.single, const Rect.fromLTWH(100, 100, 70, 140));
+
+      // The pair after the cover has no room: its pages keep their native sizes, as before.
+      final withPair = layout.resolve(
+        PdfPageLayoutContext(pages: [...cover, _FakePage(100, 200), _FakePage(100, 200)], viewport: viewport),
+      );
+      expect(withPair.pageLayouts[0].size, const Size(70, 140));
+      expect(withPair.pageLayouts[1].size, const Size(100, 200));
+      expect(withPair.pageLayouts[2].size, const Size(100, 200));
+    });
+
     test('none: ignored, pages keep their native sizes and their side of the spine', () {
       const on = FacingPagesLayout(singlePagesFillAvailableWidth: true);
       expect(_resolve(on, pages).pageLayouts, _resolve(const FacingPagesLayout(), pages).pageLayouts);
