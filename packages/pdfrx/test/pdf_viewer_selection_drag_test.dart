@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart';
@@ -152,7 +154,7 @@ void selectionDragTests({bool useFlutterInitialization = false}) {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('releasing resources preserves all pages in the active selection', (tester) async {
+  testWidgets('releasing resources preserves selection text and only endpoint geometry', (tester) async {
     final (controller, document, texts) = await _setup(tester);
     final delegate = controller.textSelectionDelegate;
     await delegate.setTextSelectionPointRange(
@@ -167,7 +169,9 @@ void selectionDragTests({bool useFlutterInitialization = false}) {
     controller.releaseCachedResources(keepVisible: false);
     expect(delegate.hasSelectedText, isTrue);
     expect(delegate.selectedTextIfLoaded, expected);
-    expect(PdfPageTextCache.forDocument(document).get(2), isNotNull);
+    expect(PdfPageTextCache.forDocument(document).get(2), isNull);
+    expect(PdfPageTextCache.forDocument(document).get(1), isNotNull);
+    expect(PdfPageTextCache.forDocument(document).get(3), isNotNull);
     controller.releaseCachedResources(keepVisible: false, keepSelection: false);
     expect(delegate.hasSelectedText, isFalse);
     expect(PdfPageTextCache.forDocument(document).length, 0);
@@ -187,6 +191,58 @@ void selectionDragTests({bool useFlutterInitialization = false}) {
     expect(delegate.selectedTextIfLoaded, text);
     await delegate.clearTextSelection();
     expect(delegate.selectedTextIfLoaded, '');
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('copying a 1000-page PDFium document keeps geometry bounded and preserves exact text', (tester) async {
+    final (controller, document, texts) = await _setup(tester, pageCount: 1000, linesPerPage: 1, loadAllText: false);
+    final selection = controller.textSelectionDelegate;
+    await selection.setTextSelectionPointRange(
+      PdfTextSelectionRange.fromPoints(
+        PdfTextSelectionPoint(texts.first, 0),
+        PdfTextSelectionPoint(texts.last, texts.last.fullText.length - 1),
+      ),
+    );
+    final cache = PdfPageTextCache.forDocument(document);
+    var peakPages = cache.length;
+    var peakBytes = cache.estimatedBytes;
+    void recordCache() {
+      peakPages = math.max(peakPages, cache.length);
+      peakBytes = math.max(peakBytes, cache.estimatedBytes);
+    }
+
+    final text = (await tester.runAsync(() async {
+      final sampling = Timer.periodic(const Duration(milliseconds: 1), (_) => recordCache());
+      try {
+        return await selection.getSelectedText();
+      } finally {
+        recordCache();
+        sampling.cancel();
+      }
+    }))!;
+    final expected = [
+      for (var page = 1; page <= 1000; page++) texts.first.fullText.replaceFirst('Page 1 ', 'Page $page '),
+    ].join();
+    if (const bool.fromEnvironment('PDFRX_SELECTION_COPY_METRICS')) {
+      // ignore: avoid_print
+      print(
+        jsonEncode({
+          'backend': 'PDFium',
+          'pages': 1000,
+          'peakCachedPages': peakPages,
+          'peakEstimatedCacheBytes': peakBytes,
+          'finalCachedPages': cache.length,
+          'finalEstimatedCacheBytes': cache.estimatedBytes,
+          'copiedUtf16CodeUnits': text.length,
+          'copyOutputMatches': text == expected,
+        }),
+      );
+    }
+    expect(text, expected);
+    expect(peakPages, lessThanOrEqualTo(cache.maximumPages));
+    expect(peakBytes, lessThanOrEqualTo(cache.maximumBytes));
+    expect(cache.get(500), isNull);
+    expect(selection.selectedTextIfLoaded, text);
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -229,11 +285,14 @@ Future<(PdfViewerController, PdfDocument, List<PdfPageText>)> _setup(
   WidgetTester tester, {
   bool handles = true,
   int pageCount = 3,
+  int linesPerPage = 15,
+  bool loadAllText = true,
 }) async {
   final document = (await tester.runAsync(
-    () => PdfDocument.openData(_pdf(pageCount: pageCount), useProgressiveLoading: false),
+    () => PdfDocument.openData(_pdf(pageCount: pageCount, linesPerPage: linesPerPage), useProgressiveLoading: false),
   ))!;
-  final texts = (await tester.runAsync(() => Future.wait(document.pages.map((p) => p.loadStructuredText()))))!;
+  final pagesToRead = loadAllText ? document.pages : [document.pages.first, document.pages.last];
+  final texts = (await tester.runAsync(() => Future.wait(pagesToRead.map((p) => p.loadStructuredText()))))!;
   addTearDown(document.dispose);
   final controller = PdfViewerController();
   var ready = false;
@@ -290,7 +349,7 @@ String _selectedText(List<PdfPageText> texts) => [
 ].join();
 
 // A 30-point line spacing makes coordinate errors observable.
-Uint8List _pdf({int pageCount = 3}) {
+Uint8List _pdf({int pageCount = 3, int linesPerPage = 15}) {
   final objects = <String>[
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [${List.generate(pageCount, (i) => '${4 + i * 2} 0 R').join(' ')}] /Count $pageCount >>',
@@ -298,7 +357,7 @@ Uint8List _pdf({int pageCount = 3}) {
   ];
   for (var page = 0; page < pageCount; page++) {
     final stream = StringBuffer('BT /F1 14 Tf 30 TL 60 540 Td ');
-    for (var line = 0; line < 15; line++) {
+    for (var line = 0; line < linesPerPage; line++) {
       stream.write('(Page ${page + 1} line ${line + 1} selection testing) Tj T* ');
     }
     stream.write('ET');
