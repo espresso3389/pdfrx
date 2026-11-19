@@ -129,6 +129,49 @@ for (final match in searcher.matches) {
 
 The viewer and search sessions share a bounded text cache per document. Active selections and other owners can pin pages beyond its target. Use [`searcher.loadText(pageNumber: n)`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearchSession/loadText.html) when full structured page text is needed, and dispose the searcher when finished. [`releaseCachedText()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/releaseCachedText.html) clears unpinned entries in the shared document cache; other consumers' pinned pages are preserved.
 
+## Limiting Retained Results
+
+A frequent word or a broad regular expression can produce many results even when each result is lightweight. Both search classes accept an optional positive `maxResults` in `startTextSearch`:
+
+```dart
+final searcher = PdfTextSearchSession(controller, contextLength: 40);
+searcher.startTextSearch('hello', maxResults: 2000);
+
+// In the search listener:
+final count = searcher.totalMatchCount;
+final label = count != null
+    ? '$count matches'
+    : searcher.isResultLimitReached
+    ? '${searcher.matches.length}+ matches (result limit reached)'
+    : '${searcher.matches.length} matches found so far';
+```
+
+The default is unlimited, preserving existing behavior. A limited search creates and retains at most `maxResults` result objects, including the page currently being searched. It stops when it encounters the first additional match, before copying that match's context and highlight rectangles. It does not finish collecting a dense page and truncate the list afterward. At the limit, the current page may only be partly scanned; its retained matches remain available for highlighting.
+
+| Property | Meaning |
+|---|---|
+| `isSearching` | The scan is running now. It becomes false on completion, interruption, error, or the result limit. |
+| `isSearchComplete` | Every page's text was returned and scanned without omitting any matches. A stopped or paused partial scan is incomplete. |
+| `isResultLimitReached` | At least one additional match was found and omitted because of the limit. |
+| `totalMatchCount` | The exact count when complete, otherwise null. `matches.length` is the retained count, not an exact total for an incomplete search. |
+| `maxResults` | The configured count limit for the current results, or null for unlimited. |
+
+Finding exactly `maxResults` matches does not itself imply truncation. The scanner continues until it either finds one more match or finishes the document. The former reports the limit; the latter reports a complete, exact total. `searchProgress` still counts fully scanned pages, so a limit reached within a page can leave progress at zero.
+
+If `loadText` returns null for an unavailable page, scanning continues as before but `isSearchComplete` stays false and `totalMatchCount` stays null. Such pages still count as processed in `searchProgress`; reset and rerun to retry them. Empty structured text is a valid scanned page with no matches. An extraction exception is reported through `searchError` and also leaves the total unknown. Totals describe matches in the text returned by the backend; this API does not add OCR or detect text that the backend cannot extract.
+
+With `startPageNumber`, results are retained in scan order starting at that page and wrapping around. The exposed snapshot remains sorted by page, and the current match follows its insertion index as before. Next/previous and indexed navigation visit retained results only; reaching their boundary returns `-1`. Navigation never silently starts another scan or loads omitted results.
+
+To retain more results, explicitly rerun the same pattern with a larger limit, or omit it for an unlimited scan:
+
+```dart
+searcher.startTextSearch('hello', maxResults: 4000, goToFirstMatch: false);
+```
+
+Changing the limit starts a fresh scan, reusing available document text-cache entries. It is not incremental pagination. Reissuing the same pattern and limit preserves the existing search; reset or stop it first to force a fresh scan with that limit. Automatic restarts after document edits and hidden-tab pause/resume preserve the selected limit. The limit state is cleared by a replacement search, reset, or disposal.
+
+This is a **result-count limit, not a byte or process-memory cap**. A single long match can retain substantial text and many highlight rectangles. Page extraction still loads one page's structured text, and the shared text cache has its separate budget. Legacy `PdfTextSearcher` ranges still retain their matched pages; prefer `PdfTextSearchSession` to avoid that retention. Immutable snapshots or individual matches that application code keeps after a replacement/reset remain owned by that application and are outside the active session's count limit.
+
 ## Pausing a Search
 
 Both [`PdfTextSearcher`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher-class.html) and [`PdfTextSearchSession`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearchSession-class.html) are active by default. For a kept-alive hidden tab, pause and resume the search separately from the viewer:

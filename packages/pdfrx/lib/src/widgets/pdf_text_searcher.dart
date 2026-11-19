@@ -98,6 +98,10 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   int? _searchingPageNumber;
   int? _totalPageCount;
   bool _isSearching = false;
+  bool _isSearchComplete = false;
+  bool _isResultLimitReached = false;
+  bool _hasUnavailableText = false;
+  int? _maxResults;
   Object? _searchError;
   StreamSubscription<PdfDocumentEvent>? _documentEventSubscription;
   PdfDocument? _observedDocument;
@@ -119,6 +123,32 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   /// Whether the search task is currently running or not
   bool get isSearching => _isSearching;
+
+  /// Whether the current search received and scanned every page's text without omitting any matches.
+  ///
+  /// False while the scan is running, paused, interrupted, failed, or limited by [maxResults],
+  /// when [loadText] returned null for a page, and before a non-empty search has run.
+  /// An empty [PdfPageText] is a successfully scanned page with no matches. Use this instead of `!isSearching`
+  /// when deciding whether [matches] contains every result.
+  bool get isSearchComplete => _isSearchComplete;
+
+  /// Whether scanning stopped because another match would exceed [maxResults].
+  ///
+  /// At least one match has been omitted when this is true. Increase the limit
+  /// in [startTextSearch] to search again and retain more results.
+  bool get isResultLimitReached => _isResultLimitReached;
+
+  /// The maximum retained match count of the current search, or null for no limit.
+  ///
+  /// Set with [startTextSearch]. This bounds result count, not bytes: individual
+  /// matches, page text being scanned, and snapshots retained by callers have
+  /// their own memory costs.
+  int? get maxResults => _maxResults;
+
+  /// The exact total match count, or null until [isSearchComplete] is true.
+  ///
+  /// When [isResultLimitReached] is true, [matches].length is only a lower bound.
+  int? get totalMatchCount => _isSearchComplete ? _matches.length : null;
 
   /// The error that stopped the last search, or null; re-issuing the same pattern then searches again.
   Object? get searchError => _searchError;
@@ -154,9 +184,10 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   int? get totalPageCount => _totalPageCount;
 
-  /// The ratio of scanned pages to [totalPageCount].
+  /// The ratio of processed pages to [totalPageCount].
   ///
   /// It is not the position of [searchingPageNumber] in the document, which may wrap around.
+  /// A page where [loadText] returned null is processed but prevents [isSearchComplete].
   double? get searchProgress {
     if (_totalPageCount == null || _searchingPageNumber == null) return null;
     return _completedPageCount / _totalPageCount!;
@@ -190,13 +221,22 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   /// [startPageNumber] is the page to scan first; the search continues to the last page and then wraps around
   /// to the first page, while [matches] stay sorted by page. If it is null or out of range, the scan starts from
   /// the first page. Re-issuing the running search with another [startPageNumber] only moves the scan to that page.
+  /// [maxResults] optionally limits retained matches to a positive count. The scan stops when one more match is
+  /// found, before creating that result, and [isResultLimitReached] becomes true. Matches are retained in scan order
+  /// and presented in page order. [totalMatchCount] stays null unless every page was searched without omissions.
+  /// Re-issuing the same pattern with a different limit starts a fresh scan. A larger limit (or null) can therefore
+  /// load more results, but rescans the document; there is no automatic pagination or navigation to omitted results.
   void startTextSearch(
     Pattern pattern, {
     bool caseInsensitive = true,
     bool goToFirstMatch = true,
     bool searchImmediately = false,
     int? startPageNumber,
+    int? maxResults,
   }) {
+    if (maxResults != null && maxResults < 1) {
+      throw RangeError.range(maxResults, 1, null, 'maxResults');
+    }
     if (_disposed) return;
     _registerForDocumentChanges();
     // Re-issuing the running pattern must not cancel it: search() below would return early for an identical pattern,
@@ -207,6 +247,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     if (_searchError == null &&
         last != null &&
         last.caseInsensitive == caseInsensitive &&
+        last.maxResults == maxResults &&
         _isIdenticalPattern(last.pattern, pattern)) {
       if (startPageNumber != null) {
         _nextPageNumber = startPageNumber;
@@ -216,6 +257,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
           caseInsensitive: last.caseInsensitive,
           goToFirstMatch: last.goToFirstMatch,
           startPageNumber: startPageNumber,
+          maxResults: maxResults,
         );
         if (_pausedSearchCondition != null) _pausedSearchCondition = _lastSearchCondition;
       }
@@ -227,6 +269,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
       caseInsensitive: caseInsensitive,
       goToFirstMatch: goToFirstMatch,
       startPageNumber: startPageNumber,
+      maxResults: maxResults,
     );
     if (!_isActive) return;
 
@@ -242,8 +285,12 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _pendingSearchCondition = null;
     _pausedSearchCondition = null;
     _lastSearchCondition = condition;
+    _maxResults = condition.maxResults;
     _searchError = null;
     if (!resume) {
+      _isSearchComplete = false;
+      _isResultLimitReached = false;
+      _hasUnavailableText = false;
       _matches = _MatchSnapshot(0);
       _scannedPages = const [];
       _completedPageCount = 0;
@@ -274,7 +321,9 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
   /// Unlike [resetTextSearch], [matches] and the current match stay; re-issuing the same pattern with
   /// [startTextSearch] then searches the whole document again.
   void stopTextSearch() {
-    if (!_isSearching && _pendingSearchCondition == null && _pausedSearchCondition == null) return;
+    if (!_isSearching && !_isResultLimitReached && _pendingSearchCondition == null && _pausedSearchCondition == null) {
+      return;
+    }
     _cancelTextSearch();
     _isSearching = false;
     _lastSearchCondition = null;
@@ -300,6 +349,10 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     _currentIndex = null;
     _currentMatch = null;
     _isSearching = false;
+    _isSearchComplete = false;
+    _isResultLimitReached = false;
+    _hasUnavailableText = false;
+    _maxResults = null;
     _searchError = null;
     _lastSearchCondition = null;
     if (!keepPending) _pendingSearchCondition = null;
@@ -328,6 +381,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
       if (_scannedPages.length != pageCount) {
         _matches = _MatchSnapshot(pageCount);
         _scannedPages = List<bool>.filled(pageCount, false);
+        _hasUnavailableText = false;
         _completedPageCount = 0;
         _searchedPages.clear();
         _currentIndex = null;
@@ -335,6 +389,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
       }
       if (pageCount == 0) {
         _isSearching = false;
+        _isSearchComplete = true;
         notifyListeners();
         return;
       }
@@ -346,8 +401,10 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
         if (page.isLoaded) _searchedPages.add(page.pageNumber);
         final pageText = await loadText(pageNumber: page.pageNumber);
         if (searchSession != _searchSession) return;
+        if (pageText == null) _hasUnavailableText = true;
         _searchedPages.add(page.pageNumber);
         final pageMatches = <T>[];
+        var limitExceeded = false;
         if (pageText != null) {
           await for (final f in _allMatchesOf(
             pageText,
@@ -355,9 +412,15 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
             caseInsensitive: condition.caseInsensitive,
           )) {
             if (searchSession != _searchSession) return;
+            final limit = condition.maxResults;
+            if (limit != null && _matches.length + pageMatches.length >= limit) {
+              limitExceeded = true;
+              break;
+            }
             pageMatches.add(_createMatch(f));
           }
         }
+        if (searchSession != _searchSession) return;
         final pageIndex = page.pageNumber - 1;
         var insertAt = 0;
         if (pageMatches.isNotEmpty) {
@@ -366,9 +429,13 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
           if (current != null && current >= insertAt) _currentIndex = current + pageMatches.length;
           _matches = _matches._withPage(pageIndex, pageMatches);
         }
-        _scannedPages[pageIndex] = true;
-        _completedPageCount++;
-        _isSearching = _completedPageCount < pageCount;
+        if (!limitExceeded) {
+          _scannedPages[pageIndex] = true;
+          _completedPageCount++;
+        }
+        _isResultLimitReached = limitExceeded;
+        _isSearchComplete = _completedPageCount == pageCount && !_hasUnavailableText;
+        _isSearching = !limitExceeded && _completedPageCount < pageCount;
         if (_completedPageCount == 1 ||
             !_isSearching ||
             page.pageNumber == _lastSearchCondition?.startPageNumber ||
@@ -386,6 +453,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
             goToMatchOfIndex(_currentIndex!);
           }
         }
+        if (limitExceeded) return;
       }
     });
   }
@@ -436,6 +504,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
         caseInsensitive: condition.caseInsensitive,
         goToFirstMatch: _isActive && condition.goToFirstMatch,
         startPageNumber: condition.startPageNumber,
+        maxResults: condition.maxResults,
       );
     }
   }
@@ -508,10 +577,14 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     notifyListeners();
   }
 
-  /// Get the matches range for the given page number.
+  /// Get the retained matches range for the given page number.
+  ///
+  /// Returns null until the page has been scanned, except that matches retained
+  /// on a page interrupted by [maxResults] are available for highlighting.
   ({int start, int end})? getMatchesRangeForPage(int pageNumber) {
-    if (!_isPageScanned(pageNumber)) return null;
+    if (pageNumber < 1 || pageNumber > _scannedPages.length) return null;
     final (start: start, values: values) = _matches._lookupPage(pageNumber - 1);
+    if (!_isPageScanned(pageNumber) && values.isEmpty) return null;
     return (start: start, end: start + values.length);
   }
 
@@ -701,11 +774,13 @@ class _SearchCondition {
     required this.caseInsensitive,
     required this.goToFirstMatch,
     this.startPageNumber,
+    this.maxResults,
   });
   final Pattern pattern;
   final bool caseInsensitive;
   final bool goToFirstMatch;
   final int? startPageNumber;
+  final int? maxResults;
 }
 
 bool _isIdenticalPattern(Pattern? a, Pattern? b) {
