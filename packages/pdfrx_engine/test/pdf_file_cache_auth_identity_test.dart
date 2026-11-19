@@ -38,6 +38,23 @@ class _ReadingBackend implements PdfrxEntryFunctions {
   }
 
   @override
+  Future<PdfDocument> openFile(
+    String filePath, {
+    PdfPasswordProvider? passwordProvider,
+    bool firstAttemptByEmptyPassword = true,
+    bool useProgressiveLoading = false,
+  }) async {
+    final cache = await PdfFileCache.fromFile(File(filePath));
+    try {
+      received = Uint8List(cache.fileSize);
+      await cache.read(received!, 0, 0, cache.fileSize);
+      return _Document();
+    } finally {
+      await cache.close();
+    }
+  }
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
