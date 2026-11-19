@@ -824,6 +824,8 @@ class PdfRangeCache {
     this.ranges = [];
     /** @type {{offset: number, data: Uint8Array}[]} */
     this.chunks = [];
+    /** @type {ArrayBuffer|null} */
+    this.fullData = null;
     this.bytesCached = 0;
     this.nextUnhintedBlockOffset = 0;
   }
@@ -950,6 +952,19 @@ class PdfRangeCache {
   }
 
   /**
+   * Transfer a complete HTTP 200 body to the normal document loader.
+   * @returns {ArrayBuffer|null}
+   */
+  takeFullData() {
+    const data = this.fullData;
+    this.fullData = null;
+    this.chunks = [];
+    this.ranges = [];
+    this.bytesCached = 0;
+    return data;
+  }
+
+  /**
    * @param {number} offset
    * @param {number} end
    */
@@ -999,9 +1014,10 @@ class PdfRangeCache {
   /**
    * @param {number} offset
    * @param {number} size
-   * @returns {Promise<boolean>} true if range access is usable; false if the caller should use full download.
+   * @returns {Promise<boolean>} true if range access is usable; false if a complete HTTP 200 body is cached.
    */
   async download(offset, size) {
+    if (this.fullData !== null) return false;
     const range = this.blockAlignedRange(offset, size);
     if (!range || this.isDataAvailable(range.offset, range.end - range.offset)) return true;
 
@@ -1017,6 +1033,11 @@ class PdfRangeCache {
     if (response.status === 200) {
       const data = new Uint8Array(await response.arrayBuffer());
       this.fileSize = data.length;
+      // The complete response replaces any earlier partial payloads.
+      this.chunks = [];
+      this.ranges = [];
+      this.bytesCached = 0;
+      this.fullData = data.buffer;
       this.addData(0, data);
       return false;
     }
@@ -1037,6 +1058,8 @@ class PdfRangeCache {
     }
 
     const data = new Uint8Array(await response.arrayBuffer());
+    // A concurrently completed full response already owns all of these bytes.
+    if (this.fullData !== null) return false;
     this.fileSize = total;
     this.addData(start, data);
     return true;
@@ -1074,7 +1097,18 @@ async function loadDocumentFromUrlWithRangeAccess(params) {
   const cache = new PdfRangeCache(params.url, params.headers, params.withCredentials, params.progressCallbackId);
   const initialRangeSize = 64 * 1024;
   const rangeUsable = await cache.download(0, initialRangeSize);
-  if (!rangeUsable || cache.fileSize <= 0) return null;
+  if (!rangeUsable) {
+    const data = cache.takeFullData();
+    if (data !== null) {
+      return loadDocumentFromData({
+        data,
+        password: params.password,
+        useProgressiveLoading: params.useProgressiveLoading,
+      });
+    }
+    return null;
+  }
+  if (cache.fileSize <= 0) return null;
 
   const fileAvailSize = 8; // FX_FILEAVAIL: int version + function pointer
   const downloadHintsSize = 8; // FX_DOWNLOADHINTS: int version + function pointer
@@ -1254,7 +1288,7 @@ async function _waitForPdfAvailability(
       }
       const size = segment.end - segment.offset;
       const rangeUsable = await cache.download(segment.offset, size);
-      if (!rangeUsable && !cache.isDataAvailable(segment.offset, size)) {
+      if (!rangeUsable && !cache.isDataAvailable(0, cache.fileSize)) {
         throw new Error('PDF range response did not expose usable Content-Range metadata');
       }
       continue;
@@ -1263,7 +1297,8 @@ async function _waitForPdfAvailability(
       for (const missing of cache.missingRanges(segment.offset, segment.end - segment.offset)) {
         const size = missing.end - missing.offset;
         const rangeUsable = await cache.download(missing.offset, size);
-        if (!rangeUsable && !cache.isDataAvailable(missing.offset, size)) {
+        // PDFium's hints can extend past EOF; a complete response is sufficient.
+        if (!rangeUsable && !cache.isDataAvailable(0, cache.fileSize)) {
           throw new Error('PDF range response did not expose usable Content-Range metadata');
         }
       }
