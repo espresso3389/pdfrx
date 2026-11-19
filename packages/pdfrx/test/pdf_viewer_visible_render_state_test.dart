@@ -749,6 +749,135 @@ void main() {
     await _unmount(tester);
   });
 
+  for (final partial in [false, true]) {
+    _testWidgets('on-demand metadata loading preserves a cached ${partial ? 'partial' : 'preview'}', (tester) async {
+      final document = _MetadataDocument();
+      addTearDown(document.dispose);
+      final controller = PdfViewerController();
+      await tester.pumpWidget(
+        _viewer(
+          document,
+          controller,
+          behavior: const PdfViewerBehaviorControlParams(
+            loadPageDimensionsOnDemand: true,
+            pageImageCachingDelay: Duration.zero,
+            partialImageLoadingDelay: Duration.zero,
+            trailingPageLoadingDelay: Duration.zero,
+          ),
+        ),
+      );
+      await _pumpUntil(tester, () => document.renderer.completedCalls.isNotEmpty);
+      await _pumpPaintWork(tester);
+      if (partial) {
+        await controller.setZoom(const Offset(400, 300), 3, duration: Duration.zero);
+        await _pumpUntil(tester, () => document.renderer.completedCalls.any((call) => call.isPartial));
+        await _pumpPaintWork(tester);
+      }
+      expect(document.metadataRequests, greaterThan(0));
+      expect(document.pages.first.isLoaded, isFalse);
+      final renders = document.renderer.calls.length;
+
+      document.metadataGate.complete();
+      await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+      await _pumpPaintWork(tester);
+
+      expect(document.pages.first.isLoaded, isTrue);
+      expect(document.reloadRequests, 0);
+      expect(document.renderer.calls, hasLength(renders));
+      await _unmount(tester);
+    });
+
+    _testWidgets('metadata-only updates retain the same ${partial ? 'partial' : 'preview'} image', (tester) async {
+      final document = _FakeDocument([const Size(600, 800)]);
+      addTearDown(document.dispose);
+      final controller = PdfViewerController();
+      await tester.pumpWidget(_viewer(document, controller));
+      await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+      if (partial) {
+        await controller.setZoom(const Offset(400, 300), 3, duration: Duration.zero);
+        await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+      }
+      final renders = document.renderer.calls.length;
+
+      for (var i = 0; i < 100; i++) {
+        document.replacePage(1, rotation: PdfPageRotation.none, isContentChanged: false);
+      }
+      await _pumpPaintWork(tester);
+
+      expect(document.renderer.calls, hasLength(renders));
+      expect(controller.visibleRenderState.value, PdfVisibleRenderState.ready);
+      await _unmount(tester);
+    });
+
+    _testWidgets('content change cancels an outdated ${partial ? 'partial' : 'preview'} rendering', (tester) async {
+      final document = _FakeDocument([const Size(600, 800)]);
+      addTearDown(document.dispose);
+      final controller = PdfViewerController();
+      await tester.pumpWidget(_viewer(document, controller));
+      await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+      if (partial) {
+        await controller.setZoom(const Offset(400, 300), 3, duration: Duration.zero);
+        await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+      }
+      final renderer = document.renderer..hold = (call) => call.isPartial == partial;
+      document.replacePage(1, rotation: PdfPageRotation.none);
+      await _pumpUntil(tester, () => renderer.heldCalls.isNotEmpty);
+      final outdated = renderer.heldCalls.first;
+
+      document.replacePage(1, rotation: PdfPageRotation.none);
+      await tester.pump();
+      expect(outdated.token.isCanceled, isTrue);
+      outdated.complete();
+      await _pumpPaintWork(tester);
+      expect(controller.visibleRenderState.value, PdfVisibleRenderState.pending);
+
+      renderer.hold = null;
+      renderer.completeAll();
+      await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+      await _unmount(tester);
+    });
+  }
+
+  _testWidgets('a content update only rerenders its affected page', (tester) async {
+    final document = _FakeDocument([const Size(600, 200), const Size(600, 200), const Size(600, 200)]);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    await tester.pumpWidget(_viewer(document, controller));
+    await _pumpUntil(tester, () => document.renderer.completedPageNumbers.containsAll([1, 2, 3]));
+    await _pumpPaintWork(tester);
+    final before = {
+      for (var page = 1; page <= 3; page++) page: document.renderer.calls.where((c) => c.pageNumber == page).length,
+    };
+
+    document.replacePage(2, rotation: PdfPageRotation.none);
+    await _pumpPaintWork(tester);
+    await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+
+    for (var page = 1; page <= 3; page++) {
+      expect(
+        document.renderer.calls.where((c) => c.pageNumber == page),
+        hasLength(before[page]! + (page == 2 ? 1 : 0)),
+      );
+    }
+    await _unmount(tester);
+  });
+
+  _testWidgets('metadata-only geometry changes still invalidate rendered images', (tester) async {
+    final document = _FakeDocument([const Size(600, 800)]);
+    addTearDown(document.dispose);
+    final controller = PdfViewerController();
+    await tester.pumpWidget(_viewer(document, controller));
+    await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+    final renders = document.renderer.calls.length;
+
+    document.replacePage(1, rotation: PdfPageRotation.clockwise180, isContentChanged: false);
+    await _pumpPaintWork(tester);
+    await _pumpUntil(tester, () => controller.visibleRenderState.value == PdfVisibleRenderState.ready);
+
+    expect(document.renderer.calls, hasLength(renders + 1));
+    await _unmount(tester);
+  });
+
   _testWidgets('a shared image budget that bounds the rendering scale still becomes ready', (tester) async {
     final document = _FakeDocument([const Size(600, 800)]);
     addTearDown(document.dispose);
@@ -1157,12 +1286,15 @@ class _FakeDocument extends PdfDocument {
   final _events = StreamController<PdfDocumentEvent>.broadcast();
   late List<PdfPage> _pages;
 
-  void replacePage(int pageNumber, {required PdfPageRotation rotation}) {
+  void replacePage(int pageNumber, {required PdfPageRotation rotation, bool isContentChanged = true}) {
     final old = _pages[pageNumber - 1] as _FakePage;
     final page = _FakePage(this, pageNumber, old.size, rotation: rotation, isLoaded: true);
     _pages[pageNumber - 1] = page;
     _events.add(
-      PdfDocumentPageStatusChangedEvent(this, changes: {pageNumber: PdfPageStatusChange.modified(page: page)}),
+      PdfDocumentPageStatusChangedEvent(
+        this,
+        changes: {pageNumber: PdfPageStatusChange.modified(page: page, isContentChanged: isContentChanged)},
+      ),
     );
   }
 
@@ -1214,6 +1346,28 @@ class _FakeDocument extends PdfDocument {
 
   @override
   Future<T> useNativeDocumentHandle<T>(FutureOr<T> Function(int nativeDocumentHandle) task) async => await task(0);
+}
+
+class _MetadataDocument extends _FakeDocument implements PdfPageMetadataLoader {
+  _MetadataDocument() : super([const Size(600, 800)], loaded: false);
+
+  final metadataGate = Completer<void>();
+  int metadataRequests = 0;
+  int reloadRequests = 0;
+
+  @override
+  Future<void> loadPageMetadata({required List<int> pageNumbers}) async {
+    metadataRequests++;
+    await metadataGate.future;
+    for (final pageNumber in pageNumbers) {
+      if (!_pages[pageNumber - 1].isLoaded) {
+        replacePage(pageNumber, rotation: PdfPageRotation.none, isContentChanged: false);
+      }
+    }
+  }
+
+  @override
+  Future<void> reloadPages({List<int>? pageNumbersToReload}) async => reloadRequests++;
 }
 
 class _FakePage implements PdfPage {

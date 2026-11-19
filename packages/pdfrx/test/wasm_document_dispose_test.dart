@@ -60,6 +60,117 @@ void main() {
       await doc.dispose();
     }
   });
+
+  test('progressive page events identify metadata-only updates', () async {
+    final doc = await PdfDocument.openData(_pdf(pageCount: 3), useProgressiveLoading: true);
+    addTearDown(doc.dispose);
+    final event = doc.events
+        .where((event) => event is PdfDocumentPageStatusChangedEvent)
+        .cast<PdfDocumentPageStatusChangedEvent>()
+        .first;
+
+    await doc.loadPagesProgressively();
+
+    final changes = (await event).changes;
+    expect(changes.keys, [2, 3]);
+    expect(changes.values.cast<PdfPageStatusModified>().every((change) => !change.isContentChanged), isTrue);
+  });
+
+  test('reloads preserve content-change semantics even when page sizes are unchanged', () async {
+    final doc = await PdfDocument.openData(_pdf(pageCount: 2));
+    addTearDown(doc.dispose);
+    final oldPages = doc.pages;
+    final event = doc.events
+        .where((event) => event is PdfDocumentPageStatusChangedEvent)
+        .cast<PdfDocumentPageStatusChangedEvent>()
+        .first;
+
+    await doc.reloadPages(pageNumbersToReload: [1]);
+
+    final changes = (await event).changes;
+    expect(changes.keys, [1]);
+    expect((changes[1]! as PdfPageStatusModified).isContentChanged, isTrue);
+    expect(doc.pages[0].width, oldPages[0].width);
+    expect(doc.pages[0].height, oldPages[0].height);
+    expect(doc.pages[1], same(oldPages[1]));
+  });
+
+  test('on-demand Web metadata skips loaded pages and emits metadata-only changes', () async {
+    final doc = await PdfDocument.openData(_pdf(pageCount: 3), useProgressiveLoading: true);
+    addTearDown(doc.dispose);
+    final original = doc.pages;
+    final events = <PdfDocumentPageStatusChangedEvent>[];
+    final subscription = doc.events
+        .where((event) => event is PdfDocumentPageStatusChangedEvent)
+        .cast<PdfDocumentPageStatusChangedEvent>()
+        .listen(events.add);
+    addTearDown(subscription.cancel);
+
+    await doc.loadPageMetadata(pageNumbers: [1, 3, 3]);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(doc.pages[0], same(original[0]));
+    expect(doc.pages[1], same(original[1]));
+    expect(doc.pages[2].isLoaded, isTrue);
+    expect(events, hasLength(1));
+    expect(events.single.changes.keys, [3]);
+    expect((events.single.changes[3]! as PdfPageStatusModified).isContentChanged, isFalse);
+
+    await doc.loadPageMetadata(pageNumbers: [1, 3]);
+    await doc.loadPageMetadata(pageNumbers: []);
+    await Future<void>.delayed(Duration.zero);
+    expect(events, hasLength(1));
+    await expectLater(doc.loadPageMetadata(pageNumbers: [0]), throwsArgumentError);
+    await expectLater(doc.loadPageMetadata(pageNumbers: [4]), throwsArgumentError);
+  });
+
+  test('late progressive metadata does not replace pages moved while the worker was awaited', () async {
+    final doc = await PdfDocument.openData(_pdf(pageCount: 3), useProgressiveLoading: true);
+    addTearDown(doc.dispose);
+    final communicator = globalContext.getProperty<JSObject>('PdfiumWasmCommunicator'.toJS);
+    final original = communicator.getProperty<JSFunction>('sendCommand'.toJS);
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    final events = <PdfDocumentPageStatusChangedEvent>[];
+    final subscription = doc.events
+        .where((event) => event is PdfDocumentPageStatusChangedEvent)
+        .cast<PdfDocumentPageStatusChangedEvent>()
+        .listen(events.add);
+    addTearDown(subscription.cancel);
+    JSAny? sendCommand(JSString command, JSAny? parameters, JSAny? transfer) {
+      final result = original.callAsFunction(communicator, command, parameters, transfer);
+      if (command.toDart != 'loadPagesProgressively') return result;
+      entered.complete();
+      return (() async {
+        final loaded = await (result as JSPromise<JSAny?>).toDart;
+        await release.future;
+        return loaded;
+      })().toJS;
+    }
+
+    communicator.setProperty('sendCommand'.toJS, sendCommand.toJS);
+    try {
+      final loading = doc.loadPagesProgressively(onPageLoadProgress: (_, _, _) => false);
+      await entered.future;
+      final originalPages = doc.pages;
+      doc.pages = [originalPages[1], originalPages[0], originalPages[2]];
+      final edited = doc.pages;
+      release.complete();
+      await loading;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(doc.pages[0], same(edited[0]));
+      expect(doc.pages[1], same(edited[1]));
+      expect(doc.pages[2].isLoaded, isTrue);
+      expect(events, hasLength(2));
+      expect(events.first.changes.values.every((change) => change is PdfPageStatusMoved), isTrue);
+      expect(events.last.changes.keys, [3]);
+      expect((events.last.changes[3]! as PdfPageStatusModified).isContentChanged, isFalse);
+    } finally {
+      if (!release.isCompleted) release.complete();
+      communicator.setProperty('sendCommand'.toJS, original);
+    }
+  });
 }
 
 const _assetServer = '''

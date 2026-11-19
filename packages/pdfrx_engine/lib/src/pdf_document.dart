@@ -345,6 +345,47 @@ abstract class PdfDocument {
   }
 }
 
+/// Optional backend support for measuring unloaded pages without refreshing their content.
+///
+/// Consumers should call [PdfDocumentMetadataLoading.loadPageMetadata], which also
+/// supports documents that do not implement this interface.
+abstract interface class PdfPageMetadataLoader {
+  /// Loads metadata for the unloaded pages in [pageNumbers] (1-based).
+  ///
+  /// Already loaded pages are left unchanged. Metadata-only notifications must
+  /// never describe a content refresh or a page moved to a different slot.
+  Future<void> loadPageMetadata({required List<int> pageNumbers});
+}
+
+/// Metadata loading that remains compatible with custom [PdfDocument] implementations.
+extension PdfDocumentMetadataLoading on PdfDocument {
+  /// Measures the unloaded pages in [pageNumbers] (1-based).
+  ///
+  /// Use this for on-demand page dimensions. It does not refresh edited content;
+  /// use [PdfDocument.reloadPages] after editing the native document instead.
+  /// Native PDFium and WASM distinguish these measurements from content changes,
+  /// allowing viewers to retain images whose geometry is unchanged.
+  ///
+  /// Other backends fall back to [PdfDocument.reloadPages] for the unloaded pages
+  /// and conservatively invalidate images through their existing page events.
+  Future<void> loadPageMetadata({required List<int> pageNumbers}) async {
+    final document = this;
+    if (document is PdfPageMetadataLoader) {
+      await (document as PdfPageMetadataLoader).loadPageMetadata(pageNumbers: pageNumbers);
+      return;
+    }
+    final snapshot = pages;
+    final unloaded = <int>{};
+    for (final pageNumber in pageNumbers) {
+      if (pageNumber < 1 || pageNumber > snapshot.length) {
+        throw ArgumentError.value(pageNumber, 'pageNumbers', 'Page number is outside the document');
+      }
+      if (!snapshot[pageNumber - 1].isLoaded) unloaded.add(pageNumber);
+    }
+    if (unloaded.isNotEmpty) await reloadPages(pageNumbersToReload: unloaded.toList());
+  }
+}
+
 typedef PdfFontLoadResultCallback = FutureOr<void> Function(PdfFontLoadResult result);
 
 /// Callback function to notify progressive page loading progress; see [PdfDocument.loadPagesProgressively].
