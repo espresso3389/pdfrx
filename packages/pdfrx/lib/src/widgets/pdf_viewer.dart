@@ -1348,12 +1348,31 @@ class _PdfViewerState extends State<PdfViewer>
   double _lengthOf(Rect r, bool vertical) => vertical ? r.height : r.width;
 
   /// The spread's bounds with [PdfPageLayout.margin] on the primary-axis ends.
+  ///
+  /// In paged mode ([PdfViewerParams.paging]), a negative [PdfViewerParams.boundaryMargin] trims that
+  /// margin, as it trims the margin around the document: each spread is shown like a document of its
+  /// own, so a zoomed-in page stops at the same distance from the view on every side, not only on
+  /// the sides that are document edges. It never trims more than the margin (the page itself is not
+  /// cut off), and a positive boundary margin is not added between spreads, where it would reach
+  /// into the neighbors.
   Rect _spreadArea(PdfPageLayout layout, int index, bool vertical) {
     final b = layout.spreadBounds[index];
     final m = layout.margin;
+    final boundaryMargin = _isPaged ? widget.params.boundaryMargin : null;
+    double trimmed(double value) => value.isFinite ? value.clamp(-m, 0.0) : 0.0;
     return vertical
-        ? Rect.fromLTRB(b.left, b.top - m, b.right, b.bottom + m)
-        : Rect.fromLTRB(b.left - m, b.top, b.right + m, b.bottom);
+        ? Rect.fromLTRB(
+            b.left,
+            b.top - m - trimmed(boundaryMargin?.top ?? 0),
+            b.right,
+            b.bottom + m + trimmed(boundaryMargin?.bottom ?? 0),
+          )
+        : Rect.fromLTRB(
+            b.left - m - trimmed(boundaryMargin?.left ?? 0),
+            b.top,
+            b.right + m + trimmed(boundaryMargin?.right ?? 0),
+            b.bottom,
+          );
   }
 
   /// Index of the spread that is the most visible in [view] along the primary axis, or -1.
