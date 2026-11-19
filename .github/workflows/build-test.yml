@@ -207,6 +207,14 @@ jobs:
           test/pdf_text_search_result_test.dart
           test/pdf_font_resolver_test.dart
 
+      - name: Test link metadata cache
+        working-directory: packages/pdfrx_engine
+        run: dart test test/pdf_page_link_cache_test.dart
+
+      - name: Test viewer link loading
+        working-directory: packages/pdfrx
+        run: flutter test test/page_link_loader_test.dart test/pdf_viewer_link_loading_test.dart
+
       - name: Build Linux
         working-directory: packages/pdfrx/example/viewer
         run: flutter build linux --debug --verbose

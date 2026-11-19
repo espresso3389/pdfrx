@@ -23,6 +23,7 @@ import 'interactive_viewer.dart' as iv;
 import 'internals/material_localizations_fallback.dart';
 import 'internals/partial_rendering.dart';
 import 'internals/page_layout_index.dart';
+import 'internals/page_link_loader.dart';
 import 'internals/pdf_error_widget.dart';
 import 'internals/pdf_viewer_key_handler.dart';
 import 'internals/widget_size_sniffer.dart';
@@ -387,6 +388,10 @@ class _PdfViewerState extends State<PdfViewer>
   void didUpdateWidget(covariant PdfViewer oldWidget) {
     super.didUpdateWidget(oldWidget);
     _layoutDirty = true;
+    if (widget.params.linkHandlerParams?.enableAutoLinkDetection !=
+        oldWidget.params.linkHandlerParams?.enableAutoLinkDetection) {
+      _canvasLinkPainter.resetAll();
+    }
     if (!identical(widget.params.imageCacheBudget, oldWidget.params.imageCacheBudget)) {
       (oldWidget.params.imageCacheBudget ?? _localImageBudget).removeListener(_onImageBudgetChanged);
       _imageBudget.addListener(_onImageBudgetChanged);
@@ -2480,6 +2485,13 @@ class _PdfViewerState extends State<PdfViewer>
       }
     }
     final pageIndices = _pageLayoutIndex!.intersecting(cacheTargetRect);
+    if (identical(cache, _imageCache)) {
+      final soleSpread = _soleSpreadToShow;
+      _canvasLinkPainter.retainPages([
+        for (final i in pageIndices)
+          if (soleSpread == null || _layout!.spreadIndexOf(i + 1) == soleSpread) _document!.pages[i],
+      ]);
+    }
     final retainedPages = pageIndices.map((i) => i + 1).toSet();
     bool isAhead(Rect rect) {
       final offset = rect.center - targetRect.center;
@@ -7290,10 +7302,14 @@ Widget _defaultErrorBannerBuilder(
 class _CanvasLinkPainter {
   _CanvasLinkPainter(this._state);
   final _PdfViewerState _state;
+  late final _loader = PageLinkLoader(
+    onLoaded: () {
+      if (_state.mounted && _state.widget.params.isVisible && isEnabled) _state._invalidate();
+    },
+  );
   MouseCursor _cursor = MouseCursor.defer;
   PdfLink? _hoveredLink;
-  final _links = <int, List<PdfLink>>{};
-  int _generation = 0;
+  PdfPage? _hoveredPage;
 
   bool get isEnabled => _state.widget.params.linkHandlerParams != null;
 
@@ -7307,10 +7323,10 @@ class _CanvasLinkPainter {
 
   /// Reset all the internal data.
   void resetAll() {
-    _generation++;
     _cursor = MouseCursor.defer;
     _hoveredLink = null;
-    _links.clear();
+    _hoveredPage = null;
+    _loader.clear();
   }
 
   void resetCursor([VoidCallback? onCursorChanged]) {
@@ -7319,42 +7335,44 @@ class _CanvasLinkPainter {
   }
 
   /// Repaints only when a hover color is set; otherwise the hovered link looks like any other.
-  void _setHoveredLink(PdfLink? link) {
+  void _setHoveredLink(PdfLink? link, [PdfPage? page]) {
     if (identical(link, _hoveredLink)) return;
     _hoveredLink = link;
+    _hoveredPage = page;
     if (_state.widget.params.linkHandlerParams?.linkHoverColor != null) {
       _state._invalidate();
     }
   }
 
-  /// Release the page data.
+  /// Keep only links in the current page extent, including prefetched pages.
+  void retainPages(Iterable<PdfPage> pages) {
+    _loader.retainPages(isEnabled ? pages : const <PdfPage>[]);
+    if (_hoveredPage case final page? when !_loader.containsPage(page)) {
+      _hoveredPage = null;
+      _hoveredLink = null;
+      _cursor = MouseCursor.defer;
+    }
+  }
+
+  /// Release the page data and invalidate a pending result for the old page.
   void releaseLinksForPage(int pageNumber) {
-    _links.remove(pageNumber);
+    _loader.invalidate(pageNumber);
+    if (_hoveredPage?.pageNumber == pageNumber) {
+      _hoveredPage = null;
+      _hoveredLink = null;
+      _cursor = MouseCursor.defer;
+    }
   }
 
-  List<PdfLink>? _ensureLinksLoaded(PdfPage page, {void Function()? onLoaded}) {
-    if (!page.isLoaded || !_state.widget.params.isVisible) return null;
-    final links = _links[page.pageNumber];
-    if (links != null) return links;
-    final generation = _generation;
-    synchronized(() async {
-      if (!_state.mounted || !_state.widget.params.isVisible || generation != _generation) return null;
-      final links = _links[page.pageNumber];
-      if (links != null) return links;
-      final enableAutoLinkDetection = _state.widget.params.linkHandlerParams?.enableAutoLinkDetection ?? true;
-      final loaded = await page.loadLinks(compact: true, enableAutoLinkDetection: enableAutoLinkDetection);
-      if (!_state.mounted || !_state.widget.params.isVisible || generation != _generation) return null;
-      _links[page.pageNumber] = loaded;
-      if (onLoaded != null) {
-        onLoaded();
-      } else {
-        _state._invalidate();
-      }
-    });
-    return null;
+  List<PdfLink>? _ensureLinksLoaded(PdfPage page) {
+    if (!isEnabled || !_state.mounted || !_state.widget.params.isVisible) return null;
+    return _loader.getOrLoad(
+      page,
+      enableAutoLinkDetection: _state.widget.params.linkHandlerParams?.enableAutoLinkDetection ?? true,
+    );
   }
 
-  PdfLink? _findLinkAtPosition(Offset position) {
+  ({PdfPage page, PdfLink link})? _findLinkAtPosition(Offset position) {
     final hitResult = _state._getPdfPageHitTestResult(position, useDocumentLayoutCoordinates: false);
     if (hitResult == null) return null;
     final links = _ensureLinksLoaded(hitResult.page);
@@ -7362,7 +7380,7 @@ class _CanvasLinkPainter {
     for (final link in links) {
       for (final rect in link.rects) {
         if (rect.containsPoint(hitResult.offset)) {
-          return link;
+          return (page: hitResult.page, link: link);
         }
       }
     }
@@ -7372,7 +7390,7 @@ class _CanvasLinkPainter {
   bool _handleLinkTap(Offset tapPosition) {
     _state._requestFocus();
     resetCursor();
-    final link = _findLinkAtPosition(tapPosition);
+    final link = _findLinkAtPosition(tapPosition)?.link;
     if (link != null) {
       final onLinkTap = _state.widget.params.linkHandlerParams?.onLinkTap;
       if (onLinkTap != null) {
@@ -7388,9 +7406,9 @@ class _CanvasLinkPainter {
       resetCursor(onCursorChanged);
       return;
     }
-    final link = _findLinkAtPosition(position);
-    _setHoveredLink(link);
-    _setCursor(link == null ? MouseCursor.defer : SystemMouseCursors.click, onCursorChanged);
+    final hit = _findLinkAtPosition(position);
+    _setHoveredLink(hit?.link, hit?.page);
+    _setCursor(hit == null ? MouseCursor.defer : SystemMouseCursors.click, onCursorChanged);
   }
 
   void _setCursor(MouseCursor cursor, [VoidCallback? onCursorChanged]) {

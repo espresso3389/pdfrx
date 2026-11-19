@@ -81,3 +81,21 @@ linkHandlerParams: PdfLinkHandlerParams(
 ```
 
 A [customPainter](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLinkHandlerParams/customPainter.html) replaces the default link painting and is responsible for its own colors. It receives `(canvas, pageRect, page, links)`; it does not receive a hovered-link argument. Convert each rectangle in [`link.rects`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfLink/rects.html) with [`toRectInDocument(page: page, pageRect: pageRect)`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfRectExt/toRectInDocument.html) before painting.
+
+## Link Metadata Lifetime
+
+Link results are reused across raw and compact requests and across viewers of the same document. Backends using
+`PdfPageLinkCache` retain at most 32 page/auto-detection-mode entries and 1 MiB of estimated Dart data for each
+document. The estimate includes rectangles, URLs, destinations, and annotation text; it is not a process-memory
+limit. Results larger than that byte budget are returned without entering the cache. Least recently used results
+are evicted, so revisiting an evicted page extracts its links again.
+
+The canvas link handler keeps its own references only for the current viewport and configured cache extent.
+Repeated paint, hover, and accessibility requests share one pending load. Scrolling removes queued requests for
+pages outside that extent. An extraction already running cannot be cancelled by the link API; the viewer ignores
+its result if it is no longer needed. Hiding or disposing the viewer releases its references and pending work.
+The document cache remains shared with other viewers until eviction, a page change, or document disposal.
+
+The two auto-detection modes remain separate. Reload pages after changing annotations so that both the document
+cache and viewer invalidate the previous metadata. In-flight extraction data, currently displayed links, and
+results retained by application code are outside the document cache budget.

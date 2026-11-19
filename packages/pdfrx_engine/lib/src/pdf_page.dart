@@ -108,46 +108,146 @@ abstract class PdfPage {
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true});
 }
 
-/// Caches [loadLinksUncached] once for each auto-detection mode used by [PdfPage.loadLinks].
+/// Caches [loadLinksUncached] in a bounded cache shared by a document's pages.
 ///
 /// Cached links are compacted with [PdfLink.compact], made unmodifiable, and shared by raw and compact requests.
-/// Failures are not cached, and results live for the lifetime of the [PdfPage] instance.
+/// The cache retains at most 32 page/mode entries and 1 MiB of estimated Dart data, evicting least recently used
+/// entries. Both auto-detection modes count toward these limits. A result larger than the byte limit is returned
+/// without caching it. In-flight extractions and results retained by callers are outside this cache budget.
+/// Failures are not cached. Page status changes and document disposal invalidate the affected entries.
 mixin PdfPageLinkCache on PdfPage {
-  Future<List<PdfLink>>? _linksWithAutoDetection;
-  Future<List<PdfLink>>? _linksWithoutAutoDetection;
+  static final _documentCaches = Expando<_DocumentLinkCache>();
 
   @override
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) {
     if (!isLoaded) return Future.value(const <PdfLink>[]);
-    final cached = enableAutoLinkDetection ? _linksWithAutoDetection : _linksWithoutAutoDetection;
-    if (cached != null) return cached;
-
-    final loading = _loadAndCompactLinks(enableAutoLinkDetection);
-    if (enableAutoLinkDetection) {
-      _linksWithAutoDetection = loading;
-    } else {
-      _linksWithoutAutoDetection = loading;
-    }
-    return loading;
-  }
-
-  Future<List<PdfLink>> _loadAndCompactLinks(bool enableAutoLinkDetection) async {
-    try {
-      final links = await Future<List<PdfLink>>.sync(() => loadLinksUncached(enableAutoLinkDetection));
-      return List<PdfLink>.unmodifiable([for (final link in links) link.compact()]);
-    } catch (_) {
-      if (enableAutoLinkDetection) {
-        _linksWithAutoDetection = null;
-      } else {
-        _linksWithoutAutoDetection = null;
-      }
-      rethrow;
-    }
+    final cache = _documentCaches[document] ??= _DocumentLinkCache(document);
+    return cache.load(this, enableAutoLinkDetection);
   }
 
   /// Loads links for one auto-detection mode without using the page cache.
   @protected
   Future<List<PdfLink>> loadLinksUncached(bool enableAutoLinkDetection);
+}
+
+class _DocumentLinkCache {
+  _DocumentLinkCache(PdfDocument document) {
+    var pageCount = document.pages.length;
+    document.events.listen(
+      (event) {
+        if (event is PdfDocumentPageStatusChangedEvent) {
+          final newPageCount = event.document.pages.length;
+          if (newPageCount < pageCount) {
+            // Removed pages need not appear in changes. Clear the small cache rather than scan all page proxies.
+            _clear();
+          }
+          pageCount = newPageCount;
+          final changed = event.changes;
+          for (final key in _entries.keys.where((key) => changed.containsKey(key.page.pageNumber)).toList()) {
+            _remove(key);
+          }
+          _pending.removeWhere((key, _) => changed.containsKey(key.page.pageNumber));
+        }
+      },
+      onDone: () {
+        _closed = true;
+        _clear();
+      },
+    );
+    // Native and Web documents replay prior events. Drain those before starting this cache's first extraction.
+    _initialEvents = Future<void>.delayed(Duration.zero).then((_) {
+      _initialEvents = null;
+    });
+  }
+
+  static const _maximumEntries = 32;
+  static const _maximumBytes = 1024 * 1024;
+  final _entries = <_PageLinkKey, ({List<PdfLink> links, int bytes})>{};
+  final _pending = <_PageLinkKey, Future<List<PdfLink>>>{};
+  int _estimatedBytes = 0;
+  bool _closed = false;
+  Future<void>? _initialEvents;
+
+  Future<List<PdfLink>> load(PdfPageLinkCache page, bool enableAutoLinkDetection) {
+    final initialEvents = _initialEvents;
+    if (initialEvents != null) return initialEvents.then((_) => load(page, enableAutoLinkDetection));
+    if (_closed) return Future.error(StateError('Cannot load links from a closed document.'));
+    final key = _PageLinkKey(page, enableAutoLinkDetection);
+    final cached = _entries.remove(key);
+    if (cached != null) {
+      _entries[key] = cached;
+      return Future.value(cached.links);
+    }
+    final pending = _pending[key];
+    if (pending != null) return pending;
+
+    late final Future<List<PdfLink>> loading;
+    loading = Future<List<PdfLink>>.sync(() => page.loadLinksUncached(enableAutoLinkDetection))
+        .then((loaded) => List<PdfLink>.unmodifiable([for (final link in loaded) link.compact()]))
+        .then(
+          (links) {
+            if (!_closed && identical(_pending[key], loading)) {
+              _pending.remove(key);
+              final bytes = _estimateBytes(links);
+              if (bytes <= _maximumBytes) {
+                _entries[key] = (links: links, bytes: bytes);
+                _estimatedBytes += bytes;
+                while (_entries.length > _maximumEntries || _estimatedBytes > _maximumBytes) {
+                  _remove(_entries.keys.first);
+                }
+              }
+            }
+            return links;
+          },
+          onError: (Object error, StackTrace stack) {
+            if (identical(_pending[key], loading)) _pending.remove(key);
+            Error.throwWithStackTrace(error, stack);
+          },
+        );
+    return _pending[key] = loading;
+  }
+
+  void _clear() {
+    _entries.clear();
+    _pending.clear();
+    _estimatedBytes = 0;
+  }
+
+  void _remove(_PageLinkKey key) {
+    final removed = _entries.remove(key);
+    if (removed != null) _estimatedBytes -= removed.bytes;
+  }
+
+  /// Includes link geometry, destinations, URLs, and annotation strings; not a heap/RSS measurement.
+  static int _estimateBytes(List<PdfLink> links) =>
+      64 +
+      links.fold<int>(0, (size, link) {
+        final annotation = link.annotation;
+        return size +
+            192 +
+            link.rects.length * 64 +
+            (link.url?.toString().length ?? 0) * 2 +
+            (link.dest?.params?.length ?? 0) * 16 +
+            ((annotation?.title?.length ?? 0) +
+                    (annotation?.subject?.length ?? 0) +
+                    (annotation?.content?.length ?? 0)) *
+                2;
+      });
+}
+
+/// Uses page identity, including when a backend implements value equality for its pages.
+class _PageLinkKey {
+  const _PageLinkKey(this.page, this.enableAutoLinkDetection);
+
+  final PdfPage page;
+  final bool enableAutoLinkDetection;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _PageLinkKey && identical(page, other.page) && enableAutoLinkDetection == other.enableAutoLinkDetection;
+
+  @override
+  int get hashCode => Object.hash(identityHashCode(page), enableAutoLinkDetection);
 }
 
 /// Extension methods for [PdfPage].
