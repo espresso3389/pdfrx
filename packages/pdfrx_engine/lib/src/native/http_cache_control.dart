@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+
 /// HTTP cache-control directives.
 class HttpCacheControl {
   const HttpCacheControl({required this.directives, this.maxAge, this.sMaxAge});
@@ -83,52 +87,70 @@ class HttpCacheControl {
   int get hashCode => directives.hashCode ^ maxAge.hashCode ^ sMaxAge.hashCode;
 }
 
-/// HTTP cache control states.
+/// HTTP cache control states for a private cache.
 class HttpCacheControlState {
-  const HttpCacheControlState({required this.cacheControl, this.date, this.expires, this.etag, this.lastModified});
+  const HttpCacheControlState({
+    required this.cacheControl,
+    this.date,
+    this.expires,
+    this.etag,
+    this.lastModified,
+    this.responseTime,
+    this.initialAge = Duration.zero,
+    this.varyAll = false,
+  });
 
   static const empty = HttpCacheControlState(cacheControl: HttpCacheControl(directives: 0));
 
-  /// [maxAgeForNoStore] to convert `no-store` directive to `no-cache` with `maxAge`.
-  static HttpCacheControlState fromHeaders(Map<String, String> headers, {Duration? maxAgeForNoStore}) {
-    final cacheControl = headers['cache-control']
-        ?.split(',')
-        .map((directive) => directive.trim().toLowerCase())
-        .toList();
-    final date = _parseHttpDateTime(headers['date']);
-    final expires = _parseHttpDateTime(headers['expires']);
-    final etag = headers['etag'];
-    final lastModified = _parseHttpDateTime(headers['last-modified']);
-    var noCache = cacheControl?.contains('no-cache') ?? false;
-    var noStore = cacheControl?.contains('no-store') ?? false;
-    var maxAge = int.tryParse(
-      cacheControl?.firstWhere((e) => e.startsWith('max-age='), orElse: () => '********').substring(8) ?? '',
-    );
+  /// [maxAgeForNoStore] converts `no-store` to `no-cache` with [maxAgeForNoStore].
+  static HttpCacheControlState fromHeaders(
+    Map<String, String> headers, {
+    Duration? maxAgeForNoStore,
+    DateTime? requestTime,
+    DateTime? responseTime,
+  }) {
+    final normalized = {for (final entry in headers.entries) entry.key.toLowerCase(): entry.value};
+    final directives = _parseDirectives(normalized['cache-control']);
+    responseTime ??= DateTime.now();
+    requestTime ??= responseTime;
+    final date =
+        _parseHttpDateTime(normalized['date']) ??
+        DateTime.fromMillisecondsSinceEpoch(responseTime.secondsSinceEpoch * 1000, isUtc: true);
+    var noCache =
+        directives.containsKey('no-cache') ||
+        (normalized['cache-control'] == null && normalized['pragma']?.toLowerCase().trim() == 'no-cache');
+    var noStore = directives.containsKey('no-store');
+    var maxAge = _directiveSeconds(directives, 'max-age');
     if (noStore && maxAgeForNoStore != null) {
       noCache = true;
       noStore = false;
       maxAge = maxAgeForNoStore.inSeconds;
     }
+    final apparentAge = max(0, responseTime.difference(date).inMilliseconds);
+    final responseDelay = max(0, responseTime.difference(requestTime).inMilliseconds);
+    final age = _deltaSeconds(normalized['age']?.split(',').first.trim()) ?? 0;
     return HttpCacheControlState(
-      cacheControl: cacheControl != null
-          ? HttpCacheControl.fromDirectives(
-              noCache: noCache,
-              mustRevalidate: cacheControl.contains('must-revalidate'),
-              noStore: noStore,
-              private: cacheControl.contains('private'),
-              public: cacheControl.contains('public'),
-              mustUnderstand: cacheControl.contains('must-understand'),
-              noTransform: cacheControl.contains('no-transform'),
-              immutable: cacheControl.contains('immutable'),
-              staleWhileRevalidate: cacheControl.contains('stale-while-revalidate'),
-              staleIfError: cacheControl.contains('stale-if-error'),
-              maxAge: maxAge,
-            )
-          : const HttpCacheControl(directives: 0),
+      cacheControl: HttpCacheControl.fromDirectives(
+        noCache: noCache,
+        mustRevalidate: directives.containsKey('must-revalidate'),
+        noStore: noStore,
+        private: directives.containsKey('private'),
+        public: directives.containsKey('public'),
+        mustUnderstand: directives.containsKey('must-understand'),
+        noTransform: directives.containsKey('no-transform'),
+        immutable: directives.containsKey('immutable'),
+        staleWhileRevalidate: directives.containsKey('stale-while-revalidate'),
+        staleIfError: directives.containsKey('stale-if-error'),
+        maxAge: maxAge,
+        sMaxAge: _directiveSeconds(directives, 's-maxage'),
+      ),
       date: date,
-      expires: expires,
-      etag: etag,
-      lastModified: lastModified,
+      expires: _parseHttpDateTime(normalized['expires']),
+      etag: normalized['etag'],
+      lastModified: _parseHttpDateTime(normalized['last-modified']),
+      responseTime: responseTime,
+      initialAge: Duration(milliseconds: max(apparentAge, age * 1000 + responseDelay)),
+      varyAll: normalized['vary']?.split(',').any((name) => name.trim() == '*') == true,
     );
   }
 
@@ -138,49 +160,124 @@ class HttpCacheControlState {
   final String? etag;
   final DateTime? lastModified;
 
-  Map<String, String> getHeadersForFetch() {
-    return {
-      'If-None-Match': ?etag,
-      if (etag == null && lastModified != null) 'If-Modified-Since': lastModified!.toHttpDate(),
-    };
-  }
+  /// Receipt time and corrected age at receipt, as defined by RFC 9111 section 4.2.3.
+  final DateTime? responseTime;
+  final Duration initialAge;
+  final bool varyAll;
+
+  Map<String, String> getHeadersForFetch() => {
+    'If-None-Match': ?etag,
+    if (etag == null && lastModified != null) 'If-Modified-Since': lastModified!.toHttpDate(),
+  };
+
+  /// Whether this response can be reused without contacting the origin.
+  bool canReuse({required DateTime now, int? maxAge}) =>
+      !cacheControl.noCache &&
+      !cacheControl.noStore &&
+      !varyAll &&
+      isFresh(now: now) &&
+      (maxAge == null || currentAge(now: now) < Duration(seconds: maxAge));
+
+  /// Corrected age including time resident in this cache.
+  Duration currentAge({required DateTime now}) =>
+      initialAge + Duration(milliseconds: max(0, now.difference(responseTime ?? now).inMilliseconds));
 
   bool isFresh({required DateTime now}) {
-    if (cacheControl.maxAge != null &&
-        date != null &&
-        date!.add(Duration(seconds: cacheControl.maxAge!)).isBefore(now)) {
-      return false;
-    }
-    if (expires != null && expires!.isBefore(now)) return false;
-    return true;
+    // Older cache metadata has no corrected age; validate it once before reuse.
+    final received = responseTime;
+    if (received == null || now.isBefore(received)) return false;
+    final lifetime = cacheControl.maxAge != null
+        ? Duration(seconds: cacheControl.maxAge!)
+        : expires != null && date != null
+        ? expires!.difference(date!)
+        : Duration.zero;
+    return currentAge(now: now) < lifetime;
   }
 
   bool isStale({required DateTime now}) => !isFresh(now: now);
 
-  String get dataStr {
-    return '${cacheControl.directives},${cacheControl.maxAge},${cacheControl.sMaxAge},'
-        '${date?.secondsSinceEpoch},${expires?.secondsSinceEpoch},$etag,${lastModified?.secondsSinceEpoch}';
+  /// Merge only fields supplied by a successful validation response.
+  HttpCacheControlState revalidated(
+    Map<String, String> headers, {
+    required DateTime requestTime,
+    required DateTime responseTime,
+  }) {
+    final normalized = {for (final entry in headers.entries) entry.key.toLowerCase(): entry.value};
+    return HttpCacheControlState.fromHeaders(
+      {
+        'cache-control': cacheControl.toString(),
+        if (varyAll) 'vary': '*',
+        if (expires != null) 'expires': expires!.toHttpDate(),
+        'etag': ?etag,
+        if (lastModified != null) 'last-modified': lastModified!.toHttpDate(),
+        ...normalized,
+      },
+      requestTime: requestTime,
+      responseTime: responseTime,
+    );
   }
 
+  String get dataStr => _encodeData(etag);
+
+  /// Preserve freshness metadata if a validator exceeds the fixed disk header.
+  String get dataStrWithoutEtag => _encodeData(null);
+
+  String _encodeData(String? etag) => jsonEncode([
+    cacheControl.directives,
+    cacheControl.maxAge,
+    cacheControl.sMaxAge,
+    date?.secondsSinceEpoch,
+    expires?.secondsSinceEpoch,
+    etag,
+    lastModified?.secondsSinceEpoch,
+    responseTime?.millisecondsSinceEpoch,
+    initialAge.inMilliseconds,
+    varyAll,
+  ]);
+
   static HttpCacheControlState parseDataStr(String dataStr) {
+    if (dataStr.startsWith('[')) {
+      final parts = jsonDecode(dataStr) as List<dynamic>;
+      if (parts.length != 10 ||
+          (parts[8] as int) < 0 ||
+          (parts[1] != null && ((parts[1] as int) < 0 || (parts[1] as int) > 2147483648))) {
+        throw const FormatException('Invalid cache metadata');
+      }
+      return HttpCacheControlState(
+        cacheControl: HttpCacheControl(
+          directives: parts[0] as int,
+          maxAge: parts[1] as int?,
+          sMaxAge: parts[2] as int?,
+        ),
+        date: _dateFromSeconds(parts[3] as int?),
+        expires: _dateFromSeconds(parts[4] as int?),
+        etag: parts[5] as String?,
+        lastModified: _dateFromSeconds(parts[6] as int?),
+        responseTime: parts[7] == null ? null : DateTime.fromMillisecondsSinceEpoch(parts[7] as int, isUtc: true),
+        initialAge: Duration(milliseconds: parts[8] as int),
+        varyAll: parts[9] as bool,
+      );
+    }
+    // Legacy metadata remains readable, but cannot bypass revalidation.
     final parts = dataStr.split(',');
+    if (parts.length < 7) throw const FormatException('Invalid cache metadata');
     return HttpCacheControlState(
       cacheControl: HttpCacheControl(
         directives: int.parse(parts[0]),
         maxAge: _parseInt(parts[1]),
         sMaxAge: _parseInt(parts[2]),
       ),
-      date: _parseDateTime(parts[3]),
-      expires: _parseDateTime(parts[4]),
-      etag: parts[5] != 'null' ? parts[5] : null,
-      lastModified: _parseDateTime(parts[6]),
+      date: _dateFromSeconds(_parseInt(parts[3])),
+      expires: _dateFromSeconds(_parseInt(parts[4])),
+      etag: parts[5] != 'null' ? parts.sublist(5, parts.length - 1).join(',') : null,
+      lastModified: _dateFromSeconds(_parseInt(parts.last)),
     );
   }
 
   @override
-  String toString() {
-    return 'HttpCacheControlState{cacheControl: "$cacheControl", date: $date, expires: $expires, etag: $etag, lastModified: $lastModified}';
-  }
+  String toString() =>
+      'HttpCacheControlState{cacheControl: "$cacheControl", date: $date, '
+      'expires: $expires, etag: $etag, lastModified: $lastModified, responseTime: $responseTime, initialAge: $initialAge}';
 
   @override
   bool operator ==(Object other) =>
@@ -191,29 +288,59 @@ class HttpCacheControlState {
           date == other.date &&
           expires == other.expires &&
           etag == other.etag &&
-          lastModified == other.lastModified;
+          lastModified == other.lastModified &&
+          responseTime == other.responseTime &&
+          initialAge == other.initialAge &&
+          varyAll == other.varyAll;
 
   @override
-  int get hashCode => cacheControl.hashCode ^ date.hashCode ^ expires.hashCode ^ etag.hashCode ^ lastModified.hashCode;
+  int get hashCode => Object.hash(cacheControl, date, expires, etag, lastModified, responseTime, initialAge, varyAll);
+}
+
+Map<String, List<String?>> _parseDirectives(String? value) {
+  final result = <String, List<String?>>{};
+  if (value == null) return result;
+  // Commas inside quoted field-name lists belong to that directive's value.
+  final tokens = RegExp(r'(?:[^,"]|"(?:[^"\\]|\\.)*")+').allMatches(value);
+  for (final token in tokens) {
+    final parts = token.group(0)!.split('=');
+    final name = parts.first.trim().toLowerCase();
+    final value = parts.length > 1 ? parts.sublist(1).join('=').trim() : null;
+    (result[name] ??= []).add(value);
+  }
+  return result;
+}
+
+int? _directiveSeconds(Map<String, List<String?>> directives, String name) {
+  final values = directives[name];
+  if (values == null) return null;
+  // Duplicate or invalid freshness directives must not extend reuse.
+  if (values.length != 1) return 0;
+  var value = values.single;
+  if (value != null && value.startsWith('"') && value.endsWith('"') && value.length >= 2) {
+    value = value.substring(1, value.length - 1);
+  }
+  return _deltaSeconds(value) ?? 0;
+}
+
+int? _deltaSeconds(String? value) {
+  if (value == null || !RegExp(r'^\d+$').hasMatch(value)) return null;
+  return min(int.tryParse(value) ?? 2147483648, 2147483648);
 }
 
 int? _parseInt(String s) => s == 'null' ? null : int.parse(s);
+DateTime? _dateFromSeconds(int? seconds) =>
+    seconds == null ? null : DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
 
-DateTime? _parseDateTime(String s) => s == 'null' ? null : DateTime.fromMillisecondsSinceEpoch(int.parse(s) * 1000);
-
-/// Parse HTTP date-time string.
-DateTime? _parseHttpDateTime(String? s) {
-  if (s == null) return null;
-  final parts = s.split(' ');
-  if (parts.length != 6) return null;
-  final day = int.parse(parts[1]);
-  final month = _months.indexOf(parts[2]) + 1;
-  final year = int.parse(parts[3]);
-  final timeParts = parts[4].split(':');
-  final hour = int.parse(timeParts[0]);
-  final minute = int.parse(timeParts[1]);
-  final second = int.parse(timeParts[2]);
-  return DateTime.utc(year, month, day, hour, minute, second);
+DateTime? _parseHttpDateTime(String? value) {
+  if (value == null) return null;
+  try {
+    return HttpDate.parse(value);
+  } on HttpException {
+    return null;
+  } on FormatException {
+    return null;
+  }
 }
 
 extension DateTimeHttpExtension on DateTime {

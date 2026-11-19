@@ -201,6 +201,17 @@ jobs:
           test/pdf_text_formatter_test.dart
           test/pdf_text_search_result_test.dart
 
+      - name: Test HTTP cache freshness and storage
+        timeout-minutes: 5
+        working-directory: packages/pdfrx_engine
+        run: >-
+          dart test
+          test/http_cache_control_test.dart
+          test/pdf_file_cache_policy_test.dart
+          test/pdf_file_cache_policy_native_test.dart
+          test/pdf_file_cache_range_test.dart
+          test/pdf_file_cache_auth_identity_test.dart
+
       - name: Build Linux
         working-directory: packages/pdfrx/example/viewer
         run: flutter build linux --debug --verbose
