@@ -224,6 +224,8 @@ jobs:
           test/pdf_file_cache_policy_test.dart
           test/pdf_file_cache_policy_native_test.dart
           test/pdf_file_cache_range_test.dart
+          test/pdf_file_cache_timeout_test.dart
+          test/pdf_file_cache_timeout_native_test.dart
           test/pdf_file_cache_auth_identity_test.dart
 
       - name: Build Linux

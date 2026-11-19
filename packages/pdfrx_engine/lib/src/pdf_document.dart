@@ -199,7 +199,10 @@ abstract class PdfDocument {
   ///
   /// [withCredentials] is used to specify whether to include credentials in the request (Only supported on Web).
   ///
-  /// [timeout] is used to specify the timeout duration for each HTTP request (Only supported on non-Web platforms).
+  /// [timeout] limits each complete HTTP request, including the response body (non-Web platforms only).
+  /// It also limits waiting for headers or the next body chunk. When omitted, the idle limit is five seconds
+  /// and the total limit is five minutes. Expiration aborts the request; partially downloaded blocks are not cached.
+  /// Increase this value for slow connections or large full downloads from servers without range support.
   static Future<PdfDocument> openUri(
     Uri uri, {
     PdfPasswordProvider? passwordProvider,
