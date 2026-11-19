@@ -40,28 +40,50 @@ const _minPairs = 2;
 
 (String, List<PdfRect>) _normalize(String text, List<PdfRect> rects, bool decodeLegacyEncoding) {
   if (text.length != rects.length || text.isEmpty) return (text, rects);
-  final codes = List<int>.of(text.codeUnits);
-  final boxes = List<PdfRect>.of(rects);
+  var codes = text.codeUnits;
+  var boxes = rects;
+  var copiedCodes = false;
+  var copiedBoxes = false;
 
-  var changed = decodeLegacyEncoding && _decodeLegacyHebrew(codes);
+  var changed = false;
+  if (decodeLegacyEncoding) {
+    final decoded = _decodeLegacyHebrew(codes);
+    if (decoded != null) {
+      codes = decoded;
+      copiedCodes = changed = true;
+    }
+  }
 
-  final lines = <(int, int)>[];
+  if (!codes.any(_isHebLetter)) return (text, rects);
+
+  void makeWritable() {
+    if (!copiedCodes) {
+      codes = List<int>.of(codes);
+      copiedCodes = true;
+    }
+    if (!copiedBoxes) {
+      boxes = List<PdfRect>.of(boxes);
+      copiedBoxes = true;
+    }
+  }
+
+  final lines = <(int, int, List<_Token>)>[];
   var lineStart = 0;
   for (var i = 0; i <= codes.length; i++) {
     if (i < codes.length && !_isNewLine(codes[i])) continue;
-    if (i > lineStart) lines.add((lineStart, i));
+    if (i > lineStart) lines.add((lineStart, i, _tokens(codes, lineStart, i)));
     lineStart = i + 1;
   }
 
   // Pass 1: letters inside words.
-  final wordVotes = <(int, int, _Vote)>[];
+  final wordVotes = <(_Token, _Vote)>[];
   var pageLtr = 0, pageRtl = 0;
-  for (final (s, e) in lines) {
-    for (final (ts, te) in _tokens(codes, s, e)) {
-      if (!_isHebrewToken(codes, ts, te)) continue;
-      final v = _letterVote(codes, boxes, ts, te);
+  for (final (_, _, tokens) in lines) {
+    for (final token in tokens) {
+      if (!token.isHebrew) continue;
+      final v = _letterVote(codes, boxes, token.start, token.end);
       if (v.total == 0) continue;
-      wordVotes.add((ts, te, v));
+      wordVotes.add((token, v));
       if (v.total >= _minPairs) {
         pageLtr += v.ltr;
         pageRtl += v.rtl;
@@ -69,39 +91,37 @@ const _minPairs = 2;
     }
   }
   var pageVisual = pageLtr > 3 * pageRtl;
-  for (final (s, e, v) in wordVotes) {
+  for (final (token, v) in wordVotes) {
     if (!_isVisual(v, pageVisual)) continue;
-    _reverseClusters(codes, boxes, s, e);
+    makeWritable();
+    _reverseClusters(codes, boxes, token.start, token.end);
     changed = true;
   }
 
-  // Pass 2: words inside lines.
-  final lineVotes = <(int, int, _Vote)>[];
+  // Pass 2: words inside lines. Reversing a word preserves its bounds and classification.
+  final lineVotes = <(int, int, List<_Token>, _Vote)>[];
   pageLtr = 0;
   pageRtl = 0;
-  for (final (s, e) in lines) {
-    final tokens = _tokens(codes, s, e);
+  for (final (s, e, tokens) in lines) {
     // Mixed scripts and separate physical lines need a full bidi/layout model.
     // Preserve their order rather than sorting unrelated runs by x alone.
     // Numbers in a Hebrew line take its direction (bidi rule N1), so each one sorts by x like a Hebrew word.
-    if (tokens.any((t) => !_isHebrewToken(codes, t.$1, t.$2) && !_isNumberToken(codes, t.$1, t.$2))) continue;
-    if (tokens.any(
-      (t) => !_sameLine(_tokenBox(boxes, tokens.first.$1, tokens.first.$2), _tokenBox(boxes, t.$1, t.$2)),
-    )) {
-      continue;
-    }
-    final v = _wordVote(codes, boxes, s, e);
+    if (tokens.isEmpty || tokens.any((token) => !token.isHebrew && !token.isNumber)) continue;
+    final firstBox = tokens.first.bounds(boxes);
+    if (tokens.any((token) => !_sameLine(firstBox, token.bounds(boxes)))) continue;
+    final v = _wordVote(tokens, boxes);
     if (v.total == 0) continue;
-    lineVotes.add((s, e, v));
+    lineVotes.add((s, e, tokens, v));
     if (v.total >= _minPairs) {
       pageLtr += v.ltr;
       pageRtl += v.rtl;
     }
   }
   pageVisual = pageLtr > 3 * pageRtl;
-  for (final (s, e, v) in lineVotes) {
+  for (final (s, e, tokens, v) in lineVotes) {
     if (!_isVisual(v, pageVisual)) continue;
-    _reorderLine(codes, boxes, s, e);
+    makeWritable();
+    _reorderLine(codes, boxes, s, e, tokens);
     changed = true;
   }
 
@@ -112,17 +132,6 @@ const _minPairs = 2;
 bool _isVisual(_Vote v, bool pageVisual) {
   if (v.rtl > 0) return false;
   return v.total >= _minPairs || pageVisual;
-}
-
-/// Hebrew letters, points and punctuation only; Latin letters, digits and other scripts make a token mixed.
-bool _isHebrewToken(List<int> codes, int start, int end) {
-  return codes.getRange(start, end).every((c) => _isHebLetter(c) || _isHebMark(c) || _isPunctuation(c));
-}
-
-/// ASCII digits with optional punctuation, such as `16`, `3.5` or `12:30`.
-bool _isNumberToken(List<int> codes, int start, int end) {
-  final range = codes.getRange(start, end);
-  return range.any(_isDigit) && range.every((c) => _isDigit(c) || _isPunctuation(c));
 }
 
 bool _isDigit(int c) => c >= 0x30 && c <= 0x39;
@@ -165,16 +174,43 @@ class _Vote {
   int get total => ltr + rtl;
 }
 
-List<(int, int)> _tokens(List<int> codes, int start, int end) {
-  final result = <(int, int)>[];
+/// Token properties shared by both passes; bounds are only needed for reorderable lines.
+class _Token {
+  _Token(this.start, this.end, this.isHebrew, this.isNumber, this.hebrewLetters);
+
+  final int start, end;
+  final bool isHebrew, isNumber;
+  final int hebrewLetters;
+  PdfRect? _bounds;
+
+  PdfRect bounds(List<PdfRect> boxes) => _bounds ??= _tokenBox(boxes, start, end);
+}
+
+List<_Token> _tokens(List<int> codes, int start, int end) {
+  final result = <_Token>[];
   var s = -1;
+  var isHebrew = true, isNumber = true, hasDigit = false;
+  var hebrewLetters = 0;
   for (var i = start; i <= end; i++) {
     final boundary = i == end || _isSpace(codes[i]) || _isNewLine(codes[i]);
-    if (!boundary && s < 0) s = i;
-    if (boundary && s >= 0) {
-      result.add((s, i));
-      s = -1;
+    if (boundary) {
+      if (s >= 0) {
+        result.add(_Token(s, i, isHebrew, isNumber && hasDigit, hebrewLetters));
+        s = -1;
+        isHebrew = isNumber = true;
+        hasDigit = false;
+        hebrewLetters = 0;
+      }
+      continue;
     }
+    if (s < 0) s = i;
+    final c = codes[i];
+    final letter = _isHebLetter(c);
+    final digit = _isDigit(c);
+    if (letter) hebrewLetters++;
+    if (digit) hasDigit = true;
+    if (isHebrew && !letter && !_isHebMark(c) && !_isPunctuation(c)) isHebrew = false;
+    if (isNumber && !digit && !_isPunctuation(c)) isNumber = false;
   }
   return result;
 }
@@ -203,16 +239,12 @@ _Vote _letterVote(List<int> codes, List<PdfRect> boxes, int s, int e) {
   return _Vote(ltr, rtl);
 }
 
-_Vote _wordVote(List<int> codes, List<PdfRect> boxes, int s, int e) {
+_Vote _wordVote(List<_Token> tokens, List<PdfRect> boxes) {
   var ltr = 0, rtl = 0;
   PdfRect? prev;
-  for (final (ts, te) in _tokens(codes, s, e)) {
-    var heb = 0;
-    for (var i = ts; i < te; i++) {
-      if (_isHebLetter(codes[i])) heb++;
-    }
-    if (heb < 2) continue;
-    final box = _tokenBox(boxes, ts, te);
+  for (final token in tokens) {
+    if (token.hebrewLetters < 2) continue;
+    final box = token.bounds(boxes);
     if (prev != null && _sameLine(prev, box)) {
       final dx = _cx(box) - _cx(prev);
       if (dx > 0) ltr++;
@@ -235,11 +267,9 @@ PdfRect _tokenBox(List<PdfRect> boxes, int s, int e) {
   return PdfRect(l, t, r, b);
 }
 
-void _reorderLine(List<int> codes, List<PdfRect> boxes, int start, int end) {
-  final tokens = _tokens(codes, start, end);
+void _reorderLine(List<int> codes, List<PdfRect> boxes, int start, int end, List<_Token> tokens) {
   if (tokens.length < 2) return;
-  final sorted = List<(int, int)>.of(tokens)
-    ..sort((a, b) => _cx(_tokenBox(boxes, b.$1, b.$2)).compareTo(_cx(_tokenBox(boxes, a.$1, a.$2))));
+  final sorted = List<_Token>.of(tokens)..sort((a, b) => _cx(b.bounds(boxes)).compareTo(_cx(a.bounds(boxes))));
   final newCodes = <int>[];
   final newBoxes = <PdfRect>[];
   void copy(int s, int e) {
@@ -251,8 +281,9 @@ void _reorderLine(List<int> codes, List<PdfRect> boxes, int start, int end) {
 
   // Digits keep their order, but punctuation at a number's edge takes the line's direction (UAX #9 W4, W5, N1):
   // `,123` stored left to right is logical `123,`. Brackets swap sides, so they are mirrored.
-  void copyToken(int s, int e) {
-    if (!_isNumberToken(codes, s, e)) return copy(s, e);
+  void copyToken(_Token token) {
+    final s = token.start, e = token.end;
+    if (!token.isNumber) return copy(s, e);
     var cs = s, ce = e;
     while (!_isNumberCore(codes[cs])) {
       cs++;
@@ -283,10 +314,10 @@ void _reorderLine(List<int> codes, List<PdfRect> boxes, int start, int end) {
   }
 
   for (var k = 0; k < tokens.length; k++) {
-    copy(k == 0 ? start : tokens[k - 1].$2, tokens[k].$1);
-    copyToken(sorted[k].$1, sorted[k].$2);
+    copy(k == 0 ? start : tokens[k - 1].end, tokens[k].start);
+    copyToken(sorted[k]);
   }
-  copy(tokens.last.$2, end);
+  copy(tokens.last.end, end);
   codes.setRange(start, end, newCodes);
   boxes.setRange(start, end, newBoxes);
 }
@@ -312,7 +343,7 @@ void _reverseClusters(List<int> codes, List<PdfRect> boxes, int s, int e) {
   boxes.setRange(s, e, newBoxes);
 }
 
-bool _decodeLegacyHebrew(List<int> codes) {
+List<int>? _decodeLegacyHebrew(List<int> codes) {
   var legacy = 0, mac = 0, macDistinctive = 0, latin = 0;
   for (final c in codes) {
     if (c >= 0xE0 && c <= 0xFA) legacy++;
@@ -322,13 +353,14 @@ bool _decodeLegacyHebrew(List<int> codes) {
   }
   final useMac = mac >= 20 && macDistinctive >= 5;
   final decodable = legacy + (useMac ? mac : 0);
-  if (decodable < 20 || decodable <= latin) return false;
+  if (decodable < 20 || decodable <= latin) return null;
+  final decoded = List<int>.of(codes);
   for (var i = 0; i < codes.length; i++) {
     final c = codes[i];
     final mapped = useMac ? (_macRomanHebrew[c] ?? _cp1255Letter(c)) : _cp1255ToUnicode(c);
-    if (mapped != null) codes[i] = mapped;
+    if (mapped != null) decoded[i] = mapped;
   }
-  return true;
+  return decoded;
 }
 
 int? _cp1255Letter(int c) => c >= 0xE0 && c <= 0xFA ? 0x05D0 + c - 0xE0 : null;

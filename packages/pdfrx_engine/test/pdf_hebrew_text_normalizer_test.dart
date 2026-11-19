@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:test/test.dart';
 
@@ -32,6 +34,80 @@ List<(String, double)> _layoutRtl(List<String> words, {double right = 500}) {
 
 void main() {
   const words = ['שלום', 'עולם', 'ומלואו'];
+
+  test('unchanged Latin pages do not copy or read character geometry', () {
+    final text = List.filled(100, 'English text 123, with punctuation.').join('\n');
+    final rects = _CountingList([for (var i = 0; i < text.length; i++) const PdfRect(0, 10, 10, 0)]);
+    final raw = PdfPageRawText(text, rects);
+
+    for (final decodeLegacyEncoding in [false, true]) {
+      expect(PdfHebrewTextNormalizer.normalize(raw, decodeLegacyEncoding: decodeLegacyEncoding), same(raw));
+      expect(rects.reads, 0);
+    }
+  });
+
+  test('a long first token does not cause repeated character-bound scans', () {
+    for (final followingWords in [250, 1000]) {
+      final words = [List.filled(followingWords, 'א').join(), ...List.filled(followingWords, 'אב')];
+      final logical = _layoutRtl(words);
+      final counter = _CoordinateReads();
+      final raw = PdfPageRawText(words.join(' '), [
+        for (final (_, x) in logical) _CountingRect(counter, x, 710, x + 10, 700),
+      ]);
+
+      expect(PdfHebrewTextNormalizer.normalize(raw), same(raw));
+      expect(counter.reads, lessThan(40 * raw.fullText.length));
+    }
+  });
+
+  test('dense visual lines reuse token bounds while sorting and preserve glyph ownership', () {
+    final words = List.generate(64, (i) => List.filled(128, i.isEven ? 'א' : 'ב').join());
+    final glyphs = _layoutRtl(words).reversed.toList();
+    final counter = _CoordinateReads();
+    final rects = [for (final (_, x) in glyphs) _CountingRect(counter, x, 710, x + 10, 700)];
+    final originalText = glyphs.map((glyph) => glyph.$1).join();
+    final raw = PdfPageRawText(originalText, List.unmodifiable(rects));
+    final result = PdfHebrewTextNormalizer.normalize(raw);
+
+    expect(counter.reads, lessThan(40 * raw.fullText.length));
+    expect(result.fullText, words.join(' '));
+    final expectedRects = [
+      for (var word = words.length - 1; word >= 0; word--) ...[
+        if (word != words.length - 1) rects[(words.length - 2 - word) * 129 + 128],
+        ...rects.sublist(word * 129, word * 129 + 128).reversed,
+      ],
+    ];
+    expect(result.charRects, orderedEquals(expectedRects));
+    expect(raw.fullText, originalText);
+    expect(raw.charRects, orderedEquals(rects));
+    expect(() => result.charRects[0] = PdfRect.empty, throwsUnsupportedError);
+  });
+
+  test('legacy decoding does not mutate the supplied code units or character boxes', () {
+    final logical = _line(_layoutRtl(List.filled(8, 'שלום')));
+    final encoded = String.fromCharCodes(logical.fullText.codeUnits.map((c) => c >= 0x05D0 ? c - 0x05D0 + 0xE0 : c));
+    final rects = List<PdfRect>.unmodifiable(logical.charRects);
+    final raw = PdfPageRawText(encoded, rects);
+    final result = PdfHebrewTextNormalizer.normalize(raw, decodeLegacyEncoding: true);
+
+    expect(result.fullText, logical.fullText);
+    expect(result.charRects, orderedEquals(rects));
+    expect(raw.fullText, encoded);
+    expect(raw.charRects, same(rects));
+    expect(() => result.charRects[0] = PdfRect.empty, throwsUnsupportedError);
+  });
+
+  test('blank lines, CRLF, tabs and nonbreaking spaces keep their positions', () {
+    final glyphs = _layoutRtl(words).reversed.toList();
+    final first = _line(glyphs);
+    final text = '\t ${first.fullText.replaceFirst(' ', '\u00A0')} \t\r\n \t\n';
+    final rects = <PdfRect>[PdfRect.empty, PdfRect.empty, ...first.charRects, ...List.filled(7, PdfRect.empty)];
+    final raw = PdfPageRawText(text, List.unmodifiable(rects));
+    final result = PdfHebrewTextNormalizer.normalize(raw);
+
+    expect(result.fullText, '\t שלום\u00A0עולם ומלואו \t\r\n \t\n');
+    expect(result.charRects.length, text.length);
+  });
 
   test('mixed tokens preserve Latin runs, numbers, and surrogate pairs', () {
     for (final suffix in ['ABC', '123', '\u{1F600}']) {
@@ -294,6 +370,21 @@ void main() {
     expect(fixed.fullText, many.join(' '));
   });
 
+  test('Mac Roman legacy decoding and visual reordering preserve character boxes', () {
+    const macRoman = {'א': '‡', 'ש': '˘', 'ר': '¯', 'י': 'È'};
+    final words = List.filled(6, 'אשרי');
+    final glyphs = _layoutRtl(words).reversed.toList();
+    final raw = _line([for (final (char, x) in glyphs) (macRoman[char] ?? char, x)]);
+    final result = PdfHebrewTextNormalizer.normalize(raw, decodeLegacyEncoding: true);
+
+    expect(result.fullText, words.join(' '));
+    for (var word = 0; word < words.length; word++) {
+      for (var char = 0; char < 4; char++) {
+        expect(result.charRects[word * 5 + char], same(raw.charRects[(words.length - 1 - word) * 5 + 3 - char]));
+      }
+    }
+  });
+
   test('Latin text with accents is not decoded', () {
     const french = 'déjà là où élève réécrire';
     var x = 50.0;
@@ -321,4 +412,60 @@ void main() {
     final fixed = PdfHebrewTextNormalizer.normalize(PdfPageRawText(text.toString(), rects));
     expect(fixed.fullText.split('\n'), ['שלום עולם ומלואו', 'ספר אחד']);
   });
+}
+
+class _CountingList<T> extends ListBase<T> {
+  _CountingList(this._values);
+
+  final List<T> _values;
+  int reads = 0;
+
+  @override
+  int get length => _values.length;
+
+  @override
+  set length(int value) => throw UnsupportedError('read-only');
+
+  @override
+  T operator [](int index) {
+    reads++;
+    return _values[index];
+  }
+
+  @override
+  void operator []=(int index, T value) => throw UnsupportedError('read-only');
+}
+
+class _CoordinateReads {
+  int reads = 0;
+}
+
+class _CountingRect extends PdfRect {
+  _CountingRect(this._counter, super.left, super.top, super.right, super.bottom);
+
+  final _CoordinateReads _counter;
+
+  @override
+  double get left {
+    _counter.reads++;
+    return super.left;
+  }
+
+  @override
+  double get top {
+    _counter.reads++;
+    return super.top;
+  }
+
+  @override
+  double get right {
+    _counter.reads++;
+    return super.right;
+  }
+
+  @override
+  double get bottom {
+    _counter.reads++;
+    return super.bottom;
+  }
 }
