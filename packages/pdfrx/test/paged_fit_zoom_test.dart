@@ -92,8 +92,10 @@ void main() {
     ScrollPhysics? physics = const BouncingScrollPhysics(),
     EdgeInsets? boundaryMargin,
     PdfViewerSizeDelegateProvider? sizeDelegateProvider,
+    PdfPageOverlaysBuilder? pageOverlaysBuilder,
   }) => PdfViewerParams(
     layoutStrategy: strategy,
+    pageOverlaysBuilder: pageOverlaysBuilder,
     sizeDelegateProvider: sizeDelegateProvider,
     paging: paged ? const PdfPaging() : null,
     scrollPhysics: physics,
@@ -133,6 +135,7 @@ void main() {
     Offset drag = Offset.zero,
     Duration? secondFingerDelay,
     Offset secondFingerMove = const Offset(2, 5),
+    void Function()? whileFingersDown,
   }) async {
     final unit = pagesOfSpreadOf(c, c.pageNumber!);
     Set<int> visibleNeighbors() =>
@@ -155,6 +158,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 16));
       neighborsWhilePinching.addAll(visibleNeighbors());
       if (c.currentZoom < lowestZoom) lowestZoom = c.currentZoom;
+      whileFingersDown?.call();
     }
 
     await first.up();
@@ -266,6 +270,49 @@ void main() {
       expect(result.neighborsAfterRelease, isEmpty);
       expect(c.currentZoom, moreOrLessEquals(1.0, epsilon: 0.001));
     });
+
+    // The pages are hidden by not painting them; their overlay widgets are separate from that.
+    for (final (name, strategy, shown) in [
+      ('sequential', sequentialFit, {2}),
+      ('facing pages', facingFit, {2, 3}),
+    ]) {
+      testWidgets('paged, $name: the page overlays of the other spreads are hidden as well', (tester) async {
+        final (_, c) = await mount(
+          tester,
+          params(
+            strategy: strategy,
+            paged: true,
+            // A visible overlay on each page that lets the pinch through to the viewer.
+            pageOverlaysBuilder: (context, pageRect, page) => [
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: ColoredBox(key: ValueKey('overlay-${page.pageNumber}'), color: const Color(0x55ff0000)),
+                ),
+              ),
+            ],
+          ),
+          landscape,
+        );
+        await c.goToPage(pageNumber: 2, duration: Duration.zero);
+        await settle(tester);
+        final viewport = tester.getRect(find.byType(PdfViewer));
+
+        /// Pages whose overlay is on screen inside the viewer.
+        Set<int> overlaysInView() => {
+          for (var pageNumber = 1; pageNumber <= c.pageCount; pageNumber++)
+            if (find.byKey(ValueKey('overlay-$pageNumber')).evaluate().isNotEmpty &&
+                tester.getRect(find.byKey(ValueKey('overlay-$pageNumber'))).overlaps(viewport))
+              pageNumber,
+        };
+
+        expect(overlaysInView(), shown, reason: 'before the pinch');
+        final whilePinching = <Set<int>>[];
+        final result = await pinchOut(tester, c, whileFingersDown: () => whilePinching.add(overlaysInView()));
+        expect(result.lowestZoom, lessThan(0.9), reason: 'pinched far enough for the neighbors to be in the view');
+        expect(whilePinching, everyElement(shown), reason: 'while the fingers are down');
+        expect(overlaysInView(), shown, reason: 'after the bounce-back');
+      });
+    }
 
     for (final paged in [true]) {
       testWidgets('paged=$paged: the scale bounces back when the fingers lift one after the other', (tester) async {

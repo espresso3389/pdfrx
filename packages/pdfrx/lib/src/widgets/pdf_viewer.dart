@@ -1532,14 +1532,15 @@ class _PdfViewerState extends State<PdfViewer>
   /// Whether a pinch has the zoom below the min scale (the scale overscroll of bouncing physics).
   bool get _isScaleOverscrolled => _currentZoom < _layoutMetrics.minScale * 0.999;
 
-  /// In paged mode ([PdfViewerParams.paging]), the only spread to paint, or null to paint every
+  /// In paged mode ([PdfViewerParams.paging]), the only spread to show, or null to show every
   /// visible page.
   ///
   /// The spread slots hide the neighbor spreads only down to the home zoom. While a pinch has the
   /// zoom below the min scale, the view is longer than a slot and the neighbors would show; they are
-  /// not painted then, so zooming out shows the pinched spread alone. At any other time every
-  /// visible page is painted, so that a drag or a page turn shows the neighbor sliding in.
-  int? get _soleSpreadToPaint => _isPaged && _isScaleOverscrolled ? _pinchedSpread : null;
+  /// hidden then (neither painted, nor given link or overlay widgets), so zooming out shows the
+  /// pinched spread alone. At any other time every visible page is shown, so that a drag or a page
+  /// turn shows the neighbor sliding in.
+  int? get _soleSpreadToShow => _isPaged && _isScaleOverscrolled ? _pinchedSpread : null;
 
   /// Sets [_confinedSpread] for the current view of a paged layout, if it is zoomed in.
   void _updateConfinedSpread() {
@@ -1553,7 +1554,7 @@ class _PdfViewerState extends State<PdfViewer>
   /// In paged mode ([PdfViewerParams.paging]), the spread a pinch-zoom started on, from the moment
   /// the gesture changes the zoom until the view has settled. The pinch belongs to this spread:
   ///
-  /// * while the zoom is below the min scale, it is the only spread painted ([_soleSpreadToPaint]);
+  /// * while the zoom is below the min scale, it is the only spread shown ([_soleSpreadToShow]);
   /// * the snap-back from below the min scale lands on it ([_scrollPhysicsBoundaryRect]);
   /// * the pinch does not turn the page ([_turnPageOnInteractionEnd]), and the settle snap stays on
   ///   it even if the pinch has dragged a neighbor further into view ([_settle]).
@@ -2135,8 +2136,11 @@ class _PdfViewerState extends State<PdfViewer>
     final linkWidgets = <Widget>[];
     final overlayWidgets = <Widget>[];
     final targetRect = _getCacheExtentRect();
+    final soleSpread = _soleSpreadToShow;
 
     for (final i in _pageLayoutIndex!.intersecting(targetRect)) {
+      // The widgets of a hidden page are hidden with it.
+      if (soleSpread != null && _layout!.spreadIndexOf(i + 1) != soleSpread) continue;
       final rect = _layout!.pageLayouts[i];
 
       final page = _document!.pages[i];
@@ -2480,7 +2484,7 @@ class _PdfViewerState extends State<PdfViewer>
       if (!retainedPages.contains(pageNumber)) cache.cancelPendingRenderings(pageNumber);
     }
     unusedPageList.addAll(cache.pageImages.keys.where((pageNumber) => !retainedPages.contains(pageNumber)));
-    final soleSpread = _soleSpreadToPaint;
+    final soleSpread = _soleSpreadToShow;
     for (final i in pageIndices) {
       if (soleSpread != null && _layout!.spreadIndexOf(i + 1) != soleSpread) continue;
       final rect = _layout!.pageLayouts[i];
