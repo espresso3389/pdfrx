@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:math';
@@ -754,6 +755,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
+    RangeError.checkNotNegative(fileSize, 'fileSize');
     await _init();
 
     maxSizeToCacheOnMemory ??= 1024 * 1024; // the default is 1MB
@@ -761,19 +763,28 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     // If the file size is smaller than the specified size, load the file on memory
     if (fileSize <= maxSizeToCacheOnMemory) {
       final buffer = malloc<Uint8>(fileSize);
+      var documentOwnsBuffer = false;
       try {
-        await read(buffer.asTypedList(fileSize), 0, fileSize);
+        final readSize = await read(buffer.asTypedList(fileSize), 0, fileSize);
+        if (readSize != fileSize) {
+          throw PdfException('Failed to read PDF source: expected $fileSize bytes, received $readSize.');
+        }
         return await _openByFunc(
-          (password) async => BackgroundWorker.computeWithArena(
-            (arena, params) => _pdfLoadResult(
-              () => pdfium.FPDF_LoadMemDocument(
-                Pointer<Void>.fromAddress(params.buffer),
-                params.fileSize,
-                params.password?.toUtf8(arena) ?? nullptr,
+          (password) async {
+            final result = await BackgroundWorker.computeWithArena(
+              (arena, params) => _pdfLoadResult(
+                () => pdfium.FPDF_LoadMemDocument(
+                  Pointer<Void>.fromAddress(params.buffer),
+                  params.fileSize,
+                  params.password?.toUtf8(arena) ?? nullptr,
+                ),
               ),
-            ),
-            (buffer: buffer.address, fileSize: fileSize, password: password),
-          ),
+              (buffer: buffer.address, fileSize: fileSize, password: password),
+            );
+            // Once PDFium opens the document, its initialization/close path owns the backing storage.
+            documentOwnsBuffer = result.doc != 0;
+            return result;
+          },
           sourceName: sourceName,
           passwordProvider: passwordProvider,
           firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -787,24 +798,29 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
           },
         );
       } catch (e) {
-        malloc.free(buffer);
+        if (!documentOwnsBuffer) malloc.free(buffer);
         rethrow;
       }
     }
 
     // Otherwise, load the file on demand
     final fa = await PdfiumFileAccess.create(fileSize, read);
+    var documentOwnsFileAccess = false;
     try {
       return await _openByFunc(
-        (password) async => BackgroundWorker.computeWithArena(
-          (arena, params) => _pdfLoadResult(
-            () => pdfium.FPDF_LoadCustomDocument(
-              Pointer<pdfium_bindings.FPDF_FILEACCESS>.fromAddress(params.fileAccess),
-              params.password?.toUtf8(arena) ?? nullptr,
+        (password) async {
+          final result = await BackgroundWorker.computeWithArena(
+            (arena, params) => _pdfLoadResult(
+              () => pdfium.FPDF_LoadCustomDocument(
+                Pointer<pdfium_bindings.FPDF_FILEACCESS>.fromAddress(params.fileAccess),
+                params.password?.toUtf8(arena) ?? nullptr,
+              ),
             ),
-          ),
-          (fileAccess: fa.fileAccess, password: password),
-        ),
+            (fileAccess: fa.fileAccess, password: password),
+          );
+          documentOwnsFileAccess = result.doc != 0;
+          return result;
+        },
         sourceName: sourceName,
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
@@ -818,7 +834,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
         },
       );
     } catch (e) {
-      fa.dispose();
+      if (!documentOwnsFileAccess) fa.dispose();
       rethrow;
     }
   }
@@ -1074,6 +1090,8 @@ class _PdfDocumentPdfium extends PdfDocument {
       throw const PdfException('Failed to load PDF document.');
     }
     _PdfDocumentPdfium? pdfDoc;
+    var formHandleAddress = 0;
+    var formInfoAddress = 0;
     try {
       final result = await BackgroundWorker.computeWithArena((arena, docAddress) {
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(docAddress);
@@ -1093,11 +1111,16 @@ class _PdfDocumentPdfium extends PdfDocument {
             formInfo: formInfo.address,
           );
         } catch (e) {
-          pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
-          calloc.free(formInfo);
+          try {
+            if (formHandle != nullptr) pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
+          } finally {
+            calloc.free(formInfo);
+          }
           rethrow;
         }
       }, doc.address);
+      formHandleAddress = result.formHandle;
+      formInfoAddress = result.formInfo;
 
       pdfDoc = _PdfDocumentPdfium._(
         doc,
@@ -1122,7 +1145,27 @@ class _PdfDocumentPdfium extends PdfDocument {
       await pdfDoc._notifyMissingFonts();
       return pdfDoc;
     } catch (e) {
-      pdfDoc?.dispose();
+      try {
+        if (pdfDoc != null) {
+          await pdfDoc.dispose();
+        } else {
+          // Initialization can fail before there is a Dart document to own the native handle.
+          await BackgroundWorker.compute(_closeNativeDocument, (
+            document: doc.address,
+            formHandle: formHandleAddress,
+            formInfo: formInfoAddress,
+          ));
+          disposeCallback?.call();
+        }
+      } catch (cleanupError, cleanupStack) {
+        // Report cleanup failures without replacing the error that prevented the document from opening.
+        developer.log(
+          'Failed to dispose PDF after initialization failure.',
+          name: 'pdfrx',
+          error: cleanupError,
+          stackTrace: cleanupStack,
+        );
+      }
       rethrow;
     }
   }
@@ -1620,16 +1663,24 @@ class _PdfDocumentPdfium extends PdfDocument {
     if (!isDisposed) subject.close();
     _progressiveMeasurements.clear();
     return _lifetime.close(() async {
-      await BackgroundWorker.compute((params) {
-        final formHandle = pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle);
-        final formInfo = Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(params.formInfo);
-        pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
-        calloc.free(formInfo);
-        final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
-        pdfium.FPDF_CloseDocument(doc);
-      }, (formHandle: formHandle.address, formInfo: formInfo.address, document: document.address));
+      await BackgroundWorker.compute(_closeNativeDocument, (
+        formHandle: formHandle.address,
+        formInfo: formInfo.address,
+        document: document.address,
+      ));
       disposeCallback?.call();
     });
+  }
+
+  static void _closeNativeDocument(({int document, int formHandle, int formInfo}) params) {
+    try {
+      if (params.formHandle != 0) {
+        pdfium.FPDFDOC_ExitFormFillEnvironment(pdfium_bindings.FPDF_FORMHANDLE.fromAddress(params.formHandle));
+      }
+    } finally {
+      calloc.free(Pointer<pdfium_bindings.FPDF_FORMFILLINFO>.fromAddress(params.formInfo));
+      pdfium.FPDF_CloseDocument(pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document));
+    }
   }
 
   @override

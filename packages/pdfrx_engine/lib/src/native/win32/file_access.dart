@@ -12,6 +12,7 @@ import 'kernel32.dart';
 class PdfiumFileAccessHelperWin32 implements PdfiumFileAccessHelper {
   @override
   Future<int> create(int fileSize, int readBlock) async {
+    final nativeRead = await _getReadFuncOnBackgroundWorker();
     final buffer = malloc<Uint8>(
       sizeOf<pdfium_bindings.FPDF_FILEACCESS>() +
           sizeOfCriticalSection +
@@ -21,7 +22,7 @@ class PdfiumFileAccessHelperWin32 implements PdfiumFileAccessHelper {
     final fa = buffer.cast<pdfium_bindings.FPDF_FILEACCESS>();
     fa.ref.m_FileLen = fileSize;
     fa.ref.m_Param = Pointer<Void>.fromAddress(buffer.address);
-    fa.ref.m_GetBlock = Pointer.fromAddress(await _getReadFuncOnBackgroundWorker());
+    fa.ref.m_GetBlock = Pointer.fromAddress(nativeRead);
 
     final readFuncPtr = Pointer<IntPtr>.fromAddress(buffer.address + _readFuncOffset);
     readFuncPtr.value = readBlock;

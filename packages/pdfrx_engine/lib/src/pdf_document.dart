@@ -142,6 +142,9 @@ abstract class PdfDocument {
   /// may be heavy because of FFI overhead and it may be better to cache the PDF on memory if it's not too large.
   /// The default size is 1MB.
   ///
+  /// On native PDFium platforms, [read] must fill all requested `size` bytes and return that exact count.
+  /// A short, zero, or negative return for a nonempty request is an error; partial reads are not retried.
+  ///
   /// [passwordProvider] is used to provide password for encrypted PDF. See [PdfPasswordProvider] for more info.
   ///
   /// [firstAttemptByEmptyPassword] is used to determine whether the first attempt to open the PDF is by empty
