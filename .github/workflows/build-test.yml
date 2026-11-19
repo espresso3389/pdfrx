@@ -193,13 +193,14 @@ jobs:
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
 
-      - name: Test Hebrew text normalization
+      - name: Test Hebrew text normalization and font resolution
         working-directory: packages/pdfrx_engine
         run: >-
           dart test
           test/pdf_hebrew_text_normalizer_test.dart
           test/pdf_text_formatter_test.dart
           test/pdf_text_search_result_test.dart
+          test/pdf_font_resolver_test.dart
 
       - name: Build Linux
         working-directory: packages/pdfrx/example/viewer

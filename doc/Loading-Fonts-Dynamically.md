@@ -46,6 +46,16 @@ When [`fontManager`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/
 
 On desktop platforms, the platform resolver handles common PDF and system font names such as Helvetica, Arial, Times, Courier, MS Gothic, MS Mincho, Meiryo, Yu Gothic, SimSun, MingLiU, Malgun Gothic, Batang, and Gulim by registering existing local font files. If no platform font matches, application resolvers such as `CompositeGoogleFontsResolver` can download or otherwise provide substitute font bytes.
 
+## Concurrent Documents and Cache Resets
+
+Share one [PdfFontManager](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfFontManager-class.html) between viewers or documents that use the same resolvers. Overlapping calls with the same face, weight, italic flag, charset, pitch family, and `preferFontCollections` setting share resolution, loading, and registration. Each waiting caller still receives the newly available font in its result, so every affected document can refresh. Backend font reloads are shared when they cover the same registrations.
+
+The backend stores one substitute per target face. Different byte sources can share a target if their validated payloads match; local files are shared by their source identity. Resolvers that provide different substitutes must use distinct `targetFace` values. A conflict is reported in the load result's `failed` list. Providing stable `source` and validation metadata lets compatible registrations share a load without fetching the same bytes again. The manager retains registration metadata and a payload digest, not the font payload itself.
+
+Native PDFium font clearing, font-environment reconfiguration, and worker shutdown invalidate the manager's registration bookkeeping. Web font clearing and backend replacement also invalidate it. Resets wait for manager registrations and reloads that have already started; a load crossing a reset reports an error and can be retried. Failed resolution, loading, registration, preparation, or backend refresh does not permanently prevent a later retry. A failed refresh can be retried without registering the same bytes again.
+
+`reloadFonts: false` still suppresses the refresh for that call. A subsequent call with reloading enabled can refresh those registrations. Progress callbacks receive shared-load progress independently; an exception in one caller's progress callback does not fail other callers.
+
 ## Using PdfDocument Directly
 
 If you use [PdfDocument](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument-class.html) without [`PdfViewer`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer-class.html), associate the manager with the document yourself.

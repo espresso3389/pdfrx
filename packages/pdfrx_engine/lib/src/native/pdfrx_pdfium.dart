@@ -14,6 +14,7 @@ import 'package:pdfium_dart/pdfium_dart.dart' as pdfium_bindings;
 import 'package:rxdart/rxdart.dart';
 import 'package:synchronized/extension.dart';
 
+import '../font_environment.dart';
 import '../pdf_annotation.dart';
 import '../pdf_datetime.dart';
 import '../pdf_dest.dart';
@@ -640,7 +641,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   }
 
   @override
-  Future<void> stopBackgroundWorker() => _deinit();
+  Future<void> stopBackgroundWorker() => changeFontEnvironment(_deinit);
 
   @override
   Future<PdfDocument> openAsset(
@@ -971,15 +972,16 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   };
 
   @override
-  Future<void> configureFontEnvironment({String? fontCachePath, List<String> fontPaths = const []}) async {
-    _fontCachePath = fontCachePath;
-    _fontPaths = List.unmodifiable(fontPaths);
-    if (_initialized) {
-      await _reloadFontFiles();
-    } else {
-      await _init();
-    }
-  }
+  Future<void> configureFontEnvironment({String? fontCachePath, List<String> fontPaths = const []}) =>
+      changeFontEnvironment(() async {
+        _fontCachePath = fontCachePath;
+        _fontPaths = List.unmodifiable(fontPaths);
+        if (_initialized) {
+          await _reloadFontFiles();
+        } else {
+          await _init();
+        }
+      });
 
   @override
   Future<void> reloadFonts() async {
@@ -1009,7 +1011,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
   }
 
   @override
-  Future<void> clearAllFontData() async {
+  Future<void> clearAllFontData() => changeFontEnvironment(() async {
     final fontCachePath = _fontCachePath;
     if (fontCachePath != null) {
       try {
@@ -1021,7 +1023,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
     await _computeWithIdlePdfium((params) {
       _fontMapper?.clear();
     }, null);
-  }
+  });
 
   @override
   PdfrxBackendType get backendType => PdfrxBackendType.pdfium;
