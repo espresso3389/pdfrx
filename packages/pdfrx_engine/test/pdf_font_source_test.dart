@@ -148,7 +148,8 @@ void main() {
 }
 
 class _CountingFile implements File {
-  _CountingFile(this.file);
+  // Instrument the canonical file that the cache uses for its subsequent lazy reads.
+  _CountingFile(File file) : file = File(file.resolveSymbolicLinksSync());
   final File file;
   int headerReads = 0;
   int fullReads = 0;
