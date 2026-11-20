@@ -405,6 +405,7 @@ jobs:
           test/pdfium_worker_font_cache_test.cjs
           test/pdfium_worker_input_test.cjs
           test/pdfium_worker_lifetime_test.cjs
+          test/pdfium_worker_assembly_test.cjs
 
       - name: Test Web page metadata and document disposal
         timeout-minutes: 5
@@ -418,6 +419,11 @@ jobs:
       - name: Test Web input ownership and password retries
         working-directory: packages/pdfrx
         run: flutter test --platform chrome test/wasm_input_ownership_test.dart
+
+      - name: Test Web document assembly and repeated saves
+        timeout-minutes: 5
+        working-directory: packages/pdfrx
+        run: flutter test --platform chrome test/wasm_document_assembly_test.dart
 
       - name: Build Web
         working-directory: packages/pdfrx/example/viewer

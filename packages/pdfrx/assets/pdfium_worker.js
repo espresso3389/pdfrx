@@ -2923,11 +2923,30 @@ function assemble(params) {
   const { docHandle, pageIndices, importedPages, rotations } = params;
 
   // If no page indices specified, no modifications needed
-  if (!pageIndices || pageIndices.length === 0) {
+  if (!pageIndices) {
     return { modified: false };
   }
 
   const originalLength = Pdfium.wasmExports.FPDF_GetPageCount(docHandle);
+
+  // Validate the complete request before deleting or moving any existing pages.
+  for (let i = 0; i < pageIndices.length; i++) {
+    const index = pageIndices[i];
+    if (!Number.isInteger(index) || index >= originalLength) {
+      throw new Error(`Invalid source page index ${index}`);
+    }
+    if (index < 0) {
+      const source = importedPages?.[index];
+      if (!source || !disposers[source.docHandle] || !Number.isInteger(source.pageNumber) ||
+          source.pageNumber < 0 || source.pageNumber >= Pdfium.wasmExports.FPDF_GetPageCount(source.docHandle)) {
+        throw new Error(`Invalid imported page for index ${index}`);
+      }
+    }
+  }
+  if (rotations && (rotations.length !== pageIndices.length ||
+      rotations.some(rotation => rotation != null && (!Number.isInteger(rotation) || rotation < 0 || rotation > 3)))) {
+    throw new Error('Invalid page rotations');
+  }
 
   // Check if there are any changes
   let hasChanges = pageIndices.length !== originalLength;
@@ -2963,8 +2982,12 @@ function assemble(params) {
       const rotation = rotations[i];
       if (rotation != null) {
         const page = Pdfium.wasmExports.FPDF_LoadPage(docHandle, i);
-        Pdfium.wasmExports.FPDFPage_SetRotation(page, rotation);
-        Pdfium.wasmExports.FPDF_ClosePage(page);
+        if (!page) throw new Error(`Cannot load page ${i} to apply assembly rotation`);
+        try {
+          Pdfium.wasmExports.FPDFPage_SetRotation(page, rotation);
+        } finally {
+          Pdfium.wasmExports.FPDF_ClosePage(page);
+        }
       }
     }
   }
@@ -3146,8 +3169,13 @@ function _movePages(docHandle, fromIndex, toIndex, count) {
   for (let i = 0; i < count; i++) {
     pageIndicesView[i] = fromIndex + i;
   }
-  Pdfium.wasmExports.FPDF_MovePages(docHandle, pageIndices, count, toIndex);
-  Pdfium.wasmExports.free(pageIndices);
+  try {
+    if (!Pdfium.wasmExports.FPDF_MovePages(docHandle, pageIndices, count, toIndex)) {
+      throw new Error('FPDF_MovePages failed during assembly');
+    }
+  } finally {
+    Pdfium.wasmExports.free(pageIndices);
+  }
 }
 
 /**
@@ -3175,8 +3203,13 @@ function _duplicatePages(docHandle, fromIndex, toIndex, count) {
   for (let i = 0; i < count; i++) {
     pageIndicesView[i] = fromIndex + i;
   }
-  Pdfium.wasmExports.FPDF_ImportPagesByIndex(docHandle, docHandle, pageIndices, count, toIndex);
-  Pdfium.wasmExports.free(pageIndices);
+  try {
+    if (!Pdfium.wasmExports.FPDF_ImportPagesByIndex(docHandle, docHandle, pageIndices, count, toIndex)) {
+      throw new Error('FPDF_ImportPagesByIndex failed during assembly');
+    }
+  } finally {
+    Pdfium.wasmExports.free(pageIndices);
+  }
 }
 
 /**
@@ -3190,8 +3223,13 @@ function _insertImportedPage(destDocHandle, srcDocHandle, srcPageIndex, destInde
   const pageIndices = Pdfium.wasmExports.malloc(4); // Int32 for one page
   const pageIndicesView = new Int32Array(Pdfium.memory.buffer, pageIndices, 1);
   pageIndicesView[0] = srcPageIndex;
-  Pdfium.wasmExports.FPDF_ImportPagesByIndex(destDocHandle, srcDocHandle, pageIndices, 1, destIndex);
-  Pdfium.wasmExports.free(pageIndices);
+  try {
+    if (!Pdfium.wasmExports.FPDF_ImportPagesByIndex(destDocHandle, srcDocHandle, pageIndices, 1, destIndex)) {
+      throw new Error('FPDF_ImportPagesByIndex failed during assembly');
+    }
+  } finally {
+    Pdfium.wasmExports.free(pageIndices);
+  }
 }
 
 /**

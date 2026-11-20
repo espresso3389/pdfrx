@@ -462,6 +462,7 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
     this.disposeCallback,
   }) : permissions = parsePermissions(document) {
     _pages = parsePages(this, document['pages'] as List<dynamic>);
+    _nativePageCount = _pages.length;
     updateMissingFonts(document['missingFonts']);
     if (!useProgressiveLoading) {
       _notifyDocumentLoadComplete();
@@ -480,6 +481,7 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
   bool isDisposed = false;
   Future<void>? _disposeFuture;
   bool _documentLoadCompleteNotified = false;
+<<<<<<< HEAD
 
   Map<String, dynamic> get _workerParameters => {
     'docHandle': document['docHandle'],
@@ -502,6 +504,10 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
     }
   }
 
+=======
+  late int _nativePageCount;
+  bool _assembling = false;
+>>>>>>> refs/remotes/pr/855
   final subject = BehaviorSubject<PdfDocumentEvent>();
 
   @override
@@ -696,7 +702,12 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
   List<PdfPage> get pages => _pages;
 
   @override
-  set pages(Iterable<PdfPage> newPages) => _setPages(newPages);
+  set pages(Iterable<PdfPage> newPages) {
+    if (_assembling) {
+      throw StateError('Cannot change pages while assembly is in progress');
+    }
+    _setPages(newPages);
+  }
 
   static bool _samePageSource(PdfPage previous, PdfPage next) {
     final oldSource = previous.unwrap<_PdfPageWasm>();
@@ -800,17 +811,23 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
   }
 
   @override
-  Future<bool> assemble() async {
+  Future<bool> assemble() => synchronized(_assemble);
+
+  Future<bool> _assemble() async {
     if (isDisposed) return false;
+    final pageSnapshot = pages;
     // Build the indices, imported pages map, and rotations
     final indices = <int>[];
     final importedPages = <int, Map<String, dynamic>>{};
     final rotations = <int?>[];
-    var modifiedCount = 0;
+    var modifiedCount = pageSnapshot.length == _nativePageCount ? 0 : 1;
 
-    for (var i = 0; i < pages.length; i++) {
-      final page = pages[i];
+    for (var i = 0; i < pageSnapshot.length; i++) {
+      final page = pageSnapshot[i];
       final wasmPage = page.unwrap<_PdfPageWasm>()!;
+      if (wasmPage.document.isDisposed) {
+        throw StateError('Cannot assemble pages from a disposed PDF document');
+      }
       // if rotation is different, we need to modify the page
       if (page.rotation.index != wasmPage.rotation.index) {
         rotations.add(page.rotation.index);
@@ -839,25 +856,51 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
       return false;
     }
 
-    final result = await _runIfOpen(
-      () => _sendCommand(
-        'assemble',
-        parameters: {
-          ..._workerParameters,
-          'pageIndices': indices,
-          'rotations': rotations,
-          if (importedPages.isNotEmpty) 'importedPages': importedPages,
-        },
-      ),
-    );
-    if (result == null) return false;
+    _assembling = true;
+    try {
+      final result = await _runIfOpen(
+        () => _sendCommand(
+          'assemble',
+          parameters: {
+            ..._workerParameters,
+            'pageIndices': indices,
+            'rotations': rotations,
+            if (importedPages.isNotEmpty) 'importedPages': importedPages,
+          },
+        ),
+      );
+      if (result == null) return false;
 
-    return result['modified'] as bool;
+      // Assembly preserves each page's geometry, but changes its native document/index. Rebase the
+      // pages without a second worker call that could fail after the mutation already succeeded.
+      final assembled = <PdfPage>[
+        for (var i = 0; i < pageSnapshot.length; i++)
+          _PdfPageWasm(
+            this,
+            i,
+            pageSnapshot[i].width,
+            pageSnapshot[i].height,
+            pageSnapshot[i].rotation.index,
+            pageSnapshot[i].isLoaded,
+            pageSnapshot[i].unwrap<_PdfPageWasm>()!.bbLeft,
+            pageSnapshot[i].unwrap<_PdfPageWasm>()!.bbBottom,
+          ),
+      ];
+      _nativePageCount = assembled.length;
+      _setPages(assembled);
+      return result['modified'] as bool;
+    } finally {
+      _assembling = false;
+    }
   }
 
   @override
-  Future<Uint8List> encodePdf({bool incremental = false, bool removeSecurity = false}) async {
-    await assemble();
+  Future<Uint8List> encodePdf({bool incremental = false, bool removeSecurity = false}) =>
+      synchronized(() => _encodePdf(incremental: incremental, removeSecurity: removeSecurity));
+
+  Future<Uint8List> _encodePdf({required bool incremental, required bool removeSecurity}) async {
+    if (isDisposed) throw StateError('Cannot encode a disposed PDF document');
+    await _assemble();
     final result = await _runIfOpen(
       () => _sendCommand(
         'encodePdf',
