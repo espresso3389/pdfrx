@@ -21,6 +21,11 @@ Future<PdfImageWeb> makeImage() async {
   return PdfImageWeb(width: 1, height: 1, pixels: Uint8List.fromList([30, 20, 10, 255]), imageBitmap: bitmap);
 }
 
+class CancelledToken extends Fake implements PdfPageRenderCancellationToken {
+  @override
+  bool get isCanceled => true;
+}
+
 class BitmapPage extends Fake implements PdfPage {
   BitmapPage(this.image);
   final PdfImageWeb image;
@@ -59,5 +64,25 @@ void main() {
     addTearDown(image!.dispose);
     expect(source.takeImageBitmap(), isNull);
     expect(image.width, 1);
+  });
+
+  test('display-only bitmap does not require a raw pixel buffer', () async {
+    final raw = await makeImage();
+    final source = PdfImageWeb.forDisplay(width: 1, height: 1, imageBitmap: raw.takeImageBitmap()!);
+    final image = await BitmapPage(source).renderForDisplay();
+    addTearDown(image!.dispose);
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    expect(bytes!.buffer.asUint8List(), [10, 20, 30, 255]);
+    expect(source.takeImageBitmap(), isNull);
+  });
+
+  test('cancelled display-only results close the bitmap without reading raw pixels', () async {
+    final raw = await makeImage();
+    final bitmap = raw.takeImageBitmap()!;
+    final source = PdfImageWeb.forDisplay(width: 1, height: 1, imageBitmap: bitmap);
+    expect(await BitmapPage(source).renderForDisplay(cancellationToken: CancelledToken()), isNull);
+    expect(bitmap.width, 0);
+    expect(bitmap.height, 0);
+    source.dispose();
   });
 }

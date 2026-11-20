@@ -58,10 +58,24 @@ Future<void> platformInitialize() async {
 }
 
 /// Whether this page supports the web worker bitmap hint.
-bool supportsWorkerBitmap(PdfPage page) => wasm.supportsWorkerBitmap(page);
+bool supportsWorkerBitmap(
+  PdfPage page, {
+  int? width,
+  int? height,
+  double? fullWidth,
+  double? fullHeight,
+  int? pixelSizeThreshold,
+}) => wasm.supportsWorkerBitmap(
+  page,
+  width: width,
+  height: height,
+  fullWidth: fullWidth,
+  fullHeight: fullHeight,
+  pixelSizeThreshold: pixelSizeThreshold,
+);
 
-/// Creates the [ui.Image] from the `ImageBitmap` the PDFium worker rendered alongside [image]'s pixels, so no pixel
-/// passes through the main thread. Returns null if [image] carries no bitmap; the caller then decodes [PdfImage.pixels].
+/// Creates the [ui.Image] from the worker's `ImageBitmap`, without a raw pixel buffer on the main thread.
+/// Returns null if [image] carries no bitmap; the caller then decodes [PdfImage.pixels].
 Future<ui.Image>? createImageFromWorkerBitmap(PdfImage image) {
   if (image is! PdfImageWeb) return null;
   final bitmap = image.takeImageBitmap();

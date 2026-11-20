@@ -809,11 +809,22 @@ class _PdfPageRenderCancellationTokenWasm extends PdfPageRenderCancellationToken
 }
 
 /// Whether this page and its built-in wrappers preserve the worker render hint.
-bool supportsWorkerBitmap(PdfPage page) {
+bool supportsWorkerBitmap(
+  PdfPage page, {
+  int? width,
+  int? height,
+  double? fullWidth,
+  double? fullHeight,
+  int? pixelSizeThreshold,
+}) {
   while (page.runtimeType == PdfPageRenumbered || page.runtimeType == PdfPageRotated) {
     page = (page as PdfPageProxy).basePage;
   }
-  return page is _PdfPageWasm;
+  if (page is! _PdfPageWasm) return false;
+  // Built-in proxies forward unspecified render dimensions to the base page unchanged.
+  return pixelSizeThreshold == null ||
+      ((width ?? (fullWidth ?? page.width).toInt()) <= pixelSizeThreshold &&
+          (height ?? (fullHeight ?? page.height).toInt()) <= pixelSizeThreshold);
 }
 
 class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
@@ -974,27 +985,38 @@ class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
         'formHandle': document.document['formHandle'],
       },
     );
-    final bb = result['imageData'] as ByteBuffer;
-    final pixels = Uint8List.view(bb.asByteData().buffer, 0, bb.lengthInBytes);
-
-    document.updateMissingFonts(result['missingFonts']);
-
-    return PdfImageWeb(width: width, height: height, pixels: pixels, imageBitmap: imageBitmap);
+    try {
+      document.updateMissingFonts(result['missingFonts']);
+      final bb = result['imageData'] as ByteBuffer?;
+      if (bb == null) {
+        if (imageBitmap == null) throw StateError('The PDFium worker returned no rendered image.');
+        return PdfImageWeb.forDisplay(width: width, height: height, imageBitmap: imageBitmap);
+      }
+      return PdfImageWeb(width: width, height: height, pixels: Uint8List.view(bb), imageBitmap: imageBitmap);
+    } catch (_) {
+      imageBitmap?.close();
+      rethrow;
+    }
   }
 }
 
 class PdfImageWeb extends PdfImage {
-  PdfImageWeb({required this.width, required this.height, required this.pixels, this._imageBitmap});
+  PdfImageWeb({required this.width, required this.height, required Uint8List this._pixels, this._imageBitmap});
+
+  /// Internal display-only result. [PdfPage.render] without the private display hint always retains raw pixels.
+  PdfImageWeb.forDisplay({required this.width, required this.height, required web.ImageBitmap this._imageBitmap})
+    : _pixels = null;
 
   @override
   final int width;
   @override
   final int height;
   @override
-  final Uint8List pixels;
+  Uint8List get pixels => _pixels ?? (throw StateError('Display-only images have no raw pixel buffer.'));
+  final Uint8List? _pixels;
 
-  /// The same pixels as [pixels], already converted by the PDFium worker into an `ImageBitmap` (RGBA,
-  /// non-premultiplied source); null if the browser cannot create one in a worker.
+  /// Pixels converted by the PDFium worker into an `ImageBitmap` (RGBA, non-premultiplied source).
+  /// Null if the browser cannot create one in a worker or the caller requests raw output.
   web.ImageBitmap? _imageBitmap;
 
   /// Hands the `ImageBitmap` over to the caller, who then owns it; returns null if there is none or it was taken.

@@ -78,6 +78,15 @@ extension PdfPageExt on PdfPage {
     PdfPageRenderPriority? priority,
     int? pixelSizeThreshold,
   }) async {
+    // Resizing uses the raw codec path. Otherwise the worker can omit the unused BGRA output entirely.
+    final useWorkerBitmap = supportsWorkerBitmap(
+      this,
+      width: width,
+      height: height,
+      fullWidth: fullWidth,
+      fullHeight: fullHeight,
+      pixelSizeThreshold: pixelSizeThreshold,
+    );
     final rendered = await render(
       x: x,
       y: y,
@@ -88,7 +97,7 @@ extension PdfPageExt on PdfPage {
       backgroundColor: backgroundColor,
       rotationOverride: rotationOverride,
       annotationRenderingMode: annotationRenderingMode,
-      flags: flags | (supportsWorkerBitmap(this) ? _renderForDisplayFlag : 0),
+      flags: (flags & ~_renderForDisplayFlag) | (useWorkerBitmap ? _renderForDisplayFlag : 0),
       cancellationToken: cancellationToken,
       priority: priority,
     );
