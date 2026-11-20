@@ -720,8 +720,11 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
       // ScrollPhysics operates on viewport pixels, so applying it here mixes coordinate systems and
       // can produce page-sized jumps near a boundary in long documents.
       // With [InteractiveViewer.constrainPinch], the pinch is kept inside the boundaries with the
-      // clamp that the snap-back uses, so the two agree on where the content belongs.
-      if (_gestureType == _GestureType.scale) return widget.constrainPinch ? _matrixClamp(nextMatrix) : nextMatrix;
+      // clamp that the snap-back uses, so the two agree on where the content belongs. Otherwise it
+      // may leave them as far as the physics lets a scroll overscroll.
+      if (_gestureType == _GestureType.scale) {
+        return widget.constrainPinch ? _matrixClamp(nextMatrix) : _matrixClampToOverscroll(nextMatrix);
+      }
 
       final physics = widget.scrollPhysics!;
       // current translation in scene coordinates (negative because controller stores inverse)
@@ -1620,6 +1623,38 @@ class InteractiveViewerState extends State<InteractiveViewer> with TickerProvide
     final clampedY = totalTranslation.dy.clamp(minY, maxY);
 
     return matrix.clone()..setTranslation(Vector3(clampedX, clampedY, 0.0));
+  }
+
+  /// Clamps the translation of [matrix] to the content boundaries (as [_matrixClamp]) plus the
+  /// overscroll that [InteractiveViewer.scrollPhysics] allows beyond them: none with
+  /// [ClampingScrollPhysics], any with [BouncingScrollPhysics].
+  ///
+  /// Works on the translation of the matrix, i.e. in viewport pixels, as the physics expects.
+  Matrix4 _matrixClampToOverscroll(Matrix4 matrix) {
+    final physics = widget.scrollPhysics;
+    if (physics == null) return matrix;
+    final translation = _getMatrixTranslation(matrix);
+    final bound = _getMatrixTranslation(_matrixClamp(matrix));
+    if (translation == bound) return matrix;
+
+    // The scroll offset is the negative of the translation. The boundary is given to the physics
+    // as an empty scroll range with the view at it, so it answers how much of the excess is too much.
+    double allowed(double translation, double bound, AxisDirection direction, double viewportDimension) {
+      if (translation == bound) return translation;
+      final atBoundary = FixedScrollMetrics(
+        pixels: -bound,
+        minScrollExtent: -bound,
+        maxScrollExtent: -bound,
+        viewportDimension: viewportDimension,
+        axisDirection: direction,
+        devicePixelRatio: 1.0,
+      );
+      return translation + physics.applyBoundaryConditions(atBoundary, -translation);
+    }
+
+    final x = allowed(translation.dx, bound.dx, AxisDirection.right, _viewport.width);
+    final y = allowed(translation.dy, bound.dy, AxisDirection.down, _viewport.height);
+    return matrix.clone()..setTranslation(Vector3(x, y, 0.0));
   }
 
   /// The point of the view that the snap-back of a constrained pinch scales about (see
