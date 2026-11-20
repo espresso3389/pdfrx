@@ -249,6 +249,10 @@ jobs:
         working-directory: packages/pdfrx
         run: flutter test test/pdf_viewer_partial_cache_test.dart
 
+      - name: Test partial image reuse and pixel alignment
+        working-directory: packages/pdfrx
+        run: flutter test test/pdf_viewer_partial_reuse_test.dart test/partial_rendering_test.dart
+
       - name: Test magnifier rendering lifecycle
         working-directory: packages/pdfrx
         run: flutter test test/pdf_viewer_magnifier_lifecycle_test.dart
@@ -268,6 +272,20 @@ jobs:
           test/pdf_text_searcher_test.dart
           test/pdf_text_search_limits_test.dart
           test/pdf_text_search_retention_test.dart
+
+      - name: Test shared image budget notifications
+        timeout-minutes: 5
+        working-directory: packages/pdfrx
+        run: flutter test test/pdf_image_cache_budget_test.dart test/pdf_viewer_budget_notifications_test.dart
+
+      - name: Test indexed text selection and cache ownership
+        working-directory: packages/pdfrx
+        run: >-
+          flutter test
+          test/text_selection_index_test.dart
+          test/pdf_viewer_text_hit_testing_test.dart
+          test/pdf_viewer_selection_drag_test.dart
+          test/pdf_viewer_selection_memory_test.dart
 
       - name: Test process-wide PDFium gate
         timeout-minutes: 5

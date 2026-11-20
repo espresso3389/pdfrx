@@ -3390,10 +3390,15 @@ void _expectPartialsAtVisibleResolution(
   final regions = _visibleRegions(controller, devicePixelRatio: devicePixelRatio);
   expect(regions, isNotEmpty);
   for (final MapEntry(key: pageNumber, value: region) in regions.entries) {
-    final requested = (document.pages[pageNumber - 1] as _TestPage).renderControl.partialSizes.last;
-    // Render coordinates are truncated to whole pixels.
-    expect(requested.width, closeTo(region.width * factor, 1), reason: 'page $pageNumber width');
-    expect(requested.height, closeTo(region.height * factor, 1), reason: 'page $pageNumber height');
+    final control = (document.pages[pageNumber - 1] as _TestPage).renderControl;
+    final requested = control.partialSizes.last;
+    // A partial may include bounded overscan. Its full-page dimensions measure the actual pixel density.
+    final page = controller.layout.pageLayouts[pageNumber - 1];
+    final scale = controller.currentZoom * devicePixelRatio * factor;
+    expect(control.partialFullSizes.last.width, closeTo(page.width * scale, 1), reason: 'page $pageNumber scale');
+    expect(control.partialFullSizes.last.height, closeTo(page.height * scale, 1), reason: 'page $pageNumber scale');
+    expect(requested.width, inInclusiveRange((region.width * factor).floor(), (region.width * factor).ceil() + 128));
+    expect(requested.height, inInclusiveRange((region.height * factor).floor(), (region.height * factor).ceil() + 128));
   }
 }
 
@@ -3634,6 +3639,7 @@ class _TestPage implements PdfPage {
     final size = Size(imageWidth.toDouble(), imageHeight.toDouble());
     renderControl.renderSizes.add(size);
     (width == null ? renderControl.previewSizes : renderControl.partialSizes).add(size);
+    if (width != null) renderControl.partialFullSizes.add(Size(fullWidth!, fullHeight!));
     if (width == null) renderControl.previewPriorities.add(priority);
     await renderControl.beforeRender();
     // A timed render stops early when cancelled, as the native engine does.
@@ -3661,6 +3667,7 @@ class _TestPageRenderControl {
   final previewSizes = <Size>[];
   final previewPriorities = <PdfPageRenderPriority?>[];
   final partialSizes = <Size>[];
+  final partialFullSizes = <Size>[];
   bool renderAtRequestedSize = false;
   Duration renderDuration = Duration.zero;
   int previewsDone = 0;

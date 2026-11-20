@@ -26,6 +26,7 @@ import 'internals/page_layout_index.dart';
 import 'internals/page_link_loader.dart';
 import 'internals/pdf_error_widget.dart';
 import 'internals/pdf_viewer_key_handler.dart';
+import 'internals/text_selection_index.dart';
 import 'internals/widget_size_sniffer.dart';
 import 'layout/pdf_fit_mode.dart';
 import 'layout/pdf_page_layout_strategy.dart';
@@ -290,12 +291,15 @@ class _PdfViewerState extends State<PdfViewer>
   // Without a shared budget, keep the legacy cache limit without capping in-flight renders.
   late final _localImageBudget = PdfImageCacheBudget(maximumBytes: 0x1fffffffffffff);
   PdfImageCacheBudget get _imageBudget => widget.params.imageCacheBudget ?? _localImageBudget;
+  late int _lastImageBudgetMaximumBytes;
+  bool _imageBudgetEvictedOwnImage = false;
 
   late final _canvasLinkPainter = _CanvasLinkPainter(this);
 
   // Changes to the stream rebuilds the viewer
   final _updateStream = BehaviorSubject<Matrix4>();
 
+  final _textSelectionIndexes = TextSelectionIndexCache();
   PdfPageTextCache? _textCache;
   PdfPageTextCacheLease? _textCacheLease;
   ({int? first, int? last, List<int> visible})? _textCachePins;
@@ -361,6 +365,7 @@ class _PdfViewerState extends State<PdfViewer>
   @override
   void initState() {
     super.initState();
+    _lastImageBudgetMaximumBytes = _imageBudget.maximumBytes;
     _imageBudget.addListener(_onImageBudgetChanged);
     SemanticsBinding.instance.addSemanticsEnabledListener(_onSemanticsEnabledChanged);
     _viewerInstanceId = ++_viewerInstanceCounter;
@@ -394,6 +399,8 @@ class _PdfViewerState extends State<PdfViewer>
     }
     if (!identical(widget.params.imageCacheBudget, oldWidget.params.imageCacheBudget)) {
       (oldWidget.params.imageCacheBudget ?? _localImageBudget).removeListener(_onImageBudgetChanged);
+      _lastImageBudgetMaximumBytes = _imageBudget.maximumBytes;
+      _imageBudgetEvictedOwnImage = false;
       _imageBudget.addListener(_onImageBudgetChanged);
       _imageCache.releaseAllImages();
       _magnifierImageCache.releaseAllImages();
@@ -533,6 +540,7 @@ class _PdfViewerState extends State<PdfViewer>
     _textCacheLease = null;
     _textCachePins = null;
     _textCache = null;
+    _textSelectionIndexes.clear();
     _pendingTextLoads.clear();
     _clearTextSelections(invalidate: false);
     _pagesBeingMeasured.clear();
@@ -666,6 +674,7 @@ class _PdfViewerState extends State<PdfViewer>
   void dispose() {
     _imageBudget.removeListener(_onImageBudgetChanged);
     _localImageBudget.dispose();
+    _textSelectionIndexes.clear();
     _textCacheLease?.dispose();
     _selectedTextSnapshot = null;
     _textCopyInvalidators.clear();
@@ -752,6 +761,7 @@ class _PdfViewerState extends State<PdfViewer>
       }
       final pageCount = event.document.pages.length;
       if (_layout != null && pageCount < _layout!.pageLayouts.length) {
+        _textSelectionIndexes.clear();
         _imageCache.releaseImagesAfter(pageCount);
         _magnifierImageCache.releaseImagesAfter(pageCount);
       }
@@ -766,6 +776,7 @@ class _PdfViewerState extends State<PdfViewer>
         _magnifierImageCache.makeCacheImageForPageDirty(change.key, page: metadataOnly ? status.page : null);
         _canvasLinkPainter.releaseLinksForPage(change.key);
         _textCache?.invalidate(change.key);
+        _textSelectionIndexes.invalidate(change.key);
       }
       // Only drop the selection if one of the changed pages is actually part of it;
       // otherwise incremental loading of unrelated pages would keep clearing it.
@@ -2424,7 +2435,19 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _onImageBudgetChanged() {
-    if (mounted && widget.params.isVisible) _invalidate();
+    final maximumBytes = _imageBudget.maximumBytes;
+    final needsUpdate =
+        _imageBudgetEvictedOwnImage ||
+        _imageCache.isWaitingForBudget ||
+        _magnifierImageCache.isWaitingForBudget ||
+        maximumBytes != _lastImageBudgetMaximumBytes;
+    _lastImageBudgetMaximumBytes = maximumBytes;
+    _imageBudgetEvictedOwnImage = false;
+    // The next paint establishes which requests still need room. A ready viewer does not rebuild merely
+    // because another owner committed or released an image in the shared budget.
+    _imageCache.isWaitingForBudget = false;
+    _magnifierImageCache.isWaitingForBudget = false;
+    if (needsUpdate && mounted && widget.params.isVisible) _invalidate();
   }
 
   void _updateTextCachePins({bool keepVisible = true, bool keepSelection = true}) {
@@ -2455,6 +2478,7 @@ class _PdfViewerState extends State<PdfViewer>
     FilterQuality filterQuality = FilterQuality.high,
   }) {
     if (!_canRenderCache(cache)) return;
+    cache.isWaitingForBudget = false;
     final unusedPageList = <int>[];
     final previewRequests = <({PdfPage page, double scale, Rect rect})>[];
     final unmeasuredPageList = <int>[];
@@ -3094,6 +3118,7 @@ class _PdfViewerState extends State<PdfViewer>
     if (!keepSelection) _clearTextSelections(invalidate: false);
     _updateTextCachePins(keepVisible: keepVisible, keepSelection: keepSelection);
     _textCache?.clear(keepPinned: true);
+    _textSelectionIndexes.clear();
     _canvasLinkPainter.resetAll();
     _releaseCachedImages(keepVisible: keepVisible && widget.params.isVisible);
   }
@@ -3131,6 +3156,7 @@ class _PdfViewerState extends State<PdfViewer>
       isPinned: cache.visiblePageNumbers.contains(pageNumber),
       isNeeded: true,
       onEvict: () {
+        _imageBudgetEvictedOwnImage = true;
         if (partial) {
           if (identical(cache.pageImagesPartial[pageNumber], image)) cache.pageImagesPartial.remove(pageNumber);
         } else {
@@ -3140,6 +3166,7 @@ class _PdfViewerState extends State<PdfViewer>
       },
     );
     if (entry == null) {
+      cache.isWaitingForBudget = true;
       image.dispose();
       return false;
     }
@@ -3215,9 +3242,15 @@ class _PdfViewerState extends State<PdfViewer>
           final reservable = _imageBudget.reservableBytes(keepNeeded: true) + (prev?.budgetEntry?.bytes ?? 0);
           // Measured on the unrounded size, so that the rounded-down result always fits.
           final fit = bytes <= reservable ? 1.0 : sqrt(reservable / (width * height * 12));
-          if (fit < 1 && (fit < 0.5 || _imageBudget.pendingBytes > 0)) return;
+          if (fit < 1 && (fit < 0.5 || _imageBudget.pendingBytes > 0)) {
+            cache.isWaitingForBudget = true;
+            return;
+          }
           // A shrunk preview is replaced only by a clearly sharper one, so that freed room cannot cause churn.
-          if (fit < 1 && prev != null && !prev.isDirty && prev.scale <= scale && scale * fit < prev.scale * 1.1) return;
+          if (fit < 1 && prev != null && !prev.isDirty && prev.scale <= scale && scale * fit < prev.scale * 1.1) {
+            cache.isWaitingForBudget = true;
+            return;
+          }
           if (fit < 1) {
             width *= fit;
             height *= fit;
@@ -3231,7 +3264,10 @@ class _PdfViewerState extends State<PdfViewer>
           allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _onlyPrefetchesPending,
           keepNeeded: priority == PdfPageRenderPriority.low,
         );
-        if (reservation == null) return;
+        if (reservation == null) {
+          cache.isWaitingForBudget = true;
+          return;
+        }
         ui.Image? rendered;
         try {
           rendered = await page.renderForDisplay(
@@ -3308,7 +3344,7 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
-  /// Requests the partial image of the visible part of [page] unless the cached one already matches.
+  /// Requests a partial covering the visible part of [page], reusing cached or pending coverage when possible.
   ///
   /// Returns the wanted rectangle and scale, or null when no partial image can be requested.
   _PartialImageRequestStatus? _requestRealSizePartialImage(
@@ -3320,24 +3356,40 @@ class _PdfViewerState extends State<PdfViewer>
   ) {
     if (!_canRenderCache(cache)) return null;
     final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
-    final rect = pageRect.intersect(targetRect);
-    scale = _boundedRenderingScale(scale, rect.width, rect.height, sharedArea: visibleArea);
+    final visibleRect = pageRect.intersect(targetRect);
+    scale = _boundedRenderingScale(scale, visibleRect.width, visibleRect.height, sharedArea: visibleArea);
+    if (visibleRect.width < 1 || visibleRect.height < 1) return null;
+    final exact = partialRenderingRegion(pageRect, visibleRect, scale);
+    if (exact != null && (exact.width < 1 || exact.height < 1)) return null;
+    // Extra pixels share the visible pages' limit; they cannot lower the visible region's rendering scale.
+    final maximumBytes = min(_imageBudget.maximumBytes, widget.params.maxImageBytesCachedOnMemory);
+    final share = visibleArea > 0 ? visibleRect.width * visibleRect.height / visibleArea : 0.0;
+    final maximumPixels = max(exact?.pixels ?? 0, (maximumBytes / 12 * share).floor());
+    bool covers(PartialRenderingRegion region) =>
+        region.pixels <= maximumPixels && region.covers(pageRect, visibleRect, scale);
+
     final prev = cache.pageImagesPartial[page.pageNumber];
-    if (prev != null && !prev.isDirty && prev.rect == rect && prev.scale == scale) {
-      return (rect: rect, scale: scale, isCurrent: true);
+    if (prev != null && !prev.isDirty && covers(prev.region)) {
+      // A pending replacement from an excursion outside this region must not replace it after panning back.
+      cache.cancelPendingPartialRendering(page.pageNumber);
+      return (rect: prev.rect, scale: scale, isCurrent: true);
     }
-    if (rect.width < 1 || rect.height < 1) return null;
-    // A sliver narrower than a pixel produces no image (see _createRealSizePartialImage); it is still requested as
-    // before, but no partial image is wanted for it.
-    final pixels = scaleRectForRendering(rect.translate(-pageRect.left, -pageRect.top), scale);
-    final status = pixels != null && (pixels.width < 1 || pixels.height < 1)
-        ? null
-        : (rect: rect, scale: scale, isCurrent: false);
-    if (!_canRetryRender(cache.partialRenderFailures, page.pageNumber, (rect: rect, scale: scale))) return status;
     final pending = cache.pageImagePartialRenderingRequests[page.pageNumber];
-    if (pending != null && pending.rect == rect && pending.scale == scale && !pending.cancellationToken.isCanceled) {
-      return status;
+    if (pending != null && !pending.cancellationToken.isCanceled && covers(pending.region)) {
+      return (rect: pending.region.rect, scale: scale, isCurrent: false);
     }
+    final failed = cache.partialRenderFailures[page.pageNumber]?.key;
+    final region = failed != null && covers(failed)
+        ? failed
+        : partialRenderingRegion(
+            pageRect,
+            visibleRect,
+            scale,
+            maximumPixels: min(maximumPixels, _imageBudget.reservableBytes() ~/ 12),
+          );
+    if (region == null) return null;
+    final status = (rect: region.rect, scale: scale, isCurrent: false);
+    if (!_canRetryRender(cache.partialRenderFailures, page.pageNumber, region)) return status;
 
     cache.pageImagePartialRenderingRequests[page.pageNumber]?.cancel();
 
@@ -3348,7 +3400,7 @@ class _PdfViewerState extends State<PdfViewer>
         if (cache.pageImagePartialRenderingRequests[page.pageNumber] != request) return;
         try {
           if (!_canRenderCache(cache) || cancellationToken.isCanceled) return;
-          final newImage = await _createRealSizePartialImage(cache, page, scale, rect, cancellationToken);
+          final newImage = await _createRealSizePartialImage(cache, page, region, cancellationToken);
           if (newImage != null && cache.pageImagePartialRenderingRequests[page.pageNumber] == request) {
             cache.pageImagesPartial.remove(page.pageNumber)?.dispose();
             cache.pageImagesPartial[page.pageNumber] = newImage;
@@ -3367,8 +3419,7 @@ class _PdfViewerState extends State<PdfViewer>
         }
       }),
       cancellationToken,
-      rect,
-      scale,
+      region,
     );
     cache.pageImagePartialRenderingRequests[page.pageNumber] = request;
     return status;
@@ -3377,28 +3428,29 @@ class _PdfViewerState extends State<PdfViewer>
   Future<_PdfImageWithScaleAndRect?> _createRealSizePartialImage(
     _PdfPageImageCache cache,
     PdfPage page,
-    double scale,
-    Rect rect,
+    PartialRenderingRegion region,
     PdfPageRenderCancellationToken cancellationToken,
   ) async {
-    if (!_canRenderCache(cache) || cancellationToken.isCanceled) return null;
+    bool isCurrent() =>
+        _canRenderCache(cache) &&
+        !cancellationToken.isCanceled &&
+        page.pageNumber <= _layout!.pageLayouts.length &&
+        _layout!.pageLayouts[page.pageNumber - 1] == region.pageRect;
+    if (!isCurrent()) return null;
     // Recorded for PdfViewerController.visibleRenderState when no image can be produced for this request.
     void recordFailure() {
       if (mounted && widget.params.isVisible && !cancellationToken.isCanceled) {
-        _recordRenderFailure(cache.partialRenderFailures, page.pageNumber, (rect: rect, scale: scale));
+        _recordRenderFailure(cache.partialRenderFailures, page.pageNumber, region);
       }
     }
 
-    final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
-    final inPageRect = rect.translate(-pageRect.left, -pageRect.top);
-    final scaledRect = scaleRectForRendering(inPageRect, scale);
-    final fullWidth = pageRect.width * scale;
-    final fullHeight = pageRect.height * scale;
-    if (scaledRect == null || !fullWidth.isFinite || !fullHeight.isFinite) {
+    final fullWidth = region.pageRect.width * region.scale;
+    final fullHeight = region.pageRect.height * region.scale;
+    if (!fullWidth.isFinite || !fullHeight.isFinite) {
       recordFailure();
       return null;
     }
-    final (:x, :y, :width, :height) = scaledRect;
+    final x = region.x, y = region.y, width = region.width, height = region.height;
     // Nothing to render, which is not a failure; see _requestRealSizePartialImage.
     if (width < 1 || height < 1) return null;
 
@@ -3410,7 +3462,10 @@ class _PdfViewerState extends State<PdfViewer>
       width * height * 12,
       allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _onlyPrefetchesPending,
     );
-    if (reservation == null) return null;
+    if (reservation == null) {
+      cache.isWaitingForBudget = true;
+      return null;
+    }
     try {
       rendered = await page.renderForDisplay(
         x: x,
@@ -3425,13 +3480,13 @@ class _PdfViewerState extends State<PdfViewer>
         cancellationToken: cancellationToken,
         priority: PdfPageRenderPriority.high,
       );
-      if (rendered == null || !_canRenderCache(cache) || cancellationToken.isCanceled) {
+      if (rendered == null || !isCurrent()) {
         if (rendered == null && !cancellationToken.isCanceled) recordFailure();
         return null;
       }
-      final image = _PdfImageWithScaleAndRect(rendered, scale, rect, x, y, pageGeometry: _pageGeometryOf(page));
+      final image = _PdfImageWithScaleAndRect(rendered, region, pageGeometry: _pageGeometryOf(page));
       rendered = null;
-      if (!_canRenderCache(cache) || cancellationToken.isCanceled) {
+      if (!isCurrent()) {
         image.dispose();
         return null;
       }
@@ -4193,22 +4248,8 @@ class _PdfViewerState extends State<PdfViewer>
       final text = _getCachedTextOrDelayLoadText(pageIndex + 1, onTextLoaded: () => _updateTextSelection());
       if (text == null) continue;
       final pt = point.translate(-pageRect.left, -pageRect.top).toPdfPoint(page: page, scaledPageSize: pageRect.size);
-      var d2Min = double.infinity;
-      int? closestIndex;
-      for (var i = 0; i < text.charRects.length; i++) {
-        final charRect = text.charRects[i];
-        if (charRect.containsPoint(pt)) {
-          return PdfTextSelectionPoint(text, i);
-        }
-        final d2 = charRect.distanceSquaredTo(pt);
-        if (d2 < d2Min) {
-          d2Min = d2;
-          closestIndex = i;
-        }
-      }
-      if (closestIndex != null && d2Min <= hitTestMargin * hitTestMargin) {
-        return PdfTextSelectionPoint(text, closestIndex);
-      }
+      final index = _textSelectionIndexes.forText(text).nearest(text.charRects, pt, maximumDistance: hitTestMargin);
+      if (index != null) return PdfTextSelectionPoint(text, index);
     }
     return null;
   }
@@ -5021,7 +5062,6 @@ class _PdfViewerState extends State<PdfViewer>
     final strict = _findTextAndIndexForPoint(point);
     if (strict != null) return strict;
     final nearestPage = _pageLayoutIndex!.nearest(point);
-    var distance = double.infinity;
     final pages = _layout!.pageLayouts;
     if (nearestPage == null) return null;
     final text = _getCachedTextOrDelayLoadText(nearestPage + 1);
@@ -5031,24 +5071,8 @@ class _PdfViewerState extends State<PdfViewer>
       page: _document!.pages[nearestPage],
       scaledPageSize: pageRect.size,
     );
-    var index = 0;
-    distance = double.infinity;
-    var top = -double.infinity;
-    var bottom = double.infinity;
-    for (var i = 0; i < text.charRects.length; i++) {
-      final rect = text.charRects[i];
-      top = max(top, rect.top);
-      bottom = min(bottom, rect.bottom);
-      final d = rect.distanceSquaredTo(pt);
-      if (d < distance) {
-        distance = d;
-        index = i;
-      }
-    }
-    // In page margins, select through the page boundary in text order.
-    if (pt.y > top) index = 0;
-    if (pt.y < bottom) index = text.charRects.length - 1;
-    return PdfTextSelectionPoint(text, index);
+    final index = _textSelectionIndexes.forText(text).nearestForHandle(text.charRects, pt);
+    return index == null ? null : PdfTextSelectionPoint(text, index);
   }
 
   void _onSelectionHandlePanStart(_TextSelectionPart handle, DragStartDetails details) {
@@ -5514,6 +5538,8 @@ class _PdfViewerState extends State<PdfViewer>
 }
 
 class _PdfPageImageCache {
+  /// Whether a request in the current paint or its delayed work could not obtain image memory.
+  bool isWaitingForBudget = false;
   Set<int> visiblePageNumbers = {};
   final pageImages = <int, _PdfImageWithScale>{};
   final pageImageRenderingTimers = <int, Timer>{};
@@ -5527,7 +5553,7 @@ class _PdfPageImageCache {
   final previewRenderFailures = <int, _PdfImageRenderFailure<double>>{};
 
   /// Failed partial requests and their bounded retries, by page number.
-  final partialRenderFailures = <int, _PdfImageRenderFailure<({Rect rect, double scale})>>{};
+  final partialRenderFailures = <int, _PdfImageRenderFailure<PartialRenderingRegion>>{};
 
   void clearRenderFailures(int pageNumber) {
     previewRenderFailures.remove(pageNumber)?.dispose();
@@ -5609,7 +5635,11 @@ class _PdfPageImageCache {
 
   /// Disposes every image except those of [keep], cancelling their pending renders; see
   /// [PdfViewerController.releaseCachedImages].
-  void releaseImagesExcept(Set<int> keep) => _releaseImagesWhere((pageNumber) => !keep.contains(pageNumber));
+  void releaseImagesExcept(Set<int> keep) {
+    // Keeping visible pages also keeps their wait for a reservation. This operation need not cause a paint.
+    if (keep.isEmpty) isWaitingForBudget = false;
+    _releaseImagesWhere((pageNumber) => !keep.contains(pageNumber));
+  }
 
   /// Releases removed page slots before cache entries are compared with the new layout.
   void releaseImagesAfter(int lastPageNumber) => _releaseImagesWhere((pageNumber) => pageNumber > lastPageNumber);
@@ -5654,6 +5684,7 @@ class _PdfPageImageCache {
   }
 
   void cancelAllPendingRenderings() {
+    isWaitingForBudget = false;
     for (final pageNumber in pendingPageNumbers.toList()) {
       cancelPendingRenderings(pageNumber);
     }
@@ -5744,11 +5775,10 @@ class _PdfImageRenderFailure<K> {
 }
 
 class _PdfPartialImageRenderingRequest {
-  _PdfPartialImageRenderingRequest(this.timer, this.cancellationToken, this.rect, this.scale);
+  _PdfPartialImageRenderingRequest(this.timer, this.cancellationToken, this.region);
   final Timer timer;
   final PdfPageRenderCancellationToken cancellationToken;
-  final Rect rect;
-  final double scale;
+  final PartialRenderingRegion region;
 
   void cancel() {
     timer.cancel();
@@ -5839,15 +5869,18 @@ class _PdfImageWithScale {
 }
 
 class _PdfImageWithScaleAndRect extends _PdfImageWithScale {
-  _PdfImageWithScaleAndRect(super.image, super.scale, this.rect, this.left, this.top, {super.pageGeometry});
-  final Rect rect;
-  final int left;
-  final int top;
+  _PdfImageWithScaleAndRect(ui.Image image, this.region, {super.pageGeometry}) : super(image, region.scale);
+  final PartialRenderingRegion region;
+  Rect get rect => region.rect;
+  int get left => region.x;
+  int get top => region.y;
 
   int get bottom => top + height;
   int get right => left + width;
 
   void draw(Canvas canvas, [FilterQuality filterQuality = FilterQuality.low, ColorFilter? colorFilter]) {
+    canvas.save();
+    canvas.clipRect(region.pageRect);
     canvas.drawImageRect(
       image,
       Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
@@ -5856,6 +5889,7 @@ class _PdfImageWithScaleAndRect extends _PdfImageWithScale {
         ..filterQuality = filterQuality
         ..colorFilter = colorFilter,
     );
+    canvas.restore();
   }
 
   void drawNoScale(Canvas canvas, int x, int y, [FilterQuality filterQuality = FilterQuality.low]) {
