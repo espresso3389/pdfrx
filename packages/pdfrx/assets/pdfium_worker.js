@@ -1332,6 +1332,95 @@ function _mergeDownloadSegments(segments) {
   return merged;
 }
 
+/** @type {Map<number, {buffer: number, size: number, fileName: string|null, dispose: function():void}>} */
+const documentDataSources = new Map();
+let nextDocumentDataSourceId = 0;
+
+/**
+ * Register one backing source for all password attempts of a pending open.
+ * The successful document takes ownership; a failed or abandoned open releases the source explicitly.
+ * @param {{data: ArrayBuffer}} params
+ */
+function registerDocumentData({ data }) {
+  const sourceId = ++nextDocumentDataSourceId;
+  const size = data.byteLength;
+  let buffer = 0;
+  let fileName = null;
+  let disposed = false;
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    documentDataSources.delete(sourceId);
+    if (buffer) Pdfium.wasmExports.free(buffer);
+    if (fileName) fileSystem.unregisterFile(fileName);
+  };
+  try {
+    if (size < 1024 * 1024) {
+      buffer = Pdfium.wasmExports.malloc(Math.max(size, 1));
+      if (!buffer) throw new Error(`Failed to allocate memory for PDF data (${size} bytes)`);
+      new Uint8Array(Pdfium.memory.buffer, buffer, size).set(new Uint8Array(data));
+    } else {
+      // Distinct opens must not overwrite or unregister another document's lazy reads.
+      fileName = `/tmp/pdfrx-data-${sourceId}.pdf`;
+      fileSystem.registerFileWithData(fileName, data);
+    }
+    documentDataSources.set(sourceId, { buffer, size, fileName, dispose });
+    return { sourceId };
+  } catch (error) {
+    dispose();
+    throw error;
+  }
+}
+
+/** @param {{sourceId: number}} params */
+function releaseDocumentData({ sourceId }) {
+  documentDataSources.get(sourceId)?.dispose();
+  return {};
+}
+
+/**
+ * Password failures leave the pending source registered, without allocating or copying it again.
+ * @param {{sourceId: number, password?: string, useProgressiveLoading?: boolean}} params
+ */
+function loadDocumentFromRegisteredData({ sourceId, password, useProgressiveLoading }) {
+  const source = documentDataSources.get(sourceId);
+  if (!source) throw new Error('PDF data source has already been released or opened');
+  let passwordPtr = 0;
+  let fileNamePtr = 0;
+  let docHandle = 0;
+  try {
+    passwordPtr = StringUtils.allocateUTF8(password || '');
+    if (source.fileName) {
+      fileNamePtr = StringUtils.allocateUTF8(source.fileName);
+      docHandle = Pdfium.wasmExports.FPDF_LoadDocument(fileNamePtr, passwordPtr);
+    } else {
+      docHandle = Pdfium.wasmExports.FPDF_LoadMemDocument(source.buffer, source.size, passwordPtr);
+    }
+  } finally {
+    StringUtils.freeUTF8(passwordPtr);
+    StringUtils.freeUTF8(fileNamePtr);
+  }
+
+  try {
+    // On initialization failure _loadDocument releases its own form resources.
+    // Keep the source alive until the native document has been closed below.
+    const result = _loadDocument(docHandle, useProgressiveLoading, () => {});
+    if (docHandle) {
+      disposers[docHandle] = source.dispose;
+      documentDataSources.delete(sourceId);
+    }
+    return result;
+  } catch (error) {
+    try {
+      if (docHandle) Pdfium.wasmExports.FPDF_CloseDocument(docHandle);
+    } finally {
+      delete missingFonts[docHandle];
+      source.dispose();
+    }
+    throw error;
+  }
+}
+
 /**
  * @param {{data: ArrayBuffer, password: string|undefined, useProgressiveLoading: boolean|undefined}} params
  */
@@ -3156,6 +3245,9 @@ function _setImageObjPixels(pageHandle, imageObj, pixels, pixelWidth, pixelHeigh
 const functions = {
   loadDocumentFromUrl,
   loadDocumentFromData,
+  registerDocumentData,
+  loadDocumentFromRegisteredData,
+  releaseDocumentData,
   createNewDocument,
   createDocumentFromJpegData,
   loadPagesProgressively,

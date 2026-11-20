@@ -86,10 +86,14 @@ abstract class PdfDocument {
   /// are loaded progressively when [PdfDocument.loadPagesProgressively] is called explicitly.
   ///
   /// [sourceName] must be some ID, e.g., file name or URL, to identify the source of the PDF. If [sourceName] is not
-  /// unique for each source, the viewer may not work correctly.
+  /// unique for each source, the viewer may not work correctly. When omitted, a SHA-256 digest of [data] identifies
+  /// the source. Supply a stable name when available to avoid hashing large inputs.
   ///
   /// Web only: [allowDataOwnershipTransfer] is used to determine if the data buffer can be transferred to
-  /// the worker thread.
+  /// the worker thread. If true, a complete backing buffer may be detached and must no longer be used by the caller,
+  /// including through other views of the same buffer, even if opening fails. Subviews are copied to an exact-size
+  /// buffer so bytes outside the view remain usable. If false, the caller's buffer remains usable.
+  /// Web uploads the source once and reuses it across password attempts.
   ///
   /// On native PDFium platforms, [maxSizeToCacheOnMemory] is the maximum PDF size to load directly into native
   /// memory. Larger documents use on-demand reads. The default is 1MB. Other backends ignore this option.
