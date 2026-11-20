@@ -2263,7 +2263,7 @@ function cancelRender(params) {
  * formHandle: number
  * }} params
  * @returns {{
- * imageData: ArrayBuffer,
+ * imageData: ArrayBuffer|null,
  * width: number,
  * height: number,
  * missingFonts: FontQueries
@@ -2333,23 +2333,26 @@ function _renderPage(params) {
       );
     }
     const src = new Uint8Array(Pdfium.memory.buffer, bufferPtr, bufferSize);
-    let copiedBuffer = new ArrayBuffer(bufferSize);
-    let dest = new Uint8Array(copiedBuffer);
-    if (flags & premultipliedAlpha) {
-      for (let i = 0; i < src.length; i += 4) {
-        const a = src[i + 3];
-        dest[i] = (src[i] * a + 128) >> 8;
-        dest[i + 1] = (src[i + 1] * a + 128) >> 8;
-        dest[i + 2] = (src[i + 2] * a + 128) >> 8;
-        dest[i + 3] = a;
-      }
-    } else {
-      dest.set(src);
-    }
-
-    // Preserve the raw rendering behavior for transparent and premultiplied images.
+    // The internal display hint is used only when Flutter does not need the raw pixels for resizing.
+    // Keep transparent/premultiplied images on the established raw path to preserve their alpha semantics.
     const useBitmap = (flags & 0x40000000) && !(flags & premultipliedAlpha) && (backgroundColor >>> 24) === 255;
     const imageBitmap = useBitmap ? _createImageBitmapFromBgra(src, width, height) : null;
+    let copiedBuffer = null;
+    if (!imageBitmap) {
+      copiedBuffer = new ArrayBuffer(bufferSize);
+      const dest = new Uint8Array(copiedBuffer);
+      if (flags & premultipliedAlpha) {
+        for (let i = 0; i < src.length; i += 4) {
+          const a = src[i + 3];
+          dest[i] = (src[i] * a + 128) >> 8;
+          dest[i + 1] = (src[i + 1] * a + 128) >> 8;
+          dest[i + 2] = (src[i + 2] * a + 128) >> 8;
+          dest[i + 3] = a;
+        }
+      } else {
+        dest.set(src);
+      }
+    }
 
     _updateMissingFonts(docHandle);
 
@@ -2361,7 +2364,7 @@ function _renderPage(params) {
         height: height,
         missingFonts: missingFonts[docHandle],
       },
-      transfer: imageBitmap ? [copiedBuffer, imageBitmap] : [copiedBuffer],
+      transfer: imageBitmap ? [imageBitmap] : [copiedBuffer],
     };
   } finally {
     if (pageHandle) Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
