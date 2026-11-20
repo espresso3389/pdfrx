@@ -3308,7 +3308,7 @@ class _PdfViewerState extends State<PdfViewer>
     }
   }
 
-  /// Requests the partial image of the visible part of [page] unless the cached one already matches.
+  /// Requests a partial covering the visible part of [page], reusing cached or pending coverage when possible.
   ///
   /// Returns the wanted rectangle and scale, or null when no partial image can be requested.
   _PartialImageRequestStatus? _requestRealSizePartialImage(
@@ -3320,24 +3320,40 @@ class _PdfViewerState extends State<PdfViewer>
   ) {
     if (!_canRenderCache(cache)) return null;
     final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
-    final rect = pageRect.intersect(targetRect);
-    scale = _boundedRenderingScale(scale, rect.width, rect.height, sharedArea: visibleArea);
+    final visibleRect = pageRect.intersect(targetRect);
+    scale = _boundedRenderingScale(scale, visibleRect.width, visibleRect.height, sharedArea: visibleArea);
+    if (visibleRect.width < 1 || visibleRect.height < 1) return null;
+    final exact = partialRenderingRegion(pageRect, visibleRect, scale);
+    if (exact != null && (exact.width < 1 || exact.height < 1)) return null;
+    // Extra pixels share the visible pages' limit; they cannot lower the visible region's rendering scale.
+    final maximumBytes = min(_imageBudget.maximumBytes, widget.params.maxImageBytesCachedOnMemory);
+    final share = visibleArea > 0 ? visibleRect.width * visibleRect.height / visibleArea : 0.0;
+    final maximumPixels = max(exact?.pixels ?? 0, (maximumBytes / 12 * share).floor());
+    bool covers(PartialRenderingRegion region) =>
+        region.pixels <= maximumPixels && region.covers(pageRect, visibleRect, scale);
+
     final prev = cache.pageImagesPartial[page.pageNumber];
-    if (prev != null && !prev.isDirty && prev.rect == rect && prev.scale == scale) {
-      return (rect: rect, scale: scale, isCurrent: true);
+    if (prev != null && !prev.isDirty && covers(prev.region)) {
+      // A pending replacement from an excursion outside this region must not replace it after panning back.
+      cache.cancelPendingPartialRendering(page.pageNumber);
+      return (rect: prev.rect, scale: scale, isCurrent: true);
     }
-    if (rect.width < 1 || rect.height < 1) return null;
-    // A sliver narrower than a pixel produces no image (see _createRealSizePartialImage); it is still requested as
-    // before, but no partial image is wanted for it.
-    final pixels = scaleRectForRendering(rect.translate(-pageRect.left, -pageRect.top), scale);
-    final status = pixels != null && (pixels.width < 1 || pixels.height < 1)
-        ? null
-        : (rect: rect, scale: scale, isCurrent: false);
-    if (!_canRetryRender(cache.partialRenderFailures, page.pageNumber, (rect: rect, scale: scale))) return status;
     final pending = cache.pageImagePartialRenderingRequests[page.pageNumber];
-    if (pending != null && pending.rect == rect && pending.scale == scale && !pending.cancellationToken.isCanceled) {
-      return status;
+    if (pending != null && !pending.cancellationToken.isCanceled && covers(pending.region)) {
+      return (rect: pending.region.rect, scale: scale, isCurrent: false);
     }
+    final failed = cache.partialRenderFailures[page.pageNumber]?.key;
+    final region = failed != null && covers(failed)
+        ? failed
+        : partialRenderingRegion(
+            pageRect,
+            visibleRect,
+            scale,
+            maximumPixels: min(maximumPixels, _imageBudget.reservableBytes() ~/ 12),
+          );
+    if (region == null) return null;
+    final status = (rect: region.rect, scale: scale, isCurrent: false);
+    if (!_canRetryRender(cache.partialRenderFailures, page.pageNumber, region)) return status;
 
     cache.pageImagePartialRenderingRequests[page.pageNumber]?.cancel();
 
@@ -3348,7 +3364,7 @@ class _PdfViewerState extends State<PdfViewer>
         if (cache.pageImagePartialRenderingRequests[page.pageNumber] != request) return;
         try {
           if (!_canRenderCache(cache) || cancellationToken.isCanceled) return;
-          final newImage = await _createRealSizePartialImage(cache, page, scale, rect, cancellationToken);
+          final newImage = await _createRealSizePartialImage(cache, page, region, cancellationToken);
           if (newImage != null && cache.pageImagePartialRenderingRequests[page.pageNumber] == request) {
             cache.pageImagesPartial.remove(page.pageNumber)?.dispose();
             cache.pageImagesPartial[page.pageNumber] = newImage;
@@ -3367,8 +3383,7 @@ class _PdfViewerState extends State<PdfViewer>
         }
       }),
       cancellationToken,
-      rect,
-      scale,
+      region,
     );
     cache.pageImagePartialRenderingRequests[page.pageNumber] = request;
     return status;
@@ -3377,28 +3392,29 @@ class _PdfViewerState extends State<PdfViewer>
   Future<_PdfImageWithScaleAndRect?> _createRealSizePartialImage(
     _PdfPageImageCache cache,
     PdfPage page,
-    double scale,
-    Rect rect,
+    PartialRenderingRegion region,
     PdfPageRenderCancellationToken cancellationToken,
   ) async {
-    if (!_canRenderCache(cache) || cancellationToken.isCanceled) return null;
+    bool isCurrent() =>
+        _canRenderCache(cache) &&
+        !cancellationToken.isCanceled &&
+        page.pageNumber <= _layout!.pageLayouts.length &&
+        _layout!.pageLayouts[page.pageNumber - 1] == region.pageRect;
+    if (!isCurrent()) return null;
     // Recorded for PdfViewerController.visibleRenderState when no image can be produced for this request.
     void recordFailure() {
       if (mounted && widget.params.isVisible && !cancellationToken.isCanceled) {
-        _recordRenderFailure(cache.partialRenderFailures, page.pageNumber, (rect: rect, scale: scale));
+        _recordRenderFailure(cache.partialRenderFailures, page.pageNumber, region);
       }
     }
 
-    final pageRect = _layout!.pageLayouts[page.pageNumber - 1];
-    final inPageRect = rect.translate(-pageRect.left, -pageRect.top);
-    final scaledRect = scaleRectForRendering(inPageRect, scale);
-    final fullWidth = pageRect.width * scale;
-    final fullHeight = pageRect.height * scale;
-    if (scaledRect == null || !fullWidth.isFinite || !fullHeight.isFinite) {
+    final fullWidth = region.pageRect.width * region.scale;
+    final fullHeight = region.pageRect.height * region.scale;
+    if (!fullWidth.isFinite || !fullHeight.isFinite) {
       recordFailure();
       return null;
     }
-    final (:x, :y, :width, :height) = scaledRect;
+    final x = region.x, y = region.y, width = region.width, height = region.height;
     // Nothing to render, which is not a failure; see _requestRealSizePartialImage.
     if (width < 1 || height < 1) return null;
 
@@ -3425,13 +3441,13 @@ class _PdfViewerState extends State<PdfViewer>
         cancellationToken: cancellationToken,
         priority: PdfPageRenderPriority.high,
       );
-      if (rendered == null || !_canRenderCache(cache) || cancellationToken.isCanceled) {
+      if (rendered == null || !isCurrent()) {
         if (rendered == null && !cancellationToken.isCanceled) recordFailure();
         return null;
       }
-      final image = _PdfImageWithScaleAndRect(rendered, scale, rect, x, y, pageGeometry: _pageGeometryOf(page));
+      final image = _PdfImageWithScaleAndRect(rendered, region, pageGeometry: _pageGeometryOf(page));
       rendered = null;
-      if (!_canRenderCache(cache) || cancellationToken.isCanceled) {
+      if (!isCurrent()) {
         image.dispose();
         return null;
       }
@@ -5527,7 +5543,7 @@ class _PdfPageImageCache {
   final previewRenderFailures = <int, _PdfImageRenderFailure<double>>{};
 
   /// Failed partial requests and their bounded retries, by page number.
-  final partialRenderFailures = <int, _PdfImageRenderFailure<({Rect rect, double scale})>>{};
+  final partialRenderFailures = <int, _PdfImageRenderFailure<PartialRenderingRegion>>{};
 
   void clearRenderFailures(int pageNumber) {
     previewRenderFailures.remove(pageNumber)?.dispose();
@@ -5744,11 +5760,10 @@ class _PdfImageRenderFailure<K> {
 }
 
 class _PdfPartialImageRenderingRequest {
-  _PdfPartialImageRenderingRequest(this.timer, this.cancellationToken, this.rect, this.scale);
+  _PdfPartialImageRenderingRequest(this.timer, this.cancellationToken, this.region);
   final Timer timer;
   final PdfPageRenderCancellationToken cancellationToken;
-  final Rect rect;
-  final double scale;
+  final PartialRenderingRegion region;
 
   void cancel() {
     timer.cancel();
@@ -5839,15 +5854,18 @@ class _PdfImageWithScale {
 }
 
 class _PdfImageWithScaleAndRect extends _PdfImageWithScale {
-  _PdfImageWithScaleAndRect(super.image, super.scale, this.rect, this.left, this.top, {super.pageGeometry});
-  final Rect rect;
-  final int left;
-  final int top;
+  _PdfImageWithScaleAndRect(ui.Image image, this.region, {super.pageGeometry}) : super(image, region.scale);
+  final PartialRenderingRegion region;
+  Rect get rect => region.rect;
+  int get left => region.x;
+  int get top => region.y;
 
   int get bottom => top + height;
   int get right => left + width;
 
   void draw(Canvas canvas, [FilterQuality filterQuality = FilterQuality.low, ColorFilter? colorFilter]) {
+    canvas.save();
+    canvas.clipRect(region.pageRect);
     canvas.drawImageRect(
       image,
       Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
@@ -5856,6 +5874,7 @@ class _PdfImageWithScaleAndRect extends _PdfImageWithScale {
         ..filterQuality = filterQuality
         ..colorFilter = colorFilter,
     );
+    canvas.restore();
   }
 
   void drawNoScale(Canvas canvas, int x, int y, [FilterQuality filterQuality = FilterQuality.low]) {

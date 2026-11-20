@@ -249,6 +249,10 @@ jobs:
         working-directory: packages/pdfrx
         run: flutter test test/pdf_viewer_partial_cache_test.dart
 
+      - name: Test partial image reuse and pixel alignment
+        working-directory: packages/pdfrx
+        run: flutter test test/pdf_viewer_partial_reuse_test.dart test/partial_rendering_test.dart
+
       - name: Test magnifier rendering lifecycle
         working-directory: packages/pdfrx
         run: flutter test test/pdf_viewer_magnifier_lifecycle_test.dart
