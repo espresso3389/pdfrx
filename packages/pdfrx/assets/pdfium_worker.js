@@ -829,6 +829,8 @@ class PdfRangeCache {
     this.bytesCached = 0;
     // Count owned backing buffers separately from the logical range coverage.
     this.payloadBytes = 0;
+    /** @type {Set<ArrayBuffer>} */
+    this.payloadBuffers = new Set();
     this.hasCompleteResponse = false;
     /** @type {Set<{offset: number, end: number, promise: Promise<boolean>}>} */
     this.pendingDownloads = new Set();
@@ -860,7 +862,7 @@ class PdfRangeCache {
   }
 
   async ensureFileSize() {
-    if (this.fileSize > 0) return this.fileSize;
+    if (this.hasCompleteResponse || this.fileSize > 0) return this.fileSize;
     const response = await fetch(this.url, {
       method: 'HEAD',
       headers: this.headers,
@@ -868,6 +870,9 @@ class PdfRangeCache {
       credentials: this.fetchCredentials,
       redirect: 'follow',
     });
+    // A concurrent body may have established the size while HEAD was pending.
+    // In particular, a complete response is authoritative even after handoff.
+    if (this.hasCompleteResponse || this.fileSize > 0) return this.fileSize;
     if (!response.ok) {
       throw new Error(`Failed to get PDF file size: ${response.status} ${response.statusText}`);
     }
@@ -961,7 +966,10 @@ class PdfRangeCache {
         ? data
         : data.slice(start, end);
       this.chunks.push({ offset: range.offset, data: payload });
-      this.payloadBytes += payload.buffer.byteLength;
+      if (!this.payloadBuffers.has(payload.buffer)) {
+        this.payloadBuffers.add(payload.buffer);
+        this.payloadBytes += payload.buffer.byteLength;
+      }
       this.bytesCached += payload.length;
     }
     this._addRange(offset, offset + data.length);
@@ -979,6 +987,7 @@ class PdfRangeCache {
     this.ranges = [];
     this.bytesCached = 0;
     this.payloadBytes = 0;
+    this.payloadBuffers.clear();
     return data;
   }
 
@@ -1079,6 +1088,7 @@ class PdfRangeCache {
       credentials: this.fetchCredentials,
       redirect: 'follow',
     });
+    if (this.hasCompleteResponse) return false;
     if (response.status === 200) {
       const data = new Uint8Array(await response.arrayBuffer());
       if (this.hasCompleteResponse) return false;
@@ -1088,6 +1098,7 @@ class PdfRangeCache {
       this.ranges = [];
       this.bytesCached = 0;
       this.payloadBytes = 0;
+      this.payloadBuffers.clear();
       this.hasCompleteResponse = true;
       this.fullData = data.buffer;
       this.addData(0, data);
@@ -1114,6 +1125,7 @@ class PdfRangeCache {
       total = await this.ensureFileSize();
       end = Math.min(end, total);
     }
+    if (this.hasCompleteResponse) return false;
     if (!Number.isSafeInteger(total) || total <= 0 ||
         start !== range.offset || end <= start || end > range.end || end > total ||
         (this.fileSize > 0 && this.fileSize !== total)) {
@@ -1123,6 +1135,11 @@ class PdfRangeCache {
     const data = new Uint8Array(await response.arrayBuffer());
     // A concurrently completed full response already owns all of these bytes.
     if (this.hasCompleteResponse) return false;
+    // Disjoint responses can both pass header validation before either body
+    // arrives. Check again before accepting bytes from a different revision.
+    if (this.fileSize > 0 && this.fileSize !== total) {
+      throw new Error('PDF range response file size changed during download');
+    }
     if (data.length !== end - start) {
       throw new Error(`Incomplete PDF range response: expected ${end - start} bytes, received ${data.length}`);
     }

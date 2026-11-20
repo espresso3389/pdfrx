@@ -14,15 +14,19 @@ parallel requests. Rejected or aborted transfers remove their reservation in
 Incoming payloads retain only bytes not already cached. A complete new buffer is
 reused directly; partial overlap and oversized subviews are copied into exact
 owned buffers so their discarded backing bytes are not retained. `payloadBytes`
-counts retained backing storage separately from logical `bytesCached` coverage.
-They are equal under this storage policy, and tests also independently count the
-actual unique backing buffers. Full-response ownership transfer resets both.
+counts unique retained backing buffers separately from logical `bytesCached`
+coverage. These are equal for distinct network payloads; reusing the same whole
+buffer at separate offsets counts its backing storage only once. Tests also
+independently count the actual unique backing buffers. Full-response ownership
+transfer resets both counters and releases the buffer identities.
 
 The first complete HTTP 200 response wins even after its data is handed to the
 normal PDF loader. Late partial or complete responses cannot refill that retired
 cache. The existing CORS `HEAD` fallback remains available when `Content-Range`
-is not exposed. A short or inconsistent 206 response fails all shared waiters
-instead of reporting success for missing bytes.
+is not exposed. A late `HEAD` cannot overwrite a size established by an accepted
+body. A short or inconsistent 206 response fails all shared waiters instead of
+reporting success for missing bytes, including when disjoint response bodies
+finish after their headers have been validated against an initially unknown size.
 
 ## Reproducible comparison
 

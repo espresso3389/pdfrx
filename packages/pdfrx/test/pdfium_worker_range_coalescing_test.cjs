@@ -172,6 +172,53 @@ test('subviews do not retain oversized backing buffers', () => {
   assert.notEqual(cache.chunks[0].data.buffer, backing.buffer);
 });
 
+test('the same complete backing buffer at separate offsets is counted once', () => {
+  const { cache } = setup();
+  const data = Uint8Array.from({ length: 16 }, (_, i) => i);
+  cache.addData(0, data);
+  cache.addData(16, new Uint8Array(data.buffer));
+  assert.equal(cache.bytesCached, 32);
+  assert.equal(cache.payloadBytes, 16);
+  assert.equal(retainedBytes(cache), 16);
+  assert.equal(cache.payloadBuffers.size, 1);
+  cache.takeFullData();
+  assert.equal(cache.payloadBytes, 0);
+  assert.equal(cache.payloadBuffers.size, 0);
+});
+
+test('disjoint response bodies cannot commit inconsistent initially unknown sizes', async () => {
+  const state = setup();
+  const { context, cache, data } = state;
+  const bodies = [deferred(), deferred()];
+  let calls = 0;
+  context.fetch = async () => {
+    const index = calls++;
+    const start = index * 2 * blockSize;
+    return {
+      ...response(null, 206, { 'content-range': `bytes ${start}-${start + blockSize - 1}/${data.length + index}` }),
+      arrayBuffer: () => bodies[index].promise,
+    };
+  };
+  const first = cache.download(0, 1);
+  const second = cache.download(2 * blockSize, 1);
+  const settled = Promise.allSettled([first, second]);
+  await drain();
+  assert.equal(calls, 2);
+  assert.equal(cache.fileSize, 0, 'both headers were checked before accepting either body');
+  bodies[0].resolve(data.slice(0, blockSize).buffer);
+  assert.equal(await first, true);
+  bodies[1].resolve(data.slice(2 * blockSize, 3 * blockSize).buffer);
+  const results = await settled;
+  assert.equal(results[1].status, 'rejected');
+  assert.match(results[1].reason.message, /file size changed/);
+  assert.equal(cache.fileSize, data.length);
+  assert.equal(cache.bytesCached, blockSize);
+  assert.equal(cache.payloadBytes, blockSize);
+  assert.equal(cache.pendingDownloads.size, 0);
+  assertRead(state, 0, blockSize);
+  assert.equal(cache.isDataAvailable(2 * blockSize, 1), false);
+});
+
 for (const stage of ['fetch', 'body']) {
   for (const aborted of [false, true]) {
     test(`${stage} failure settles all waiters and permits retry (aborted=${aborted})`, async () => {
@@ -248,6 +295,38 @@ test('CORS servers without exposed Content-Range retain HEAD fallback', async ()
   assertRead(state, 0, blockSize);
 });
 
+for (const handedOff of [false, true]) {
+  test(`late HEAD cannot overwrite a complete response size (handedOff=${handedOff})`, async () => {
+    const { context, cache, data } = setup(100000);
+    const head = deferred();
+    let gets = 0;
+    let heads = 0;
+    context.fetch = async (_url, options) => {
+      if (options.method === 'HEAD') {
+        heads++;
+        return head.promise;
+      }
+      if (++gets === 1) return {
+        ...response(null, 206),
+        arrayBuffer() { throw new Error('A retired partial body must not be consumed'); },
+      };
+      return response(data.buffer);
+    };
+    const first = cache.download(0, 1);
+    await drain();
+    assert.equal(heads, 1);
+    assert.equal(await cache.download(blockSize, 1), false);
+    if (handedOff) assert.equal(cache.takeFullData(), data.buffer);
+    head.resolve(response(null, 200, { 'content-length': String(2 * blockSize) }));
+    assert.equal(await first, false);
+    assert.equal(cache.fileSize, data.length);
+    assert.equal(cache.payloadBytes, handedOff ? 0 : data.length);
+    assert.equal(cache.payloadBuffers.size, handedOff ? 0 : 1);
+    assert.equal(cache.pendingDownloads.size, 0);
+    assert.equal(context.messages.length, 1);
+  });
+}
+
 test('the final block is clamped after discovering file size', async () => {
   const state = setup();
   await state.cache.download(4 * blockSize, 1);
@@ -273,12 +352,14 @@ for (const lateStatus of [200, 206]) {
     await drain();
     assert.equal(await cache.download(blockSize, 1), false);
     assert.equal(cache.payloadBytes, data.length);
+    assert.equal(cache.payloadBuffers.size, 1);
     assert.equal(cache.takeFullData(), data.buffer);
     late.resolve(lateStatus === 200 ? data.buffer : data.slice(0, blockSize).buffer);
     assert.equal(await first, false);
     assert.equal(cache.chunks.length, 0);
     assert.equal(cache.bytesCached, 0);
     assert.equal(cache.payloadBytes, 0);
+    assert.equal(cache.payloadBuffers.size, 0);
     assert.equal(cache.pendingDownloads.size, 0);
     assert.equal(context.messages.length, 1);
     assert.equal(await cache.download(0, 1), false);
