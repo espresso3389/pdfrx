@@ -2350,19 +2350,26 @@ class _PdfiumRenderTask extends BackgroundWorkerTask<int> {
   bool _finishRendering() {
     if (isCanceled) return true;
     if (params.premultipliedAlpha) {
-      // Convert in place on the worker, yielding between bounded chunks so visible work and cancellation can run.
-      const bytesPerSlice = 64 * 1024 * 4;
-      final pixels = _buffer.asTypedList(_bytes);
-      final end = min(_convertedBytes + bytesPerSlice, pixels.length);
-      for (var i = _convertedBytes; i < end; i += 4) {
-        final alpha = pixels[i + 3];
-        pixels[i] = pixels[i] * alpha ~/ 255;
-        pixels[i + 1] = pixels[i + 1] * alpha ~/ 255;
-        pixels[i + 2] = pixels[i + 2] * alpha ~/ 255;
-      }
-      _convertedBytes = end;
-      if (isCanceled) return true;
-      if (end < pixels.length) return false;
+      // Check cancellation in bounded chunks, and yield after a short time slice without scheduling every chunk.
+      const bytesPerChunk = 64 * 1024 * 4;
+      final pixels = _buffer;
+      final length = _bytes;
+      _slice
+        ..reset()
+        ..start();
+      do {
+        final end = min(_convertedBytes + bytesPerChunk, length);
+        for (var i = _convertedBytes; i < end; i += 4) {
+          final alpha = pixels[i + 3];
+          pixels[i] = pixels[i] * alpha ~/ 255;
+          pixels[i + 1] = pixels[i + 1] * alpha ~/ 255;
+          pixels[i + 2] = pixels[i + 2] * alpha ~/ 255;
+        }
+        _convertedBytes = end;
+        if (isCanceled) return true;
+      } while (_convertedBytes < length && _slice.elapsedMicroseconds < 4000);
+      _slice.stop();
+      if (_convertedBytes < length) return false;
     }
     _result = _buffer.address;
     _buffer = nullptr;
