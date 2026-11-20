@@ -17,7 +17,7 @@ function context() {
   const result = {
     self: { location: { href: 'test' } },
     console: { log() {}, warn() {}, error() {} },
-    AbortController, TextEncoder, TextDecoder, Uint8Array, Float32Array, ArrayBuffer,
+    AbortController, setTimeout, TextEncoder, TextDecoder, Uint8Array, Float32Array, ArrayBuffer,
     queueMicrotask,
     onmessage: null,
     messages: [],

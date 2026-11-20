@@ -11,6 +11,7 @@ function createContext() {
     self: { location: { href: 'test' } },
     console: { log() {}, warn() {}, error() {} },
     AbortController,
+    setTimeout,
     TextDecoder,
     TextEncoder,
     Uint8Array,

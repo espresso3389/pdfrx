@@ -22,6 +22,9 @@ extension type _PdfiumWasmCommunicator(JSObject _) implements JSObject {
   @JS('sendCommand')
   external JSPromise<JSAny?> sendCommand([String command, JSAny? parameters, JSArray<JSAny>? transfer]);
 
+  /// Allocates a worker-local render ID that stays unique across Dart hot restarts.
+  external int allocateRenderId();
+
   /// Registers a callback function and returns its ID
   @JS('registerCallback')
   external int registerCallback(JSFunction callback);
@@ -64,7 +67,7 @@ Future<(Map<Object?, dynamic>, T?)> _sendCommandTaking<T extends JSAny>(
   String property, {
   Map<Object?, dynamic>? parameters,
 }) async {
-  final result = (await _pdfiumWasmCommunicator.sendCommand(command, parameters?.jsify()).toDart)! as JSObject;
+  final result = (await _pdfiumWasmCommunicator.sendCommand(command, parameters?.jsify(), null).toDart)! as JSObject;
   final taken = result.getProperty<T?>(property.toJS);
   result.delete(property.toJS);
   return (result.dartify() as Map<Object?, dynamic>, taken);
@@ -919,10 +922,18 @@ class _PdfPageRenderCancellationTokenWasm extends PdfPageRenderCancellationToken
   _PdfPageRenderCancellationTokenWasm();
 
   bool _isCanceled = false;
+  final _renderIds = <int>{};
 
   @override
   Future<void> cancel() async {
+    if (_isCanceled) return;
     _isCanceled = true;
+    if (_renderIds.isEmpty) return;
+    try {
+      await _sendCommand('cancelRender', parameters: {'renderIds': _renderIds.toList()});
+    } catch (_) {
+      // The render future reports worker failures; cancel() is commonly called without awaiting it.
+    }
   }
 
   @override
@@ -1072,43 +1083,66 @@ class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
     PdfPageRenderCancellationToken? cancellationToken,
     PdfPageRenderPriority? priority,
   }) async {
-    if (document.isDisposed) return null;
+    if (cancellationToken != null && cancellationToken is! _PdfPageRenderCancellationTokenWasm) {
+      throw ArgumentError(
+        'cancellationToken must be created by PdfPage.createCancellationToken().',
+        'cancellationToken',
+      );
+    }
+    final token = cancellationToken as _PdfPageRenderCancellationTokenWasm?;
+    if (document.isDisposed || (token?.isCanceled ?? false)) return null;
     fullWidth ??= this.width;
     fullHeight ??= this.height;
     width ??= fullWidth.toInt();
     height ??= fullHeight.toInt();
     backgroundColor ??= 0xffffffff; // white background
 
-    final response = await document._runIfOpen(
-      () => _sendCommandTaking<web.ImageBitmap>(
-        'renderPage',
-        'imageBitmap',
-        parameters: {
-          ...document._workerParameters,
-          'pageIndex': pageNumber - 1,
-          'x': x,
-          'y': y,
-          'width': width,
-          'height': height,
-          'fullWidth': fullWidth,
-          'fullHeight': fullHeight,
-          'backgroundColor': backgroundColor,
-          'rotation': rotationOverride != null ? (rotationOverride.index - rotation.index + 4) & 3 : 0,
-          'annotationRenderingMode': annotationRenderingMode.index,
-          'flags': flags,
-          'formHandle': document.document['formHandle'],
-        },
-      ),
-      onDiscard: (response) => response.$2?.close(),
-    );
-    if (response == null) return null;
-    final (result, imageBitmap) = response;
-    final bb = result['imageData'] as ByteBuffer;
-    final pixels = Uint8List.view(bb.asByteData().buffer, 0, bb.lengthInBytes);
+    // This built-in backend shares the engine scheduling zone.
+    // ignore: invalid_use_of_internal_member
+    final isBackground = Zone.current[Pdfrx.backgroundWorkZoneKey] == true;
+    priority ??= isBackground ? PdfPageRenderPriority.low : PdfPageRenderPriority.high;
+    final renderId = _pdfiumWasmCommunicator.allocateRenderId();
+    token?._renderIds.add(renderId);
+    try {
+      final response = await document._runIfOpen(
+        () => _sendCommandTaking<web.ImageBitmap>(
+          'renderPage',
+          'imageBitmap',
+          parameters: {
+            ...document._workerParameters,
+            'renderId': renderId,
+            'priority': priority!.index,
+            'pageIndex': pageNumber - 1,
+            'x': x,
+            'y': y,
+            'width': width,
+            'height': height,
+            'fullWidth': fullWidth,
+            'fullHeight': fullHeight,
+            'backgroundColor': backgroundColor,
+            'rotation': rotationOverride != null ? (rotationOverride.index - rotation.index + 4) & 3 : 0,
+            'annotationRenderingMode': annotationRenderingMode.index,
+            'flags': flags,
+            'formHandle': document.document['formHandle'],
+          },
+        ),
+        onDiscard: (response) => response.$2?.close(),
+      );
+      if (response == null) return null;
+      final (result, imageBitmap) = response;
+      if (result['cancelled'] == true || document.isDisposed || (token?.isCanceled ?? false)) {
+        imageBitmap?.close();
+        return null;
+      }
+      final bb = result['imageData'] as ByteBuffer;
+      final pixels = Uint8List.view(bb.asByteData().buffer, 0, bb.lengthInBytes);
 
-    document.updateMissingFonts(result['missingFonts']);
+      document.updateMissingFonts(result['missingFonts']);
 
-    return PdfImageWeb(width: width, height: height, pixels: pixels, imageBitmap: imageBitmap);
+      return PdfImageWeb(width: width, height: height, pixels: pixels, imageBitmap: imageBitmap);
+    } finally {
+      token?._renderIds.remove(renderId);
+    }
   }
 }
 
