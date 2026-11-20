@@ -478,7 +478,30 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
   final Map<Object?, dynamic> document;
   final void Function()? disposeCallback;
   bool isDisposed = false;
+  Future<void>? _disposeFuture;
   bool _documentLoadCompleteNotified = false;
+
+  Map<String, dynamic> get _workerParameters => {
+    'docHandle': document['docHandle'],
+    if (document['documentId'] != null) 'documentId': document['documentId'],
+  };
+
+  /// Discard late results and cancellation errors from work owned by this document.
+  Future<T?> _runIfOpen<T>(Future<T> Function() action, {void Function(T)? onDiscard}) async {
+    if (isDisposed) return null;
+    try {
+      final result = await action();
+      if (isDisposed) {
+        onDiscard?.call(result);
+        return null;
+      }
+      return result;
+    } catch (_) {
+      if (isDisposed) return null;
+      rethrow;
+    }
+  }
+
   final subject = BehaviorSubject<PdfDocumentEvent>();
 
   @override
@@ -491,11 +514,14 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
   Stream<PdfDocumentEvent> get events => subject.stream;
 
   @override
-  Future<void> dispose() async {
-    if (!isDisposed) {
-      isDisposed = true;
-      subject.close();
+  Future<void> dispose() => _disposeFuture ??= _dispose();
+
+  Future<void> _dispose() async {
+    isDisposed = true;
+    subject.close();
+    try {
       await _sendCommand('closeDocument', parameters: document);
+    } finally {
       disposeCallback?.call();
     }
   }
@@ -507,7 +533,8 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
 
   @override
   Future<List<PdfOutlineNode>> loadOutline() async {
-    final result = await _sendCommand('loadOutline', parameters: {'docHandle': document['docHandle']});
+    final result = await _runIfOpen(() => _sendCommand('loadOutline', parameters: _workerParameters));
+    if (result == null) return [];
     final outlineList = result['outline'] as List<dynamic>;
     return outlineList.map((node) => _nodeFromMap(node)).toList();
   }
@@ -543,17 +570,19 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
           for (var i = firstPageIndex + 1; i < pageSnapshot.length; i++)
             if (pageSnapshot[i].isLoaded) i,
         ];
-        final result = await _sendCommand(
-          'loadPagesProgressively',
-          parameters: {
-            'docHandle': document['docHandle'],
-            'firstPageIndex': firstPageIndex,
-            'loadedPageIndices': loadedPageIndices,
-            'pageIndices': pageIndicesToLoad,
-            'loadUnitDuration': loadUnitDuration.inMilliseconds,
-          },
+        final result = await _runIfOpen(
+          () => _sendCommand(
+            'loadPagesProgressively',
+            parameters: {
+              ..._workerParameters,
+              'firstPageIndex': firstPageIndex,
+              'loadedPageIndices': loadedPageIndices,
+              'pageIndices': pageIndicesToLoad,
+              'loadUnitDuration': loadUnitDuration.inMilliseconds,
+            },
+          ),
         );
-        if (isDisposed) return;
+        if (result == null) return;
         final pagesLoaded = parsePages(this, result['pages'] as List<dynamic>);
         final newPages = pages.toList(growable: false);
         for (final page in pagesLoaded) {
@@ -629,15 +658,13 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
           .toSet()
           .toList();
       if (metadataOnly && pageIndices!.isEmpty) return;
-      final result = await _sendCommand(
-        'reloadPages',
-        parameters: {
-          'docHandle': document['docHandle'],
-          'pageIndices': ?pageIndices,
-          'currentPagesCount': pages.length,
-        },
+      final result = await _runIfOpen(
+        () => _sendCommand(
+          'reloadPages',
+          parameters: {..._workerParameters, 'pageIndices': ?pageIndices, 'currentPagesCount': pages.length},
+        ),
       );
-      if (isDisposed) return;
+      if (result == null) return;
       final reloadedPages = parsePages(this, result['pages'] as List<dynamic>);
       final newPages = pages.toList();
       for (final page in reloadedPages) {
@@ -774,6 +801,7 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
 
   @override
   Future<bool> assemble() async {
+    if (isDisposed) return false;
     // Build the indices, imported pages map, and rotations
     final indices = <int>[];
     final importedPages = <int, Map<String, dynamic>>{};
@@ -795,7 +823,7 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
         final importId = -(i + 1);
         indices.add(importId);
         importedPages[importId] = {
-          'docHandle': wasmPage.document.document['docHandle'],
+          ...wasmPage.document._workerParameters,
           'pageNumber': wasmPage.pageNumber - 1, // 0-based
         };
         modifiedCount++;
@@ -811,15 +839,18 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
       return false;
     }
 
-    final result = await _sendCommand(
-      'assemble',
-      parameters: {
-        'docHandle': document['docHandle'],
-        'pageIndices': indices,
-        'rotations': rotations,
-        if (importedPages.isNotEmpty) 'importedPages': importedPages,
-      },
+    final result = await _runIfOpen(
+      () => _sendCommand(
+        'assemble',
+        parameters: {
+          ..._workerParameters,
+          'pageIndices': indices,
+          'rotations': rotations,
+          if (importedPages.isNotEmpty) 'importedPages': importedPages,
+        },
+      ),
     );
+    if (result == null) return false;
 
     return result['modified'] as bool;
   }
@@ -827,10 +858,13 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
   @override
   Future<Uint8List> encodePdf({bool incremental = false, bool removeSecurity = false}) async {
     await assemble();
-    final result = await _sendCommand(
-      'encodePdf',
-      parameters: {'docHandle': document['docHandle'], 'incremental': incremental, 'removeSecurity': removeSecurity},
+    final result = await _runIfOpen(
+      () => _sendCommand(
+        'encodePdf',
+        parameters: {..._workerParameters, 'incremental': incremental, 'removeSecurity': removeSecurity},
+      ),
     );
+    if (result == null) throw StateError('Cannot encode a disposed PDF document');
     final bb = result['data'] as ByteBuffer;
     return Uint8List.view(bb.asByteData().buffer, 0, bb.lengthInBytes);
   }
@@ -887,14 +921,17 @@ class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
   @override
   Future<List<PdfLink>> loadLinksUncached(bool enableAutoLinkDetection) async {
     if (document.isDisposed || !isLoaded) return [];
-    final result = await _sendCommand(
-      'loadLinks',
-      parameters: {
-        'docHandle': document.document['docHandle'],
-        'pageIndex': pageNumber - 1,
-        'enableAutoLinkDetection': enableAutoLinkDetection,
-      },
+    final result = await document._runIfOpen(
+      () => _sendCommand(
+        'loadLinks',
+        parameters: {
+          ...document._workerParameters,
+          'pageIndex': pageNumber - 1,
+          'enableAutoLinkDetection': enableAutoLinkDetection,
+        },
+      ),
     );
+    if (result == null) return [];
     return List.unmodifiable(
       (result['links'] as List).map((link) {
         if (link is! Map<Object?, dynamic>) {
@@ -944,10 +981,10 @@ class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
   @override
   Future<PdfPageRawText?> loadText() async {
     if (document.isDisposed || !isLoaded) return null;
-    final result = await _sendCommand(
-      'loadText',
-      parameters: {'docHandle': document.document['docHandle'], 'pageIndex': pageNumber - 1},
+    final result = await document._runIfOpen(
+      () => _sendCommand('loadText', parameters: {...document._workerParameters, 'pageIndex': pageNumber - 1}),
     );
+    if (result == null) return null;
     final charRectsAll = (result['charRects'] as List).map((rect) {
       final r = rect as List;
       return PdfRect(
@@ -1002,25 +1039,30 @@ class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
     height ??= fullHeight.toInt();
     backgroundColor ??= 0xffffffff; // white background
 
-    final (result, imageBitmap) = await _sendCommandTaking<web.ImageBitmap>(
-      'renderPage',
-      'imageBitmap',
-      parameters: {
-        'docHandle': document.document['docHandle'],
-        'pageIndex': pageNumber - 1,
-        'x': x,
-        'y': y,
-        'width': width,
-        'height': height,
-        'fullWidth': fullWidth,
-        'fullHeight': fullHeight,
-        'backgroundColor': backgroundColor,
-        'rotation': rotationOverride != null ? (rotationOverride.index - rotation.index + 4) & 3 : 0,
-        'annotationRenderingMode': annotationRenderingMode.index,
-        'flags': flags,
-        'formHandle': document.document['formHandle'],
-      },
+    final response = await document._runIfOpen(
+      () => _sendCommandTaking<web.ImageBitmap>(
+        'renderPage',
+        'imageBitmap',
+        parameters: {
+          ...document._workerParameters,
+          'pageIndex': pageNumber - 1,
+          'x': x,
+          'y': y,
+          'width': width,
+          'height': height,
+          'fullWidth': fullWidth,
+          'fullHeight': fullHeight,
+          'backgroundColor': backgroundColor,
+          'rotation': rotationOverride != null ? (rotationOverride.index - rotation.index + 4) & 3 : 0,
+          'annotationRenderingMode': annotationRenderingMode.index,
+          'flags': flags,
+          'formHandle': document.document['formHandle'],
+        },
+      ),
+      onDiscard: (response) => response.$2?.close(),
     );
+    if (response == null) return null;
+    final (result, imageBitmap) = response;
     final bb = result['imageData'] as ByteBuffer;
     final pixels = Uint8List.view(bb.asByteData().buffer, 0, bb.lengthInBytes);
 
