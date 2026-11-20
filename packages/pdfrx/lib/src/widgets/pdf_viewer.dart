@@ -290,6 +290,8 @@ class _PdfViewerState extends State<PdfViewer>
   // Without a shared budget, keep the legacy cache limit without capping in-flight renders.
   late final _localImageBudget = PdfImageCacheBudget(maximumBytes: 0x1fffffffffffff);
   PdfImageCacheBudget get _imageBudget => widget.params.imageCacheBudget ?? _localImageBudget;
+  late int _lastImageBudgetMaximumBytes;
+  bool _imageBudgetEvictedOwnImage = false;
 
   late final _canvasLinkPainter = _CanvasLinkPainter(this);
 
@@ -361,6 +363,7 @@ class _PdfViewerState extends State<PdfViewer>
   @override
   void initState() {
     super.initState();
+    _lastImageBudgetMaximumBytes = _imageBudget.maximumBytes;
     _imageBudget.addListener(_onImageBudgetChanged);
     SemanticsBinding.instance.addSemanticsEnabledListener(_onSemanticsEnabledChanged);
     _viewerInstanceId = ++_viewerInstanceCounter;
@@ -394,6 +397,8 @@ class _PdfViewerState extends State<PdfViewer>
     }
     if (!identical(widget.params.imageCacheBudget, oldWidget.params.imageCacheBudget)) {
       (oldWidget.params.imageCacheBudget ?? _localImageBudget).removeListener(_onImageBudgetChanged);
+      _lastImageBudgetMaximumBytes = _imageBudget.maximumBytes;
+      _imageBudgetEvictedOwnImage = false;
       _imageBudget.addListener(_onImageBudgetChanged);
       _imageCache.releaseAllImages();
       _magnifierImageCache.releaseAllImages();
@@ -2424,7 +2429,19 @@ class _PdfViewerState extends State<PdfViewer>
   }
 
   void _onImageBudgetChanged() {
-    if (mounted && widget.params.isVisible) _invalidate();
+    final maximumBytes = _imageBudget.maximumBytes;
+    final needsUpdate =
+        _imageBudgetEvictedOwnImage ||
+        _imageCache.isWaitingForBudget ||
+        _magnifierImageCache.isWaitingForBudget ||
+        maximumBytes != _lastImageBudgetMaximumBytes;
+    _lastImageBudgetMaximumBytes = maximumBytes;
+    _imageBudgetEvictedOwnImage = false;
+    // The next paint establishes which requests still need room. A ready viewer does not rebuild merely
+    // because another owner committed or released an image in the shared budget.
+    _imageCache.isWaitingForBudget = false;
+    _magnifierImageCache.isWaitingForBudget = false;
+    if (needsUpdate && mounted && widget.params.isVisible) _invalidate();
   }
 
   void _updateTextCachePins({bool keepVisible = true, bool keepSelection = true}) {
@@ -2455,6 +2472,7 @@ class _PdfViewerState extends State<PdfViewer>
     FilterQuality filterQuality = FilterQuality.high,
   }) {
     if (!_canRenderCache(cache)) return;
+    cache.isWaitingForBudget = false;
     final unusedPageList = <int>[];
     final previewRequests = <({PdfPage page, double scale, Rect rect})>[];
     final unmeasuredPageList = <int>[];
@@ -3131,6 +3149,7 @@ class _PdfViewerState extends State<PdfViewer>
       isPinned: cache.visiblePageNumbers.contains(pageNumber),
       isNeeded: true,
       onEvict: () {
+        _imageBudgetEvictedOwnImage = true;
         if (partial) {
           if (identical(cache.pageImagesPartial[pageNumber], image)) cache.pageImagesPartial.remove(pageNumber);
         } else {
@@ -3140,6 +3159,7 @@ class _PdfViewerState extends State<PdfViewer>
       },
     );
     if (entry == null) {
+      cache.isWaitingForBudget = true;
       image.dispose();
       return false;
     }
@@ -3215,9 +3235,15 @@ class _PdfViewerState extends State<PdfViewer>
           final reservable = _imageBudget.reservableBytes(keepNeeded: true) + (prev?.budgetEntry?.bytes ?? 0);
           // Measured on the unrounded size, so that the rounded-down result always fits.
           final fit = bytes <= reservable ? 1.0 : sqrt(reservable / (width * height * 12));
-          if (fit < 1 && (fit < 0.5 || _imageBudget.pendingBytes > 0)) return;
+          if (fit < 1 && (fit < 0.5 || _imageBudget.pendingBytes > 0)) {
+            cache.isWaitingForBudget = true;
+            return;
+          }
           // A shrunk preview is replaced only by a clearly sharper one, so that freed room cannot cause churn.
-          if (fit < 1 && prev != null && !prev.isDirty && prev.scale <= scale && scale * fit < prev.scale * 1.1) return;
+          if (fit < 1 && prev != null && !prev.isDirty && prev.scale <= scale && scale * fit < prev.scale * 1.1) {
+            cache.isWaitingForBudget = true;
+            return;
+          }
           if (fit < 1) {
             width *= fit;
             height *= fit;
@@ -3231,7 +3257,10 @@ class _PdfViewerState extends State<PdfViewer>
           allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _onlyPrefetchesPending,
           keepNeeded: priority == PdfPageRenderPriority.low,
         );
-        if (reservation == null) return;
+        if (reservation == null) {
+          cache.isWaitingForBudget = true;
+          return;
+        }
         ui.Image? rendered;
         try {
           rendered = await page.renderForDisplay(
@@ -3410,7 +3439,10 @@ class _PdfViewerState extends State<PdfViewer>
       width * height * 12,
       allowOverBudget: cache.visiblePageNumbers.contains(page.pageNumber) && _onlyPrefetchesPending,
     );
-    if (reservation == null) return null;
+    if (reservation == null) {
+      cache.isWaitingForBudget = true;
+      return null;
+    }
     try {
       rendered = await page.renderForDisplay(
         x: x,
@@ -5514,6 +5546,8 @@ class _PdfViewerState extends State<PdfViewer>
 }
 
 class _PdfPageImageCache {
+  /// Whether a request in the current paint or its delayed work could not obtain image memory.
+  bool isWaitingForBudget = false;
   Set<int> visiblePageNumbers = {};
   final pageImages = <int, _PdfImageWithScale>{};
   final pageImageRenderingTimers = <int, Timer>{};
@@ -5609,7 +5643,11 @@ class _PdfPageImageCache {
 
   /// Disposes every image except those of [keep], cancelling their pending renders; see
   /// [PdfViewerController.releaseCachedImages].
-  void releaseImagesExcept(Set<int> keep) => _releaseImagesWhere((pageNumber) => !keep.contains(pageNumber));
+  void releaseImagesExcept(Set<int> keep) {
+    // Keeping visible pages also keeps their wait for a reservation. This operation need not cause a paint.
+    if (keep.isEmpty) isWaitingForBudget = false;
+    _releaseImagesWhere((pageNumber) => !keep.contains(pageNumber));
+  }
 
   /// Releases removed page slots before cache entries are compared with the new layout.
   void releaseImagesAfter(int lastPageNumber) => _releaseImagesWhere((pageNumber) => pageNumber > lastPageNumber);
@@ -5654,6 +5692,7 @@ class _PdfPageImageCache {
   }
 
   void cancelAllPendingRenderings() {
+    isWaitingForBudget = false;
     for (final pageNumber in pendingPageNumbers.toList()) {
       cancelPendingRenderings(pageNumber);
     }

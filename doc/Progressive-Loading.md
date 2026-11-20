@@ -118,6 +118,8 @@ final params = PdfViewerParams(imageCacheBudget: imageBudget);
 
 Keep the budget alive while its viewers use it, and dispose it after they have been disposed. It accounts for estimated retained images and in-flight rendering and conversion allocations, not actual process or GPU memory. Visible pinned images may exceed the target. A shared budget can reduce render resolution to fit the budget and each viewer's [`maxImageBytesCachedOnMemory`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/maxImageBytesCachedOnMemory.html); leaving it unset preserves the normal rendering resolution and local cache behavior.
 
+Releasing capacity wakes viewers that are waiting for image memory. A ready viewer whose images are unchanged does not rebuild when another viewer finishes rendering. Evicting a viewer's images or changing the maximum budget still updates that viewer. Application-owned entries should update their `isPinned` and `isNeeded` protection through [`PdfImageCacheEntry.touch`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfImageCacheEntry/touch.html); making an entry evictable also wakes waiting work without requiring the owner to dispose it first.
+
 ### Releasing Viewer Images
 
 Once the controller is attached to a viewer, use [releaseCachedImages()](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerController/releaseCachedImages.html) to release off-screen page images while retaining visible pages:

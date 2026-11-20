@@ -2,6 +2,57 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 void main() {
+  test('unpinning an entry wakes capacity listeners without requiring eviction', () async {
+    final budget = PdfImageCacheBudget(maximumBytes: 100);
+    addTearDown(budget.dispose);
+    final entry = budget.tryReserve(80)!.commit(retainedBytes: 80, onEvict: () {}, isPinned: true)!;
+    await Future<void>.delayed(Duration.zero);
+    var notifications = 0;
+    budget.addListener(() => notifications++);
+    expect(budget.tryReserve(50), isNull);
+    entry.touch(isPinned: false);
+    await Future<void>.delayed(Duration.zero);
+    expect(notifications, 1);
+    expect(entry.isDisposed, isFalse);
+    expect(budget.reservableBytes(), 100);
+    entry.touch(isPinned: false);
+    await Future<void>.delayed(Duration.zero);
+    expect(notifications, 1, reason: 'unchanged protection must not trigger another paint');
+    entry.dispose();
+  });
+
+  test('releasing needed protection wakes speculative waiters once', () async {
+    final budget = PdfImageCacheBudget(maximumBytes: 100);
+    addTearDown(budget.dispose);
+    final entry = budget.tryReserve(80)!.commit(retainedBytes: 80, onEvict: () {}, isNeeded: true)!;
+    await Future<void>.delayed(Duration.zero);
+    var notifications = 0;
+    budget.addListener(() => notifications++);
+    expect(budget.tryReserve(50, keepNeeded: true), isNull);
+    entry.touch(isNeeded: false);
+    await Future<void>.delayed(Duration.zero);
+    expect(notifications, 1);
+    expect(budget.reservableBytes(keepNeeded: true), 100);
+    entry.touch(isNeeded: false);
+    await Future<void>.delayed(Duration.zero);
+    expect(notifications, 1);
+    entry.dispose();
+  });
+
+  test('changing needed protection while pinned does not advertise room', () async {
+    final budget = PdfImageCacheBudget(maximumBytes: 100);
+    addTearDown(budget.dispose);
+    final entry = budget.tryReserve(80)!.commit(retainedBytes: 80, onEvict: () {}, isPinned: true, isNeeded: true)!;
+    await Future<void>.delayed(Duration.zero);
+    var notifications = 0;
+    budget.addListener(() => notifications++);
+    entry.touch(isNeeded: false);
+    await Future<void>.delayed(Duration.zero);
+    expect(notifications, 0);
+    expect(budget.reservableBytes(), 20);
+    entry.dispose();
+  });
+
   test('capacity notifications are deferred, coalesced and safe after disposal', () async {
     final budget = PdfImageCacheBudget(maximumBytes: 100);
     var notifications = 0;
