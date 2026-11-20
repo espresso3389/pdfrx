@@ -10,6 +10,7 @@ function createContext() {
   const context = {
     self: { location: { href: 'test' } },
     console: { log() {}, warn() {}, error() {} },
+    AbortController,
     TextDecoder,
     TextEncoder,
     Uint8Array,
@@ -177,6 +178,7 @@ test('page rendering premultiplies alpha once and masks internal flags', async (
         FPDFBitmap_Destroy: () => {},
         free: () => {},
       };
+      new PdfDocumentLifetime(1, 3, 0);
       renderPage({
         docHandle: 1,
         pageIndex: 0,

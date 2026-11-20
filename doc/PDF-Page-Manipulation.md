@@ -151,7 +151,19 @@ await doc1.dispose();
 
 Keep every source document open until [`assemble()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/assemble.html) or [`encodePdf()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/encodePdf.html) completes. Do not change the source or destination page lists while assembly is in progress. Assigning pages from another document does not immediately copy them; disposing that source before assembly starts makes the operation invalid.
 
+### Repeated saves on Web
+
+After successful Web assembly, read the current [`pages`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/pages.html) list again. Its page objects now refer to the assembled destination document and its committed page indices. Reordering, duplicate pages, imports, rotations, and removals are applied once; a second `assemble()` without another edit returns `false`. Repeated `encodePdf()` calls preserve the same page contents and order, although metadata can make the output bytes differ.
+
+Web assembly reuses the known page geometry instead of loading metadata for every page again. Pages whose metadata was not loaded remain unloaded until progressive or on-demand metadata loading measures them. Assembly emits content-change events so viewers and text/link caches discard data tied to the old page mapping.
+
+Concurrent Web `assemble()` and `encodePdf()` calls are serialized. Changing the destination page list while assembly is awaiting its worker result throws `StateError`; await completion before making the next edit. If PDFium reports an error after a native mutation has started, assembly is not rolled back. Reopen the input document and reapply the edit before retrying that failed operation.
+
 On native PDFium, disposal waits for already-started operations, including queued work and source imports. New independent operations are rejected once disposal begins. Use [`await document.dispose()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/dispose.html) when cleanup must finish before continuing. After successful assembly, use the destination's updated [`pages`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/pages.html) list; previously retained source page objects still belong to their source documents.
+
+On Web, disposal cancels outstanding range requests, lets affected operations unwind, and then releases the PDFium document, availability structures, and cached response data. Awaiting [`dispose()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/dispose.html) waits for that cleanup; repeated calls share the same completion. Pending page rendering or text extraction returns null, link loading returns an empty list, and page measurement stops when disposal wins. Errors while the document remains open still propagate. Late render bitmaps are released instead of being returned to the caller.
+
+A synchronous PDFium call already executing in the Web worker must finish before the worker can process the close request. This does not add a cancellation API for an opening document, nor does it interrupt synchronous rendering midway. Keep the document open for any operation whose result you still need; encoding a disposed document fails.
 
 Advanced callers using raw document handles with [`PdfrxEntryFunctions.compute`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfrxEntryFunctions/compute.html) must keep the documents alive themselves. Within [`useNativeDocumentHandle`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/useNativeDocumentHandle.html), do not await another worker operation or disposal of the same document, and do not retain the handle after the callback completes.
 

@@ -236,7 +236,7 @@ jobs:
       - name: Test page loading and text caching
         timeout-minutes: 5
         working-directory: packages/pdfrx_engine
-        run: dart test test/pdf_document_test.dart test/pdf_page_text_cache_test.dart test/pdf_page_metadata_loading_test.dart
+        run: dart test test/pdf_document_test.dart test/pdf_page_text_cache_test.dart test/pdf_page_metadata_loading_test.dart test/pdf_input_data_test.dart
 
       - name: Test document builder identity and progress updates
         working-directory: packages/pdfrx
@@ -396,11 +396,27 @@ jobs:
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
 
-      - name: Test PDFium worker metadata and range responses
+      - name: Test PDFium worker metadata, range responses, and document lifetimes
         working-directory: packages/pdfrx
-        run: node --test test/pdfium_worker_metadata_test.cjs test/pdfium_worker_range_response_test.cjs test/pdfium_worker_font_cache_test.cjs
+        run: >-
+          node --test
+          test/pdfium_worker_metadata_test.cjs
+          test/pdfium_worker_range_response_test.cjs
+          test/pdfium_worker_font_cache_test.cjs
+          test/pdfium_worker_input_test.cjs
+          test/pdfium_worker_lifetime_test.cjs
+          test/pdfium_worker_assembly_test.cjs
 
-      - name: Test Web page metadata and lifetime events
+      - name: Test PDFium worker communication failures
+        working-directory: packages/pdfrx
+        run: node --test test/pdfium_client_failure_test.cjs
+
+      - name: Test Web worker failure propagation
+        timeout-minutes: 5
+        working-directory: packages/pdfrx
+        run: flutter test --platform chrome test/wasm_worker_failure_test.dart
+
+      - name: Test Web page metadata and document disposal
         timeout-minutes: 5
         working-directory: packages/pdfrx
         run: flutter test --platform chrome test/wasm_document_dispose_test.dart
@@ -408,6 +424,22 @@ jobs:
       - name: Test Web display image ownership
         working-directory: packages/pdfrx
         run: flutter test --platform chrome test/render_for_display_web_test.dart
+
+      - name: Test Web input ownership and password retries
+        working-directory: packages/pdfrx
+        run: flutter test --platform chrome test/wasm_input_ownership_test.dart
+
+      - name: Test Web document assembly and repeated saves
+        timeout-minutes: 5
+        working-directory: packages/pdfrx
+        run: flutter test --platform chrome test/wasm_document_assembly_test.dart
+
+      - name: Test overlapping Web range downloads
+        timeout-minutes: 5
+        working-directory: packages/pdfrx
+        run: |
+          node --test test/pdfium_worker_range_coalescing_test.cjs
+          flutter test --platform chrome test/wasm_range_coalescing_test.dart
 
       - name: Build Web
         working-directory: packages/pdfrx/example/viewer
