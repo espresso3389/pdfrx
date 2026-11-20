@@ -253,6 +253,10 @@ jobs:
         working-directory: packages/pdfrx
         run: flutter test test/pdf_viewer_magnifier_lifecycle_test.dart
 
+      - name: Test page view rendering lifecycle
+        working-directory: packages/pdfrx
+        run: flutter test test/pdf_page_view_lifecycle_test.dart test/render_for_display_test.dart
+
       - name: Test page content cache invalidation
         working-directory: packages/pdfrx
         run: flutter test test/pdf_viewer_content_cache_test.dart test/pdf_viewer_visible_render_state_test.dart
@@ -382,6 +386,10 @@ jobs:
         timeout-minutes: 5
         working-directory: packages/pdfrx
         run: flutter test --platform chrome test/wasm_document_dispose_test.dart
+
+      - name: Test Web display image ownership
+        working-directory: packages/pdfrx
+        run: flutter test --platform chrome test/render_for_display_web_test.dart
 
       - name: Build Web
         working-directory: packages/pdfrx/example/viewer

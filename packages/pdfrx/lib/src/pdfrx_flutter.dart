@@ -63,6 +63,8 @@ extension PdfPageExt on PdfPage {
   /// The returned image must be disposed by the caller. Returns null when the
   /// page cannot be rendered. Web may use a display-optimized representation.
   /// [pixelSizeThreshold] limits the size as in [PdfImageExt.createImage].
+  /// Cancellation is checked after rendering and after image conversion; an
+  /// image decoded after cancellation is disposed and null is returned.
   Future<Image?> renderForDisplay({
     int x = 0,
     int y = 0,
@@ -95,12 +97,16 @@ extension PdfPageExt on PdfPage {
     if (rendered == null) return null;
     try {
       if (cancellationToken?.isCanceled ?? false) return null;
-      if (pixelSizeThreshold == null ||
-          (rendered.width <= pixelSizeThreshold && rendered.height <= pixelSizeThreshold)) {
-        final image = createImageFromWorkerBitmap(rendered);
-        if (image != null) return await image;
+      final bitmapImage =
+          pixelSizeThreshold == null || (rendered.width <= pixelSizeThreshold && rendered.height <= pixelSizeThreshold)
+          ? createImageFromWorkerBitmap(rendered)
+          : null;
+      final image = await (bitmapImage ?? rendered.createImage(pixelSizeThreshold: pixelSizeThreshold));
+      if (cancellationToken?.isCanceled ?? false) {
+        image.dispose();
+        return null;
       }
-      return await rendered.createImage(pixelSizeThreshold: pixelSizeThreshold);
+      return image;
     } finally {
       rendered.dispose();
     }

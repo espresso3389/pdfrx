@@ -60,4 +60,38 @@ void main() {
     expect(source.takeImageBitmap(), isNull);
     expect(image.width, 1);
   });
+  test('cancellation during bitmap conversion releases the decoded image', () async {
+    final previousCreate = ui.Image.onCreate;
+    final previousDispose = ui.Image.onDispose;
+    addTearDown(() {
+      ui.Image.onCreate = previousCreate;
+      ui.Image.onDispose = previousDispose;
+    });
+    final token = _Token();
+    ui.Image? decoded;
+    var disposeCount = 0;
+    ui.Image.onCreate = (image) {
+      previousCreate?.call(image);
+      decoded = image;
+      token.cancel();
+    };
+    ui.Image.onDispose = (image) {
+      previousDispose?.call(image);
+      if (identical(decoded, image)) disposeCount++;
+    };
+    final source = await makeImage();
+    final image = await BitmapPage(source).renderForDisplay(cancellationToken: token);
+    if (image != null) addTearDown(image.dispose);
+    expect(decoded, isNotNull);
+    expect(image, isNull);
+    expect(disposeCount, 1);
+    expect(source.takeImageBitmap(), isNull);
+  });
+}
+
+class _Token implements PdfPageRenderCancellationToken {
+  @override
+  bool isCanceled = false;
+  @override
+  void cancel() => isCanceled = true;
 }

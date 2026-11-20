@@ -279,6 +279,10 @@ typedef PdfPageViewDecorationBuilder = Widget Function(
 );
 
 /// A widget that displays a page of a PDF document.
+///
+/// Obsolete renders are discarded when the page, its content, rotation, or
+/// requested size changes. A failed or null render can retry on a later rebuild;
+/// failures do not schedule an automatic retry loop.
 class PdfPageView extends StatefulWidget {
   const PdfPageView({
     required this.document,
@@ -334,6 +338,9 @@ class PdfPageView extends StatefulWidget {
 class _PdfPageViewState extends State<PdfPageView> {
   ui.Image? _image;
   Size? _pageSize;
+  ({PdfPage page, Size size, PdfPageRotation? rotation})? _imageKey;
+  ({PdfPage page, Size size, PdfPageRotation? rotation})? _requestKey;
+  int _renderGeneration = 0;
   PdfPageRenderCancellationToken? _cancellationToken;
   StreamSubscription<PdfDocumentEvent>? _eventSubscription;
 
@@ -362,9 +369,12 @@ class _PdfPageViewState extends State<PdfPageView> {
   }
 
   void _clearCache({bool refresh = true}) {
+    _renderGeneration++;
     _image?.dispose();
     _image = null;
     _pageSize = null;
+    _imageKey = null;
+    _requestKey = null;
     _cancellationToken?.cancel();
     _cancellationToken = null;
     if (refresh && mounted) {
@@ -437,6 +447,7 @@ class _PdfPageViewState extends State<PdfPageView> {
   Future<void> _updateImage(Size size) async {
     final document = widget.document;
     if (document == null || widget.pageNumber < 1 || widget.pageNumber > document.pages.length || size.isEmpty) {
+      _clearCache(refresh: false);
       return;
     }
     final page = document.pages[widget.pageNumber - 1];
@@ -453,33 +464,51 @@ class _PdfPageViewState extends State<PdfPageView> {
       pageSize = Size(w * scale, h * scale);
     }
 
-    if (pageSize == _pageSize) return;
-    final previousPageSize = _pageSize;
+    if (pageSize.isEmpty || !pageSize.isFinite) {
+      _clearCache(refresh: false);
+      return;
+    }
     _pageSize = pageSize;
+    final key = (page: page, size: pageSize, rotation: widget.rotationOverride);
+    if (key == _requestKey || (key == _imageKey && _requestKey == null)) return;
 
+    final generation = ++_renderGeneration;
     _cancellationToken?.cancel();
-    _cancellationToken = page.createCancellationToken();
+    _cancellationToken = null;
+    _requestKey = null;
+    // Returning to the displayed size only needs to cancel the obsolete request.
+    if (key == _imageKey) return;
+
+    final cancellationToken = page.createCancellationToken();
+    _cancellationToken = cancellationToken;
+    _requestKey = key;
     try {
       final newImage = await page.renderForDisplay(
         fullWidth: pageSize.width,
         fullHeight: pageSize.height,
-        rotationOverride: widget.rotationOverride,
-        cancellationToken: _cancellationToken,
+        rotationOverride: key.rotation,
+        cancellationToken: cancellationToken,
       );
       if (newImage == null) return;
-      if (!mounted) {
+      if (!mounted || generation != _renderGeneration || cancellationToken.isCanceled) {
         newImage.dispose();
         return;
       }
       _image?.dispose();
       _image = newImage;
+      _imageKey = key;
       setState(() {});
     } catch (e) {
-      developer.log('Error creating image: $e');
-      // Restore the size we came in with, but only if a newer call has not
-      // already claimed `_pageSize`. Otherwise the equality guard above locks
-      // this page out of ever retrying and it stays blank for good.
-      if (_pageSize == pageSize) _pageSize = previousPageSize;
+      if (mounted && generation == _renderGeneration) {
+        developer.log('Error creating image: $e');
+      }
+    } finally {
+      // Only this request can release its pending state. Null and failure leave
+      // no successful key, allowing a later rebuild to retry without busy looping.
+      if (generation == _renderGeneration) {
+        _requestKey = null;
+        _cancellationToken = null;
+      }
     }
   }
 }
