@@ -212,6 +212,10 @@ jobs:
         working-directory: packages/pdfrx_engine
         run: dart test test/pdf_page_link_cache_test.dart
 
+      - name: Test native pixel conversion and progressive rendering
+        working-directory: packages/pdfrx_engine
+        run: dart test test/pdf_pixel_conversion_test.dart test/pdf_progressive_render_test.dart
+
       - name: Test viewer link loading
         working-directory: packages/pdfrx
         run: flutter test test/page_link_loader_test.dart test/pdf_viewer_link_loading_test.dart
@@ -406,24 +410,30 @@ jobs:
           test/pdfium_worker_input_test.cjs
           test/pdfium_worker_lifetime_test.cjs
           test/pdfium_worker_assembly_test.cjs
+          test/pdfium_worker_render_queue_test.cjs
 
       - name: Test PDFium worker communication failures
         working-directory: packages/pdfrx
         run: node --test test/pdfium_client_failure_test.cjs
+
+      - name: Test Web pixel output and fallback paths
+        working-directory: packages/pdfrx
+        run: node --test test/pdfium_worker_pixels_test.cjs
 
       - name: Test Web worker failure propagation
         timeout-minutes: 5
         working-directory: packages/pdfrx
         run: flutter test --platform chrome test/wasm_worker_failure_test.dart
 
+      - name: Test Web display pixel parity and resizing
+        timeout-minutes: 5
+        working-directory: packages/pdfrx
+        run: flutter test --platform chrome test/render_for_display_web_test.dart test/wasm_pixel_pipeline_test.dart
+
       - name: Test Web page metadata and document disposal
         timeout-minutes: 5
         working-directory: packages/pdfrx
-        run: flutter test --platform chrome test/wasm_document_dispose_test.dart
-
-      - name: Test Web display image ownership
-        working-directory: packages/pdfrx
-        run: flutter test --platform chrome test/render_for_display_web_test.dart
+        run: flutter test --platform chrome test/wasm_document_dispose_test.dart test/wasm_render_queue_test.dart
 
       - name: Test Web input ownership and password retries
         working-directory: packages/pdfrx

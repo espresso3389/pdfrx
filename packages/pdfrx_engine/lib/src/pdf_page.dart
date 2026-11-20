@@ -51,6 +51,8 @@ abstract class PdfPage {
   /// - [annotationRenderingMode] controls to render annotations or not. The default is [PdfAnnotationRenderingMode.annotationAndForms].
   /// - [flags] is used to specify additional rendering flags. The default is [PdfPageRenderFlags.none].
   /// - [cancellationToken] can be used to cancel the rendering process. It must be created by [createCancellationToken].
+  ///   On Web, cancellation skips queued rendering and stops waiting for page data. An already running synchronous
+  ///   PDFium render cannot be interrupted; its late result is discarded.
   /// - [priority] controls scheduling on backends that support it. When omitted, rendering is high priority, or low
   ///   priority inside `Pdfrx.runAsBackgroundWork`. It does not change image quality.
   ///

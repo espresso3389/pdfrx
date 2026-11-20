@@ -1890,7 +1890,6 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
     width ??= fullWidth.toInt();
     height ??= fullHeight.toInt();
     backgroundColor ??= 0xffffffff; // white background
-    const rgbaSize = 4;
     Pointer<Uint8> buffer = nullptr;
     try {
       final bufferAddress = await using((arena) async {
@@ -1914,6 +1913,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
                 rotation: rotationOverride != null ? ((rotationOverride.index - rotation.index + 4) & 3) : 0,
                 annotationRenderingMode: annotationRenderingMode,
                 flags: flags & 0xffff, // Ensure flags are within 16-bit range
+                premultipliedAlpha: (flags & PdfPageRenderFlags.premultipliedAlpha) != 0,
                 formHandle: document.formHandle.address,
                 formInfo: document.formInfo.address,
                 cancelFlag: cancelFlag.address,
@@ -1944,19 +1944,6 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
       if (ct?.isCanceled == true) return null;
       final resultBuffer = buffer;
       buffer = nullptr;
-
-      if ((flags & PdfPageRenderFlags.premultipliedAlpha) != 0) {
-        final count = width * height;
-        for (var i = 0; i < count; i++) {
-          final b = resultBuffer[i * rgbaSize];
-          final g = resultBuffer[i * rgbaSize + 1];
-          final r = resultBuffer[i * rgbaSize + 2];
-          final a = resultBuffer[i * rgbaSize + 3];
-          resultBuffer[i * rgbaSize] = b * a ~/ 255;
-          resultBuffer[i * rgbaSize + 1] = g * a ~/ 255;
-          resultBuffer[i * rgbaSize + 2] = r * a ~/ 255;
-        }
-      }
 
       return _PdfImagePdfium._(width: width, height: height, buffer: resultBuffer);
     } catch (e) {
@@ -2211,6 +2198,7 @@ typedef _PdfiumRenderParams = ({
   int rotation,
   PdfAnnotationRenderingMode annotationRenderingMode,
   int flags,
+  bool premultipliedAlpha,
   int formHandle,
   int formInfo,
   int cancelFlag,
@@ -2262,6 +2250,8 @@ class _PdfiumRenderTask extends BackgroundWorkerTask<int> {
   NativeCallable<Int Function(Pointer<pdfium_bindings.IFSDK_PAUSE>)>? _pauseCallback;
   var _admitted = false;
   var _renderStarted = false;
+  var _renderComplete = false;
+  var _convertedBytes = 0;
   var _result = 0;
 
   @override
@@ -2278,6 +2268,7 @@ class _PdfiumRenderTask extends BackgroundWorkerTask<int> {
   @override
   bool run() {
     if (isCanceled) return true;
+    if (_renderComplete) return _finishRendering();
     if (!_admitted) {
       _activePages.add(_pageKey);
       _activeBytes += _bytes;
@@ -2350,6 +2341,34 @@ class _PdfiumRenderTask extends BackgroundWorkerTask<int> {
       );
     }
     if (isCanceled) return true;
+    _renderComplete = true;
+    return _finishRendering();
+  }
+
+  bool _finishRendering() {
+    if (isCanceled) return true;
+    if (params.premultipliedAlpha) {
+      // Check cancellation in bounded chunks, and yield after a short time slice without scheduling every chunk.
+      const bytesPerChunk = 64 * 1024 * 4;
+      final pixels = _buffer;
+      final length = _bytes;
+      _slice
+        ..reset()
+        ..start();
+      do {
+        final end = min(_convertedBytes + bytesPerChunk, length);
+        for (var i = _convertedBytes; i < end; i += 4) {
+          final alpha = pixels[i + 3];
+          pixels[i] = pixels[i] * alpha ~/ 255;
+          pixels[i + 1] = pixels[i + 1] * alpha ~/ 255;
+          pixels[i + 2] = pixels[i + 2] * alpha ~/ 255;
+        }
+        _convertedBytes = end;
+        if (isCanceled) return true;
+      } while (_convertedBytes < length && _slice.elapsedMicroseconds < 4000);
+      _slice.stop();
+      if (_convertedBytes < length) return false;
+    }
     _result = _buffer.address;
     _buffer = nullptr;
     return true;

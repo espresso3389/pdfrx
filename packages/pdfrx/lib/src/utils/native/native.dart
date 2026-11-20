@@ -37,7 +37,14 @@ Future<void> platformInitialize() async {
 }
 
 /// Native pages do not use the web worker bitmap hint.
-bool supportsWorkerBitmap(PdfPage page) => false;
+bool supportsWorkerBitmap(
+  PdfPage page, {
+  int? width,
+  int? height,
+  double? fullWidth,
+  double? fullHeight,
+  int? pixelSizeThreshold,
+}) => false;
 
 /// Web only: native renders have no `ImageBitmap`, so this always returns null.
 Future<ui.Image>? createImageFromWorkerBitmap(PdfImage image) => null;
