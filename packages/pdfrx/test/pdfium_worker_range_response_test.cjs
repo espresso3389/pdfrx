@@ -18,7 +18,7 @@ function createContext() {
   const context = {
     self: { location: { href: 'test' } },
     console: { log() {}, warn() {}, error() {} },
-    TextDecoder, TextEncoder, Uint8Array, Float32Array, ArrayBuffer,
+    setTimeout, TextDecoder, TextEncoder, Uint8Array, Float32Array, ArrayBuffer,
     onmessage: null,
     messages: [],
     postMessage(message) { context.messages.push(message); },

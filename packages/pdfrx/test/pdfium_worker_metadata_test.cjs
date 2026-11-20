@@ -10,6 +10,7 @@ function createContext() {
   const context = {
     self: { location: { href: 'test' } },
     console: { log() {}, warn() {}, error() {} },
+    setTimeout,
     TextDecoder,
     TextEncoder,
     Uint8Array,

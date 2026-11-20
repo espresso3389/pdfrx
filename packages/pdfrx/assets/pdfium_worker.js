@@ -1245,16 +1245,22 @@ async function loadDocumentFromUrlWithRangeAccess(params) {
 /**
  * @param {number} docHandle
  * @param {number} pageIndex
+ * @param {function():void} assertActive
  */
-async function _ensurePageAvailable(docHandle, pageIndex) {
+async function _ensurePageAvailable(docHandle, pageIndex, assertActive = () => {}) {
+  assertActive();
   const availability = rangeDocumentAvailabilities[docHandle];
   if (!availability) return;
 
   const result = await _waitForPdfAvailability(
     availability.cache,
     () => Pdfium.wasmExports.FPDFAvail_IsPageAvail(availability.avail, pageIndex, availability.downloadHintsPtr),
-    availability.takeSegments
+    availability.takeSegments,
+    [PDF_DATA_AVAIL],
+    PDF_DATA_ERROR,
+    assertActive,
   );
+  assertActive();
   if (result === PDF_DATA_ERROR) {
     throw new Error(`Failed to make PDF page ${pageIndex} data available`);
   }
@@ -1266,6 +1272,7 @@ async function _ensurePageAvailable(docHandle, pageIndex) {
  * @param {function():ByteRange[]} takeSegments
  * @param {number[]} availableResults
  * @param {number} errorResult
+ * @param {function():void} assertActive
  * @returns {Promise<number>}
  */
 async function _waitForPdfAvailability(
@@ -1273,9 +1280,11 @@ async function _waitForPdfAvailability(
   check,
   takeSegments,
   availableResults = [PDF_DATA_AVAIL],
-  errorResult = PDF_DATA_ERROR
+  errorResult = PDF_DATA_ERROR,
+  assertActive = () => {},
 ) {
   for (let i = 0; i < 1000; i++) {
+    assertActive();
     const result = check();
     const segments = takeSegments();
     if (availableResults.includes(result)) return result;
@@ -1283,11 +1292,13 @@ async function _waitForPdfAvailability(
     if (result !== PDF_DATA_NOTAVAIL && result !== PDF_FORM_NOTAVAIL) return result;
     if (segments.length === 0) {
       const segment = await cache.nextUnhintedBlock();
+      assertActive();
       if (!segment) {
         return availableResults[0];
       }
       const size = segment.end - segment.offset;
       const rangeUsable = await cache.download(segment.offset, size);
+      assertActive();
       if (!rangeUsable && !cache.isDataAvailable(0, cache.fileSize)) {
         throw new Error('PDF range response did not expose usable Content-Range metadata');
       }
@@ -1297,6 +1308,7 @@ async function _waitForPdfAvailability(
       for (const missing of cache.missingRanges(segment.offset, segment.end - segment.offset)) {
         const size = missing.end - missing.offset;
         const rangeUsable = await cache.download(missing.offset, size);
+        assertActive();
         // PDFium's hints can extend past EOF; a complete response is sufficient.
         if (!rangeUsable && !cache.isDataAvailable(0, cache.fileSize)) {
           throw new Error('PDF range response did not expose usable Content-Range metadata');
@@ -1654,6 +1666,7 @@ function _loadPageMetadata(docHandle, pageIndex) {
  * @param {{formHandle: number, formInfo: number, docHandle: number}} params
  */
 function closeDocument(params) {
+  renderQueue.cancelDocument(params.docHandle);
   if (params.formHandle) {
     try {
       Pdfium.wasmExports.FPDFDOC_ExitFormFillEnvironment(params.formHandle);
@@ -1731,6 +1744,144 @@ function closePage(params) {
 }
 
 /**
+ * Serializes ready render work while letting range downloads progress independently.
+ * Each dispatch yields to worker messages, including cancellation and visible-page requests.
+ * A synchronous PDFium render cannot be interrupted by an incoming worker message.
+ */
+class PdfRenderQueue {
+  constructor(prepare, render, schedule = _scheduleRenderTask) {
+    this.prepare = prepare;
+    this.render = render;
+    this.schedule = schedule;
+    this.queues = [new Map(), new Map(), new Map()];
+    this.jobs = new Set();
+    this.requests = new Map();
+    this.scheduled = false;
+    this.nextOrder = 0;
+    this.priorityOvertakes = 0;
+  }
+
+  enqueue(params) {
+    if (params.renderId != null && this.requests.has(params.renderId)) {
+      return Promise.reject(new Error('Duplicate pending render request'));
+    }
+    return new Promise((resolve, reject) => {
+      const priority = params.priority === 0 || params.priority === 2 ? params.priority : 1;
+      const job = { params, priority, resolve, reject, ready: false, cancelled: false, settled: false };
+      job.assertActive = () => {
+        if (job.cancelled) throw new Error('PDF page rendering was cancelled');
+      };
+      this.jobs.add(job);
+      if (params.renderId != null) this.requests.set(params.renderId, job);
+      this._queue(job);
+    });
+  }
+
+  cancel(renderIds) {
+    for (const id of renderIds) {
+      const job = this.requests.get(id);
+      if (job) this._cancel(job);
+    }
+  }
+
+  cancelDocument(docHandle) {
+    for (const job of this.jobs) {
+      if (job.params.docHandle === docHandle) this._cancel(job);
+    }
+  }
+
+  _cancel(job) {
+    job.cancelled = true;
+    this._finish(job, { cancelled: true });
+  }
+
+  _finish(job, result, error) {
+    if (job.settled) return;
+    job.settled = true;
+    this.queues[job.priority].delete(job);
+    this.jobs.delete(job);
+    if (job.params.renderId != null) this.requests.delete(job.params.renderId);
+    if (error !== undefined) job.reject(error);
+    else job.resolve(result);
+  }
+
+  _queue(job) {
+    if (job.settled) return;
+    job.order = this.nextOrder++;
+    this.queues[job.priority].set(job, job);
+    this._schedule();
+  }
+
+  _schedule() {
+    if (this.scheduled || !this.queues.some((queue) => queue.size)) return;
+    this.scheduled = true;
+    this.schedule(() => {
+      this.scheduled = false;
+      this._dispatch();
+    });
+  }
+
+  _dispatch() {
+    const candidates = this.queues.map((queue) => queue.values().next().value).filter(Boolean);
+    if (!candidates.length) return;
+    const oldest = candidates.reduce((a, b) => a.order < b.order ? a : b);
+    // Allow at most eight priority overtakes before serving the oldest ready work.
+    const job = this.priorityOvertakes >= 8 ? oldest : candidates[0];
+    this.priorityOvertakes = job === oldest ? 0 : this.priorityOvertakes + 1;
+    this.queues[job.priority].delete(job);
+    try {
+      if (!job.ready) {
+        // Preparation can await HTTP. It must not hold up ready work from another page/document.
+        Promise.resolve(this.prepare(job)).then(() => {
+          job.ready = true;
+          this._queue(job);
+        }, (error) => this._finish(job, null, error));
+      } else {
+        const result = this.render(job);
+        this._finish(job, result);
+      }
+    } catch (error) {
+      this._finish(job, null, error);
+    }
+    this._schedule();
+  }
+}
+
+let renderTaskChannel;
+let renderTaskCallback;
+function _scheduleRenderTask(callback) {
+  // MessageChannel avoids the minimum delay applied to deeply nested setTimeout calls.
+  if (typeof MessageChannel === 'undefined') {
+    setTimeout(callback, 0);
+    return;
+  }
+  if (!renderTaskChannel) {
+    renderTaskChannel = new MessageChannel();
+    renderTaskChannel.port1.onmessage = () => {
+      const task = renderTaskCallback;
+      renderTaskCallback = null;
+      task();
+    };
+  }
+  renderTaskCallback = callback;
+  renderTaskChannel.port2.postMessage(null);
+}
+
+const renderQueue = new PdfRenderQueue(
+  (job) => _ensurePageAvailable(job.params.docHandle, job.params.pageIndex, job.assertActive),
+  (job) => { job.assertActive(); return _renderPage(job.params); },
+);
+
+function renderPage(params) {
+  return renderQueue.enqueue(params);
+}
+
+function cancelRender(params) {
+  renderQueue.cancel(params.renderIds ?? []);
+  return { cancelled: true };
+}
+
+/**
  *
  * @param {{
  * docHandle: number,
@@ -1754,7 +1905,7 @@ function closePage(params) {
  * missingFonts: FontQueries
  * }}
  */
-async function renderPage(params) {
+function _renderPage(params) {
   const {
     docHandle,
     pageIndex,
@@ -1777,7 +1928,6 @@ async function renderPage(params) {
 
   try {
     _resetMissingFonts();
-    await _ensurePageAvailable(docHandle, pageIndex);
     pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
     if (!pageHandle) {
       throw new Error(`Failed to load page ${pageIndex} from document ${docHandle}`);
@@ -3165,6 +3315,7 @@ const functions = {
   loadPage,
   closePage,
   renderPage,
+  cancelRender,
   loadText,
   loadLinks,
   reloadFonts,

@@ -2,6 +2,7 @@ globalThis.PdfiumWasmCommunicator = (function () {
   const worker = new Worker(globalThis.pdfiumWasmWorkerUrl);
   let requestId = 0;
   let callbackId = 0;
+  let renderId = 0;
   const requestCallbacks = new Map();
   const registeredCallbacks = new Map();
 
@@ -50,6 +51,10 @@ globalThis.PdfiumWasmCommunicator = (function () {
         requestCallbacks.set(id, { resolve, reject });
         worker.postMessage({ id, command, parameters }, transfer);
       });
+    },
+
+    allocateRenderId: function () {
+      return ++renderId;
     },
 
     registerCallback: function (callback) {
