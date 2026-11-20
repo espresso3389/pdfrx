@@ -123,8 +123,13 @@ Future<Uint8List> _pixels(ui.Image image) async =>
     (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!.buffer.asUint8List();
 
 class _RenderLog {
+  _RenderLog() {
+    // Capture before install replaces sendCommand; a lazy initializer would capture the wrapper itself.
+    original = communicator.getProperty<JSFunction>('sendCommand'.toJS);
+  }
+
   final communicator = globalContext.getProperty<JSObject>('PdfiumWasmCommunicator'.toJS);
-  late final original = communicator.getProperty<JSFunction>('sendCommand'.toJS);
+  late final JSFunction original;
   final replies = <({int flags, int rawBytes, web.ImageBitmap? bitmap})>[];
 
   void install() {
