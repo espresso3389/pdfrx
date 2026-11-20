@@ -30530,7 +30530,7 @@ $iu_:1}
 A.aCU.prototype={
 $1(a){var s=A.d6().b
 s=s==null?null:s.canvasKitBaseUrl
-return(s==null?"https://www.gstatic.com/flutter-canvaskit/371f77202a73e8dff57a8b3bff75bca55c090aee/":s)+a},
+return(s==null?"https://www.gstatic.com/flutter-canvaskit/4d35714800b9266b6693a58e1225ecd7e9e45ed7/":s)+a},
 $S:95}
 A.Ly.prototype={
 l(){if(this.b)return
