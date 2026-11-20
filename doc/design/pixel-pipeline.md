@@ -6,7 +6,9 @@ This change addresses the measured pixel-path work in [Otzaria/otzaria#5538](htt
 
 An opaque `renderForDisplay` result previously returned both an `ImageBitmap` and a complete BGRA buffer. Flutter used the bitmap, but the unused raw buffer still crossed the worker boundary and stayed live until the intermediate image was released.
 
-The worker now attempts bitmap creation first. When it succeeds, it returns only the bitmap. The existing raw path remains in use for ordinary `PdfPage.render`, transparent or premultiplied output, unavailable or failed canvas support, and images that the Flutter codec must resize. The resize decision uses the backend's actual default dimensions through built-in page proxies. Ordinary raw images retain writable `pixels`; the private display-only result is consumed by `renderForDisplay` and is never returned as its public result.
+The worker now attempts bitmap creation first. When it succeeds, it returns only the bitmap. The existing raw path remains in use for ordinary `PdfPage.render`, transparent or premultiplied output, unavailable or failed canvas support, and images that exceed the requested `pixelSizeThreshold`. The threshold decision uses the backend's actual default dimensions through built-in page proxies. Ordinary raw images retain writable `pixels`; the private display-only result is consumed by `renderForDisplay` and is never returned as its public result.
+
+Threshold rendering continues to delegate to the existing `PdfImage.createImage(pixelSizeThreshold: ...)` codec path. It does not introduce a hard size cap on Web: [Flutter 3.50.1's `ImageDescriptor.instantiateCodec`](https://github.com/flutter/flutter/blob/ae9b586f34a8443573f82ef57c3bf914a908cbf7/engine/src/flutter/lib/web_ui/lib/painting.dart#L1075-L1093) forwards target dimensions only for encoded images and ignores them for raw images. On that engine, both the existing raw path and `renderForDisplay` retain the source dimensions. Browser regressions compare dimensions and every displayed pixel with explicit raw rendering plus `createImage`, while separately asserting raw-only worker replies for threshold requests. Native threshold behavior is unchanged.
 
 The deterministic probe below runs the real worker JavaScript with instrumented PDFium/canvas endpoints. It measures explicit JS output-buffer allocations and transfer-list bytes, not browser/GPU memory, process RSS or rendering time. The Node regressions additionally run the bundled PDFium WASM and compare raw/bitmap pixels for cropped pages at all four rotations.
 
@@ -65,4 +67,4 @@ flutter test --platform chrome test/render_for_display_web_test.dart test/wasm_p
 flutter test test/render_for_display_test.dart test/create_image_test.dart
 ```
 
-The new native, Node and Chrome suites are included in the existing build-test workflow. Browser tests inspect the actual Dart/JS worker reply, compare displayed pixels, retain raw-pixel editability, and cover resizing, transparent output and bitmap ownership on cancellation.
+The new native, Node and Chrome suites are included in the existing build-test workflow. Browser tests inspect the actual Dart/JS worker reply, compare displayed pixels, retain raw-pixel editability, and cover threshold compatibility, transparent output and bitmap ownership on cancellation.

@@ -72,23 +72,37 @@ void main() {
     expect(log.replies.single.bitmap, isNull);
   });
 
-  test('pixel threshold requests raw output and preserves codec resizing', () async {
-    final image = await document.pages.single.renderForDisplay(width: 96, height: 64, pixelSizeThreshold: 64);
+  test('pixel threshold requests raw output and preserves raw codec behavior', () async {
+    final page = document.pages.single;
+    final raw = await page.render(width: 96, height: 64);
+    addTearDown(raw!.dispose);
+    final expected = await raw.createImage(pixelSizeThreshold: 64);
+    addTearDown(expected.dispose);
+    final image = await page.renderForDisplay(width: 96, height: 64, pixelSizeThreshold: 64);
     addTearDown(image!.dispose);
-    expect((image.width, image.height), (64, 43));
-    expect(log.replies.single.rawBytes, 96 * 64 * 4);
-    expect(log.replies.single.flags & 0x40000000, 0);
-    expect(log.replies.single.bitmap, isNull);
+    // Compare the unchanged raw codec: some Flutter Web engines ignore its resize hints.
+    expect((image.width, image.height), (expected.width, expected.height));
+    expect(await _pixels(image), await _pixels(expected));
+    expect(log.replies.map((reply) => reply.rawBytes), [96 * 64 * 4, 96 * 64 * 4]);
+    expect(log.replies.map((reply) => reply.flags & 0x40000000), [0, 0]);
+    expect(log.replies.map((reply) => reply.bitmap), [null, null]);
   });
 
   test('pixel threshold uses backend defaults through rotated and renumbered pages', () async {
     final page = document.pages.single.rotatedCW90().withPageNumber(7);
+    final raw = await page.render(width: 80);
+    addTearDown(raw!.dispose);
+    // Proxies forward the unspecified height to the 200x300 base page.
+    expect((raw.width, raw.height), (80, 300));
+    final expected = await raw.createImage(pixelSizeThreshold: 240);
+    addTearDown(expected.dispose);
     final image = await page.renderForDisplay(width: 80, pixelSizeThreshold: 240);
     addTearDown(image!.dispose);
-    // Proxies forward the unspecified height to the 200x300 base page.
-    expect((image.width, image.height), (64, 240));
-    expect(log.replies.single.rawBytes, 80 * 300 * 4);
-    expect(log.replies.single.bitmap, isNull);
+    expect((image.width, image.height), (expected.width, expected.height));
+    expect(await _pixels(image), await _pixels(expected));
+    expect(log.replies.map((reply) => reply.rawBytes), [80 * 300 * 4, 80 * 300 * 4]);
+    expect(log.replies.map((reply) => reply.flags & 0x40000000), [0, 0]);
+    expect(log.replies.map((reply) => reply.bitmap), [null, null]);
   });
 
   test('an image already within the pixel threshold keeps the bitmap-only path', () async {
