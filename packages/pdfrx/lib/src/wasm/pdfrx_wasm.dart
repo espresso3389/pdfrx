@@ -481,7 +481,8 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
   bool isDisposed = false;
   Future<void>? _disposeFuture;
   bool _documentLoadCompleteNotified = false;
-<<<<<<< HEAD
+  late int _nativePageCount;
+  bool _assembling = false;
 
   Map<String, dynamic> get _workerParameters => {
     'docHandle': document['docHandle'],
@@ -504,10 +505,6 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
     }
   }
 
-=======
-  late int _nativePageCount;
-  bool _assembling = false;
->>>>>>> refs/remotes/pr/855
   final subject = BehaviorSubject<PdfDocumentEvent>();
 
   @override
