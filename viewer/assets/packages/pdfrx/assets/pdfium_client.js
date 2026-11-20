@@ -8,6 +8,7 @@ globalThis.PdfiumWasmCommunicator = (function () {
   let initializationTimer;
   let requestId = 0;
   let callbackId = 0;
+  let renderId = 0;
   const requestCallbacks = new Map();
   const registeredCallbacks = new Map();
 
@@ -110,7 +111,7 @@ globalThis.PdfiumWasmCommunicator = (function () {
               fail(new Error(`PDFium WASM worker initialization timed out after ${initializationTimeoutMs} ms`));
             }, initializationTimeoutMs);
           }
-          worker.postMessage({ id, command, parameters }, transfer);
+          worker.postMessage({ id, command, parameters }, transfer ?? []);
         } catch (error) {
           requestCallbacks.delete(id);
           reject(error);
@@ -119,6 +120,10 @@ globalThis.PdfiumWasmCommunicator = (function () {
           if (command === 'init') fail(error);
         }
       });
+    },
+
+    allocateRenderId: function () {
+      return ++renderId;
     },
 
     registerCallback: function (callback) {

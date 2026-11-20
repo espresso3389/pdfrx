@@ -1378,10 +1378,13 @@ async function loadDocumentFromUrlWithRangeAccess(params) {
 /**
  * @param {number} docHandle
  * @param {number} pageIndex
- * @param {PdfDocumentLifetime|undefined} lifetime
+ * @param {PdfDocumentLifetime|(function():void)|undefined} assertActiveOrLifetime
  */
-async function _ensurePageAvailable(docHandle, pageIndex, lifetime) {
-  lifetime?.assertOpen();
+async function _ensurePageAvailable(docHandle, pageIndex, assertActiveOrLifetime) {
+  const assertActive = typeof assertActiveOrLifetime === 'function'
+    ? assertActiveOrLifetime
+    : () => assertActiveOrLifetime?.assertOpen();
+  assertActive();
   const availability = rangeDocumentAvailabilities[docHandle];
   if (!availability) return;
 
@@ -1391,9 +1394,9 @@ async function _ensurePageAvailable(docHandle, pageIndex, lifetime) {
     availability.takeSegments,
     [PDF_DATA_AVAIL],
     PDF_DATA_ERROR,
-    () => lifetime?.assertOpen(),
+    assertActive,
   );
-  lifetime?.assertOpen();
+  assertActive();
   if (result === PDF_DATA_ERROR) {
     throw new Error(`Failed to make PDF page ${pageIndex} data available`);
   }
@@ -1405,7 +1408,7 @@ async function _ensurePageAvailable(docHandle, pageIndex, lifetime) {
  * @param {function():ByteRange[]} takeSegments
  * @param {number[]} availableResults
  * @param {number} errorResult
- * @param {function():void} assertOpen
+ * @param {function():void} assertActive
  * @returns {Promise<number>}
  */
 async function _waitForPdfAvailability(
@@ -1414,11 +1417,11 @@ async function _waitForPdfAvailability(
   takeSegments,
   availableResults = [PDF_DATA_AVAIL],
   errorResult = PDF_DATA_ERROR,
-  assertOpen = () => {},
+  assertActive = () => {},
 ) {
   for (let i = 0; i < 1000; i++) {
-    assertOpen();
-    cache.throwIfCancelled();
+    assertActive();
+    cache.throwIfCancelled?.();
     const result = check();
     const segments = takeSegments();
     if (availableResults.includes(result)) return result;
@@ -1426,15 +1429,15 @@ async function _waitForPdfAvailability(
     if (result !== PDF_DATA_NOTAVAIL && result !== PDF_FORM_NOTAVAIL) return result;
     if (segments.length === 0) {
       const segment = await cache.nextUnhintedBlock();
-      assertOpen();
-      cache.throwIfCancelled();
+      assertActive();
+      cache.throwIfCancelled?.();
       if (!segment) {
         return availableResults[0];
       }
       const size = segment.end - segment.offset;
       const rangeUsable = await cache.download(segment.offset, size);
-      assertOpen();
-      cache.throwIfCancelled();
+      assertActive();
+      cache.throwIfCancelled?.();
       if (!rangeUsable && !cache.isDataAvailable(0, cache.fileSize)) {
         throw new Error('PDF range response did not expose usable Content-Range metadata');
       }
@@ -1444,8 +1447,8 @@ async function _waitForPdfAvailability(
       for (const missing of cache.missingRanges(segment.offset, segment.end - segment.offset)) {
         const size = missing.end - missing.offset;
         const rangeUsable = await cache.download(missing.offset, size);
-        assertOpen();
-        cache.throwIfCancelled();
+        assertActive();
+        cache.throwIfCancelled?.();
         // PDFium's hints can extend past EOF; a complete response is sufficient.
         if (!rangeUsable && !cache.isDataAvailable(0, cache.fileSize)) {
           throw new Error('PDF range response did not expose usable Content-Range metadata');
@@ -1637,6 +1640,10 @@ class PdfDocumentLifetime {
     this.closePromise = new Promise((resolve, reject) => {
       this.resolveClose = resolve;
       this.rejectClose = reject;
+    });
+    renderQueue.cancelDocument(this.docHandle, {
+      documentId: this.documentId,
+      error: new Error('PDF document is closed'),
     });
     rangeDocumentAvailabilities[this.docHandle]?.cache.cancel();
     if (this.activeOperations === 0) this._finishClose();
@@ -2082,6 +2089,163 @@ function closePage(params) {
 }
 
 /**
+ * Serializes ready render work while letting range downloads progress independently.
+ * Each dispatch yields to worker messages, including cancellation and visible-page requests.
+ * A synchronous PDFium render cannot be interrupted by an incoming worker message.
+ */
+class PdfRenderQueue {
+  constructor(prepare, render, schedule = _scheduleRenderTask) {
+    this.prepare = prepare;
+    this.render = render;
+    this.schedule = schedule;
+    this.queues = [new Map(), new Map(), new Map()];
+    this.jobs = new Set();
+    this.requests = new Map();
+    this.scheduled = false;
+    this.nextOrder = 0;
+    this.priorityOvertakes = 0;
+  }
+
+  enqueue(params, lifetime) {
+    if (params.renderId != null && this.requests.has(params.renderId)) {
+      return Promise.reject(new Error('Duplicate pending render request'));
+    }
+    return new Promise((resolve, reject) => {
+      const priority = params.priority === 0 || params.priority === 2 ? params.priority : 1;
+      const documentId = lifetime?.documentId ?? params.documentId;
+      const job = {
+        params,
+        lifetime,
+        documentId,
+        priority,
+        resolve,
+        reject,
+        ready: false,
+        cancelled: false,
+        settled: false,
+      };
+      job.assertActive = () => {
+        if (job.cancelled) throw new Error('PDF page rendering was cancelled');
+        job.lifetime?.assertOpen();
+      };
+      this.jobs.add(job);
+      if (params.renderId != null) this.requests.set(params.renderId, job);
+      this._queue(job);
+    });
+  }
+
+  cancel(renderIds) {
+    for (const id of renderIds) {
+      const job = this.requests.get(id);
+      if (job) this._cancel(job);
+    }
+  }
+
+  cancelDocument(docHandle, { documentId, error } = {}) {
+    for (const job of [...this.jobs]) {
+      if (job.params.docHandle !== docHandle) continue;
+      if (documentId != null && job.documentId != null && job.documentId !== documentId) continue;
+      if (error !== undefined) {
+        job.cancelled = true;
+        this._finish(job, null, error);
+      } else {
+        this._cancel(job);
+      }
+    }
+  }
+
+  _cancel(job) {
+    job.cancelled = true;
+    this._finish(job, { cancelled: true });
+  }
+
+  _finish(job, result, error) {
+    if (job.settled) return;
+    job.settled = true;
+    this.queues[job.priority].delete(job);
+    this.jobs.delete(job);
+    if (job.params.renderId != null) this.requests.delete(job.params.renderId);
+    if (error !== undefined) job.reject(error);
+    else job.resolve(result);
+  }
+
+  _queue(job) {
+    if (job.settled) return;
+    job.order = this.nextOrder++;
+    this.queues[job.priority].set(job, job);
+    this._schedule();
+  }
+
+  _schedule() {
+    if (this.scheduled || !this.queues.some((queue) => queue.size)) return;
+    this.scheduled = true;
+    this.schedule(() => {
+      this.scheduled = false;
+      this._dispatch();
+    });
+  }
+
+  _dispatch() {
+    const candidates = this.queues.map((queue) => queue.values().next().value).filter(Boolean);
+    if (!candidates.length) return;
+    const oldest = candidates.reduce((a, b) => a.order < b.order ? a : b);
+    // Allow at most eight priority overtakes before serving the oldest ready work.
+    const job = this.priorityOvertakes >= 8 ? oldest : candidates[0];
+    this.priorityOvertakes = job === oldest ? 0 : this.priorityOvertakes + 1;
+    this.queues[job.priority].delete(job);
+    try {
+      if (!job.ready) {
+        // Preparation can await HTTP. It must not hold up ready work from another page/document.
+        Promise.resolve(this.prepare(job)).then(() => {
+          job.ready = true;
+          this._queue(job);
+        }, (error) => this._finish(job, null, error));
+      } else {
+        const result = this.render(job);
+        this._finish(job, result);
+      }
+    } catch (error) {
+      this._finish(job, null, error);
+    }
+    this._schedule();
+  }
+}
+
+let renderTaskChannel;
+let renderTaskCallback;
+function _scheduleRenderTask(callback) {
+  // MessageChannel avoids the minimum delay applied to deeply nested setTimeout calls.
+  if (typeof MessageChannel === 'undefined') {
+    setTimeout(callback, 0);
+    return;
+  }
+  if (!renderTaskChannel) {
+    renderTaskChannel = new MessageChannel();
+    renderTaskChannel.port1.onmessage = () => {
+      const task = renderTaskCallback;
+      renderTaskCallback = null;
+      task();
+    };
+  }
+  renderTaskCallback = callback;
+  renderTaskChannel.port2.postMessage(null);
+}
+
+const renderQueue = new PdfRenderQueue(
+  (job) => _ensurePageAvailable(job.params.docHandle, job.params.pageIndex, job.assertActive),
+  (job) => { job.assertActive(); return _renderPage(job.params); },
+);
+
+function renderPage(params) {
+  return _withDocumentOperation(params, (lifetime) => renderQueue.enqueue(params, lifetime));
+}
+
+function cancelRender(params) {
+  renderQueue.cancel(params.renderIds ?? []);
+  return { cancelled: true };
+}
+
+/**
  *
  * @param {{
  * docHandle: number,
@@ -2099,17 +2263,13 @@ function closePage(params) {
  * formHandle: number
  * }} params
  * @returns {{
- * imageData: ArrayBuffer,
+ * imageData: ArrayBuffer|null,
  * width: number,
  * height: number,
  * missingFonts: FontQueries
  * }}
  */
-function renderPage(params) {
-  return _withDocumentOperation(params, (lifetime) => _renderPage(params, lifetime));
-}
-
-async function _renderPage(params, lifetime) {
+function _renderPage(params) {
   const {
     docHandle,
     pageIndex,
@@ -2132,8 +2292,6 @@ async function _renderPage(params, lifetime) {
 
   try {
     _resetMissingFonts();
-    await _ensurePageAvailable(docHandle, pageIndex, lifetime);
-    lifetime.assertOpen();
     pageHandle = Pdfium.wasmExports.FPDF_LoadPage(docHandle, pageIndex);
     if (!pageHandle) {
       throw new Error(`Failed to load page ${pageIndex} from document ${docHandle}`);
@@ -2175,23 +2333,26 @@ async function _renderPage(params, lifetime) {
       );
     }
     const src = new Uint8Array(Pdfium.memory.buffer, bufferPtr, bufferSize);
-    let copiedBuffer = new ArrayBuffer(bufferSize);
-    let dest = new Uint8Array(copiedBuffer);
-    if (flags & premultipliedAlpha) {
-      for (let i = 0; i < src.length; i += 4) {
-        const a = src[i + 3];
-        dest[i] = (src[i] * a + 128) >> 8;
-        dest[i + 1] = (src[i + 1] * a + 128) >> 8;
-        dest[i + 2] = (src[i + 2] * a + 128) >> 8;
-        dest[i + 3] = a;
-      }
-    } else {
-      dest.set(src);
-    }
-
-    // Preserve the raw rendering behavior for transparent and premultiplied images.
+    // The internal display hint is used only when Flutter does not need the raw pixels for resizing.
+    // Keep transparent/premultiplied images on the established raw path to preserve their alpha semantics.
     const useBitmap = (flags & 0x40000000) && !(flags & premultipliedAlpha) && (backgroundColor >>> 24) === 255;
     const imageBitmap = useBitmap ? _createImageBitmapFromBgra(src, width, height) : null;
+    let copiedBuffer = null;
+    if (!imageBitmap) {
+      copiedBuffer = new ArrayBuffer(bufferSize);
+      const dest = new Uint8Array(copiedBuffer);
+      if (flags & premultipliedAlpha) {
+        for (let i = 0; i < src.length; i += 4) {
+          const a = src[i + 3];
+          dest[i] = (src[i] * a + 128) >> 8;
+          dest[i + 1] = (src[i + 1] * a + 128) >> 8;
+          dest[i + 2] = (src[i + 2] * a + 128) >> 8;
+          dest[i + 3] = a;
+        }
+      } else {
+        dest.set(src);
+      }
+    }
 
     _updateMissingFonts(docHandle);
 
@@ -2203,7 +2364,7 @@ async function _renderPage(params, lifetime) {
         height: height,
         missingFonts: missingFonts[docHandle],
       },
-      transfer: imageBitmap ? [copiedBuffer, imageBitmap] : [copiedBuffer],
+      transfer: imageBitmap ? [imageBitmap] : [copiedBuffer],
     };
   } finally {
     if (pageHandle) Pdfium.wasmExports.FPDF_ClosePage(pageHandle);
@@ -3575,6 +3736,7 @@ const functions = {
   loadPage,
   closePage,
   renderPage,
+  cancelRender,
   loadText,
   loadLinks,
   reloadFonts,
