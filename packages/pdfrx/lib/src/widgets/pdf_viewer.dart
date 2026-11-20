@@ -26,6 +26,7 @@ import 'internals/page_layout_index.dart';
 import 'internals/page_link_loader.dart';
 import 'internals/pdf_error_widget.dart';
 import 'internals/pdf_viewer_key_handler.dart';
+import 'internals/text_selection_index.dart';
 import 'internals/widget_size_sniffer.dart';
 import 'layout/pdf_fit_mode.dart';
 import 'layout/pdf_page_layout_strategy.dart';
@@ -298,6 +299,7 @@ class _PdfViewerState extends State<PdfViewer>
   // Changes to the stream rebuilds the viewer
   final _updateStream = BehaviorSubject<Matrix4>();
 
+  final _textSelectionIndexes = TextSelectionIndexCache();
   PdfPageTextCache? _textCache;
   PdfPageTextCacheLease? _textCacheLease;
   ({int? first, int? last, List<int> visible})? _textCachePins;
@@ -538,6 +540,7 @@ class _PdfViewerState extends State<PdfViewer>
     _textCacheLease = null;
     _textCachePins = null;
     _textCache = null;
+    _textSelectionIndexes.clear();
     _pendingTextLoads.clear();
     _clearTextSelections(invalidate: false);
     _pagesBeingMeasured.clear();
@@ -671,6 +674,7 @@ class _PdfViewerState extends State<PdfViewer>
   void dispose() {
     _imageBudget.removeListener(_onImageBudgetChanged);
     _localImageBudget.dispose();
+    _textSelectionIndexes.clear();
     _textCacheLease?.dispose();
     _selectedTextSnapshot = null;
     _textCopyInvalidators.clear();
@@ -757,6 +761,7 @@ class _PdfViewerState extends State<PdfViewer>
       }
       final pageCount = event.document.pages.length;
       if (_layout != null && pageCount < _layout!.pageLayouts.length) {
+        _textSelectionIndexes.clear();
         _imageCache.releaseImagesAfter(pageCount);
         _magnifierImageCache.releaseImagesAfter(pageCount);
       }
@@ -771,6 +776,7 @@ class _PdfViewerState extends State<PdfViewer>
         _magnifierImageCache.makeCacheImageForPageDirty(change.key, page: metadataOnly ? status.page : null);
         _canvasLinkPainter.releaseLinksForPage(change.key);
         _textCache?.invalidate(change.key);
+        _textSelectionIndexes.invalidate(change.key);
       }
       // Only drop the selection if one of the changed pages is actually part of it;
       // otherwise incremental loading of unrelated pages would keep clearing it.
@@ -3112,6 +3118,7 @@ class _PdfViewerState extends State<PdfViewer>
     if (!keepSelection) _clearTextSelections(invalidate: false);
     _updateTextCachePins(keepVisible: keepVisible, keepSelection: keepSelection);
     _textCache?.clear(keepPinned: true);
+    _textSelectionIndexes.clear();
     _canvasLinkPainter.resetAll();
     _releaseCachedImages(keepVisible: keepVisible && widget.params.isVisible);
   }
@@ -4225,22 +4232,8 @@ class _PdfViewerState extends State<PdfViewer>
       final text = _getCachedTextOrDelayLoadText(pageIndex + 1, onTextLoaded: () => _updateTextSelection());
       if (text == null) continue;
       final pt = point.translate(-pageRect.left, -pageRect.top).toPdfPoint(page: page, scaledPageSize: pageRect.size);
-      var d2Min = double.infinity;
-      int? closestIndex;
-      for (var i = 0; i < text.charRects.length; i++) {
-        final charRect = text.charRects[i];
-        if (charRect.containsPoint(pt)) {
-          return PdfTextSelectionPoint(text, i);
-        }
-        final d2 = charRect.distanceSquaredTo(pt);
-        if (d2 < d2Min) {
-          d2Min = d2;
-          closestIndex = i;
-        }
-      }
-      if (closestIndex != null && d2Min <= hitTestMargin * hitTestMargin) {
-        return PdfTextSelectionPoint(text, closestIndex);
-      }
+      final index = _textSelectionIndexes.forText(text).nearest(text.charRects, pt, maximumDistance: hitTestMargin);
+      if (index != null) return PdfTextSelectionPoint(text, index);
     }
     return null;
   }
@@ -5053,7 +5046,6 @@ class _PdfViewerState extends State<PdfViewer>
     final strict = _findTextAndIndexForPoint(point);
     if (strict != null) return strict;
     final nearestPage = _pageLayoutIndex!.nearest(point);
-    var distance = double.infinity;
     final pages = _layout!.pageLayouts;
     if (nearestPage == null) return null;
     final text = _getCachedTextOrDelayLoadText(nearestPage + 1);
@@ -5063,24 +5055,8 @@ class _PdfViewerState extends State<PdfViewer>
       page: _document!.pages[nearestPage],
       scaledPageSize: pageRect.size,
     );
-    var index = 0;
-    distance = double.infinity;
-    var top = -double.infinity;
-    var bottom = double.infinity;
-    for (var i = 0; i < text.charRects.length; i++) {
-      final rect = text.charRects[i];
-      top = max(top, rect.top);
-      bottom = min(bottom, rect.bottom);
-      final d = rect.distanceSquaredTo(pt);
-      if (d < distance) {
-        distance = d;
-        index = i;
-      }
-    }
-    // In page margins, select through the page boundary in text order.
-    if (pt.y > top) index = 0;
-    if (pt.y < bottom) index = text.charRects.length - 1;
-    return PdfTextSelectionPoint(text, index);
+    final index = _textSelectionIndexes.forText(text).nearestForHandle(text.charRects, pt);
+    return index == null ? null : PdfTextSelectionPoint(text, index);
   }
 
   void _onSelectionHandlePanStart(_TextSelectionPart handle, DragStartDetails details) {

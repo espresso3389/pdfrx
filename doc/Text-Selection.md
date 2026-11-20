@@ -2,6 +2,21 @@
 
 Text selection is configured through [PdfViewerParams.textSelectionParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/textSelectionParams.html).
 
+## Selection on Dense Pages
+
+Pointer selection and handle dragging use a lazily built index of character bounds. Nearby character groups are searched first; overlapping glyphs and equal-distance candidates still resolve in logical text order. The same inclusive boundaries, hit margin and page-margin handle behavior apply to Hebrew, mixed-direction text, columns and rotated pages.
+
+Each viewer retains at most four indexes within a separate 256 KiB estimated-byte budget. Dense pages use larger character groups to fit the budget. Indexes store aggregate bounds and weak references to text, so they do not keep character geometry alive after the shared text cache evicts it. Page changes, document replacement, hiding the viewer, disposal and `releaseCachedResources()` invalidate the relevant indexes. This budget covers index storage, not PDFium memory, image caches or selection text held by callers.
+
+The reproducible query benchmark compares the previous linear scan with the index on the same generated geometry, checks result equality, and reports every timing sample plus geometry-operation counts. Run from the repository root after `flutter pub get`:
+
+```sh
+dart compile exe packages/pdfrx/tool/text_selection_index_benchmark.dart -o /tmp/pdfrx-selection-benchmark
+/tmp/pdfrx-selection-benchmark
+```
+
+Its AOT timings isolate selection queries; they are not whole-frame or application benchmarks. The widget regression suite separately exercises actual viewer gestures and content/cache lifecycle changes.
+
 ## Enabling/Disabling Text Selection
 
 Text selection feature is enabled by default and if you want to disable it, do like the following fragment:
