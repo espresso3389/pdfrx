@@ -251,6 +251,132 @@ void main() {
     });
   });
 
+  group('pinch that drags the content with it', () {
+    // A pinch moves the content with its focal point; that must respect the scroll physics as a
+    // drag does, however the gesture is classified.
+    Future<double> pinchAndDragDown(WidgetTester tester, ScrollPhysics physics) async {
+      final controller = TransformationController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 400,
+              height: 400,
+              child: pdfrx.InteractiveViewer(
+                constrained: false,
+                minScale: 0.5,
+                maxScale: 4,
+                transformationController: controller,
+                scrollPhysics: physics,
+                child: const SizedBox(width: 400, height: 2000),
+              ),
+            ),
+          ),
+        ),
+      );
+      const start = Offset(200, 100);
+      final first = await tester.startGesture(start.translate(-50, 0), pointer: 1);
+      final second = await tester.startGesture(start.translate(50, 0), pointer: 2);
+      await tester.pump(const Duration(milliseconds: 16));
+      // Spread the fingers (a clear pinch, zooming in) while moving them 250 pixels down.
+      for (var i = 1; i <= 25; i++) {
+        await first.moveTo(start.translate(-50.0 - 2 * i, 10.0 * i));
+        await second.moveTo(start.translate(50.0 + 2 * i, 10.0 * i));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(controller.value.getMaxScaleOnAxis(), greaterThan(1.3));
+      final overscroll = controller.value.getTranslation().y;
+      await first.up();
+      await second.up();
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(controller.value.getTranslation().y, moreOrLessEquals(0, epsilon: 0.5), reason: 'back in bounds');
+      return overscroll;
+    }
+
+    testWidgets('stays in bounds with ClampingScrollPhysics', (tester) async {
+      expect(await pinchAndDragDown(tester, const ClampingScrollPhysics()), moreOrLessEquals(0, epsilon: 0.01));
+    });
+
+    testWidgets('overscrolls no further than FixedOverscrollPhysics allows', (tester) async {
+      final overscroll = await pinchAndDragDown(tester, const FixedOverscrollPhysics(maxOverscroll: 80));
+      expect(overscroll, moreOrLessEquals(80, epsilon: 0.01));
+    });
+
+    testWidgets('overscrolls with BouncingScrollPhysics', (tester) async {
+      expect(await pinchAndDragDown(tester, const BouncingScrollPhysics()), greaterThan(100));
+    });
+  });
+
+  // #677: at the end of a long document, the scene position under the fingers is huge; the bounds
+  // of a pinch must be worked out in viewport pixels, or the view jumps by pages.
+  testWidgets('pinch at the end of a long document does not jump (FixedOverscrollPhysics)', (tester) async {
+    final controller = TransformationController();
+    addTearDown(controller.dispose);
+    const contentHeight = 200000.0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 400,
+            height: 400,
+            child: pdfrx.InteractiveViewer(
+              constrained: false,
+              minScale: 0.5,
+              maxScale: 4,
+              transformationController: controller,
+              scrollPhysics: const FixedOverscrollPhysics(),
+              child: const SizedBox(width: 400, height: contentHeight),
+            ),
+          ),
+        ),
+      ),
+    );
+    // The bottom of the content at the bottom of the view.
+    controller.value = Matrix4.identity()..translateByDouble(0, -(contentHeight - 400), 0, 1);
+    await tester.pump();
+
+    const focalPoint = Offset(200, 200);
+    Future<void> pinch(double fromHalf, double toHalf, void Function() afterEachStep) async {
+      final first = await tester.startGesture(focalPoint.translate(-fromHalf, 0), pointer: 1);
+      final second = await tester.startGesture(focalPoint.translate(fromHalf, 0), pointer: 2);
+      await tester.pump(const Duration(milliseconds: 16));
+      for (var i = 1; i <= 20; i++) {
+        final half = fromHalf + (toHalf - fromHalf) * i / 20;
+        await first.moveTo(focalPoint.translate(-half, 0));
+        await second.moveTo(focalPoint.translate(half, 0));
+        await tester.pump(const Duration(milliseconds: 16));
+        afterEachStep();
+      }
+      await first.up();
+      await second.up();
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+    }
+
+    // Zoom in: the content under the fingers stays there.
+    final sceneBefore = controller.toScene(focalPoint);
+    await pinch(40, 120, () {
+      expect(controller.toScene(focalPoint).dy, moreOrLessEquals(sceneBefore.dy, epsilon: 0.01));
+    });
+    expect(controller.value.getMaxScaleOnAxis(), greaterThan(1.5));
+
+    // Zoom back out past where it started: the view stays at the end of the content, never further
+    // from it than the overscroll that the physics allows.
+    await pinch(120, 30, () {
+      final scale = controller.value.getMaxScaleOnAxis();
+      final contentBottomInView = contentHeight * scale + controller.value.getTranslation().y;
+      expect(contentBottomInView, greaterThan(400 - 200 - 0.01));
+    });
+    final scale = controller.value.getMaxScaleOnAxis();
+    expect(contentHeight * scale + controller.value.getTranslation().y, moreOrLessEquals(400, epsilon: 0.5));
+  });
+
   group('mouse wheel pointer signal', () {
     Future<({int viewer, int overlay})> sendWheel(WidgetTester tester, {required bool withOverlay}) async {
       var viewer = 0;
