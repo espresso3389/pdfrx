@@ -9,13 +9,8 @@ import 'package:pdfrx/pdfrx.dart';
 /// Tests for `loadPageDimensionsOnDemand`.
 ///
 /// These drive the real PDFium through a fake HTTP layer, so they exercise the
-/// actual demand-paging path rather than a stand-in. PDFium cannot be downloaded
-/// from inside a widget test (`TestWidgetsFlutterBinding` fails every HTTP
-/// request), so the module has to be supplied:
-///
-///     PDFIUM_PATH=/path/to/pdfium.dll flutter test
-///
-/// `tool/fetch_pdfium.sh` downloads a matching build and prints the path.
+/// actual demand-paging path rather than a stand-in. The build hook supplies
+/// PDFium before the widget test starts; missing native assets fail the suite.
 ///
 /// Note these pump explicit durations rather than calling `pumpAndSettle`: the
 /// viewer keeps a periodic timer alive for as long as it is mounted, so the tree
@@ -23,7 +18,6 @@ import 'package:pdfrx/pdfrx.dart';
 /// out.
 final binding = TestWidgetsFlutterBinding.ensureInitialized();
 
-final _pdfiumPath = Platform.environment['PDFIUM_PATH'];
 final _fixture = File('test/assets/multipage40.pdf');
 var _requestSequence = 0;
 
@@ -81,6 +75,21 @@ Future<PdfDocument?> _pumpViewer(
   );
 
   PdfDocument? captured;
+  addTearDown(() async {
+    final document = captured;
+    await tester.pumpWidget(const SizedBox.shrink());
+    // Let the viewer's trailing-load delay observe its disposed state, then
+    // wait for native work before the next case clears the disk cache.
+    await tester.pump(const Duration(seconds: 1));
+    var closed = document == null;
+    final closing = document?.dispose().then((_) => closed = true);
+    for (var i = 0; i < 100 && !closed; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(closed, isTrue, reason: 'native document disposal must complete before clearing its cache');
+    await closing;
+  });
   await binding.setSurfaceSize(const Size(1080, 1920));
   await tester.pumpWidget(
     MaterialApp(
@@ -118,8 +127,6 @@ void main() {
   late Directory cacheDir;
 
   setUpAll(() {
-    if (_pdfiumPath == null) return;
-    Pdfrx.pdfiumModulePath = _pdfiumPath;
     // The block cache needs somewhere to live. pdfrxFlutterInitialize would
     // normally point this at path_provider, which throws under flutter_test
     // because there is no platform channel -- and it throws before any HTTP is
@@ -130,7 +137,6 @@ void main() {
   });
 
   tearDownAll(() {
-    if (_pdfiumPath == null) return;
     try {
       cacheDir.deleteSync(recursive: true);
     } catch (_) {}
@@ -162,7 +168,7 @@ void main() {
       expect(doc, isNotNull, reason: 'onDocumentChanged should have fired');
       expect(doc!.pages.length, 40);
       expect(_measuredCount(doc), 40, reason: 'eager loading must measure every page without scrolling');
-    }, skip: _pdfiumPath == null);
+    });
 
     testWidgets('on: only pages near the viewport are measured', (tester) async {
       final log = <String>[];
@@ -180,7 +186,7 @@ void main() {
         greaterThan(0),
         reason: 'the visible pages must still be measured or nothing can paint',
       );
-    }, skip: _pdfiumPath == null);
+    });
 
     testWidgets('on: fetches strictly less than the whole file', (tester) async {
       final onDemandLog = <String>[];
@@ -195,7 +201,7 @@ void main() {
         lessThanOrEqualTo(eagerLog.length),
         reason: 'demand paging must not fetch more than the eager path',
       );
-    }, skip: _pdfiumPath == null);
+    });
   });
 
   group('degraded networks', () {
@@ -205,7 +211,7 @@ void main() {
 
       expect(doc, isNotNull, reason: 'a 200 with the whole body must still work');
       expect(doc!.pages.length, 40);
-    }, skip: _pdfiumPath == null);
+    });
 
     testWidgets('slow link does not lose the document', (tester) async {
       final log = <String>[];
@@ -218,7 +224,7 @@ void main() {
 
       expect(doc, isNotNull);
       expect(doc!.pages.length, 40);
-    }, skip: _pdfiumPath == null);
+    });
 
     testWidgets('a failing first request surfaces as an error, not a hang', (tester) async {
       final log = <String>[];
@@ -226,6 +232,6 @@ void main() {
 
       expect(doc, isNull, reason: 'no document should be produced when every fetch 500s');
       expect(log, isNotEmpty, reason: 'it must have tried');
-    }, skip: _pdfiumPath == null);
+    });
   });
 }

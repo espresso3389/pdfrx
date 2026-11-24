@@ -203,98 +203,24 @@ jobs:
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
 
-      - name: Test Hebrew text normalization and font resolution
-        working-directory: packages/pdfrx_engine
-        run: >-
-          dart test
-          test/pdf_hebrew_text_normalizer_test.dart
-          test/pdf_text_formatter_test.dart
-          test/pdf_text_search_result_test.dart
-          test/pdf_font_resolver_test.dart
-          test/pdf_font_source_test.dart
+      - name: Test all PDFium bindings, native assets, and download regressions
+        timeout-minutes: 10
+        working-directory: packages/pdfium_dart
+        run: dart test
 
-      - name: Test link metadata cache
+      - name: Test all engine regressions
+        timeout-minutes: 10
         working-directory: packages/pdfrx_engine
-        run: dart test test/pdf_page_link_cache_test.dart
-
-      - name: Test native pixel conversion and progressive rendering
-        working-directory: packages/pdfrx_engine
-        run: dart test test/pdf_pixel_conversion_test.dart test/pdf_progressive_render_test.dart
-
-      - name: Test viewer link loading
-        working-directory: packages/pdfrx
-        run: flutter test test/page_link_loader_test.dart test/pdf_viewer_link_loading_test.dart
-
-      - name: Test HTTP cache freshness and storage
-        timeout-minutes: 5
-        working-directory: packages/pdfrx_engine
-        run: >-
-          dart test
-          test/http_cache_control_test.dart
-          test/pdf_file_cache_policy_test.dart
-          test/pdf_file_cache_policy_native_test.dart
-          test/pdf_file_cache_range_test.dart
-          test/pdf_file_cache_timeout_test.dart
-          test/pdf_file_cache_timeout_native_test.dart
-          test/pdf_file_cache_auth_identity_test.dart
+        run: dart test
 
       - name: Build Linux
         working-directory: packages/pdfrx/example/viewer
         run: flutter build linux --debug --verbose
 
-      - name: Test page loading and text caching
-        timeout-minutes: 5
-        working-directory: packages/pdfrx_engine
-        run: dart test test/pdf_document_test.dart test/pdf_page_text_cache_test.dart test/pdf_page_metadata_loading_test.dart test/pdf_input_data_test.dart
-
-      - name: Test document builder identity and progress updates
+      - name: Test all native viewer regressions
+        timeout-minutes: 15
         working-directory: packages/pdfrx
-        run: >-
-          flutter test
-          test/pdf_document_view_builder_progress_test.dart
-          test/pdf_document_view_builder_identity_test.dart
-
-      - name: Test partial-only viewer cache
-        working-directory: packages/pdfrx
-        run: flutter test test/pdf_viewer_partial_cache_test.dart
-
-      - name: Test partial image reuse and pixel alignment
-        working-directory: packages/pdfrx
-        run: flutter test test/pdf_viewer_partial_reuse_test.dart test/partial_rendering_test.dart
-
-      - name: Test magnifier rendering lifecycle
-        working-directory: packages/pdfrx
-        run: flutter test test/pdf_viewer_magnifier_lifecycle_test.dart
-
-      - name: Test page view rendering lifecycle
-        working-directory: packages/pdfrx
-        run: flutter test test/pdf_page_view_lifecycle_test.dart test/render_for_display_test.dart
-
-      - name: Test page content cache invalidation
-        working-directory: packages/pdfrx
-        run: flutter test test/pdf_viewer_content_cache_test.dart test/pdf_viewer_visible_render_state_test.dart
-
-      - name: Test text search and retained-result limits
-        working-directory: packages/pdfrx
-        run: >-
-          flutter test
-          test/pdf_text_searcher_test.dart
-          test/pdf_text_search_limits_test.dart
-          test/pdf_text_search_retention_test.dart
-
-      - name: Test shared image budget notifications
-        timeout-minutes: 5
-        working-directory: packages/pdfrx
-        run: flutter test test/pdf_image_cache_budget_test.dart test/pdf_viewer_budget_notifications_test.dart
-
-      - name: Test indexed text selection and cache ownership
-        working-directory: packages/pdfrx
-        run: >-
-          flutter test
-          test/text_selection_index_test.dart
-          test/pdf_viewer_text_hit_testing_test.dart
-          test/pdf_viewer_selection_drag_test.dart
-          test/pdf_viewer_selection_memory_test.dart
+        run: flutter test --concurrency=1
 
       - name: Test process-wide PDFium gate
         timeout-minutes: 5
@@ -356,6 +282,11 @@ jobs:
         working-directory: packages/pdfrx_engine
         run: dart test
 
+      - name: Test PDFium bindings and Windows system-proxy integration
+        timeout-minutes: 10
+        working-directory: packages/pdfium_dart
+        run: dart test
+
       - name: Test process-wide PDFium gate
         timeout-minutes: 5
         working-directory: packages/pdfrx_engine
@@ -402,56 +333,16 @@ jobs:
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
 
-      - name: Test PDFium worker metadata, range responses, and document lifetimes
-        working-directory: packages/pdfrx
-        run: >-
-          node --test
-          test/pdfium_worker_metadata_test.cjs
-          test/pdfium_worker_range_response_test.cjs
-          test/pdfium_worker_font_cache_test.cjs
-          test/pdfium_worker_input_test.cjs
-          test/pdfium_worker_lifetime_test.cjs
-          test/pdfium_worker_assembly_test.cjs
-          test/pdfium_worker_render_queue_test.cjs
+      - name: Verify automatic Web test discovery
+        run: node --test .github/scripts/web-tests.test.mjs
 
-      - name: Test PDFium worker communication failures
-        working-directory: packages/pdfrx
-        run: node --test test/pdfium_client_failure_test.cjs
-
-      - name: Test Web pixel output and fallback paths
-        working-directory: packages/pdfrx
-        run: node --test test/pdfium_worker_pixels_test.cjs
-
-      - name: Test Web worker failure propagation
+      - name: Test all worker and communicator regressions
         timeout-minutes: 5
-        working-directory: packages/pdfrx
-        run: flutter test --platform chrome test/wasm_worker_failure_test.dart
+        run: node .github/scripts/web-tests.mjs worker
 
-      - name: Test Web display pixel parity and resizing
-        timeout-minutes: 5
-        working-directory: packages/pdfrx
-        run: flutter test --platform chrome test/render_for_display_web_test.dart test/wasm_pixel_pipeline_test.dart
-
-      - name: Test Web page metadata and document disposal
-        timeout-minutes: 5
-        working-directory: packages/pdfrx
-        run: flutter test --platform chrome test/wasm_document_dispose_test.dart test/wasm_render_queue_test.dart
-
-      - name: Test Web input ownership and password retries
-        working-directory: packages/pdfrx
-        run: flutter test --platform chrome test/wasm_input_ownership_test.dart
-
-      - name: Test Web document assembly and repeated saves
-        timeout-minutes: 5
-        working-directory: packages/pdfrx
-        run: flutter test --platform chrome test/wasm_document_assembly_test.dart
-
-      - name: Test overlapping Web range downloads
-        timeout-minutes: 5
-        working-directory: packages/pdfrx
-        run: |
-          node --test test/pdfium_worker_range_coalescing_test.cjs
-          flutter test --platform chrome test/wasm_range_coalescing_test.dart
+      - name: Test all Dart-JavaScript-WASM browser regressions
+        timeout-minutes: 15
+        run: node .github/scripts/web-tests.mjs browser
 
       - name: Build Web
         working-directory: packages/pdfrx/example/viewer
