@@ -28,12 +28,16 @@ func now() -> Double { ProcessInfo.processInfo.systemUptime }
 func call(_ plugin: PdfrxCoregraphicsPlugin, _ method: String, _ args: [String: Any] = [:]) -> Reply {
   let reply = Reply()
   let start = now()
-  plugin.handle(FlutterMethodCall(methodName: method, arguments: args)) { value in
-    check(Thread.isMainThread, "Channel completion must return to the main thread")
-    reply.value = value
-    reply.count += 1
-    reply.completedAt = now()
-    check(reply.count == 1, "A native request completed more than once")
+  // Match the platform run loop's autorelease lifetime in the synchronous
+  // baseline too; otherwise a CLI-only autorelease backlog inflates its RSS.
+  autoreleasepool {
+    plugin.handle(FlutterMethodCall(methodName: method, arguments: args)) { value in
+      check(Thread.isMainThread, "Channel completion must return to the main thread")
+      reply.value = value
+      reply.count += 1
+      reply.completedAt = now()
+      check(reply.count == 1, "A native request completed more than once")
+    }
   }
   reply.handlerMilliseconds = (now() - start) * 1000
   return reply
@@ -131,8 +135,13 @@ func nativeTests(_ url: URL, encrypted: URL?) {
     let extracted = text.value as! [String: Any]
     let string = extracted["text"] as! String
     check(string == native.page(at: 0)!.string, "Text differs from direct PDFKit extraction")
-    check(string.range(of: "[\\u05D0-\\u05EA]", options: .regularExpression) != nil, "Hebrew was not extracted")
-    check(string.range(of: "[\\u05B0-\\u05BC]", options: .regularExpression) != nil, "Hebrew marks were lost")
+    let hebrewScalars = string.unicodeScalars.filter { (0x0590...0x05FF).contains($0.value) }
+    print("HEBREW_SCALARS \(hebrewScalars.prefix(80).map { String(format: "U+%04X", $0.value) }.joined(separator: " "))")
+    fflush(stdout)
+    check(hebrewScalars.contains { (0x05D0...0x05EA).contains($0.value) }, "Hebrew was not extracted")
+    // Check Unicode scalars, not a String range inside an extended grapheme.
+    // Foundation's range conversion can reject a match for a combining mark.
+    check(hebrewScalars.contains { (0x05B0...0x05BC).contains($0.value) }, "Hebrew marks were lost")
     check((extracted["rects"] as! [Any]).count == (string as NSString).length, "UTF-16 selection geometry count changed")
     check((links.value as! [[String: Any]]).contains { ($0["url"] as? String) == "https://example.com/coregraphics-fixture" }, "Link missing")
     check(!(outline.value as! [Any]).isEmpty, "Outline missing")
@@ -308,7 +317,7 @@ func cpuSeconds() -> Double {
 
 func percentile(_ values: [Double], _ fraction: Double) -> Double {
   let sorted = values.sorted()
-  return sorted[min(sorted.count - 1, Int(Double(sorted.count - 1) * fraction))]
+  return sorted[min(sorted.count - 1, max(0, Int((Double(sorted.count) * fraction).rounded(.up)) - 1))]
 }
 
 func benchmark(_ url: URL) {
@@ -393,7 +402,9 @@ try! FileManager.default.createDirectory(at: directory, withIntermediateDirector
 defer { try? FileManager.default.removeItem(at: directory) }
 let isBenchmark = arguments.contains("--benchmark")
 let fixture = directory.appendingPathComponent("fixture.pdf")
-makeFixture(fixture, pages: isBenchmark ? 100 : 3, lines: isBenchmark ? 90 : 12)
+autoreleasepool {
+  makeFixture(fixture, pages: isBenchmark ? 100 : 3, lines: isBenchmark ? 90 : 12)
+}
 if isBenchmark {
   benchmark(fixture)
 } else {

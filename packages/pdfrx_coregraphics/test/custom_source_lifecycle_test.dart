@@ -171,6 +171,78 @@ void main() {
     expect(await file.readAsBytes(), [1, 2, 3]);
   });
 
+  test('a 32 MiB custom source crosses the channel as a path with one 128 KiB buffer', () async {
+    const fileSize = 32 * 1024 * 1024;
+    final buffers = Set<Uint8List>.identity();
+    var requests = 0;
+    String? path;
+    _mock((call) async {
+      if (call.method != 'openDocument') return null;
+      final args = call.arguments as Map;
+      expect(args['sourceType'], 'file');
+      expect(args.containsKey('bytes'), isFalse);
+      path = args['path'] as String;
+      expect(await File(path!).length(), fileSize);
+      final input = await File(path!).open();
+      try {
+        await input.setPosition(fileSize - 1);
+        expect(await input.readByte(), 0x5a);
+      } finally {
+        await input.close();
+      }
+      return _document;
+    });
+    final document = await PdfrxCoreGraphicsEntryFunctions().openCustom(
+      fileSize: fileSize,
+      sourceName: 'large-custom',
+      read: (buffer, position, size) {
+        buffers.add(buffer);
+        requests++;
+        expect(buffer.length, 128 * 1024);
+        buffer.fillRange(0, size, 0x5a);
+        return size;
+      },
+    );
+    expect(buffers, hasLength(1));
+    expect(requests, 256);
+    await document.dispose();
+    expect(await File(path!).parent.exists(), isFalse);
+  });
+
+  test(
+    'malformed page metadata closes the native handle before removing its file',
+    () async {
+      String? path;
+      var nativeClosed = false;
+      var disposed = 0;
+      _mock((call) async {
+        if (call.method == 'openDocument') {
+          path = (call.arguments as Map)['path'] as String;
+          return {'handle': 27, 'pages': 'malformed'};
+        }
+        if (call.method == 'closeDocument') {
+          expect((call.arguments as Map)['handle'], 27);
+          expect(await File(path!).exists(), isTrue);
+          expect(disposed, 0);
+          nativeClosed = true;
+        }
+        return null;
+      });
+      await expectLater(
+        PdfrxCoreGraphicsEntryFunctions().openCustom(
+          fileSize: 16,
+          sourceName: 'bad-metadata',
+          read: (_, _, size) => size,
+          onDispose: () => disposed++,
+        ),
+        throwsA(isA<TypeError>()),
+      );
+      expect(nativeClosed, isTrue);
+      expect(disposed, 1);
+      expect(await File(path!).parent.exists(), isFalse);
+    },
+  );
+
   test('data source callback runs after native close, including concurrent disposal', () async {
     final closing = Completer<void>();
     var disposed = 0;
