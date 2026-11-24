@@ -64,7 +64,7 @@ You should call [pdfrxInitialize()](https://pub.dev/documentation/pdfrx_engine/l
 
 ### Rendering priority
 
-Pass `priority: PdfPageRenderPriority.low` to [PdfPage.render](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/render.html) for speculative renders such as thumbnails. Native PDFium supports `high`, `normal`, and `low` scheduling priorities; this does not change image quality. Without a priority, rendering uses high priority normally and low priority inside [Pdfrx.runAsBackgroundWork](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/Pdfrx/runAsBackgroundWork.html). An explicit priority overrides that scope. Web and CoreGraphics accept the hint without changing scheduling.
+Pass `priority: PdfPageRenderPriority.low` to [PdfPage.render](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage/render.html) for speculative renders such as thumbnails. Native PDFium and Web use `high`, `normal`, and `low` to schedule render work. Without a priority, rendering uses high priority normally and low priority inside [Pdfrx.runAsBackgroundWork](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/Pdfrx/runAsBackgroundWork.html). An explicit priority overrides that scope. CoreGraphics ignores the scheduling hint.
 
 Custom classes that extend or implement [PdfPage](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPage-class.html) take `PdfPageRenderPriority? priority` in their `render` named parameters; wrappers should pass `priority: priority` to the underlying page.
 
@@ -139,6 +139,7 @@ For more complex examples including selective page combining with range specific
 For detailed guides and tutorials, see the [documentation](https://github.com/espresso3389/pdfrx/tree/master/doc):
 
 - [PDF Page Manipulation](https://github.com/espresso3389/pdfrx/blob/master/doc/PDF-Page-Manipulation.md) - Re-arrange, combine, and extract PDF pages
+- [Extracting Embedded Images](https://github.com/espresso3389/pdfrx/blob/master/doc/Extracting-Embedded-Images.md) - Export embedded images with native PDFium
 - [Importing Images to PDF](https://github.com/espresso3389/pdfrx/blob/master/doc/Importing-Images-to-PDF.md) - Convert images to PDF and insert images into PDFs
 
 ## Loading and Performance Guides

@@ -2,6 +2,8 @@
 
 Text selection is configured through [PdfViewerParams.textSelectionParams](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/textSelectionParams.html).
 
+With the default touch controls, drag to pan the page, even when the drag starts over text. To select text, long-press a word and drag the selection handles. Set [PdfTextSelectionParams.enableSelectionHandles](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSelectionParams/enableSelectionHandles.html) to `false` to select text directly by dragging on a touchscreen.
+
 ## Selection on Dense Pages
 
 Pointer selection and handle dragging use a lazily built index of character bounds. Nearby character groups are searched first; overlapping glyphs and equal-distance candidates still resolve in logical text order. The same inclusive boundaries, hit margin and page-margin handle behavior apply to Hebrew, mixed-direction text, columns and rotated pages.
