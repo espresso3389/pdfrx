@@ -21,6 +21,26 @@ void selectionDragTests({bool useFlutterInitialization = false}) {
   });
   setUp(() => useFlutterInitialization ? pdfrxFlutterInitialize() : pdfrxInitialize());
 
+  testWidgets('the first touch drag over text pans before the viewer rebuilds', (tester) async {
+    final (controller, document, texts) = await _setup(tester, handles: null);
+    await controller.textSelectionDelegate.clearTextSelection();
+    await tester.pump();
+    final point = texts.first.charRects[4]
+        .toRectInDocument(page: document.pages.first, pageRect: controller.layout.pageLayouts.first)
+        .center;
+    final start = controller.documentToGlobal(point)!;
+    final gesture = await tester.startGesture(start, kind: PointerDeviceKind.touch);
+    // Deliver both moves before the first frame following pointer down (#869).
+    await gesture.moveBy(const Offset(0, -40));
+    await gesture.moveBy(const Offset(0, -60));
+    await tester.pump();
+    expect(controller.documentToGlobal(point)!.dy, lessThan(start.dy));
+    expect(controller.textSelectionDelegate.textSelectionPointRange, isNull);
+    await gesture.up();
+    await tester.pump(kDoubleTapMinTime);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('handle snaps across a page gap and tracks controller scrolling once', (tester) async {
     final (controller, document, texts) = await _setup(tester);
     final handle = _handle(tester);
@@ -283,7 +303,7 @@ GestureDetector _handle(WidgetTester tester) => tester.widget<GestureDetector>(
 
 Future<(PdfViewerController, PdfDocument, List<PdfPageText>)> _setup(
   WidgetTester tester, {
-  bool handles = true,
+  bool? handles = true,
   int pageCount = 3,
   int linesPerPage = 15,
   bool loadAllText = true,

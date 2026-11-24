@@ -967,7 +967,9 @@ class _PdfViewerState extends State<PdfViewer>
                                           // PointerDeviceKind.trackpad is intentionally not included here
                                           PointerDeviceKind.mouse,
                                           PointerDeviceKind.stylus,
-                                          PointerDeviceKind.touch,
+                                          // Reserve touch for panning from the first pointer down in automatic mode.
+                                          if (widget.params.textSelectionParams?.enableSelectionHandles == false)
+                                            PointerDeviceKind.touch,
                                           PointerDeviceKind.invertedStylus,
                                         },
                                         child: CustomPaint(
