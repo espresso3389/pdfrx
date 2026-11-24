@@ -79,10 +79,10 @@ external String pdfiumWasmWorkerUrl;
 
 /// [PdfrxEntryFunctions] for PDFium WASM implementation.
 class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
-  /// Default path to the WASM modules
-  ///
-  /// Normally, the WASM modules are provided by pdfrx_wasm package and this is the path to its assets.
-  static const defaultWasmModulePath = 'assets/packages/pdfrx/assets/';
+  static const _wasmAssetPath = 'packages/pdfrx/assets/';
+
+  /// Default path to the bundled WASM modules.
+  static const defaultWasmModulePath = 'assets/$_wasmAssetPath';
 
   bool _initialized = false;
 
@@ -93,13 +93,12 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
       if (_initialized) return;
       Pdfrx.pdfiumWasmModulesUrl ??= _pdfiumWasmModulesUrlFromMetaTag();
       pdfiumWasmWorkerUrl = _getWorkerUrl();
-      final moduleUrl = _resolveUrl(Pdfrx.pdfiumWasmModulesUrl ?? defaultWasmModulePath);
       final script = web.document.createElement('script') as web.HTMLScriptElement
         ..type = 'text/javascript'
         ..charset = 'utf-8'
         ..async = true
         ..type = 'module'
-        ..src = _resolveUrl('pdfium_client.js', baseUrl: moduleUrl);
+        ..src = _resolveModuleUrl('pdfium_client.js');
       web.document.querySelector('head')!.appendChild(script);
       final completer = Completer();
       final sub1 = script.onLoad.listen((_) => completer.complete());
@@ -107,7 +106,7 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
       try {
         await completer.future;
       } catch (e) {
-        throw StateError('Failed to load pdfium_client.js from $moduleUrl: $e');
+        throw StateError('Failed to load pdfium_client.js from ${script.src}: $e');
       } finally {
         await sub1.cancel();
         await sub2.cancel();
@@ -148,15 +147,23 @@ class PdfrxEntryFunctionsWasmImpl extends PdfrxEntryFunctions {
 
   /// Workaround for Cross-Origin-Embedder-Policy restriction on WASM enabled environments
   String _getWorkerUrl() {
-    final moduleUrl = _resolveUrl(Pdfrx.pdfiumWasmModulesUrl ?? defaultWasmModulePath);
-    final workerJsUrl = _resolveUrl('pdfium_worker.js', baseUrl: moduleUrl);
-    final pdfiumWasmUrl = _resolveUrl('pdfium.wasm', baseUrl: moduleUrl);
+    final workerJsUrl = _resolveModuleUrl('pdfium_worker.js');
+    final pdfiumWasmUrl = _resolveModuleUrl('pdfium.wasm');
     final content = 'const pdfiumWasmUrl="$pdfiumWasmUrl";importScripts("$workerJsUrl");';
     final blob = web.Blob(
       [content].jsify() as JSArray<web.BlobPart>,
       web.BlobPropertyBag(type: 'application/javascript'),
     );
     return web.URL.createObjectURL(blob);
+  }
+
+  /// Resolves a PDFium file from a custom directory or Flutter's asset bundle.
+  static String _resolveModuleUrl(String filename) {
+    final moduleUrl = Pdfrx.pdfiumWasmModulesUrl;
+    if (moduleUrl != null) {
+      return _resolveUrl(filename, baseUrl: _resolveUrl(moduleUrl));
+    }
+    return _resolveUrl(ui_web.assetManager.getAssetUrl('$_wasmAssetPath$filename'));
   }
 
   /// Resolves the given [relativeUrl] against a base URL to produce an absolute URL.
