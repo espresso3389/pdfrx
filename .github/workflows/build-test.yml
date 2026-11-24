@@ -172,7 +172,9 @@ jobs:
       - name: Test streaming save, backpressure, and native writer lifetime
         timeout-minutes: 5
         working-directory: packages/pdfrx_engine
-        run: dart test test/pdf_document_save_test.dart test/pdf_file_write_test.dart test/pdf_document_test.dart
+        run: |
+          dart test test/pdf_document_save_test.dart test/pdf_file_write_test.dart
+          dart test test/pdf_document_test.dart --name "native streaming save"
 
       - name: Test process-wide PDFium gate and text cache
         timeout-minutes: 5
@@ -367,7 +369,11 @@ jobs:
       - name: Test streaming save, backpressure, and native writer lifetime
         timeout-minutes: 5
         working-directory: packages/pdfrx_engine
-        run: C:\flutter\bin\dart.bat test test/pdf_document_save_test.dart test/pdf_file_write_test.dart test/pdf_document_test.dart
+        shell: pwsh
+        run: |
+          C:\flutter\bin\dart.bat test test/pdf_document_save_test.dart test/pdf_file_write_test.dart
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          C:\flutter\bin\dart.bat test test/pdf_document_test.dart --name "native streaming save"
 
       - name: Test process-wide PDFium gate
         timeout-minutes: 5
