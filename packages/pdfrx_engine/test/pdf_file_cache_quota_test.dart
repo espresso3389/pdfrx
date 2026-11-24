@@ -273,4 +273,22 @@ void main() {
     final reopened = await acquire(uri);
     expect(await bytes(reopened), [1, 2, 3, 4, 5, 6, 7, 8]);
   });
+
+  test('concurrent pruners reclaim a crashed slot without touching another live owner', () async {
+    final abandoned = await child();
+    final live = await child();
+    abandoned.process.kill();
+    await abandoned.process.exitCode;
+    await Future.wait([_trimInAnotherIsolate(directory.path), _trimInAnotherIsolate(directory.path)]);
+    // Concurrent filesystem changes can defer best-effort maintenance. A later
+    // pass must finish reclaiming the dead slot without disturbing the live one.
+    await PdfFileCache.trimCache(policy: const PdfDiskCachePolicy(maxBytes: 0));
+    expect(await abandoned.file.exists(), isFalse);
+    expect(await live.file.exists(), isTrue);
+    live.process.stdin.writeln('close');
+    await live.process.stdin.flush();
+    expect(await live.process.exitCode, 0);
+    final reopened = await acquire(uri);
+    expect(await bytes(reopened), [1, 2, 3, 4, 5, 6, 7, 8]);
+  });
 }

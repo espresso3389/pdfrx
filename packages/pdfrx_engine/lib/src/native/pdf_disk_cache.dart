@@ -171,17 +171,13 @@ class PdfDiskCacheLease {
               lease = await leaseFile.open(mode: FileMode.append);
               await lease.lock();
               locked = true;
-              // Rename while holding the lease: no other maintenance process
-              // can reclaim a replacement at the same path after we unlock.
-              if (await _removeOwned(
-                root!,
-                item,
-                active: true,
-                beforeDelete: () async {
-                  await lease!.close();
-                  lease = null;
-                },
-              )) {
+              // The probe proved that no owner holds this private working slot.
+              // Openers never reuse active paths, so only cleanup can now
+              // race the atomic rename. Close first: Windows cannot rename a
+              // directory while this lease file is open inside it.
+              await lease.close();
+              lease = null;
+              if (await _removeOwned(root!, item, active: true)) {
                 abandonedEntries++;
               }
             } on FileSystemException {
@@ -287,12 +283,7 @@ class PdfDiskCacheLease {
     }
   }
 
-  static Future<bool> _removeOwned(
-    Directory root,
-    Directory directory, {
-    bool active = false,
-    Future<void> Function()? beforeDelete,
-  }) async {
+  static Future<bool> _removeOwned(Directory root, Directory directory, {bool active = false}) async {
     Directory? trash;
     try {
       if (active) {
@@ -303,7 +294,6 @@ class PdfDiskCacheLease {
       final trashRoot = await Directory(path.join(root.path, 'trash')).create(recursive: true);
       trash = await trashRoot.createTemp('$pid-');
       await directory.rename(path.join(trash.path, 'entry'));
-      await beforeDelete?.call();
       await trash.delete(recursive: true);
       return true;
     } on FileSystemException {
