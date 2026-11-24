@@ -356,13 +356,24 @@ class _WorkerSuspension {
 /// task holding those resources can finish; canceled tasks are drained before other work.
 class _WorkerScheduler {
   final _queues = [for (final _ in BackgroundWorkerPriority.values) Queue<_ComputeParams>()];
+  final _cancellationCandidates = [for (final _ in BackgroundWorkerPriority.values) Queue<_ComputeParams>()];
   var _drainScheduled = false;
 
   bool get isEmpty => _queues.every((queue) => queue.isEmpty);
 
   void enqueue(_ComputeParams params) {
-    _queues[params.priority.index].add(params);
+    _add(params);
     _scheduleDrain();
+  }
+
+  void _add(_ComputeParams params) {
+    _queues[params.priority.index].addLast(params);
+    if (params is _TaskExecuteParams) _cancellationCandidates[params.priority.index].add(params);
+  }
+
+  void _remove(_ComputeParams params) {
+    _queues[params.priority.index].remove(params);
+    if (params is _TaskExecuteParams) _cancellationCandidates[params.priority.index].remove(params);
   }
 
   /// Runs every queued item now, in priority order, without yielding to the event loop.
@@ -397,17 +408,25 @@ class _WorkerScheduler {
 
   void _executeNext() {
     final params = _next();
-    if (!params.execute()) _queues[params.priority.index].addLast(params);
+    if (!params.execute()) _add(params);
   }
 
   _ComputeParams _next() {
-    for (final canceledOnly in [true, false]) {
-      for (final queue in _queues) {
-        for (final item in queue) {
-          if (canceledOnly ? item.isCanceled : item.isReady) {
-            queue.remove(item);
-            return item;
-          }
+    // Ordinary callbacks cannot be canceled. Poll only cooperative tasks, in
+    // their current priority/FIFO order, rather than scan every queued callback.
+    for (final candidates in _cancellationCandidates) {
+      for (final item in candidates) {
+        if (item.isCanceled) {
+          _remove(item);
+          return item;
+        }
+      }
+    }
+    for (final queue in _queues) {
+      for (final item in queue) {
+        if (item.isReady) {
+          _remove(item);
+          return item;
         }
       }
     }
