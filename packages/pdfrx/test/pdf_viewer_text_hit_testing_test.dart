@@ -299,6 +299,9 @@ class _Page implements PdfPage {
   bool get isLoaded => true;
 
   @override
+  Future<List<PdfPageImageObject>> loadImages() async => const [];
+
+  @override
   Future<PdfPageRawText?> loadText() async {
     final text = StringBuffer();
     final rects = <PdfRect>[];

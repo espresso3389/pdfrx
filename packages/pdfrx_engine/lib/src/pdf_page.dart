@@ -7,6 +7,7 @@ import 'pdf_document.dart';
 import 'pdf_document_event.dart';
 import 'pdf_image.dart';
 import 'pdf_link.dart';
+import 'pdf_page_image_object.dart';
 import 'pdf_page_proxies.dart';
 import 'pdf_page_status_change.dart';
 import 'pdf_text.dart';
@@ -108,6 +109,18 @@ abstract class PdfPage {
   ///
   /// If the page is not loaded yet (progressive loading case only), this function returns an empty list.
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true});
+
+  /// Load the image objects placed on the page.
+  ///
+  /// Only the bounds and pixel size of each image are loaded; call [PdfPageImageObject.loadImage] to decode the
+  /// pixels of the images you need. Images inside form XObjects are included, with their bounds mapped to page
+  /// coordinates.
+  ///
+  /// If the page is not loaded yet (progressive loading case only) or the document is disposed, this function
+  /// returns an empty list.
+  ///
+  /// Backends that do not support this yet (Web and CoreGraphics) throw [UnimplementedError].
+  Future<List<PdfPageImageObject>> loadImages();
 }
 
 /// Caches [loadLinksUncached] in a bounded cache shared by a document's pages.

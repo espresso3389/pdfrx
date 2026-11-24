@@ -28,6 +28,7 @@ import '../pdf_image.dart';
 import '../pdf_link.dart';
 import '../pdf_outline_node.dart';
 import '../pdf_page.dart';
+import '../pdf_page_image_object.dart';
 import '../pdf_page_proxies.dart';
 import '../pdf_page_status_change.dart';
 import '../pdf_permissions.dart';
@@ -1362,6 +1363,8 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
   var _pageListRevision = 0;
   var _nativePageCount = 0;
   var _hasPageEdits = false;
+  // A native page number can start referring to different content as soon as assembly begins.
+  var _assemblyRevision = 0;
 
   /// Measures logical slots against their original PDFium document and page number.
   Future<void> _measureEditedPages(List<int> requested) async {
@@ -1746,6 +1749,7 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
       return false;
     }
 
+    document._assemblyRevision++;
     await NativeResourceLifetime.useAll(
       sources.map((source) => source._lifetime),
       () => document._computeWithArena(
@@ -1860,7 +1864,17 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
     required this.bbLeft,
     required this.bbBottom,
     required this.isLoaded,
-  });
+  }) : _assemblyRevision = document._assemblyRevision;
+
+  final int _assemblyRevision;
+
+  bool get _canLoadImages {
+    if (document.isDisposed || !isLoaded || _assemblyRevision != document._assemblyRevision) return false;
+    final pages = document.pages;
+    if (pageNumber <= pages.length && identical(pages[pageNumber - 1].unwrap<_PdfPagePdfium>(), this)) return true;
+    // Before assembly, a moved page still reads its original native slot.
+    return document._hasPageEdits && pages.any((page) => identical(page.unwrap<_PdfPagePdfium>(), this));
+  }
 
   @override
   Future<PdfImage?> render({
@@ -2001,6 +2015,170 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
         decodeLegacyHebrew: Pdfrx.decodeLegacyHebrewText,
       ),
     );
+  }
+
+  @override
+  Future<List<PdfPageImageObject>> loadImages() async {
+    if (!_canLoadImages) return const [];
+    final infos = await document._computeWithArena(_collectImageObjects, (
+      docHandle: document.document.address,
+      pageNumber: pageNumber,
+      bbLeft: bbLeft,
+      bbBottom: bbBottom,
+    ));
+    if (!_canLoadImages) return const [];
+    return List.unmodifiable([
+      for (final info in infos)
+        _PdfPageImageObjectPdfium._(
+          page: this,
+          path: info.path,
+          bounds: PdfRect(info.left, info.top, info.right, info.bottom),
+          width: info.width,
+          height: info.height,
+        ),
+    ]);
+  }
+
+  /// Maximum nesting of form XObjects visited by [loadImages]; deeper content is ignored.
+  static const _maxImageFormDepth = 32;
+
+  /// Collects the image objects of a page, including the ones inside form XObjects, on the worker isolate.
+  static List<_ImageObjectInfo> _collectImageObjects(Arena arena, _ImageObjectsParams params) {
+    final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
+    final page = pdfium.FPDF_LoadPage(doc, params.pageNumber - 1);
+    if (page == nullptr) return const [];
+    try {
+      final walker = (
+        quad: arena<pdfium_bindings.FS_QUADPOINTSF>(),
+        sizes: arena<UnsignedInt>(2),
+        matrix: arena<pdfium_bindings.FS_MATRIX>(),
+        infos: <_ImageObjectInfo>[],
+      );
+      final count = pdfium.FPDFPage_CountObjects(page);
+      for (var i = 0; i < count; i++) {
+        _collectImageObject(walker, pdfium.FPDFPage_GetObject(page, i), [i], const [], params);
+      }
+      return walker.infos;
+    } finally {
+      pdfium.FPDF_ClosePage(page);
+    }
+  }
+
+  /// Visits [obj]. [formMatrices] are the matrices of the enclosing form objects, innermost first.
+  static void _collectImageObject(
+    _ImageObjectWalker walker,
+    pdfium_bindings.FPDF_PAGEOBJECT obj,
+    List<int> path,
+    List<List<double>> formMatrices,
+    _ImageObjectsParams params,
+  ) {
+    if (obj == nullptr) return;
+    switch (pdfium.FPDFPageObj_GetType(obj)) {
+      case pdfium_bindings.FPDF_PAGEOBJ_IMAGE:
+        final quad = walker.quad;
+        final sizes = walker.sizes;
+        if (pdfium.FPDFImageObj_GetImagePixelSize(obj, sizes, sizes.offset(sizeOf<UnsignedInt>())) == 0) return;
+        if (sizes[0] == 0 || sizes[1] == 0) return;
+        if (pdfium.FPDFPageObj_GetRotatedBounds(obj, quad) == 0) return;
+        var left = double.infinity, bottom = double.infinity, right = -double.infinity, top = -double.infinity;
+        for (final (x0, y0) in [
+          (quad.ref.x1, quad.ref.y1),
+          (quad.ref.x2, quad.ref.y2),
+          (quad.ref.x3, quad.ref.y3),
+          (quad.ref.x4, quad.ref.y4),
+        ]) {
+          var x = x0, y = y0;
+          for (final m in formMatrices) {
+            (x, y) = (m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]);
+          }
+          left = min(left, x);
+          right = max(right, x);
+          bottom = min(bottom, y);
+          top = max(top, y);
+        }
+        walker.infos.add((
+          path: path,
+          left: left - params.bbLeft,
+          top: top - params.bbBottom,
+          right: right - params.bbLeft,
+          bottom: bottom - params.bbBottom,
+          width: sizes[0],
+          height: sizes[1],
+        ));
+      case pdfium_bindings.FPDF_PAGEOBJ_FORM:
+        if (path.length >= _maxImageFormDepth) return;
+        final m = walker.matrix;
+        if (pdfium.FPDFPageObj_GetMatrix(obj, m) == 0) return;
+        final matrix = [m.ref.a, m.ref.b, m.ref.c, m.ref.d, m.ref.e, m.ref.f];
+        final count = pdfium.FPDFFormObj_CountObjects(obj);
+        for (var i = 0; i < count; i++) {
+          _collectImageObject(
+            walker,
+            pdfium.FPDFFormObj_GetObject(obj, i),
+            [...path, i],
+            [matrix, ...formMatrices],
+            params,
+          );
+        }
+    }
+  }
+
+  /// Finds the object [path] points to, or [nullptr] if the page content no longer has it.
+  static pdfium_bindings.FPDF_PAGEOBJECT _imageObjectAt(pdfium_bindings.FPDF_PAGE page, List<int> path) {
+    var obj = pdfium.FPDFPage_GetObject(page, path.first);
+    for (final index in path.skip(1)) {
+      if (obj == nullptr || pdfium.FPDFPageObj_GetType(obj) != pdfium_bindings.FPDF_PAGEOBJ_FORM) return nullptr;
+      obj = pdfium.FPDFFormObj_GetObject(obj, index);
+    }
+    return obj;
+  }
+
+  /// Decodes an image object at its native resolution on the worker isolate.
+  ///
+  /// The pixels are copied out tightly packed and the PDFium bitmap is destroyed before returning.
+  static _RawImageData? _decodeImageObject(Arena arena, _DecodeImageParams params) {
+    final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
+    final page = pdfium.FPDF_LoadPage(doc, params.pageNumber - 1);
+    if (page == nullptr) return null;
+    try {
+      final obj = _imageObjectAt(page, params.path);
+      if (obj == nullptr || pdfium.FPDFPageObj_GetType(obj) != pdfium_bindings.FPDF_PAGEOBJ_IMAGE) return null;
+      final sizes = arena<UnsignedInt>(2);
+      if (pdfium.FPDFImageObj_GetImagePixelSize(obj, sizes, sizes.offset(sizeOf<UnsignedInt>())) == 0 ||
+          sizes[0] != params.width ||
+          sizes[1] != params.height) {
+        return null; // The page content changed.
+      }
+      final bitmap = pdfium.FPDFImageObj_GetBitmap(obj);
+      if (bitmap == nullptr) return null;
+      try {
+        final format = switch (pdfium.FPDFBitmap_GetFormat(bitmap)) {
+          pdfium_bindings.FPDFBitmap_Gray => PdfPixelFormat.gray,
+          pdfium_bindings.FPDFBitmap_BGR => PdfPixelFormat.bgr,
+          pdfium_bindings.FPDFBitmap_BGRx => PdfPixelFormat.bgrx,
+          pdfium_bindings.FPDFBitmap_BGRA => PdfPixelFormat.bgra,
+          pdfium_bindings.FPDFBitmap_BGRA_Premul => PdfPixelFormat.bgraPremul,
+          _ => null,
+        };
+        final width = pdfium.FPDFBitmap_GetWidth(bitmap);
+        final height = pdfium.FPDFBitmap_GetHeight(bitmap);
+        final stride = pdfium.FPDFBitmap_GetStride(bitmap);
+        final buffer = pdfium.FPDFBitmap_GetBuffer(bitmap);
+        if (format == null || buffer == nullptr || width <= 0 || height <= 0) return null;
+        final rowBytes = width * format.bytesPerPixel;
+        if (stride < rowBytes) return null;
+        final source = buffer.cast<Uint8>().asTypedList(stride * height);
+        final pixels = Uint8List(rowBytes * height);
+        for (var y = 0; y < height; y++) {
+          pixels.setRange(y * rowBytes, (y + 1) * rowBytes, source, y * stride);
+        }
+        return (width: width, height: height, format: format, pixels: pixels);
+      } finally {
+        pdfium.FPDFBitmap_Destroy(bitmap);
+      }
+    } finally {
+      pdfium.FPDF_ClosePage(page);
+    }
   }
 
   @override
@@ -2182,6 +2360,73 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
     final right = buffer[2] - bbLeft;
     final bottom = buffer[3] - bbBottom;
     return PdfRect(left, top, right, bottom);
+  }
+}
+
+typedef _ImageObjectsParams = ({int docHandle, int pageNumber, double bbLeft, double bbBottom});
+
+typedef _ImageObjectInfo = ({
+  List<int> path,
+  double left,
+  double top,
+  double right,
+  double bottom,
+  int width,
+  int height,
+});
+
+typedef _ImageObjectWalker = ({
+  Pointer<pdfium_bindings.FS_QUADPOINTSF> quad,
+  Pointer<UnsignedInt> sizes,
+  Pointer<pdfium_bindings.FS_MATRIX> matrix,
+  List<_ImageObjectInfo> infos,
+});
+
+typedef _DecodeImageParams = ({int docHandle, int pageNumber, List<int> path, int width, int height});
+
+typedef _RawImageData = ({int width, int height, PdfPixelFormat format, Uint8List pixels});
+
+/// [PdfPageImageObject] of the PDFium backend.
+///
+/// The object is identified by its index path (through nested form objects) because the native page is loaded and
+/// closed for every worker call.
+class _PdfPageImageObjectPdfium implements PdfPageImageObject {
+  _PdfPageImageObjectPdfium._({
+    required this.page,
+    required this.path,
+    required this.bounds,
+    required this.width,
+    required this.height,
+  });
+
+  @override
+  final _PdfPagePdfium page;
+
+  /// Index of the object in the page, followed by its index in each enclosing form object.
+  final List<int> path;
+
+  @override
+  final PdfRect bounds;
+
+  @override
+  final int width;
+
+  @override
+  final int height;
+
+  @override
+  Future<PdfRawImage?> loadImage() async {
+    final document = page.document;
+    if (!page._canLoadImages) return null;
+    final data = await document._computeWithArena(_PdfPagePdfium._decodeImageObject, (
+      docHandle: document.document.address,
+      pageNumber: page.pageNumber,
+      path: path,
+      width: width,
+      height: height,
+    ));
+    if (data == null || !page._canLoadImages) return null;
+    return PdfRawImage.create(data.pixels, width: data.width, height: data.height, format: data.format);
   }
 }
 

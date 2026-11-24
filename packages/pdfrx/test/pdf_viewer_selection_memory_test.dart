@@ -557,6 +557,9 @@ class _Page implements PdfPage {
   bool get isLoaded => !document.unloadedPages.contains(pageNumber);
 
   @override
+  Future<List<PdfPageImageObject>> loadImages() async => const [];
+
+  @override
   Future<PdfPageRawText?> loadText() async {
     document.loads++;
     document.onTextLoad?.call();

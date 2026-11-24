@@ -3609,6 +3609,9 @@ class _TestPage implements PdfPage {
   }
 
   @override
+  Future<List<PdfPageImageObject>> loadImages() async => const [];
+
+  @override
   Future<PdfPageRawText?> loadText() async {
     renderControl.textLoadCount++;
     await renderControl.textGate?.future;
