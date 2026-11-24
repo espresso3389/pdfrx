@@ -55,6 +55,9 @@ on:
         type: boolean
         default: true
 
+env:
+  FLUTTER_VERSION: '3.50.1'
+
 jobs:
   # Android build
   android:
@@ -71,10 +74,9 @@ jobs:
 
       - name: Setup Flutter
         run: |
-          git clone https://github.com/flutter/flutter.git --depth 1 --branch stable ~/flutter
+          git clone https://github.com/flutter/flutter.git --depth 1 --branch "$FLUTTER_VERSION" ~/flutter
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
           ~/flutter/bin/flutter config --no-enable-linux-desktop
-          ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
           yes | ~/flutter/bin/flutter doctor --android-licenses
 
@@ -99,10 +101,9 @@ jobs:
 
       - name: Setup Flutter
         run: |
-          git clone https://github.com/flutter/flutter.git --depth 1 --branch stable ~/flutter
+          git clone https://github.com/flutter/flutter.git --depth 1 --branch "$FLUTTER_VERSION" ~/flutter
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
           ~/flutter/bin/flutter config --no-enable-android --no-enable-macos-desktop
-          ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
 
       - name: Configure package manager
@@ -134,10 +135,9 @@ jobs:
 
       - name: Setup Flutter
         run: |
-          git clone https://github.com/flutter/flutter.git --depth 1 --branch stable ~/flutter
+          git clone https://github.com/flutter/flutter.git --depth 1 --branch "$FLUTTER_VERSION" ~/flutter
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
           ~/flutter/bin/flutter config --no-enable-android --no-enable-ios
-          ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
 
       - name: Configure package manager
@@ -159,6 +159,12 @@ jobs:
       - name: Prepare PDFium native asset for macOS Flutter tests - ${{ matrix.package_manager }}
         working-directory: packages/pdfium_dart
         run: dart test test/pdfium_test.dart test/native_assets_manifest_test.dart
+
+      - name: Test complete engine regressions on macOS
+        if: matrix.package_manager == 'swiftpm'
+        timeout-minutes: 10
+        working-directory: packages/pdfrx_engine
+        run: dart test
 
       - name: Test pdfrx on macOS - ${{ matrix.package_manager }}
         working-directory: packages/pdfrx
@@ -188,10 +194,9 @@ jobs:
 
       - name: Setup Flutter
         run: |
-          git clone https://github.com/flutter/flutter.git --depth 1 --branch stable ~/flutter
+          git clone https://github.com/flutter/flutter.git --depth 1 --branch "$FLUTTER_VERSION" ~/flutter
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
           ~/flutter/bin/flutter config --no-enable-android
-          ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
 
       - name: Install dependencies
@@ -310,10 +315,9 @@ jobs:
 
       - name: Setup Flutter
         run: |
-          git clone https://github.com/flutter/flutter.git --depth 1 --branch stable ~/flutter
+          git clone https://github.com/flutter/flutter.git --depth 1 --branch "$FLUTTER_VERSION" ~/flutter
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
           ~/flutter/bin/flutter config --no-enable-android
-          ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
 
       - name: Install dependencies
@@ -334,10 +338,9 @@ jobs:
       - name: Setup Flutter
         shell: pwsh
         run: |
-          git clone https://github.com/flutter/flutter.git --depth 1 --branch stable C:\flutter
+          git clone https://github.com/flutter/flutter.git --depth 1 --branch "$env:FLUTTER_VERSION" C:\flutter
           echo "C:\flutter\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           C:\flutter\bin\flutter.bat config --no-enable-android
-          C:\flutter\bin\flutter.bat channel stable
           C:\flutter\bin\flutter.bat doctor -v
 
       - name: Install dependencies
@@ -348,9 +351,10 @@ jobs:
         working-directory: packages/pdfrx/example/viewer
         run: C:\flutter\bin\flutter.bat build windows --debug --verbose
 
-      - name: Test font source cache on Windows
+      - name: Test complete engine regressions on Windows
+        timeout-minutes: 10
         working-directory: packages/pdfrx_engine
-        run: dart test test/pdf_font_source_test.dart
+        run: dart test
 
       - name: Test process-wide PDFium gate
         timeout-minutes: 5
@@ -367,10 +371,9 @@ jobs:
       - name: Setup Flutter
         shell: pwsh
         run: |
-          git clone https://github.com/flutter/flutter.git --depth 1 --branch stable C:\flutter
+          git clone https://github.com/flutter/flutter.git --depth 1 --branch "$env:FLUTTER_VERSION" C:\flutter
           echo "C:\flutter\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           C:\flutter\bin\flutter.bat config --no-enable-android
-          C:\flutter\bin\flutter.bat channel stable
           C:\flutter\bin\flutter.bat doctor -v
 
       - name: Install dependencies
@@ -390,10 +393,9 @@ jobs:
 
       - name: Setup Flutter
         run: |
-          git clone https://github.com/flutter/flutter.git --depth 1 --branch stable ~/flutter
+          git clone https://github.com/flutter/flutter.git --depth 1 --branch "$FLUTTER_VERSION" ~/flutter
           echo "$HOME/flutter/bin" >> $GITHUB_PATH
           ~/flutter/bin/flutter config --no-enable-android --no-enable-linux-desktop
-          ~/flutter/bin/flutter channel stable
           ~/flutter/bin/flutter doctor -v
 
       - name: Install dependencies
