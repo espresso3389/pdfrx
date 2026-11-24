@@ -1363,6 +1363,8 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
   var _pageListRevision = 0;
   var _nativePageCount = 0;
   var _hasPageEdits = false;
+  // A native page number can start referring to different content as soon as assembly begins.
+  var _assemblyRevision = 0;
 
   /// Measures logical slots against their original PDFium document and page number.
   Future<void> _measureEditedPages(List<int> requested) async {
@@ -1747,6 +1749,7 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
       return false;
     }
 
+    document._assemblyRevision++;
     await NativeResourceLifetime.useAll(
       sources.map((source) => source._lifetime),
       () => document._computeWithArena(
@@ -1861,7 +1864,17 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
     required this.bbLeft,
     required this.bbBottom,
     required this.isLoaded,
-  });
+  }) : _assemblyRevision = document._assemblyRevision;
+
+  final int _assemblyRevision;
+
+  bool get _canLoadImages {
+    if (document.isDisposed || !isLoaded || _assemblyRevision != document._assemblyRevision) return false;
+    final pages = document.pages;
+    if (pageNumber <= pages.length && identical(pages[pageNumber - 1].unwrap<_PdfPagePdfium>(), this)) return true;
+    // Before assembly, a moved page still reads its original native slot.
+    return document._hasPageEdits && pages.any((page) => identical(page.unwrap<_PdfPagePdfium>(), this));
+  }
 
   @override
   Future<PdfImage?> render({
@@ -2006,13 +2019,14 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
 
   @override
   Future<List<PdfPageImageObject>> loadImages() async {
-    if (document.isDisposed || !isLoaded) return const [];
+    if (!_canLoadImages) return const [];
     final infos = await document._computeWithArena(_collectImageObjects, (
       docHandle: document.document.address,
       pageNumber: pageNumber,
       bbLeft: bbLeft,
       bbBottom: bbBottom,
     ));
+    if (!_canLoadImages) return const [];
     return List.unmodifiable([
       for (final info in infos)
         _PdfPageImageObjectPdfium._(
@@ -2035,7 +2049,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
     if (page == nullptr) return const [];
     try {
       final walker = (
-        floats: arena<Float>(4),
+        quad: arena<pdfium_bindings.FS_QUADPOINTSF>(),
         sizes: arena<UnsignedInt>(2),
         matrix: arena<pdfium_bindings.FS_MATRIX>(),
         infos: <_ImageObjectInfo>[],
@@ -2061,20 +2075,17 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
     if (obj == nullptr) return;
     switch (pdfium.FPDFPageObj_GetType(obj)) {
       case pdfium_bindings.FPDF_PAGEOBJ_IMAGE:
-        final floats = walker.floats;
+        final quad = walker.quad;
         final sizes = walker.sizes;
         if (pdfium.FPDFImageObj_GetImagePixelSize(obj, sizes, sizes.offset(sizeOf<UnsignedInt>())) == 0) return;
         if (sizes[0] == 0 || sizes[1] == 0) return;
-        // FPDFPageObj_GetBounds gives the coordinates in the space of the enclosing form (if any).
-        if (pdfium.FPDFPageObj_GetBounds(obj, floats, floats.offset(4), floats.offset(8), floats.offset(12)) == 0) {
-          return;
-        }
+        if (pdfium.FPDFPageObj_GetRotatedBounds(obj, quad) == 0) return;
         var left = double.infinity, bottom = double.infinity, right = -double.infinity, top = -double.infinity;
         for (final (x0, y0) in [
-          (floats[0], floats[1]),
-          (floats[0], floats[3]),
-          (floats[2], floats[1]),
-          (floats[2], floats[3]),
+          (quad.ref.x1, quad.ref.y1),
+          (quad.ref.x2, quad.ref.y2),
+          (quad.ref.x3, quad.ref.y3),
+          (quad.ref.x4, quad.ref.y4),
         ]) {
           var x = x0, y = y0;
           for (final m in formMatrices) {
@@ -2365,7 +2376,7 @@ typedef _ImageObjectInfo = ({
 });
 
 typedef _ImageObjectWalker = ({
-  Pointer<Float> floats,
+  Pointer<pdfium_bindings.FS_QUADPOINTSF> quad,
   Pointer<UnsignedInt> sizes,
   Pointer<pdfium_bindings.FS_MATRIX> matrix,
   List<_ImageObjectInfo> infos,
@@ -2406,7 +2417,7 @@ class _PdfPageImageObjectPdfium implements PdfPageImageObject {
   @override
   Future<PdfRawImage?> loadImage() async {
     final document = page.document;
-    if (document.isDisposed) return null;
+    if (!page._canLoadImages) return null;
     final data = await document._computeWithArena(_PdfPagePdfium._decodeImageObject, (
       docHandle: document.document.address,
       pageNumber: page.pageNumber,
@@ -2414,7 +2425,7 @@ class _PdfPageImageObjectPdfium implements PdfPageImageObject {
       width: width,
       height: height,
     ));
-    if (data == null) return null;
+    if (data == null || !page._canLoadImages) return null;
     return PdfRawImage.create(data.pixels, width: data.width, height: data.height, format: data.format);
   }
 }

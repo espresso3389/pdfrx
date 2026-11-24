@@ -14,7 +14,7 @@ import 'utils.dart';
 ///   form space, which is (110, 170) - (160, 220) on the page.
 ///
 /// The image data uses `ASCIIHexDecode` so the file is plain text.
-Uint8List buildPdfWithImages({double boxOrigin = 0}) {
+Uint8List buildPdfWithImages({double boxOrigin = 0, bool shearForm = false, String grayPixels = '00 40 80 FF'}) {
   String stream(String dict, String data) => '<< $dict /Length ${data.length} >>\nstream\n$data\nendstream';
   String image(int width, int height, String colorSpace, String hex) => stream(
     '/Type /XObject /Subtype /Image /Width $width /Height $height /ColorSpace /$colorSpace /BitsPerComponent 8 '
@@ -26,17 +26,17 @@ Uint8List buildPdfWithImages({double boxOrigin = 0}) {
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
     '<< /Type /Page /Parent 2 0 R /MediaBox [$boxOrigin $boxOrigin ${boxOrigin + 200} ${boxOrigin + 300}] '
         '/Resources << /XObject << /Gray 4 0 R /Rgb 5 0 R /Form 6 0 R >> >> /Contents 7 0 R >>',
-    image(2, 2, 'DeviceGray', '00 40 80 FF'),
+    image(2, 2, 'DeviceGray', grayPixels),
     image(2, 1, 'DeviceRGB', 'FF0000 0000FF'),
     stream(
       '/Type /XObject /Subtype /Form /BBox [0 0 100 100] /Resources << /XObject << /Gray 4 0 R >> >>',
-      'q 50 0 0 50 10 20 cm /Gray Do Q',
+      shearForm ? 'q 30 0 30 30 10 20 cm /Gray Do Q' : 'q 50 0 0 50 10 20 cm /Gray Do Q',
     ),
     stream(
       '',
       'q 100 0 0 100 ${20 + boxOrigin} ${30 + boxOrigin} cm /Gray Do Q '
           'q 40 0 0 20 ${150 + boxOrigin} ${200 + boxOrigin} cm /Rgb Do Q '
-          'q 1 0 0 1 ${100 + boxOrigin} ${150 + boxOrigin} cm /Form Do Q',
+          'q 1 0 ${shearForm ? -1 : 0} 1 ${100 + boxOrigin} ${150 + boxOrigin} cm /Form Do Q',
     ),
   ];
   final buffer = StringBuffer('%PDF-1.4\n');
@@ -80,6 +80,23 @@ void main() {
     // The image inside the form XObject is mapped through the form's matrix.
     expect(images[2].bounds, _rect(110, 220, 160, 170));
     expect(images.every((i) => i.page == document.pages.single), isTrue);
+  });
+
+  test('loadImages composes opposing shears before taking image bounds', () async {
+    final document = await open(buildPdfWithImages(shearForm: true));
+    expect((await document.pages.single.loadImages()).last.bounds, _rect(90, 200, 120, 170));
+  });
+
+  test('replacing a page invalidates images with the same path and dimensions', () async {
+    final document = await open(buildPdfWithImages());
+    final replacement = await open(buildPdfWithImages(grayPixels: 'FF 40 80 FF'));
+    final oldImage = (await document.pages.single.loadImages()).first;
+    document.pages = [replacement.pages.single];
+    await document.assemble();
+    expect(await oldImage.loadImage(), isNull);
+    final newImage = await (await document.pages.single.loadImages()).first.loadImage();
+    addTearDown(newImage!.dispose);
+    expect(newImage.pixels.first, 255);
   });
 
   test('loadImages bounds are relative to the media box origin like loadText and loadLinks', () async {
