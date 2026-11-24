@@ -423,7 +423,15 @@ void main() {
           if (!disconnected.isCompleted) disconnected.complete();
         }
 
-        socket.listen((_) {}, onDone: disconnect, onError: (Object _) => disconnect());
+        void disconnectedWithError(Object error) {
+          expect(error, isA<SocketException>());
+          disconnect();
+        }
+
+        socket.listen((_) {}, onDone: disconnect, onError: disconnectedWithError);
+        // A canceled client can reset the write side while the drip is active.
+        // Listening to the read stream alone does not observe Socket.done errors.
+        unawaited(socket.done.then<void>((_) => disconnect(), onError: disconnectedWithError));
         socket.add(ascii.encode('HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n'));
         if (mode == 'partial') socket.add([65]);
         await socket.flush();
