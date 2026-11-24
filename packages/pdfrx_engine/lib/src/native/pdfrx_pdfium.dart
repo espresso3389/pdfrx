@@ -1664,10 +1664,10 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
   Future<Uint8List> _encodePdf({required bool incremental, required bool removeSecurity}) async {
     await assemble();
     final byteBuffer = BytesBuilder();
-    return await _computeWithArena((arena, params) {
+    final bytes = await _computeWithArena((arena, params) {
       int write(Pointer<pdfium_bindings.FPDF_FILEWRITE> pThis, Pointer<Void> pData, int size) {
         byteBuffer.add(Pointer<Uint8>.fromAddress(pData.address).asTypedList(size));
-        return size;
+        return 1; // FPDF_FILEWRITE expects a success boolean, including for an empty block.
       }
 
       final nativeWriteCallable = _NativeFileWriteCallable.isolateLocal(write, exceptionalReturn: 0);
@@ -1682,12 +1682,15 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
         } else {
           flags = params.incremental ? 1 : 2; // FPDF_INCREMENTAL(1) or FPDF_NO_INCREMENTAL(2)
         }
-        pdfium.FPDF_SaveAsCopy(document, fw, flags);
+        if (pdfium.FPDF_SaveAsCopy(document, fw, flags) == 0) return null;
         return byteBuffer.toBytes();
       } finally {
         nativeWriteCallable.close();
       }
     }, (document: document.address, incremental: incremental, removeSecurity: removeSecurity));
+    // Report failure on the caller isolate so the public exception type is preserved.
+    if (bytes == null) throw const PdfException('Failed to save PDF document.');
+    return bytes;
   }
 
   @override

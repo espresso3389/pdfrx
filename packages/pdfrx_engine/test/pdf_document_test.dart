@@ -13,6 +13,7 @@ import 'utils.dart';
 import 'hebrew_native.dart';
 import 'progressive_text_native.dart';
 import 'progressive_loading_native.dart';
+import 'native_encode_pdf.dart';
 import 'reload_pages_native.dart';
 import 'native_open_cleanup.dart';
 import 'font_mapper_native.dart';
@@ -109,6 +110,7 @@ void main() {
   registerHebrewNativeTests();
   registerProgressiveTextNativeTests();
   registerProgressiveLoadingNativeTests();
+  registerNativeEncodePdfTests();
   registerReloadPagesNativeTests();
   registerNativeOpenCleanupTests();
   registerFontMapperNativeTests();
