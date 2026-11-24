@@ -700,6 +700,12 @@ class _CoreGraphicsPdfPage extends PdfPage with PdfPageLinkCache {
       _CoreGraphicsCancellationToken._();
 
   @override
+  Future<List<PdfPageImageObject>> loadImages() async =>
+      throw UnimplementedError(
+        'loadImages is not implemented for the CoreGraphics backend yet.',
+      );
+
+  @override
   Future<PdfPageRawText?> loadText() async {
     try {
       final result = await _document.channel.invokeMapMethod<Object?, Object?>(

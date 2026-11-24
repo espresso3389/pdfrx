@@ -307,6 +307,9 @@ class _TestPage extends PdfPage with PdfPageLinkCache {
   Future<PdfPageRawText?> loadText() async => null;
 
   @override
+  Future<List<PdfPageImageObject>> loadImages() async => const [];
+
+  @override
   Future<PdfImage?> render({
     int x = 0,
     int y = 0,

@@ -2,6 +2,7 @@ import 'pdf_document.dart';
 import 'pdf_image.dart';
 import 'pdf_link.dart';
 import 'pdf_page.dart';
+import 'pdf_page_image_object.dart';
 import 'pdf_text.dart';
 
 /// Proxy interface for [PdfPage].
@@ -76,6 +77,9 @@ class PdfPageRenumbered implements PdfPageProxy {
 
   @override
   Future<PdfPageRawText?> loadText() => basePage.loadText();
+
+  @override
+  Future<List<PdfPageImageObject>> loadImages() => basePage.loadImages();
 
   @override
   Future<PdfImage?> render({
@@ -183,4 +187,7 @@ class PdfPageRotated implements PdfPageProxy {
   @override
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) =>
       basePage.loadLinks(compact: compact, enableAutoLinkDetection: enableAutoLinkDetection);
+
+  @override
+  Future<List<PdfPageImageObject>> loadImages() => basePage.loadImages();
 }

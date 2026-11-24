@@ -1400,6 +1400,9 @@ class _FakePage implements PdfPage {
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async => const [];
 
   @override
+  Future<List<PdfPageImageObject>> loadImages() async => const [];
+
+  @override
   Future<PdfPageRawText?> loadText() async => null;
 
   @override

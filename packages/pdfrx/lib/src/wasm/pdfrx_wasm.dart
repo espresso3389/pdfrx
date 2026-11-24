@@ -1041,6 +1041,10 @@ class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
   }
 
   @override
+  Future<List<PdfPageImageObject>> loadImages() async =>
+      throw UnimplementedError('loadImages is not implemented for the Web backend yet.');
+
+  @override
   Future<PdfPageRawText?> loadText() async {
     if (document.isDisposed || !isLoaded) return null;
     final result = await document._runIfOpen(

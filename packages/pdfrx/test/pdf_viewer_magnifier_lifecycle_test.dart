@@ -437,6 +437,8 @@ class _Page implements PdfPage {
   @override
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) async => const [];
   @override
+  Future<List<PdfPageImageObject>> loadImages() async => const [];
+  @override
   Future<PdfPageRawText?> loadText() async =>
       PdfPageRawText('Hello world', [for (var i = 0; i < 11; i++) PdfRect(60 + i * 10.0, 650, 70 + i * 10.0, 630)]);
   @override
