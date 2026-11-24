@@ -169,6 +169,11 @@ jobs:
           test/pdf_viewer_selection_drag_test.dart
           test/pdf_viewer_selection_memory_test.dart
 
+      - name: Test streaming save, backpressure, and native writer lifetime
+        timeout-minutes: 5
+        working-directory: packages/pdfrx_engine
+        run: dart test test/pdf_document_save_test.dart test/pdf_file_write_test.dart test/pdf_document_test.dart
+
       - name: Test process-wide PDFium gate and text cache
         timeout-minutes: 5
         working-directory: packages/pdfrx_engine
@@ -240,7 +245,14 @@ jobs:
       - name: Test page loading and text caching
         timeout-minutes: 5
         working-directory: packages/pdfrx_engine
-        run: dart test test/pdf_document_test.dart test/pdf_page_text_cache_test.dart test/pdf_page_metadata_loading_test.dart test/pdf_input_data_test.dart
+        run: >-
+          dart test
+          test/pdf_document_test.dart
+          test/pdf_page_text_cache_test.dart
+          test/pdf_page_metadata_loading_test.dart
+          test/pdf_input_data_test.dart
+          test/pdf_document_save_test.dart
+          test/pdf_file_write_test.dart
 
       - name: Test document builder identity and progress updates
         working-directory: packages/pdfrx
@@ -351,6 +363,11 @@ jobs:
       - name: Test font source cache on Windows
         working-directory: packages/pdfrx_engine
         run: dart test test/pdf_font_source_test.dart
+
+      - name: Test streaming save, backpressure, and native writer lifetime
+        timeout-minutes: 5
+        working-directory: packages/pdfrx_engine
+        run: C:\flutter\bin\dart.bat test test/pdf_document_save_test.dart test/pdf_file_write_test.dart test/pdf_document_test.dart
 
       - name: Test process-wide PDFium gate
         timeout-minutes: 5

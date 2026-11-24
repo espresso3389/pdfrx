@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
+import '../pdf_document_save.dart';
+import '../pdf_exception.dart';
 import 'pthread/file_write.dart';
 import 'win32/file_write.dart';
 
@@ -10,34 +13,78 @@ class PdfiumFileWrite {
   PdfiumFileWrite._();
 
   /// Creates a file write structure for PDFium with the provided write function.
-  static Future<PdfiumFileWrite> create(FutureOr<int> Function(Uint8List buffer, int position, int size) write) async {
+  static Future<PdfiumFileWrite> create(
+    PdfDocumentWriteCallback write, {
+    PdfDocumentSaveCancellationToken? cancellationToken,
+  }) async {
     final fw = PdfiumFileWrite._();
-    void writeAndSignal(Pointer<Uint8> buffer, int position, int size) async {
+    void writeAndSignal(Pointer<Uint8> buffer, int size) async {
+      var success = false;
       try {
-        final writtenSize = await write(buffer.asTypedList(size), position, size);
-        PdfiumFileWriteHelper.instance.setValue(fw.fileWrite, writtenSize);
-      } catch (e) {
-        PdfiumFileWriteHelper.instance.setValue(fw.fileWrite, -1);
+        fw.throwIfFailed();
+        cancellationToken?.throwIfCancelled();
+        for (var offset = 0; offset < size;) {
+          cancellationToken?.throwIfCancelled();
+          final count = min(size - offset, pdfDocumentSaveChunkSize);
+          // A bounded copy makes it safe for the destination to retain a chunk after returning.
+          final chunk = Uint8List.fromList((buffer + offset).asTypedList(count));
+          final written = await write(chunk, fw._bytesWritten);
+          if (written != count) {
+            throw PdfException('PDF write at ${fw._bytesWritten} accepted $written of $count bytes.');
+          }
+          fw._bytesWritten += count;
+          offset += count;
+        }
+        cancellationToken?.throwIfCancelled();
+        success = true;
+      } catch (error, stackTrace) {
+        fw._error ??= error;
+        fw._stackTrace ??= stackTrace;
+      } finally {
+        // FPDF_FILEWRITE uses a boolean success flag, not a count or a negative error code.
+        PdfiumFileWriteHelper.instance.setValue(fw.fileWrite, success ? 1 : 0);
       }
     }
 
     fw._nativeCallable = _NativeFileWriteCallable.listener(writeAndSignal);
-    fw.fileWrite = await PdfiumFileWriteHelper.instance.create(fw._nativeCallable.nativeFunction.address);
-    return fw;
+    try {
+      fw.fileWrite = await PdfiumFileWriteHelper.instance.create(fw._nativeCallable.nativeFunction.address);
+      return fw;
+    } catch (_) {
+      fw._nativeCallable.close();
+      rethrow;
+    }
   }
 
   /// Disposes the file write structure and associated resources.
   void dispose() {
-    PdfiumFileWriteHelper.instance.destroy(fileWrite);
-    _nativeCallable.close();
+    if (_disposed) return;
+    _disposed = true;
+    try {
+      PdfiumFileWriteHelper.instance.destroy(fileWrite);
+    } finally {
+      _nativeCallable.close();
+    }
   }
+
+  /// Rethrows a destination error on its original isolate with its original stack.
+  void throwIfFailed() {
+    if (_error != null) Error.throwWithStackTrace(_error!, _stackTrace!);
+  }
+
+  /// Number of bytes accepted by the destination.
+  int get bytesWritten => _bytesWritten;
 
   /// Address of `FPDF_FILEWRITE` structure.
   late final int fileWrite;
   late final _NativeFileWriteCallable _nativeCallable;
+  bool _disposed = false;
+  int _bytesWritten = 0;
+  Object? _error;
+  StackTrace? _stackTrace;
 }
 
-typedef _NativeFileWriteCallable = NativeCallable<Void Function(Pointer<Uint8>, IntPtr, IntPtr)>;
+typedef _NativeFileWriteCallable = NativeCallable<Void Function(Pointer<Uint8>, IntPtr)>;
 
 /// Abstract interface for platform-specific file write implementations.
 abstract class PdfiumFileWriteHelper {

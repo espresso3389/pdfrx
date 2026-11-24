@@ -104,6 +104,41 @@ void main() async {
 }
 ```
 
+### Saving large documents to an asynchronous destination
+
+Use [saveTo](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocumentSaving/saveTo.html) when the destination can accept chunks. Native PDFium waits for each write instead of accumulating and copying the entire encoded PDF. Each callback receives an owned Dart buffer of at most 64 KiB, so it can safely pass the buffer to asynchronous file, network, or platform APIs. Return the exact number of accepted bytes; an incomplete write or a thrown error fails the save.
+
+```dart
+final stagingDirectory = await Directory('output').createTemp('.pdf-save-');
+final staging = File('${stagingDirectory.path}/document.pdf');
+try {
+  final file = await staging.open(mode: FileMode.write);
+  try {
+    await document.saveTo((chunk, position) async {
+      await file.writeFrom(chunk);
+      return chunk.length;
+    });
+    await file.flush();
+  } finally {
+    await file.close();
+  }
+  // Publish only after encoding, writes, flush, and close all succeeded.
+  await staging.rename('output/document.pdf');
+} finally {
+  await stagingDirectory.delete(recursive: true);
+}
+```
+
+The destination directory must already exist. Keep the staging file on the destination filesystem and never overwrite a file that is still serving as an open document's input. The caller owns the destination and its publication policy: on failure it may contain a partial PDF, so a socket or external provider also needs an explicit abort/commit strategy. `saveTo` does not close the destination for you.
+
+Pass a [PdfDocumentSaveCancellationToken](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocumentSaveCancellationToken-class.html) and call `cancel()` to stop between writes. An in-progress write is awaited before cleanup; a callback that never completes cannot be interrupted by the token. The callback must not await PDFium operations or document disposal because the native worker is waiting for the callback while holding its process gate. The document remains alive until native saving finishes, including when another caller requests disposal.
+
+A slow destination also delays rendering, text extraction, and other native PDFium work while saving. For a slow network or provider, save to a fast local file first, then upload it after the save releases the worker.
+
+The `incremental` and `removeSecurity` flags match [encodePdf](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfDocument/encodePdf.html). The bytes API is unchanged. Check `document.supportsStreamingSave` when bounded output memory is required: Web and custom backends without the optional streaming capability fall back to `encodePdf` and retain the full output before delivering chunks. The 64 KiB bound describes buffers owned by the streaming delivery path, not PDFium's input/parser memory, buffers retained by a destination, or total process RSS.
+
+For a reproducible comparison, run `dart run tool/pdf_save_benchmark.dart generate input.pdf 64` to create a deterministic 64-page image fixture, then run the tool with `bytes input.pdf output.pdf` and `sink input.pdf output.pdf` in separate processes. It reports encoding-plus-writing time, peak process RSS, output size, and callback sizes, and verifies the page count by reopening the output. Use identical input files and alternate modes; JIT/compiler memory and filesystem caching can affect the result. AOT-compiled runs isolate the product path more closely. When using `dart compile exe`, set `PDFIUM_PATH` to the same PDFium library used by the build hook; use `dart run` to test `--process-gate` with its native asset installed.
+
 ### Image-to-PDF Conversion Example
 
 The following example shows how to convert JPEG images to PDF:

@@ -21,6 +21,7 @@ import '../pdf_datetime.dart';
 import '../pdf_dest.dart';
 import '../pdf_document.dart';
 import '../pdf_document_event.dart';
+import '../pdf_document_save.dart';
 import '../pdf_exception.dart';
 import '../pdf_font_query.dart';
 import '../pdf_hebrew_text_normalizer.dart';
@@ -40,6 +41,7 @@ import 'pdf_file_cache.dart';
 import 'pdf_font_source.dart';
 import 'pdfium.dart';
 import 'pdfium_file_access.dart';
+import 'pdfium_file_write.dart';
 import 'worker.dart';
 import 'resource_lifetime.dart';
 
@@ -894,7 +896,7 @@ extension _FpdfUtf8StringExt on String {
 typedef _PageMeasurement = ({int pageIndex, double width, double height, int rotation, double bbLeft, double bbBottom});
 typedef _PageMeasurements = ({List<_PageMeasurement> pages, int totalPageCount});
 
-class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
+class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader, PdfDocumentStreamingSaver {
   final pdfium_bindings.FPDF_DOCUMENT document;
   final void Function()? disposeCallback;
   final int securityHandlerRevision;
@@ -1688,6 +1690,46 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
         nativeWriteCallable.close();
       }
     }, (document: document.address, incremental: incremental, removeSecurity: removeSecurity));
+  }
+
+  @override
+  Future<int> saveTo(
+    PdfDocumentWriteCallback write, {
+    bool incremental = false,
+    bool removeSecurity = false,
+    PdfDocumentSaveCancellationToken? cancellationToken,
+  }) async {
+    _ensureNotDisposed();
+    cancellationToken?.throwIfCancelled();
+    return _lifetime.use(() async {
+      await assemble();
+      cancellationToken?.throwIfCancelled();
+      final writer = await PdfiumFileWrite.create(write, cancellationToken: cancellationToken);
+      try {
+        cancellationToken?.throwIfCancelled();
+        final saved = await _computeWithArena(
+          (arena, params) {
+            final document = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
+            final writer = Pointer<pdfium_bindings.FPDF_FILEWRITE>.fromAddress(params.writer);
+            // FPDF_SAVE_NO_SECURITY(3) takes precedence over the incremental flag.
+            final flags = params.removeSecurity ? 3 : (params.incremental ? 1 : 2);
+            return pdfium.FPDF_SaveAsCopy(document, writer, flags) != 0;
+          },
+          (
+            document: document.address,
+            writer: writer.fileWrite,
+            incremental: incremental,
+            removeSecurity: removeSecurity,
+          ),
+        );
+        writer.throwIfFailed();
+        cancellationToken?.throwIfCancelled();
+        if (!saved) throw const PdfException('Failed to save PDF document.');
+        return writer.bytesWritten;
+      } finally {
+        writer.dispose();
+      }
+    });
   }
 
   @override
