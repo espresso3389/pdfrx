@@ -201,22 +201,28 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
       } finally {
         await output.close();
       }
-      final document = await _openWithPassword(
+      return await _openWithPassword(
         passwordProvider: passwordProvider,
         firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
         sourceName: sourceName,
         useProgressiveLoading: useProgressiveLoading,
         onDispose: releaseSource,
-        opener: (password) =>
-            _channel.invokeMapMethod<Object?, Object?>('openDocument', {
+        opener: (password) async {
+          final result = await _channel.invokeMapMethod<Object?, Object?>(
+            'openDocument',
+            {
               'sourceType': 'file',
               'path': file.path,
               'password': password,
               'sourceName': sourceName,
-            }),
+            },
+          );
+          // Once native owns a handle, only a successful close may release its
+          // source, even if the Dart metadata cannot be constructed.
+          transferred = result?['handle'] is int;
+          return result;
+        },
       );
-      transferred = true;
-      return document;
     } finally {
       if (!transferred) await releaseSource();
     }
@@ -366,12 +372,14 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
             onDispose: onDispose,
           );
         } catch (_) {
-          // Close before the outer custom open releases its owned temporary file.
+          // A native handle owns its source until close succeeds, even when the
+          // returned page metadata cannot be used to construct a Dart document.
           final handle = result['handle'];
           if (handle is int) {
             await _channel.invokeMethod<void>('closeDocument', {
               'handle': handle,
             });
+            await onDispose?.call();
           }
           rethrow;
         }

@@ -243,6 +243,38 @@ void main() {
     },
   );
 
+  test('metadata failure retains the source when native close fails', () async {
+    String? path;
+    var disposed = 0;
+    _mock((call) async {
+      if (call.method == 'openDocument') {
+        path = (call.arguments as Map)['path'] as String;
+        // The mock has no real native owner. Reclaim the intentionally retained
+        // fixture after proving the bridge does not delete an uncertain source.
+        addTearDown(() async {
+          final directory = File(path!).parent;
+          if (await directory.exists()) await directory.delete(recursive: true);
+        });
+        return {'handle': 27, 'pages': 'malformed'};
+      }
+      if (call.method == 'closeDocument') {
+        throw PlatformException(code: 'close-failed');
+      }
+      return null;
+    });
+    await expectLater(
+      PdfrxCoreGraphicsEntryFunctions().openCustom(
+        fileSize: 16,
+        sourceName: 'bad-metadata-close-failed',
+        read: (_, _, size) => size,
+        onDispose: () => disposed++,
+      ),
+      throwsA(isA<PdfException>()),
+    );
+    expect(disposed, 0);
+    expect(await File(path!).exists(), isTrue);
+  });
+
   test('data source callback runs after native close, including concurrent disposal', () async {
     final closing = Completer<void>();
     var disposed = 0;

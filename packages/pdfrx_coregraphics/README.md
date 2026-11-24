@@ -105,6 +105,8 @@ over the channel. The file survives password retries and active document work;
 it is removed after close or a failed open, and the custom source's `onDispose`
 callback runs once. This still reads the whole custom source before opening and
 uses disk space proportional to the PDF size. It is not incremental loading.
+A native close failure retains the source because native use has not been
+confirmed finished, including a close after invalid opening metadata.
 `openData` continues to send supplied bytes through the channel.
 
 ## Apple Tests and Measurements
@@ -126,7 +128,9 @@ PDFRX_BASELINE_REF=683df93e986af19bbcefd22606a417083116847b \
   PDFRX_RUN_BENCHMARK=1 bash packages/pdfrx_coregraphics/tool/run_native_tests.sh
 ```
 
-The benchmark uses the same real document and reports open, first/sharp bitmap,
+The benchmark generates its PDF in a separate process, then measures a fresh
+process so fixture creation does not warm PDFKit/CoreText or inflate baseline RSS.
+It uses the same real document and reports open, first/sharp bitmap,
 visible-request latency under text work, main-handler duration, main-run-loop
 heartbeat gaps, CPU time and resident memory before and after close. The baseline
 runner adapts only old optional bindings for nonfailable Apple initializers so

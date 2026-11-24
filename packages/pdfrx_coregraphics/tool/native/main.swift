@@ -134,7 +134,7 @@ func nativeTests(_ url: URL, encrypted: URL?) {
     check(pixelData(render) == referencePixels(native.page(at: 0)!, width: 300, height: 400), "Off-main render changed pixels")
     let extracted = text.value as! [String: Any]
     let string = extracted["text"] as! String
-    check(string == native.page(at: 0)!.string, "Text differs from direct PDFKit extraction")
+    check(string.utf16.elementsEqual(native.page(at: 0)!.string!.utf16), "UTF-16 text differs from direct PDFKit extraction")
     let hebrewScalars = string.unicodeScalars.filter { (0x0590...0x05FF).contains($0.value) }
     print("HEBREW_SCALARS \(hebrewScalars.prefix(80).map { String(format: "U+%04X", $0.value) }.joined(separator: " "))")
     fflush(stdout)
@@ -397,17 +397,22 @@ func benchmark(_ url: URL) {
 }
 
 let arguments = CommandLine.arguments
-let directory = FileManager.default.temporaryDirectory.appendingPathComponent("pdfrx-apple-\(UUID().uuidString)")
-try! FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-defer { try? FileManager.default.removeItem(at: directory) }
-let isBenchmark = arguments.contains("--benchmark")
-let fixture = directory.appendingPathComponent("fixture.pdf")
-autoreleasepool {
-  makeFixture(fixture, pages: isBenchmark ? 100 : 3, lines: isBenchmark ? 90 : 12)
-}
-if isBenchmark {
-  benchmark(fixture)
+if arguments.dropFirst().first == "--make-benchmark-fixture" {
+  check(arguments.count == 3, "Supply an output path for --make-benchmark-fixture")
+  autoreleasepool {
+    makeFixture(URL(fileURLWithPath: arguments[2]), pages: 100, lines: 90)
+  }
+} else if arguments.dropFirst().first == "--benchmark" {
+  check(arguments.count == 3, "Supply a previously generated PDF for --benchmark")
+  // PDF creation must happen in a different process: it warms PDFKit/CoreText
+  // state on the generating thread and would contaminate startup/RSS comparisons.
+  benchmark(URL(fileURLWithPath: arguments[2]))
 } else {
+  let directory = FileManager.default.temporaryDirectory.appendingPathComponent("pdfrx-apple-\(UUID().uuidString)")
+  try! FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+  defer { try? FileManager.default.removeItem(at: directory) }
+  let fixture = directory.appendingPathComponent("fixture.pdf")
+  autoreleasepool { makeFixture(fixture, pages: 3, lines: 12) }
   let encrypted = arguments.dropFirst().first.map { URL(fileURLWithPath: $0) }
   nativeTests(fixture, encrypted: encrypted)
   print("ALL COREGRAPHICS NATIVE TESTS PASSED")
