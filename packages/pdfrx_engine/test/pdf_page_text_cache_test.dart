@@ -4,6 +4,36 @@ import 'package:pdfrx_engine/pdfrx_engine.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('normalization changes invalidate retained and pending text without losing pin ownership', () async {
+    final normalization = Pdfrx.normalizeHebrewText;
+    final legacy = Pdfrx.decodeLegacyHebrewText;
+    addTearDown(() {
+      Pdfrx.normalizeHebrewText = normalization;
+      Pdfrx.decodeLegacyHebrewText = legacy;
+    });
+    final cache = PdfPageTextCache(maximumPages: 0);
+    final lease = cache.createLease()..updatePinnedPages([1]);
+    final page = _Page(1);
+    await cache.load(page);
+    expect(cache.length, 1);
+    Pdfrx.normalizeHebrewText = !normalization;
+    expect(cache.get(1), isNull);
+    await cache.load(page);
+    expect(cache.length, 1, reason: 'The selection still owns its pin after normalization changes.');
+    expect(page.loads, 2);
+    cache.invalidate(1);
+    page.gate = Completer<void>();
+    final pending = cache.load(page);
+    Pdfrx.decodeLegacyHebrewText = !legacy;
+    page.gate!.complete();
+    await pending;
+    expect(cache.length, 0, reason: 'An extraction started under old settings cannot repopulate the cache.');
+    await cache.load(page);
+    expect(cache.length, 1);
+    lease.dispose();
+    expect(cache.length, 0);
+  });
+
   test('concurrent consumers share extraction and later reuse its text', () async {
     final cache = PdfPageTextCache();
     final page = _Page(1)..gate = Completer<void>();

@@ -33,6 +33,7 @@ import '../pdf_page_status_change.dart';
 import '../pdf_permissions.dart';
 import '../pdf_rect.dart';
 import '../pdf_text.dart';
+import '../pdf_text_formatter.dart';
 import '../pdfrx.dart';
 import '../pdfrx_entry_functions.dart';
 import '../utils/shuffle_in_place.dart';
@@ -1829,7 +1830,7 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
   }
 }
 
-class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
+class _PdfPagePdfium extends PdfPage with PdfPageLinkCache implements PdfPageSearchTextSource {
   @override
   final _PdfDocumentPdfium document;
   @override
@@ -1957,7 +1958,12 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
   PdfPageRenderCancellationTokenPdfium createCancellationToken() => PdfPageRenderCancellationTokenPdfium(this);
 
   @override
-  Future<PdfPageRawText?> loadText() async {
+  Future<PdfPageRawText?> loadText() => _loadText((raw) => raw);
+
+  @override
+  Future<String?> loadSearchTextUncached() => _loadText(PdfTextFormatter.formatSearchText);
+
+  Future<T?> _loadText<T>(T Function(PdfPageRawText raw) transform) async {
     if (document.isDisposed || !isLoaded) return null;
     return await document._computeWithArena(
       (arena, params) {
@@ -1984,9 +1990,10 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
           }
           final raw = PdfPageRawText(sb.toString(), charRects);
           // On the worker, so the reordering does not cost the UI isolate.
-          return params.normalizeHebrew
+          final normalized = params.normalizeHebrew
               ? PdfHebrewTextNormalizer.normalize(raw, decodeLegacyEncoding: params.decodeLegacyHebrew)
               : raw;
+          return params.transform(normalized);
         } finally {
           pdfium.FPDFText_ClosePage(textPage);
           pdfium.FPDF_ClosePage(page);
@@ -1999,6 +2006,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
         bbBottom: bbBottom,
         normalizeHebrew: Pdfrx.normalizeHebrewText,
         decodeLegacyHebrew: Pdfrx.decodeLegacyHebrewText,
+        transform: transform,
       ),
     );
   }

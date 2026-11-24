@@ -44,11 +44,48 @@ final class PdfTextFormatter {
   ///
   /// This implementation is shared among multiple [PdfPage] and [PdfPage] proxy implementations.
   static Future<PdfPageText> loadStructuredText(PdfPage page, {required int? pageNumberOverride}) async {
-    pageNumberOverride ??= page.pageNumber;
-    final raw = await _loadFormattedText(page);
-    if (raw == null) {
-      return PdfPageText(pageNumber: pageNumberOverride, fullText: '', charRects: [], fragments: []);
+    final raw = await page.loadText();
+    return formatStructuredText(raw ?? PdfPageRawText('', const []), pageNumber: pageNumberOverride ?? page.pageNumber);
+  }
+
+  /// Formats extracted text without retaining character or fragment geometry.
+  ///
+  /// Uses the same reading order, whitespace and vertical-text rules as
+  /// [formatStructuredText]. Input geometry is still needed for those rules.
+  static String formatSearchText(PdfPageRawText raw) => _formatText(raw, includeGeometry: false).fullText;
+
+  /// Formats already extracted text; also usable on a native worker isolate.
+  static PdfPageText formatStructuredText(PdfPageRawText raw, {required int pageNumber}) {
+    final formatted = _formatText(raw, includeGeometry: true);
+    final fragments = <PdfPageTextFragment>[];
+    final text = PdfPageText(
+      pageNumber: pageNumber,
+      fullText: formatted.fullText,
+      charRects: formatted.charRects,
+      fragments: UnmodifiableListView(fragments),
+    );
+    var start = 0;
+    for (final fragment in formatted.fragments) {
+      final end = start + fragment.length;
+      final fragmentRects = UnmodifiableSublist(formatted.charRects, start: start, end: end);
+      fragments.add(
+        PdfPageTextFragment(
+          pageText: text,
+          index: start,
+          length: fragment.length,
+          charRects: fragmentRects,
+          bounds: fragmentRects.boundingRect(),
+          direction: fragment.direction,
+        ),
+      );
+      start = end;
     }
+    return text;
+  }
+
+  static ({String fullText, List<PdfRect> charRects, List<({int length, PdfTextDirection direction})> fragments})
+  _formatText(PdfPageRawText input, {required bool includeGeometry}) {
+    final raw = _formatRawText(input);
     final inputCharRects = raw.charRects;
     final inputFullText = raw.fullText;
 
@@ -83,75 +120,88 @@ final class PdfTextFormatter {
         final pos = outputText.length;
         if (isSpace) {
           if (wordStart > 0 && wordEnd < inputCharRects.length) {
-            // combine several spaces into one space
-            final a = inputCharRects[wordStart - 1];
-            final b = inputCharRects[wordEnd];
-            // Clamp the space extent so a generated space representing a large
-            // gap (e.g. a table column gap) does not become one huge selectable
-            // rect; the rect stays attached to the preceding character and the
-            // remaining gap is left unselectable. Generated spaces (degenerate
-            // point boxes) get a typical space advance, real spaces keep their
-            // gap up to a looser limit.
-            var isGeneratedGap = true;
-            for (var i = wordStart; i < wordEnd; i++) {
-              final r = inputCharRects[i];
-              if (r.width > 0 || r.height > 0) {
-                isGeneratedGap = false;
-                break;
+            if (includeGeometry) {
+              // combine several spaces into one space
+              final a = inputCharRects[wordStart - 1];
+              final b = inputCharRects[wordEnd];
+              // Clamp the space extent so a generated space representing a large
+              // gap (e.g. a table column gap) does not become one huge selectable
+              // rect; the rect stays attached to the preceding character and the
+              // remaining gap is left unselectable. Generated spaces (degenerate
+              // point boxes) get a typical space advance, real spaces keep their
+              // gap up to a looser limit.
+              var isGeneratedGap = true;
+              for (var i = wordStart; i < wordEnd; i++) {
+                final r = inputCharRects[i];
+                if (r.width > 0 || r.height > 0) {
+                  isGeneratedGap = false;
+                  break;
+                }
               }
-            }
-            final extentRatio =
-                isGeneratedGap ? _generatedSpaceExtentToLineHeightRatio : _maxSpaceExtentToLineHeightRatio;
-            switch (dir) {
-              case PdfTextDirection.ltr:
-              case PdfTextDirection.unknown:
-                final maxExtent = bounds.height * extentRatio;
-                final right = a.right < b.left ? b.left : a.right;
-                outputCharRects.add(PdfRect(a.right, bounds.top, math.min(right, a.right + maxExtent), bounds.bottom));
-              case PdfTextDirection.rtl:
-                final maxExtent = bounds.height * extentRatio;
-                final right = b.right < a.left ? a.left : b.right;
-                outputCharRects.add(PdfRect(math.max(b.right, right - maxExtent), bounds.top, right, bounds.bottom));
-              case PdfTextDirection.vrtl:
-                final maxExtent = bounds.width * extentRatio;
-                final bottom = a.bottom > b.top ? b.top : a.bottom;
-                outputCharRects.add(PdfRect(bounds.left, a.bottom, bounds.right, math.max(bottom, a.bottom - maxExtent)));
+              final extentRatio = isGeneratedGap
+                  ? _generatedSpaceExtentToLineHeightRatio
+                  : _maxSpaceExtentToLineHeightRatio;
+              switch (dir) {
+                case PdfTextDirection.ltr:
+                case PdfTextDirection.unknown:
+                  final maxExtent = bounds.height * extentRatio;
+                  final right = a.right < b.left ? b.left : a.right;
+                  outputCharRects.add(
+                    PdfRect(a.right, bounds.top, math.min(right, a.right + maxExtent), bounds.bottom),
+                  );
+                case PdfTextDirection.rtl:
+                  final maxExtent = bounds.height * extentRatio;
+                  final right = b.right < a.left ? a.left : b.right;
+                  outputCharRects.add(PdfRect(math.max(b.right, right - maxExtent), bounds.top, right, bounds.bottom));
+                case PdfTextDirection.vrtl:
+                  final maxExtent = bounds.width * extentRatio;
+                  final bottom = a.bottom > b.top ? b.top : a.bottom;
+                  outputCharRects.add(
+                    PdfRect(bounds.left, a.bottom, bounds.right, math.max(bottom, a.bottom - maxExtent)),
+                  );
+              }
             }
             outputText.write(' ');
           }
         } else if (isNewLine) {
           if (wordStart > 0) {
             // new line (\n)
-            switch (dir) {
-              case PdfTextDirection.ltr:
-              case PdfTextDirection.unknown:
-                outputCharRects.add(PdfRect(bounds.right, bounds.top, bounds.right, bounds.bottom));
-              case PdfTextDirection.rtl:
-                outputCharRects.add(PdfRect(bounds.left, bounds.top, bounds.left, bounds.bottom));
-              case PdfTextDirection.vrtl:
-                outputCharRects.add(PdfRect(bounds.left, bounds.bottom, bounds.right, bounds.bottom));
+            if (includeGeometry) {
+              switch (dir) {
+                case PdfTextDirection.ltr:
+                case PdfTextDirection.unknown:
+                  outputCharRects.add(PdfRect(bounds.right, bounds.top, bounds.right, bounds.bottom));
+                case PdfTextDirection.rtl:
+                  outputCharRects.add(PdfRect(bounds.left, bounds.top, bounds.left, bounds.bottom));
+                case PdfTextDirection.vrtl:
+                  outputCharRects.add(PdfRect(bounds.left, bounds.bottom, bounds.right, bounds.bottom));
+              }
             }
             outputText.write('\n');
           }
         } else {
           // Adjust character bounding box based on text direction.
-          switch (dir) {
-            case PdfTextDirection.ltr:
-            case PdfTextDirection.rtl:
-            case PdfTextDirection.unknown:
-              for (var i = wordStart; i < wordEnd; i++) {
-                final r = inputCharRects[i];
-                outputCharRects.add(PdfRect(r.left, bounds.top, r.right, bounds.bottom));
-              }
-            case PdfTextDirection.vrtl:
-              for (var i = wordStart; i < wordEnd; i++) {
-                final r = inputCharRects[i];
-                outputCharRects.add(PdfRect(bounds.left, r.top, bounds.right, r.bottom));
-              }
+          if (includeGeometry) {
+            switch (dir) {
+              case PdfTextDirection.ltr:
+              case PdfTextDirection.rtl:
+              case PdfTextDirection.unknown:
+                for (var i = wordStart; i < wordEnd; i++) {
+                  final r = inputCharRects[i];
+                  outputCharRects.add(PdfRect(r.left, bounds.top, r.right, bounds.bottom));
+                }
+              case PdfTextDirection.vrtl:
+                for (var i = wordStart; i < wordEnd; i++) {
+                  final r = inputCharRects[i];
+                  outputCharRects.add(PdfRect(bounds.left, r.top, bounds.right, r.bottom));
+                }
+            }
           }
           outputText.write(inputFullText.substring(wordStart, wordEnd));
         }
-        if (outputText.length > pos) fragmentsTmp.add((length: outputText.length - pos, direction: dir));
+        if (includeGeometry && outputText.length > pos) {
+          fragmentsTmp.add((length: outputText.length - pos, direction: dir));
+        }
       }
     }
 
@@ -231,9 +281,11 @@ final class PdfTextFormatter {
     for (final match in _reNewLine.allMatches(inputFullText)) {
       if (lineStart < match.start) {
         handleLine(lineStart, match.start, newLineEnd: match.end);
-      } else if (outputCharRects.isNotEmpty) {
-        final lastRect = outputCharRects.last;
-        outputCharRects.add(PdfRect(lastRect.left, lastRect.top, lastRect.left, lastRect.bottom));
+      } else if (outputText.length > 0) {
+        if (includeGeometry) {
+          final lastRect = outputCharRects.last;
+          outputCharRects.add(PdfRect(lastRect.left, lastRect.top, lastRect.left, lastRect.bottom));
+        }
         outputText.write('\n');
       }
       lineStart = match.end;
@@ -242,42 +294,10 @@ final class PdfTextFormatter {
       handleLine(lineStart, inputFullText.length);
     }
 
-    final fragments = <PdfPageTextFragment>[];
-    final text = PdfPageText(
-      pageNumber: pageNumberOverride,
-      fullText: outputText.toString(),
-      charRects: outputCharRects,
-      fragments: UnmodifiableListView(fragments),
-    );
-
-    var start = 0;
-    for (var i = 0; i < fragmentsTmp.length; i++) {
-      final length = fragmentsTmp[i].length;
-      final direction = fragmentsTmp[i].direction;
-      final end = start + length;
-      final fragmentRects = UnmodifiableSublist(outputCharRects, start: start, end: end);
-      fragments.add(
-        PdfPageTextFragment(
-          pageText: text,
-          index: start,
-          length: length,
-          charRects: fragmentRects,
-          bounds: fragmentRects.boundingRect(),
-          direction: direction,
-        ),
-      );
-      start = end;
-    }
-
-    return text;
+    return (fullText: outputText.toString(), charRects: outputCharRects, fragments: fragmentsTmp);
   }
 
-  static Future<PdfPageRawText?> _loadFormattedText(PdfPage page) async {
-    final input = await page.loadText();
-    if (input == null) {
-      return null;
-    }
-
+  static PdfPageRawText _formatRawText(PdfPageRawText input) {
     final fullText = StringBuffer();
     final charRects = <PdfRect>[];
 

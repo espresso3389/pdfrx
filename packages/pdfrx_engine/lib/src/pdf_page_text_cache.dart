@@ -4,6 +4,7 @@ import 'pdf_document.dart';
 import 'pdf_document_event.dart';
 import 'pdf_page.dart';
 import 'pdf_text.dart';
+import 'pdfrx.dart';
 
 /// A bounded structured-text cache shared by consumers of the same document.
 class PdfPageTextCache {
@@ -30,6 +31,7 @@ class PdfPageTextCache {
   final _pinCounts = <int, int>{};
   final _evictablePages = <int>{};
   int _estimatedBytes = 0;
+  (bool, bool) _normalization = (Pdfrx.normalizeHebrewText, Pdfrx.decodeLegacyHebrewText);
 
   /// Number of cached pages, including pinned pages.
   int get length => _entries.length;
@@ -39,6 +41,11 @@ class PdfPageTextCache {
 
   /// Returns cached text, updating its least-recently-used position.
   PdfPageText? get(int pageNumber) {
+    final normalization = (Pdfrx.normalizeHebrewText, Pdfrx.decodeLegacyHebrewText);
+    if (_normalization != normalization) {
+      clear();
+      _normalization = normalization;
+    }
     final text = _entries.remove(pageNumber);
     if (text != null) {
       _entries[pageNumber] = text;
@@ -54,12 +61,13 @@ class PdfPageTextCache {
     if (cached != null) return Future.value(cached);
     final pending = _pending[page.pageNumber];
     if (pending != null) return pending;
+    final normalization = _normalization;
     late final Future<PdfPageText> future;
     future = Future<PdfPageText>.sync(() => page.loadStructuredText(ensureLoaded: false)).then(
       (text) {
         if (identical(_pending[page.pageNumber], future)) {
           _pending.remove(page.pageNumber);
-          if (page.isLoaded) {
+          if (page.isLoaded && normalization == (Pdfrx.normalizeHebrewText, Pdfrx.decodeLegacyHebrewText)) {
             _entries[page.pageNumber] = text;
             if (!_pinCounts.containsKey(page.pageNumber)) _evictablePages.add(page.pageNumber);
             _estimatedBytes += estimateBytes(text);

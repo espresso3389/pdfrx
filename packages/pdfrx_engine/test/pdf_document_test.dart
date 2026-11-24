@@ -11,6 +11,7 @@ import 'package:test/test.dart';
 
 import 'utils.dart';
 import 'hebrew_native.dart';
+import 'search_text_native.dart';
 import 'progressive_text_native.dart';
 import 'progressive_loading_native.dart';
 import 'reload_pages_native.dart';
@@ -107,6 +108,7 @@ void main() {
   });
 
   registerHebrewNativeTests();
+  registerSearchTextNativeTests();
   registerProgressiveTextNativeTests();
   registerProgressiveLoadingNativeTests();
   registerReloadPagesNativeTests();

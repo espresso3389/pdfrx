@@ -129,6 +129,38 @@ for (final match in searcher.matches) {
 
 The viewer and search sessions share a bounded text cache per document. Active selections and other owners can pin pages beyond its target. Use [`searcher.loadText(pageNumber: n)`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearchSession/loadText.html) when full structured page text is needed, and dispose the searcher when finished. [`releaseCachedText()`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfTextSearcher/releaseCachedText.html) clears unpinned entries in the shared document cache; other consumers' pinned pages are preserved.
 
+## Compact Text for Repeated Searches
+
+Both search classes accept `useCompactText: true`:
+
+```dart
+final searcher = PdfTextSearchSession(controller, useCompactText: true);
+searcher.startTextSearch('hello');
+```
+
+This opt-in uses a separate [PdfPageSearchTextCache](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageSearchTextCache-class.html) of formatted strings. On native PDFium, extraction, Hebrew normalization and formatting run on the worker; only the string crosses to the caller. Full structured text and highlight geometry are requested only for a page with a nonempty match. The existing `loadText` and `loadStructuredText` contracts still return their complete geometry.
+
+The compact index defaults to **4 MiB of estimated Dart data and 4,096 pages**, independently of the existing 16-page structured-text cache. It stores the exact canonical formatted text, with no per-character rectangles or fragments. Repeated queries reuse those strings even after geometry has been evicted. Page changes, removals, document disposal and Hebrew-normalization setting changes invalidate affected entries. `releaseCachedText()` on a compact searcher also clears this index. In-flight extraction and strings held by callers are outside its budget.
+
+This is most useful for repeated or sparse searches. A first query matching every page can perform two extractions per page: compact text followed by geometry. The compact index also uses additional memory when matching pages are already cached. Native PDFium still needs temporary geometry to preserve Hebrew reading order and vertical-text rules; this does not eliminate `FPDFText_GetCharBox` on a cold page. Web and other backends use the normal structured-text fallback to populate the compact index. An ongoing synchronous PDFium text extraction cannot be interrupted; canceled or superseded sessions discard its late result.
+
+The default remains `false`, so existing subclasses overriding `loadText` keep their behavior. A subclass that transforms the text returned by `loadText` should leave this option off, or also override `loadSearchText` to return exactly the same full text. Custom `Pattern` implementations always retain the full-text path; strings and regular expressions use the compact prefilter, including the existing case and zero-width-match rules.
+
+Applications that index text without a viewer can use the engine API directly:
+
+```dart
+final index = PdfPageSearchTextCache.forDocument(document);
+for (final page in document.pages) {
+  final loaded = await page.ensureLoaded();
+  final text = await index.load(loaded);
+  // Search or index text. Request loaded.loadStructuredText() only for geometry.
+}
+```
+
+[PdfPageBaseExtensions.loadSearchText](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageBaseExtensions/loadSearchText.html) returns one formatted string without retaining it. A standalone `PdfPageSearchTextCache(maximumBytes: ..., maximumPages: ...)` supports custom budgets; its owner must invalidate it after document changes. The shared `forDocument` index observes changes automatically.
+
+The reproducible [native text benchmark](../packages/pdfrx_engine/tool/pdf_search_text_benchmark.dart) compares cold and repeated scans above the structured cache's page limit, and has a `dense` mode to measure the tradeoff on matching pages. Its cache-byte estimates and text-pipeline timings are not process RSS or whole-viewer frame-time measurements.
+
 ## Limiting Retained Results
 
 A frequent word or a broad regular expression can produce many results even when each result is lightweight. Both search classes accept an optional positive `maxResults` in `startTextSearch`:
@@ -170,7 +202,7 @@ searcher.startTextSearch('hello', maxResults: 4000, goToFirstMatch: false);
 
 Changing the limit starts a fresh scan, reusing available document text-cache entries. It is not incremental pagination. Reissuing the same pattern and limit preserves the existing search; reset or stop it first to force a fresh scan with that limit. Automatic restarts after document edits and hidden-tab pause/resume preserve the selected limit. The limit state is cleared by a replacement search, reset, or disposal.
 
-This is a **result-count limit, not a byte or process-memory cap**. A single long match can retain substantial text and many highlight rectangles. Page extraction still loads one page's structured text, and the shared text cache has its separate budget. Legacy `PdfTextSearcher` ranges still retain their matched pages; prefer `PdfTextSearchSession` to avoid that retention. Immutable snapshots or individual matches that application code keeps after a replacement/reset remain owned by that application and are outside the active session's count limit.
+This is a **result-count limit, not a byte or process-memory cap**. A single long match can retain substantial text and many highlight rectangles. Matching pages still load structured text, and the shared text cache has its separate budget. With compact scanning disabled, nonmatching pages also load structured text. Legacy `PdfTextSearcher` ranges still retain their matched pages; prefer `PdfTextSearchSession` to avoid that retention. Immutable snapshots or individual matches that application code keeps after a replacement/reset remain owned by that application and are outside the active session's count limit.
 
 ## Pausing a Search
 

@@ -23,6 +23,7 @@ void registerHebrewNativeTests() {
     expect(normalized.charRects.first, original.charRects[20]);
     final structured = await page.loadStructuredText();
     expect(await structured.allMatches('\u05d2\u05d1\u05d0').length, 7);
+    expect(await page.loadSearchText(), structured.fullText);
     Pdfrx.normalizeHebrewText = false;
     expect((await page.loadText())!.fullText, original.fullText);
   });
