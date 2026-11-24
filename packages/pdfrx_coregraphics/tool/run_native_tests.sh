@@ -10,7 +10,7 @@ build_dir="${PDFRX_NATIVE_BUILD_DIR:-$package_dir/build/native-tests}"
 mkdir -p "$build_dir"
 apple_platform="${PDFRX_APPLE_PLATFORM:-macos}"
 framework_name=FlutterMacOS
-platform_flags=()
+platform_flags=(-target "$(uname -m)-apple-macos12.0")
 if [[ "$apple_platform" == ios-simulator ]]; then
   framework_name=Flutter
   framework_dir="$(find "$flutter_root/bin/cache/artifacts/engine" -path '*/ios-arm64_x86_64-simulator/Flutter.framework' -type d -print -quit)"
@@ -25,7 +25,7 @@ fi
 framework_parent="$(dirname "$framework_dir")"
 source_dir="$package_dir/darwin/pdfrx_coregraphics/Sources"
 sources=("$source_dir/CoreGraphicsWorkQueue.swift" "$source_dir/PdfrxCoregraphicsPlugin.swift")
-swift_flags=()
+swift_flags=(-D PDFRX_CANDIDATE)
 if [[ -n "${PDFRX_BASELINE_REF:-}" ]]; then
   git -C "$repo_dir" show "$PDFRX_BASELINE_REF:packages/pdfrx_coregraphics/darwin/pdfrx_coregraphics/Sources/PdfrxCoregraphicsPlugin.swift" > "$build_dir/BaselinePlugin.swift"
   # Older source used optional binding for Apple's nonfailable empty initializers.

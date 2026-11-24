@@ -48,15 +48,15 @@ jobs:
           xcrun simctl bootstatus "$simulator" -b
           echo "PDFRX_SIMULATOR_UDID=$simulator" >> "$GITHUB_ENV"
 
+      - name: Run actual PDFKit and CoreGraphics regression tests
+        run: bash packages/pdfrx_coregraphics/tool/run_native_tests.sh
+
       - name: Test the Dart source and lifetime bridge
         working-directory: packages/pdfrx_coregraphics
         run: |
           flutter pub get
           flutter analyze
           flutter test
-
-      - name: Run actual PDFKit and CoreGraphics regression tests
-        run: bash packages/pdfrx_coregraphics/tool/run_native_tests.sh
 
       - name: Measure release baseline and candidate in fresh processes
         env:
