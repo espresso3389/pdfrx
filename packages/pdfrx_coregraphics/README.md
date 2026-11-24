@@ -132,7 +132,10 @@ heartbeat gaps, CPU time and resident memory before and after close. The baselin
 runner adapts only old optional bindings for nonfailable Apple initializers so
 the old bridge can compile with current SDKs. Timings are diagnostics, not fragile
 unit-test thresholds or whole-viewer frame-time measurements. The standalone
-`CoreGraphics Native Tests` workflow saves baseline/candidate logs as artifacts.
+`CoreGraphics Native Tests` workflow runs on macOS and an iOS simulator and saves
+baseline/candidate logs as artifacts. Simulator measurements are not physical
+iOS device measurements. To run locally on an already booted simulator, use
+`flutter precache --ios` and set `PDFRX_APPLE_PLATFORM=ios-simulator` for the script.
 
 For an Instruments thread trace, capture the `CoreGraphics work` signposts in
 subsystem `pdfrx_coregraphics`, category `scheduler`, alongside the main thread.

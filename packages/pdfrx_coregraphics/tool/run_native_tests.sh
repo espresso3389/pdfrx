@@ -8,9 +8,18 @@ repo_dir="$(cd "$package_dir/../.." && pwd)"
 flutter_root="${FLUTTER_ROOT:-$(cd "$(dirname "$(command -v flutter)")/.." && pwd)}"
 build_dir="${PDFRX_NATIVE_BUILD_DIR:-$package_dir/build/native-tests}"
 mkdir -p "$build_dir"
-framework_dir="$(find "$flutter_root/bin/cache/artifacts/engine" -path '*/FlutterMacOS.framework' -type d -print -quit)"
+apple_platform="${PDFRX_APPLE_PLATFORM:-macos}"
+framework_name=FlutterMacOS
+platform_flags=()
+if [[ "$apple_platform" == ios-simulator ]]; then
+  framework_name=Flutter
+  framework_dir="$(find "$flutter_root/bin/cache/artifacts/engine" -path '*/ios-arm64_x86_64-simulator/Flutter.framework' -type d -print -quit)"
+  platform_flags=(-sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)" -target "$(uname -m)-apple-ios15.0-simulator")
+else
+  framework_dir="$(find "$flutter_root/bin/cache/artifacts/engine" -path '*/FlutterMacOS.framework' -type d -print -quit)"
+fi
 if [[ -z "$framework_dir" ]]; then
-  echo 'Run flutter precache --macos first.' >&2
+  echo 'Run flutter precache --macos (or --ios for the simulator) first.' >&2
   exit 1
 fi
 framework_parent="$(dirname "$framework_dir")"
@@ -32,11 +41,21 @@ PY
   sources=("$build_dir/BaselinePlugin.swift")
   swift_flags=(-D PDFRX_BASELINE)
 fi
-xcrun swiftc -O -swift-version 5 "${swift_flags[@]}" -F "$framework_parent" \
-  -framework FlutterMacOS -framework PDFKit -framework CoreText \
+xcrun swiftc -O -swift-version 5 "${swift_flags[@]}" "${platform_flags[@]}" -F "$framework_parent" \
+  -framework "$framework_name" -framework PDFKit -framework CoreText \
   -Xlinker -rpath -Xlinker "$framework_parent" \
   "${sources[@]}" "$package_dir/tool/native/main.swift" -o "$build_dir/coregraphics-tests"
-"$build_dir/coregraphics-tests" "$repo_dir/packages/pdfrx_engine/test/assets/encrypted.pdf"
+run_native() {
+  if [[ "$apple_platform" == ios-simulator ]]; then
+    SIMCTL_CHILD_DYLD_FRAMEWORK_PATH="$framework_parent" xcrun simctl spawn "${PDFRX_SIMULATOR_UDID:-booted}" "$build_dir/coregraphics-tests" "$@"
+  else
+    "$build_dir/coregraphics-tests" "$@"
+  fi
+}
+if [[ "$apple_platform" == ios-simulator ]]; then
+  codesign --force --sign - "$build_dir/coregraphics-tests"
+fi
+run_native "$repo_dir/packages/pdfrx_engine/test/assets/encrypted.pdf"
 if [[ "${PDFRX_RUN_BENCHMARK:-0}" == 1 ]]; then
-  "$build_dir/coregraphics-tests" --benchmark
+  run_native --benchmark
 fi

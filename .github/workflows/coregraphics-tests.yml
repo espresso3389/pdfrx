@@ -19,9 +19,15 @@ env:
   DASH__SUPPRESS_ANALYTICS: true
 
 jobs:
-  native-macos:
+  native-apple:
     runs-on: macos-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos, ios-simulator]
+    env:
+      PDFRX_APPLE_PLATFORM: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -32,7 +38,15 @@ jobs:
           git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
           echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
           echo "FLUTTER_ROOT=$RUNNER_TEMP/flutter" >> "$GITHUB_ENV"
-          "$RUNNER_TEMP/flutter/bin/flutter" precache --macos
+          "$RUNNER_TEMP/flutter/bin/flutter" precache --macos --ios
+
+      - name: Boot an iOS simulator
+        if: matrix.platform == 'ios-simulator'
+        run: |
+          simulator=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; data=json.load(sys.stdin); print(next(d["udid"] for runtime,devices in data["devices"].items() if "iOS" in runtime for d in devices if d["name"].startswith("iPhone")))')
+          xcrun simctl boot "$simulator"
+          xcrun simctl bootstatus "$simulator" -b
+          echo "PDFRX_SIMULATOR_UDID=$simulator" >> "$GITHUB_ENV"
 
       - name: Test the Dart source and lifetime bridge
         working-directory: packages/pdfrx_coregraphics
@@ -56,5 +70,5 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: coregraphics-macos-measurements
+          name: coregraphics-${{ matrix.platform }}-measurements
           path: ${{ runner.temp }}/coregraphics-results
