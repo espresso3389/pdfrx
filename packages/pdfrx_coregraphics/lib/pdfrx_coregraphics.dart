@@ -2,6 +2,7 @@
 // ignore_for_file: prefer_initializing_formals
 
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/services.dart';
@@ -157,29 +158,68 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
     int? maxSizeToCacheOnMemory,
     void Function()? onDispose,
   }) async {
-    await init();
-    final buffer = Uint8List(fileSize);
-    final chunk = Uint8List(min(fileSize, 128 * 1024));
-    var offset = 0;
-    while (offset < fileSize) {
-      final currentSize = min(chunk.length, fileSize - offset);
-      final readCount = await read(chunk, offset, currentSize);
-      if (readCount <= 0) {
-        throw PdfException(
-          'Unexpected end of custom stream. Expected $currentSize bytes at offset $offset.',
+    Directory? directory;
+    var transferred = false;
+    var released = false;
+    Future<void> releaseSource() async {
+      if (released) return;
+      released = true;
+      try {
+        await directory?.delete(recursive: true);
+      } finally {
+        onDispose?.call();
+      }
+    }
+
+    try {
+      if (fileSize < 0) {
+        throw ArgumentError.value(
+          fileSize,
+          'fileSize',
+          'Must not be negative.',
         );
       }
-      buffer.setRange(offset, offset + readCount, chunk);
-      offset += readCount;
+      await init();
+      directory = await Directory.systemTemp.createTemp('pdfrx-coregraphics-');
+      final file = File('${directory.path}/document.pdf');
+      final output = await file.open(mode: FileMode.write);
+      try {
+        final chunk = Uint8List(min(fileSize, 128 * 1024));
+        var offset = 0;
+        while (offset < fileSize) {
+          final currentSize = min(chunk.length, fileSize - offset);
+          final readCount = await read(chunk, offset, currentSize);
+          if (readCount <= 0 || readCount > currentSize) {
+            throw PdfException(
+              'Invalid custom read count $readCount for $currentSize bytes at offset $offset.',
+            );
+          }
+          // Positive short reads have always been supported by this backend.
+          await output.writeFrom(chunk, 0, readCount);
+          offset += readCount;
+        }
+      } finally {
+        await output.close();
+      }
+      final document = await _openWithPassword(
+        passwordProvider: passwordProvider,
+        firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
+        sourceName: sourceName,
+        useProgressiveLoading: useProgressiveLoading,
+        onDispose: releaseSource,
+        opener: (password) =>
+            _channel.invokeMapMethod<Object?, Object?>('openDocument', {
+              'sourceType': 'file',
+              'path': file.path,
+              'password': password,
+              'sourceName': sourceName,
+            }),
+      );
+      transferred = true;
+      return document;
+    } finally {
+      if (!transferred) await releaseSource();
     }
-    return openData(
-      buffer,
-      passwordProvider: passwordProvider,
-      firstAttemptByEmptyPassword: firstAttemptByEmptyPassword,
-      useProgressiveLoading: useProgressiveLoading,
-      sourceName: sourceName,
-      onDispose: onDispose,
-    );
   }
 
   @override
@@ -298,7 +338,7 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
     required String sourceName,
     required bool useProgressiveLoading,
     required Future<Map<Object?, Object?>?> Function(String? password) opener,
-    void Function()? onDispose,
+    FutureOr<void> Function()? onDispose,
   }) async {
     for (var attempt = 0; ; attempt++) {
       final String? password;
@@ -317,13 +357,24 @@ class PdfrxCoreGraphicsEntryFunctions implements PdfrxEntryFunctions {
         if (result == null) {
           throw const PdfException('Failed to open PDF document.');
         }
-        return _CoreGraphicsPdfDocument.fromPlatformMap(
-          channel: _channel,
-          result: result,
-          sourceName: sourceName,
-          useProgressiveLoading: useProgressiveLoading,
-          onDispose: onDispose,
-        );
+        try {
+          return _CoreGraphicsPdfDocument.fromPlatformMap(
+            channel: _channel,
+            result: result,
+            sourceName: sourceName,
+            useProgressiveLoading: useProgressiveLoading,
+            onDispose: onDispose,
+          );
+        } catch (_) {
+          // Close before the outer custom open releases its owned temporary file.
+          final handle = result['handle'];
+          if (handle is int) {
+            await _channel.invokeMethod<void>('closeDocument', {
+              'handle': handle,
+            });
+          }
+          rethrow;
+        }
       } on PlatformException catch (e) {
         if (e.code == _kPasswordErrorCode) {
           // try again with the next password
@@ -351,7 +402,7 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
     required Map<Object?, Object?> result,
     required String sourceName,
     required bool useProgressiveLoading,
-    void Function()? onDispose,
+    FutureOr<void> Function()? onDispose,
   }) {
     final map = result.cast<String, Object?>();
     final handle =
@@ -418,9 +469,10 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
   final MethodChannel channel;
   final int handle;
   final bool useProgressiveLoading;
-  final void Function()? onDispose;
+  final FutureOr<void> Function()? onDispose;
   final StreamController<PdfDocumentEvent> subject;
   bool _disposed = false;
+  Future<void>? _disposeFuture;
   bool _loadCompleteNotified = false;
 
   List<PdfPage> _pages = const [];
@@ -438,18 +490,19 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
   List<PdfPage> get pages => _pages;
 
   @override
-  Future<void> dispose() async {
-    if (_disposed) {
-      return;
-    }
+  Future<void> dispose() => _disposeFuture ??= _dispose();
+
+  Future<void> _dispose() async {
     _disposed = true;
-    subject.close();
-    onDispose?.call();
+    unawaited(subject.close());
     try {
       await channel.invokeMethod<void>('closeDocument', {'handle': handle});
     } on MissingPluginException {
       // Ignore if the platform does not provide explicit disposal.
     }
+    // The native barrier has finished the active call and released PDFKit before
+    // deleting an owned file or allowing the caller to release its input source.
+    await onDispose?.call();
   }
 
   @override
@@ -466,11 +519,12 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
 
   @override
   Future<List<PdfOutlineNode>> loadOutline() async {
+    if (_disposed) return const [];
     try {
       final result = await channel.invokeListMethod<Object?>('loadOutline', {
         'handle': handle,
       });
-      if (result == null) {
+      if (_disposed || result == null) {
         return const [];
       }
       return _parseOutline(result);
@@ -613,7 +667,7 @@ class _CoreGraphicsPdfPage extends PdfPage with PdfPageLinkCache {
   int get pageNumber => index + 1;
 
   @override
-  bool get isLoaded => true;
+  bool get isLoaded => !_document._disposed;
 
   @override
   Future<PdfImage?> render({
@@ -647,12 +701,16 @@ class _CoreGraphicsPdfPage extends PdfPage with PdfPageLinkCache {
     final targetWidth = max(1, (width ?? targetFullWidth));
     final targetHeight = max(1, (height ?? targetFullHeight));
 
+    final requestId = _CoreGraphicsCancellationToken.nextRequestId();
+    token?._attach(requestId, _document.channel);
     final Map<Object?, Object?>? result;
     try {
       result = await _document.channel.invokeMapMethod<Object?, Object?>(
         'renderPage',
         {
           'handle': _document.handle,
+          'requestId': requestId,
+          'priority': (priority ?? PdfPageRenderPriority.normal).index,
           'pageIndex': index,
           'x': x,
           'y': y,
@@ -674,8 +732,10 @@ class _CoreGraphicsPdfPage extends PdfPage with PdfPageLinkCache {
       );
     } on MissingPluginException {
       return null;
+    } finally {
+      token?._detach(requestId);
     }
-    if (token?.isCanceled == true) {
+    if (_document._disposed || token?.isCanceled == true) {
       return null;
     }
     if (result == null) {
@@ -701,12 +761,13 @@ class _CoreGraphicsPdfPage extends PdfPage with PdfPageLinkCache {
 
   @override
   Future<PdfPageRawText?> loadText() async {
+    if (_document._disposed) return null;
     try {
       final result = await _document.channel.invokeMapMethod<Object?, Object?>(
         'loadPageText',
         {'handle': _document.handle, 'pageIndex': index},
       );
-      if (result == null) {
+      if (_document._disposed || result == null) {
         return null;
       }
       final map = result.cast<String, Object?>();
@@ -733,6 +794,7 @@ class _CoreGraphicsPdfPage extends PdfPage with PdfPageLinkCache {
 
   @override
   Future<List<PdfLink>> loadLinksUncached(bool enableAutoLinkDetection) async {
+    if (_document._disposed) return const [];
     try {
       final result = await _document.channel.invokeListMethod<Object?>(
         'loadPageLinks',
@@ -742,7 +804,7 @@ class _CoreGraphicsPdfPage extends PdfPage with PdfPageLinkCache {
           'enableAutoLinkDetection': enableAutoLinkDetection,
         },
       );
-      if (result == null) {
+      if (_document._disposed || result == null) {
         return const [];
       }
       final links = result
@@ -837,10 +899,37 @@ class _CoreGraphicsCancellationToken implements PdfPageRenderCancellationToken {
   _CoreGraphicsCancellationToken._();
 
   bool _isCanceled = false;
+  final _requests = <String, MethodChannel>{};
+  static final _requestPrefix =
+      '${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(0x100000000)}';
+  static int _nextRequest = 0;
+
+  static String nextRequestId() => '$_requestPrefix-${_nextRequest++}';
+
+  void _attach(String requestId, MethodChannel channel) =>
+      _requests[requestId] = channel;
+
+  void _detach(String requestId) => _requests.remove(requestId);
 
   @override
   void cancel() {
+    if (_isCanceled) return;
     _isCanceled = true;
+    for (final entry in _requests.entries) {
+      unawaited(_cancelNative(entry.value, entry.key));
+    }
+  }
+
+  Future<void> _cancelNative(MethodChannel channel, String requestId) async {
+    try {
+      await channel.invokeMethod<void>('cancelRequest', {
+        'requestId': requestId,
+      });
+    } on MissingPluginException {
+      // Older platform bridges still discard canceled results on the Dart side.
+    } on PlatformException {
+      // Cancellation is best-effort if the engine is already shutting down.
+    }
   }
 
   @override

@@ -1,0 +1,60 @@
+name: CoreGraphics Native Tests
+
+on:
+  pull_request:
+    paths:
+      - 'packages/pdfrx_coregraphics/**'
+      - '.github/workflows/coregraphics-tests.yml'
+  push:
+    branches: [master, main]
+    paths:
+      - 'packages/pdfrx_coregraphics/**'
+      - '.github/workflows/coregraphics-tests.yml'
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: '3.50.1'
+  CI: true
+  FLUTTER_SUPPRESS_ANALYTICS: true
+  DASH__SUPPRESS_ANALYTICS: true
+
+jobs:
+  native-macos:
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up pinned Flutter
+        run: |
+          git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          echo "FLUTTER_ROOT=$RUNNER_TEMP/flutter" >> "$GITHUB_ENV"
+          "$RUNNER_TEMP/flutter/bin/flutter" precache --macos
+
+      - name: Test the Dart source and lifetime bridge
+        working-directory: packages/pdfrx_coregraphics
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      - name: Run actual PDFKit and CoreGraphics regression tests
+        run: bash packages/pdfrx_coregraphics/tool/run_native_tests.sh
+
+      - name: Measure release baseline and candidate in fresh processes
+        env:
+          PDFRX_RUN_BENCHMARK: '1'
+        run: |
+          mkdir -p "$RUNNER_TEMP/coregraphics-results"
+          PDFRX_BASELINE_REF=683df93e986af19bbcefd22606a417083116847b PDFRX_NATIVE_BUILD_DIR="$RUNNER_TEMP/coregraphics-baseline" bash packages/pdfrx_coregraphics/tool/run_native_tests.sh | tee "$RUNNER_TEMP/coregraphics-results/baseline.log"
+          PDFRX_NATIVE_BUILD_DIR="$RUNNER_TEMP/coregraphics-candidate" bash packages/pdfrx_coregraphics/tool/run_native_tests.sh | tee "$RUNNER_TEMP/coregraphics-results/candidate.log"
+
+      - name: Upload native measurements
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coregraphics-macos-measurements
+          path: ${{ runner.temp }}/coregraphics-results

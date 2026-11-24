@@ -10,8 +10,23 @@ import FlutterMacOS
 /// Flutter-side bridge that mirrors the PdfRx engine API by combining PDFKit conveniences with
 /// CoreGraphics access.
 public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
+  let workQueue: CoreGraphicsWorkQueue
   private var nextHandle: Int64 = 1
   private var documents: [Int64: PDFDocument] = [:]
+
+  public override convenience init() {
+    self.init(workQueue: CoreGraphicsWorkQueue())
+  }
+
+  init(workQueue: CoreGraphicsWorkQueue) {
+    self.workQueue = workQueue
+    super.init()
+  }
+
+  deinit {
+    let retainedDocuments = documents
+    workQueue.releaseOnWorker { withExtendedLifetime(retainedDocuments) {} }
+  }
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(
@@ -23,9 +38,58 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    switch call.method {
-    case "initialize":
+    if call.method == "initialize" {
       result(nil)
+      return
+    }
+    let args = call.arguments as? [String: Any]
+    if call.method == "cancelRequest" {
+      if let requestID = args?["requestId"] as? String { workQueue.cancel(requestID) }
+      result(nil)
+      return
+    }
+    let handle = (args?["handle"] as? NSNumber)?.int64Value
+    if call.method == "closeDocument" {
+      guard let handle = handle else {
+        result(FlutterError(code: "bad-arguments", message: "Missing document handle.", details: nil))
+        return
+      }
+      workQueue.close(document: handle, operation: { self.documents.removeValue(forKey: handle) }) {
+        result(nil)
+      }
+      return
+    }
+    let methods = ["openDocument", "createNewDocument", "createDocumentFromJpegData", "renderPage",
+                   "loadPageText", "loadOutline", "loadPageLinks"]
+    guard methods.contains(call.method) else {
+      result(FlutterMethodNotImplemented)
+      return
+    }
+    workQueue.submit(
+      id: call.method == "renderPage" ? args?["requestId"] as? String ?? UUID().uuidString : UUID().uuidString,
+      document: handle, label: call.method,
+      priority: call.method == "renderPage" ? args?["priority"] as? Int ?? 1 : 1,
+      operation: { cancellation in
+        var value: Any?
+        self.perform(call, cancellation: cancellation) { value = $0 }
+        return value
+      },
+      completion: { outcome in
+        switch outcome {
+        case .value(let value): result(value)
+        case .cancelled: result(nil)
+        case .rejected(let code):
+          result(FlutterError(code: code, message: "CoreGraphics work queue rejected the operation.", details: nil))
+        }
+      }
+    )
+  }
+
+  private func perform(
+    _ call: FlutterMethodCall, cancellation: CoreGraphicsCancellation, result: @escaping FlutterResult
+  ) {
+    assert(!Thread.isMainThread)
+    switch call.method {
     case "openDocument":
       openDocument(arguments: call.arguments, result: result)
     case "createNewDocument":
@@ -33,11 +97,9 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     case "createDocumentFromJpegData":
       createDocumentFromJpegData(arguments: call.arguments, result: result)
     case "renderPage":
-      renderPage(arguments: call.arguments, result: result)
+      renderPage(arguments: call.arguments, cancellation: cancellation, result: result)
     case "loadPageText":
-      loadPageText(arguments: call.arguments, result: result)
-    case "closeDocument":
-      closeDocument(arguments: call.arguments, result: result)
+      loadPageText(arguments: call.arguments, cancellation: cancellation, result: result)
     case "loadOutline":
       loadOutline(arguments: call.arguments, result: result)
     case "loadPageLinks":
@@ -119,6 +181,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     let handle = nextHandle
     nextHandle += 1
     documents[handle] = pdfDocument
+    workQueue.registerDocument(handle)
 
     var pageInfos: [[String: Any]] = []
     for index in 0 ..< pdfDocument.pageCount {
@@ -144,18 +207,13 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
   private func createNewDocument(arguments: Any?, result: @escaping FlutterResult) {
     // Create a truly empty PDF document with no pages
     // PDFDocument() creates an empty document directly
-    guard let pdfDocument = PDFDocument() else {
-      result(
-        FlutterError(
-          code: "pdf-document-failure", message: "Failed to create empty PDFDocument.", details: nil
-        ))
-      return
-    }
+    let pdfDocument = PDFDocument()
 
     // Register the document
     let handle = nextHandle
     nextHandle += 1
     documents[handle] = pdfDocument
+    workQueue.registerDocument(handle)
 
     result([
       "handle": handle,
@@ -198,25 +256,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       return
     }
 
-    // Create an empty PDF document
-    guard let pdfDocument = PDFDocument() else {
-      result(
-        FlutterError(
-          code: "pdf-document-failure", message: "Failed to create PDFDocument.", details: nil
-        ))
-      return
-    }
-
-    // Create a PDF page with the specified dimensions
     let pageRect = CGRect(x: 0, y: 0, width: width, height: height)
-    guard let pdfPage = PDFPage() else {
-      result(
-        FlutterError(
-          code: "pdf-page-failure", message: "Failed to create PDF page.", details: nil
-        ))
-      return
-    }
-    pdfPage.setBounds(pageRect, for: .mediaBox)
 
     // Create image from JPEG data
     #if os(iOS)
@@ -250,25 +290,6 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       return
     }
     #endif
-
-    // Draw the image on the page using CoreGraphics
-    let context = CGContext(
-      data: nil,
-      width: Int(width),
-      height: Int(height),
-      bitsPerComponent: 8,
-      bytesPerRow: 0,
-      space: CGColorSpaceCreateDeviceRGB(),
-      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-    )
-
-    guard let ctx = context else {
-      result(
-        FlutterError(
-          code: "context-failure", message: "Failed to create graphics context.", details: nil
-        ))
-      return
-    }
 
     // Create a mutable data to hold the PDF content
     let pdfData = NSMutableData()
@@ -308,6 +329,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     let handle = nextHandle
     nextHandle += 1
     documents[handle] = resultDocument
+    workQueue.registerDocument(handle)
 
     // Build page info
     var pageInfos: [[String: Any]] = []
@@ -328,7 +350,9 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
   }
 
   /// Renders the requested page using a CoreGraphics bitmap context and returns ARGB pixels.
-  private func renderPage(arguments: Any?, result: @escaping FlutterResult) {
+  private func renderPage(
+    arguments: Any?, cancellation: CoreGraphicsCancellation, result: @escaping FlutterResult
+  ) {
     guard
       let args = arguments as? [String: Any],
       let handleValue = args["handle"],
@@ -366,9 +390,16 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       return
     }
 
-    let bytesPerPixel = 4
-    let bytesPerRow = width * bytesPerPixel
+    // Bound one bitmap and reject overflowing dimensions before multiplying.
+    // There is only one active bitmap; the queue waits for its channel reply.
+    let maximumBitmapBytes = 128 * 1024 * 1024
+    guard width <= maximumBitmapBytes / 4, height <= maximumBitmapBytes / 4 / width else {
+      result(FlutterError(code: "render-too-large", message: "Bitmap exceeds the 128 MiB render budget.", details: nil))
+      return
+    }
+    let bytesPerRow = width * 4
     let dataSize = bytesPerRow * height
+    if cancellation.isCancelled { result(nil); return }
 
     guard
       let context = CGContext(
@@ -412,6 +443,10 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     page.displaysAnnotations = renderAnnotations
     page.draw(with: .mediaBox, to: context)
     page.displaysAnnotations = originalDisplaysAnnotations
+
+    // PDFKit's draw is synchronous. A canceled draw must not allocate or transfer
+    // its additional output copy after returning from that call.
+    if cancellation.isCancelled { result(nil); return }
 
     guard let contextData = context.data else {
       result(
@@ -581,7 +616,9 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
 
   /// Extracts raw page text along with bounding boxes for each character so the engine can run its
   /// own text-selection heuristics.
-  private func loadPageText(arguments: Any?, result: @escaping FlutterResult) {
+  private func loadPageText(
+    arguments: Any?, cancellation: CoreGraphicsCancellation, result: @escaping FlutterResult
+  ) {
     guard
       let args = arguments as? [String: Any],
       let handleValue = args["handle"],
@@ -629,6 +666,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
     rects.reserveCapacity(length)
     var boundsIndex = 0
     for charIndex in 0 ..< length {
+      if charIndex % 128 == 0 && cancellation.isCancelled { result(nil); return }
       let charCode = nsText.character(at: charIndex)
       if let scalar = UnicodeScalar(charCode), CharacterSet.newlines.contains(scalar) {
         rects.append(zeroRect)
@@ -1569,22 +1607,6 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
 
   private func numberKey(_ value: Double) -> String {
     return String(format: "%.4f", value)
-  }
-
-  private func closeDocument(arguments: Any?, result: @escaping FlutterResult) {
-    guard
-      let args = arguments as? [String: Any],
-      let handleValue = args["handle"]
-    else {
-      result(
-        FlutterError(
-          code: "bad-arguments", message: "Invalid arguments for closeDocument.", details: nil
-        ))
-      return
-    }
-    let handle = (handleValue as? Int64) ?? Int64((handleValue as? Int) ?? -1)
-    documents.removeValue(forKey: handle)
-    result(nil)
   }
 
   private func colorComponents(from argb: Int) -> (

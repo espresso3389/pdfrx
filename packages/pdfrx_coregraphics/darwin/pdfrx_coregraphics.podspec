@@ -13,7 +13,7 @@ Provides a PdfrxEntryFunctions implementation that uses PDFKit/CoreGraphics inst
   s.license          = { :type => 'BSD', :file => '../LICENSE' }
   s.author           = { 'Takashi Kawasaki' => 'espresso3389@gmail.com' }
   s.source           = { :path => '.' }
-  s.source_files     = [ 'pdfrx_coregraphics/Sources/PdfrxCoregraphicsPlugin.swift' ]
+  s.source_files     = [ 'pdfrx_coregraphics/Sources/**/*.swift' ]
 
   s.ios.deployment_target = '15.0'
   s.ios.dependency 'Flutter'
