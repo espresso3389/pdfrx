@@ -2465,6 +2465,97 @@ async function _loadText(params, lifetime) {
   return { fullText, charRects, missingFonts: missingFonts[docHandle] };
 }
 
+// Page objects belong to the loaded page. Keep only index paths between requests.
+function withImagePage(params, operation, unavailable) {
+  return _withDocumentOperation(params, async (lifetime) => {
+    const { docHandle, pageIndex } = params;
+    await _ensurePageAvailable(docHandle, pageIndex, lifetime);
+    lifetime.assertOpen();
+    const api = Pdfium.wasmExports;
+    const page = api.FPDF_LoadPage(docHandle, pageIndex);
+    if (!page) return unavailable;
+    let scratch = 0;
+    try {
+      scratch = api.malloc(32); // Largest output is an FS_QUADPOINTSF (8 floats).
+      if (!scratch) return unavailable;
+      return operation(api, page, scratch);
+    } finally {
+      if (scratch) api.free(scratch);
+      api.FPDF_ClosePage(page);
+    }
+  });
+}
+
+function listPageImages(params) {
+  return withImagePage(params, (api, page, scratch) => {
+    const images = [];
+    function visit(obj, path, matrices) {
+      if (!obj) return;
+      const type = api.FPDFPageObj_GetType(obj);
+      if (type === 5 && path.length < 32) { // FPDF_PAGEOBJ_FORM
+        if (!api.FPDFPageObj_GetMatrix(obj, scratch)) return;
+        const matrix = Array.from(new Float32Array(Pdfium.memory.buffer, scratch, 6));
+        const parents = [matrix, ...matrices];
+        const count = api.FPDFFormObj_CountObjects(obj);
+        for (let i = 0; i < count; i++) visit(api.FPDFFormObj_GetObject(obj, i), [...path, i], parents);
+      } else if (type === 3) { // FPDF_PAGEOBJ_IMAGE
+        if (!api.FPDFImageObj_GetImagePixelSize(obj, scratch, scratch + 4)) return;
+        const [width, height] = new Uint32Array(Pdfium.memory.buffer, scratch, 2);
+        if (!width || !height || !api.FPDFPageObj_GetRotatedBounds(obj, scratch)) return;
+        const quad = new Float32Array(Pdfium.memory.buffer, scratch, 8);
+        const xs = [], ys = [];
+        for (let i = 0; i < 8; i += 2) {
+          let x = quad[i], y = quad[i + 1];
+          for (const [a, b, c, d, e, f] of matrices) {
+            [x, y] = [a * x + c * y + e, b * x + d * y + f];
+          }
+          xs.push(x);
+          ys.push(y);
+        }
+        images.push({ path, width, height, bounds: [Math.min(...xs), Math.max(...ys), Math.max(...xs), Math.min(...ys)] });
+      }
+    }
+    const count = api.FPDFPage_CountObjects(page);
+    for (let i = 0; i < count; i++) visit(api.FPDFPage_GetObject(page, i), [i], []);
+    return { images };
+  }, { images: [] });
+}
+
+function decodePageImage(params) {
+  return withImagePage(params, (api, page, scratch) => {
+    const { path } = params;
+    let obj = api.FPDFPage_GetObject(page, path[0]);
+    for (const index of path.slice(1)) {
+      if (!obj || api.FPDFPageObj_GetType(obj) !== 5) return {};
+      obj = api.FPDFFormObj_GetObject(obj, index);
+    }
+    if (!obj || api.FPDFPageObj_GetType(obj) !== 3 || !api.FPDFImageObj_GetImagePixelSize(obj, scratch, scratch + 4)) return {};
+    const sizes = new Uint32Array(Pdfium.memory.buffer, scratch, 2);
+    if (sizes[0] !== params.width || sizes[1] !== params.height) return {};
+    const bitmap = api.FPDFImageObj_GetBitmap(obj);
+    if (!bitmap) return {};
+    try {
+      const format = api.FPDFBitmap_GetFormat(bitmap);
+      const bytesPerPixel = [0, 1, 3, 4, 4, 4][format];
+      const width = api.FPDFBitmap_GetWidth(bitmap), height = api.FPDFBitmap_GetHeight(bitmap);
+      const stride = api.FPDFBitmap_GetStride(bitmap);
+      const ptr = api.FPDFBitmap_GetBuffer(bitmap) >>> 0;
+      const rowBytes = width * bytesPerPixel;
+      const memory = new Uint8Array(Pdfium.memory.buffer);
+      if (!bytesPerPixel || !ptr || width <= 0 || height <= 0 || stride < rowBytes ||
+          ptr + (height - 1) * stride + rowBytes > memory.length) return {};
+      const pixels = new Uint8Array(height * rowBytes);
+      for (let y = 0; y < height; y++) {
+        const start = ptr + y * stride;
+        pixels.set(memory.subarray(start, start + rowBytes), y * rowBytes);
+      }
+      return { result: { width, height, format, pixels }, transfer: [pixels.buffer] };
+    } finally {
+      api.FPDFBitmap_Destroy(bitmap);
+    }
+  }, {});
+}
+
 /**
  * @typedef {{rects: number[][], dest: url: string}} PdfUrlLink
  * @typedef {{rects: number[][], dest: PdfDest}} PdfDestLink
@@ -3750,6 +3841,8 @@ const functions = {
   cancelRender,
   loadText,
   loadLinks,
+  listPageImages,
+  decodePageImage,
   reloadFonts,
   addFontData,
   clearAllFontData,
