@@ -9,8 +9,11 @@ Future<void> main(List<String> args) async {
   if (args.length != 1) throw ArgumentError('Expected the path to DejaVuSans.ttf');
   final document = PdfDocument();
   document.documentID.fillRange(0, document.documentID.length, 0);
-  PdfInfo(document, title: 'pdfrx compact search parity fixture', author: 'pdfrx test fixture')
-    ..params.values.remove('/CreationDate');
+  PdfInfo(
+    document,
+    title: 'pdfrx compact search parity fixture',
+    author: 'pdfrx test fixture',
+  ).params.values.remove('/CreationDate');
   final font = PdfTtfFont(document, ByteData.sublistView(await File(args.single).readAsBytes()));
   final mark = RegExp(r'\p{M}', unicode: true);
   for (final rotation in [PdfPageRotation.none, PdfPageRotation.rotate90]) {
