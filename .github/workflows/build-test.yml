@@ -448,7 +448,7 @@ jobs:
         timeout-minutes: 5
         working-directory: packages/pdfrx
         run: |
-          node --test test/pdfium_worker_range_coalescing_test.cjs
+          node --test test/pdfium_worker_range_coalescing_test.cjs test/pdfium_worker_range_index_test.cjs
           flutter test --platform chrome test/wasm_range_coalescing_test.dart
 
       - name: Build Web
