@@ -174,6 +174,16 @@ jobs:
         working-directory: packages/pdfrx_engine
         run: dart test test/process_gate_smoke.dart test/pdf_page_text_cache_test.dart
 
+      - name: Test native worker scheduling
+        if: matrix.package_manager == 'swiftpm'
+        timeout-minutes: 5
+        working-directory: packages/pdfrx_engine
+        run: >-
+          dart test
+          test/background_worker_test.dart
+          test/background_worker_task_test.dart
+          test/background_worker_cancellation_queue_test.dart
+
   # Linux build
   linux:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_linux }}
@@ -296,6 +306,15 @@ jobs:
         working-directory: packages/pdfrx_engine
         run: dart test test/process_gate_smoke.dart
 
+      - name: Test native worker scheduling
+        timeout-minutes: 5
+        working-directory: packages/pdfrx_engine
+        run: >-
+          dart test
+          test/background_worker_test.dart
+          test/background_worker_task_test.dart
+          test/background_worker_cancellation_queue_test.dart
+
   # Linux ARM64 build
   linux-arm64:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_linux_arm64 }}
@@ -356,6 +375,15 @@ jobs:
         timeout-minutes: 5
         working-directory: packages/pdfrx_engine
         run: C:\flutter\bin\dart.bat test test/process_gate_smoke.dart
+
+      - name: Test native worker scheduling
+        timeout-minutes: 5
+        working-directory: packages/pdfrx_engine
+        run: >-
+          C:\flutter\bin\dart.bat test
+          test/background_worker_test.dart
+          test/background_worker_task_test.dart
+          test/background_worker_cancellation_queue_test.dart
 
   # Windows ARM64 build (requires ARM64 runner or cross-compilation)
   windows-arm64:
