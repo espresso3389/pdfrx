@@ -43,6 +43,6 @@ _flutter.supportsDart2Wasm = (WebAssembly.validate(new Uint8Array([0,97,115,109,
 
 _flutter.loader.load({
   serviceWorkerSettings: {
-    serviceWorkerVersion: "1374707779" /* Flutter's service worker is deprecated and will be removed in a future Flutter release. */
+    serviceWorkerVersion: "2730670456" /* Flutter's service worker is deprecated and will be removed in a future Flutter release. */
   }
 });
