@@ -72,6 +72,120 @@ function close(context, document) {
   return run(context, 'closeDocument(parameters)', document);
 }
 
+function openOnce(context, data, password = 'user') {
+  return run(context, 'loadDocumentFromData(parameters)', { data, password });
+}
+
+function assertNoOpenResources(context) {
+  assert.equal(run(context, 'live.size'), 0, 'WASM allocations must be released');
+  assert.equal(run(context, 'Object.keys(fileSystem.fn2context).length'), 0, 'virtual files must be released');
+  assert.equal(run(context, 'documentDataSources.size'), 0, 'pending sources must be released');
+  assert.equal(run(context, 'documentLifetimes.size'), 0, 'document lifetimes must be released');
+  assert.equal(run(context, 'Object.keys(disposers).length'), 0, 'disposers must be released');
+  assert.equal(run(context, 'Object.keys(missingFonts).length'), 0, 'font state must be released');
+}
+
+for (const large of [false, true]) {
+  const mode = large ? 'file-backed' : 'memory';
+
+  test(`one-shot ${mode}: password failures release each input before retry or abandonment`, async (t) => {
+    const context = await harness(t);
+    const data = encryptedBytes(large);
+    for (let attempt = 0; attempt < 50; attempt++) {
+      assert.equal(openOnce(context, data, 'wrong').errorCode, 4);
+    }
+    const retainedBytes = run(context, '[...live.values()].reduce((sum, size) => sum + size, 0)');
+    const retainedFiles = run(context, 'Object.keys(fileSystem.fn2context).length');
+    t.diagnostic(`50 failed opens of ${data.byteLength} bytes: ${retainedBytes} live allocated bytes, ${retainedFiles} virtual files`);
+    assertNoOpenResources(context);
+
+    const document = openOnce(context, data);
+    assert.ok(document.docHandle);
+    assert.equal(document.pages.length, 1);
+    assert.equal(run(context, 'documentDataSources.size'), 0);
+    assert.ok(await run(context, 'loadText(parameters)', { ...document, pageIndex: 0 }));
+    await close(context, document);
+    await close(context, document);
+    assertNoOpenResources(context);
+  });
+
+  test(`one-shot ${mode}: an exception in the native loader releases its input and strings`, async (t) => {
+    const context = await harness(t);
+    const loader = large ? 'FPDF_LoadDocument' : 'FPDF_LoadMemDocument';
+    run(context, `Pdfium.wasmExports.${loader} = () => { throw new Error('injected load failure'); };`);
+    assert.throws(() => openOnce(context, encryptedBytes(large)), /injected load failure/);
+    assertNoOpenResources(context);
+  });
+
+  for (const stage of ['permissions', 'pages']) {
+    test(`one-shot ${mode}: ${stage} failure closes the document before releasing its input`, async (t) => {
+      const context = await harness(t);
+      const data = encryptedBytes(large);
+      run(context, `
+        globalThis.closed = 0;
+        globalThis.formsClosed = 0;
+        const inputSize = parameters.size;
+        const isLarge = parameters.large;
+        Pdfium.wasmExports.FPDF_CloseDocument = (document) => {
+          if (isLarge ? Object.keys(fileSystem.fn2context).length !== 1 : ![...live.values()].includes(inputSize)) {
+            throw new Error('input released before native close');
+          }
+          original.FPDF_CloseDocument(document);
+          closed++;
+        };
+        Pdfium.wasmExports.FPDFDOC_ExitFormFillEnvironment = (form) => {
+          formsClosed++;
+          return original.FPDFDOC_ExitFormFillEnvironment(form);
+        };
+      `, { size: data.byteLength, large });
+      run(context, stage === 'permissions'
+        ? "Pdfium.wasmExports.FPDF_GetDocPermissions = () => { throw new Error('injected metadata failure'); };"
+        : "_loadPagesInLimitedTime = () => { throw new Error('injected metadata failure'); };");
+      assert.throws(() => openOnce(context, data), /injected metadata failure/);
+      assert.equal(run(context, 'closed'), 1);
+      assert.equal(run(context, 'formsClosed'), stage === 'pages' ? 1 : 0);
+      assertNoOpenResources(context);
+    });
+  }
+}
+
+for (const size of [0, 1234, 1024 * 1024 - 1, 1024 * 1024, 1024 * 1024 + 1]) {
+  test(`one-shot corrupt input releases resources at size ${size}`, async (t) => {
+    const context = await harness(t);
+    assert.equal(openOnce(context, new ArrayBuffer(size)).errorCode, 3);
+    assertNoOpenResources(context);
+  });
+}
+
+test('one-shot near-threshold password failures do not accumulate input allocations', async (t) => {
+  const context = await harness(t);
+  const size = 1024 * 1024 - 1;
+  const start = encrypted.lastIndexOf('startxref');
+  const data = Uint8Array.from(Buffer.concat([
+    encrypted.subarray(0, start), Buffer.alloc(size - encrypted.length, 10), encrypted.subarray(start),
+  ])).buffer;
+  for (let attempt = 0; attempt < 50; attempt++) {
+    assert.equal(openOnce(context, data, 'wrong').errorCode, 4);
+  }
+  const retainedBytes = run(context, '[...live.values()].reduce((sum, size) => sum + size, 0)');
+  t.diagnostic(`50 failed opens of ${size} bytes: ${retainedBytes} live allocated bytes`);
+  assertNoOpenResources(context);
+});
+
+test('one-shot large documents have independent sources until each document closes', async (t) => {
+  const context = await harness(t);
+  const first = openOnce(context, encryptedBytes(true));
+  const second = openOnce(context, encryptedBytes(true));
+  assert.ok(first.docHandle);
+  assert.ok(second.docHandle);
+  assert.equal(run(context, 'Object.keys(fileSystem.fn2context).length'), 2);
+  await close(context, first);
+  assert.equal(run(context, 'Object.keys(fileSystem.fn2context).length'), 1);
+  assert.ok(await run(context, 'loadText(parameters)', { ...second, pageIndex: 0 }));
+  await close(context, second);
+  assertNoOpenResources(context);
+});
+
 for (const large of [false, true]) {
   const mode = large ? 'file-backed' : 'memory';
 

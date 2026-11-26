@@ -13,15 +13,55 @@ import 'package:pdfrx/pdfrx.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late Uint8List encrypted;
+  late Uri encryptedUrl;
 
   setUpAll(() async {
     final server = spawnHybridCode(_assetServer);
     final baseUrl = await server.stream.first as String;
     Pdfrx.pdfiumWasmModulesUrl = baseUrl;
     pdfrxFlutterInitialize();
-    encrypted = (await http.get(Uri.parse('${baseUrl}encrypted.pdf'))).bodyBytes;
+    encryptedUrl = Uri.parse('${baseUrl}encrypted.pdf');
+    encrypted = (await http.get(encryptedUrl)).bodyBytes;
     await (await PdfDocument.createNew(sourceName: 'input-test-init')).dispose();
   });
+
+  for (final preferRangeAccess in [false, true]) {
+    test('URL password retry succeeds after failed full-body opens (range=$preferRangeAccess)', () async {
+      var attempts = 0;
+      final document = await PdfDocument.openUri(
+        encryptedUrl,
+        preferRangeAccess: preferRangeAccess,
+        firstAttemptByEmptyPassword: false,
+        passwordProvider: () => ++attempts <= 5 ? 'wrong' : 'user',
+      );
+      addTearDown(document.dispose);
+      expect(attempts, 6);
+      expect(document.pages, hasLength(1));
+      expect(await document.pages.first.loadText(), isNotNull);
+    });
+
+    test('URL password cancellation permits a later independent open (range=$preferRangeAccess)', () async {
+      var attempts = 0;
+      await expectLater(
+        PdfDocument.openUri(
+          encryptedUrl,
+          preferRangeAccess: preferRangeAccess,
+          firstAttemptByEmptyPassword: false,
+          passwordProvider: () => ++attempts <= 5 ? 'wrong' : null,
+        ),
+        throwsA(isA<PdfPasswordException>()),
+      );
+      expect(attempts, 6);
+      final document = await PdfDocument.openUri(
+        encryptedUrl,
+        preferRangeAccess: preferRangeAccess,
+        passwordProvider: () => 'user',
+      );
+      addTearDown(document.dispose);
+      expect(document.pages, hasLength(1));
+      expect(await document.pages.first.loadText(), isNotNull);
+    });
+  }
 
   test('large encrypted input is sent once across five wrong passwords and success', () async {
     final input = _largeEncrypted(encrypted);
