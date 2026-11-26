@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'pdf_document_event.dart';
+import 'pdf_exception.dart';
 import 'pdf_font_resolver.dart';
 import 'pdf_outline_node.dart';
 import 'pdf_page.dart';
@@ -287,6 +288,8 @@ abstract class PdfDocument {
   /// Save the PDF document.
   ///
   /// This function internally calls [assemble] before encoding the PDF.
+  /// The native PDFium backend throws [PdfException] if saving fails, rather
+  /// than returning an empty or partially encoded PDF as a successful result.
   Future<Uint8List> encodePdf({bool incremental = false, bool removeSecurity = false});
 
   /// Execute native document task with the native document handle.
