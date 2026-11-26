@@ -27,7 +27,7 @@ void registerFontMapperNativeTests() {
       await BackgroundWorker.compute((path) {
         native.pdfium = _FontMappingPdfium(native.pdfium);
         IOOverrides.global = _FontIoOverrides(path);
-      }, directory.path);
+      }, file.path);
       await entries.configureFontEnvironment();
     });
 
@@ -55,9 +55,25 @@ void registerFontMapperNativeTests() {
       print(
         '40 native file aliases: ${result.headers} header reads, ${result.payloads} full reads, ${result.bytes} bytes',
       );
+      print('Font fixture path: ${file.path}; canonical path: ${file.resolveSymbolicLinksSync()}');
       expect(result.headers, 1);
       expect(result.payloads, 1);
       expect(result.bytes, 4096);
+    });
+
+    test('font I/O counters follow a directory alias through canonicalization', () async {
+      final alias = File('${directory.path}/./font.ttf');
+      expect(alias.resolveSymbolicLinksSync(), isNot(alias.path));
+      await BackgroundWorker.compute((path) {
+        IOOverrides.global = _FontIoOverrides(path);
+      }, alias.path);
+      await entries.addFontFile(face: 'AliasedPath', filePath: alias.path);
+      final data = await BackgroundWorker.compute((_) {
+        final mapper = native.pdfium as _FontMappingPdfium;
+        return mapper.read(mapper.map('AliasedPath'));
+      }, null);
+      expect(data, buildFontFixture());
+      expect(await counts(), (headers: 1, payloads: 1, bytes: 4096));
     });
 
     test('one hundred unchanged reloads reuse the file metadata and live payload', () async {
@@ -207,8 +223,8 @@ class _FontMappingPdfium extends bindings.PDFium {
 }
 
 final class _FontIoOverrides extends IOOverrides {
-  _FontIoOverrides(this.directory);
-  final String directory;
+  _FontIoOverrides(String path) : canonicalPath = File(path).resolveSymbolicLinksSync();
+  final String canonicalPath;
   int headers = 0;
   int payloads = 0;
   int bytes = 0;
@@ -216,7 +232,16 @@ final class _FontIoOverrides extends IOOverrides {
   @override
   File createFile(String path) {
     final actual = super.createFile(path);
-    return path.startsWith(directory) ? _CountingFontFile(actual, this) : actual;
+    try {
+      // macOS temporary directories and Windows short paths can change spelling
+      // when the font cache resolves them. Count the same file through either path.
+      if (actual.resolveSymbolicLinksSync() == canonicalPath) {
+        return _CountingFontFile(actual, this);
+      }
+    } on FileSystemException {
+      // Unrelated, not-yet-created cache files are outside this fixture.
+    }
+    return actual;
   }
 }
 
