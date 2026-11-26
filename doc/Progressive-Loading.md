@@ -103,6 +103,36 @@ A measurement budget is cooperative: one expensive PDFium page load can exceed i
 
 For native PDFium, [`PdfViewer.uri`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewer/PdfViewer.uri.html) and [`PdfDocument.openUri`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/openUri.html) default to [`preferRangeAccess: false`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfDocument/openUri.html). Set it to `true` to request byte ranges when the server supports them. If the server responds with the whole file instead, pdfrx downloads it into its file cache, including when the response has no `Content-Length`. Allow for the time and disk space needed for the entire PDF. Web and CoreGraphics use their respective backend loading paths.
 
+### Native range requests and disk retention
+
+For a read spanning several missing blocks, native PDFium combines contiguous demanded blocks into requests of at most four blocks and 4 MiB (or one block if the configured block itself is larger). It does not prefetch blocks outside that read. Configure [`Pdfrx.maxHttpRangeBlocks`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/Pdfrx/maxHttpRangeBlocks.html) before opening a document, using a value from 1 through 4; the default is 4. Use 1 for fast local endpoints where coalescing does not help. One request runs at a time per document; a large read yields the request queue after each bounded chunk. Overlapping reads share the same pending download, including its failure, and can retry after it settles. Document disposal aborts the active request and rejects queued reads. Existing request deadlines still apply.
+
+Small response chunks are collected into writes of at most 256 KiB, reducing disk seeks and writes. The batching buffer can transiently allocate up to approximately 512 KiB while growing, in addition to the transport's current chunk. A larger chunk is written directly and awaited before consuming another one. This does not retain a complete multi-block response in memory.
+
+The first request remains one block so a range-capable server can serve a small first-page request without downloading the whole PDF. A `200` response to that initial request is the supported full-download fallback. A `200` response to a later range, a mismatched `Content-Range`, and short or oversized bodies are rejected. Coalescing does not make every PDF faster: the amount fetched depends on the PDF's layout and PDFium's reads. The `preferRangeAccess` default is unchanged.
+
+The native HTTP cache keeps at most 512 MiB and 1,024 **inactive** entries by default, and expires entries 30 days after their last release. Configure [`Pdfrx.diskCachePolicy`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/Pdfrx/diskCachePolicy.html) before opening documents:
+
+```dart
+Pdfrx.diskCachePolicy = const PdfDiskCachePolicy(
+  maxBytes: 256 * 1024 * 1024,
+  maxEntries: 512,
+  maxAge: Duration(days: 7),
+);
+
+// Optional maintenance without opening a document. Native platforms only.
+final stats = await pdfrxTrimDiskCache();
+print('${stats.retainedEntries} entries / ${stats.retainedBytes} bytes');
+```
+
+Set `maxBytes` or `maxEntries` to zero to disable retention of managed entries after a document closes; this still allows active documents to use a disk-backed working copy. Set `maxAge: null` to disable age eviction. Limits use the logical cache-file length, including the header and block bitmap; sparse files can occupy fewer physical filesystem blocks. Small directory/marker overhead is bounded by the entry limit. Active working files, temporary cleanup failures, and legacy caches are outside this retained-byte limit, so it is not a hard cap on the application's total disk use. Maintenance runs on open and close; simultaneous publishers and filesystem errors can temporarily exceed the limit. The next successful maintenance pass retries cleanup.
+
+Each open owns a separate working directory. Taking an inactive entry out of the reusable namespace is atomic, and pruning only removes inactive package-owned entries. Concurrent documents for the same URL may download separate working copies; the first completed publication wins, and later publication cannot overwrite it. Normal HTTP freshness, validators, `Vary: *`, and `no-store` still govern reuse. Cache identities include the URL and normalized request headers, so authentication identities remain separate. A custom HTTP client that adds credentials itself should supply the same identity in `headers` or use distinct URLs; hidden client state cannot be inferred by the cache.
+
+Working directories carry a file lease. Another process may reclaim an abandoned directory after obtaining that lease. On POSIX, advisory locks belong to the process rather than the Dart isolate, so maintenance conservatively skips every working directory bearing its own PID. An abandoned isolate's files therefore remain until a subsequent process can reclaim them; process-ID reuse can also defer reclamation. Never remove an active directory manually.
+
+Managed HTTP entries now live under `pdfrx.http-cache.v1` inside [`Pdfrx.cacheDirectoryPath`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/Pdfrx/cacheDirectoryPath.html). Existing `pdfrx.cache` files continue to be used at their original path for the same URL and request headers. A complete, fresh entry can be reopened offline after upgrading. Partial entries still need the server for missing blocks, and stale entries still require HTTP validation. Quota maintenance applies only to the new namespace. No bulk migration or duplicate copy is needed. Web and CoreGraphics do not use this policy.
+
 Measured metadata is distinct from cached page images. [`maxImageBytesCachedOnMemory`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/maxImageBytesCachedOnMemory.html) controls the viewer's image cache, while [`limitRenderingCache`](https://pub.dev/documentation/pdfrx/latest/pdfrx/PdfViewerParams/limitRenderingCache.html) sets a PDFium rendering flag. Engine callers should dispose rendered images and the document when finished.
 
 ### Sharing an Image Budget

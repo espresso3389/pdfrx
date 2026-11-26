@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
+import 'pdf_disk_cache_policy.dart';
+
 /// Emits a [Pdfrx.debugLazyLoading] trace line.
 ///
 /// Callers are expected to check the flag themselves so that building the
@@ -55,6 +57,14 @@ class Pdfrx {
   /// It is not supported on Flutter Web.
   static http.Client Function()? createHttpClient;
 
+  /// Maximum contiguous demanded blocks combined into one native HTTP request.
+  ///
+  /// Values from 1 through 4 are supported. Requests are also capped at 4 MiB,
+  /// except when one configured block is larger. Use 1 for low-latency endpoints
+  /// where coalescing does not help. Single-flight and one-request concurrency
+  /// remain enabled. Captured when a document opens; ignored on Web/CoreGraphics.
+  static int maxHttpRangeBlocks = 4;
+
   /// To override the default pdfium WASM modules directory URL. It must be terminated by '/'.
   static String? pdfiumWasmModulesUrl;
 
@@ -85,6 +95,13 @@ class Pdfrx {
   /// For Dart only, `pdfrxInitialize` sets this to `Directory.systemTemp`. You can also set this explicitly to a
   /// directory on your own file system.
   static String? cacheDirectoryPath;
+
+  /// Retention limits for the native HTTP disk cache, applied on open and close.
+  ///
+  /// Active working files are excluded. This policy only manages the package's
+  /// versioned HTTP cache; legacy caches and caller-owned files are untouched.
+  /// Configure this before opening documents. Not supported on Web/CoreGraphics.
+  static PdfDiskCachePolicy diskCachePolicy = const PdfDiskCachePolicy();
 
   static Map<String, int>? pdfiumNativeBindings;
 
