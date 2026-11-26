@@ -654,6 +654,41 @@ class _CoreGraphicsPdfDocument extends PdfDocument {
   }
 }
 
+class _CoreGraphicsPageImage implements PdfPageImageObject {
+  _CoreGraphicsPageImage(
+    this.page,
+    this.path,
+    this.width,
+    this.height,
+    this.bounds,
+  );
+  @override
+  final _CoreGraphicsPdfPage page;
+  final List<String> path;
+  @override
+  final int width;
+  @override
+  final int height;
+  @override
+  final PdfRect bounds;
+
+  @override
+  Future<PdfRawImage?> loadImage() async {
+    if (!page._canReadImages) return null;
+    final reply = await page._document.channel.invokeMapMethod<String, Object?>(
+      'decodePageImage',
+      {'handle': page._document.handle, 'pageIndex': page.index, 'path': path},
+    );
+    if (!page._canReadImages || reply == null) return null;
+    return PdfRawImage.create(
+      reply['pixels'] as Uint8List,
+      width: width,
+      height: height,
+      format: PdfPixelFormat.values.byName(reply['format'] as String),
+    );
+  }
+}
+
 class _CoreGraphicsPdfPage extends PdfPage with PdfPageLinkCache {
   _CoreGraphicsPdfPage({
     required _CoreGraphicsPdfDocument document,
@@ -781,10 +816,43 @@ class _CoreGraphicsPdfPage extends PdfPage with PdfPageLinkCache {
       _CoreGraphicsCancellationToken._();
 
   @override
-  Future<List<PdfPageImageObject>> loadImages() async =>
-      throw UnimplementedError(
-        'loadImages is not implemented for the CoreGraphics backend yet.',
-      );
+  Future<List<PdfPageImageObject>> loadImages() async {
+    if (!_canReadImages) return const [];
+    final rows = await _document.channel.invokeListMethod<Object?>(
+      'listPageImages',
+      {'handle': _document.handle, 'pageIndex': index},
+    );
+    if (!_canReadImages || rows == null) return const [];
+    return List.unmodifiable(
+      rows.map((row) {
+        final item = row as Map;
+        final bounds = (item['bounds'] as List).cast<num>();
+        return _CoreGraphicsPageImage(
+          this,
+          (item['path'] as List).cast<String>(),
+          item['width'] as int,
+          item['height'] as int,
+          PdfRect(
+            bounds[0].toDouble(),
+            bounds[1].toDouble(),
+            bounds[2].toDouble(),
+            bounds[3].toDouble(),
+          ),
+        );
+      }),
+    );
+  }
+
+  bool get _canReadImages =>
+      isLoaded &&
+      ((index < _document.pages.length &&
+              identical(
+                _document.pages[index].unwrap<_CoreGraphicsPdfPage>(),
+                this,
+              )) ||
+          _document.pages.any(
+            (p) => identical(p.unwrap<_CoreGraphicsPdfPage>(), this),
+          ));
 
   @override
   Future<PdfPageRawText?> loadText() async {

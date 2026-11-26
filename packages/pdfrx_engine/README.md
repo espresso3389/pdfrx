@@ -172,7 +172,7 @@ For more complex examples including selective page combining with range specific
 For detailed guides and tutorials, see the [documentation](https://github.com/espresso3389/pdfrx/tree/master/doc):
 
 - [PDF Page Manipulation](https://github.com/espresso3389/pdfrx/blob/master/doc/PDF-Page-Manipulation.md) - Re-arrange, combine, and extract PDF pages
-- [Extracting Embedded Images](https://github.com/espresso3389/pdfrx/blob/master/doc/Extracting-Embedded-Images.md) - Export embedded images with native PDFium
+- [Extracting Embedded Images](https://github.com/espresso3389/pdfrx/blob/master/doc/Extracting-Embedded-Images.md) - Export embedded images
 - [Importing Images to PDF](https://github.com/espresso3389/pdfrx/blob/master/doc/Importing-Images-to-PDF.md) - Convert images to PDF and insert images into PDFs
 
 ## Loading and Performance Guides

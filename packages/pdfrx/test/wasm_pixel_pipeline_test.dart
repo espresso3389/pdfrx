@@ -30,6 +30,37 @@ void main() {
     await document.dispose();
   });
 
+  test('extracts embedded images, including a transformed form on an offset page', () async {
+    final pdf = await PdfDocument.openUri(Uri.parse(Pdfrx.pdfiumWasmModulesUrl!).resolve('embedded-images.pdf'));
+    addTearDown(pdf.dispose);
+    final page = pdf.pages.single;
+    final images = await page.loadImages();
+    expect(images.map((i) => (i.width, i.height)), [(2, 2), (2, 1), (2, 2)]);
+    expect(images.last.bounds, const PdfRect(90, 200, 120, 170));
+    final rgb = (await images[1].loadImage())!;
+    addTearDown(rgb.dispose);
+    expect(rgb.pixels, [0, 0, 255, 255, 255, 0, 0, 255]);
+    final gray = (await images.last.loadImage())!;
+    addTearDown(gray.dispose);
+    expect(gray.pixels, [0, 0, 0, 255, 64, 64, 64, 255, 128, 128, 128, 255, 255, 255, 255, 255]);
+    await pdf.dispose();
+    expect(await images.first.loadImage(), isNull);
+    expect(await page.loadImages(), isEmpty);
+  });
+
+  test('replacing a page invalidates an image from its previous native slot', () async {
+    final url = Uri.parse(Pdfrx.pdfiumWasmModulesUrl!).resolve('embedded-images.pdf');
+    final first = await PdfDocument.openUri(url);
+    addTearDown(first.dispose);
+    final image = (await first.pages.single.loadImages()).first;
+    final second = await PdfDocument.openUri(url);
+    addTearDown(second.dispose);
+    first.pages = [second.pages.single];
+    await first.assemble();
+    expect(await image.loadImage(), isNull);
+    expect(await first.pages.single.loadImages(), hasLength(3));
+  });
+
   for (final rotation in PdfPageRotation.values) {
     test('bitmap-only pixels match raw decoding for $rotation', () async {
       final page = document.pages.single;
@@ -176,7 +207,8 @@ import 'package:stream_channel/stream_channel.dart';
 Future<void> hybridMain(StreamChannel<Object?> channel) async {
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   server.listen((request) async {
-    final file = File('assets/\${request.uri.pathSegments.last}');
+    final name = request.uri.pathSegments.last;
+    final file = File(name == 'embedded-images.pdf' ? '../pdfrx_engine/test/assets/embedded-images.pdf' : 'assets/\$name');
     request.response.headers.set('Access-Control-Allow-Origin', '*');
     if (!file.existsSync()) {
       request.response.statusCode = HttpStatus.notFound;

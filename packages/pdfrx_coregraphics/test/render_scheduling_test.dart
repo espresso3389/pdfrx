@@ -27,6 +27,22 @@ void main() {
               ],
             };
           }
+          if (call.method == 'listPageImages') {
+            return [
+              {
+                'bounds': [10, 20, 30, 0],
+                'width': 2,
+                'height': 1,
+                'path': ['Form', 'Gray'],
+              },
+            ];
+          }
+          if (call.method == 'decodePageImage') {
+            return {
+              'format': 'gray',
+              'pixels': Uint8List.fromList([64, 128]),
+            };
+          }
           if (call.method == 'renderPage') {
             if (renderError != null) throw renderError!;
             return rendering.future;
@@ -138,6 +154,25 @@ void main() {
       expect(calls, hasLength(count));
     },
   );
+
+  test('embedded images decode on demand and expire on close', () async {
+    final document = await PdfrxCoreGraphicsEntryFunctions().openFile(
+      'fixture.pdf',
+    );
+    final page = document.pages.single;
+    final image = (await page.loadImages()).single;
+    expect(image.page, same(page));
+    expect(image.bounds, const PdfRect(10, 20, 30, 0));
+    expect(calls.where((c) => c.method == 'decodePageImage'), isEmpty);
+    final raw = (await image.loadImage())!;
+    addTearDown(raw.dispose);
+    expect((raw.width, raw.height, raw.rawFormat), (2, 1, PdfPixelFormat.gray));
+    expect(raw.rawPixels, [64, 128]);
+    expect(calls.last.arguments['path'], ['Form', 'Gray']);
+    await document.dispose();
+    expect(await image.loadImage(), isNull);
+    expect(await page.loadImages(), isEmpty);
+  });
 
   for (final code in ['queue-full', 'render-too-large']) {
     test('$code remains a caller-visible platform error', () async {
