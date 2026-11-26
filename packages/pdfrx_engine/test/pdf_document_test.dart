@@ -11,6 +11,7 @@ import 'package:test/test.dart';
 
 import 'utils.dart';
 import 'hebrew_native.dart';
+import 'search_text_native.dart';
 import 'progressive_text_native.dart';
 import 'progressive_loading_native.dart';
 import 'native_encode_pdf.dart';
@@ -109,6 +110,7 @@ void main() {
   });
 
   registerHebrewNativeTests();
+  registerSearchTextNativeTests();
   registerProgressiveTextNativeTests();
   registerProgressiveLoadingNativeTests();
   registerNativeEncodePdfTests();

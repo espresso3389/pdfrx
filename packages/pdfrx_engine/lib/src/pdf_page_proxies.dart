@@ -43,7 +43,7 @@ extension PdfPageProxyExtension on PdfPage {
 }
 
 /// PDF page wrapper that renumbers the page number.
-class PdfPageRenumbered implements PdfPageProxy {
+class PdfPageRenumbered implements PdfPageProxy, PdfPageSearchTextSource {
   PdfPageRenumbered(PdfPage basePage, {required this.pageNumber})
     : basePage = basePage.unwrapUntil((p) => p is! PdfPageRenumbered)!;
 
@@ -82,6 +82,9 @@ class PdfPageRenumbered implements PdfPageProxy {
   Future<List<PdfPageImageObject>> loadImages() => basePage.loadImages();
 
   @override
+  Future<String?> loadSearchTextUncached() => basePage.loadSearchText();
+
+  @override
   Future<PdfImage?> render({
     int x = 0,
     int y = 0,
@@ -112,7 +115,7 @@ class PdfPageRenumbered implements PdfPageProxy {
 }
 
 /// PDF page wrapper that applies an absolute rotation to the base page.
-class PdfPageRotated implements PdfPageProxy {
+class PdfPageRotated implements PdfPageProxy, PdfPageSearchTextSource {
   PdfPageRotated(PdfPage basePage, this.rotation) : basePage = basePage.unwrapUntil((p) => p is! PdfPageRotated)!;
 
   @override
@@ -183,6 +186,9 @@ class PdfPageRotated implements PdfPageProxy {
 
   @override
   Future<PdfPageRawText?> loadText() => basePage.loadText();
+
+  @override
+  Future<String?> loadSearchTextUncached() => basePage.loadSearchText();
 
   @override
   Future<List<PdfLink>> loadLinks({bool compact = false, bool enableAutoLinkDetection = true}) =>

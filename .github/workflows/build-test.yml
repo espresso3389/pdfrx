@@ -214,6 +214,8 @@ jobs:
           dart test
           test/pdf_hebrew_text_normalizer_test.dart
           test/pdf_text_formatter_test.dart
+          test/pdf_search_text_formatter_test.dart
+          test/pdf_page_search_text_cache_test.dart
           test/pdf_text_search_result_test.dart
           test/pdf_font_resolver_test.dart
           test/pdf_font_source_test.dart
@@ -286,6 +288,7 @@ jobs:
           test/pdf_text_searcher_test.dart
           test/pdf_text_search_limits_test.dart
           test/pdf_text_search_retention_test.dart
+          test/pdf_text_search_compact_test.dart
 
       - name: Test shared image budget notifications
         timeout-minutes: 5

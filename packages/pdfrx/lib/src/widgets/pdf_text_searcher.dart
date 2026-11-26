@@ -16,7 +16,7 @@ import 'pdf_viewer_params.dart' show PdfViewerParams;
 /// to keep search results independent of the bounded structured-text cache.
 class PdfTextSearcher extends _PdfTextSearcherBase<PdfPageTextRange> {
   /// Creates a new instance of [PdfTextSearcher].
-  PdfTextSearcher(super.controller, {super.notificationInterval, super.onNavigateToMatch});
+  PdfTextSearcher(super.controller, {super.notificationInterval, super.onNavigateToMatch, super.useCompactText});
 
   @override
   PdfPageTextRange _createMatch(PdfPageTextRange range) => range;
@@ -37,8 +37,13 @@ class PdfTextSearcher extends _PdfTextSearcherBase<PdfPageTextRange> {
 /// Use [loadText] only when full page text or selection geometry is needed.
 class PdfTextSearchSession extends _PdfTextSearcherBase<PdfTextSearchResult> {
   /// Creates a lightweight search session with bounded context for each match.
-  PdfTextSearchSession(super.controller, {this.contextLength = 80, super.notificationInterval, super.onNavigateToMatch})
-    : assert(contextLength >= 0);
+  PdfTextSearchSession(
+    super.controller, {
+    this.contextLength = 80,
+    super.notificationInterval,
+    super.onNavigateToMatch,
+    super.useCompactText,
+  }) : assert(contextLength >= 0);
 
   /// Maximum context characters retained on each side of a match.
   final int contextLength;
@@ -62,6 +67,7 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     this._controller, {
     this.notificationInterval = const Duration(milliseconds: 100),
     this.onNavigateToMatch,
+    this.useCompactText = false,
   }) {
     _registerForDocumentChanges();
   }
@@ -75,6 +81,19 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
 
   /// Minimum interval between progress notifications, excluding first and final results.
   final Duration notificationInterval;
+
+  /// Uses a separate bounded text index to skip geometry for nonmatching pages.
+  ///
+  /// Opt-in to preserve custom [loadText] overrides. Native PDFium formats text
+  /// on its worker and transfers only a string; a matching page then loads full
+  /// geometry through [loadText]. The first scan may extract matching pages twice,
+  /// so this benefits repeated or sparse searches most. Other backends use their
+  /// normal structured-text path to fill the index. Custom [Pattern] implementations always
+  /// use [loadText] directly, retaining their existing matching semantics.
+  ///
+  /// If a subclass changes the text returned by [loadText], leave this false or
+  /// also override [loadSearchText] to return exactly the same full text.
+  final bool useCompactText;
 
   /// Optional match navigation, replacing ensureVisible while preserving selection state.
   final Future<void> Function(PdfViewerController controller, T match)? onNavigateToMatch;
@@ -399,9 +418,24 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
         _nextPageNumber = page.pageNumber;
         if (searchSession != _searchSession) return;
         if (page.isLoaded) _searchedPages.add(page.pageNumber);
-        final pageText = await loadText(pageNumber: page.pageNumber);
-        if (searchSession != _searchSession) return;
-        if (pageText == null) _hasUnavailableText = true;
+        PdfPageText? pageText;
+        if (useCompactText && (condition.pattern is String || condition.pattern is RegExp)) {
+          final searchText = await loadSearchText(pageNumber: page.pageNumber);
+          if (searchSession != _searchSession) return;
+          if (searchText == null) {
+            _hasUnavailableText = true;
+          } else if (_containsSearchMatch(searchText, condition.pattern, caseInsensitive: condition.caseInsensitive)) {
+            // Re-match canonical full text after loading geometry. No cached
+            // offsets are applied to a possibly changed page.
+            pageText = await loadText(pageNumber: page.pageNumber);
+            if (searchSession != _searchSession) return;
+            if (pageText == null) _hasUnavailableText = true;
+          }
+        } else {
+          pageText = await loadText(pageNumber: page.pageNumber);
+          if (searchSession != _searchSession) return;
+          if (pageText == null) _hasUnavailableText = true;
+        }
         _searchedPages.add(page.pageNumber);
         final pageMatches = <T>[];
         var limitExceeded = false;
@@ -523,10 +557,31 @@ abstract class _PdfTextSearcherBase<T> extends Listenable {
     });
   }
 
-  /// Releases unpinned structured text while retaining the current results.
+  /// Loads compact text for the opt-in search path.
+  ///
+  /// The string must exactly match [loadText]'s full text. A backend with a
+  /// compact provider avoids geometry transfer; other backends use their normal
+  /// structured-text path. Override this too when [loadText] transforms the text.
+  Future<String?> loadSearchText({required int pageNumber}) async {
+    final cancelLoading = _cancelLoading.future;
+    final searchSession = _searchSession;
+    return await controller?.useDocument<String?>((document) async {
+      if (searchSession != _searchSession) return null;
+      final page = document.pages[pageNumber - 1];
+      final loaded = page.isLoaded ? page : await page.waitForLoaded(cancelLoading: cancelLoading);
+      if (loaded == null || searchSession != _searchSession) return null;
+      if (_lastSearchCondition != null) _searchedPages.add(pageNumber);
+      return PdfPageSearchTextCache.forDocument(document).load(loaded);
+    });
+  }
+
+  /// Releases the compact index and unpinned structured text, retaining results.
   void releaseCachedText() {
     final document = controller?.document;
-    if (document != null) PdfPageTextCache.forDocument(document).clear(keepPinned: true);
+    if (document != null) {
+      PdfPageTextCache.forDocument(document).clear(keepPinned: true);
+      if (useCompactText) PdfPageSearchTextCache.forDocument(document).clear();
+    }
   }
 
   /// Go to the previous match.
@@ -811,4 +866,13 @@ Stream<PdfPageTextRange> _allMatchesOf(PdfPageText pageText, Pattern pattern, {r
         .where((match) => match.start != match.end)
         .map((match) => PdfPageTextRange(pageText: pageText, start: match.start, end: match.end)),
   );
+}
+
+/// Zero-width matches do not produce highlights and must not trigger geometry.
+bool _containsSearchMatch(String text, Pattern pattern, {required bool caseInsensitive}) {
+  if (pattern is String && caseInsensitive) {
+    pattern = pattern.toLowerCase();
+    text = text.toLowerCase();
+  }
+  return pattern.allMatches(text).any((match) => match.start != match.end);
 }

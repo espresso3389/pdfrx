@@ -123,6 +123,16 @@ abstract class PdfPage {
   Future<List<PdfPageImageObject>> loadImages();
 }
 
+/// Optional backend capability for formatted text without retained character geometry.
+///
+/// Implementations must return exactly the [PdfPageBaseExtensions.loadStructuredText]
+/// full text, including the same normalization, whitespace and reading order.
+/// They may still need temporary geometry during extraction and formatting.
+abstract interface class PdfPageSearchTextSource {
+  /// Loads formatted text, or null when the page is unavailable.
+  Future<String?> loadSearchTextUncached();
+}
+
 /// Caches [loadLinksUncached] in a bounded cache shared by a document's pages.
 ///
 /// Cached links are compacted with [PdfLink.compact], made unmodifiable, and shared by raw and compact requests.
@@ -267,6 +277,19 @@ class _PageLinkKey {
 
 /// Extension methods for [PdfPage].
 extension PdfPageBaseExtensions on PdfPage {
+  /// Loads the same text as [loadStructuredText], without returning geometry.
+  ///
+  /// Native PDFium formats on its worker and transfers only a string. Backends
+  /// without [PdfPageSearchTextSource] use the normal structured-text path.
+  /// This method does not cache; use `PdfPageSearchTextCache` for repeated scans.
+  /// An unloaded page returns null unless [ensureLoaded] is true.
+  Future<String?> loadSearchText({bool ensureLoaded = false}) async {
+    final page = ensureLoaded && !isLoaded ? await this.ensureLoaded() : this;
+    if (!page.isLoaded) return null;
+    if (page case PdfPageSearchTextSource source) return source.loadSearchTextUncached();
+    return (await page.loadStructuredText()).fullText;
+  }
+
   /// Load structured text with character bounding boxes.
   ///
   /// The function internally does test flow analysis (reading order) and line segmentation to detect

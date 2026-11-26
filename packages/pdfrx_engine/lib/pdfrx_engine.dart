@@ -16,6 +16,7 @@ export 'src/pdf_outline_node.dart';
 export 'src/pdf_page.dart';
 export 'src/pdf_page_image_object.dart';
 export 'src/pdf_page_text_cache.dart';
+export 'src/pdf_page_search_text_cache.dart';
 export 'src/pdf_page_status_change.dart';
 export 'src/pdf_permissions.dart';
 export 'src/pdf_point.dart';
