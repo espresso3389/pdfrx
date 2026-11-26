@@ -105,6 +105,5 @@ To reproduce on Linux x64 after workspace dependency setup:
 dart .github/scripts/performance_samples.dart --samples 5
 ```
 
-Results are written under `.dart_tool/ci-performance`. A fresh checkout avoids
-ambiguity between cached PDFium releases. `DART_EXECUTABLE` can select a specific
+Results are written under `.dart_tool/ci-performance`. Native PDF benchmarks use the PDFium library from their AOT bundle. `DART_EXECUTABLE` can select a specific
 Dart binary. The collector is separate from `dart test` and `flutter test`.

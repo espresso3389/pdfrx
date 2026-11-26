@@ -83,8 +83,16 @@ Future<void> main(List<String> arguments) async {
     'metadata.json',
   ).writeAsString('${const JsonEncoder.withIndent('  ').convert(metadata)}\n');
   await saveMetadata();
+  final executables = <String, File>{};
   for (final e in sources.entries) {
-    final arguments = ['compile', 'exe', e.value, '-o', artifact(e.key).path];
+    final executable = e.value.split('/').last.replaceFirst('.dart', '');
+    final native = e.key == 'open' || e.key == 'pixels';
+    executables[e.key] = native
+        ? artifact('${e.key}/bundle/bin/$executable')
+        : artifact(e.key);
+    final arguments = native
+        ? ['build', 'cli', '-t', e.value, '-o', artifact(e.key).path]
+        : ['compile', 'exe', e.value, '-o', artifact(e.key).path];
     final result = await Process.run(
       dart,
       arguments,
@@ -101,28 +109,11 @@ Future<void> main(List<String> arguments) async {
       );
   }
 
-  final builds = Directory.fromUri(
-    root.uri.resolve('.dart_tool/hooks_runner/shared/pdfium_dart/build/'),
-  );
-  final libraries = <File>[];
-  await for (final directory in builds.list()) {
-    if (directory is! Directory) continue;
-    final file = File.fromUri(directory.uri.resolve('linux-x64/libpdfium.so'));
-    if (await file.exists()) libraries.add(file);
-  }
-  if (libraries.length != 1)
-    throw StateError(
-      'Expected one Linux x64 PDFium build-hook library, found $libraries',
-    );
-  final library = libraries.single;
-  metadata['pdfium'] = {
-    'path': library.path.substring(
-      root.path.length + (root.path.endsWith('/') ? 0 : 1),
-    ),
-    'sha256': await digest(library),
-  };
+  const libraryPath = '.dart_tool/ci-performance/open/bundle/lib/libpdfium.so';
+  final library = File.fromUri(root.uri.resolve(libraryPath));
+  metadata['pdfium'] = {'path': libraryPath, 'sha256': await digest(library)};
   metadata['executableSha256'] = {
-    for (final name in sources.keys) name: await digest(artifact(name)),
+    for (final name in sources.keys) name: await digest(executables[name]!),
   };
   await saveMetadata();
   final commands = {
@@ -137,7 +128,7 @@ Future<void> main(List<String> arguments) async {
     for (var repetition = 0; repetition < count; repetition++) {
       for (var i = 0; i < names.length; i++) {
         final name = names[(i + repetition) % names.length];
-        final command = artifact(name).path;
+        final command = executables[name]!.path;
         final timer = Stopwatch()..start();
         final result = await Process.run(
           command,
