@@ -1750,6 +1750,7 @@ function _loadDocument(docHandle, useProgressiveLoading, onDispose) {
     if (!docHandle) {
       const error = Pdfium.wasmExports.FPDF_GetLastError();
       const errorStr = _errorMappings[error];
+      onDispose();
       return {
         errorCode: error,
         errorCodeStr: _errorMappings[error],

@@ -149,6 +149,29 @@ for (const large of [false, true]) {
     assert.equal(run(context, 'live.size'), 0);
     assert.equal(run(context, 'Object.keys(fileSystem.fn2context).length'), 0);
   });
+
+  test(`${mode}: failed direct opens release their input exactly once`, async (t) => {
+    const context = await harness(t);
+    run(context, `
+      globalThis.doubleFrees = 0;
+      const tracked = Pdfium.wasmExports.free;
+      Pdfium.wasmExports.free = (pointer) => {
+        if (pointer && !live.has(pointer)) doubleFrees++;
+        tracked(pointer);
+      };
+    `);
+    const load = (data, password) => run(context, 'loadDocumentFromData(parameters)', { data, password });
+    assert.equal(load(encryptedBytes(large), 'wrong').errorCode, 4);
+    assert.equal(load(new ArrayBuffer(large ? 2 * 1024 * 1024 : 1234)).errorCode, 3);
+    assert.equal(run(context, 'live.size'), 0);
+    assert.equal(run(context, 'Object.keys(fileSystem.fn2context).length'), 0);
+    const document = load(encryptedBytes(large), 'user');
+    assert.ok(document.docHandle);
+    await close(context, document);
+    assert.equal(run(context, 'live.size'), 0);
+    assert.equal(run(context, 'Object.keys(fileSystem.fn2context).length'), 0);
+    assert.equal(run(context, 'doubleFrees'), 0);
+  });
 }
 
 test('simultaneous large opens keep independent virtual files and closing one preserves the other', async (t) => {
