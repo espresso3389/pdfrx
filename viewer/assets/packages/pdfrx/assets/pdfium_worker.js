@@ -646,26 +646,33 @@ const emEnv = {
     _notImplemented('emscripten_errn');
   },
   emscripten_resize_heap: function (requestedSizeInBytes) {
-    const maxHeapSizeInBytes = 2 * 1024 * 1024 * 1024; // 2GB
-    if (requestedSizeInBytes > maxHeapSizeInBytes) {
+    requestedSizeInBytes >>>= 0; // size_t arrives as a signed i32
+    const pageSize = 65536;
+    const maxPageCount = 32768; // 2 GiB, the maximum declared by pdfium.wasm
+    if (requestedSizeInBytes > maxPageCount * pageSize) {
       console.error(
-        `emscripten_resize_heap: Cannot enlarge memory, asked for ${requestedPageCount} bytes but limit is ${maxHeapSizeInBytes}`
+        `emscripten_resize_heap: Cannot enlarge memory, asked for ${requestedSizeInBytes} bytes but limit is ${maxPageCount * pageSize}`
       );
       return false;
     }
 
-    const pageSize = 65536;
-    const oldPageCount = ((Pdfium.memory.buffer.byteLength + pageSize - 1) / pageSize) | 0;
-    const requestedPageCount = ((requestedSizeInBytes + pageSize - 1) / pageSize) | 0;
-    const newPageCount = Math.max(oldPageCount * 1.5, requestedPageCount) | 0;
-    try {
-      Pdfium.memory.grow(newPageCount - oldPageCount);
-      console.log(`emscripten_resize_heap: ${oldPageCount} => ${newPageCount}`);
-      return true;
-    } catch (e) {
-      console.error(`emscripten_resize_heap: Failed to resize heap: ${_error(e)}`);
-      return false;
+    const oldPageCount = Pdfium.memory.buffer.byteLength / pageSize;
+    const requestedPageCount = Math.ceil(requestedSizeInBytes / pageSize);
+    // Grow by 1.5x, capped at the maximum: an uncapped step throws once the heap passes 2/3 of it.
+    // If the larger step cannot be reserved, fall back to exactly the requested size.
+    const steppedPageCount = Math.min(Math.max(Math.floor(oldPageCount * 1.5), requestedPageCount), maxPageCount);
+    let error;
+    for (const newPageCount of new Set([steppedPageCount, requestedPageCount])) {
+      try {
+        Pdfium.memory.grow(newPageCount - oldPageCount);
+        console.log(`emscripten_resize_heap: ${oldPageCount} => ${newPageCount}`);
+        return true;
+      } catch (e) {
+        error = e;
+      }
     }
+    console.error(`emscripten_resize_heap: Failed to resize heap: ${_error(error)}`);
+    return false;
   },
   exit: function (status) {
     _notImplemented('exit');
