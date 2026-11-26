@@ -102,7 +102,7 @@ universal viewer, mobile or GPU performance.
 To reproduce on Linux x64 after workspace dependency setup:
 
 ```sh
-python3 .github/scripts/performance_samples.py --samples 5
+dart .github/scripts/performance_samples.dart --samples 5
 ```
 
 Results are written under `.dart_tool/ci-performance`. A fresh checkout avoids

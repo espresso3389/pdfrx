@@ -24,5 +24,7 @@ dependencies:
   image: ^4.13.1
 
 dev_dependencies:
+  args: ^2.7.0
   lints:
+  pdf: ^3.13.1
   test:

@@ -32,14 +32,7 @@ if [[ -n "${PDFRX_BASELINE_REF:-}" ]]; then
   git -C "$repo_dir" show "$PDFRX_BASELINE_REF:packages/pdfrx_coregraphics/darwin/pdfrx_coregraphics/Sources/PdfrxCoregraphicsPlugin.swift" > "$build_dir/BaselinePlugin.swift"
   # Older source used optional binding for Apple's nonfailable empty initializers.
   # Make just those bindings compile; this does not change the execution path.
-  python3 - "$build_dir/BaselinePlugin.swift" <<'PY'
-import pathlib, sys
-path = pathlib.Path(sys.argv[1])
-source = path.read_text()
-source = source.replace('= PDFDocument() else {', '= (PDFDocument() as PDFDocument?) else {')
-source = source.replace('= PDFPage() else {', '= (PDFPage() as PDFPage?) else {')
-path.write_text(source)
-PY
+  "$flutter_root/bin/dart" "$package_dir/tool/prepare_native_baseline.dart" "$build_dir/BaselinePlugin.swift"
   sources=("$build_dir/BaselinePlugin.swift")
   swift_flags=(-D PDFRX_BASELINE)
 fi

@@ -35,7 +35,7 @@ jobs:
       - name: Compile and collect fresh process samples
         env:
           SAMPLES: ${{ inputs.samples }}
-        run: python3 .github/scripts/performance_samples.py --samples "$SAMPLES"
+        run: dart .github/scripts/performance_samples.dart --samples "$SAMPLES"
 
       - name: Upload measurements and reproduction metadata
         if: always()
