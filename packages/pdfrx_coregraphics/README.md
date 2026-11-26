@@ -65,10 +65,85 @@ dart run pdfrx:remove_darwin_pdfium_modules --revert
 
 After executing it, you can run `flutter build` or `flutter run` for iOS/macOS.
 
+## Scheduling and Resource Ownership
+
+The bridge runs PDFKit/CoreGraphics work on a dedicated serial worker. Opening,
+rendering, text extraction, links, outlines and native document release all use
+that worker; replies return on the platform main thread. A document is never
+accessed concurrently by these operations. This follows Flutter's
+[platform-thread guidance](https://docs.flutter.dev/platform-integration/platform-channels#channels-and-platform-threading)
+without assuming that a shared PDFKit document supports concurrent access.
+
+The worker runs one operation at a time and queues bursts of requests. Renders
+honor [`PdfPageRenderPriority`](https://pub.dev/documentation/pdfrx_engine/latest/pdfrx_engine/PdfPageRenderPriority.html)
+with FIFO ordering within a priority. Every ninth selection serves the oldest
+request. Cancellation and close commands can act while rendering is in progress.
+The next bitmap is produced after the previous channel reply has been delivered.
+Bitmap dimensions must have a representable byte count and allocation must succeed.
+
+Cancellation removes queued renders before drawing. PDFKit's synchronous draw
+cannot be interrupted once it starts; cancellation discards that result and
+avoids its additional pixel copy when observed before encoding. Disposing a
+document cancels its queued work, suppresses active results and waits for the
+active operation before releasing PDFKit. Concurrent `dispose()` calls share the
+same completion. Source cleanup callbacks run after native release.
+
+`openFile` passes the caller's path directly to PDFKit and never deletes it.
+`openCustom` reads the complete input into memory by default. When the caller
+sets `maxSizeToCacheOnMemory`, inputs larger than the limit are written to
+an owned temporary file using a reusable buffer of at most **128 KiB**.
+Both paths accept positive short reads and reuse the source for password retries.
+The file requires disk space proportional to the PDF size and is removed after
+close or a failed open. The custom source's `onDispose` callback runs once.
+A native close failure retains the source because native use has not been
+confirmed finished, including a close after invalid opening metadata.
+`openData` continues to send supplied bytes through the channel.
+
+## Apple Tests and Measurements
+
+The [native harness](tool/native/main.swift) compiles the production Swift bridge
+against Flutter's real framework and exercises PDFKit/CGPDFDocument directly.
+It generates a PDF with Hebrew marks, columns, embedded font resources, rotation,
+a link and an outline, checks text and pixel parity with direct PDFKit, and tests
+queue bursts, priority, starvation, cancellation and 50 open/render/close cycles.
+The Dart tests separately exercise custom-source spooling and channel ownership.
+
+On macOS with the pinned Flutter SDK available:
+
+```bash
+flutter precache --macos
+bash packages/pdfrx_coregraphics/tool/run_native_tests.sh
+PDFRX_RUN_BENCHMARK=1 bash packages/pdfrx_coregraphics/tool/run_native_tests.sh
+PDFRX_BASELINE_REF=683df93e986af19bbcefd22606a417083116847b \
+  PDFRX_RUN_BENCHMARK=1 bash packages/pdfrx_coregraphics/tool/run_native_tests.sh
+```
+
+The benchmark generates its PDF in a separate process, then measures a fresh
+process so fixture creation does not warm PDFKit/CoreText or inflate baseline RSS.
+It uses the same real document and reports open, first/sharp bitmap,
+visible-request latency under text work, main-handler duration, main-run-loop
+heartbeat gaps, CPU time and resident memory before and after close. The baseline
+runner adapts only old optional bindings for nonfailable Apple initializers so
+the old bridge can compile with current SDKs. Timings are diagnostics, not fragile
+unit-test thresholds or whole-viewer frame-time measurements. The standalone
+`CoreGraphics Native Tests` workflow runs on macOS and an iOS simulator and saves
+baseline/candidate logs as artifacts. Simulator measurements are not physical
+iOS device measurements. To run locally on an already booted simulator, use
+`flutter precache --ios` and set `PDFRX_APPLE_PLATFORM=ios-simulator` for the script.
+
+For an Instruments thread trace, capture the `CoreGraphics work` signposts in
+subsystem `pdfrx_coregraphics`, category `scheduler`, alongside the main thread.
+Measure on actual target devices before choosing this experimental backend.
+System PDFKit behavior and memory caching can vary by OS release; this work does
+not establish a general speed advantage over PDFium.
+
 ## Limitations
 
 - `compute` and `stopBackgroundWorker` are not implemented
-- Incremental/custom stream loading is converted to in-memory loading
+- Incremental/custom stream loading reads the entire source before the document opens
 - Custom font registration is not yet supported
 - In document links are always `xyz` and zoom is not reliable (or omitted) in certain situations
 - Text extraction does not fully cover certain scenarios like vertical texts or R-to-L texts so far
+- Explicit render rotation overrides are not fully implemented
+- `assemble`, `encodePdf`, `reloadPages` and `useNativeDocumentHandle` are not implemented
+- PDFium-specific native handle and printing integrations cannot be used with this backend
