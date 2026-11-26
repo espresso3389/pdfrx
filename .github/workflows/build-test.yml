@@ -400,7 +400,7 @@ jobs:
         working-directory: packages/pdfrx/example/viewer
         run: flutter pub get
 
-      - name: Test PDFium worker metadata, range responses, and document lifetimes
+      - name: Test PDFium worker metadata, range responses, document lifetimes, and heap growth
         working-directory: packages/pdfrx
         run: >-
           node --test
@@ -411,6 +411,7 @@ jobs:
           test/pdfium_worker_lifetime_test.cjs
           test/pdfium_worker_assembly_test.cjs
           test/pdfium_worker_render_queue_test.cjs
+          test/pdfium_worker_heap_growth_test.cjs
 
       - name: Test PDFium worker communication failures
         working-directory: packages/pdfrx
