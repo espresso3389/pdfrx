@@ -493,6 +493,7 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
   bool _documentLoadCompleteNotified = false;
   late int _nativePageCount;
   bool _assembling = false;
+  int _assemblyRevision = 0;
 
   Map<String, dynamic> get _workerParameters => {
     'docHandle': document['docHandle'],
@@ -880,6 +881,7 @@ class _PdfDocumentWasm extends PdfDocument implements PdfPageMetadataLoader {
 
       // Assembly preserves each page's geometry, but changes its native document/index. Rebase the
       // pages without a second worker call that could fail after the mutation already succeeded.
+      _assemblyRevision++;
       final assembled = <PdfPage>[
         for (var i = 0; i < pageSnapshot.length; i++)
           _PdfPageWasm(
@@ -966,6 +968,40 @@ bool supportsWorkerBitmap(
           (height ?? (fullHeight ?? page.height).toInt()) <= pixelSizeThreshold);
 }
 
+class _WasmPageImage implements PdfPageImageObject {
+  _WasmPageImage(this.page, this.path, this.width, this.height, this.bounds);
+  @override
+  final _PdfPageWasm page;
+  final List<int> path;
+  @override
+  final int width;
+  @override
+  final int height;
+  @override
+  final PdfRect bounds;
+
+  @override
+  Future<PdfRawImage?> loadImage() async {
+    if (!page._canReadImages) return null;
+    final reply = await page.document._runIfOpen(
+      () => _sendCommandTaking<JSUint8Array>(
+        'decodePageImage',
+        'pixels',
+        parameters: {...page._imageParameters, 'path': path, 'width': width, 'height': height},
+      ),
+    );
+    if (reply == null || !page._canReadImages) return null;
+    final (meta, pixels) = reply;
+    if (pixels == null) return null;
+    return PdfRawImage.create(
+      pixels.toDart,
+      width: meta['width'] as int,
+      height: meta['height'] as int,
+      format: PdfPixelFormat.values[(meta['format'] as int) - 1],
+    );
+  }
+}
+
 class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
   _PdfPageWasm(
     this.document,
@@ -976,7 +1012,8 @@ class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
     this.isLoaded,
     this.bbLeft,
     this.bbBottom,
-  ) : pageNumber = pageIndex + 1,
+  ) : _revision = document._assemblyRevision,
+      pageNumber = pageIndex + 1,
       rotation = PdfPageRotation.values[rotation];
 
   @override
@@ -1048,8 +1085,40 @@ class _PdfPageWasm extends PdfPage with PdfPageLinkCache {
   }
 
   @override
-  Future<List<PdfPageImageObject>> loadImages() async =>
-      throw UnimplementedError('loadImages is not implemented for the Web backend yet.');
+  Future<List<PdfPageImageObject>> loadImages() async {
+    if (!_canReadImages) return const [];
+    final result = await document._runIfOpen(() => _sendCommand('listPageImages', parameters: _imageParameters));
+    if (result == null || !_canReadImages) return const [];
+    return List.unmodifiable(
+      (result['images'] as List).map((value) {
+        final item = value as Map;
+        final rect = (item['bounds'] as List).cast<num>();
+        return _WasmPageImage(
+          this,
+          (item['path'] as List).cast<int>(),
+          item['width'] as int,
+          item['height'] as int,
+          PdfRect(
+            rect[0].toDouble() - bbLeft,
+            rect[1].toDouble() - bbBottom,
+            rect[2].toDouble() - bbLeft,
+            rect[3].toDouble() - bbBottom,
+          ),
+        );
+      }),
+    );
+  }
+
+  final int _revision;
+  bool get _canReadImages =>
+      isLoaded &&
+      !document.isDisposed &&
+      !document._assembling &&
+      _revision == document._assemblyRevision &&
+      ((pageNumber <= document.pages.length &&
+              identical(document.pages[pageNumber - 1].unwrap<_PdfPageWasm>(), this)) ||
+          document.pages.any((p) => identical(p.unwrap<_PdfPageWasm>(), this)));
+  Map<Object?, dynamic> get _imageParameters => {...document._workerParameters, 'pageIndex': pageNumber - 1};
 
   @override
   Future<PdfPageRawText?> loadText() async {

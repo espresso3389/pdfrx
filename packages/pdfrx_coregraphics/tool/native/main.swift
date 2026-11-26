@@ -403,6 +403,24 @@ if arguments.dropFirst().first == "--make-benchmark-fixture" {
   autoreleasepool {
     makeFixture(URL(fileURLWithPath: arguments[2]), pages: 100, lines: 90)
   }
+} else if arguments.dropFirst().first == "--extract-images" {
+  let plugin = PdfrxCoregraphicsPlugin()
+  let handle = open(plugin, URL(fileURLWithPath: arguments[2]))
+  let args: [String: Any] = ["handle": handle, "pageIndex": 0]
+  let listing = call(plugin, "listPageImages", args)
+  wait([listing])
+  let images = (listing.value as! [[String: Any]]).map { row -> [String: Any] in
+    var output = row
+    var request = args
+    request["path"] = row["path"]
+    let decoded = call(plugin, "decodePageImage", request)
+    wait([decoded])
+    output["pixels"] = Array(pixelData(decoded))
+    return output
+  }
+  let data = try! JSONSerialization.data(withJSONObject: images)
+  try! data.write(to: URL(fileURLWithPath: arguments[3]))
+  wait([call(plugin, "closeDocument", ["handle": handle])])
 } else if arguments.dropFirst().first == "--benchmark" {
   check(arguments.count == 3, "Supply a previously generated PDF for --benchmark")
   // PDF creation must happen in a different process: it warms PDFKit/CoreText

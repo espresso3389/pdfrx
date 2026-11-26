@@ -42,7 +42,7 @@ Welcome to the pdfrx documentation! These guides describe the current repository
 
 ### PDF Editing
 
-- [Extracting Embedded Images](Extracting-Embedded-Images.md) - Read image bounds and export decoded pixels with native PDFium
+- [Extracting Embedded Images](Extracting-Embedded-Images.md) - Read image bounds and export decoded pixels
 - [PDF Page Manipulation](PDF-Page-Manipulation.md) - Re-arrange, combine, and extract PDF pages
 - [Importing Images to PDF](Importing-Images-to-PDF.md) - Convert images to PDF and insert images into PDFs
 

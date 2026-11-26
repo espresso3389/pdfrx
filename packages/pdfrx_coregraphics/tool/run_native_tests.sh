@@ -26,7 +26,7 @@ if [[ -z "$framework_dir" ]]; then
 fi
 framework_parent="$(dirname "$framework_dir")"
 source_dir="$package_dir/darwin/pdfrx_coregraphics/Sources"
-sources=("$source_dir/CoreGraphicsWorkQueue.swift" "$source_dir/PdfrxCoregraphicsPlugin.swift")
+sources=("$source_dir/CoreGraphicsWorkQueue.swift" "$source_dir/PdfrxCoregraphicsPlugin.swift" "$source_dir/EmbeddedPageImages.swift")
 swift_flags=(-D PDFRX_CANDIDATE)
 if [[ -n "${PDFRX_BASELINE_REF:-}" ]]; then
   git -C "$repo_dir" show "$PDFRX_BASELINE_REF:packages/pdfrx_coregraphics/darwin/pdfrx_coregraphics/Sources/PdfrxCoregraphicsPlugin.swift" > "$build_dir/BaselinePlugin.swift"
@@ -51,6 +51,10 @@ if [[ "$apple_platform" == ios-simulator ]]; then
   codesign --force --sign - "$build_dir/coregraphics-tests"
 fi
 run_native "$repo_dir/packages/pdfrx_engine/test/assets/encrypted.pdf"
+if [[ -z "${PDFRX_BASELINE_REF:-}" ]]; then
+  run_native --extract-images "$repo_dir/packages/pdfrx_engine/test/assets/embedded-images.pdf" "$build_dir/images.json"
+  "$flutter_root/bin/dart" "$package_dir/tool/verify_embedded_images.dart" "$build_dir/images.json"
+fi
 if [[ "${PDFRX_RUN_BENCHMARK:-0}" == 1 ]]; then
   run_native --make-benchmark-fixture "$build_dir/benchmark.pdf"
   run_native --benchmark "$build_dir/benchmark.pdf"

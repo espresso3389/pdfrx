@@ -118,8 +118,6 @@ abstract class PdfPage {
   ///
   /// If the page is not loaded yet (progressive loading case only) or the document is disposed, this function
   /// returns an empty list.
-  ///
-  /// Backends that do not support this yet (Web and CoreGraphics) throw [UnimplementedError].
   Future<List<PdfPageImageObject>> loadImages();
 }
 

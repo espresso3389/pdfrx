@@ -60,7 +60,7 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       return
     }
     let methods = ["openDocument", "createNewDocument", "createDocumentFromJpegData", "renderPage",
-                   "loadPageText", "loadOutline", "loadPageLinks"]
+                   "loadPageText", "loadOutline", "loadPageLinks", "listPageImages", "decodePageImage"]
     guard methods.contains(call.method) else {
       result(FlutterMethodNotImplemented)
       return
@@ -98,6 +98,18 @@ public class PdfrxCoregraphicsPlugin: NSObject, FlutterPlugin {
       createDocumentFromJpegData(arguments: call.arguments, result: result)
     case "renderPage":
       renderPage(arguments: call.arguments, cancellation: cancellation, result: result)
+    case "listPageImages", "decodePageImage":
+      guard let args = call.arguments as? [String: Any], let handle = args["handle"] as? NSNumber,
+            let index = args["pageIndex"] as? Int, let page = documents[handle.int64Value]?.page(at: index)?.pageRef
+      else { result(nil); return }
+      let images = EmbeddedPageImages(page: page)
+      if call.method == "listPageImages" {
+        result(images.list())
+      } else if let path = args["path"] as? [String], let (bytes, format) = images.decode(path: path) {
+        result(["pixels": FlutterStandardTypedData(bytes: bytes), "format": format])
+      } else {
+        result(nil)
+      }
     case "loadPageText":
       loadPageText(arguments: call.arguments, cancellation: cancellation, result: result)
     case "loadOutline":
