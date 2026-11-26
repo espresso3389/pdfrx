@@ -12,12 +12,13 @@ import 'pthread.dart';
 class PdfiumFileWriteHelperPthread implements PdfiumFileWriteHelper {
   @override
   Future<int> create(int writeBlock) async {
+    final nativeWrite = await _getWriteFuncOnBackgroundWorker();
     final buffer = malloc<Uint8>(
-      sizeOf<pdfium_bindings.FPDF_FILEWRITE>() + sizeOfPthreadMutex + sizeOfPthreadCond + sizeOf<IntPtr>() * 2,
+      sizeOf<pdfium_bindings.FPDF_FILEWRITE>() + sizeOfPthreadMutex + sizeOfPthreadCond + sizeOf<IntPtr>() * 3,
     );
     final fw = buffer.cast<pdfium_bindings.FPDF_FILEWRITE>();
     fw.ref.version = 1;
-    fw.ref.WriteBlock = Pointer.fromAddress(await _getWriteFuncOnBackgroundWorker());
+    fw.ref.WriteBlock = Pointer.fromAddress(nativeWrite);
 
     final writeFuncPtr = Pointer<IntPtr>.fromAddress(buffer.address + _writeFuncOffset);
     writeFuncPtr.value = writeBlock;
@@ -40,6 +41,7 @@ class PdfiumFileWriteHelperPthread implements PdfiumFileWriteHelper {
     pthread_mutex_lock(fwAddress + _mutexOffsetWrite);
     final returnValue = Pointer<IntPtr>.fromAddress(fwAddress + _retValueOffsetWrite);
     returnValue.value = value;
+    Pointer<IntPtr>.fromAddress(fwAddress + _completedOffset).value = 1;
     pthread_cond_signal(fwAddress + _condOffsetWrite);
     pthread_mutex_unlock(fwAddress + _mutexOffsetWrite);
   }
@@ -60,15 +62,18 @@ int _write(Pointer<Void> pThis, Pointer<Void> pData, int size) {
   final cs = fwAddress + _mutexOffsetWrite;
   final cv = fwAddress + _condOffsetWrite;
   final writeFuncPtr = Pointer<IntPtr>.fromAddress(fwAddress + _writeFuncOffset);
-  final writeFunc = Pointer<NativeFunction<Void Function(Pointer<Void>, IntPtr)>>.fromAddress(
-    writeFuncPtr.value,
-  ).asFunction<void Function(Pointer<Void>, int)>();
+  final writeFunc = Pointer<NativeFunction<Void Function(Pointer<Void>, IntPtr)>>.fromAddress(writeFuncPtr.value)
+      .asFunction<void Function(Pointer<Void>, int)>();
 
   pthread_mutex_lock(cs);
+  final completed = Pointer<IntPtr>.fromAddress(fwAddress + _completedOffset);
+  completed.value = 0;
   // Call Dart side write function. The call is returned immediately (it runs asynchronously)
   writeFunc(pData, size);
-  // So, we should wait for Dart to signal completion
-  pthread_cond_wait(cv, cs);
+  // A condition wait may wake spuriously; the native buffer must stay alive until Dart is finished.
+  while (completed.value == 0) {
+    pthread_cond_wait(cv, cs);
+  }
   final returnValue = Pointer<IntPtr>.fromAddress(fwAddress + _retValueOffsetWrite).value;
   pthread_mutex_unlock(cs);
   return returnValue;
@@ -85,3 +90,6 @@ final _writeFuncOffset = _condOffsetWrite + sizeOfPthreadCond;
 
 /// return-value offset within FPDF_FILEWRITE
 final _retValueOffsetWrite = _writeFuncOffset + sizeOf<IntPtr>();
+
+/// Completion predicate offset within FPDF_FILEWRITE.
+final _completedOffset = _retValueOffsetWrite + sizeOf<IntPtr>();

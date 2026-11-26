@@ -19,6 +19,7 @@ import 'reload_pages_native.dart';
 import 'native_open_cleanup.dart';
 import 'font_mapper_native.dart';
 import 'native_missing_fonts.dart';
+import 'native_save.dart';
 
 final testPdfFile = File('../pdfrx/example/viewer/assets/hello.pdf');
 final multiPageTestPdfFile = File('../pdfrx/test/assets/multipage40.pdf');
@@ -118,6 +119,7 @@ void main() {
   registerNativeOpenCleanupTests();
   registerFontMapperNativeTests();
   registerNativeMissingFontTests();
+  registerNativeSaveTests();
   setUp(() => pdfrxInitialize(tmpPath: tmpRoot.path));
 
   test('PdfDocument.openFile', () async => await testDocument(await PdfDocument.openFile(testPdfFile.path)));

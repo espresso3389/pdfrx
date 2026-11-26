@@ -21,6 +21,7 @@ import '../pdf_datetime.dart';
 import '../pdf_dest.dart';
 import '../pdf_document.dart';
 import '../pdf_document_event.dart';
+import '../pdf_document_save.dart';
 import '../pdf_exception.dart';
 import '../pdf_font_query.dart';
 import '../pdf_hebrew_text_normalizer.dart';
@@ -42,6 +43,7 @@ import 'pdf_file_cache.dart';
 import 'pdf_font_source.dart';
 import 'pdfium.dart';
 import 'pdfium_file_access.dart';
+import 'pdfium_file_write.dart';
 import 'worker.dart';
 import 'resource_lifetime.dart';
 
@@ -941,7 +943,7 @@ extension _FpdfUtf8StringExt on String {
 typedef _PageMeasurement = ({int pageIndex, double width, double height, int rotation, double bbLeft, double bbBottom});
 typedef _PageMeasurements = ({List<_PageMeasurement> pages, int totalPageCount});
 
-class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
+class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader, PdfDocumentStreamingSaver {
   final pdfium_bindings.FPDF_DOCUMENT document;
   final void Function()? disposeCallback;
   final int securityHandlerRevision;
@@ -1771,6 +1773,89 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
     // Report failure on the caller isolate so the public exception type is preserved.
     if (bytes == null) throw const PdfException('Failed to save PDF document.');
     return bytes;
+  }
+
+  @override
+  Future<int> saveTo(
+    PdfDocumentWriteCallback write, {
+    bool incremental = false,
+    bool removeSecurity = false,
+    PdfDocumentSaveCancellationToken? cancellationToken,
+  }) async {
+    _ensureNotDisposed();
+    cancellationToken?.throwIfCancelled();
+    Directory? directory;
+    RandomAccessFile? spool;
+    try {
+      final size = await _lifetime.use(() async {
+        await assemble();
+        cancellationToken?.throwIfCancelled();
+        final temp = await Directory.systemTemp.createTemp('pdfrx-save-');
+        directory = temp;
+        final file = await File('${temp.path}/output.pdf').open(mode: FileMode.write);
+        spool = file;
+        return _saveToSpool(file, incremental, removeSecurity, cancellationToken);
+      });
+
+      final file = spool!;
+      await file.setPosition(0);
+      var position = 0;
+      while (position < size) {
+        cancellationToken?.throwIfCancelled();
+        final chunk = await file.read(min(pdfDocumentSaveChunkSize, size - position));
+        if (chunk.isEmpty) throw const PdfException('Unexpected end of temporary PDF.');
+        cancellationToken?.throwIfCancelled();
+        final written = await write(chunk, position);
+        if (written != chunk.length) {
+          throw PdfException('PDF write at $position accepted $written of ${chunk.length} bytes.');
+        }
+        position += written;
+      }
+      cancellationToken?.throwIfCancelled();
+      return position;
+    } finally {
+      try {
+        await spool?.close();
+      } finally {
+        await directory?.delete(recursive: true);
+      }
+    }
+  }
+
+  Future<int> _saveToSpool(
+    RandomAccessFile file,
+    bool incremental,
+    bool removeSecurity,
+    PdfDocumentSaveCancellationToken? cancellationToken,
+  ) async {
+    final writer = await PdfiumFileWrite.create((chunk, _) async {
+      await file.writeFrom(chunk);
+      return chunk.length;
+    }, cancellationToken: cancellationToken);
+    try {
+      cancellationToken?.throwIfCancelled();
+      final saved = await _computeWithArena(
+        (arena, params) {
+          final document = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
+          final writer = Pointer<pdfium_bindings.FPDF_FILEWRITE>.fromAddress(params.writer);
+          // FPDF_SAVE_NO_SECURITY(3) takes precedence over the incremental flag.
+          final flags = params.removeSecurity ? 3 : (params.incremental ? 1 : 2);
+          return pdfium.FPDF_SaveAsCopy(document, writer, flags) != 0;
+        },
+        (
+          document: document.address,
+          writer: writer.fileWrite,
+          incremental: incremental,
+          removeSecurity: removeSecurity,
+        ),
+      );
+      writer.throwIfFailed();
+      cancellationToken?.throwIfCancelled();
+      if (!saved) throw const PdfException('Failed to save PDF document.');
+      return writer.bytesWritten;
+    } finally {
+      writer.dispose();
+    }
   }
 
   @override

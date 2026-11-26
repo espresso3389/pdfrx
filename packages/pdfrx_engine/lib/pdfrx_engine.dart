@@ -6,6 +6,7 @@ export 'src/pdf_datetime.dart';
 export 'src/pdf_dest.dart';
 export 'src/pdf_document.dart';
 export 'src/pdf_document_event.dart';
+export 'src/pdf_document_save.dart';
 export 'src/pdf_exception.dart';
 export 'src/pdf_font_query.dart';
 export 'src/pdf_font_resolver.dart';
