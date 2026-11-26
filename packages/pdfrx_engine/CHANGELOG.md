@@ -1,3 +1,11 @@
+# 0.10.0
+
+- Add `PdfPage.loadImages()` and `PdfRawImage` for on-demand embedded image extraction. Native PDFium reports individual placements inside nested forms and invalidates stale image handles after page edits. **Backend compatibility:** custom `PdfPage` implementations must implement `loadImages()`. [#877](https://github.com/espresso3389/pdfrx/pull/877), [#887](https://github.com/espresso3389/pdfrx/pull/887)
+- Add `PdfDocument.saveTo()` for sequential asynchronous writes with cancellation. Native PDFium bounds memory use and releases the PDFium lock before delivering bytes. Native encoding failures now throw `PdfException`. [#872](https://github.com/espresso3389/pdfrx/pull/872), [#875](https://github.com/espresso3389/pdfrx/pull/875)
+- Add `loadPageMetadata()` to measure unloaded pages without invalidating unchanged content, and `PdfPageSearchTextCache` for repeated searches without retaining character geometry. [#850](https://github.com/espresso3389/pdfrx/pull/850), [#873](https://github.com/espresso3389/pdfrx/pull/873)
+- Bound native HTTP range requests and inactive disk-cache usage, and apply timeouts to response bodies. Complete, fresh legacy entries remain available offline at their original cache location. [#850](https://github.com/espresso3389/pdfrx/pull/850), [#885](https://github.com/espresso3389/pdfrx/pull/885)
+- Share font data across native registrations, refresh changed font files, and report missing fonts for the document and page that requested them. Reduce cancellation overhead for native worker requests. [#850](https://github.com/espresso3389/pdfrx/pull/850), [#879](https://github.com/espresso3389/pdfrx/pull/879), [#880](https://github.com/espresso3389/pdfrx/pull/880)
+
 # 0.9.6
 
 - Share progressive page measurements across concurrent PDFium consumers, and reload native pages in chunks so other work can run between them. [#833](https://github.com/espresso3389/pdfrx/pull/833), [#841](https://github.com/espresso3389/pdfrx/pull/841)

@@ -1,3 +1,9 @@
+# 0.6.0
+
+- Implement `PdfPage.loadImages()` for named image XObjects on macOS and iOS, including repeated placements and transformed forms. `loadImage()` decodes the selected image at its intrinsic resolution. Inline images are omitted. [#887](https://github.com/espresso3389/pdfrx/pull/887)
+- Run PDFKit work off the main thread, prioritize visible render requests, and cancel obsolete work. Custom input is read in bounded chunks into a temporary file retained until the document closes. [#876](https://github.com/espresso3389/pdfrx/pull/876), [#884](https://github.com/espresso3389/pdfrx/pull/884)
+- Update to `pdfrx_engine` 0.10.0 for use with `pdfrx` 3.2.0. [#887](https://github.com/espresso3389/pdfrx/pull/887)
+
 # 0.5.3
 
 - Requires Flutter 3.50 / Dart 3.14 or later.
