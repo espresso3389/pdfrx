@@ -1,8 +1,10 @@
 library;
 
+export 'src/mock/pdf_disk_cache.dart' if (dart.library.io) 'src/native/pdf_disk_cache.dart' show pdfrxTrimDiskCache;
 export 'src/mock/pdfrx_initialize_mock.dart' if (dart.library.io) 'src/pdfrx_initialize_dart.dart';
 export 'src/pdf_annotation.dart';
 export 'src/pdf_datetime.dart';
+export 'src/pdf_disk_cache_policy.dart';
 export 'src/pdf_dest.dart';
 export 'src/pdf_document.dart';
 export 'src/pdf_document_event.dart';

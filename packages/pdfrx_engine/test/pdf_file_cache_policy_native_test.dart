@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
@@ -58,6 +60,49 @@ void main() {
       }
       expect(cache.cachedBytes, 0);
       expect(await file.exists(), isFalse);
+    });
+  }
+
+  for (final authenticated in [false, true]) {
+    test('opens a fresh legacy cache offline (authenticated=$authenticated)', () async {
+      final directory = await Directory.systemTemp.createTemp('pdfrx-upgrade-');
+      final oldPath = Pdfrx.cacheDirectoryPath;
+      final oldFactory = Pdfrx.createHttpClient;
+      addTearDown(() async {
+        Pdfrx.cacheDirectoryPath = oldPath;
+        Pdfrx.createHttpClient = oldFactory;
+        await directory.delete(recursive: true);
+      });
+      Pdfrx.cacheDirectoryPath = directory.path;
+      final uri = Uri.parse('https://example.org/legacy.pdf');
+      final headers = authenticated ? {'Authorization': 'Bearer A'} : null;
+      final key = authenticated ? '$uri\nauthorization: Bearer A' : uri.toString();
+      final hash = sha1.convert(utf8.encode(key)).toString();
+      final file = File(
+        '${directory.path}/pdfrx.cache/${hash.substring(0, 2)}/${hash.substring(2, 4)}/${hash.substring(4)}.pdf',
+      );
+      await file.create(recursive: true);
+      final bytes = await File('../pdfrx/example/viewer/assets/hello.pdf').readAsBytes();
+      Pdfrx.createHttpClient = () =>
+          MockClient((_) async => http.Response.bytes(bytes, 200, headers: {'cache-control': 'max-age=3600'}));
+      final seed = await PdfFileCache.fromFile(file);
+      final first = await pdfDocumentFromUri(uri, cache: seed, headers: headers);
+      await first.dispose();
+      await seed.close();
+      var requests = 0;
+      Pdfrx.createHttpClient = () => MockClient((_) async {
+        requests++;
+        throw const SocketException('offline');
+      });
+      final reopened = await PdfDocument.openUri(uri, headers: headers);
+      try {
+        expect((await reopened.pages.first.loadText())?.fullText, contains('Hello'));
+        expect(requests, 0);
+      } finally {
+        await reopened.dispose();
+      }
+      await expectLater(PdfDocument.openUri(uri, headers: {'Authorization': 'Bearer B'}), throwsA(anything));
+      expect(requests, greaterThan(0));
     });
   }
 
