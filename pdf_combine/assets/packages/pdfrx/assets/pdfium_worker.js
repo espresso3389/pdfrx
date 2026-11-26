@@ -822,7 +822,10 @@ class PdfRangeCache {
     this.fileSize = 0;
     /** @type {ByteRange[]} */
     this.ranges = [];
-    /** @type {{offset: number, data: Uint8Array}[]} */
+    /**
+     * Nonoverlapping payloads sorted by offset.
+     * @type {{offset: number, data: Uint8Array}[]}
+     */
     this.chunks = [];
     /** @type {ArrayBuffer|null} */
     this.fullData = null;
@@ -929,12 +932,25 @@ class PdfRangeCache {
    */
   isDataAvailable(offset, size) {
     if (size <= 0) return true;
-    const end = offset + size;
-    for (const range of this.ranges) {
-      if (offset >= range.offset && end <= range.end) return true;
-      if (range.offset > offset) return false;
+    const range = this.ranges[this._findRangeIndex(this.ranges, offset)];
+    return range !== undefined && offset + size <= range.end;
+  }
+
+  /**
+   * Find the last entry starting at or before offset in a sorted range index.
+   * @param {{offset: number}[]} ranges
+   * @param {number} offset
+   * @returns {number} -1 if offset precedes the first entry.
+   */
+  _findRangeIndex(ranges, offset) {
+    let low = 0;
+    let high = ranges.length;
+    while (low < high) {
+      const middle = low + ((high - low) >>> 1);
+      if (ranges[middle].offset <= offset) low = middle + 1;
+      else high = middle;
     }
-    return false;
+    return low - 1;
   }
 
   /**
@@ -1004,7 +1020,12 @@ class PdfRangeCache {
       const payload = start === 0 && end === data.length && data.byteLength === data.buffer.byteLength
         ? data
         : data.slice(start, end);
-      this.chunks.push({ offset: range.offset, data: payload });
+      const chunk = { offset: range.offset, data: payload };
+      if (this.chunks.length === 0 || this.chunks[this.chunks.length - 1].offset < chunk.offset) {
+        this.chunks.push(chunk);
+      } else {
+        this.chunks.splice(this._findRangeIndex(this.chunks, chunk.offset) + 1, 0, chunk);
+      }
       if (!this.payloadBuffers.has(payload.buffer)) {
         this.payloadBuffers.add(payload.buffer);
         this.payloadBytes += payload.buffer.byteLength;
@@ -1061,11 +1082,9 @@ class PdfRangeCache {
     const dst = new Uint8Array(Pdfium.memory.buffer, pBuf, size);
     let copied = 0;
     let position = offset;
+    let chunkIndex = this._findRangeIndex(this.chunks, offset);
     while (copied < size) {
-      const chunk = this.chunks.find((candidate) => {
-        const end = candidate.offset + candidate.data.length;
-        return position >= candidate.offset && position < end;
-      });
+      const chunk = this.chunks[chunkIndex++];
       if (!chunk) return 0;
 
       const chunkOffset = position - chunk.offset;
