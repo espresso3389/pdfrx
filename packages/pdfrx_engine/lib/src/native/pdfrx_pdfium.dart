@@ -120,11 +120,60 @@ Future<void> _reloadFontFiles() async {
   }, (fontCachePath: _fontCachePath, fontPaths: _fontPaths));
 }
 
-/// Retrieve and clear the last missing fonts from the worker-side font mapper.
-Future<List<PdfFontQuery>> _getAndClearMissingFonts() async {
-  return await BackgroundWorker.compute((params) {
-    return _fontMapper?.getAndClearMissingFonts() ?? const <PdfFontQuery>[];
-  }, null);
+// Only the synchronous PDFium call currently running on this isolate owns this scope.
+// Cooperative render tasks restore it between slices, so reports cannot cross documents.
+_MissingFonts? _activeMissingFonts;
+
+class _MissingFonts {
+  _MissingFonts({this.documentAddress});
+  final int? documentAddress;
+  int? pageNumber;
+  final _fonts = <int?, Map<(String, int, bool, PdfFontCharset, int), PdfFontQuery>>{};
+
+  void add(PdfFontQuery query) {
+    (_fonts[pageNumber] ??= {})[(query.face, query.weight, query.isItalic, query.charset, query.pitchFamily)] = query;
+  }
+
+  void addAll(_MissingFonts other) {
+    for (final entry in other._fonts.entries) {
+      (_fonts[entry.key] ??= {}).addAll(entry.value);
+    }
+  }
+
+  bool get isEmpty => _fonts.isEmpty;
+
+  List<PdfFontQuery> get fonts => List.unmodifiable({for (final fonts in _fonts.values) ...fonts}.values);
+
+  Map<int, List<PdfFontQuery>> get fontsByPage => Map.unmodifiable({
+    for (final entry in _fonts.entries)
+      if (entry.key != null) entry.key!: List<PdfFontQuery>.unmodifiable(entry.value.values),
+  });
+
+  R run<R>(R Function() callback) {
+    final previous = _activeMissingFonts;
+    _activeMissingFonts = this;
+    try {
+      return callback();
+    } finally {
+      _activeMissingFonts = previous;
+    }
+  }
+}
+
+class _WithMissingFonts<R> {
+  _WithMissingFonts(this.value, this.missingFonts);
+  final R value;
+  final _MissingFonts missingFonts;
+}
+
+_WithMissingFonts<R> _captureMissingFonts<R>(R Function() callback, {int? documentAddress}) {
+  final fonts = _MissingFonts(documentAddress: documentAddress);
+  return _WithMissingFonts(fonts.run(callback), fonts);
+}
+
+pdfium_bindings.FPDF_PAGE _loadPageForFontReport(pdfium_bindings.FPDF_DOCUMENT document, int pageIndex) {
+  _activeMissingFonts?.pageNumber = _activeMissingFonts?.documentAddress == document.address ? pageIndex + 1 : null;
+  return pdfium.FPDF_LoadPage(document, pageIndex);
 }
 
 class _PdfFontMapper {
@@ -136,7 +185,6 @@ class _PdfFontMapper {
 
   Pointer<pdfium_bindings.FPDF_SYSFONTINFO> get sysFontInfo => _sysFontInfo;
 
-  final _missingFonts = <String, PdfFontQuery>{};
   final _cachedFonts = <String, _CachedFont>{};
   final _mappedFonts = <int, _CachedFont>{};
   final _aliases = <String, String>{};
@@ -225,12 +273,6 @@ class _PdfFontMapper {
     calloc.free(_sysFontInfo);
   }
 
-  List<PdfFontQuery> getAndClearMissingFonts() {
-    final fonts = _missingFonts.values.toList();
-    _missingFonts.clear();
-    return fonts;
-  }
-
   void addFontFiles({required String? fontCachePath, required List<String> fontPaths}) {
     _sources.prune();
     final cachePath = fontCachePath;
@@ -291,7 +333,6 @@ class _PdfFontMapper {
   void addFontData({required String face, required Uint8List data, String? resolvedFace}) {
     final font = _CachedFont(face: face, resolvedFace: resolvedFace, source: _sources.fromData(data), charset: null);
     _addCachedFont(font);
-    _missingFonts.remove(face);
   }
 
   void addFontFile({required String face, required String filePath, String? resolvedFace}) {
@@ -306,7 +347,6 @@ class _PdfFontMapper {
     for (final fontName in fontNames) {
       _addCachedFont(_CachedFont(face: fontName, resolvedFace: fontName, source: source, charset: null));
     }
-    _missingFonts.remove(face);
   }
 
   void _addCachedFont(_CachedFont font) {
@@ -326,7 +366,6 @@ class _PdfFontMapper {
   void clear() {
     _cachedFonts.clear();
     _aliases.clear();
-    _missingFonts.clear();
   }
 
   static final _fontNamesToIgnore = {'Symbol', 'ZapfDingbats'};
@@ -351,12 +390,14 @@ class _PdfFontMapper {
     }
 
     if (!_fontNamesToIgnore.contains(faceName)) {
-      _missingFonts[faceName] = PdfFontQuery(
-        face: faceName,
-        weight: weight,
-        isItalic: italic != 0,
-        charset: PdfFontCharset.fromPdfiumCharsetId(charset),
-        pitchFamily: pitchFamily,
+      _activeMissingFonts?.add(
+        PdfFontQuery(
+          face: faceName,
+          weight: weight,
+          isItalic: italic != 0,
+          charset: PdfFontCharset.fromPdfiumCharsetId(charset),
+          pitchFamily: pitchFamily,
+        ),
       );
     }
     return nullptr;
@@ -446,7 +487,7 @@ class _CachedFont {
 ///
 /// `doc` is the address of the loaded `FPDF_DOCUMENT` (0 on failure) and `error` is the `FPDF_GetLastError` value
 /// captured right after a failed load (0 on success).
-typedef _PdfLoadResult = ({int doc, int error});
+typedef _PdfLoadResult = ({int doc, int error, _MissingFonts missingFonts});
 
 /// Maximum number of times [_pdfLoadResult] runs a failing load to obtain a meaningful error code.
 const _maxPdfLoadAttemptsForErrorCode = 3;
@@ -461,13 +502,16 @@ const _maxPdfLoadAttemptsForErrorCode = 3;
 /// TLS access) that reset the thread's last-error to 0. Since 0 (`FPDF_ERR_SUCCESS`) is never a valid outcome of a
 /// failed load, the load is simply retried a few times until a meaningful code is obtained.
 _PdfLoadResult _pdfLoadResult(pdfium_bindings.FPDF_DOCUMENT Function() load) {
-  for (var attempt = 0; attempt < _maxPdfLoadAttemptsForErrorCode; attempt++) {
-    final doc = load();
-    if (doc != nullptr) return (doc: doc.address, error: pdfium_bindings.FPDF_ERR_SUCCESS);
-    final error = pdfium.FPDF_GetLastError();
-    if (error != pdfium_bindings.FPDF_ERR_SUCCESS) return (doc: 0, error: error);
-  }
-  return (doc: 0, error: pdfium_bindings.FPDF_ERR_UNKNOWN);
+  final fonts = _MissingFonts();
+  return fonts.run(() {
+    for (var attempt = 0; attempt < _maxPdfLoadAttemptsForErrorCode; attempt++) {
+      final doc = load();
+      if (doc != nullptr) return (doc: doc.address, error: pdfium_bindings.FPDF_ERR_SUCCESS, missingFonts: fonts);
+      final error = pdfium.FPDF_GetLastError();
+      if (error != pdfium_bindings.FPDF_ERR_SUCCESS) return (doc: 0, error: error, missingFonts: fonts);
+    }
+    return (doc: 0, error: pdfium_bindings.FPDF_ERR_UNKNOWN, missingFonts: fonts);
+  });
 }
 
 class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
@@ -732,6 +776,7 @@ class PdfrxEntryFunctionsImpl implements PdfrxEntryFunctions {
       if (result.doc != 0) {
         return _PdfDocumentPdfium.fromPdfDocument(
           pdfium_bindings.FPDF_DOCUMENT.fromAddress(result.doc),
+          initialMissingFonts: result.missingFonts,
           sourceName: sourceName,
           useProgressiveLoading: useProgressiveLoading,
           disposeCallback: disposeCallback,
@@ -906,6 +951,7 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
   // Opening a document can produce both a load-complete event and a missing-font event before callers can subscribe.
   // Retain both so late subscribers do not have to race document creation.
   final subject = ReplaySubject<PdfDocumentEvent>(maxSize: 2);
+  _MissingFonts? _openingMissingFonts = _MissingFonts();
 
   @override
   bool get isEncrypted => securityHandlerRevision != -1;
@@ -930,6 +976,7 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
     required String sourceName,
     required bool useProgressiveLoading,
     required void Function()? disposeCallback,
+    _MissingFonts? initialMissingFonts,
   }) async {
     if (doc == nullptr) {
       throw const PdfException('Failed to load PDF document.');
@@ -938,32 +985,36 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
     var formHandleAddress = 0;
     var formInfoAddress = 0;
     try {
-      final result = await BackgroundWorker.computeWithArena((arena, docAddress) {
-        final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(docAddress);
-        Pointer<pdfium_bindings.FPDF_FORMFILLINFO> formInfo = nullptr;
-        pdfium_bindings.FPDF_FORMHANDLE formHandle = nullptr;
-        try {
-          final permissions = pdfium.FPDF_GetDocPermissions(doc);
-          final securityHandlerRevision = pdfium.FPDF_GetSecurityHandlerRevision(doc);
-
-          formInfo = calloc<pdfium_bindings.FPDF_FORMFILLINFO>();
-          formInfo.ref.version = 1;
-          formHandle = pdfium.FPDFDOC_InitFormFillEnvironment(doc, formInfo);
-          return (
-            permissions: permissions,
-            securityHandlerRevision: securityHandlerRevision,
-            formHandle: formHandle.address,
-            formInfo: formInfo.address,
-          );
-        } catch (e) {
+      final captured = await BackgroundWorker.computeWithArena(
+        (arena, docAddress) => _captureMissingFonts(() {
+          final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(docAddress);
+          Pointer<pdfium_bindings.FPDF_FORMFILLINFO> formInfo = nullptr;
+          pdfium_bindings.FPDF_FORMHANDLE formHandle = nullptr;
           try {
-            if (formHandle != nullptr) pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
-          } finally {
-            calloc.free(formInfo);
+            final permissions = pdfium.FPDF_GetDocPermissions(doc);
+            final securityHandlerRevision = pdfium.FPDF_GetSecurityHandlerRevision(doc);
+
+            formInfo = calloc<pdfium_bindings.FPDF_FORMFILLINFO>();
+            formInfo.ref.version = 1;
+            formHandle = pdfium.FPDFDOC_InitFormFillEnvironment(doc, formInfo);
+            return (
+              permissions: permissions,
+              securityHandlerRevision: securityHandlerRevision,
+              formHandle: formHandle.address,
+              formInfo: formInfo.address,
+            );
+          } catch (e) {
+            try {
+              if (formHandle != nullptr) pdfium.FPDFDOC_ExitFormFillEnvironment(formHandle);
+            } finally {
+              calloc.free(formInfo);
+            }
+            rethrow;
           }
-          rethrow;
-        }
-      }, doc.address);
+        }),
+        doc.address,
+      );
+      final result = captured.value;
       formHandleAddress = result.formHandle;
       formInfoAddress = result.formInfo;
 
@@ -979,6 +1030,9 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
         disposeCallback: disposeCallback,
       );
 
+      pdfDoc._openingMissingFonts!.addAll(captured.missingFonts);
+      if (initialMissingFonts != null) pdfDoc._openingMissingFonts!.addAll(initialMissingFonts);
+
       if (useProgressiveLoading) {
         pdfDoc._pages = await pdfDoc._measureFirstPage();
       } else {
@@ -986,9 +1040,10 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
         pdfDoc._notifyDocumentLoadComplete();
       }
       pdfDoc._nativePageCount = pdfDoc._pages.length;
-      // Complete the initial missing-font query before exposing the document. The replaying event stream ensures that
-      // a font manager associated immediately after open receives this event instead of racing it.
-      await pdfDoc._notifyMissingFonts();
+      // Aggregate all opening chunks into one replayable event without scheduling a global drain job.
+      final openingFonts = pdfDoc._openingMissingFonts!;
+      pdfDoc._openingMissingFonts = null;
+      pdfDoc._notifyMissingFonts(openingFonts);
       return pdfDoc;
     } catch (e) {
       try {
@@ -1016,12 +1071,21 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
     }
   }
 
-  /// Notify missing fonts by sending [PdfDocumentMissingFontsEvent].
-  Future<void> _notifyMissingFonts() async {
-    final lastMissingFonts = await _getAndClearMissingFonts();
-    if (!isDisposed && lastMissingFonts.isNotEmpty) {
-      subject.add(PdfDocumentMissingFontsEvent(this, lastMissingFonts));
+  void _notifyMissingFonts(_MissingFonts fonts) {
+    if (isDisposed || fonts.isEmpty) return;
+    final opening = _openingMissingFonts;
+    if (opening != null) {
+      opening.addAll(fonts);
+      return;
     }
+    subject.add(
+      PdfDocumentMissingFontsEvent(
+        this,
+        fonts.fonts,
+        // Native indices do not identify logical slots while pages have unapplied reorder/import/duplicate edits.
+        missingFontsByPage: _hasPageEdits ? const {} : fonts.fontsByPage,
+      ),
+    );
   }
 
   @override
@@ -1294,7 +1358,7 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
         final pages = <_PageMeasurement>[];
         for (final i in indices) {
           if (i < 0 || i >= pageCount) continue;
-          final page = pdfium.FPDF_LoadPage(doc, i);
+          final page = _loadPageForFontReport(doc, i);
           try {
             final rect = arena<pdfium_bindings.FS_RECTF>();
             pdfium.FPDF_GetPageBoundingBox(page, rect);
@@ -1588,14 +1652,26 @@ class _PdfDocumentPdfium extends PdfDocument implements PdfPageMetadataLoader {
     M message, {
     BackgroundWorkerPriority? priority,
     List<int>? idleDocuments,
-  }) => _lifetime.use(
-    // Keep lazy parsing, metadata reads and modifications outside the document's live render contexts.
-    () => BackgroundWorker.computeTask((params) => _PdfiumIdleTask(params.callback, params.message, params.documents), (
-      callback: callback,
-      message: message,
-      documents: idleDocuments ?? [document.address],
-    ), priority: priority),
-  );
+  }) => _lifetime.use(() async {
+    // Return the operation's report with its value; never drain another document's worker-global state.
+    final result = await BackgroundWorker.computeTask(
+      (params) => _PdfiumIdleTask(
+        (arena, message) =>
+            _captureMissingFonts(() => params.callback(arena, message), documentAddress: params.document),
+        params.message,
+        params.documents,
+      ),
+      (
+        callback: callback,
+        message: message,
+        documents: idleDocuments ?? [document.address],
+        document: document.address,
+      ),
+      priority: priority,
+    );
+    _notifyMissingFonts(result.missingFonts);
+    return result.value;
+  });
 
   @override
   Future<void> dispose() {
@@ -1766,7 +1842,7 @@ class _DocumentPageArranger with ShuffleItemsInPlaceMixin {
           for (var i = 0; i < params.length; i++) {
             final rotation = params.rotations[i];
             if (rotation == null) continue;
-            final page = pdfium.FPDF_LoadPage(arranger.document, i);
+            final page = _loadPageForFontReport(arranger.document, i);
             pdfium.FPDFPage_SetRotation(page, rotation);
             pdfium.FPDF_ClosePage(page);
           }
@@ -1913,7 +1989,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
         final cancelFlag = arena<Bool>();
         ct?.attach(cancelFlag);
         try {
-          if (cancelFlag.value || document.isDisposed) return 0;
+          if (cancelFlag.value || document.isDisposed) return _WithMissingFonts(0, _MissingFonts());
           return await document._lifetime.use(
             () => BackgroundWorker.computeTask(
               _PdfiumRenderTask.new,
@@ -1951,13 +2027,13 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
         }
       });
 
-      document._notifyMissingFonts();
+      document._notifyMissingFonts(bufferAddress.missingFonts);
 
-      if (bufferAddress == 0) {
+      if (bufferAddress.value == 0) {
         return null;
       }
 
-      buffer = Pointer<Uint8>.fromAddress(bufferAddress);
+      buffer = Pointer<Uint8>.fromAddress(bufferAddress.value);
       if (ct?.isCanceled == true) return null;
       final resultBuffer = buffer;
       buffer = nullptr;
@@ -1981,7 +2057,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
         final doubleSize = sizeOf<Double>();
         final rectBuffer = arena<Double>(4);
         final doc = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.docHandle);
-        final page = pdfium.FPDF_LoadPage(doc, params.pageNumber - 1);
+        final page = _loadPageForFontReport(doc, params.pageNumber - 1);
         final textPage = pdfium.FPDFText_LoadPage(page);
         try {
           final charCount = pdfium.FPDFText_CountChars(textPage);
@@ -2202,7 +2278,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
           pdfium_bindings.FPDF_PAGELINK linkPage = nullptr;
           try {
             final document = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
-            page = pdfium.FPDF_LoadPage(document, params.pageNumber - 1);
+            page = _loadPageForFontReport(document, params.pageNumber - 1);
             textPage = pdfium.FPDFText_LoadPage(page);
             if (textPage == nullptr) return [];
             linkPage = pdfium.FPDFLink_LoadWebLinks(textPage);
@@ -2277,7 +2353,7 @@ class _PdfPagePdfium extends PdfPage with PdfPageLinkCache {
       ? []
       : await document._computeWithArena((arena, params) {
           final document = pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document);
-          final page = pdfium.FPDF_LoadPage(document, params.pageNumber - 1);
+          final page = _loadPageForFontReport(document, params.pageNumber - 1);
           try {
             final count = pdfium.FPDFPage_GetAnnotCount(page);
             final rectf = arena<pdfium_bindings.FS_RECTF>();
@@ -2480,9 +2556,10 @@ class _PdfiumIdleTask<M, R> extends BackgroundWorkerTask<R> {
   void dispose() {}
 }
 
-class _PdfiumRenderTask extends BackgroundWorkerTask<int> {
-  _PdfiumRenderTask(this.params);
+class _PdfiumRenderTask extends BackgroundWorkerTask<_WithMissingFonts<int>> {
+  _PdfiumRenderTask(this.params) : _missingFonts = _MissingFonts(documentAddress: params.document);
   final _PdfiumRenderParams params;
+  final _MissingFonts _missingFonts;
   static const _maxActiveBytes = 64 * 1024 * 1024;
   static const _maxActiveTasks = 4;
   static final _activePages = <(int, int)>{};
@@ -2514,7 +2591,9 @@ class _PdfiumRenderTask extends BackgroundWorkerTask<int> {
           (_activeBytes == 0 || _activeBytes + _bytes <= _maxActiveBytes));
 
   @override
-  bool run() {
+  bool run() => _missingFonts.run(_run);
+
+  bool _run() {
     if (isCanceled) return true;
     if (_renderComplete) return _finishRendering();
     if (!_admitted) {
@@ -2530,7 +2609,7 @@ class _PdfiumRenderTask extends BackgroundWorkerTask<int> {
         params.width * 4,
       );
       if (_bitmap == nullptr) throw PdfException('FPDFBitmap_CreateEx(${params.width}, ${params.height}) failed.');
-      _page = pdfium.FPDF_LoadPage(pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document), params.pageNumber - 1);
+      _page = _loadPageForFontReport(pdfium_bindings.FPDF_DOCUMENT.fromAddress(params.document), params.pageNumber - 1);
       if (_page == nullptr) throw PdfException('FPDF_LoadPage(${params.pageNumber}) failed.');
       if (isCanceled) return true;
       pdfium.FPDFBitmap_FillRect(_bitmap, 0, 0, params.width, params.height, params.backgroundColor);
@@ -2623,10 +2702,12 @@ class _PdfiumRenderTask extends BackgroundWorkerTask<int> {
   }
 
   @override
-  int get result => _result;
+  _WithMissingFonts<int> get result => _WithMissingFonts(_result, _missingFonts);
 
   @override
-  void dispose() {
+  void dispose() => _missingFonts.run(_dispose);
+
+  void _dispose() {
     if (_renderStarted) pdfium.FPDF_RenderPage_Close(_page);
     if (_page != nullptr) pdfium.FPDF_ClosePage(_page);
     if (_bitmap != nullptr) pdfium.FPDFBitmap_Destroy(_bitmap);

@@ -1,0 +1,54 @@
+name: Native Font Reporting Tests
+
+on:
+  pull_request:
+    paths:
+      - 'packages/pdfrx_engine/**'
+      - 'packages/pdfium_dart/**'
+      - '.github/workflows/native-font-reporting-tests.yml'
+  push:
+    branches: [master, main]
+    paths:
+      - 'packages/pdfrx_engine/**'
+      - 'packages/pdfium_dart/**'
+      - '.github/workflows/native-font-reporting-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: '3.50.1'
+  CI: true
+  FLUTTER_SUPPRESS_ANALYTICS: true
+  DASH__SUPPRESS_ANALYTICS: true
+
+jobs:
+  native-font-reporting:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up pinned Flutter on Unix
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter/bin/flutter" --version
+      - name: Set up pinned Flutter on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          git clone --depth 1 --branch $env:FLUTTER_VERSION https://github.com/flutter/flutter.git "$env:RUNNER_TEMP/flutter"
+          "$env:RUNNER_TEMP/flutter/bin" >> $env:GITHUB_PATH
+          & "$env:RUNNER_TEMP/flutter/bin/flutter.bat" --version
+      - name: Install workspace dependencies
+        run: flutter pub get
+      - name: Test native callback ownership, progressive loading, text, and render slices
+        working-directory: packages/pdfrx_engine
+        run: dart test test/pdf_document_test.dart --name "native missing font ownership" --reporter expanded
