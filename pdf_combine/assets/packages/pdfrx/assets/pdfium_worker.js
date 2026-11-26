@@ -1577,32 +1577,17 @@ function loadDocumentFromRegisteredData({ sourceId, password, useProgressiveLoad
  * @param {{data: ArrayBuffer, password: string|undefined, useProgressiveLoading: boolean|undefined}} params
  */
 function loadDocumentFromData(params) {
-  const data = params.data;
-  const password = params.password || '';
-  const useProgressiveLoading = params.useProgressiveLoading;
-
-  const sizeThreshold = 1024 * 1024; // 1MB
-  if (data.byteLength < sizeThreshold) {
-    const buffer = Pdfium.wasmExports.malloc(data.byteLength);
-    if (buffer === 0) {
-      throw new Error('Failed to allocate memory for PDF data (${data.byteLength} bytes)');
-    }
-    new Uint8Array(Pdfium.memory.buffer, buffer, data.byteLength).set(new Uint8Array(data));
-    const passwordPtr = StringUtils.allocateUTF8(password);
-    const docHandle = Pdfium.wasmExports.FPDF_LoadMemDocument(buffer, data.byteLength, passwordPtr);
-    StringUtils.freeUTF8(passwordPtr);
-    return _loadDocument(docHandle, useProgressiveLoading, () => Pdfium.wasmExports.free(buffer));
+  const { sourceId } = registerDocumentData(params);
+  try {
+    return loadDocumentFromRegisteredData({
+      sourceId,
+      password: params.password,
+      useProgressiveLoading: params.useProgressiveLoading,
+    });
+  } finally {
+    // Success transfers the source to the document; failure still owns it here.
+    releaseDocumentData({ sourceId });
   }
-
-  const tempFileName = params.url ?? '/tmp/temp.pdf';
-  fileSystem.registerFileWithData(tempFileName, data);
-
-  const fileNamePtr = StringUtils.allocateUTF8(tempFileName);
-  const passwordPtr = StringUtils.allocateUTF8(password);
-  const docHandle = Pdfium.wasmExports.FPDF_LoadDocument(fileNamePtr, passwordPtr);
-  StringUtils.freeUTF8(passwordPtr);
-  StringUtils.freeUTF8(fileNamePtr);
-  return _loadDocument(docHandle, useProgressiveLoading, () => fileSystem.unregisterFile(tempFileName));
 }
 
 /** @type {Object<number, function():void>} */
