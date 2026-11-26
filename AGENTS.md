@@ -4,6 +4,7 @@ This file provides guidance to AI agents and developers when working with code i
 
 ## Quick Start for Agents
 
+- Write tests, fixture generators, benchmarks, and CI helpers in Dart. Use platform-specific languages only for checks that require the native runtime or APIs.
 - Keep existing user changes intact. If unexpected edits overlap your task and make the next step ambiguous, pause and ask how to proceed; otherwise work around them without reverting.
 - Prefer fast, non-destructive tools (`rg`, `rg --files`, targeted tests) and run commands with an explicit `workdir`; avoid wandering `cd` commands in agent-run shells.
 - Read the relevant `doc/agents/` file before changing package structure, commands, style, or release/publishing flow.

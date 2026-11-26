@@ -43,7 +43,7 @@ jobs:
       - name: Boot an iOS simulator
         if: matrix.platform == 'ios-simulator'
         run: |
-          simulator=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; data=json.load(sys.stdin); print(next(d["udid"] for runtime,devices in data["devices"].items() if "iOS" in runtime for d in devices if d["name"].startswith("iPhone")))')
+          simulator=$(dart packages/pdfrx_coregraphics/tool/select_ios_simulator.dart)
           xcrun simctl boot "$simulator"
           xcrun simctl bootstatus "$simulator" -b
           echo "PDFRX_SIMULATOR_UDID=$simulator" >> "$GITHUB_ENV"

@@ -79,7 +79,7 @@ dart compile exe tool/worker_queue_benchmark.dart -o /tmp/worker-queue
 /tmp/worker-queue normal 10000
 /tmp/worker-queue mixed 10000 3
 /tmp/worker-queue cooperative 1000 3
-python3 tool/worker_queue_scan_probe.py normal 10000
+dart tool/worker_queue_scan_probe.dart normal 10000
 ```
 
 Compile the same benchmark file in a separate baseline checkout after resolving
@@ -90,7 +90,7 @@ Do not compare instrumented-probe timings with the uninstrumented AOT timings.
 To count reads from the baseline source without changing the current checkout:
 
 ```sh
-python3 tool/worker_queue_scan_probe.py normal 10000 \
+dart tool/worker_queue_scan_probe.dart normal 10000 \
   --source /path/to/baseline/packages/pdfrx_engine/lib/src/native/worker.dart
 ```
 

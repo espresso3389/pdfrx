@@ -9,3 +9,6 @@ workspace:
   - packages/pdfrx_coregraphics
   - packages/pdfrx/example/viewer
   - packages/pdfrx/example/pdf_combine
+dev_dependencies:
+  args: ^2.7.0
+  crypto: ^3.0.8
